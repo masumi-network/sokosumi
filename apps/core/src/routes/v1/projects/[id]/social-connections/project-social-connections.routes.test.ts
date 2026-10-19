@@ -1,12 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ComposioApiError } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  ComposioConfigError,
+} from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { conflict, forbidden, notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -21,7 +26,7 @@ const {
   requireCoworkerCapabilityMock,
   disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnectionMock,
-  initiateProjectSocialConnectionMock,
+  initiateComposioConnectionMock,
   listProjectSocialConnectionsMock,
   requireSocialBetaAccessMock,
   scheduleSocialAccountRefreshMock,
@@ -30,7 +35,7 @@ const {
   requireCoworkerCapabilityMock: vi.fn(),
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
-  initiateProjectSocialConnectionMock: vi.fn(),
+  initiateComposioConnectionMock: vi.fn(),
   listProjectSocialConnectionsMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
   scheduleSocialAccountRefreshMock: vi.fn(),
@@ -39,7 +44,7 @@ const {
 vi.mock("@/services/project-social-connections.service", () => ({
   disconnectProjectSocialConnection: disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnection: finalizeProjectSocialConnectionMock,
-  initiateProjectSocialConnection: initiateProjectSocialConnectionMock,
+  initiateProjectSocialConnection: initiateComposioConnectionMock,
   listProjectSocialConnections: listProjectSocialConnectionsMock,
 }));
 
@@ -124,6 +129,7 @@ function createApp(
     defaultHook: defaultValidationHook,
   });
 
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
@@ -148,7 +154,7 @@ describe("Project social connection routes", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     requireSocialBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
-    initiateProjectSocialConnectionMock.mockResolvedValue({
+    initiateComposioConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
     });
@@ -176,7 +182,7 @@ describe("Project social connection routes", () => {
         },
       );
       expect(initiation.status).toBe(201);
-      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+      expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
@@ -245,7 +251,7 @@ describe("Project social connection routes", () => {
   });
 
   it("uses only the session user and workspace when initiating a connection", async () => {
-    initiateProjectSocialConnectionMock.mockResolvedValue({
+    initiateComposioConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
       sessionUri: "https://composio.dev/session-secret",
@@ -273,7 +279,7 @@ describe("Project social connection routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("session-secret");
-    expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+    expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
@@ -300,7 +306,7 @@ describe("Project social connection routes", () => {
       );
 
       expect(response.status).toBe(201);
-      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+      expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
@@ -362,6 +368,33 @@ describe("Project social connection routes", () => {
       connectionId: SOCIAL_CONNECTION_ID,
       trigger: "connect",
     });
+  });
+
+  it("keeps the connection when the first stats refresh queue fails", async () => {
+    scheduleSocialAccountRefreshMock.mockRejectedValue(new Error("queue down"));
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId: CONNECTION_ID }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: {
+        id: SOCIAL_CONNECTION_ID,
+        status: "active",
+      },
+    });
+    expect(finalizeProjectSocialConnectionMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+    expect(scheduleSocialAccountRefreshMock).toHaveBeenCalled();
   });
 
   it("returns a disconnected credential-free connection when provider revocation fails", async () => {
@@ -447,11 +480,29 @@ describe("Project social connection routes", () => {
       ]);
       expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
       expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
-      expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
       expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
     },
   );
+
+  it("tags a missing Composio configuration on initiate with a machine-readable kind", async () => {
+    initiateComposioConnectionMock.mockRejectedValue(
+      new ComposioConfigError("not configured"),
+    );
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connect", provider: "x" }),
+      },
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+    });
+  });
 
   it("gates every social-connection operation behind Social beta access", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(
@@ -490,7 +541,7 @@ describe("Project social connection routes", () => {
       expect.anything(),
     );
     expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
     expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
     expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
@@ -519,7 +570,7 @@ describe("Project social connection routes", () => {
     expect(malformedProject.status).toBe(422);
     expect(malformedConnection.status).toBe(422);
     expect(unsupportedProvider.status).toBe(422);
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
   });
 
   it("returns not found when the Project is outside the current workspace", async () => {
@@ -600,6 +651,6 @@ describe("Project social connection routes", () => {
       },
     );
     expect(denied.status).toBe(403);
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
   });
 });

@@ -22,10 +22,6 @@ export const pushDeviceBrowserDetailsSchema = z
   })
   .openapi("PushDeviceBrowserDetails");
 
-export type PushDeviceBrowserDetails = z.infer<
-  typeof pushDeviceBrowserDetailsSchema
->;
-
 export const pushDeviceBrowserUpdateSchema = pushDeviceBrowserDetailsSchema
   .partial()
   .extend({ registeredAt: z.iso.datetime().optional() })

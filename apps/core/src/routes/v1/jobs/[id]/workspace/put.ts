@@ -1,8 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
-import { requireJobCollaboration } from "@/helpers/access-control";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import {
+  readWorkspaceOrganizationId,
+  requireJobCollaboration,
+  requireOwnerForPersonalWorkspace,
+} from "@/helpers/access-control";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
@@ -31,7 +35,8 @@ const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "put",
     path: "/{id}/workspace",
-    description: "Change job workspace",
+    description:
+      "Change job workspace. Only the job's owner may move it. A job without an owner needs an organization owner or admin and cannot move to a personal workspace.",
     tags: ["Jobs"],
     request: {
       params: paramsSchema,
@@ -61,34 +66,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const job = await serializableTransaction(async (tx) => {
-      // A delegated coworker may only move a job whose task is assigned to it.
-      await requireJobCollaboration(c.var.authContext, id, tx);
+      // Moving belongs to the job's Owner (ADR 0057). A
+      // delegated coworker may only move a job whose task is assigned to it.
+      const accessibleJob = await requireJobCollaboration(
+        c.var.authContext,
+        id,
+        tx,
+        { right: "manage" },
+      );
 
-      const currentJob = await tx.job.findFirst({
-        where: {
-          id,
-          ownerId: userContext.userId,
-        },
-        select: {
-          taskId: true,
-          workspace: {
-            select: {
-              organizationId: true,
-            },
-          },
-        },
-      });
-
-      if (!currentJob) {
-        throw forbidden("You can only access your own jobs");
-      }
-
-      if (currentJob.taskId !== null) {
+      if (accessibleJob.taskId !== null) {
         throw conflict("Task-attached jobs inherit their task workspace");
       }
 
       const workspaceChanged =
-        targetOrganizationId !== currentJob.workspace.organizationId;
+        targetOrganizationId !==
+        (await readWorkspaceOrganizationId(accessibleJob.workspaceId, tx));
 
       if (!workspaceChanged) {
         const existingJob = await tx.job.findUnique({
@@ -104,6 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       // `null` targets the authenticated user's personal workspace.
+      requireOwnerForPersonalWorkspace(accessibleJob, targetOrganizationId);
       if (targetOrganizationId !== null) {
         await resolveMemberOrganizationById({
           id: targetOrganizationId,

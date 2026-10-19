@@ -13,7 +13,7 @@ export class GrantFreeCreditsError extends Error {
   }
 }
 
-export interface GrantFreeCreditsParams {
+interface GrantFreeCreditsParams {
   credits: number;
   expiresAt: Date | null;
   grantId: string;
@@ -24,7 +24,7 @@ export interface GrantFreeCreditsParams {
   transactionUserId: string | null;
 }
 
-export interface GrantFreeCreditsResult {
+interface GrantFreeCreditsResult {
   bucketId: string;
 }
 

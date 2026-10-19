@@ -9,6 +9,7 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 
 import mountApproveSocialPost from "./[postId]/approve/post.js";
 import mountCancelSocialPost from "./[postId]/cancel/post.js";
+import mountDuplicateSocialPost from "./[postId]/duplicate/post.js";
 import mountGetSocialPost from "./[postId]/get.js";
 import mountPatchSocialPost from "./[postId]/patch.js";
 import mountPublishSocialPost from "./[postId]/publish/post.js";
@@ -25,6 +26,7 @@ const {
   approveSocialPostMock,
   cancelSocialPostMock,
   createSocialPostMock,
+  duplicateSocialPostMock,
   getSocialPostMock,
   listSocialPostStatisticsMock,
   refreshSocialPostStatisticsMock,
@@ -40,6 +42,7 @@ const {
   approveSocialPostMock: vi.fn(),
   cancelSocialPostMock: vi.fn(),
   createSocialPostMock: vi.fn(),
+  duplicateSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
   listSocialPostStatisticsMock: vi.fn(),
   refreshSocialPostStatisticsMock: vi.fn(),
@@ -59,6 +62,7 @@ vi.mock("@/services/social-posts.service", () => ({
   approveSocialPost: approveSocialPostMock,
   cancelSocialPost: cancelSocialPostMock,
   createSocialPost: createSocialPostMock,
+  duplicateSocialPost: duplicateSocialPostMock,
   getSocialPost: getSocialPostMock,
   listSocialPosts: listSocialPostsMock,
   rejectSocialPost: rejectSocialPostMock,
@@ -135,6 +139,7 @@ const draftPost = {
   projectId: PROJECT_ID,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "DRAFT",
   scheduledAt: null,
@@ -160,6 +165,7 @@ const draftPost = {
   canPublishNow: true,
   canApprove: false,
   canReject: false,
+  canDuplicate: false,
   connectionNeedsReconnect: false,
 };
 
@@ -207,6 +213,7 @@ function createApp(
   mountApproveSocialPost(app);
   mountRejectSocialPost(app);
   mountCancelSocialPost(app);
+  mountDuplicateSocialPost(app);
   mountPublishSocialPost(app);
 
   return app;
@@ -234,6 +241,7 @@ function allOperations(app: ReturnType<typeof createApp>) {
     app.request(`${base}/${POST_ID}/cancel`, json("POST", { revision: 0 })),
     app.request(`${base}/${POST_ID}/approve`, json("POST", { revision: 0 })),
     app.request(`${base}/${POST_ID}/reject`, json("POST", { revision: 0 })),
+    app.request(`${base}/${POST_ID}/duplicate`, { method: "POST" }),
     app.request(`${base}/${POST_ID}/publish`, json("POST", { revision: 0 })),
   ];
 }
@@ -247,6 +255,7 @@ function expectNoServiceCalls() {
   expect(cancelSocialPostMock).not.toHaveBeenCalled();
   expect(approveSocialPostMock).not.toHaveBeenCalled();
   expect(rejectSocialPostMock).not.toHaveBeenCalled();
+  expect(duplicateSocialPostMock).not.toHaveBeenCalled();
   expect(publishSocialPostNowMock).not.toHaveBeenCalled();
 }
 
@@ -281,6 +290,10 @@ describe("Project social post routes", () => {
       canApprove: false,
       canReject: false,
     });
+    duplicateSocialPostMock.mockResolvedValue({
+      ...draftPost,
+      id: "55555555-5555-4555-8555-555555555555",
+    });
     cancelSocialPostMock.mockResolvedValue({
       ...scheduledPost,
       status: "CANCELED",
@@ -311,6 +324,7 @@ describe("Project social post routes", () => {
       canSchedule: false,
       canCancel: false,
       canPublishNow: false,
+      canDuplicate: true,
     });
   });
 
@@ -318,7 +332,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp(null)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401, 401, 401, 401, 401, 401,
+      401, 401, 401, 401, 401, 401, 401, 401, 401, 401,
     ]);
     expectNoServiceCalls();
   });
@@ -332,7 +346,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp(auth)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403, 403, 403, 403,
     ]);
     expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expectNoServiceCalls();
@@ -346,7 +360,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp()));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403, 403, 403, 403,
     ]);
     expectNoServiceCalls();
   });
@@ -643,6 +657,7 @@ describe("Project social post routes", () => {
       canPublishNow: true,
       canApprove: false,
       canReject: false,
+      canDuplicate: true,
     });
 
     const response = await createApp().request(
@@ -738,6 +753,25 @@ describe("Project social post routes", () => {
       userId: USER_ID,
       postId: POST_ID,
       revision: 1,
+    });
+  });
+
+  it("duplicates a post into a new draft", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/duplicate`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: { id: "55555555-5555-4555-8555-555555555555", status: "DRAFT" },
+    });
+    expect(duplicateSocialPostMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      postId: POST_ID,
     });
   });
 
@@ -884,12 +918,15 @@ describe("Project social post routes", () => {
       allOperations(createApp(COWORKER_CONTEXT_AUTH)),
     );
     expect(responses.map((response) => response.status)).toEqual([
-      200, 201, 200, 200, 200, 200, 403, 403, 403,
+      200, 201, 200, 200, 200, 200, 403, 403, 201, 403,
     ]);
     expect(createSocialPostMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
     );
     expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
+    );
+    expect(duplicateSocialPostMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
     );
     expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(

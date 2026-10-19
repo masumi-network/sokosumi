@@ -9,6 +9,7 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useState } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 
@@ -175,7 +176,10 @@ export function useOrgPresenceMap(
       }
 
       if (!channel) {
-        const channelName = makeOrgPresenceChannelName(activeOrganizationId);
+        const channelName = makeOrgPresenceChannelName(
+          activeOrganizationId,
+          getRealtimeChannelEnvironment(),
+        );
         channel = ably.channels.get(channelName);
 
         channel.presence.subscribe("enter", upsertMember);

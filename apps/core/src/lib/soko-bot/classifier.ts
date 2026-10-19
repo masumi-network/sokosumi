@@ -167,6 +167,8 @@ export interface PresetRoute {
   sandbox?: boolean;
   /** When set, the only writes the turn gets; reads always stay. */
   writes?: readonly SokoBotCapability[];
+  /** When set, exactly these tools, whatever the route grants. */
+  capabilities?: readonly SokoBotCapability[];
 }
 
 /** A turn that skips Jev because Core already knows what it is for. */

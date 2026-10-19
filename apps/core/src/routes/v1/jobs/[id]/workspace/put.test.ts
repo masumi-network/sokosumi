@@ -3,8 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountPutJobWorkspace, { putJobWorkspaceRequestSchema } from "./put";
+
+// Every caller here holds a Seat; access-control tests cover the refusal.
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn(async () => undefined),
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -88,6 +94,9 @@ interface TransactionMock {
   task?: {
     findFirst: ReturnType<typeof vi.fn>;
   };
+  workspace?: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createCurrentJobRecord(
@@ -121,6 +130,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     agentId: "agent_123",
     ownerId: "user_123",
     owner,
+    creator: null,
     userId: "user_123",
     organizationId: "org_billing",
     projectId: null,
@@ -187,9 +197,25 @@ function createApp(activeOrganizationId: string | null = null) {
   return app;
 }
 
+/**
+ * The job's workspace is read on its own; unless a test mocks it, it answers
+ * with the `workspace` of the job record `findFirst` last returned.
+ */
+async function currentJobWorkspace() {
+  const job = (await jobFindFirstMock.mock.results.at(-1)?.value) as
+    | CurrentJobRecord
+    | null
+    | undefined;
+  return { organizationId: job?.workspace.organizationId ?? null };
+}
+
 function mockTransaction(tx: TransactionMock) {
+  const withWorkspace = {
+    workspace: { findUnique: vi.fn(currentJobWorkspace) },
+    ...tx,
+  };
   prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
+    return await callback(withWorkspace);
   });
 }
 
@@ -256,20 +282,7 @@ describe("PUT /jobs/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(jobFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "job_123",
-        ownerId: "user_123",
-      },
-      select: {
-        taskId: true,
-        workspace: {
-          select: {
-            organizationId: true,
-          },
-        },
-      },
-    });
+    expect(jobFindFirstMock).toHaveBeenCalledTimes(1);
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",
@@ -390,6 +403,116 @@ describe("PUT /jobs/{id}/workspace", () => {
 
     expect(response.status).toBe(403);
     expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("who may move a job (ADR 0057)", () => {
+    const workspaceFindUniqueMock = vi.fn();
+
+    beforeEach(() => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        organizationId: "org_current",
+      });
+      mockTransaction({
+        job: {
+          findFirst: jobFindFirstMock,
+          findUnique: jobFindUniqueMock,
+          update: jobUpdateMock,
+        },
+        workspace: { findUnique: workspaceFindUniqueMock },
+      });
+    });
+
+    function requestMove(organizationId: string | null = "org_target") {
+      return createApp("org_current").request(
+        "http://localhost/job_123/workspace",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId }),
+        },
+      );
+    }
+
+    function currentJob(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        ...createCurrentJobRecord({
+          workspace: { organizationId: "org_current" },
+        }),
+        ...columns,
+      };
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the Owner move a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy(maker, "user_123")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(jobUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "refuses anyone else a job made by a %s",
+      async (maker) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy(maker, "user_other")),
+        );
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(403);
+        expect(jobUpdateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s move a job without an Owner",
+      async (role) => {
+        jobFindFirstMock.mockResolvedValue(
+          currentJob(publicWorkMadeBy("sokoBot", null)),
+        );
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_current" },
+          role,
+        });
+
+        const response = await requestMove();
+
+        expect(response.status).toBe(200);
+        expect(jobUpdateMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("refuses a plain member a job without an Owner", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        currentJob(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      const response = await requestMove();
+
+      expect(response.status).toBe(403);
+      expect(jobUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps a job without an Owner out of a personal workspace", async () => {
+      jobFindFirstMock.mockResolvedValue(
+        currentJob(publicWorkMadeBy("sokoBot", null)),
+      );
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_current" },
+        role: "owner",
+      });
+
+      const response = await requestMove(null);
+
+      expect(response.status).toBe(400);
+      expect(jobUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   it("allows idempotent no-op updates without membership or write checks", async () => {

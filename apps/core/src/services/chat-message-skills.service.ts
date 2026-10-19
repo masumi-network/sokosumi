@@ -37,7 +37,7 @@ export interface AttachedSkillContent {
   content: string;
 }
 
-export async function loadMessageSkills(
+async function loadMessageSkills(
   messageId: string,
 ): Promise<AttachedSkillContent[]> {
   return prisma.chatRoomMessageSkill.findMany({

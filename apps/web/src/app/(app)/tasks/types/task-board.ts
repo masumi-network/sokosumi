@@ -31,8 +31,8 @@ export interface TaskWithCoworker {
   status: TaskStatus;
   priority: TaskPriority;
   visibility: TaskVisibility;
-  ownerId: string;
-  owner: UserSummary;
+  ownerId: string | null;
+  owner: UserSummary | null;
   project: ProjectSummary | null;
   createdAt: string;
   updatedAt: string;

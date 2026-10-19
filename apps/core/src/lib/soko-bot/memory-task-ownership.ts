@@ -48,7 +48,7 @@ export async function memoryTasks(
       {
         id: task.id,
         name: task.name ?? "Untitled task",
-        ownerName: task.owner.name?.trim() || "a teammate",
+        ownerName: task.owner?.name?.trim() || "a teammate",
         foreign:
           task.ownerId !== bot.userId && task.assigneeSokoBotId !== bot.id,
         closed:

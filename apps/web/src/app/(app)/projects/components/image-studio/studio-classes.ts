@@ -20,11 +20,18 @@ export const STUDIO_PILL_CLASS =
   "focus-visible:ring-ring-halo inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]";
 
 export const STUDIO_COLUMN_MOBILE_SHELL_CLASS =
-  "max-md:-mt-4 max-md:-mb-4 max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:overflow-hidden" as const;
+  "max-md:-m-4 max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:overflow-hidden" as const;
 
 /** Clear the floating Apple navigation bar as well as the fixed header. */
 export const STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS =
   "max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-max(0.75rem,env(safe-area-inset-bottom)))]" as const;
 
+/**
+ * Same desktop height as an open chat room: cancel the page pad and sit
+ * under the header, so the prompt docks on the bottom edge.
+ */
 export const STUDIO_COLUMN_FEED_HEIGHT_CLASS =
-  "md:h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-0 md:min-h-[28rem]" as const;
+  "md:-m-4 md:h-[calc(100dvh-4rem-env(safe-area-inset-top))] min-h-0 md:min-h-[28rem]" as const;
+
+/** Chat's own composer gutter. Keep the two boxes the same width. */
+export const STUDIO_COMPOSER_GUTTER_CLASS = "px-3 md:px-5" as const;

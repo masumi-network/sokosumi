@@ -325,6 +325,7 @@
       "design-md": "Design",
       "memory": "Gedächtnis",
       "social": "Social-Planung",
+      "ads": "Ads",
       "evaluations": "Modellvergleiche"
     },
     "Jobs": {
@@ -1239,10 +1240,19 @@
             "message": "Noch kein Konto?",
             "link": "Registrieren"
           },
+          "RegisterOnWebsite": {
+            "message": "Noch kein Konto? Konten werden auf der Website erstellt, nicht in der App.",
+            "link": "Auf der Website erstellen"
+          },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
             "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "NoAccountOnWebsite": {
+            "title": "Kein Konto für diese Adresse",
+            "description": "Prüfe sie auf Tippfehler oder erstelle ein Konto auf der Website und melde dich dann hier an.",
+            "createAccount": "Konto auf der Website erstellen"
           },
           "Handover": {
             "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
@@ -1623,6 +1633,7 @@
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
+          "background": "Hintergrundauftrag: {name}",
           "taskUpdate": "Task-Update"
         }
       }
@@ -2369,8 +2380,11 @@
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
         "connectAccount": "Konto verbinden",
+        "projectClosed": "Dieses Projekt ist geschlossen.",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
+        "startOver": "Neu starten",
+        "syncNow": "Jetzt synchronisieren",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
         "unknownHandle": "Unbekanntes Konto",
@@ -2382,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "{account} ersetzen?",
-          "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
+          "description": "Entwürfe und geplante Beiträge wandern auf das neue Konto.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
@@ -2393,17 +2407,18 @@
         "cancel": "Abbrechen",
         "success": {
           "connected": "{account} verbunden.",
-          "disconnected": "{account} getrennt."
+          "disconnected": "{account} getrennt.",
+          "syncStarted": "Synchronisierung gestartet."
         },
         "warning": {
-          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
+          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",
+          "facebookPage": "Facebook braucht ein Konto, das genau eine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Versuche es erneut.",
           "legacyCallback": "Mit dieser Rückmeldung kann dein Konto nicht verifiziert werden. Wende dich an den Support und versuche es erneut.",
           "verifier": "Dein Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
@@ -2411,7 +2426,8 @@
           "reconnectMismatch": "Verbinde dasselbe Konto erneut, das bereits mit diesem Projekt verknüpft ist.",
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
-          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
+          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
+          "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
         "connectComingSoon": "{provider} (bald verfügbar)",
@@ -2420,10 +2436,14 @@
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
+        "loadMoreError": "Mehr konnte nicht geladen werden.",
+        "loadMoreOffline": "Du bist offline.",
+        "loadMoreTimeout": "Zeitüberschreitung.",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
-        "moreActions": "Beitragsaktionen",
+        "moreActionsNamed": "Beitragsaktionen für {handle}",
+        "thisDraft": "diesen Entwurf",
         "noAccount": "Kein Konto",
         "outcomes": {
           "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen.",
@@ -2447,11 +2467,15 @@
           "accounts": "Konten",
           "statistics": "Leistung"
         },
+        "filters": {
+          "platform": "Plattform"
+        },
         "empty": {
-          "drafts": "Noch keine Entwürfe."
+          "drafts": "Noch keine Entwürfe.",
+          "more": "Weitere Beiträge sind verfügbar."
         },
         "emptyHint": {
-          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
+          "drafts": "Speichere einen Entwurf für später."
         },
         "status": {
           "DRAFT": "Entwurf",
@@ -2475,9 +2499,14 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "firstComment": "Erster Kommentar",
+          "firstCommentPlaceholder": "Hashtags oder ein Aufruf",
+          "firstCommentTooLong": "Der erste Kommentar ist zu lang.",
+          "textForAccount": "Text für dieses Konto",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
+            "drop": "Dateien zum Anhängen ablegen",
             "upload": "Hochladen",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
@@ -2524,7 +2553,9 @@
             "dateSelected": "Datum: {date}",
             "timeSelected": "Uhrzeit: {time}",
             "times": "Uhrzeiten",
-            "now": "Jetzt"
+            "now": "Jetzt",
+            "suggestedTimes": "Vorgeschlagene Zeiten",
+            "suggested": "Beste {time}"
           },
           "timezone": {
             "yours": "Deine Zeitzone: {zone}",
@@ -2546,6 +2577,10 @@
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
           "dismiss": "Abbrechen",
+          "discardTitle": "Änderungen verwerfen?",
+          "discardDescription": "Deine Änderungen gehen verloren.",
+          "discard": "Verwerfen",
+          "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
           "tooLong": "Die Textlänge überschreitet das Limit."
@@ -2555,20 +2590,29 @@
           "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
+        "dismissDialog": {
+          "title": "Diesen Beitrag verwerfen?",
+          "description": "Er verschwindet aus Braucht Aufmerksamkeit.",
+          "confirm": "Verwerfen"
+        },
         "toasts": {
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
+          "dismissed": "Beitrag verworfen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "offline": "Du bist offline. Versuche es erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
+          "missingPost": "Beitrag konnte nicht geöffnet werden.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
-          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
+          "publishFailedItem": "{account} — {error}",
+          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
+          "duplicated": "Entwurf erstellt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2577,23 +2621,36 @@
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
-          "publishNow": "Jetzt veröffentlichen",
-          "retry": "Erneut versuchen"
+          "publishNow": "Jetzt posten",
+          "retry": "Erneut versuchen",
+          "dismiss": "Verwerfen",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "publishDialog": {
-          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "title": "Diesen Beitrag jetzt posten?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
-          "confirm": "Jetzt veröffentlichen"
+          "confirm": "Jetzt posten"
         },
         "retryDialog": {
           "title": "Diesen Beitrag erneut versuchen?",
           "description": "Der Beitrag wird jetzt veröffentlicht.",
           "confirm": "Erneut versuchen"
         },
+        "bulkRetry": {
+          "selectPost": "Diesen Beitrag auswählen",
+          "selectAll": "Alle erneut versuchbaren Beiträge auswählen",
+          "selected": "{count} ausgewählt",
+          "retrySelected": "Auswahl erneut versuchen",
+          "title": "Diese Beiträge jetzt erneut versuchen?",
+          "description": "Jeder ausgewählte Beitrag wird sofort veröffentlicht. Du siehst danach, welche veröffentlicht wurden und welche noch Aufmerksamkeit brauchen.",
+          "confirm": "Auswahl erneut versuchen",
+          "resultsTitle": "Ergebnis",
+          "published": "Veröffentlicht"
+        },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge gehen von den Konten dieses Projekts.",
-          "action": "X, YouTube, LinkedIn … verbinden"
+          "action": "Konto verbinden"
         },
         "reconnectPrompt": {
           "title": "Erneut verbinden, um zu posten",
@@ -2605,8 +2662,9 @@
           "now": "jetzt",
           "accountFallback": "Dein Konto",
           "open": "Vorschau",
+          "openNamed": "Vorschau für {handle}",
           "accounts": "Vorschaukonto",
-          "as": "Vorschau als {handle}",
+          "as": "Vorschau als {provider} {handle}",
           "dialogTitle": "Beitragsvorschau",
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
@@ -2621,7 +2679,9 @@
           },
           "instagram": {
             "more": "mehr",
-            "mediaRequired": "Instagram braucht ein Bild oder Video."
+            "mediaRequired": "Instagram braucht ein Bild oder Video.",
+            "slide": "{current} von {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Gefällt mir",
@@ -2637,6 +2697,9 @@
           "tiktok": {
             "more": "mehr",
             "videoRequired": "TikTok braucht ein Video."
+          },
+          "x": {
+            "more": "Mehr anzeigen"
           }
         },
         "statistics": {
@@ -2655,9 +2718,11 @@
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
+          "loadMoreError": "Mehr konnte nicht geladen werden.",
           "unavailable": "Nicht verfügbar",
           "notFetched": "Statistiken wurden noch nicht abgerufen.",
-          "updatedAt": "Aktualisiert am {date}",
+          "updatedAt": "Aktualisiert {date}",
+          "updating": "Aktualisiere…",
           "metrics": {
             "views": "Aufrufe",
             "impressions": "Impressionen",
@@ -2691,11 +2756,27 @@
             "dayEngagementUnavailable": "{date}: Interaktionen nicht verfügbar",
             "dayOutside": "{date}: außerhalb der erfassten Historie",
             "legendNone": "Keine",
-            "legendMore": "Mehr"
+            "legendMore": "Mehr",
+            "moreActions": "Weitere Aktionen",
+            "exportCsv": "CSV exportieren",
+            "exportXlsx": "Tabelle exportieren",
+            "legendUnknown": "Unbekannt"
           },
           "accountsTitle": "Verbundene Konten",
           "postsTitle": "Veröffentlichte Kontobeiträge",
-          "postsHint": "Schreibgeschützter Verlauf aus verbundenen Plattformen. Beitragsfilter ändern die Kontoübersicht nicht.",
+          "postsHint": "Importiert von verbundenen Plattformen. Teile einen starken Beitrag erneut.",
+          "recycle": {
+            "action": "Erneut teilen",
+            "strong": "Stark",
+            "title": "Beitrag erneut teilen?",
+            "description": "Kopiert den Text in einen neuen Entwurf. Es wird nichts von allein veröffentlicht.",
+            "saveDraft": "Als Entwurf speichern",
+            "inDays": "In {days} Tagen",
+            "drafted": "Entwurf erstellt.",
+            "scheduled": "Erneut geplant.",
+            "failed": "Teilen fehlgeschlagen.",
+            "cancel": "Abbrechen"
+          },
           "account": "Konto",
           "allAccounts": "Alle Konten",
           "syncAll": "Alle Konten synchronisieren",
@@ -2780,7 +2861,16 @@
             "minutes": "Minuten",
             "hours": "Stunden"
           }
-        }
+        },
+        "reconnection": {
+          "accounts": "Konten mit Handlungsbedarf",
+          "title": "{account} muss erneut verbunden werden",
+          "affected": "{count, plural, one {# Beitrag betroffen} other {# Beiträge betroffen}}",
+          "retryTitle": "Fehlgeschlagene Beiträge erneut versuchen?",
+          "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
+          "later": "Später"
+        },
+        "moreActions": "Beitragsaktionen"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -2948,6 +3038,8 @@
       "generate": "Erzeugen",
       "refine": "Verfeinern",
       "regenerate": "Neue Variante",
+      "schedule": "Dieses Bild planen",
+      "scheduleFailed": "Dieses Bild konnte nicht angehängt werden",
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
@@ -3022,7 +3114,6 @@
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
       "pickTitle": "Projekt auswählen",
-      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
@@ -3072,7 +3163,579 @@
         "megapixels": "Megapixel",
         "processedMegapixels": "verarbeitetes Megapixel"
       },
-      "creditsCheckedOn": "Preis geprüft am {date}"
+      "creditsCheckedOn": "Preis geprüft am {date}",
+      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen."
+    },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Projekt auswählen",
+      "pickBody": "Ads gehören zu einem Projekt: Werbekonten und Kampagnen werden dort verwaltet. Wähle ein Projekt aus, um seine Ads zu öffnen.",
+      "pickAction": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "tabsLabel": "Ads-Bereiche",
+      "loading": "Ads werden geladen…",
+      "updated": "Aktualisiert {time}",
+      "loadError": {
+        "unavailableDescription": "Es ist für Sokosumi noch nicht eingerichtet.",
+        "failedDescription": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
+      "tabs": {
+        "campaigns": "Kampagnen",
+        "market": "Markt",
+        "accounts": "Konten"
+      },
+      "campaigns": {
+        "emptyTitle": "Verbinde ein Werbekonto, um Kampagnen zu sehen",
+        "emptyBody": "Kampagnen aus Google Ads und Meta Ads erscheinen hier, sobald ein Konto verbunden ist.",
+        "emptyAction": "Zu den Konten",
+        "noCampaignsTitle": "Noch keine Kampagnen in diesem Konto",
+        "noCampaignsBody": "Erstelle eine mit „Neue Kampagne“. Sie startet pausiert.",
+        "account": "Werbekonto",
+        "rangeLabel": "Zeitraum",
+        "range": {
+          "7d": "7 Tage",
+          "30d": "30 Tage"
+        },
+        "tableLabel": "Kampagnen",
+        "columns": {
+          "name": "Kampagne",
+          "status": "Status",
+          "dailyBudget": "Tagesbudget",
+          "spend": "Ausgaben",
+          "impressions": "Impressionen",
+          "clicks": "Klicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions",
+          "actions": "Aktionen"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "PAUSED": "Pausiert",
+          "ENDED": "Beendet",
+          "OTHER": "Sonstige"
+        },
+        "actions": {
+          "label": "Aktionen für {name}",
+          "pause": "Pausieren",
+          "resume": "Fortsetzen",
+          "budget": "Tagesbudget ändern"
+        },
+        "cancel": "Abbrechen",
+        "pauseDialog": {
+          "title": "{name} pausieren?",
+          "description": "Die Kampagne gibt kein Geld mehr aus, bis du sie fortsetzt.",
+          "confirm": "Pausieren"
+        },
+        "resumeDialog": {
+          "title": "{name} fortsetzen?",
+          "description": "Die Kampagne gibt wieder Geld aus, bis zu ihrem Tagesbudget.",
+          "confirm": "Fortsetzen"
+        },
+        "budget": {
+          "label": "Tagesbudget ({currency})",
+          "required": "Gib ein Tagesbudget über 0 ein.",
+          "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
+          "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}.",
+          "managedElsewhere": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort."
+        },
+        "budgetDialog": {
+          "title": "Tagesbudget ändern",
+          "description": "{name} gibt pro Tag höchstens diesen Betrag aus.",
+          "save": "Budget speichern",
+          "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
+          "notSet": "nicht festgelegt"
+        },
+        "success": {
+          "updated": "Kampagne erfolgreich aktualisiert"
+        },
+        "errors": {
+          "update": "Kampagne konnte nicht aktualisiert werden",
+          "notActive": {
+            "title": "Verbinde dieses Konto unter Konten neu",
+            "description": "Die Verbindung zu diesem Werbekonto ist nicht mehr aktiv.",
+            "action": "Zu den Konten"
+          },
+          "unavailable": {
+            "title": "{provider} ist noch nicht verfügbar"
+          },
+          "failed": {
+            "title": "Kampagnen konnten nicht geladen werden"
+          }
+        },
+        "new": "Neue Kampagne",
+        "budgetPerDay": "{budget}/Tag"
+      },
+      "newCampaign": {
+        "title": "Neue Kampagne",
+        "inAccount": "{provider}-Konto {name}",
+        "note": {
+          "google_ads": "Kampagnen werden pausiert erstellt. Setze sie hier fort, wenn sie bereit sind.",
+          "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
+        },
+        "sections": {
+          "type": "Kampagnentyp",
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "ad": "Anzeige"
+        },
+        "types": {
+          "SEARCH": "Suche",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Textanzeigen in den Google-Suchergebnissen.",
+          "DISPLAY": "Bildanzeigen auf Websites und in Apps im Google Displaynetzwerk."
+        },
+        "name": "Name",
+        "objective": "Ziel",
+        "objectivePlaceholder": "Ziel auswählen",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Bekanntheit",
+          "OUTCOME_ENGAGEMENT": "Interaktion",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Verkäufe"
+        },
+        "startDate": "Startdatum",
+        "endDate": "Enddatum",
+        "datesHelp": "Optional. Es gilt die Zeitzone des Anzeigenkontos.",
+        "targeting": {
+          "locations": {
+            "label": "Standorte",
+            "help": "Wo Ihre Anzeigen erscheinen können. Bis zu {max}.",
+            "full": "Standortlimit erreicht ({max}).",
+            "placeholder": "Nach Land, Region oder Stadt suchen",
+            "search": "Standorte suchen",
+            "loading": "Suche läuft…",
+            "idle": "Tippen Sie, um einen Ort zu finden.",
+            "empty": "Keine Standorte gefunden.",
+            "error": "Standorte konnten nicht gesucht werden.",
+            "all": "Alle Länder",
+            "remove": "{name} entfernen"
+          },
+          "languages": {
+            "label": "Sprachen",
+            "help": "Zeigen Sie Anzeigen für Personen, die diese Sprachen verwenden.",
+            "placeholder": "Sprachen auswählen",
+            "search": "Sprachen suchen",
+            "empty": "Keine Sprachen gefunden.",
+            "unavailable": "Die Sprachen konnten nicht geladen werden. Die Kampagne richtet sich an alle Sprachen.",
+            "all": "Alle Sprachen",
+            "remove": "{name} entfernen"
+          }
+        },
+        "keywords": {
+          "label": "Keywords",
+          "help": "Ein Keyword pro Zeile. Mit \"Anführungszeichen\" für passende Wortgruppe und [eckigen Klammern] für genau passend.",
+          "placeholder": "laufschuhe\n\"trailrunning schuhe\"\n[laufschuhe kaufen]",
+          "count": "{count, plural, one {# Keyword} other {# Keywords}}",
+          "addFromMarket": "Aus Markt hinzufügen",
+          "marketNone": "Keine neuen Markt-Keywords zum Hinzufügen",
+          "marketFailed": "Markt-Keywords konnten nicht geladen werden",
+          "errors": {
+            "required": "Füge mindestens ein Keyword hinzu.",
+            "tooMany": "Verwende höchstens {max} Keywords.",
+            "syntax": "Zeile {line}: Prüfe die Anführungszeichen und Klammern.",
+            "tooLong": "Zeile {line}: Verwende höchstens {max} Zeichen.",
+            "tooManyWords": "Zeile {line}: Verwende höchstens {max} Wörter."
+          }
+        },
+        "ad": {
+          "finalUrl": "Ziel-URL",
+          "finalUrlHelp": "Die Seite, auf der Personen nach dem Klick auf deine Anzeige landen.",
+          "finalUrlPlaceholder": "https://example.com/schuhe",
+          "businessName": "Firmenname",
+          "longHeadline": "Lange Überschrift",
+          "displayPath": "Anzeigepfad",
+          "displayPathHelp": "Optional. Zwei kurze Pfade, die in der Anzeige nach deiner Domain stehen.",
+          "path1": "Pfad 1",
+          "path2": "Pfad 2",
+          "pathPreview": "Angezeigt als {url}",
+          "headlines": {
+            "label": "Überschriften",
+            "help": "{min} bis {max} Überschriften mit je höchstens {length} Zeichen. Google kombiniert sie, um herauszufinden, was funktioniert.",
+            "item": "Überschrift {number}",
+            "add": "Überschrift hinzufügen",
+            "remove": "Überschrift {number} entfernen"
+          },
+          "descriptions": {
+            "label": "Beschreibungen",
+            "help": "{min} bis {max} Beschreibungen mit je höchstens {length} Zeichen.",
+            "item": "Beschreibung {number}",
+            "add": "Beschreibung hinzufügen",
+            "remove": "Beschreibung {number} entfernen"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# Sitelink} other {# Sitelinks}}",
+            "help": "Zusätzliche Links unter deiner Anzeige. Bis zu {max}. Fülle beide Beschreibungszeilen aus oder keine.",
+            "item": "Sitelink {number}",
+            "text": "Linktext",
+            "finalUrl": "URL",
+            "description1": "Beschreibungszeile 1",
+            "description2": "Beschreibungszeile 2",
+            "add": "Sitelink hinzufügen",
+            "remove": "Sitelink {number} entfernen"
+          },
+          "callouts": {
+            "title": "Zusatzinformationen (optional)",
+            "summary": "{count, plural, one {# Zusatzinformation} other {# Zusatzinformationen}}",
+            "label": "Zusatzinformationen",
+            "help": "Kurze Highlights wie „Kostenloser Versand“. Bis zu {max} mit je höchstens {length} Zeichen.",
+            "item": "Zusatzinformation {number}",
+            "add": "Zusatzinformation hinzufügen",
+            "remove": "Zusatzinformation {number} entfernen"
+          },
+          "images": {
+            "label": "Bilder",
+            "help": "JPEG, PNG oder GIF, je höchstens {maxMb} MB. Bilder im Querformat haben 1,91:1 (mindestens {landscape} px), quadratische Bilder 1:1 (mindestens {square} px). Insgesamt höchstens {maxImages}.",
+            "counts": "Querformat {landscape} · Quadrat {square} · {total} von {max} Bildern",
+            "missing": {
+              "both": "Füge mindestens ein Bild im Querformat und ein quadratisches Bild hinzu.",
+              "landscape": "Füge mindestens ein Bild im Querformat hinzu.",
+              "square": "Füge mindestens ein quadratisches Bild hinzu."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Quadratische Bilder, 1:1, mindestens {logo} px. Höchstens {maxLogos}.",
+            "logoCounts": "{count} von {max} Logos",
+            "roles": {
+              "LANDSCAPE": "Querformat",
+              "SQUARE": "Quadrat",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "files": "Bilddateien"
+              },
+              "logo": {
+                "files": "Logodateien"
+              }
+            },
+            "upload": "Hochladen",
+            "choose": "Aus Drive wählen",
+            "remove": "{name} entfernen",
+            "uploadFailed": "Das Bild konnte nicht hochgeladen werden",
+            "uploadDuplicate": "Eine Datei mit diesem Namen gibt es in deinem Drive schon. Wähle sie stattdessen aus Drive.",
+            "errors": {
+              "unreadable": "{name}: Das Bild konnte nicht gelesen werden.",
+              "type": "{name}: Verwende ein JPEG-, PNG- oder GIF-Bild.",
+              "tooLarge": "{name}: Verwende ein Bild mit höchstens {maxMb} MB.",
+              "duplicate": "{name} ist schon hinzugefügt.",
+              "full": "Verwende höchstens {maxImages} Bilder im Querformat und quadratische Bilder.",
+              "fullLogo": "Verwende höchstens {maxLogos} Logos.",
+              "ratio": "{name}: Verwende ein Bild im Querformat (1,91:1, mindestens {landscape} px) oder ein quadratisches Bild (1:1, mindestens {square} px).",
+              "landscapeTooSmall": "{name}: Bilder im Querformat brauchen mindestens {landscape} px.",
+              "squareTooSmall": "{name}: Quadratische Bilder brauchen mindestens {square} px.",
+              "logoRatio": "{name}: Logos müssen quadratisch sein (1:1).",
+              "logoTooSmall": "{name}: Logos brauchen mindestens {logo} px.",
+              "repeated": "Verwende jede Bilddatei nur einmal."
+            },
+            "kept": "Aktuelles Bild ({role})"
+          }
+        },
+        "submit": "Kampagne erstellen",
+        "uploadingImages": "Bilder werden hochgeladen …",
+        "success": "Kampagne erstellt (pausiert)",
+        "errors": {
+          "nameRequired": "Gib einen Namen ein.",
+          "nameTooLong": "Verwende höchstens {max} Zeichen.",
+          "objectiveRequired": "Wähle ein Ziel.",
+          "finalUrl": "Gib eine vollständige Adresse ein, die mit http:// oder https:// beginnt.",
+          "headlineRequired": "Gib eine Überschrift ein oder entferne diese.",
+          "headlineTooLong": "Verwende höchstens {max} Zeichen.",
+          "headlineDuplicate": "Jede Überschrift muss sich unterscheiden.",
+          "descriptionRequired": "Gib eine Beschreibung ein oder entferne diese.",
+          "descriptionTooLong": "Verwende höchstens {max} Zeichen.",
+          "tooLong": "Verwende höchstens {max} Zeichen.",
+          "pathNeedsFirst": "Fülle zuerst Pfad 1 aus.",
+          "endBeforeStart": "Das Enddatum darf nicht vor dem Startdatum liegen.",
+          "sitelinkTextRequired": "Gib den Linktext ein oder entferne diesen Sitelink.",
+          "sitelinkDescriptionsPair": "Fülle beide Beschreibungszeilen aus oder keine.",
+          "sitelinkDuplicate": "Jeder Sitelink muss sich unterscheiden.",
+          "calloutDuplicate": "Jede Zusatzinformation muss sich unterscheiden.",
+          "businessNameRequired": "Gib den Firmennamen ein.",
+          "longHeadlineRequired": "Gib eine lange Überschrift ein.",
+          "failed": "Kampagne konnte nicht erstellt werden"
+        },
+        "steps": {
+          "type": "Kampagnentyp",
+          "basics": "Grundlagen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige",
+          "review": "Überprüfen"
+        },
+        "wizard": {
+          "stepsLabel": "Schritte",
+          "stepOf": "Schritt {current} von {total}: {step}",
+          "backTo": "Zurück zu {step}",
+          "goTo": "Zu {step}",
+          "back": "Zurück",
+          "next": "Weiter"
+        },
+        "typeTitle": "Wo sollen deine Anzeigen erscheinen?",
+        "typeIntro": "Wähle eine Option. Sie lässt sich nach dem Erstellen der Kampagne nicht mehr ändern.",
+        "needs": {
+          "title": "Das brauchst du",
+          "keywords": "Keywords, nach denen Menschen suchen",
+          "searchTexts": "{minHeadlines} bis {maxHeadlines} Überschriften und {minDescriptions} bis {maxDescriptions} Beschreibungen",
+          "displayTexts": "Bis zu {maxHeadlines} Überschriften, eine lange Überschrift und bis zu {maxDescriptions} Beschreibungen",
+          "businessName": "Den Namen deines Unternehmens",
+          "images": "Ein Querformat- und ein quadratisches Bild",
+          "finalUrl": "Die Seite, auf der Menschen landen"
+        },
+        "preview": {
+          "title": "Vorschau",
+          "searchLabel": "Vorschau der Suchanzeige",
+          "displayLabel": "Vorschau der Displayanzeige",
+          "sponsored": "Gesponsert",
+          "note": "Google kombiniert deine Texte und Bilder, um herauszufinden, was funktioniert. Die echte Anzeige kann daher anders aussehen.",
+          "another": "Andere Kombination zeigen",
+          "noImage": "Noch kein Bild",
+          "open": "Öffnen"
+        },
+        "review": {
+          "title": "Zusammenfassung",
+          "dailyBudget": "Tagesbudget",
+          "edit": "Bearbeiten",
+          "editLabel": "{section} bearbeiten",
+          "schedule": {
+            "label": "Zeitraum",
+            "range": "{start} bis {end}",
+            "from": "Ab {start}",
+            "until": "Bis {end}",
+            "none": "Kein Start- oder Enddatum"
+          }
+        },
+        "setupFailed": {
+          "title": "Das Kampagnenformular konnte nicht geladen werden",
+          "body": "Prüfe deine Verbindung und versuche es erneut.",
+          "retry": "Erneut versuchen"
+        }
+      },
+      "campaignDetails": {
+        "back": "Zurück zu den Kampagnen",
+        "title": "Kampagne",
+        "types": {
+          "SEARCH": "Suche",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} pro Tag",
+        "noEndDate": "Kein Enddatum",
+        "sections": {
+          "performance": "Performance",
+          "settings": "Einstellungen",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Anzeige",
+          "sitelinks": "Sitelinks",
+          "callouts": "Zusatzinformationen"
+        },
+        "performance": {
+          "chartMetric": "Kennzahl im Diagramm",
+          "chartLabel": "{metric} pro Tag",
+          "empty": "Keine Aktivität in diesem Zeitraum",
+          "tableCaption": "Tägliche Performance",
+          "date": "Datum",
+          "chartHint": "Mit den Pfeiltasten nach links und rechts wechselst du zwischen den Tagen."
+        },
+        "settings": {
+          "bidding": "Gebotsstrategie",
+          "networks": "Netzwerke"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Klicks maximieren",
+          "MANUAL_CPC": "Manueller CPC",
+          "ENHANCED_CPC": "Optimierter CPC",
+          "MANUAL_CPM": "Manueller CPM",
+          "TARGET_CPM": "Ziel-CPM",
+          "MAXIMIZE_CONVERSIONS": "Conversions maximieren",
+          "MAXIMIZE_CONVERSION_VALUE": "Conversion-Wert maximieren",
+          "TARGET_CPA": "Ziel-CPA",
+          "TARGET_ROAS": "Ziel-ROAS",
+          "TARGET_IMPRESSION_SHARE": "Ziel-Impressionsanteil"
+        },
+        "matchTypes": {
+          "BROAD": "Weitgehend passend",
+          "PHRASE": "Passende Wortgruppe",
+          "EXACT": "Genau passend"
+        },
+        "approval": {
+          "APPROVED": "Genehmigt",
+          "APPROVED_LIMITED": "Eingeschränkt genehmigt",
+          "DISAPPROVED": "Abgelehnt",
+          "PENDING_REVIEW": "Prüfung ausstehend",
+          "UNDER_REVIEW": "In Prüfung",
+          "AREA_OF_INTEREST_ONLY": "Nur in einigen Regionen ausgespielt"
+        },
+        "ad": {
+          "displayUrl": "Angezeigte URL",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Prüfung läuft",
+            "UNDER_APPEAL": "Einspruch eingelegt",
+            "REVIEWED": "Geprüft",
+            "ELIGIBLE_MAY_SERVE": "Auslieferung möglich"
+          },
+          "strength": "Anzeigeneffektivität: {strength}",
+          "strengths": {
+            "PENDING": "Ausstehend",
+            "NO_ADS": "Keine Anzeigen",
+            "POOR": "Schwach",
+            "AVERAGE": "Durchschnittlich",
+            "GOOD": "Gut",
+            "EXCELLENT": "Ausgezeichnet"
+          },
+          "imageAlt": "{role}-Bild {number}"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi erstellt diesen Kampagnentyp nicht. Verwalte ihn in Google Ads.",
+          "AD_GROUPS": "Diese Kampagne hat mehrere Anzeigengruppen. Verwalte sie in Google Ads.",
+          "AD_TYPE": "Diese Kampagne hat keine einzelne responsive Anzeige. Verwalte ihre Anzeigen in Google Ads."
+        },
+        "errors": {
+          "failed": "Diese Kampagne konnte nicht geladen werden"
+        },
+        "networks": {
+          "SEARCH": "Google Suche",
+          "DISPLAY": "Displaynetzwerk"
+        },
+        "edit": "Bearbeiten"
+      },
+      "editCampaign": {
+        "title": "Kampagne bearbeiten",
+        "submit": "Änderungen speichern",
+        "reviewNote": "Beim Speichern wird die Anzeige erneut von Google geprüft.",
+        "startDateLocked": "Das Startdatum lässt sich nicht mehr ändern, sobald die Kampagne gestartet ist.",
+        "success": "Kampagne aktualisiert",
+        "errors": {
+          "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
+          "failed": "Änderungen konnten nicht gespeichert werden"
+        }
+      },
+      "market": {
+        "setupTitle": "Richte deinen Markt ein",
+        "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen deine Suchkonkurrenten schalten.",
+        "edit": "Markt bearbeiten",
+        "editBody": "Trend-Keywords und Anzeigen richten sich nach diesen Keywords, diesem Land und dieser Sprache.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Mit Enter oder Komma hinzufügen. Bis zu {max}.",
+          "keywordsPlaceholder": "Zum Beispiel Laufschuhe",
+          "keywordsFull": "Keyword-Limit erreicht",
+          "removeKeyword": "{keyword} entfernen",
+          "country": "Land",
+          "countryPlaceholder": "Land wählen",
+          "language": "Sprache",
+          "languagePlaceholder": "Sprache wählen",
+          "submit": "Markt speichern",
+          "cancel": "Abbrechen",
+          "success": "Markt erfolgreich gespeichert",
+          "errors": {
+            "keywordsRequired": "Füge mindestens ein Keyword hinzu.",
+            "keywordsTooMany": "Nutze bis zu {max} Keywords.",
+            "countryRequired": "Wähle ein Land.",
+            "languageRequired": "Wähle eine Sprache.",
+            "failed": "Markt konnte nicht gespeichert werden"
+          }
+        },
+        "keywords": {
+          "title": "Trend-Keywords",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Suchen pro Monat",
+            "trend": "12 Monate",
+            "competition": "Wettbewerb",
+            "bidRange": "Gebot für Top-Platzierung"
+          },
+          "competition": {
+            "LOW": "Niedrig",
+            "MEDIUM": "Mittel",
+            "HIGH": "Hoch"
+          },
+          "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
+          "searchesPerMonth": "{count} Suchen pro Monat",
+          "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
+          "emptyBody": "Probiere andere Keywords oder ein anderes Land."
+        },
+        "ads": {
+          "title": "Anzeigen deiner Suchkonkurrenten",
+          "previewAlt": "Anzeige von {advertiser}",
+          "textAd": "Textanzeige",
+          "noPreview": "Keine Vorschau",
+          "format": {
+            "text": "Text",
+            "image": "Bild",
+            "video": "Video",
+            "other": "Sonstige"
+          },
+          "lastShown": "Zuletzt gezeigt {time}",
+          "viewAd": "Anzeige ansehen",
+          "emptyTitle": "Keine Konkurrenzanzeigen gefunden",
+          "emptyBody": "Anzeigen von Websites, die für deine Keywords ranken, erscheinen hier, sobald sie laufen.",
+          "gatheringTitle": "Anzeigen deiner Suchkonkurrenten werden gesammelt",
+          "gatheringBody": "Das dauert einige Minuten. Du kannst diese Seite verlassen.",
+          "refreshing": "Wird aktualisiert…",
+          "failedTitle": "Konkurrenzanzeigen konnten nicht gesammelt werden",
+          "failedBody": "Wir versuchen es innerhalb der nächsten Stunde erneut.",
+          "failedNotice": "Aktualisierung fehlgeschlagen, wir versuchen es innerhalb der nächsten Stunde erneut"
+        },
+        "errors": {
+          "unavailable": "Marktdaten sind noch nicht verfügbar",
+          "failed": {
+            "profile": "Dein Markt konnte nicht geladen werden",
+            "keywords": "Keywords konnten nicht geladen werden",
+            "ads": "Anzeigen konnten nicht geladen werden"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "Noch keine Werbekonten verbunden",
+        "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten.",
+        "connect": "{provider} verbinden",
+        "comingSoon": "Demnächst verfügbar",
+        "unavailable": "{provider} ist noch nicht verfügbar",
+        "noAccountsFound": "Für diesen Login wurden keine Werbekonten gefunden",
+        "sectionLabel": "Werbekonten",
+        "listLabel": "Verbundene Werbekonten",
+        "disconnect": "Trennen",
+        "disconnectLabel": "{name} trennen",
+        "cancel": "Abbrechen",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "{name} trennen?",
+          "description": "Die Kampagnen erscheinen hier nicht mehr. Ist dies das letzte Konto dieses Logins, trennt Sokosumi auch den Login. Du kannst das Konto jederzeit wieder verbinden.",
+          "confirm": "Trennen"
+        },
+        "picker": {
+          "title": "Werbekonten auswählen",
+          "description": "Wähle die {provider}-Konten, die in diesem Projekt verwaltet werden sollen.",
+          "listLabel": "Verfügbare Werbekonten",
+          "confirm": "Auswahl verbinden"
+        },
+        "success": {
+          "connected": "Werbekonten erfolgreich verbunden",
+          "disconnected": "Werbekonto erfolgreich getrennt"
+        },
+        "errors": {
+          "connect": "{provider} konnte nicht verbunden werden",
+          "attach": "Werbekonten konnten nicht verbunden werden",
+          "disconnect": "Werbekonto konnte nicht getrennt werden",
+          "discard": "Verbindung konnte nicht verworfen werden",
+          "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "inFlight": "Es läuft bereits eine Verbindung."
+        }
+      },
+      "error": {
+        "title": "Ads konnten nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      }
     },
     "Social": {
       "title": "Social-Planung",
@@ -3092,17 +3755,22 @@
         "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
-        "title": "Verbinde deine Social-Media-Konten",
-        "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
+        "title": "Wähle ein Projekt",
+        "body": "Dann verbinde Konten."
+      },
+      "attentionNeedProject": {
+        "title": "Braucht Aufmerksamkeit",
+        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
-      "loading": "Social wird geladen…",
+      "loading": "Wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
-        "label": "Social-Media-Plattformen"
+        "label": "Social-Media-Plattformen",
+        "pause": "Plattformen pausieren"
       },
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
@@ -3152,7 +3820,8 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social-Planung"
+          "social": "Social-Planung",
+          "ads": "Ads"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -4978,12 +5647,14 @@
         }
       },
       "SocialAccounts": {
-        "connected": "ist verbunden",
-        "notConnected": "ist nicht verbunden",
+        "title": "Anmeldung",
+        "description": "Mit diesen Konten kannst du dich anmelden.",
+        "connected": "{provider} ist verbunden",
+        "notConnected": "{provider} ist nicht verbunden",
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
         "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
-        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
@@ -4998,7 +5669,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
-        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen"
       },
       "Notifications": {
@@ -7523,7 +8194,8 @@
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
+        "platform": "Plattform"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"

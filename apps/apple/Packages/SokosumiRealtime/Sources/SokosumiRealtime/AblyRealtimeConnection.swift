@@ -19,7 +19,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var realtime: ARTRealtime?
   private var controlChannel: ARTRealtimeChannel?
   private var notificationsChannel: ARTRealtimeChannel?
-  private var notificationsListener: ARTEventListener?
+  private var grantedChannelsListener: ARTEventListener?
   private var notificationsAttachListener: ARTEventListener?
   private var watchedRoomId: String?
   private var tokenSource: RealtimeTokenSource?
@@ -37,9 +37,16 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var roomGeneration = UUID()
   private var connectionGeneration = UUID()
   private var roomHealth: RoomRealtimeHealth?
+  /// The channel the watched room's health observes, to move it when a token names the room otherwise.
+  private var roomHealthChannelName: String?
   private var removeHealthListeners: (() -> Void)?
 
-  public init() {}
+  /// Paces the gated channels' and membership's retry after a failed token mint; tests pass a clock they drive.
+  private let sleep: @Sendable (Duration) async throws -> Void
+
+  public init(sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+    self.sleep = sleep
+  }
 
   public func connect(
     userId: String,
@@ -71,26 +78,22 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       }
     }
     let realtime = ARTRealtime(options: options)
-    let control = realtime.channels.get(userChatControlChannelName(userId: userId))
-    let controlName = control.name
-    for eventName in [chatMembershipRevokedEventName, chatRoomsChangedEventName] {
-      control.subscribe(eventName) { [weak self] message in
-        self?.forward(channelName: controlName, message: message, generation: generation)
-      }
-    }
-    // Core names the notifications channel per deployment, so it is read from
-    // the granted capability once a token exists rather than built here.
-    let notificationsListener = realtime.connection.on { [weak self, weak realtime] change in
+    // Core names every channel per deployment (ADR 0055), so the control and
+    // notifications channels are read from the granted capability once a token
+    // exists rather than built here. A renewed token reports `update` while
+    // still connected, so a grant missing from the first token is picked up later.
+    let grantedChannelsListener = realtime.connection.on { [weak self, weak realtime] change in
       guard change.current == .connected, let realtime else { return }
+      self?.subscribeControl(realtime: realtime, userId: userId, generation: generation)
       self?.subscribeNotifications(realtime: realtime, userId: userId, generation: generation)
+      self?.rebindRoomHealthIfRenamed(capability: realtime.auth.tokenDetails?.capability)
     }
     lock.withLock {
       self.realtime = realtime
-      self.notificationsListener = notificationsListener
-      controlChannel = control
-      membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
-      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
-      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent)
+      self.grantedChannelsListener = grantedChannelsListener
+      membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, sleep: sleep, onEvent: onEvent)
+      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent, sleep: sleep)
+      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent, sleep: sleep)
     }
   }
 
@@ -136,24 +139,40 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   }
 
   public func watchRoom(_ roomId: String?) {
-    let generation = UUID()
-    var cleanup: (() -> Void)?
     let changed = lock.withLock {
       guard watchedRoomId != roomId else { return false }
-      roomGeneration = generation
-      roomHealth = nil
-      cleanup = removeHealthListeners
-      removeHealthListeners = nil
       watchedRoomId = roomId
       return true
     }
     guard changed else { return }
-    cleanup?()
     lock.withLock { typing }?.setRoom(roomId)
-    guard let roomId, let liveRealtime = lock.withLock({ realtime }) else { return }
-    let channel = liveRealtime.channels.get(chatRoomChannelName(roomId: roomId))
+    bindRoomHealth()
+  }
+
+  /// Observes the watched room's channel under the name the current token grants. Before the first token, or with a
+  /// token that does not grant the room, that is the production name; `rebindRoomHealthIfRenamed` moves it once a
+  /// token names the room otherwise (ADR 0055).
+  private func bindRoomHealth() {
+    let generation = UUID()
+    let (cleanup, target) = lock.withLock { () -> ((() -> Void)?, (roomId: String, realtime: ARTRealtime)?) in
+      roomGeneration = generation
+      roomHealth = nil
+      roomHealthChannelName = nil
+      let cleanup = removeHealthListeners
+      removeHealthListeners = nil
+      guard let watchedRoomId, let realtime else { return (cleanup, nil) }
+      return (cleanup, (watchedRoomId, realtime))
+    }
+    cleanup?()
+    guard let (roomId, liveRealtime) = target else { return }
+    let name = roomChannelName(capability: liveRealtime.auth.tokenDetails?.capability, roomId: roomId)
+    let channel = liveRealtime.channels.get(name)
     let initialHealth = RoomRealtimeHealth(connection: liveRealtime.connection.state, channel: channel.state)
-    lock.withLock { roomHealth = initialHealth }
+    lock.withLock {
+      guard roomGeneration == generation else { return }
+      roomHealth = initialHealth
+      roomHealthChannelName = name
+    }
     let channelListener = channel.on { [weak self] change in
       self?.updateHealth(roomId: roomId, generation: generation) {
         $0.channelChanged(current: change.current, resumed: change.resumed)
@@ -164,24 +183,43 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
         $0.connectionChanged(current: change.current, previous: change.previous)
       }
     }
-    lock.withLock {
-      removeHealthListeners = {
-        channel.off(channelListener)
-        liveRealtime.connection.off(connectionListener)
-      }
+    let removeListeners = {
+      channel.off(channelListener)
+      liveRealtime.connection.off(connectionListener)
+    }
+    let kept = lock.withLock { () -> Bool in
+      guard roomGeneration == generation else { return false }
+      removeHealthListeners = removeListeners
+      return true
+    }
+    guard kept else {
+      removeListeners()
+      return
     }
     updateHealth(roomId: roomId, generation: generation) { _ in false }
   }
 
+  /// Moves the watched room's health onto the channel a new token names for it. Production names never move.
+  private func rebindRoomHealthIfRenamed(capability: String?) {
+    let renamed = lock.withLock { () -> Bool in
+      guard let watchedRoomId, let bound = roomHealthChannelName else { return false }
+      return roomChannelName(capability: capability, roomId: watchedRoomId) != bound
+    }
+    if renamed {
+      bindRoomHealth()
+    }
+  }
+
   public func disconnect() {
     var cleanup: (() -> Void)?
+    var membershipToStop: RoomMembershipSubscriptions?
     var presenceToStop: OrgPresenceChannel?
     var typingToStop: RoomTypingChannel?
     let control = lock.withLock { () -> ARTRealtimeChannel? in
       tokenSource?.invalidate()
       connectionGeneration = UUID()
       tokenSource = nil
-      membershipSubscriptions?.stop()
+      membershipToStop = membershipSubscriptions
       membershipSubscriptions = nil
       presenceToStop = presence
       presence = nil
@@ -189,6 +227,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       typing = nil
       roomGeneration = UUID()
       roomHealth = nil
+      roomHealthChannelName = nil
       cleanup = removeHealthListeners
       removeHealthListeners = nil
       let control = controlChannel
@@ -198,6 +237,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       return control
     }
     detachNotifications()
+    membershipToStop?.stop()
     presenceToStop?.stop()
     typingToStop?.stop()
     cleanup?()
@@ -215,12 +255,12 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     let (notifications, listener, attachListener) = lock.withLock {
       defer {
         notificationsChannel = nil
-        notificationsListener = nil
+        grantedChannelsListener = nil
         notificationsAttachListener = nil
         frontPresence.reset()
         invalidateFrontPresenceLocked()
       }
-      return (notificationsChannel, notificationsListener, notificationsAttachListener)
+      return (notificationsChannel, grantedChannelsListener, notificationsAttachListener)
     }
     if let listener {
       lock.withLock { realtime }?.connection.off(listener)
@@ -230,6 +270,22 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     }
     notifications?.unsubscribe()
     notifications?.detach()
+  }
+
+  private func subscribeControl(realtime: ARTRealtime, userId: String, generation: UUID) {
+    guard let name = userChatControlChannelName(grantedSubscribeIn: realtime.auth.tokenDetails?.capability, userId: userId) else { return }
+    let control: ARTRealtimeChannel? = lock.withLock {
+      guard connectionGeneration == generation, controlChannel == nil else { return nil }
+      let channel = realtime.channels.get(name)
+      controlChannel = channel
+      return channel
+    }
+    guard let control else { return }
+    for eventName in [chatMembershipRevokedEventName, chatRoomsChangedEventName] {
+      control.subscribe(eventName) { [weak self] message in
+        self?.forward(channelName: name, message: message, generation: generation)
+      }
+    }
   }
 
   private func subscribeNotifications(realtime: ARTRealtime, userId: String, generation: UUID) {
@@ -438,6 +494,11 @@ extension Components.Schemas.AblyTokenRequest {
 
 /// How long a refused leave waits before the app sends it again.
 private let frontPresenceRetryDelay: TimeInterval = 15
+
+/// The room's channel as the token names it; the production name when it names none.
+private func roomChannelName(capability: String?, roomId: String) -> String {
+  chatRoomChannelNames(grantedSubscribeIn: capability)?[roomId] ?? chatRoomChannelName(roomId: roomId)
+}
 
 private func ablyRealtimeError(_ message: String) -> NSError {
   NSError(domain: "SokosumiRealtime", code: -1, userInfo: [NSLocalizedDescriptionKey: message])

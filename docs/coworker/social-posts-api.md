@@ -7,7 +7,8 @@ Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Org
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection.
 2. Create a draft using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
 3. Schedule through `POST /v1/projects/{id}/social-posts/{postId}/schedule` with `revision`, `scheduledAt` (more than one minute in the future), and optionally `timezone`. Alternatively provide `scheduledAt` during creation.
-4. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
+4. Copy a published, failed, or missed post into a new draft with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
+5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
 Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
 

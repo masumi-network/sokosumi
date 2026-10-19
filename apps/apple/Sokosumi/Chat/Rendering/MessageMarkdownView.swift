@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -14,7 +13,6 @@ struct MessageMarkdownView: View {
   var diagrams = true
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openURL) private var openURL
-  @EnvironmentObject private var auth: AuthState
   @State private var selectedProfile: ChatParticipantProfile?
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
@@ -24,7 +22,7 @@ struct MessageMarkdownView: View {
         if url.scheme == "sokosumi-channel" {
           if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
             Task { @MainActor in
-              workspaces.selectRoom(id, auth: auth)
+              workspaces.selectRoom(id)
             }
           }
           return .handled
@@ -192,6 +190,8 @@ private struct MarkdownBlockView: View {
       ForEach(segments) { segment in
         if let attachment = segment.attachment {
           MessageAttachmentView(attachment: attachment).id(attachment.url)
+        } else if segment.text.runs.contains(where: { $0.link != nil }) {
+          LinkPointerText(text: styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         }
@@ -267,7 +267,7 @@ private struct MarkdownBlockView: View {
   MessageMarkdownView(source: """
   ### Operational report
 
-  Finished **analysis** with _results_.
+  Finished **analysis** with _results_. Details on [the dashboard](https://example.com).
 
   1. Acquisition
      - **New users:** 20

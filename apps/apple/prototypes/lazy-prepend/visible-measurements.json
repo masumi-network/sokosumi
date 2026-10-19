@@ -1,0 +1,5082 @@
+{
+  "environment": {
+    "date": "2026-10-10",
+    "macOS": "27.0.1 (26A434)",
+    "Xcode": "27.0 (27A266a)",
+    "architecture": "arm64",
+    "optimized": true,
+    "signing_team": "GVWN7HXYJB",
+    "viewport_points": [
+      1100,
+      800
+    ],
+    "metric": "actual main-thread display-link callback gap; not presented-frame hitch duration"
+  },
+  "component_blocks": {
+    "none": {
+      "summary": {
+        "prepend": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 49.838791659567505,
+          "worst_callback_gap_ms": 64.39450004836544,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 16.99816668406129
+        },
+        "append": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 51.204583316575736,
+          "worst_callback_gap_ms": 58.022750017698854,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 10.166499996557832
+        }
+      },
+      "runs": [
+        {
+          "callback_count": 1205,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369218.1673961667,
+              "gap_start_uptime": 369218.1076597917,
+              "max_callback_gap_ms": 59.73637499846518,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369218.113682125
+            },
+            {
+              "gap_end_uptime": 369220.21778225,
+              "gap_start_uptime": 369220.16590333334,
+              "max_callback_gap_ms": 51.87891668174416,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369220.1725810834
+            },
+            {
+              "gap_end_uptime": 369222.259432125,
+              "gap_start_uptime": 369222.20754725003,
+              "max_callback_gap_ms": 51.88487499253824,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369222.21243033337
+            },
+            {
+              "gap_end_uptime": 369224.358816625,
+              "gap_start_uptime": 369224.2951834167,
+              "max_callback_gap_ms": 63.63320833770558,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369224.2982891667
+            },
+            {
+              "gap_end_uptime": 369226.4555936667,
+              "gap_start_uptime": 369226.40338083333,
+              "max_callback_gap_ms": 52.2128333686851,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369226.4046897084
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 16.99816668406129,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1226,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369231.9074584583,
+              "gap_start_uptime": 369231.8617154167,
+              "max_callback_gap_ms": 45.74304161360487,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369231.8667082917
+            },
+            {
+              "gap_end_uptime": 369234.05024058337,
+              "gap_start_uptime": 369233.99591683334,
+              "max_callback_gap_ms": 54.32375002419576,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369233.991910375
+            },
+            {
+              "gap_end_uptime": 369236.155129875,
+              "gap_start_uptime": 369236.1039252917,
+              "max_callback_gap_ms": 51.204583316575736,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369236.1003126667
+            },
+            {
+              "gap_end_uptime": 369238.2426691667,
+              "gap_start_uptime": 369238.1879122917,
+              "max_callback_gap_ms": 54.75687503349036,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369238.1835782917
+            },
+            {
+              "gap_end_uptime": 369240.3282160417,
+              "gap_start_uptime": 369240.2731914584,
+              "max_callback_gap_ms": 55.02458330010995,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369240.267168125
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 10.166499996557832,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1223,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369245.71722925,
+              "gap_start_uptime": 369245.68662933336,
+              "max_callback_gap_ms": 30.59991664486006,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369245.69341141667
+            },
+            {
+              "gap_end_uptime": 369247.8311439167,
+              "gap_start_uptime": 369247.803116,
+              "max_callback_gap_ms": 28.02791667636484,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369247.8000780417
+            },
+            {
+              "gap_end_uptime": 369249.98653125,
+              "gap_start_uptime": 369249.93675233336,
+              "max_callback_gap_ms": 49.77891664020717,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369249.93339150003
+            },
+            {
+              "gap_end_uptime": 369252.06140395836,
+              "gap_start_uptime": 369252.01142195833,
+              "max_callback_gap_ms": 49.98200002592057,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369252.004712625
+            },
+            {
+              "gap_end_uptime": 369254.140223875,
+              "gap_start_uptime": 369254.08852912503,
+              "max_callback_gap_ms": 51.694749970920384,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369254.08275883336
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.720999991055578,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1237,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369259.5715197084,
+              "gap_start_uptime": 369259.5282881667,
+              "max_callback_gap_ms": 43.231541698332876,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369259.53482500004
+            },
+            {
+              "gap_end_uptime": 369261.6725514167,
+              "gap_start_uptime": 369261.6363310417,
+              "max_callback_gap_ms": 36.22037498280406,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369261.641782625
+            },
+            {
+              "gap_end_uptime": 369263.8090749584,
+              "gap_start_uptime": 369263.74468045833,
+              "max_callback_gap_ms": 64.39450004836544,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369263.744877125
+            },
+            {
+              "gap_end_uptime": 369265.8869990417,
+              "gap_start_uptime": 369265.8446529167,
+              "max_callback_gap_ms": 42.34612500295043,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369265.84711425
+            },
+            {
+              "gap_end_uptime": 369268.01710525004,
+              "gap_start_uptime": 369267.96962525,
+              "max_callback_gap_ms": 47.48000000836328,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369267.9749907917
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 9.329874999821186,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1226,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369273.34881500003,
+              "gap_start_uptime": 369273.3031944167,
+              "max_callback_gap_ms": 45.620583347044885,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369273.3113292084
+            },
+            {
+              "gap_end_uptime": 369275.4061466667,
+              "gap_start_uptime": 369275.3778834167,
+              "max_callback_gap_ms": 28.263249958399683,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369275.38172245835
+            },
+            {
+              "gap_end_uptime": 369277.55768333335,
+              "gap_start_uptime": 369277.51119416667,
+              "max_callback_gap_ms": 46.48916667792946,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369277.51403275004
+            },
+            {
+              "gap_end_uptime": 369279.65265920834,
+              "gap_start_uptime": 369279.6028204167,
+              "max_callback_gap_ms": 49.838791659567505,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369279.60795925005
+            },
+            {
+              "gap_end_uptime": 369281.72924866667,
+              "gap_start_uptime": 369281.67782158335,
+              "max_callback_gap_ms": 51.427083322778344,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369281.68445495836
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.852250000927597,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        },
+        {
+          "callback_count": 1220,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369287.2151241667,
+              "gap_start_uptime": 369287.16144595837,
+              "max_callback_gap_ms": 53.67820832179859,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369287.16729058337
+            },
+            {
+              "gap_end_uptime": 369289.28603295836,
+              "gap_start_uptime": 369289.237995375,
+              "max_callback_gap_ms": 48.03758335765451,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369289.23442695837
+            },
+            {
+              "gap_end_uptime": 369291.36379108333,
+              "gap_start_uptime": 369291.31385145837,
+              "max_callback_gap_ms": 49.93962496519089,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369291.30829008337
+            },
+            {
+              "gap_end_uptime": 369293.48610875005,
+              "gap_start_uptime": 369293.428086,
+              "max_callback_gap_ms": 58.022750017698854,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369293.4286181667
+            },
+            {
+              "gap_end_uptime": 369295.57392366667,
+              "gap_start_uptime": 369295.520493625,
+              "max_callback_gap_ms": 53.43004164751619,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369295.51016375003
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.667583344504237,
+          "omitted_component": "none",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        }
+      ]
+    },
+    "code-highlighting": {
+      "summary": {
+        "prepend": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 38.419875025283545,
+          "worst_callback_gap_ms": 57.135583367198706,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 16.635541687719524
+        },
+        "append": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 38.22654171381146,
+          "worst_callback_gap_ms": 49.977458314970136,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 20.843041653279215
+        }
+      },
+      "runs": [
+        {
+          "callback_count": 1216,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369301.1192927917,
+              "gap_start_uptime": 369301.07805895834,
+              "max_callback_gap_ms": 41.23383335536346,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369301.07857300004
+            },
+            {
+              "gap_end_uptime": 369303.1717466667,
+              "gap_start_uptime": 369303.13591791666,
+              "max_callback_gap_ms": 35.82875005668029,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369303.1433744167
+            },
+            {
+              "gap_end_uptime": 369305.2631191667,
+              "gap_start_uptime": 369305.2109121667,
+              "max_callback_gap_ms": 52.20700002973899,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369305.21275483334
+            },
+            {
+              "gap_end_uptime": 369307.34004708333,
+              "gap_start_uptime": 369307.2858725417,
+              "max_callback_gap_ms": 54.174541612155735,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369307.289718375
+            },
+            {
+              "gap_end_uptime": 369309.44238770835,
+              "gap_start_uptime": 369309.3941909167,
+              "max_callback_gap_ms": 48.19679167121649,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369309.39778500004
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 9.381166659295559,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1219,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369314.92745233333,
+              "gap_start_uptime": 369314.8946325417,
+              "max_callback_gap_ms": 32.81979163875803,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369314.90008125
+            },
+            {
+              "gap_end_uptime": 369316.98159537505,
+              "gap_start_uptime": 369316.948905,
+              "max_callback_gap_ms": 32.69037505378947,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369316.9475985417
+            },
+            {
+              "gap_end_uptime": 369319.1149144167,
+              "gap_start_uptime": 369319.0732331667,
+              "max_callback_gap_ms": 41.68124997522682,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369319.07060179167
+            },
+            {
+              "gap_end_uptime": 369321.148214875,
+              "gap_start_uptime": 369321.10653725005,
+              "max_callback_gap_ms": 41.67762497672811,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369321.10075104167
+            },
+            {
+              "gap_end_uptime": 369323.23151145835,
+              "gap_start_uptime": 369323.19817470835,
+              "max_callback_gap_ms": 33.33674999885261,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369323.19593683333
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.843041653279215,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1231,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369328.75611675,
+              "gap_start_uptime": 369328.7195519584,
+              "max_callback_gap_ms": 36.56479163328186,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369328.7231739167
+            },
+            {
+              "gap_end_uptime": 369330.89885650005,
+              "gap_start_uptime": 369330.86062995833,
+              "max_callback_gap_ms": 38.22654171381146,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369330.8557778334
+            },
+            {
+              "gap_end_uptime": 369332.93560508336,
+              "gap_start_uptime": 369332.88562762504,
+              "max_callback_gap_ms": 49.977458314970136,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369332.87997883337
+            },
+            {
+              "gap_end_uptime": 369335.05225300003,
+              "gap_start_uptime": 369335.01177683333,
+              "max_callback_gap_ms": 40.476166701409966,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369335.008106375
+            },
+            {
+              "gap_end_uptime": 369337.16056783334,
+              "gap_start_uptime": 369337.1278215417,
+              "max_callback_gap_ms": 32.74629166116938,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369337.13164145837
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.478374977130443,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1229,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369342.749586125,
+              "gap_start_uptime": 369342.71116625,
+              "max_callback_gap_ms": 38.419875025283545,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369342.71442420833
+            },
+            {
+              "gap_end_uptime": 369344.818843375,
+              "gap_start_uptime": 369344.78616408334,
+              "max_callback_gap_ms": 32.67929167486727,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369344.79229020834
+            },
+            {
+              "gap_end_uptime": 369346.90421995835,
+              "gap_start_uptime": 369346.86947483337,
+              "max_callback_gap_ms": 34.74512498360127,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369346.86997787503
+            },
+            {
+              "gap_end_uptime": 369348.9550620417,
+              "gap_start_uptime": 369348.91045945836,
+              "max_callback_gap_ms": 44.602583337109536,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369348.918182625
+            },
+            {
+              "gap_end_uptime": 369351.03940325003,
+              "gap_start_uptime": 369351.00211608334,
+              "max_callback_gap_ms": 37.28716669138521,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369351.00793583336
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.496624999679625,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1235,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369356.5777406667,
+              "gap_start_uptime": 369356.5402670833,
+              "max_callback_gap_ms": 37.47358336113393,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369356.5424537917
+            },
+            {
+              "gap_end_uptime": 369358.6944842917,
+              "gap_start_uptime": 369358.664509875,
+              "max_callback_gap_ms": 29.974416713230312,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369358.67277083336
+            },
+            {
+              "gap_end_uptime": 369360.79290579166,
+              "gap_start_uptime": 369360.7561451667,
+              "max_callback_gap_ms": 36.76062496379018,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369360.76148125
+            },
+            {
+              "gap_end_uptime": 369362.887276625,
+              "gap_start_uptime": 369362.8311291667,
+              "max_callback_gap_ms": 56.14745832281187,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369362.8327425
+            },
+            {
+              "gap_end_uptime": 369365.00079737505,
+              "gap_start_uptime": 369364.9436617917,
+              "max_callback_gap_ms": 57.135583367198706,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369364.94752770837
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 16.635541687719524,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        },
+        {
+          "callback_count": 1220,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369370.3666950833,
+              "gap_start_uptime": 369370.3360165834,
+              "max_callback_gap_ms": 30.678499955683947,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369370.3372775417
+            },
+            {
+              "gap_end_uptime": 369372.4750874167,
+              "gap_start_uptime": 369372.4360249584,
+              "max_callback_gap_ms": 39.062458323314786,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369372.4360489167
+            },
+            {
+              "gap_end_uptime": 369374.5534602917,
+              "gap_start_uptime": 369374.5118140834,
+              "max_callback_gap_ms": 41.64620832307264,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369374.507747875
+            },
+            {
+              "gap_end_uptime": 369376.5900370417,
+              "gap_start_uptime": 369376.54492712504,
+              "max_callback_gap_ms": 45.109916653018445,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369376.542260875
+            },
+            {
+              "gap_end_uptime": 369378.68013208336,
+              "gap_start_uptime": 369378.64416233334,
+              "max_callback_gap_ms": 35.9697500243783,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369378.6414915
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.406000037211925,
+          "omitted_component": "code-highlighting",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        }
+      ]
+    },
+    "body-selection": {
+      "summary": {
+        "prepend": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 38.235333340708166,
+          "worst_callback_gap_ms": 57.18495836481452,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 20.877666654996574
+        },
+        "append": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 48.900041671004146,
+          "worst_callback_gap_ms": 61.42504164017737,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 20.82862501265481
+        }
+      },
+      "runs": [
+        {
+          "callback_count": 1226,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369384.097439125,
+              "gap_start_uptime": 369384.06095675,
+              "max_callback_gap_ms": 36.48237499874085,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369384.0660242917
+            },
+            {
+              "gap_end_uptime": 369386.22026587505,
+              "gap_start_uptime": 369386.19341275,
+              "max_callback_gap_ms": 26.85312501853332,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369386.1947881667
+            },
+            {
+              "gap_end_uptime": 369388.2658894167,
+              "gap_start_uptime": 369388.22673220834,
+              "max_callback_gap_ms": 39.1572083462961,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369388.2337867084
+            },
+            {
+              "gap_end_uptime": 369390.33888183336,
+              "gap_start_uptime": 369390.3017100417,
+              "max_callback_gap_ms": 37.17179165687412,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369390.3077400834
+            },
+            {
+              "gap_end_uptime": 369392.4232579584,
+              "gap_start_uptime": 369392.38502262504,
+              "max_callback_gap_ms": 38.235333340708166,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369392.3910028334
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.877666654996574,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1233,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369397.8974584584,
+              "gap_start_uptime": 369397.8658367917,
+              "max_callback_gap_ms": 31.62166668334976,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369397.8618601667
+            },
+            {
+              "gap_end_uptime": 369400.01918450004,
+              "gap_start_uptime": 369399.98078475,
+              "max_callback_gap_ms": 38.39975001756102,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369399.976631
+            },
+            {
+              "gap_end_uptime": 369402.1151482917,
+              "gap_start_uptime": 369402.07500445837,
+              "max_callback_gap_ms": 40.143833321053535,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369402.0716957084
+            },
+            {
+              "gap_end_uptime": 369404.24648925004,
+              "gap_start_uptime": 369404.1891801667,
+              "max_callback_gap_ms": 57.309083349537104,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369404.1893137917
+            },
+            {
+              "gap_end_uptime": 369406.358083,
+              "gap_start_uptime": 369406.31500375003,
+              "max_callback_gap_ms": 43.079249968286604,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369406.31808887504
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 14.306541648693383,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1232,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369411.925635875,
+              "gap_start_uptime": 369411.8649852917,
+              "max_callback_gap_ms": 60.65058335661888,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369411.8711322084
+            },
+            {
+              "gap_end_uptime": 369414.0517434584,
+              "gap_start_uptime": 369413.997320875,
+              "max_callback_gap_ms": 54.42258337279782,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369413.99816325004
+            },
+            {
+              "gap_end_uptime": 369416.1555795,
+              "gap_start_uptime": 369416.0941544584,
+              "max_callback_gap_ms": 61.42504164017737,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369416.0991919167
+            },
+            {
+              "gap_end_uptime": 369418.28465833334,
+              "gap_start_uptime": 369418.22329683334,
+              "max_callback_gap_ms": 61.361500003840774,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369418.223946875
+            },
+            {
+              "gap_end_uptime": 369420.39754075004,
+              "gap_start_uptime": 369420.34826025,
+              "max_callback_gap_ms": 49.280500039458275,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369420.35392512503
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.82862501265481,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1242,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369425.81073300005,
+              "gap_start_uptime": 369425.7732324167,
+              "max_callback_gap_ms": 37.50058333389461,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369425.77875241666
+            },
+            {
+              "gap_end_uptime": 369427.93874070834,
+              "gap_start_uptime": 369427.89717370836,
+              "max_callback_gap_ms": 41.566999978385866,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369427.90494462504
+            },
+            {
+              "gap_end_uptime": 369430.04900216666,
+              "gap_start_uptime": 369430.00548858335,
+              "max_callback_gap_ms": 43.513583310414106,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369430.00711770833
+            },
+            {
+              "gap_end_uptime": 369432.1361420833,
+              "gap_start_uptime": 369432.09712108335,
+              "max_callback_gap_ms": 39.02099997503683,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369432.09795458335
+            },
+            {
+              "gap_end_uptime": 369434.2580087917,
+              "gap_start_uptime": 369434.2220985,
+              "max_callback_gap_ms": 35.910291713662446,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369434.223686625
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 9.15650004753843,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1227,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369439.8512075417,
+              "gap_start_uptime": 369439.79402258334,
+              "max_callback_gap_ms": 57.18495836481452,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369439.80230108334
+            },
+            {
+              "gap_end_uptime": 369441.95595412503,
+              "gap_start_uptime": 369441.91787862504,
+              "max_callback_gap_ms": 38.0754999932833,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369441.91835375
+            },
+            {
+              "gap_end_uptime": 369444.0631492917,
+              "gap_start_uptime": 369444.0095070417,
+              "max_callback_gap_ms": 53.64224995719269,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369444.017757625
+            },
+            {
+              "gap_end_uptime": 369446.1386941667,
+              "gap_start_uptime": 369446.0928177917,
+              "max_callback_gap_ms": 45.87637499207631,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369446.09910425
+            },
+            {
+              "gap_end_uptime": 369448.17407891667,
+              "gap_start_uptime": 369448.14278525003,
+              "max_callback_gap_ms": 31.29366663051769,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369448.1484558334
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.861458382569253,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        },
+        {
+          "callback_count": 1230,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369453.6593870417,
+              "gap_start_uptime": 369453.6189356667,
+              "max_callback_gap_ms": 40.45137501088902,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369453.62318083335
+            },
+            {
+              "gap_end_uptime": 369455.78791375004,
+              "gap_start_uptime": 369455.75936283334,
+              "max_callback_gap_ms": 28.55091670062393,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369455.752936
+            },
+            {
+              "gap_end_uptime": 369457.8937385417,
+              "gap_start_uptime": 369457.8448385,
+              "max_callback_gap_ms": 48.900041671004146,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369457.84071695834
+            },
+            {
+              "gap_end_uptime": 369459.959337625,
+              "gap_start_uptime": 369459.9176526667,
+              "max_callback_gap_ms": 41.684958327095956,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369459.91565645835
+            },
+            {
+              "gap_end_uptime": 369462.05943950004,
+              "gap_start_uptime": 369462.0103802084,
+              "max_callback_gap_ms": 49.059291661251336,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369462.0072092083
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 9.116750035900623,
+          "omitted_component": "body-selection",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        }
+      ]
+    },
+    "clamp": {
+      "summary": {
+        "prepend": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 41.81495832744986,
+          "worst_callback_gap_ms": 53.03958331933245,
+          "publications_over_25_ms": 14,
+          "nonpublication_worst_callback_gap_ms": 20.853458321653306
+        },
+        "append": {
+          "publications": 15,
+          "median_max_callback_gap_ms": 48.58429165324196,
+          "worst_callback_gap_ms": 65.26083330390975,
+          "publications_over_25_ms": 15,
+          "nonpublication_worst_callback_gap_ms": 20.866499980911613
+        }
+      },
+      "runs": [
+        {
+          "callback_count": 1218,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369467.62192345836,
+              "gap_start_uptime": 369467.56888387504,
+              "max_callback_gap_ms": 53.03958331933245,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369467.5725545
+            },
+            {
+              "gap_end_uptime": 369469.690248375,
+              "gap_start_uptime": 369469.6509137084,
+              "max_callback_gap_ms": 39.3346666241996,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369469.6537244167
+            },
+            {
+              "gap_end_uptime": 369471.74044020835,
+              "gap_start_uptime": 369471.70919570833,
+              "max_callback_gap_ms": 31.244500016327947,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369471.71274033334
+            },
+            {
+              "gap_end_uptime": 369473.81348091667,
+              "gap_start_uptime": 369473.76751412504,
+              "max_callback_gap_ms": 45.9667916293256,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369473.768059875
+            },
+            {
+              "gap_end_uptime": 369475.90366775,
+              "gap_start_uptime": 369475.8591847917,
+              "max_callback_gap_ms": 44.48295832844451,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369475.8595835
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.436541655100882,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1233,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369481.51743475004,
+              "gap_start_uptime": 369481.47080816666,
+              "max_callback_gap_ms": 46.626583382021636,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369481.46485775005
+            },
+            {
+              "gap_end_uptime": 369483.63621795835,
+              "gap_start_uptime": 369483.5854667917,
+              "max_callback_gap_ms": 50.751166651025414,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369483.5923134583
+            },
+            {
+              "gap_end_uptime": 369485.76047675003,
+              "gap_start_uptime": 369485.7267815417,
+              "max_callback_gap_ms": 33.69520831620321,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369485.7249768333
+            },
+            {
+              "gap_end_uptime": 369487.8390070834,
+              "gap_start_uptime": 369487.78950891667,
+              "max_callback_gap_ms": 49.49816671432927,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369487.78296733333
+            },
+            {
+              "gap_end_uptime": 369489.95470045833,
+              "gap_start_uptime": 369489.914206875,
+              "max_callback_gap_ms": 40.49358330667019,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369489.90872733336
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 17.990916676353663,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 1
+        },
+        {
+          "callback_count": 1202,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369495.48812212504,
+              "gap_start_uptime": 369495.4520364167,
+              "max_callback_gap_ms": 36.0857083578594,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369495.45238120836
+            },
+            {
+              "gap_end_uptime": 369497.5422822917,
+              "gap_start_uptime": 369497.5089620834,
+              "max_callback_gap_ms": 33.32020831294358,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369497.50663400005
+            },
+            {
+              "gap_end_uptime": 369499.5714259167,
+              "gap_start_uptime": 369499.53448833333,
+              "max_callback_gap_ms": 36.93758335430175,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369499.53218845837
+            },
+            {
+              "gap_end_uptime": 369501.6172536667,
+              "gap_start_uptime": 369501.56866937503,
+              "max_callback_gap_ms": 48.58429165324196,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369501.57378445833
+            },
+            {
+              "gap_end_uptime": 369503.6272795417,
+              "gap_start_uptime": 369503.5812238334,
+              "max_callback_gap_ms": 46.05570831336081,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369503.58767733333
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 18.084541719872504,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1226,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369509.0084390417,
+              "gap_start_uptime": 369508.9727992917,
+              "max_callback_gap_ms": 35.639749956317246,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369508.97747495834
+            },
+            {
+              "gap_end_uptime": 369511.064966625,
+              "gap_start_uptime": 369511.04214929166,
+              "max_callback_gap_ms": 22.81733334530145,
+              "over_25_ms": 0,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369511.04873370833
+            },
+            {
+              "gap_end_uptime": 369513.14976112504,
+              "gap_start_uptime": 369513.10049208335,
+              "max_callback_gap_ms": 49.269041686784476,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369513.1032492917
+            },
+            {
+              "gap_end_uptime": 369515.2584540417,
+              "gap_start_uptime": 369515.21715033334,
+              "max_callback_gap_ms": 41.303708334453404,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369515.21892745834
+            },
+            {
+              "gap_end_uptime": 369517.360784625,
+              "gap_start_uptime": 369517.31711550005,
+              "max_callback_gap_ms": 43.66912494879216,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369517.32384250005
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 8.81462503457442,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 2
+        },
+        {
+          "callback_count": 1241,
+          "direction": "prepend",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369522.95847995835,
+              "gap_start_uptime": 369522.914393,
+              "max_callback_gap_ms": 44.086958339903504,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369522.91630645836
+            },
+            {
+              "gap_end_uptime": 369525.034712625,
+              "gap_start_uptime": 369525.00452695834,
+              "max_callback_gap_ms": 30.18566669197753,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369525.008398375
+            },
+            {
+              "gap_end_uptime": 369527.141991625,
+              "gap_start_uptime": 369527.0935917917,
+              "max_callback_gap_ms": 48.39983332203701,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369527.10137470835
+            },
+            {
+              "gap_end_uptime": 369529.2588106667,
+              "gap_start_uptime": 369529.21699570835,
+              "max_callback_gap_ms": 41.81495832744986,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369529.22418350005
+            },
+            {
+              "gap_end_uptime": 369531.3858508334,
+              "gap_start_uptime": 369531.35029475,
+              "max_callback_gap_ms": 35.556083370465785,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369531.35648041667
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.853458321653306,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        },
+        {
+          "callback_count": 1217,
+          "direction": "append",
+          "final_rows": 600,
+          "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+          "insertions": [
+            {
+              "gap_end_uptime": 369536.950216375,
+              "gap_start_uptime": 369536.89351958333,
+              "max_callback_gap_ms": 56.6967916674912,
+              "over_25_ms": 1,
+              "page": 1,
+              "revealed_row": 100,
+              "rows": 200,
+              "uptime": 369536.89613770833
+            },
+            {
+              "gap_end_uptime": 369538.96710066666,
+              "gap_start_uptime": 369538.90183983336,
+              "max_callback_gap_ms": 65.26083330390975,
+              "over_25_ms": 1,
+              "page": 2,
+              "revealed_row": 200,
+              "rows": 300,
+              "uptime": 369538.908849
+            },
+            {
+              "gap_end_uptime": 369541.082219875,
+              "gap_start_uptime": 369541.0226995,
+              "max_callback_gap_ms": 59.52037498354912,
+              "over_25_ms": 1,
+              "page": 3,
+              "revealed_row": 300,
+              "rows": 400,
+              "uptime": 369541.0277221667
+            },
+            {
+              "gap_end_uptime": 369543.18762466667,
+              "gap_start_uptime": 369543.13357966667,
+              "max_callback_gap_ms": 54.04499999713153,
+              "over_25_ms": 1,
+              "page": 4,
+              "revealed_row": 400,
+              "rows": 500,
+              "uptime": 369543.1403065417
+            },
+            {
+              "gap_end_uptime": 369545.30063762504,
+              "gap_start_uptime": 369545.24604545836,
+              "max_callback_gap_ms": 54.59216667804867,
+              "over_25_ms": 1,
+              "page": 5,
+              "revealed_row": 500,
+              "rows": 600,
+              "uptime": 369545.2527629167
+            }
+          ],
+          "nonpublication_max_callback_gap_ms": 20.866499980911613,
+          "omitted_component": "clamp",
+          "page_size": 100,
+          "reveal_rows": true,
+          "row_kind": "production-rich",
+          "single_line": false,
+          "pair": 3
+        }
+      ]
+    }
+  },
+  "highlighting_interleaved": {
+    "launch_order": [
+      [
+        "none",
+        1,
+        "prepend"
+      ],
+      [
+        "none",
+        1,
+        "append"
+      ],
+      [
+        "code-highlighting",
+        1,
+        "prepend"
+      ],
+      [
+        "code-highlighting",
+        1,
+        "append"
+      ],
+      [
+        "code-highlighting",
+        2,
+        "prepend"
+      ],
+      [
+        "code-highlighting",
+        2,
+        "append"
+      ],
+      [
+        "none",
+        2,
+        "prepend"
+      ],
+      [
+        "none",
+        2,
+        "append"
+      ],
+      [
+        "none",
+        3,
+        "prepend"
+      ],
+      [
+        "none",
+        3,
+        "append"
+      ],
+      [
+        "code-highlighting",
+        3,
+        "prepend"
+      ],
+      [
+        "code-highlighting",
+        3,
+        "append"
+      ]
+    ],
+    "controls": {
+      "none": {
+        "summary": {
+          "prepend": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 50.99008331308141,
+            "worst_callback_gap_ms": 62.187125033233315,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 19.09166667610407
+          },
+          "append": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 50.30866671586409,
+            "worst_callback_gap_ms": 66.66662497445941,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 47.36816661898047
+          }
+        },
+        "runs": [
+          {
+            "callback_count": 1231,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369585.447065,
+                "gap_start_uptime": 369585.406019625,
+                "max_callback_gap_ms": 41.045374993700534,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369585.40888245835
+              },
+              {
+                "gap_end_uptime": 369587.570214,
+                "gap_start_uptime": 369587.52889837505,
+                "max_callback_gap_ms": 41.315624956041574,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369587.5339612917
+              },
+              {
+                "gap_end_uptime": 369589.72323133337,
+                "gap_start_uptime": 369589.6622051667,
+                "max_callback_gap_ms": 61.026166658848524,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369589.66649979167
+              },
+              {
+                "gap_end_uptime": 369591.7623222917,
+                "gap_start_uptime": 369591.7038662917,
+                "max_callback_gap_ms": 58.455999998841435,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369591.71064195834
+              },
+              {
+                "gap_end_uptime": 369593.849279875,
+                "gap_start_uptime": 369593.79549370834,
+                "max_callback_gap_ms": 53.78616665257141,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369593.79999975004
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 9.159791632555425,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1232,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369599.28851570835,
+                "gap_start_uptime": 369599.23906470835,
+                "max_callback_gap_ms": 49.45099999895319,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369599.2441434584
+              },
+              {
+                "gap_end_uptime": 369601.4328601667,
+                "gap_start_uptime": 369601.3814134167,
+                "max_callback_gap_ms": 51.44675000337884,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369601.37396233337
+              },
+              {
+                "gap_end_uptime": 369603.54260962503,
+                "gap_start_uptime": 369603.503728625,
+                "max_callback_gap_ms": 38.881000014953315,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369603.50378208334
+              },
+              {
+                "gap_end_uptime": 369605.6886470417,
+                "gap_start_uptime": 369605.63383225,
+                "max_callback_gap_ms": 54.81479165609926,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369605.62444475
+              },
+              {
+                "gap_end_uptime": 369607.770377875,
+                "gap_start_uptime": 369607.70371125004,
+                "max_callback_gap_ms": 66.66662497445941,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369607.695462375
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 8.913125027902424,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1218,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369668.6569227917,
+                "gap_start_uptime": 369668.60539050004,
+                "max_callback_gap_ms": 51.532291632611305,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369668.610465625
+              },
+              {
+                "gap_end_uptime": 369670.75512675004,
+                "gap_start_uptime": 369670.70370658336,
+                "max_callback_gap_ms": 51.42016668105498,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369670.70385679166
+              },
+              {
+                "gap_end_uptime": 369672.80178850004,
+                "gap_start_uptime": 369672.76138904167,
+                "max_callback_gap_ms": 40.39945837575942,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369672.7676334167
+              },
+              {
+                "gap_end_uptime": 369674.8378909167,
+                "gap_start_uptime": 369674.80306166667,
+                "max_callback_gap_ms": 34.82925001299009,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369674.8105140417
+              },
+              {
+                "gap_end_uptime": 369676.96235758334,
+                "gap_start_uptime": 369676.9113675,
+                "max_callback_gap_ms": 50.99008331308141,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369676.91147670837
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 8.975125034339726,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1218,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369682.262122125,
+                "gap_start_uptime": 369682.22193550004,
+                "max_callback_gap_ms": 40.186624974012375,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369682.22342287505
+              },
+              {
+                "gap_end_uptime": 369684.3287731667,
+                "gap_start_uptime": 369684.28629245836,
+                "max_callback_gap_ms": 42.48070833273232,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369684.28314758337
+              },
+              {
+                "gap_end_uptime": 369686.3447657084,
+                "gap_start_uptime": 369686.3003155417,
+                "max_callback_gap_ms": 44.45016669342294,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369686.29373870837
+              },
+              {
+                "gap_end_uptime": 369688.4627422083,
+                "gap_start_uptime": 369688.41957183334,
+                "max_callback_gap_ms": 43.17037499276921,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369688.42586795834
+              },
+              {
+                "gap_end_uptime": 369690.54270804167,
+                "gap_start_uptime": 369690.494579125,
+                "max_callback_gap_ms": 48.12891664914787,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369690.49719620834
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 9.036708332132548,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1211,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369696.0966314584,
+                "gap_start_uptime": 369696.03444433335,
+                "max_callback_gap_ms": 62.187125033233315,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369696.04250820837
+              },
+              {
+                "gap_end_uptime": 369698.1352044167,
+                "gap_start_uptime": 369698.0986528334,
+                "max_callback_gap_ms": 36.551583325490355,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369698.101565875
+              },
+              {
+                "gap_end_uptime": 369700.2111576667,
+                "gap_start_uptime": 369700.1552249584,
+                "max_callback_gap_ms": 55.932708317413926,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369700.15954100003
+              },
+              {
+                "gap_end_uptime": 369702.2890495417,
+                "gap_start_uptime": 369702.2385191667,
+                "max_callback_gap_ms": 50.530374981462955,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369702.243662125
+              },
+              {
+                "gap_end_uptime": 369704.4063838334,
+                "gap_start_uptime": 369704.36939875,
+                "max_callback_gap_ms": 36.98508336674422,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369704.3704981667
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 19.09166667610407,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          },
+          {
+            "callback_count": 1205,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369709.78453833336,
+                "gap_start_uptime": 369709.72599675,
+                "max_callback_gap_ms": 58.541583362966776,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369709.726513375
+              },
+              {
+                "gap_end_uptime": 369711.8584002917,
+                "gap_start_uptime": 369711.80254545837,
+                "max_callback_gap_ms": 55.854833335615695,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369711.7963947917
+              },
+              {
+                "gap_end_uptime": 369713.92557725,
+                "gap_start_uptime": 369713.8658465833,
+                "max_callback_gap_ms": 59.73066668957472,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369713.86024450004
+              },
+              {
+                "gap_end_uptime": 369716.0362877084,
+                "gap_start_uptime": 369715.98597904167,
+                "max_callback_gap_ms": 50.30866671586409,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369715.98615695833
+              },
+              {
+                "gap_end_uptime": 369718.111617875,
+                "gap_start_uptime": 369718.05262870836,
+                "max_callback_gap_ms": 58.98916663136333,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369718.0533051667
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 47.36816661898047,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          }
+        ]
+      },
+      "code-highlighting": {
+        "summary": {
+          "prepend": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 57.39216669462621,
+            "worst_callback_gap_ms": 80.97316668136045,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 20.851166686043143
+          },
+          "append": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 48.04091667756438,
+            "worst_callback_gap_ms": 100.02912499476224,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 18.8511666492559
+          }
+        },
+        "runs": [
+          {
+            "callback_count": 1219,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369613.19194675004,
+                "gap_start_uptime": 369613.1306454167,
+                "max_callback_gap_ms": 61.301333364099264,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369613.1332603333
+              },
+              {
+                "gap_end_uptime": 369615.27174137504,
+                "gap_start_uptime": 369615.22863970837,
+                "max_callback_gap_ms": 43.101666669826955,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369615.23069058335
+              },
+              {
+                "gap_end_uptime": 369617.33625270834,
+                "gap_start_uptime": 369617.27861125005,
+                "max_callback_gap_ms": 57.64145829016343,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369617.2838267917
+              },
+              {
+                "gap_end_uptime": 369619.38342458336,
+                "gap_start_uptime": 369619.32025704166,
+                "max_callback_gap_ms": 63.16754169529304,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369619.328159
+              },
+              {
+                "gap_end_uptime": 369621.51461970835,
+                "gap_start_uptime": 369621.4535873334,
+                "max_callback_gap_ms": 61.03237497154623,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369621.4548150417
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 9.442333364859223,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1233,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369627.103495125,
+                "gap_start_uptime": 369627.0389241667,
+                "max_callback_gap_ms": 64.57095831865445,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369627.04114416667
+              },
+              {
+                "gap_end_uptime": 369629.162461125,
+                "gap_start_uptime": 369629.1090875417,
+                "max_callback_gap_ms": 53.373583301436156,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369629.103243875
+              },
+              {
+                "gap_end_uptime": 369631.27013041667,
+                "gap_start_uptime": 369631.229885375,
+                "max_callback_gap_ms": 40.24504165863618,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369631.2273385834
+              },
+              {
+                "gap_end_uptime": 369633.3951377917,
+                "gap_start_uptime": 369633.34511287505,
+                "max_callback_gap_ms": 50.02491665072739,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369633.34076112503
+              },
+              {
+                "gap_end_uptime": 369635.5014416667,
+                "gap_start_uptime": 369635.46176158334,
+                "max_callback_gap_ms": 39.68008334049955,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369635.4623899584
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 8.907249954063445,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1204,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369640.88690758334,
+                "gap_start_uptime": 369640.8346767917,
+                "max_callback_gap_ms": 52.23079165443778,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369640.84187925
+              },
+              {
+                "gap_end_uptime": 369642.995013625,
+                "gap_start_uptime": 369642.94728612504,
+                "max_callback_gap_ms": 47.727499972097576,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369642.95155037503
+              },
+              {
+                "gap_end_uptime": 369645.14086620836,
+                "gap_start_uptime": 369645.0598930417,
+                "max_callback_gap_ms": 80.97316668136045,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369645.06062762503
+              },
+              {
+                "gap_end_uptime": 369647.1984224167,
+                "gap_start_uptime": 369647.1369992917,
+                "max_callback_gap_ms": 61.42312497831881,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369647.137781125
+              },
+              {
+                "gap_end_uptime": 369649.2667264583,
+                "gap_start_uptime": 369649.20552020834,
+                "max_callback_gap_ms": 61.2062499858439,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369649.2101184167
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 20.851166686043143,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1213,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369654.75764508336,
+                "gap_start_uptime": 369654.7096041667,
+                "max_callback_gap_ms": 48.04091667756438,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369654.71436779166
+              },
+              {
+                "gap_end_uptime": 369656.82207675005,
+                "gap_start_uptime": 369656.7804192917,
+                "max_callback_gap_ms": 41.65745835052803,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369656.78099062503
+              },
+              {
+                "gap_end_uptime": 369658.96997233335,
+                "gap_start_uptime": 369658.89490608335,
+                "max_callback_gap_ms": 75.06624999223277,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369658.9040787084
+              },
+              {
+                "gap_end_uptime": 369661.0448536667,
+                "gap_start_uptime": 369660.97818533337,
+                "max_callback_gap_ms": 66.66833331109956,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369660.9711134167
+              },
+              {
+                "gap_end_uptime": 369663.1031602084,
+                "gap_start_uptime": 369663.0533659167,
+                "max_callback_gap_ms": 49.794291669968516,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369663.0514446667
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 18.8511666492559,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1229,
+            "direction": "prepend",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369723.7070920417,
+                "gap_start_uptime": 369723.6758877084,
+                "max_callback_gap_ms": 31.20433329604566,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369723.6764302084
+              },
+              {
+                "gap_end_uptime": 369725.81584920833,
+                "gap_start_uptime": 369725.76504641667,
+                "max_callback_gap_ms": 50.80279166577384,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369725.76958741667
+              },
+              {
+                "gap_end_uptime": 369727.93705479166,
+                "gap_start_uptime": 369727.8816862917,
+                "max_callback_gap_ms": 55.3684999467805,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369727.88976729166
+              },
+              {
+                "gap_end_uptime": 369730.0557247917,
+                "gap_start_uptime": 369729.998332625,
+                "max_callback_gap_ms": 57.39216669462621,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369730.00447029166
+              },
+              {
+                "gap_end_uptime": 369732.15047833335,
+                "gap_start_uptime": 369732.1066841667,
+                "max_callback_gap_ms": 43.79416664596647,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369732.11167637503
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 10.027416690718383,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          },
+          {
+            "callback_count": 1216,
+            "direction": "append",
+            "final_rows": 600,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369737.700811875,
+                "gap_start_uptime": 369737.6591539584,
+                "max_callback_gap_ms": 41.6579166194424,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369737.66416029166
+              },
+              {
+                "gap_end_uptime": 369739.81921700004,
+                "gap_start_uptime": 369739.7815301667,
+                "max_callback_gap_ms": 37.68683335511014,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369739.778297375
+              },
+              {
+                "gap_end_uptime": 369741.8735139167,
+                "gap_start_uptime": 369741.8315159167,
+                "max_callback_gap_ms": 41.9980000006035,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369741.8386975
+              },
+              {
+                "gap_end_uptime": 369744.0065414167,
+                "gap_start_uptime": 369743.9065122917,
+                "max_callback_gap_ms": 100.02912499476224,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369743.91165658337
+              },
+              {
+                "gap_end_uptime": 369746.03982554167,
+                "gap_start_uptime": 369746.00647575,
+                "max_callback_gap_ms": 33.34979165811092,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369746.00652475003
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 8.430791669525206,
+            "omitted_component": "code-highlighting",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          }
+        ]
+      }
+    }
+  },
+  "bounds_interleaved": {
+    "launch_order": [
+      [
+        "natural",
+        1,
+        "prepend"
+      ],
+      [
+        "natural",
+        1,
+        "append"
+      ],
+      [
+        "fixed",
+        1,
+        "prepend"
+      ],
+      [
+        "fixed",
+        1,
+        "append"
+      ],
+      [
+        "fixed",
+        2,
+        "prepend"
+      ],
+      [
+        "fixed",
+        2,
+        "append"
+      ],
+      [
+        "natural",
+        2,
+        "prepend"
+      ],
+      [
+        "natural",
+        2,
+        "append"
+      ],
+      [
+        "natural",
+        3,
+        "prepend"
+      ],
+      [
+        "natural",
+        3,
+        "append"
+      ],
+      [
+        "fixed",
+        3,
+        "prepend"
+      ],
+      [
+        "fixed",
+        3,
+        "append"
+      ]
+    ],
+    "controls": {
+      "natural": {
+        "summary": {
+          "prepend": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 49.97512500267476,
+            "worst_callback_gap_ms": 70.88737498270348,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 13.46608332823962
+          },
+          "append": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 47.49604169046506,
+            "worst_callback_gap_ms": 66.62466668058187,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 20.734916673973203
+          }
+        },
+        "runs": [
+          {
+            "callback_count": 1233,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369931.8027756667,
+                "gap_start_uptime": 369931.74551083334,
+                "max_callback_gap_ms": 57.26483336184174,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369931.75267408334,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 369933.9129654167,
+                "gap_start_uptime": 369933.858611,
+                "max_callback_gap_ms": 54.35441667214036,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369933.8601331667,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 369936.0378105417,
+                "gap_start_uptime": 369935.9669231667,
+                "max_callback_gap_ms": 70.88737498270348,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369935.9695467917,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 369938.13198187505,
+                "gap_start_uptime": 369938.08392912504,
+                "max_callback_gap_ms": 48.052750003989786,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369938.08771175,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 369940.1872823334,
+                "gap_start_uptime": 369940.15019095835,
+                "max_callback_gap_ms": 37.0913750375621,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369940.15020587505,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 13.002791674807668,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1237,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369945.7846475,
+                "gap_start_uptime": 369945.73715145834,
+                "max_callback_gap_ms": 47.49604169046506,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369945.7402834167,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 369947.9105800834,
+                "gap_start_uptime": 369947.868313,
+                "max_callback_gap_ms": 42.26708336500451,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369947.863949375,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 369950.05313791666,
+                "gap_start_uptime": 369949.9936066667,
+                "max_callback_gap_ms": 59.53124997904524,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369949.9894047084,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 369952.12207650003,
+                "gap_start_uptime": 369952.0751749583,
+                "max_callback_gap_ms": 46.901541703846306,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369952.0709154167,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 369954.20325350005,
+                "gap_start_uptime": 369954.16154941666,
+                "max_callback_gap_ms": 41.70408338541165,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369954.15813145833,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 10.599583329167217,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1212,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370014.8869202917,
+                "gap_start_uptime": 370014.84109920834,
+                "max_callback_gap_ms": 45.82108336035162,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370014.84606733336,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370016.94523975,
+                "gap_start_uptime": 370016.895264625,
+                "max_callback_gap_ms": 49.97512500267476,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370016.8959872917,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370018.98716787505,
+                "gap_start_uptime": 370018.953558875,
+                "max_callback_gap_ms": 33.6090000346303,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370018.9543009584,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 370021.13400958333,
+                "gap_start_uptime": 370021.0702446667,
+                "max_callback_gap_ms": 63.76491661649197,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370021.070807375,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 370023.1923369167,
+                "gap_start_uptime": 370023.14939845836,
+                "max_callback_gap_ms": 42.938458325807005,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370023.1561055,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 12.806750019080937,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1227,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370028.7743791667,
+                "gap_start_uptime": 370028.73666125,
+                "max_callback_gap_ms": 37.71791671169922,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370028.7432990834,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370030.90751779167,
+                "gap_start_uptime": 370030.8742595417,
+                "max_callback_gap_ms": 33.25824998319149,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370030.8742967084,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370032.9659069167,
+                "gap_start_uptime": 370032.92424925003,
+                "max_callback_gap_ms": 41.65766667574644,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370032.925072,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 370035.0492306667,
+                "gap_start_uptime": 370034.9949321667,
+                "max_callback_gap_ms": 54.298500006552786,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370034.99802,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 370037.1177787917,
+                "gap_start_uptime": 370037.05744945834,
+                "max_callback_gap_ms": 60.329333355184644,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370037.06183016667,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 20.734916673973203,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1229,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370042.73664645833,
+                "gap_start_uptime": 370042.6907673334,
+                "max_callback_gap_ms": 45.8791249548085,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370042.69595258334,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370044.86641812505,
+                "gap_start_uptime": 370044.8199894167,
+                "max_callback_gap_ms": 46.42870835959911,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370044.82587625005,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370046.96703083336,
+                "gap_start_uptime": 370046.91162483336,
+                "max_callback_gap_ms": 55.40599999949336,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370046.9148874167,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 370049.0296359584,
+                "gap_start_uptime": 370048.9782512084,
+                "max_callback_gap_ms": 51.38474999694154,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370048.981071625,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 370051.1148672917,
+                "gap_start_uptime": 370051.06157945836,
+                "max_callback_gap_ms": 53.28783334698528,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370051.06732250005,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 13.46608332823962,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          },
+          {
+            "callback_count": 1228,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": false,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370056.68233370833,
+                "gap_start_uptime": 370056.6448320834,
+                "max_callback_gap_ms": 37.50162495998666,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370056.64995520836,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370058.8342699584,
+                "gap_start_uptime": 370058.7859561667,
+                "max_callback_gap_ms": 48.3137916889973,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370058.781660625,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370060.93857604166,
+                "gap_start_uptime": 370060.89063054166,
+                "max_callback_gap_ms": 47.945500002242625,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370060.89386795834,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307
+                ]
+              },
+              {
+                "gap_end_uptime": 370062.98107829166,
+                "gap_start_uptime": 370062.932277125,
+                "max_callback_gap_ms": 48.801166645716876,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370062.93545325,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407
+                ]
+              },
+              {
+                "gap_end_uptime": 370065.0739225417,
+                "gap_start_uptime": 370065.007297875,
+                "max_callback_gap_ms": 66.62466668058187,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370065.0082957917,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  305,
+                  306,
+                  307,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  405,
+                  406,
+                  407,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504,
+                  505,
+                  506
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 9.618624986615032,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          }
+        ]
+      },
+      "fixed": {
+        "summary": {
+          "prepend": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 44.24183338414878,
+            "worst_callback_gap_ms": 57.944374973885715,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 20.831374975387007
+          },
+          "append": {
+            "publications": 15,
+            "median_max_callback_gap_ms": 45.262833358719945,
+            "worst_callback_gap_ms": 54.01362496195361,
+            "publications_over_25_ms": 15,
+            "nonpublication_worst_callback_gap_ms": 26.860041660256684
+          }
+        },
+        "runs": [
+          {
+            "callback_count": 1210,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369959.8143719584,
+                "gap_start_uptime": 369959.7786925417,
+                "max_callback_gap_ms": 35.679416672792286,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369959.78343429166,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 369961.8560024167,
+                "gap_start_uptime": 369961.8084256667,
+                "max_callback_gap_ms": 47.57674998836592,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369961.81123883335,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 369963.91924375005,
+                "gap_start_uptime": 369963.8667142083,
+                "max_callback_gap_ms": 52.52954171737656,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369963.87193920836,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 369966.0191845417,
+                "gap_start_uptime": 369965.97494270833,
+                "max_callback_gap_ms": 44.24183338414878,
+                "over_25_ms": 2,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369965.9828912917,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 369968.05449608335,
+                "gap_start_uptime": 369968.0082915417,
+                "max_callback_gap_ms": 46.20454163523391,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369968.00844770833,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 11.28304161829874,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1227,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369973.53195945837,
+                "gap_start_uptime": 369973.4804337917,
+                "max_callback_gap_ms": 51.52566666947678,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369973.47660645837,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 369975.6540286667,
+                "gap_start_uptime": 369975.6123355417,
+                "max_callback_gap_ms": 41.69312497833744,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369975.60705883335,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 369977.654331125,
+                "gap_start_uptime": 369977.62064325,
+                "max_callback_gap_ms": 33.687875024043024,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369977.62122958334,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 369979.75394545833,
+                "gap_start_uptime": 369979.70393945836,
+                "max_callback_gap_ms": 50.00599997583777,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369979.69644533336,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 369981.878926625,
+                "gap_start_uptime": 369981.8372520417,
+                "max_callback_gap_ms": 41.67458333540708,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369981.830888,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 20.425041671842337,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 1
+          },
+          {
+            "callback_count": 1218,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 369987.39848875004,
+                "gap_start_uptime": 369987.36602608336,
+                "max_callback_gap_ms": 32.46266668429598,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 369987.36652541667,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 369989.44966462505,
+                "gap_start_uptime": 369989.41220741667,
+                "max_callback_gap_ms": 37.457208381965756,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 369989.41525708337,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 369991.4784589583,
+                "gap_start_uptime": 369991.42051458335,
+                "max_callback_gap_ms": 57.944374973885715,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 369991.4287170417,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 369993.56787183334,
+                "gap_start_uptime": 369993.5205060417,
+                "max_callback_gap_ms": 47.365791629999876,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 369993.5208146667,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 369995.6106376667,
+                "gap_start_uptime": 369995.57885158336,
+                "max_callback_gap_ms": 31.78608336020261,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 369995.5838627917,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 11.353000008966774,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1223,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370001.20066587505,
+                "gap_start_uptime": 370001.1668090417,
+                "max_callback_gap_ms": 33.85683335363865,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370001.1674902917,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370003.29076600005,
+                "gap_start_uptime": 370003.2455031667,
+                "max_callback_gap_ms": 45.262833358719945,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370003.24557108333,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370005.37898795836,
+                "gap_start_uptime": 370005.33704058337,
+                "max_callback_gap_ms": 41.947374993469566,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370005.3377390417,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 370007.408359,
+                "gap_start_uptime": 370007.3620137917,
+                "max_callback_gap_ms": 46.345208305865526,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370007.364809875,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 370009.4786539167,
+                "gap_start_uptime": 370009.4409239584,
+                "max_callback_gap_ms": 37.72995830513537,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370009.44602108333,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 26.860041660256684,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 2
+          },
+          {
+            "callback_count": 1240,
+            "direction": "prepend",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370070.69841783337,
+                "gap_start_uptime": 370070.648925625,
+                "max_callback_gap_ms": 49.492208345327526,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370070.65166950005,
+                "visible_row_ids": [
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370072.81386775,
+                "gap_start_uptime": 370072.76138225,
+                "max_callback_gap_ms": 52.48549999669194,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370072.76835462503,
+                "visible_row_ids": [
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370074.92194120836,
+                "gap_start_uptime": 370074.88632600004,
+                "max_callback_gap_ms": 35.61520832590759,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370074.886643,
+                "visible_row_ids": [
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 370077.03769545833,
+                "gap_start_uptime": 370077.0029763334,
+                "max_callback_gap_ms": 34.71912496024743,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370077.00339329167,
+                "visible_row_ids": [
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 370079.10781008337,
+                "gap_start_uptime": 370079.0696284167,
+                "max_callback_gap_ms": 38.1816666922532,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370079.072425875,
+                "visible_row_ids": [
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 20.831374975387007,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          },
+          {
+            "callback_count": 1221,
+            "direction": "append",
+            "final_rows": 600,
+            "fixed_row_height": true,
+            "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+            "insertions": [
+              {
+                "gap_end_uptime": 370084.67788516666,
+                "gap_start_uptime": 370084.6238715417,
+                "max_callback_gap_ms": 54.01362496195361,
+                "over_25_ms": 1,
+                "page": 1,
+                "revealed_row": 100,
+                "rows": 200,
+                "uptime": 370084.626097375,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104
+                ]
+              },
+              {
+                "gap_end_uptime": 370086.6944426667,
+                "gap_start_uptime": 370086.6445606667,
+                "max_callback_gap_ms": 49.882000021170825,
+                "over_25_ms": 1,
+                "page": 2,
+                "revealed_row": 200,
+                "rows": 300,
+                "uptime": 370086.6456584167,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204
+                ]
+              },
+              {
+                "gap_end_uptime": 370088.82053575,
+                "gap_start_uptime": 370088.7728716667,
+                "max_callback_gap_ms": 47.66408330760896,
+                "over_25_ms": 1,
+                "page": 3,
+                "revealed_row": 300,
+                "rows": 400,
+                "uptime": 370088.76681758335,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304
+                ]
+              },
+              {
+                "gap_end_uptime": 370090.94782395836,
+                "gap_start_uptime": 370090.8945265834,
+                "max_callback_gap_ms": 53.29737497959286,
+                "over_25_ms": 1,
+                "page": 4,
+                "revealed_row": 400,
+                "rows": 500,
+                "uptime": 370090.89872187504,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404
+                ]
+              },
+              {
+                "gap_end_uptime": 370093.05621891667,
+                "gap_start_uptime": 370093.01624562504,
+                "max_callback_gap_ms": 39.97329162666574,
+                "over_25_ms": 1,
+                "page": 5,
+                "revealed_row": 500,
+                "rows": 600,
+                "uptime": 370093.00773712504,
+                "visible_row_ids": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  100,
+                  101,
+                  102,
+                  103,
+                  104,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  300,
+                  301,
+                  302,
+                  303,
+                  304,
+                  400,
+                  401,
+                  402,
+                  403,
+                  404,
+                  500,
+                  501,
+                  502,
+                  503,
+                  504
+                ]
+              }
+            ],
+            "nonpublication_max_callback_gap_ms": 8.892374986317009,
+            "omitted_component": "none",
+            "page_size": 100,
+            "reveal_rows": true,
+            "row_kind": "production-rich",
+            "single_line": false,
+            "cycle": 3
+          }
+        ]
+      }
+    }
+  },
+  "final_visible_control": {
+    "summary": {
+      "prepend": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 58.38775000302121,
+        "worst_callback_gap_ms": 76.4214166556485,
+        "publications_over_25_ms": 15,
+        "nonpublication_worst_callback_gap_ms": 41.65849997662008
+      },
+      "append": {
+        "publications": 15,
+        "median_max_callback_gap_ms": 55.47625001054257,
+        "worst_callback_gap_ms": 69.00016666622832,
+        "publications_over_25_ms": 15,
+        "nonpublication_worst_callback_gap_ms": 20.826333318836987
+      }
+    },
+    "runs": [
+      {
+        "callback_count": 1219,
+        "direction": "prepend",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370368.14028337505,
+            "gap_start_uptime": 370368.101559375,
+            "max_callback_gap_ms": 38.724000041838735,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370368.10315075004,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370370.1828136667,
+            "gap_start_uptime": 370370.1291790417,
+            "max_callback_gap_ms": 53.63462498644367,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370370.1297560417,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370372.2593530417,
+            "gap_start_uptime": 370372.21248441667,
+            "max_callback_gap_ms": 46.868625038769096,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370372.21256116667,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370374.40751233336,
+            "gap_start_uptime": 370374.3457885417,
+            "max_callback_gap_ms": 61.72379164490849,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370374.34581383335,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370376.50153633335,
+            "gap_start_uptime": 370376.43747433333,
+            "max_callback_gap_ms": 64.06200001947582,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370376.442848125,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 8.788291714154184,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 1
+      },
+      {
+        "callback_count": 1215,
+        "direction": "append",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370382.0069494167,
+            "gap_start_uptime": 370381.9514731667,
+            "max_callback_gap_ms": 55.47625001054257,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370381.9525599583,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370384.12616370834,
+            "gap_start_uptime": 370384.06237675005,
+            "max_callback_gap_ms": 63.78695828607306,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370384.067083625,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370386.16283750004,
+            "gap_start_uptime": 370386.10867983336,
+            "max_callback_gap_ms": 54.15766668738797,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370386.10203112505,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370388.19610870833,
+            "gap_start_uptime": 370388.13786950003,
+            "max_callback_gap_ms": 58.23920830152929,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370388.1282879167,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370390.30094975,
+            "gap_start_uptime": 370390.25143370836,
+            "max_callback_gap_ms": 49.51604164671153,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370390.24384637503,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 9.104333352297544,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 1
+      },
+      {
+        "callback_count": 1222,
+        "direction": "append",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370395.90591950004,
+            "gap_start_uptime": 370395.84313654166,
+            "max_callback_gap_ms": 62.78295838274062,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370395.8482160417,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370398.00490870833,
+            "gap_start_uptime": 370397.9455700417,
+            "max_callback_gap_ms": 59.33866661507636,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370397.952008375,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370400.1312104167,
+            "gap_start_uptime": 370400.06221025,
+            "max_callback_gap_ms": 69.00016666622832,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370400.0665390834,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370402.26278883335,
+            "gap_start_uptime": 370402.19553520833,
+            "max_callback_gap_ms": 67.25362502038479,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370402.197349875,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370404.28059420834,
+            "gap_start_uptime": 370404.22899058333,
+            "max_callback_gap_ms": 51.60362500464544,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370404.2187990417,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 8.982708328403533,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 2
+      },
+      {
+        "callback_count": 1223,
+        "direction": "prepend",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370409.6665885417,
+            "gap_start_uptime": 370409.601382125,
+            "max_callback_gap_ms": 65.20641670795158,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370409.6077771667,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370411.74542608333,
+            "gap_start_uptime": 370411.69545633334,
+            "max_callback_gap_ms": 49.96974999085069,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370411.69991633337,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370413.8454925,
+            "gap_start_uptime": 370413.78710475,
+            "max_callback_gap_ms": 58.38775000302121,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370413.78717670834,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370415.9466835834,
+            "gap_start_uptime": 370415.87879270833,
+            "max_callback_gap_ms": 67.89087504148483,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370415.87902420835,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370418.02185895835,
+            "gap_start_uptime": 370417.9870238334,
+            "max_callback_gap_ms": 34.835124970413744,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370417.9941327917,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 9.260458347853273,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 2
+      },
+      {
+        "callback_count": 1225,
+        "direction": "prepend",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370423.5049366667,
+            "gap_start_uptime": 370423.43878487503,
+            "max_callback_gap_ms": 66.15179165964946,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370423.4431495417,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370425.5827877917,
+            "gap_start_uptime": 370425.52449345833,
+            "max_callback_gap_ms": 58.29433334292844,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370425.52738700004,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370427.725878625,
+            "gap_start_uptime": 370427.64945720835,
+            "max_callback_gap_ms": 76.4214166556485,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370427.65419445833,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370429.821314,
+            "gap_start_uptime": 370429.7577582084,
+            "max_callback_gap_ms": 63.55579162482172,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370429.7606283334,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370431.932465875,
+            "gap_start_uptime": 370431.8744147917,
+            "max_callback_gap_ms": 58.051083295140415,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370431.88071495836,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 41.65849997662008,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 3
+      },
+      {
+        "callback_count": 1232,
+        "direction": "append",
+        "final_rows": 600,
+        "fixed_row_height": false,
+        "input_fingerprint_sha256": "7370a63f1a36cc8e6804fd7fe65268b90eba2c8ea94d3e8d7880c39cb95d1ea4",
+        "insertions": [
+          {
+            "gap_end_uptime": 370437.5176021667,
+            "gap_start_uptime": 370437.4701831667,
+            "max_callback_gap_ms": 47.41900000954047,
+            "over_25_ms": 1,
+            "page": 1,
+            "revealed_row": 100,
+            "rows": 200,
+            "uptime": 370437.4651872084,
+            "visible_row_ids": [
+              100,
+              101,
+              102,
+              103,
+              104
+            ]
+          },
+          {
+            "gap_end_uptime": 370439.6452685417,
+            "gap_start_uptime": 370439.595185375,
+            "max_callback_gap_ms": 50.083166686818004,
+            "over_25_ms": 1,
+            "page": 2,
+            "revealed_row": 200,
+            "rows": 300,
+            "uptime": 370439.58981125004,
+            "visible_row_ids": [
+              200,
+              201,
+              202,
+              203,
+              204
+            ]
+          },
+          {
+            "gap_end_uptime": 370441.71181083337,
+            "gap_start_uptime": 370441.66431408335,
+            "max_callback_gap_ms": 47.49675001949072,
+            "over_25_ms": 1,
+            "page": 3,
+            "revealed_row": 300,
+            "rows": 400,
+            "uptime": 370441.66098283336,
+            "visible_row_ids": [
+              300,
+              301,
+              302,
+              303,
+              304,
+              305,
+              306,
+              307
+            ]
+          },
+          {
+            "gap_end_uptime": 370443.84930812503,
+            "gap_start_uptime": 370443.78037945833,
+            "max_callback_gap_ms": 68.92866670386866,
+            "over_25_ms": 1,
+            "page": 4,
+            "revealed_row": 400,
+            "rows": 500,
+            "uptime": 370443.7826050417,
+            "visible_row_ids": [
+              400,
+              401,
+              402,
+              403,
+              404,
+              405,
+              406,
+              407
+            ]
+          },
+          {
+            "gap_end_uptime": 370445.9409709167,
+            "gap_start_uptime": 370445.89092512504,
+            "max_callback_gap_ms": 50.04579166416079,
+            "over_25_ms": 1,
+            "page": 5,
+            "revealed_row": 500,
+            "rows": 600,
+            "uptime": 370445.88673300005,
+            "visible_row_ids": [
+              500,
+              501,
+              502,
+              503,
+              504,
+              505,
+              506
+            ]
+          }
+        ],
+        "nonpublication_max_callback_gap_ms": 20.826333318836987,
+        "omitted_component": "none",
+        "page_size": 100,
+        "reveal_rows": true,
+        "row_kind": "production-rich",
+        "single_line": false,
+        "pair": 3
+      }
+    ],
+    "paired_visible_ids_match": true
+  },
+  "notes": [
+    "Final visible control includes disappearance cleanup and confirms identical currently-visible IDs in every paired page.",
+    "Earlier bounds-interleaved visible_row_ids retained disappeared rows. Do not interpret them as current viewport snapshots; those runs only verified that each new unique target had become visible.",
+    "Separate component blocks are screens, not causal estimates. Interleaving rejected the apparent highlighting gain.",
+    "Fixed row bounds clip content and change visible density; diagnostic only."
+  ]
+}
