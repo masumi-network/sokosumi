@@ -378,9 +378,25 @@ export async function runTasksCommand({
   }
   if (command === "update") {
     const fields = await readTaskFields(options);
+    if (optionBoolean(options, "unassign")) {
+      if (
+        fields.coworkerId !== undefined ||
+        fields.assigneeUserId !== undefined
+      )
+        throw new Error(
+          "--unassign cannot be combined with --coworker-id or --assignee-user-id",
+        );
+      // Core treats any assignee field as a full replacement; null clears it.
+      fields.coworkerId = null;
+    }
+    if (optionBoolean(options, "clear-project")) {
+      if (fields.projectId !== undefined)
+        throw new Error("--clear-project cannot be combined with --project-id");
+      fields.projectId = null;
+    }
     if (Object.values(fields).every((value) => value === undefined))
       throw new Error(
-        "Pass at least one of --name, --description, --description-file, --priority, --project-id, --coworker-id, or --assignee-user-id",
+        "Pass at least one of --name, --description, --description-file, --priority, --project-id, --clear-project, --coworker-id, --assignee-user-id, or --unassign",
       );
     const id = await resolveTaskId(client, ref, signal);
     const { task } = await updateTask(client, id, fields, signal);

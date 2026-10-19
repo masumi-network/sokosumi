@@ -19,7 +19,7 @@ export interface TaskFields {
   description?: string | null;
   coworkerId?: string | null;
   assigneeUserId?: string;
-  projectId?: string;
+  projectId?: string | null;
   priority?: string;
 }
 

@@ -167,7 +167,7 @@ sokosumi tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
 ```
 
 - The returned `task.identifier` is the ticket name; use it in branches and PR descriptions.
-- `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`).
+- `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
 - `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
 - `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
 - The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.

@@ -540,3 +540,45 @@ test("tasks link validates --to and --relation", async () => {
     /--relation must be one of: related, blocks, blocked_by, parent, child, duplicate/,
   );
 });
+
+test("tasks update --unassign and --clear-project send nulls", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: recordingClient(calls, () => ({ data: { id: TASK_UUID } })),
+    stdout: { write() {} },
+    json: true,
+    subcommand: "update",
+    positionalId: TASK_UUID,
+    options: { unassign: true, "clear-project": true },
+  });
+  assert.deepEqual(calls, [
+    {
+      method: "PATCH",
+      path: `/v1/tasks/${TASK_UUID}`,
+      body: { assigneeId: null, projectId: null },
+    },
+  ]);
+});
+
+test("tasks update rejects clearing and setting the same field", async () => {
+  const run = (options: Record<string, string | boolean>) =>
+    runTasksCommand({
+      client: clientWith({ data: {} }),
+      stdout: { write() {} },
+      subcommand: "update",
+      positionalId: TASK_UUID,
+      options,
+    });
+  await assert.rejects(
+    () => run({ unassign: true, "coworker-id": "cw-1" }),
+    /--unassign cannot be combined with --coworker-id or --assignee-user-id/,
+  );
+  await assert.rejects(
+    () => run({ unassign: true, "assignee-user-id": "user-1" }),
+    /--unassign cannot be combined/,
+  );
+  await assert.rejects(
+    () => run({ "clear-project": true, "project-id": PEER_UUID }),
+    /--clear-project cannot be combined with --project-id/,
+  );
+});

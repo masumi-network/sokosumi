@@ -109,6 +109,8 @@ export interface CliOptions {
   "create-api-key"?: boolean;
   personal?: boolean;
   details?: boolean;
+  unassign?: boolean;
+  "clear-project"?: boolean;
 }
 
 export const GLOBAL_VALUE_OPTIONS = [
@@ -218,6 +220,7 @@ Organization Tasks:
   Task ids accept a UUID or a short identifier such as SOK-12.
   Create or update: --name TEXT, --description TEXT or --description-file FILE, --priority URGENT|HIGH|MEDIUM|LOW|NONE,
     --project-id ID, and one assignee: --coworker-id ID or --assignee-user-id ID.
+  tasks update also takes --unassign and --clear-project to remove the assignee or project.
   Status and progress: tasks comment TASK_ID --status STATUS --comment TEXT
   Links: tasks link TASK_ID --to OTHER_TASK_ID --relation related|blocks|blocked_by|parent|child|duplicate [--note TEXT]
 

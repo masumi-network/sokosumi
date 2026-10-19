@@ -75,7 +75,13 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const BOOLEAN_OPTION_NAMES = ["create-api-key", "details", "personal"] as const;
+const BOOLEAN_OPTION_NAMES = [
+  "create-api-key",
+  "details",
+  "personal",
+  "unassign",
+  "clear-project",
+] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
   ...GLOBAL_VALUE_OPTIONS,

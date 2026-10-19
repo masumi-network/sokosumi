@@ -102,6 +102,7 @@ test("Task Workspace selection preserves the selected target and applies to ever
       "--assignee-user-id",
       "user-1",
     ],
+    ["update", "task-1", "--unassign", "--clear-project"],
     ["links", "task-1"],
     ["link", "task-1", "--to", "task-1", "--relation", "blocks", "--note", "n"],
   ]) {
@@ -118,7 +119,7 @@ test("Task Workspace selection preserves the selected target and applies to ever
       f.deps,
     );
   }
-  assert.equal(f.output.length, 8);
+  assert.equal(f.output.length, 9);
   assert.ok(calls.includes("/v1/tasks"));
   assert.ok(calls.includes("/v1/tasks/task-1/links"));
   assert.ok(calls.includes("/v1/tasks/task-1/events"));

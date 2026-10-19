@@ -173,7 +173,7 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks events TASK_I
 
 [VERIFIED: `src/cli/commands/tasks.ts`]
 Task ids accept a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through `GET /v1/tasks/:id` before other calls.
-`tasks create` and `tasks update` take `--name`, `--description` or `--description-file`, `--priority`, `--project-id`, and one assignee: `--coworker-id` or `--assignee-user-id`.
+`tasks create` and `tasks update` take `--name`, `--description` or `--description-file`, `--priority`, `--project-id`, and one assignee: `--coworker-id` or `--assignee-user-id`. `tasks update --unassign` and `--clear-project` remove the assignee or project.
 `tasks link TASK_ID --relation RELATION --to OTHER_TASK_ID [--note TEXT]` links Tasks; `tasks links TASK_ID` lists them.
 
 [VERIFIED: `src/cli/index.ts`]
