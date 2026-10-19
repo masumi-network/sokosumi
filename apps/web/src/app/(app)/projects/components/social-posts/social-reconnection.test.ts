@@ -46,6 +46,8 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     canCancel: true,
     canPublishNow: true,
     canDuplicate: true,
+    canApprove: false,
+    canReject: false,
     connectionNeedsReconnect: false,
     ...overrides,
   };

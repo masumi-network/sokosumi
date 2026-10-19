@@ -16,14 +16,17 @@ import {
 } from "@/schemas/social-post.schema";
 import { scheduleSocialPost } from "@/services/social-posts.service";
 
-import { mapSocialPostServiceError } from "../../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/social-posts/{postId}/schedule",
     description:
-      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -69,10 +72,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

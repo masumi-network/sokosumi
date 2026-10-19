@@ -509,7 +509,7 @@ export async function finalizeProjectSocialConnection(
             where: {
               projectId: input.projectId,
               socialConnectionId: target.id,
-              status: { in: ["DRAFT", "SCHEDULED"] },
+              status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
             },
             data: { socialConnectionId: connection.id },
           });
