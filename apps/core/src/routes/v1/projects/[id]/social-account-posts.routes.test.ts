@@ -48,6 +48,7 @@ const recycled = {
   projectId,
   provider: "x",
   text: "Winner on the feed",
+  firstComment: null,
   media: [],
   status: "DRAFT",
   scheduledAt: null,
