@@ -12,6 +12,7 @@ const {
   taskFindFirstMock,
   vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
+  socialPostGroupByMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
   taskFindFirstMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  socialPostGroupByMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -53,6 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
     task: { findFirst: taskFindFirstMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
+    socialPost: { groupBy: socialPostGroupByMock },
   },
 }));
 
@@ -68,6 +71,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   userId: "user_123",
   organizationId: null,
   role: "user",
+  authenticationMethod: "session",
 };
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
@@ -122,6 +126,7 @@ describe("GET /workspaces/calendar/sources", () => {
     projectFindManyMock.mockResolvedValue([]);
     taskFindFirstMock.mockResolvedValue(null);
     vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
+    socialPostGroupByMock.mockResolvedValue([]);
   });
 
   it("lists workspace and Project sources with their scheduling availability", async () => {
@@ -324,5 +329,82 @@ describe("GET /workspaces/calendar/sources", () => {
 
     expect(response.status).toBe(200);
     expect(workspaceFindUniqueMock).toHaveBeenCalled();
+    expect(socialPostGroupByMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["workspace", "owned"])(
+    "returns each project's latest scheduled post in %s scope",
+    async (scope) => {
+      const projectId = "22222222-2222-7222-8222-222222222222";
+      const emptyProjectId = "33333333-3333-7333-8333-333333333333";
+      projectFindManyMock.mockResolvedValue(
+        [projectId, emptyProjectId].map((id) => ({
+          id,
+          name: "Project",
+          logo: null,
+          closingAt: null,
+          closedAt: null,
+        })),
+      );
+      socialPostGroupByMock.mockResolvedValue([
+        {
+          projectId,
+          _max: { scheduledAt: new Date("2027-01-20T12:00:00.000Z") },
+        },
+      ]);
+
+      const response = await createApp().request(
+        `http://localhost/calendar/sources?includeSocialPosts=true&scope=${scope}`,
+      );
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data[0]).not.toHaveProperty("latestScheduledSocialPostAt");
+      expect(body.data[1]).toMatchObject({
+        sourceId: `project:${projectId}`,
+        latestScheduledSocialPostAt: "2027-01-20T12:00:00.000Z",
+      });
+      expect(body.data[2]).toMatchObject({
+        sourceId: `project:${emptyProjectId}`,
+        latestScheduledSocialPostAt: null,
+      });
+      expect(socialPostGroupByMock).toHaveBeenCalledWith({
+        by: ["projectId"],
+        where: {
+          workspaceId: WORKSPACE_ID,
+          ...(scope === "owned" ? { scheduledByUserId: "user_123" } : {}),
+          status: { in: ["SCHEDULED", "PUBLISHING"] },
+          scheduledAt: { not: null },
+        },
+        _max: { scheduledAt: true },
+      });
+    },
+  );
+
+  it("requires beta access before reading Social post dates", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+    const response = await createApp().request(
+      "http://localhost/calendar/sources?includeSocialPosts=true",
+    );
+    expect(response.status).toBe(403);
+    expect(socialPostGroupByMock).not.toHaveBeenCalled();
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker access to Social post dates", async () => {
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
+      "http://localhost/calendar/sources?includeSocialPosts=true",
+    );
+    expect(response.status).toBe(403);
+    expect(socialPostGroupByMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects API-key access to Social post dates", async () => {
+    const response = await createApp({
+      ...USER_AUTH_CONTEXT,
+      authenticationMethod: "api_key",
+    }).request("http://localhost/calendar/sources?includeSocialPosts=true");
+    expect(response.status).toBe(403);
+    expect(socialPostGroupByMock).not.toHaveBeenCalled();
   });
 });

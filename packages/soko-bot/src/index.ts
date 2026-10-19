@@ -10,7 +10,6 @@ export {
 } from "./integrations.js";
 export {
   SOKO_BOT_JUDGE_RUBRIC,
-  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "./judge.js";
@@ -38,6 +37,7 @@ export {
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
   type TurnClassification,
@@ -112,6 +112,7 @@ export {
   sokoBotScheduleIdInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotTaskIdInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema,

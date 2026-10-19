@@ -3,33 +3,68 @@
 Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target yet. Feature coverage and remaining work live in [PARITY.md](PARITY.md), and product intent in [VISION.md](VISION.md).
 
 
-## Install the latest build
+## Install the app
 
-Every change to `apps/apple/**` (or the workflow itself) that reaches `main`
-publishes a signed, notarized disk image to the `apple-latest` prerelease. The
-URL never changes:
+The newest **Stable release** is always at one permanent link:
 
-**<https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg>**
+**<https://github.com/masumi-network/sokosumi/releases/download/macos-latest/Sokosumi.dmg>**
 
-Open it and drag Sokosumi to Applications. It is a rolling build of `main`,
-not a stable release.
+Open it and drag Sokosumi to Applications. From then on the app checks for
+new Stable releases itself (Sparkle) and offers them with the standard update
+prompt; **Check for Updates…** in the app menu checks right away.
 
-Maintainers: the signing credentials behind that job are set up once by
-[`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh).
+Testers who want to try `main` before it ships install the newest **Beta
+build** by hand:
+
+**<https://github.com/masumi-network/sokosumi/releases/download/macos-beta/Sokosumi.dmg>**
+
+Every change to `apps/apple/**` (or `apple.yml`) that reaches `main` replaces
+that disk image in place, signed and notarized. A Beta build is never offered
+as an update, but it is offered the next Stable release.
+
+## Releasing
+
+1. Release Please keeps a **Release PR** open
+   ([`macos-release.yml`](../../.github/workflows/macos-release.yml),
+   [`release-please-config.json`](release-please-config.json)). It collects
+   every Conventional Commit touching `apps/apple/**` since the last release,
+   picks the next version from them (`feat` raises the minor, `fix` the
+   patch), bumps [`Version.xcconfig`](Version.xcconfig) and writes the
+   section in `CHANGELOG.md` beside it. Commits that touch only
+   `apps/apple/docs` or `apps/apple/.agents` stay out of the changelog
+   (`exclude-paths`).
+2. A human reviews and merges the Release PR. That tags `macos-v<version>`
+   and creates its GitHub release; the same workflow run hands GitHub's
+   Latest badge straight back to the newest `cli-v*` release.
+3. The tag push runs `Publish macOS DMG` in `apple.yml`, which refuses a tag
+   on a commit that is not on `main`, then builds, notarizes and signs that
+   commit, attaches the disk image to the `macos-v<version>` release, and
+   replaces `Sokosumi.dmg` and `appcast.xml` on `macos-latest`. Installed
+   apps see the update on their next check.
+
+Before the first release (1.0.0) merges, `bootstrap-sha` in
+`release-please-config.json` moves to the then-current `main` so earlier
+commits stay out of the changelog. Delete the old `apple-latest` release
+only after 1.0.0 is on `macos-latest`; until then it is the only Stable
+download.
+
+A manual run of `apple.yml` (`workflow_dispatch`) builds, notarizes and signs
+the appcast with the production Sparkle key, and uploads both as run
+artifacts without touching a release. Those artifacts are real update
+candidates for every installed app, so share them as carefully as a release.
+
+Maintainers: the signing credentials behind the publish job are set up once by
+[`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh), and
+the release App and Sparkle keys by
+[`scripts/setup-release-updates.sh`](scripts/setup-release-updates.sh).
 
 ## Build and run
 
 Open `Sokosumi.xcworkspace` (not the bare project — the workspace is what makes the package tests reachable from the `Sokosumi` scheme), select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
 
-Configuration resolves environment variables before the corresponding Info.plist keys:
+The OAuth client ID resolves the `SOKOSUMI_OAUTH_CLIENT_ID` environment variable before the `SokosumiOAuthClientID` Info.plist key.
 
-| Environment | Info.plist | Purpose |
-| --- | --- | --- |
-| `SOKOSUMI_CORE_BASE_URL` | `SokosumiCoreBaseURL` | Core API URL, including `/v1` |
-| `SOKOSUMI_WEB_BASE_URL` | `SokosumiWebBaseURL` | Web origin for setup links |
-| `SOKOSUMI_OAUTH_CLIENT_ID` | `SokosumiOAuthClientID` | Registered public OAuth client ID |
-
-The URL defaults point to production. Sign-in uses system-browser OAuth with PKCE and Keychain token storage. It does not reuse the web app's cookies.
+A Release build always talks to production (`https://api.sokosumi.com/v1` and `https://app.sokosumi.com`); nothing redirects it. A Debug build ("Sokosumi Dev") shows a **Server** section on the signed-out sign-in screen: type the Core API URL and web origin (a PR preview from `/deploy mainnet`, or local portless) and press Apply. A Core URL without a path gets `/v1`. The choice survives relaunch; Use production clears it. It is editable only while signed out, because tokens belong to the issuer that minted them, and the client ID stays the mainnet one, so only mainnet-backed servers sign in. Sign-in uses system-browser OAuth with PKCE and Keychain token storage. It does not reuse the web app's cookies.
 
 The browser returns to the app at `https://app.sokosumi.com/auth/apple/callback`, a link only this app can claim, so nobody is asked to authorize it. That needs a build signed for the team: an ad-hoc build (`DEVELOPMENT_TEAM=`) runs the tests but cannot sign in. See [AGENTS.md](AGENTS.md#oauth-and-core-setup).
 
@@ -39,7 +74,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 
 | Location | Responsibility |
 | --- | --- |
-| `Sokosumi/App` | Scenes, root navigation, environment configuration |
+| `Sokosumi/App` | Scenes, root navigation, environment configuration and the Sparkle updater (`AppUpdater`, Developer ID builds only) |
 | `Sokosumi/Authentication` | Sign-in UI, system-browser integration and Keychain adapter for `TokenStore` |
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows, status rows, the mark a jump leaves and the spotlight it casts (`JumpSpotlightClock`), Seen by on the newest message (`SeenByButton`) and the room header, whose name is a title bar button (`RoomHeaderModifier`) |
@@ -49,7 +84,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Search` | Room Find toolbar, shared inspector presentation and search result rows |
 | `Sokosumi/Chat/Composer` | Rich composer, the Typing line under it, Drive picker and native text input |
-| `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
+| `Sokosumi/Chat/Rendering` | Markdown, code, Mermaid flowcharts, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton`, `ParticipantDetailsView`, the shared `WrappingRow` layout and the Channel mark's symbol (`ChannelMark.systemImage`) |
 | `Sokosumi/Settings` | Settings scene content (account, chat display, time format and chat notification delivery) and the time-format environment value |
 | `Sokosumi/Notifications` | `UNUserNotificationCenter` adapter for local chat banners while the app runs; what to show or dismiss is decided in the shared packages |
@@ -65,11 +100,11 @@ The app composes these UI-free packages:
 | `SokosumiChat` | Workspace/room/thread state, sends, streaming, parsing, avatar loading and chat persistence | `CoreAPI` |
 | `SokosumiRealtime` | Ably transport adapter, domain event delivery, org presence and the open room's typing channel | `CoreAPI`, `SokosumiChat` |
 
-Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
+Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Every Core client comes from `Client.core`, which puts `CoreErrorMiddleware` outermost: it maps each non-2xx response to one `ChatServiceError`, so operation wrappers read only their success case. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
 
 `SokosumiApp` currently shares one auth and workspace coordinator across windows. Each root view reports its own visibility identity. Preserve this ownership during refactors: creating a coordinator per child view would change selection, task lifetime and realtime behavior.
 
-`WorkspaceState` lives in `Packages/SokosumiWorkspace`, with integration tests in that package. The app injects an authenticated Core client provider and the realtime connection factory. Endpoint configuration and browser presentation stay in the app; the coordinator has no dependency on the app target, SwiftUI or AppKit. Its cancellation and generation guards remain alongside the operations they protect.
+`WorkspaceState` lives in `Packages/SokosumiWorkspace`, with integration tests in that package. The app injects its one `AuthState` (workspace methods read it instead of taking an `auth` argument), an authenticated Core client provider and the realtime connection factory. Endpoint configuration and browser presentation stay in the app; the coordinator has no dependency on the app target, SwiftUI or AppKit. Its cancellation and generation guards remain alongside the operations they protect.
 
 ## Making changes
 

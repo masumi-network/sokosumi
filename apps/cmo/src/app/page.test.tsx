@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NameSetup } from "../components/name-setup";
 import { OrganizationSetup } from "../components/organization-setup";
@@ -10,6 +10,7 @@ import { WorkspaceGate } from "../components/workspace-gate";
 
 const getSession = vi.fn();
 const getUsersById = vi.fn();
+const getUsersByIdSignUp = vi.fn();
 const getUsersByIdWorkspaces = vi.fn();
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -28,6 +29,7 @@ vi.mock("../lib/core", () => ({
 
 vi.mock("@sokosumi/core-client", () => ({
   getUsersById,
+  getUsersByIdSignUp,
   getUsersByIdWorkspaces,
 }));
 
@@ -49,7 +51,9 @@ const { default: HomePage } = await import("./page");
 function render(
   error?: string | string[],
   step?: string | string[],
-): Promise<ReactElement<{ failed?: boolean; error?: string }>> {
+): Promise<
+  ReactElement<{ failed?: boolean; error?: string; websiteUrl?: string }>
+> {
   return HomePage({ searchParams: Promise.resolve({ error, step }) });
 }
 
@@ -67,6 +71,13 @@ function userAnswer(firstName: string | null, lastName: string | null) {
   };
 }
 
+function signUpAnswer(origin: string, context: Record<string, unknown>) {
+  return {
+    data: { data: { origin, context, createdAt: new Date() } },
+    response: new Response(null, { status: 200 }),
+  };
+}
+
 describe("CMO home page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,6 +85,14 @@ describe("CMO home page", () => {
       user: { name: "Ada Lovelace", email: "ada@example.com" },
     });
     getUsersById.mockResolvedValue(userAnswer("Ada", "Lovelace"));
+    getUsersByIdSignUp.mockResolvedValue({
+      error: { error: "Not Found" },
+      response: new Response(null, { status: 404 }),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("shows the signed-out page without a session, without asking Core", async () => {
@@ -118,6 +137,79 @@ describe("CMO home page", () => {
     expect((await render(undefined, "organization")).type).toBe(
       OrganizationSetup,
     );
+  });
+
+  it("starts the organization step with the website the CMO sign-up link carried", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+    getUsersByIdSignUp.mockResolvedValue(
+      signUpAnswer("cmo", { url: "nmkr.io", plan: "pro" }),
+    );
+
+    const page = await render(undefined, "organization");
+
+    expect(page.type).toBe(OrganizationSetup);
+    expect(page.props.websiteUrl).toBe("nmkr.io");
+    expect(getUsersByIdSignUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { id: "me" },
+        headers: { authorization: "Bearer token_123" },
+      }),
+    );
+  });
+
+  it.each([
+    ["another origin", signUpAnswer("sokosumi", { url: "nmkr.io" })],
+    ["no url", signUpAnswer("cmo", { plan: "pro" })],
+    ["a url that is not text", signUpAnswer("cmo", { url: 42 })],
+    [
+      "no sign-up recorded",
+      {
+        error: { error: "Not Found" },
+        response: new Response(null, { status: 404 }),
+      },
+    ],
+  ])(
+    "starts the organization step without a website for %s",
+    async (_label, answer) => {
+      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+      getUsersByIdSignUp.mockResolvedValue(answer);
+      const consoleError = vi.spyOn(console, "error");
+
+      const page = await render(undefined, "organization");
+
+      expect(page.type).toBe(OrganizationSetup);
+      expect(page.props.websiteUrl).toBeUndefined();
+      expect(consoleError).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["answers 500", new Response(null, { status: 500 })],
+    ["is unreachable", undefined],
+  ])(
+    "still shows the organization step when Core %s for the sign-up",
+    async (_label, response) => {
+      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+      getUsersByIdSignUp.mockResolvedValue({ error: {}, response });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const page = await render(undefined, "organization");
+
+      expect(page.type).toBe(OrganizationSetup);
+      expect(page.props.websiteUrl).toBeUndefined();
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining("Core did not read the sign-up"),
+      );
+    },
+  );
+
+  it("reads the sign-up only on the organization step", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+
+    expect((await render()).type).toBe(WorkspaceGate);
+    expect(getUsersByIdSignUp).not.toHaveBeenCalled();
   });
 
   it("does not show the organization step to a person with a workspace", async () => {

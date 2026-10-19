@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Web's Log in page (`apps/web/src/app/(auth)`): the wordmark, one centered column and the legal footer, with the
 /// photo panel beside it once the window is wide enough. Every way in runs through the system browser, where web
-/// offers its own methods (email, Google, Microsoft, passkey) and Register.
+/// offers its own methods (email, Google, Microsoft, passkey); Register opens the website's sign-up page.
 struct SignInView: View {
   @EnvironmentObject private var auth: AuthState
   /// Web picks one of five photos per visit; this picks one per window.
@@ -79,19 +79,21 @@ private struct SignInColumn: View {
         HStack(spacing: 4) {
           Text("Don't have an account?")
             .foregroundStyle(.secondary)
-          // The browser lands on Log in, which links to Register; Core's authorize step has no way to open it first.
-          Button("Register") {
-            auth.startSignIn()
-          }
-          .buttonStyle(.plain)
-          .foregroundStyle(.tint)
-          .pointerStyle(.link)
+          // Accounts are created on the website: the sign-in sheet forgets everything once it closes, and the
+          // website's onboarding sets up the new account.
+          Link("Register", destination: CoreSettings.signUpURL)
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .pointerStyle(.link)
         }
         Text(SignInLinks.termsNotice)
           .font(.callout)
           .foregroundStyle(.secondary)
           .tint(.secondary)
           .multilineTextAlignment(.center)
+        #if DEBUG
+          ServerChoiceSection()
+        #endif
       case .signingIn:
         HStack(spacing: 8) {
           ProgressView()

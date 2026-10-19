@@ -1,92 +1,28 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  var streamingThreadToOpen: Components.Schemas.ChatRoomMessage? {
-    guard directStream.isBusy, directStream.phase != .resuming,
-          let parentId = directStream.parentMessageId,
-          thread.parent?.id != parentId else { return nil }
-    return transcriptMessages.first { $0.id == parentId }
-  }
-
-  func openThread(_ parent: Components.Schemas.ChatRoomMessage, auth: AuthState) {
-    guard parent.roomId == transcriptRoomId else { return }
-    let previousGeneration = thread.timeline.generation
-    guard thread.open(parent) else { return }
-    guard thread.timeline.generation != previousGeneration else { return }
-    loadThreadPage(.initial, auth: auth)
-    let generation = thread.timeline.generation
-    thread.recovery.start(foreground: readAttention.isVisible, healthy: transcriptRealtimeHealthy) { [weak self, weak auth] in
-      guard let self, let auth else { return }
-      while let task = thread.loadTask, generation == thread.timeline.generation {
-        await task.value
-      }
-      guard generation == thread.timeline.generation else { return }
-      loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
-      await thread.loadTask?.value
-    }
-  }
-
-  var displayedThreadReplies: [Components.Schemas.ChatRoomMessage] {
-    let replies = directStream.displayedMessages(persisted: thread.displayedReplies, parentMessageId: thread.parent?.id)
-    return pendingReactions.overlaying(replies, viewer: reactionViewer)
-  }
-
-  func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
-    guard page != .older || !directStream.isBusy else { return }
-    guard let client = resolveClient(auth: auth) else {
-      thread.timeline.failInitialLoad(message: "Sign-in is not configured.", generation: thread.timeline.generation)
-      return
-    }
-    thread.loadPage(page, client: client, organizationSlug: selection?.workspace.organizationSlug,
-                    syncAttention: { [weak self, weak auth] in
-                      guard let self, let auth else { return }
-                      if page == .initial {
-                        await syncThreadAttention(auth: auth)
-                      } else {
-                        await syncReadAttention(auth: auth)
-                      }
-                    }, failed: { [weak self, weak auth] error in
-                      guard let self, let auth, let error = error as? ChatServiceError else { return }
-                      signOutIfUnauthorized(error, auth: auth)
-                    })
-  }
-
-  internal func syncThreadAttention(auth: AuthState) async {
-    guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable,
-          let client = resolveClient(auth: auth) else { return }
-    let parentId = thread.parent?.id
-    do {
-      guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
-            readAttention.isVisible else { return }
-      clearThreadUnreadReplies { $0 == parentId }
+  internal func syncThreadAttention() async {
+    guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable else { return }
+    let parentId = openRoom.thread.parent?.id
+    _ = try? await request { _, client, slug in
+      guard try await openRoom.thread.markLooked(client: client, organizationSlug: slug), readAttention.isVisible else { return }
+      openRoom.clearThreadUnreadReplies { $0 == parentId }
       try await syncRoomAttentionAfterThreadChange(client: client)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
     }
   }
 
   /// The automatic Look inside the room read reached Core (row 24c): the Thread's reply bar and the Threads
   /// trigger drop it at once, and the trigger counts again.
   internal func threadLooked(_ parentMessageId: String?) {
-    clearThreadUnreadReplies { $0 == parentMessageId }
-    threadAttentionRevision += 1
-  }
-
-  /// Web's `clearThreadUnreadReplies`: a Look or Mark all settles the Threads trigger and the transcript's reply
-  /// bars without waiting for the re-read the caller also starts (row 24h, SOK-1151).
-  internal func clearThreadUnreadReplies(where isCleared: (String) -> Bool) {
-    threadOverview.clearUnreadReplies(where: isCleared)
-    transcriptMessages = clearingThreadUnreadReplies(transcriptMessages, where: isCleared)
+    openRoom.clearThreadUnreadReplies { $0 == parentMessageId }
+    openRoom.threadAttentionChanged()
   }
 
   /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
   /// room read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
   internal func syncRoomAttentionAfterThreadChange(client: Client) async throws {
-    threadAttentionRevision += 1
+    openRoom.threadAttentionChanged()
     guard roomHistoryReadable, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
     try await readAttention.readAfterThreadLook(
       room: room, client: client, organizationSlug: selection?.workspace.organizationSlug
@@ -96,61 +32,24 @@ public extension WorkspaceState {
   /// Web's `ThreadMuteButton` reads the open thread's mute itself, because a thread opened from a message
   /// row has no overview behind it. Runs only while the state is unknown; the view calls it again when the
   /// reply count changes, so a parent's first reply brings the control.
-  func readThreadMuteIfNeeded(auth: AuthState) async {
-    guard thread.mute?.needsRead == true, thread.parent?.roomId == transcriptRoomId,
-          let client = resolveClient(auth: auth) else { return }
-    do {
-      try await thread.readMute(client: client, organizationSlug: selection?.workspace.organizationSlug)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
-    }
+  func readThreadMuteIfNeeded() async {
+    guard openRoom.thread.mute?.needsRead == true, openRoom.thread.parent?.roomId == transcriptRoomId else { return }
+    _ = try? await request { _, client, slug in try await openRoom.thread.readMute(client: client, organizationSlug: slug) }
   }
 
-  func toggleThreadMute(auth: AuthState) async {
-    guard thread.parent?.roomId == transcriptRoomId, let client = resolveClient(auth: auth) else { return }
+  func toggleThreadMute() async {
+    guard openRoom.thread.parent?.roomId == transcriptRoomId else { return }
     let roomId = transcriptRoomId
-    do {
-      guard try await thread.toggleMute(client: client, organizationSlug: selection?.workspace.organizationSlug),
-            roomId == transcriptRoomId else { return }
+    _ = try? await request { _, client, slug in
+      guard try await openRoom.thread.toggleMute(client: client, organizationSlug: slug), roomId == transcriptRoomId else { return }
       try await syncRoomAttentionAfterThreadChange(client: client)
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
     }
   }
 
   @discardableResult
-  func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
-    guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
-    if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
-      let generation = timeline.generation
-      return directStream.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug,
-                               attachments: attachments, parentMessageId: parentId, quote: quote, settled: { [weak self, weak auth] in
-                                 guard let self, let auth else { return false }
-                                 return await settleDirectStream(auth: auth, generation: generation)
-                               }, failed: { [weak self, weak auth] error in
-                                 guard let self, let auth, let error = error as? ChatServiceError else { return }
-                                 signOutIfUnauthorized(error, auth: auth)
-                               })
-    }
-    return thread.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug, sender: outboundSender,
-                       mentions: ComposerMention.selected(in: content, catalog: composerMentions), quote: quote) { [weak self, weak auth] result in
-      guard let self, let auth else { return }
-      switch result {
-      case let .success(reply):
-        // Web updates the room row. The open thread's parent is a snapshot, so assigning it would put back
-        // an unread count a Look already cleared, before the unread read has answered.
-        if let parentId = thread.parent?.id, let index = transcriptMessages.firstIndex(where: { $0.id == parentId }) {
-          transcriptMessages[index] = applyingReplyToParentThreadPreview(transcriptMessages[index], reply: reply)
-        }
-      case let .failure(error):
-        if let error = error as? ChatServiceError {
-          signOutIfUnauthorized(error, auth: auth)
-        }
-      }
-    }
+  func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+                       skills: [Components.Schemas.ChatRoomMessageSkill] = []) -> Bool {
+    openRoom.sendReply(content, sender: outboundSender, mentions: ComposerMention.selected(in: content, catalog: composerMentions),
+                       attachments: attachments, quote: quote, skills: skills)
   }
 }

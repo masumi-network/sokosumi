@@ -5,8 +5,8 @@ import { LIMITS } from "@/config/constants";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 const { getEnvMock, createUserFileUploadSessionMock, userFindUniqueMock } =
@@ -49,6 +49,10 @@ vi.mock("@/middleware/auth", async () => ({
     authContext: AuthenticationContext | null,
   ): authContext is Extract<AuthenticationContext, { actor: "coworker" }> =>
     authContext?.actor === "coworker",
+  isSokoBotAuthContext: (
+    authContext: AuthenticationContext | null,
+  ): authContext is Extract<AuthenticationContext, { actor: "sokoBot" }> =>
+    authContext?.actor === "sokoBot",
   requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
@@ -111,7 +115,7 @@ function createApp(
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountPostUserFiles(userByIdApp);
   app.route("/:id", userByIdApp);
 

@@ -8,6 +8,9 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
+  type ProjectSocialProvider as ProjectSocialProviderValue,
+  SocialPostStatus,
+  type SocialPostStatus as SocialPostStatusValue,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
@@ -68,6 +71,10 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import {
+  SOCIAL_POST_PROVIDERS,
+  socialPlatformFilterSection,
+} from "@/components/social-platform-filter";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -103,6 +110,11 @@ import {
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+import {
+  isChangeableSocialPost,
+  rescheduleSocialPost,
+  useReportSocialRescheduleFailure,
+} from "./social-post-change";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
@@ -111,9 +123,20 @@ type CalendarView = (typeof CALENDAR_VIEWS)[number];
 // already shows what is coming up, so its calendar has no agenda list.
 const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
+const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
+  (status) => status !== SocialPostStatus.DRAFT,
+);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
+}
+
+function isSocialPostStatus(
+  value: string | null,
+): value is Exclude<SocialPostStatusValue, "DRAFT"> {
+  return (
+    value !== null && SOCIAL_POST_STATUSES.some((status) => status === value)
+  );
 }
 
 export interface CalendarCoworker {
@@ -191,6 +214,13 @@ const calendarParsers = {
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
+  postStatus:
+    parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
+      SOCIAL_POST_STATUSES,
+    ),
+  provider: parseAsStringEnum<ProjectSocialProviderValue>(
+    SOCIAL_POST_PROVIDERS,
+  ),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
@@ -245,6 +275,30 @@ function getRangeLabel(
   }
 
   return formatDate(date, { month: "long", year: "numeric" });
+}
+
+function calendarTodayKey(timeZone: string): string {
+  return Temporal.Now.plainDateISO(timeZone).toString();
+}
+
+function isShowingToday(
+  date: Date,
+  view: CalendarView,
+  timeZone: string,
+): boolean {
+  const today = calendarTodayKey(timeZone);
+  if (view === "week") {
+    return (
+      today >= format(startOfWeek(date), "yyyy-MM-dd") &&
+      today <= format(endOfWeek(date), "yyyy-MM-dd")
+    );
+  }
+
+  return format(date, "yyyy-MM") === today.slice(0, 7);
+}
+
+function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
+  return isChangeableRun(item) || isChangeableSocialPost(item);
 }
 
 /** A moved Run is planned at a time other than the rule's. */
@@ -526,9 +580,30 @@ function CalendarView({
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
+  const reportSocialRescheduleFailure = useReportSocialRescheduleFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
-  const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
+  const [pendingMoves, setPendingMoves] = useState<
+    Record<string, { item: WorkspaceCalendarEntry; scheduledAt: Date }>
+  >({});
+  // Unchanged server snapshots retain the move until its time or revision changes.
+  const retainedMoves = Object.entries(pendingMoves).filter(([, move]) => {
+    const current = items.find((item) => item.id === move.item.id);
+    if (
+      !current ||
+      current.scheduledAt.getTime() !== move.item.scheduledAt.getTime()
+    ) {
+      return false;
+    }
+    return current.kind === "socialPost"
+      ? move.item.kind === "socialPost" &&
+          current.revision === move.item.revision
+      : move.item.kind !== "socialPost" &&
+          current.scheduleRevision === move.item.scheduleRevision;
+  });
+  if (retainedMoves.length !== Object.keys(pendingMoves).length) {
+    setPendingMoves(Object.fromEntries(retainedMoves));
+  }
   const pluginView = {
     month: "dayGridMonth",
     week: "dayGridWeek",
@@ -544,29 +619,56 @@ function CalendarView({
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
     const scheduledAt = info.event.start;
-    if (!item || !scheduledAt || !isChangeableRun(item)) {
+    if (!item || !scheduledAt) {
       info.revert();
       return;
     }
 
-    setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
-
-    try {
-      const result = await changeRun(item, { action: "move", scheduledAt });
-
-      if (!result.ok) {
+    if (isChangeableRun(item)) {
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
+      try {
+        const result = await changeRun(item, { action: "move", scheduledAt });
+        if (!result.ok) {
+          clearPendingMove(item.id);
+          info.revert();
+          reportRunChangeFailure(result.error.kind);
+          return;
+        }
+        router.refresh();
+      } catch {
         clearPendingMove(item.id);
         info.revert();
-        reportRunChangeFailure(result.error.kind);
-        return;
+        reportRunChangeFailure("failed");
       }
-
-      router.refresh();
-    } catch {
-      clearPendingMove(item.id);
-      info.revert();
-      reportRunChangeFailure("failed");
+      return;
     }
+
+    if (isChangeableSocialPost(item)) {
+      setPendingMoves((moves) => ({
+        ...moves,
+        [item.id]: { item, scheduledAt },
+      }));
+      try {
+        const result = await rescheduleSocialPost(item, scheduledAt);
+        if (!result.ok) {
+          clearPendingMove(item.id);
+          info.revert();
+          reportSocialRescheduleFailure(result.error);
+          return;
+        }
+        router.refresh();
+      } catch {
+        clearPendingMove(item.id);
+        info.revert();
+        reportSocialRescheduleFailure();
+      }
+      return;
+    }
+
+    info.revert();
   }
 
   const dateKey = getCalendarDayKey(date);
@@ -661,9 +763,11 @@ function CalendarView({
           events={items.map((item) => ({
             id: item.id,
             title: item.kind === "socialPost" ? item.text : item.taskName,
-            start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+            start: (
+              pendingMoves[item.id]?.scheduledAt ?? item.scheduledAt
+            ).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
-            startEditable: isChangeableRun(item),
+            startEditable: isDraggableCalendarEntry(item),
             durationEditable: false,
           }))}
           timeZone={timeZone}
@@ -681,7 +785,7 @@ function CalendarView({
             const item = movingEvent
               ? items.find(({ id }) => id === movingEvent.id)
               : undefined;
-            return Boolean(item && isChangeableRun(item));
+            return Boolean(item && isDraggableCalendarEntry(item));
           }}
           eventDrop={(info) => void handleEventDrop(info)}
           eventContent={(eventInfo) => {
@@ -690,14 +794,23 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
-            if (item.kind === "socialPost")
+            if (item.kind === "socialPost") {
+              const pendingStart = pendingMoves[item.id]?.scheduledAt;
               return (
-                <SocialPostCalendarEvent
-                  item={item}
-                  timeZone={timeZone}
-                  variant={socialPostVariant}
-                />
+                <div className="w-full max-w-full min-w-0 overflow-hidden">
+                  <SocialPostCalendarEvent
+                    item={
+                      pendingStart
+                        ? { ...item, scheduledAt: pendingStart }
+                        : item
+                    }
+                    showThumb={socialOnly && view === "week"}
+                    timeZone={timeZone}
+                    variant={socialPostVariant}
+                  />
+                </div>
               );
+            }
             return (
               <CalendarEvent
                 item={item}
@@ -738,6 +851,7 @@ export function WorkspaceCalendar({
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
+  const tPostStatus = useTranslations("App.Projects.SocialPosts.status");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -802,7 +916,18 @@ export function WorkspaceCalendar({
     };
   });
 
-  const date = parseCalendarDate(state.date ?? initialDate, initialDate);
+  const requestedDate = parseCalendarDate(
+    state.date ?? initialDate,
+    initialDate,
+  );
+  const latestCalendarDate = latestDate
+    ? parseCalendarDate(latestDate, initialDate)
+    : null;
+  const date =
+    latestCalendarDate &&
+    startOfMonth(requestedDate) > startOfMonth(latestCalendarDate)
+      ? latestCalendarDate
+      : requestedDate;
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
@@ -868,9 +993,6 @@ export function WorkspaceCalendar({
     }
   }, [isMobile, state.view, setState, socialPostsOnly]);
 
-  const latestCalendarDate = latestDate
-    ? parseCalendarDate(latestDate, initialDate)
-    : null;
   const visibleItems = loadedItems
     .filter((item) => {
       // Only Social posts survive the toggle. The grid views drain every page
@@ -886,6 +1008,8 @@ export function WorkspaceCalendar({
           state.assigneeId === null &&
           state.assigneeUserId === null &&
           state.status === null &&
+          (state.postStatus === null || item.status === state.postStatus) &&
+          (state.provider === null || item.provider === state.provider) &&
           (selectedSourceId === null || item.sourceId === selectedSourceId)
         );
       return (
@@ -923,6 +1047,10 @@ export function WorkspaceCalendar({
 
     const nextDate = getNavigatedDate(direction);
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
+  }
+
+  function handleToday() {
+    void setState({ date: calendarTodayKey(timeZone) }, { shallow: false });
   }
 
   function handleViewChange(view: CalendarView) {
@@ -1182,8 +1310,40 @@ export function WorkspaceCalendar({
         ]
       : []),
     // A coworker, human or task status chosen while Social-only is on would
-    // empty the calendar: a Social post has none of the three.
+    // empty the calendar: a Social post has none of the three. Posts have
+    // their own status and platform filters instead.
     ...(socialOnly ? [] : runFilterSections()),
+    ...(socialOnly
+      ? [
+          {
+            id: "postStatus",
+            label: tFilters("statusLabel"),
+            icon: CircleDashed,
+            value: state.postStatus,
+            allLabel: tFilters("all"),
+            options: SOCIAL_POST_STATUSES.map((status) => ({
+              value: status,
+              label: tPostStatus(status),
+            })),
+            onChange: (postStatus: string | null) =>
+              void setState(
+                {
+                  postStatus: isSocialPostStatus(postStatus)
+                    ? postStatus
+                    : null,
+                },
+                { shallow: false },
+              ),
+          },
+          socialPlatformFilterSection({
+            label: t("socialPost.platform"),
+            allLabel: tFilters("all"),
+            value: state.provider,
+            onChange: (provider) =>
+              void setState({ provider }, { shallow: false }),
+          }),
+        ]
+      : []),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1248,6 +1408,14 @@ export function WorkspaceCalendar({
             >
               <ChevronRight aria-hidden />
             </Button>
+            <Button
+              disabled={isShowingToday(date, view, timeZone)}
+              type="button"
+              variant="outline"
+              onClick={handleToday}
+            >
+              {t("today")}
+            </Button>
           </div>
         ) : null}
         {socialPostsOnly ? (
@@ -1284,6 +1452,7 @@ export function WorkspaceCalendar({
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
                 "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialPostsOnly && "min-h-11 md:min-h-8",
               )}
               data-testid="calendar-views"
             >
@@ -1292,6 +1461,7 @@ export function WorkspaceCalendar({
                   className={cn(
                     SEGMENTED_TAB_TRIGGER_CLASS_NAME,
                     "max-sm:px-1.5 max-sm:text-xs",
+                    socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
                   )}
                   key={calendarView}
                   value={calendarView}
@@ -1314,6 +1484,8 @@ export function WorkspaceCalendar({
                     assigneeId: null,
                     assigneeUserId: null,
                     status: null,
+                    postStatus: state.socialOnly ? null : state.postStatus,
+                    provider: state.socialOnly ? null : state.provider,
                   },
                   { shallow: false },
                 )
@@ -1342,12 +1514,19 @@ export function WorkspaceCalendar({
               emptyResultsLabel={tFilters("emptyResults")}
               searchPlaceholder={tFilters("searchPlaceholder")}
               sections={filterSections}
+              triggerClassName={
+                socialPostsOnly
+                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
+                  : undefined
+              }
               showActiveIndicator={
                 state.scope === "owned" ||
                 (!socialOnly &&
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||
                     state.status !== null)) ||
+                (socialOnly &&
+                  (state.postStatus !== null || state.provider !== null)) ||
                 selectedSourceId !== null
               }
             />
@@ -1376,7 +1555,9 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
-          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
+          socialPostVariant={
+            socialPostsOnly && view !== "week" ? "preview" : "compact"
+          }
           sources={sources}
           timeZone={timeZone}
           view={view}

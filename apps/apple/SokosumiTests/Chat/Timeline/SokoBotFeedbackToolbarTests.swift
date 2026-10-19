@@ -62,10 +62,14 @@
       /// The row as the room passes it, in a window: Reply and Quote, plus the thumbs when the turn has them.
       private static func host(_ message: Components.Schemas.ChatRoomMessage, feedback: SokoBotFeedback?, ratings: SokoBotRatings,
                                dark: Bool = false) async throws -> (NSHostingView<AnyView>, NSWindow) {
-        let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                 onReply: {}, onQuote: {},
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                                 perform: { action in
+                                   if case let .rate(useful) = action {
+                                     ratings.values.append(useful)
+                                   }
+                                   return nil
+                                 },
                                  sokoBotFeedback: feedback,
-                                 onSokoBotFeedback: { ratings.values.append($0) },
                                  horizontalInset: 12)
         let host = NSHostingView(rootView: AnyView(row
             .padding(.top, top)
@@ -101,12 +105,16 @@
 
       /// The hovered toolbar's leading edge, in points: the first column above the row that the hover changed.
       private static func toolbarMinX(hovered: NSBitmapImageRep, plain: NSBitmapImageRep) throws -> CGFloat {
+        try CGFloat(#require(toolbarColumn(hovered: hovered, plain: plain), "The hover drew a toolbar above the row"))
+          / (CGFloat(hovered.pixelsWide) / width)
+      }
+
+      private static func toolbarColumn(hovered: NSBitmapImageRep, plain: NSBitmapImageRep) -> Int? {
         let scale = CGFloat(hovered.pixelsWide) / width
         let rows = Int((top - 6) * scale) ..< Int((contentTop - 2) * scale)
-        let column = (0 ..< hovered.pixelsWide).first { column in
+        return (0 ..< hovered.pixelsWide).first { column in
           rows.contains { abs(luminance(hovered, column, $0) - luminance(plain, column, $0)) > 0.06 }
         }
-        return try CGFloat(#require(column, "The hover drew a toolbar above the row")) / scale
       }
 
       /// Where the two thumbs sit: the toolbar's first two compact controls (a 16 pt icon with 8 pt either side)
@@ -127,11 +135,16 @@
         return (deviations.count { $0 > 0.03 }, deviations.max() ?? 0)
       }
 
-      /// Hovers the row and returns the drawing with its toolbar and the thumbs' centres.
+      /// Hovers the row and returns the drawing with its toolbar and the thumbs' centres. The row builds its toolbar
+      /// on the hover and shows it after the rest (M6, M8), so the drawing is retaken until the toolbar is in it.
       private static func hovered(_ host: NSView, in window: NSWindow) async throws -> HoveredToolbar {
         let plain = try draw(host)
         try await hover(NSPoint(x: width / 2, y: contentTop + 20), in: host, window: window)
-        let shown = try draw(host)
+        var shown = try draw(host)
+        for _ in 0 ..< 100 where toolbarColumn(hovered: shown, plain: plain) == nil {
+          try await Task.sleep(for: .milliseconds(20))
+          shown = try draw(host)
+        }
         let thumbs = try thumbCentres(toolbarMinX: toolbarMinX(hovered: shown, plain: plain))
         return HoveredToolbar(bitmap: shown, useful: thumbs.useful, notUseful: thumbs.notUseful)
       }

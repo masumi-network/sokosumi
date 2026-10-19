@@ -4,6 +4,7 @@ import { makeChatRoomChannelName } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { useAblyConnectionHealthPublisher } from "./use-ably-connection-health-publisher";
 
@@ -44,7 +45,9 @@ export function useSelectedRoomChannelHealth({
     }
     const roomId = selectedRoomId;
     // `get` is idempotent; it never attaches on its own.
-    const channel = ably.channels.get(makeChatRoomChannelName(roomId));
+    const channel = ably.channels.get(
+      makeChatRoomChannelName(roomId, getRealtimeChannelEnvironment()),
+    );
     // The first attach after mount delivers no gap; only a re-attach can.
     let attachedBefore = channel.state === "attached";
     let lastHealthy: boolean | null = null;

@@ -23,13 +23,14 @@
 - signup/login ∈ web `/signin` during OAuth authorize. ⊥ CLI email/password form.
 - hosted public OAuth IDs built in: mainnet → `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod → `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override. OAuth flow uses PKCE. Native clients = public (`application_type=native`, `token_endpoint_auth_method=none`) with canonical portless redirect `http://127.0.0.1/oauth/callback`; runtime redirect = `http://127.0.0.1:<port>/oauth/callback`, default port `53682` valid under RFC 8252 §7.3. Current CLI binds IPv4 only. ⊥ `localhost`; ⊥ claim current IPv6 runtime support.
 - consent on (`skipConsent: false`). scopes `openid sokosumi:api offline_access`.
+- each env's client row → `signUpOrigin: cli`; ⊥ → sign-ups record `unknown`. Correction for earlier sign-ups → [ADR 0052](../../docs/adr/0052-sign-up-context-travels-in-the-signed-authorize-query.md#consequences).
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - v1 visual source = external user-provided `I-Want-You-Desing-Tui-Sokosumi` bundle. Production TUI = Ink/React. ⊥ HTML/CSS runtime, copied prototype fixtures, browser `localStorage`.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
 - complements web `/developer`. ⊥ replace it. [VISION.md constraints](VISION.md#constraints)
 
 - direction authority: docs/adr/0004-coworker-capabilities-and-graduation.md; implementation dependencies: docs/developer-cli-implementation-plan.md. Core owns policy, grants, waitlisting, promotion, and payment authorization.
-- [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed Preprod Vendor-admin Coworker creation. User clarified that this CLI work keeps Core permissions unchanged. The current create route requires platform admin [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`]. A platform admin must provision the record before an ordinary Vendor admin can use existing Coworker management routes. Global whitelist remains platform-admin-only.
+- [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed Preprod Vendor-admin Coworker creation. User clarified that this CLI work keeps Core permissions unchanged. The current create route allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin) [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:83-112`]. On Mainnet a platform admin must provision the record before an ordinary Vendor admin can use existing Coworker management routes. Global whitelist remains platform-admin-only.
 - historical external-bundle design constraint above applies only to deferred T27; no redesign prerequisite for integration.
 
 [CORRECTION, REPORTED: user direction, 2026-10-05] September admin-only creation decision above is superseded for Preprod. Participant may create a private Coworker under their own Vendor; TOKEN2049 Workspace approval remains separate. This describes local implementation, not verified deployment.

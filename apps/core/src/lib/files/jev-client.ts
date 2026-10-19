@@ -69,9 +69,9 @@ import {
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 const EVALUATION_TIMEOUT_MS = 2_000;
 
-export const JEV_SCORE_MIN = 0;
+const JEV_SCORE_MIN = 0;
 
-export interface JevEvaluationOutcome {
+interface JevEvaluationOutcome {
   ok: boolean;
   /** 0–3 ordinal relevance. Absent when the call failed or was invalid. */
   score: number | null;
@@ -131,7 +131,7 @@ const booleanAnswerSchema = z.object({
   probability: z.number().finite().min(0).max(1),
 });
 
-export type JevBooleanAnswer = z.infer<typeof booleanAnswerSchema>;
+type JevBooleanAnswer = z.infer<typeof booleanAnswerSchema>;
 
 const answersSchema = z.record(z.string(), booleanAnswerSchema);
 
@@ -225,7 +225,7 @@ function readLadder(
   return { ok: true, score: rungs[highestTrue].score };
 }
 
-export interface JevLabelVerdict {
+interface JevLabelVerdict {
   ok: boolean;
   /** Ids the model said the document clearly belongs to. */
   chosen: string[];

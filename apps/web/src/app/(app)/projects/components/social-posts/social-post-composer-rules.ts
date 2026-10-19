@@ -16,9 +16,30 @@ export type SocialPostComposerIssue =
   | "video_required"
   | SocialPostMediaValidationReason;
 
+/** Missing content the Post now tooltip can name; media-type failures toast instead. */
+export type SocialPostComposerRequirementIssue = Extract<
+  SocialPostComposerIssue,
+  | "text_required"
+  | "text_or_media_required"
+  | "media_required"
+  | "video_required"
+>;
+
+function isRequirementIssue(
+  issue: SocialPostComposerIssue | null,
+): issue is SocialPostComposerRequirementIssue {
+  return (
+    issue === "text_required" ||
+    issue === "text_or_media_required" ||
+    issue === "media_required" ||
+    issue === "video_required"
+  );
+}
+
 /**
- * Composer-side view of the provider's rules; the server enforces the same
- * rules authoritatively on create, update, and schedule.
+ * Composer-side view of the provider's publish rules. The server enforces
+ * the same rules on schedule and publish. Drafts skip the media-presence
+ * check — see {@link socialPostComposerDraftIssue}.
  */
 export function socialPostComposerIssue(
   provider: SocialPostProvider,
@@ -45,17 +66,78 @@ export function socialPostComposerIssue(
 }
 
 /**
+ * Instagram, TikTok, and YouTube drafts may omit media. Attached files
+ * still have to be a type the network accepts, and a draft still needs
+ * text or a file.
+ */
+export function socialPostComposerDraftIssue(
+  provider: SocialPostProvider,
+  text: string,
+  media: readonly SocialPostMediaRef[],
+): SocialPostComposerIssue | null {
+  const issue = socialPostComposerIssue(provider, text, media);
+  if (issue !== "media_required" && issue !== "video_required") {
+    return issue;
+  }
+  const validation = validateSocialPostMedia(provider, media);
+  if (!validation.ok) return validation.reason;
+  return text.trim().length > 0 || media.length > 0 ? null : issue;
+}
+
+/**
+ * One row per selected provider that still needs text or media. The same
+ * "add text or media" line is not repeated when several networks share it.
+ */
+export function socialPostComposerRequirements(
+  accounts: readonly { provider: SocialPostProvider; text: string }[],
+  media: readonly SocialPostMediaRef[],
+): {
+  provider: SocialPostProvider;
+  issue: SocialPostComposerRequirementIssue;
+}[] {
+  const seen = new Set<string>();
+  const hints: {
+    provider: SocialPostProvider;
+    issue: SocialPostComposerRequirementIssue;
+  }[] = [];
+  for (const account of accounts) {
+    const issue = socialPostComposerIssue(
+      account.provider,
+      account.text,
+      media,
+    );
+    if (!isRequirementIssue(issue)) continue;
+    const key =
+      issue === "text_or_media_required"
+        ? issue
+        : `${issue}:${account.provider}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    hints.push({ provider: account.provider, issue });
+  }
+  return hints;
+}
+
+/**
  * The providers the composer validates against: the selected connections win,
  * because Core re-derives the provider from each connection on save and
- * schedule; a post without a selected connection keeps its own provider, and
- * a new post with none falls back to X. Never empty, never repeated.
+ * schedule. With none selected, connected accounts still set the limits so
+ * deselecting everyone does not switch the composer to X. A post with no
+ * connection keeps its own provider; a new post with no accounts at all
+ * falls back to X. Never empty, never repeated.
  */
 export function socialPostComposerProviders(
   postProvider: SocialPostProvider | null | undefined,
   selectedConnectionProviders: readonly SocialPostProvider[],
+  availableConnectionProviders: readonly SocialPostProvider[] = [],
 ): [SocialPostProvider, ...SocialPostProvider[]] {
   const [first, ...rest] = [...new Set(selectedConnectionProviders)];
-  return first ? [first, ...rest] : [postProvider ?? "x"];
+  if (first) return [first, ...rest];
+  const [available, ...availableRest] = [
+    ...new Set(availableConnectionProviders),
+  ];
+  if (available) return [available, ...availableRest];
+  return [postProvider ?? "x"];
 }
 
 /**

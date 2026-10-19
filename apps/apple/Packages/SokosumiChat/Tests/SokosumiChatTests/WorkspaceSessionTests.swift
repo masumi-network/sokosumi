@@ -93,7 +93,7 @@ private func roomsArrayJSON(id: String, name: String) -> String {
 @MainActor
 struct WorkspaceSessionTests {
   private func client(_ transport: WorkspaceTransport) -> Client {
-    Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+    Client.core(baseURL: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
   @Test func sidebarRefreshIgnoresStalePageAfterInvalidateRefresh() async throws {
@@ -248,5 +248,19 @@ struct WorkspaceSessionTests {
     #expect(store.load(userId: "a", organizationId: nil) == "personal-room")
     #expect(store.load(userId: "a", organizationId: "org") == "org-room")
     #expect(store.load(userId: "b", organizationId: "org") == nil)
+  }
+
+  @Test func roomSelectionDropsUnscopedLeftoverKeyWithoutMigrating() throws {
+    let suite = "workspace-room-leftover.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set("old-room", forKey: "sokosumi.selectedRoomId")
+    let store = SavedRoomSelection(defaults: defaults)
+    #expect(store.load(userId: "a", organizationId: nil) == nil)
+    #expect(defaults.object(forKey: "sokosumi.selectedRoomId") == nil)
+    defaults.set("old-room", forKey: "sokosumi.selectedRoomId")
+    store.save("personal-room", userId: "a", organizationId: nil)
+    #expect(store.load(userId: "a", organizationId: nil) == "personal-room")
+    #expect(defaults.object(forKey: "sokosumi.selectedRoomId") == nil)
   }
 }

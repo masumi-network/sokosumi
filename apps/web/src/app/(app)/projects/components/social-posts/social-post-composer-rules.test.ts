@@ -2,9 +2,11 @@ import type { SocialPostMediaRef } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   socialPostComposerAccept,
+  socialPostComposerDraftIssue,
   socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
+  socialPostComposerRequirements,
 } from "./social-post-composer-rules";
 
 function ref(kind: "image" | "video", mimeType: string): SocialPostMediaRef {
@@ -37,6 +39,11 @@ describe("socialPostComposerIssue", () => {
     ["youtube", "Hello", [VIDEO], null],
     ["instagram", "Hello", [ref("image", "image/png")], "unsupported_type"],
     ["x", "Hello", [IMAGE, VIDEO], "mixed_media"],
+    ["x", "   ", [], "text_or_media_required"],
+    ["linkedin", "   ", [], "text_required"],
+    ["facebook", "", [], "text_or_media_required"],
+    ["facebook", "Hello", [], null],
+    ["facebook", "", [IMAGE], null],
   ] as const)(
     "scores %s text=%s media=%s",
     (provider, text, media, expected) => {
@@ -45,6 +52,74 @@ describe("socialPostComposerIssue", () => {
       );
     },
   );
+});
+
+describe("socialPostComposerDraftIssue", () => {
+  it.each([
+    ["instagram", "Hello", [], null],
+    ["tiktok", "Hello", [], null],
+    ["youtube", "Hello", [], null],
+    ["instagram", "", [], "media_required"],
+    ["tiktok", "", [], "video_required"],
+    ["youtube", "", [], "text_required"],
+    ["tiktok", "Hello", [IMAGE], "unsupported_type"],
+    ["linkedin", "", [IMAGE], "text_required"],
+    ["x", "", [], "text_or_media_required"],
+    ["x", "Hello", [], null],
+  ] as const)(
+    "scores draft %s text=%s media=%s",
+    (provider, text, media, expected) => {
+      expect(socialPostComposerDraftIssue(provider, text, [...media])).toBe(
+        expected,
+      );
+    },
+  );
+});
+
+function accounts(
+  providers: readonly ("x" | "instagram" | "youtube" | "facebook")[],
+  text: string,
+) {
+  return providers.map((provider) => ({ provider, text }));
+}
+
+describe("socialPostComposerRequirements", () => {
+  it("names every selected provider that still needs text or media", () => {
+    expect(socialPostComposerRequirements(accounts(["x"], ""), [])).toEqual([
+      { provider: "x", issue: "text_or_media_required" },
+    ]);
+    expect(
+      socialPostComposerRequirements(accounts(["x", "instagram"], "Hello"), []),
+    ).toEqual([{ provider: "instagram", issue: "media_required" }]);
+    expect(
+      socialPostComposerRequirements(
+        accounts(["x", "instagram", "youtube"], ""),
+        [],
+      ),
+    ).toEqual([
+      { provider: "x", issue: "text_or_media_required" },
+      { provider: "instagram", issue: "media_required" },
+      { provider: "youtube", issue: "text_required" },
+    ]);
+  });
+
+  it("says add text or media once when several networks share that rule", () => {
+    expect(
+      socialPostComposerRequirements(accounts(["x", "facebook"], ""), []),
+    ).toEqual([{ provider: "x", issue: "text_or_media_required" }]);
+  });
+
+  it("checks each account's own text", () => {
+    expect(
+      socialPostComposerRequirements(
+        [
+          { provider: "x", text: "Short" },
+          { provider: "linkedin", text: "" },
+        ],
+        [],
+      ),
+    ).toEqual([{ provider: "linkedin", issue: "text_required" }]);
+  });
 });
 
 describe("socialPostComposerProviders", () => {
@@ -56,10 +131,25 @@ describe("socialPostComposerProviders", () => {
     expect(socialPostComposerProviders(undefined, [])).toEqual(["x"]);
   });
 
+  it("keeps connected networks when every account is deselected", () => {
+    expect(
+      socialPostComposerProviders(undefined, [], ["linkedin", "instagram"]),
+    ).toEqual(["linkedin", "instagram"]);
+    expect(
+      socialPostComposerProviders("x", [], ["linkedin", "instagram"]),
+    ).toEqual(["linkedin", "instagram"]);
+  });
+
   it("lists each selected provider once", () => {
     expect(
       socialPostComposerProviders(undefined, ["x", "linkedin", "x"]),
     ).toEqual(["x", "linkedin"]);
+  });
+
+  it("keeps facebook when it is the only selected connection", () => {
+    expect(socialPostComposerProviders("x", ["facebook"])).toEqual([
+      "facebook",
+    ]);
   });
 });
 
@@ -78,6 +168,16 @@ describe("socialPostComposerAccept", () => {
     );
     expect(socialPostComposerAccept(["x", "tiktok"])).toBe("video/mp4");
   });
+
+  it("accepts nothing when no provider is selected", () => {
+    expect(socialPostComposerAccept([])).toBe("");
+  });
+
+  it("keeps jpeg when facebook and linkedin are both selected", () => {
+    expect(socialPostComposerAccept(["facebook", "linkedin"])).toBe(
+      "image/jpeg,image/png,video/mp4",
+    );
+  });
 });
 
 describe("socialPostComposerFormat", () => {
@@ -87,5 +187,6 @@ describe("socialPostComposerFormat", () => {
     expect(socialPostComposerFormat("instagram")).toBe("mediaPost");
     expect(socialPostComposerFormat("youtube")).toBe("video");
     expect(socialPostComposerFormat("tiktok")).toBe("video");
+    expect(socialPostComposerFormat("facebook")).toBe("post");
   });
 });

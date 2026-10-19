@@ -7,10 +7,8 @@ const mocks = vi.hoisted(() => {
     captureException: vi.fn(),
     deliverCalendarInvalidations: vi.fn(),
     ensureFreeSubscription: vi.fn(),
-    ensurePersonalWorkspace: vi.fn(),
     guardOrganizationCreate: vi.fn((organization) => organization),
     listExitRoomIds: vi.fn(),
-    pinPreferredOrganization: vi.fn(),
     prepareOrganizationForDeletion: vi.fn(),
     prisma: {
       $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
@@ -64,11 +62,6 @@ vi.mock("@/helpers/design-md-metadata-auth", () => ({
   applyDesignMdMetadataGuardToOrganizationCreate: mocks.guardOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate: vi.fn(),
 }));
-vi.mock("@/helpers/org-membership-personal-workspace", () => ({
-  ensurePersonalWorkspaceForOrganizationMembership:
-    mocks.ensurePersonalWorkspace,
-  pinPreferredOrganizationIfUnset: mocks.pinPreferredOrganization,
-}));
 vi.mock("@/helpers/organization-deletion", () => ({
   prepareOrganizationForDeletion: mocks.prepareOrganizationForDeletion,
 }));
@@ -107,7 +100,6 @@ function hooks() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.waitUntilPromises.length = 0;
-  mocks.ensurePersonalWorkspace.mockResolvedValue(undefined);
   mocks.createOrganizationCustomer.mockResolvedValue({ id: "cus_org_1" });
 });
 
@@ -127,44 +119,23 @@ it("keeps stripeCustomerId out of what a request may set on an organization", ()
 });
 
 describe("organization creation", () => {
-  it("checks the personal workspace before applying organization metadata", async () => {
+  it("applies the organization metadata guard", async () => {
     const draft = { name: "Workspace", slug: "workspace" };
 
     await expect(
       hooks().beforeCreateOrganization({ organization: draft, user }),
     ).resolves.toEqual({ data: draft });
 
-    expect(mocks.ensurePersonalWorkspace).toHaveBeenCalledWith(user.id);
     expect(mocks.guardOrganizationCreate).toHaveBeenCalledWith(draft);
-    expect(
-      mocks.ensurePersonalWorkspace.mock.invocationCallOrder[0],
-    ).toBeLessThan(mocks.guardOrganizationCreate.mock.invocationCallOrder[0]);
   });
 
-  it("propagates workspace failure before processing organization metadata", async () => {
-    const error = new Error("Workspace unavailable");
-    mocks.ensurePersonalWorkspace.mockRejectedValue(error);
-
-    await expect(
-      hooks().beforeCreateOrganization({
-        organization: { name: "Workspace", slug: "workspace" },
-        user,
-      }),
-    ).rejects.toBe(error);
-    expect(mocks.guardOrganizationCreate).not.toHaveBeenCalled();
-  });
-
-  it("creates the workspace, pins it as preferred and seeds the free subscription", async () => {
+  it("creates the workspace and seeds the free subscription", async () => {
     await hooks().afterCreateOrganization({ organization, user });
 
     expect(mocks.upsertOrganizationWorkspace).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: { tx: true },
     });
-    expect(mocks.pinPreferredOrganization).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
     expect(mocks.ensureFreeSubscription).toHaveBeenCalledWith(
       {
         createdAt: organization.createdAt,
@@ -251,26 +222,6 @@ describe("organization creation", () => {
       },
       tags: { context: "stripe_organization_customer_creation" },
     });
-  });
-});
-
-describe.each(["beforeAddMember", "beforeAcceptInvitation"])("%s", (hook) => {
-  it("ensures the person's personal workspace for that organization", async () => {
-    await hooks()[hook]({ organization, user });
-
-    expect(mocks.ensurePersonalWorkspace).toHaveBeenCalledWith("user-1", {
-      organizationId: "org-1",
-    });
-  });
-
-  it("refuses when the personal workspace cannot be ensured", async () => {
-    mocks.ensurePersonalWorkspace.mockRejectedValueOnce(
-      new Error("personal workspace failed"),
-    );
-
-    await expect(hooks()[hook]({ organization, user })).rejects.toThrow(
-      "personal workspace failed",
-    );
   });
 });
 

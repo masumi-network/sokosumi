@@ -13,8 +13,10 @@ import type {
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  isValidTimezone,
   normalizeWebsiteUrl,
   projectIdentifierSchema,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
 } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -102,6 +104,7 @@ interface DisconnectProjectSocialConnectionParameters
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   text: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
@@ -113,6 +116,7 @@ interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   text?: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -132,6 +136,19 @@ interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   revision: number;
+}
+
+interface DuplicateProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+}
+
+interface RecycleProjectSocialAccountPostParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string | null;
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
@@ -604,6 +621,7 @@ const createProjectSocialPostSchema = z
   .object({
     projectId: trimmedId,
     text: z.string(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     scheduledAt: isoTimestamp.nullish(),
@@ -619,6 +637,7 @@ const updateProjectSocialPostSchema = z
     projectId: trimmedId,
     postId: trimmedId,
     text: z.string().optional(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     revision: revisionSchema,
@@ -646,6 +665,25 @@ const cancelProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const duplicateProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+});
+
+const recycleProjectSocialAccountPostSchema = z
+  .object({
+    projectId: trimmedId,
+    accountPostId: trimmedId,
+    delayDays: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional(),
+    timezone: optionalTimezone,
+  })
+  .refine(
+    (value) =>
+      value.delayDays === undefined ||
+      (value.timezone != null && isValidTimezone(value.timezone)),
+    { message: "timezone is required when scheduling" },
+  );
+
 const publishProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -670,6 +708,7 @@ export const createProjectSocialPost = withSession<
   async ({
     projectId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     scheduledAt,
@@ -678,6 +717,7 @@ export const createProjectSocialPost = withSession<
     const parsed = createProjectSocialPostSchema.safeParse({
       projectId,
       text,
+      firstComment,
       media,
       socialConnectionId,
       scheduledAt,
@@ -692,6 +732,9 @@ export const createProjectSocialPost = withSession<
         parsed.data.projectId,
         {
           text: parsed.data.text,
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
           ...(parsed.data.media ? { media: parsed.data.media } : {}),
           ...(parsed.data.socialConnectionId
             ? { socialConnectionId: parsed.data.socialConnectionId }
@@ -713,40 +756,54 @@ export const createProjectSocialPost = withSession<
 export const updateProjectSocialPost = withSession<
   UpdateProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, text, media, socialConnectionId, revision }) => {
-  const parsed = updateProjectSocialPostSchema.safeParse({
+>(
+  async ({
     projectId,
     postId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     revision,
-  });
-  if (!parsed.success) {
-    return badSocialPostInput(parsed);
-  }
+  }) => {
+    const parsed = updateProjectSocialPostSchema.safeParse({
+      projectId,
+      postId,
+      text,
+      firstComment,
+      media,
+      socialConnectionId,
+      revision,
+    });
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
 
-  try {
-    const post = await projectService.updateSocialPost(
-      parsed.data.projectId,
-      parsed.data.postId,
-      {
-        ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
-        ...(parsed.data.media !== undefined
-          ? { media: parsed.data.media }
-          : {}),
-        ...(parsed.data.socialConnectionId !== undefined
-          ? { socialConnectionId: parsed.data.socialConnectionId }
-          : {}),
-        revision: parsed.data.revision,
-      },
-    );
-    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
-    return toActionResult(ok(post));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    try {
+      const post = await projectService.updateSocialPost(
+        parsed.data.projectId,
+        parsed.data.postId,
+        {
+          ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
+          ...(parsed.data.media !== undefined
+            ? { media: parsed.data.media }
+            : {}),
+          ...(parsed.data.socialConnectionId !== undefined
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          revision: parsed.data.revision,
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const scheduleProjectSocialPost = withSession<
   ScheduleProjectSocialPostParameters,
@@ -819,6 +876,60 @@ export const cancelProjectSocialPost = withSession<
   }
 });
 
+export const duplicateProjectSocialPost = withSession<
+  DuplicateProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = duplicateProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.duplicateSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const recycleProjectSocialAccountPost = withSession<
+  RecycleProjectSocialAccountPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, accountPostId, delayDays, timezone }) => {
+  const parsed = recycleProjectSocialAccountPostSchema.safeParse({
+    projectId,
+    accountPostId,
+    delayDays,
+    timezone,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.recycleSocialAccountPost(
+      parsed.data.projectId,
+      parsed.data.accountPostId,
+      {
+        ...(parsed.data.delayDays ? { delayDays: parsed.data.delayDays } : {}),
+        ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const publishProjectSocialPost = withSession<
   PublishProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
@@ -840,6 +951,61 @@ export const publishProjectSocialPost = withSession<
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const refreshProjectSocialPostStatistics = withSession<
+  { projectId: string; postId: string } & AuthenticatedRequest,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = z
+    .object({ projectId: z.uuid(), postId: z.uuid() })
+    .safeParse({ projectId, postId });
+  if (!parsed.success) return badSocialPostInput(parsed);
+  try {
+    const post = await projectService.refreshSocialPostStatistics(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const refreshProjectSocialAccountStatistics = withSession<
+  {
+    projectId: string;
+    connectionId: string;
+    continueHistory?: boolean;
+  } & AuthenticatedRequest,
+  ActionResultDto<
+    Awaited<ReturnType<typeof projectService.refreshSocialAccountStatistics>>,
+    ActionError
+  >
+>(async ({ projectId, connectionId, continueHistory }) => {
+  const parsed = z
+    .object({
+      projectId: z.uuid(),
+      connectionId: z.uuid(),
+      continueHistory: z.boolean().optional(),
+    })
+    .safeParse({ projectId, connectionId, continueHistory });
+  if (!parsed.success)
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: parsed.error.message }),
+    );
+  try {
+    const data = await projectService.refreshSocialAccountStatistics(
+      parsed.data.projectId,
+      parsed.data.connectionId,
+      parsed.data.continueHistory,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(data));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

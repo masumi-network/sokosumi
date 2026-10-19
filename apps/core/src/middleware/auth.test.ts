@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { errorHandler } from "@/helpers/error-handler";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
@@ -72,6 +73,22 @@ function createApp() {
   });
 
   return app;
+}
+
+/** {@link createApp} rendering errors as Core's API envelope and headers. */
+function createAppWithErrorHandler() {
+  const app = createApp();
+  app.onError(errorHandler);
+  return app;
+}
+
+/** RFC 6750 §3.1: a valid token without the Core API scope. */
+async function expectInsufficientScope(response: Response) {
+  expect(response.status).toBe(403);
+  expect(response.headers.get("WWW-Authenticate")).toBe(
+    'Bearer error="insufficient_scope", scope="sokosumi:api"',
+  );
+  expect(await response.json()).toMatchObject({ kind: "insufficient_scope" });
 }
 
 describe("authMiddleware", () => {
@@ -918,7 +935,7 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns 401 for OAuth tokens that only have openid scope", async () => {
+  it("returns 403 insufficient_scope for OAuth tokens that only have openid scope", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
       expiresAt: new Date(Date.now() + 60_000),
@@ -938,18 +955,42 @@ describe("authMiddleware", () => {
       scopes: ["openid", "sokosumi:api"],
     });
 
-    const app = createApp();
+    const app = createAppWithErrorHandler();
     const response = await app.request("http://localhost/", {
       headers: {
         authorization: "Bearer oauth_openid_only",
       },
     });
 
-    expect(response.status).toBe(401);
+    await expectInsufficientScope(response);
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("returns 401 for OAuth tokens that only have openid and offline_access", async () => {
+  it("returns 401, not 403, for a revoked grant whose token also lacks sokosumi:api", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: "refresh_123",
+      refreshToken: { revoked: new Date() },
+      clientId: "client_123",
+      scopes: ["openid"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+
+    const app = createAppWithErrorHandler();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer oauth_revoked_openid_only" },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 403 insufficient_scope for OAuth tokens that only have openid and offline_access", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
       expiresAt: new Date(Date.now() + 60_000),
@@ -965,16 +1006,16 @@ describe("authMiddleware", () => {
       },
     });
 
-    const app = createApp();
+    const app = createAppWithErrorHandler();
     const response = await app.request("http://localhost/", {
       headers: { authorization: "Bearer oauth_offline_only" },
     });
 
-    expect(response.status).toBe(401);
+    await expectInsufficientScope(response);
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when OAuth consent no longer includes sokosumi:api", async () => {
+  it("returns 403 insufficient_scope when OAuth consent no longer includes sokosumi:api", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
       expiresAt: new Date(Date.now() + 60_000),
@@ -994,17 +1035,17 @@ describe("authMiddleware", () => {
       scopes: ["openid"],
     });
 
-    const app = createApp();
+    const app = createAppWithErrorHandler();
     const response = await app.request("http://localhost/", {
       headers: {
         authorization: "Bearer oauth_revoked_api_scope",
       },
     });
 
-    expect(response.status).toBe(401);
+    await expectInsufficientScope(response);
   });
 
-  it("returns 401 when OAuth client no longer allows sokosumi:api", async () => {
+  it("returns 403 insufficient_scope when OAuth client no longer allows sokosumi:api", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
       expiresAt: new Date(Date.now() + 60_000),
@@ -1024,14 +1065,14 @@ describe("authMiddleware", () => {
       scopes: ["openid", "sokosumi:api"],
     });
 
-    const app = createApp();
+    const app = createAppWithErrorHandler();
     const response = await app.request("http://localhost/", {
       headers: {
         authorization: "Bearer oauth_client_scope_reduced",
       },
     });
 
-    expect(response.status).toBe(401);
+    await expectInsufficientScope(response);
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
@@ -1088,7 +1129,7 @@ describe("authMiddleware", () => {
     }
 
     function requestWithToken() {
-      return createApp().request("http://localhost/", {
+      return createAppWithErrorHandler().request("http://localhost/", {
         headers: { authorization: "Bearer oauth_first_party" },
       });
     }
@@ -1140,14 +1181,14 @@ describe("authMiddleware", () => {
       expect(response.status).toBe(401);
     });
 
-    it("returns 401 for a token without sokosumi:api", async () => {
+    it("returns 403 insufficient_scope for a token without sokosumi:api", async () => {
       oauthAccessTokenFindUniqueMock.mockResolvedValue(
         firstPartyToken({ scopes: ["openid"] }),
       );
 
       const response = await requestWithToken();
 
-      expect(response.status).toBe(401);
+      await expectInsufficientScope(response);
     });
 
     it("returns 401 when the user is banned", async () => {

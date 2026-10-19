@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import {
-  deriveYouTubeTitle,
-  publishYouTubeVideo,
-} from "@/clients/social-post-providers/youtube";
+import { publishYouTubeVideo } from "@/clients/social-post-providers/youtube";
 
 const {
   getEnvMock,
@@ -87,22 +84,6 @@ function executeCalls(
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-describe("deriveYouTubeTitle", () => {
-  it("uses the first non-empty line, trimmed", () => {
-    expect(deriveYouTubeTitle("\n  Launch today  \nmore text")).toBe(
-      "Launch today",
-    );
-  });
-
-  it("caps the title at 100 characters", () => {
-    expect(deriveYouTubeTitle("x".repeat(140))).toHaveLength(100);
-  });
-
-  it("falls back to a placeholder for empty text", () => {
-    expect(deriveYouTubeTitle("   \n  ")).toBe("Untitled");
-  });
-});
-
 describe("publishYouTubeVideo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -145,7 +126,7 @@ describe("publishYouTubeVideo", () => {
         tool_slug: "YOUTUBE_UPLOAD_VIDEO",
         arguments: {
           title: "Launching today",
-          description: "Launching today\nSecond line",
+          description: "Second line",
           tags: [],
           categoryId: "22",
           privacyStatus: "public",
@@ -168,6 +149,17 @@ describe("publishYouTubeVideo", () => {
     await expect(publishYouTubeVideo(context)).rejects.toBeInstanceOf(
       ComposioPublishOutcomeUnknownError,
     );
+  });
+
+  it("uses the publishing title fallback for blank text", async () => {
+    const fetchMock = stubSession(() => toolResponse({ id: "video_123" }));
+
+    await publishYouTubeVideo({ ...context, text: "   \n  " });
+
+    expect(executeCalls(fetchMock)[0].arguments).toMatchObject({
+      title: "Untitled",
+      description: "",
+    });
   });
 
   it("raises a tool error when YouTube refuses the upload", async () => {

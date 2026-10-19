@@ -47,7 +47,7 @@ export async function createPersonalWorkspace(
       tx,
     });
 
-    // The same seed the repository's two creation paths use. A workspace
+    // The same seed the repository's creation path uses. A workspace
     // with no Files vocabulary produces no tags at all, silently, and this
     // is the one creation path that does not go through
     // `workspaceRepository`.

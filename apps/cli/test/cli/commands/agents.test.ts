@@ -4,10 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import type { CoreHttpClient } from "../../../src/api/http-client.js";
-import type { Agent } from "../../../src/api/models/agent.js";
 import { runAgentsCommand } from "../../../src/cli/commands/agents.js";
 
-function createAgent(overrides: Partial<Agent> = {}): Agent {
+function createAgentDto(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     id: "agent-1",
     createdAt: null,
@@ -15,7 +16,7 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
     name: "Researcher",
     description: "Finds facts",
     credits: 1,
-    tags: ["research"],
+    categories: [{ name: "research" }],
     ...overrides,
   };
 }
@@ -26,11 +27,11 @@ test("filters agents by searchable fields and applies a limit", async () => {
     get: async <T>() =>
       ({
         data: [
-          createAgent(),
-          createAgent({
+          createAgentDto(),
+          createAgentDto({
             id: "agent-2",
             name: "Writer",
-            tags: ["copy"],
+            categories: [{ name: "copy" }],
           }),
         ],
       }) as T,
@@ -54,7 +55,7 @@ test("filters agents by searchable fields and applies a limit", async () => {
 test("agents list emits a stable JSON collection", async () => {
   const output: string[] = [];
   const client: CoreHttpClient = {
-    get: async <T>() => ({ data: [createAgent()] }) as T,
+    get: async <T>() => ({ data: [createAgentDto()] }) as T,
     post: async <T>() => ({ data: null }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
@@ -67,7 +68,17 @@ test("agents list emits a stable JSON collection", async () => {
     json: true,
   });
   assert.deepEqual(JSON.parse(output.join("")), {
-    agents: [createAgent()],
+    agents: [
+      {
+        id: "agent-1",
+        createdAt: null,
+        updatedAt: null,
+        name: "Researcher",
+        description: "Finds facts",
+        credits: 1,
+        tags: ["research"],
+      },
+    ],
   });
 });
 

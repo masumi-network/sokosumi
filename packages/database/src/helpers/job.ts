@@ -109,7 +109,6 @@ function getFundsLockedJobStatus(
     case AgentJobStatus.FAILED:
       return SokosumiJobStatus.FAILED;
     default:
-      // Check for FAILED status first (highest priority)
       if (
         job.externalDisputeUnlockTime &&
         job.externalDisputeUnlockTime.getTime() <
@@ -118,7 +117,6 @@ function getFundsLockedJobStatus(
         return SokosumiJobStatus.FAILED;
       }
 
-      // Check for RESULT_PENDING status (after submit result time with 10min grace period)
       if (
         job.submitResultTime &&
         job.submitResultTime.getTime() <
@@ -172,20 +170,17 @@ function computeFreeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
 }
 
 function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
-  // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedTransactionId) {
     return SokosumiJobStatus.REFUND_RESOLVED;
   }
 
   const now = new Date();
 
-  // 3. If the job has no purchase, it means the job is not yet started
   const paymentStatus = checkPaymentStatus(job, now);
   if (paymentStatus) {
     return paymentStatus;
   }
 
-  // 4. If the job has a next action, it means the job is not yet finished
   const nextActionStatus = checkNextAction(job);
   if (nextActionStatus) {
     return nextActionStatus;
@@ -195,7 +190,6 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
   }
-  // 5. If the job has a purchase, it means the job is started
   switch (job.purchase?.onChainStatus) {
     case null:
     case undefined:
@@ -325,7 +319,7 @@ export function mapJobWithStatus(
   const completedAt = getCompletedAt(job);
   const jobStatusSettled = isJobStatusSettled(job, completedAt);
 
-  const baseJobWithStatus = {
+  return {
     ...job,
     input: getInput(job),
     inputSchema: getInputSchema(job),
@@ -339,16 +333,5 @@ export function mapJobWithStatus(
     onChainTransactionHash: job.purchase?.onChainTransactionHash ?? null,
     result: getResult(job),
     resultHash: getResultHash(job),
-  };
-
-  switch (job.jobType) {
-    case JobType.PAID:
-      return baseJobWithStatus as JobWithSokosumiStatus;
-    case JobType.FREE:
-      return baseJobWithStatus as JobWithSokosumiStatus;
-    default: {
-      const _exhaustive: never = job.jobType;
-      throw new Error(`Unhandled job type: ${_exhaustive}`);
-    }
-  }
+  } as JobWithSokosumiStatus;
 }

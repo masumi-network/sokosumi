@@ -94,15 +94,8 @@ type AuthScreen =
 
 type HomeAction = "vendors" | "workspaces" | "sign-out";
 
-function adaptSelectHandler<T>(
-  handler: (value: T) => void,
-): (value: unknown) => void {
-  return (value) => handler(value as T);
-}
-
 type AuthMethod = "oauth" | "api-key";
 type OAuthConfirm = "sign-in";
-type SelectorItem<T> = SelectItem<T>;
 type AuthPhase = "idle" | "waiting" | "success" | "error";
 
 const LOGO = `┌─┐┌─┐┬┌─┌─┐┌─┐┬ ┬┌┬┐┬
@@ -143,7 +136,7 @@ function explicitApiKeyError(
   }
 }
 
-export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
+export function buildSignInMenuItems(): SelectItem<AuthMethod>[] {
   return [
     {
       value: "oauth",
@@ -808,7 +801,7 @@ function StatusApp({
           setMessage("");
           return;
         }
-        if (screen === "success" || screen === "error") {
+        if (screen === "error") {
           setPendingApiKey(null);
           setPhase("idle");
           setScreen("auth-method");
@@ -830,13 +823,6 @@ function StatusApp({
         return;
       }
     }
-
-    if (busy) return;
-
-    if (route === "auth") {
-      if (screen === "success" || screen === "error") return;
-      return;
-    }
   });
 
   const chooseAuthMethod = (method: AuthMethod) => {
@@ -849,11 +835,7 @@ function StatusApp({
     beginApiKeyLogin();
   };
 
-  const handleSignInAction = (action: AuthMethod) => {
-    chooseAuthMethod(action);
-  };
-
-  const homeItems: SelectorItem<HomeAction>[] = [
+  const homeItems: SelectItem<HomeAction>[] = [
     { value: "vendors", label: "Vendors", hint: "memberships you administer" },
     {
       value: "workspaces",
@@ -895,7 +877,7 @@ function StatusApp({
   if (route === "auth") {
     let content: React.ReactNode;
     if (screen === "oauth-confirm") {
-      const items: SelectorItem<OAuthConfirm>[] = [
+      const items: SelectItem<OAuthConfirm>[] = [
         { value: "sign-in", label: "Open browser sign-in" },
       ];
       content = centeredScreen(
@@ -936,7 +918,7 @@ function StatusApp({
         messageLine(message, phase),
       );
     } else if (screen === "api-key-target") {
-      const items: SelectorItem<HostedTarget>[] = [
+      const items: SelectItem<HostedTarget>[] = [
         { value: "mainnet", label: "Mainnet", hint: "production" },
         { value: "preprod", label: "Preprod", hint: "staging" },
       ];
@@ -950,7 +932,7 @@ function StatusApp({
         ),
         React.createElement(SelectInput, {
           items,
-          onSelect: adaptSelectHandler<HostedTarget>((target) => {
+          onSelect: (target: HostedTarget) => {
             const nextConfig = createTargetConfig(
               env,
               target,
@@ -960,7 +942,7 @@ function StatusApp({
             setPendingApiKey(null);
             if (pendingApiKey)
               startApiKeyLogin(pendingApiKey, nextConfig, true);
-          }),
+          },
         }),
         messageLine(message, phase),
       );
@@ -981,23 +963,6 @@ function StatusApp({
         ),
         React.createElement(Text, { dimColor: true }, message),
         React.createElement(Text, { dimColor: true }, "Esc cancels · q quits"),
-      );
-    } else if (screen === "success") {
-      content = centeredScreen(
-        React.createElement(
-          Text,
-          { color: TUI_THEME.success, bold: true },
-          "✓ Sign-in successful",
-        ),
-        React.createElement(Text, { dimColor: true }, message),
-        React.createElement(SelectInput, {
-          items: [{ value: "continue", label: "Continue" }],
-          onSelect: () => {
-            if (successTimer.current) clearTimeout(successTimer.current);
-            setPhase("idle");
-            setScreen("home");
-          },
-        }),
       );
     } else if (screen === "error") {
       content = centeredScreen(
@@ -1031,7 +996,7 @@ function StatusApp({
         ),
         React.createElement(SelectInput, {
           items,
-          onSelect: adaptSelectHandler<AuthMethod>(handleSignInAction),
+          onSelect: chooseAuthMethod,
           listen: !busy,
         }),
         messageLine(message, phase),
@@ -1133,7 +1098,7 @@ function StatusApp({
       ),
       React.createElement(SelectInput, {
         items: homeItems,
-        onSelect: adaptSelectHandler<HomeAction>(selectHomeAction),
+        onSelect: selectHomeAction,
         listen: !busy,
       }),
       messageLine(message, phase),

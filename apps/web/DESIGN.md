@@ -192,7 +192,7 @@ Beyond the above, `globals.css` exposes:
 - **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
   `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
 - **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
-  `--media-ground`, `--hero-wash`, `--hero-ground`.
+  `--media-ground`.
 - **Surfaces and states:** `--background-muted`, `--card-background-hover`,
   `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
   for filled controls.
@@ -253,8 +253,8 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
   brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
   `shadow-2xl` and a hand-written `shadow-[…]` drop shadow are out under any variant; an
   arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
-  exists — use Tailwind `shadow-*` defaults or the one custom utility
-  (`agent-card-image-shadow`). Guard: `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
+  exists — use Tailwind `shadow-*` defaults. Guard:
+  `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
   backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,

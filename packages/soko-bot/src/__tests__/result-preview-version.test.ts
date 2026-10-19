@@ -10,12 +10,14 @@ import {
 } from "../versions/index.js";
 
 describe("result preview bot support", () => {
-  it("adds a selectable version with result instructions without changing the default", () => {
-    expect(getSokoBotVersion("v21").id).toBe("v21");
-    expect(composeSystemPrompt(getSokoBotVersion("v21"))).toContain(
+  it("brings v21's result cards back in the current default", () => {
+    expect(composeSystemPrompt(getSokoBotVersion("v24"))).not.toContain(
       "# Chat result previews",
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v19");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v25");
+    expect(
+      composeSystemPrompt(getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID)),
+    ).toContain("# Chat result previews");
   });
   it("keeps preview preparation available across owner routes and narrowed write scopes", () => {
     const version = getSokoBotVersion("v21");

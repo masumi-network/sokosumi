@@ -11,19 +11,16 @@ describe("users workspaces OpenAPI contract (ADR 0051)", () => {
   it("exposes the workspaces resource and the name update", () => {
     expect(doc.paths?.["/{id}/workspaces"]?.get).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces"]?.post).toBeDefined();
+    expect(doc.paths?.["/{id}/workspaces/preferred"]?.get).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces/preferred"]?.put).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces/{workspaceId}"]?.delete).toBeDefined();
     expect(doc.paths?.["/{id}"]?.patch).toBeDefined();
   });
 
-  it.each([
-    ["/{id}/workspace-access", "get"],
-    ["/{id}/personal-workspace", "post"],
-    ["/{id}/personal-workspace", "delete"],
-    ["/{id}/preferred-organization", "get"],
-    ["/{id}/preferred-organization", "put"],
-  ] as const)("keeps %s %s as a deprecated fallback", (path, method) => {
-    expect(doc.paths?.[path]?.[method]?.deprecated).toBe(true);
+  it("drops the replaced personal-workspace, workspace-access, and preferred-organization routes", () => {
+    expect(doc.paths?.["/{id}/workspace-access"]).toBeUndefined();
+    expect(doc.paths?.["/{id}/personal-workspace"]).toBeUndefined();
+    expect(doc.paths?.["/{id}/preferred-organization"]).toBeUndefined();
   });
 
   it("keeps the organizations list current for coworkers", () => {

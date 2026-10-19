@@ -18,41 +18,46 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
-const route = createRoute({
-  method: "delete",
-  path: "/delete",
-  description: [
-    "Delete a Drive folder and all its contents (blobs under that prefix).",
-    "Personal: owner only. Organization: any member.",
-    "Recursively deletes all blobs (files and nested folder markers).",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: deleteDriveFolderRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "delete",
+    path: "/delete",
+    description: [
+      "Delete a Drive folder and all its contents (blobs under that prefix).",
+      "Personal: owner only. Organization: any member.",
+      "Recursively deletes all blobs (files and nested folder markers).",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: deleteDriveFolderRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    204: {
-      description: "Drive folder deleted",
+    responses: {
+      204: {
+        description: "Drive folder deleted",
+      },
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
     },
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

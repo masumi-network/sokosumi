@@ -55,7 +55,7 @@ import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
-import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
+import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
   handleUserUpdateStripeEmailSync,
@@ -82,6 +82,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
@@ -299,6 +300,8 @@ export const auth = betterAuth({
               extra: { userId: user.id },
             });
           });
+          // Awaited: it reads this request's OAuth state.
+          await recordSignUpContext(user.id);
           waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient

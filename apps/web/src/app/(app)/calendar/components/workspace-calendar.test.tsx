@@ -60,6 +60,10 @@ vi.mock("next-intl", async () => {
   };
 });
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
@@ -734,6 +738,139 @@ describe("WorkspaceCalendar", () => {
     expect(updatedQuery).toContain("date=2026-");
   });
 
+  it("browses beyond the default horizon through the latest scheduled month", async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?view=month&date=2026-11-18&timezone=UTC"
+        onUrlUpdate={onUrlUpdate}
+      >
+        <WorkspaceCalendar
+          initialDate="2026-11-18"
+          items={[]}
+          latestDate="2027-02-01"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    for (const nextDate of ["2026-12-18", "2027-01-18", "2027-02-18"]) {
+      expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "next" }));
+      await waitFor(() =>
+        expect(
+          onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("date"),
+        ).toBe(nextDate),
+      );
+    }
+
+    expect(screen.getByText("February 2027")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "next" })).toBeDisabled();
+  });
+
+  it("clamps a URL date beyond the latest month before rendering and navigating", async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        searchParams="?view=month&date=2027-06-18&timezone=UTC"
+        onUrlUpdate={onUrlUpdate}
+      >
+        <WorkspaceCalendar
+          initialDate="2027-02-01"
+          items={[]}
+          latestDate="2027-02-01"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByText("February 2027")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "next" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "previous" }));
+
+    await waitFor(() =>
+      expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("date")).toBe(
+        "2027-01-01",
+      ),
+    );
+  });
+
+  it("preserves a URL date within the latest month for week navigation", async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        searchParams="?view=week&date=2027-02-18&timezone=UTC"
+        onUrlUpdate={onUrlUpdate}
+      >
+        <WorkspaceCalendar
+          initialDate="2027-02-18"
+          items={[]}
+          latestDate="2027-02-01"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByText(/^Feb 14 - /)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "previous" }));
+
+    await waitFor(() =>
+      expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("date")).toBe(
+        "2027-02-11",
+      ),
+    );
+  });
+
+  it("leaves URL dates unbounded when no latest date is supplied", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=month&date=2027-06-18&timezone=UTC">
+        <WorkspaceCalendar initialDate="2026-08-18" items={[]} />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByText("June 2027")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
+  });
+
+  it("jumps the date back to today", async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        searchParams="?view=week&date=2026-01-15&timezone=UTC"
+        onUrlUpdate={onUrlUpdate}
+      >
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-01-15" />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "today" }));
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("date")).toBe(
+      "2026-08-18",
+    );
+  });
+
+  it("disables Today when the open period already includes today", () => {
+    const today = Temporal.Now.plainDateISO("UTC").toString();
+
+    render(
+      <NuqsTestingAdapter
+        searchParams={`?view=week&date=${today}&timezone=UTC`}
+      >
+        <WorkspaceCalendar items={ITEMS} initialDate={today} />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByRole("button", { name: "today" })).toBeDisabled();
+  });
+
   it("uses the timezone from the URL", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=America%2FNew_York">
@@ -1263,7 +1400,7 @@ describe("WorkspaceCalendar", () => {
       <CalendarError error={new Error("Core unavailable")} reset={reset} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "error.retry" }));
+    await user.click(screen.getByRole("button", { name: "tryAgain" }));
     expect(reset).toHaveBeenCalledOnce();
   });
 });

@@ -23,6 +23,8 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   public var parentMessageId: String?
   public var quote: Components.Schemas.ChatRoomMessageQuote?
   public var content: String
+  /// Skills attached on this send, shown as chips until Core confirms it (row 42).
+  public var skills: [Components.Schemas.ChatRoomMessageSkill]
   public var createdAt: Date
   public var status: OutboundDeliveryStatus
   public var errorMessage: String?
@@ -34,6 +36,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
     parentMessageId: String? = nil,
     content: String,
     quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+    skills: [Components.Schemas.ChatRoomMessageSkill] = [],
     createdAt: Date,
     status: OutboundDeliveryStatus = .pending,
     errorMessage: String? = nil,
@@ -44,6 +47,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
     self.parentMessageId = parentMessageId
     self.content = content
     self.quote = quote
+    self.skills = skills
     self.createdAt = createdAt
     self.status = status
     self.errorMessage = errorMessage
@@ -63,7 +67,7 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
 /// read until a reply is stored, and swapping the shell for that row does not change the displayed count.
 public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage]) -> Int {
   messages.count(where: { message in
-    message.parentMessageId != nil && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
+    message.parentMessageId != nil && !MessageKind(message).isLocal
   })
 }
 
@@ -106,7 +110,8 @@ public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.Cha
     metadata: turnId.map { .init(additionalProperties: ["client_message_id": $0]) },
     quote: shell.quote,
     membership: nil,
-    unfurls: nil
+    unfurls: nil,
+    skills: shell.skills.isEmpty ? nil : shell.skills
   )
 }
 

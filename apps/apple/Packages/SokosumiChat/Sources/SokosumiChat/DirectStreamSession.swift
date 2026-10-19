@@ -21,7 +21,8 @@ public final class DirectStreamSession: ObservableObject {
   private var sender: Components.Schemas.ChatRoomUserParticipant?
   private var coworker: Components.Schemas.ChatRoomCoworkerParticipant?
   private var generation = UUID()
-  private var responseDate: Date
+  /// Set when a response starts; read only while one exists, so `init` never asks the clock.
+  private var responseDate = Date.distantPast
   private var hasResponse = false
   private let service = ChatService()
   private var scope: [String]?
@@ -32,14 +33,13 @@ public final class DirectStreamSession: ObservableObject {
   public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
     self.now = now
     self.makeId = makeId
-    responseDate = now()
   }
 
   public var isBusy: Bool {
     phase != .idle
   }
 
-  public static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
+  public nonisolated static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
     room.kind == .direct && room.coworkerMembers.count == 1
       && room.userMembers.count == 1 && room.sokoBotMembers.isEmpty
   }
@@ -79,7 +79,7 @@ public final class DirectStreamSession: ObservableObject {
     var messages = userMessage.map { [$0] } ?? []
     if hasResponse, let roomId, let coworker {
       messages.append(.init(
-        id: "stream:" + (response.id ?? "resume-pending"), roomId: roomId,
+        id: directStreamIdPrefix + (response.id ?? "resume-pending"), roomId: roomId,
         parentMessageId: parentMessageId, content: response.text, createdAt: responseDate,
         deletedAt: nil, editedAt: nil,
         sender: .case2(.init(_type: .coworker, coworker: coworker)),
@@ -131,7 +131,7 @@ public final class DirectStreamSession: ObservableObject {
     var message = chatRoomMessage(from: .init(
       clientTurnId: id, roomId: roomId, content: draft.text, quote: quote, createdAt: now(), sender: sender
     ))
-    message.id = "stream:" + id
+    message.id = directStreamIdPrefix + id
     message.metadata = nil
     message.parentMessageId = parentMessageId
     userMessage = message

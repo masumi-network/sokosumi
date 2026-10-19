@@ -28,7 +28,7 @@
       }
 
       /// `content` in a window of `size`, drawn after its layout settles; the window background shows through nowhere.
-      private static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> Drawn {
+      static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> Drawn {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height)
           .background(.background)
@@ -51,7 +51,7 @@
       }
 
       /// Light beside dark, recorded as one attachment; the words each appearance exposes.
-      private static func lightAndDark(named name: String, _ draw: (Bool) async throws -> Drawn) async throws -> [[String]] {
+      static func lightAndDark(named name: String, _ draw: (Bool) async throws -> Drawn) async throws -> [[String]] {
         var columns: [[CGImage]] = []
         var texts: [[String]] = []
         for dark in [false, true] {
@@ -68,11 +68,11 @@
       /// Web `Empty.noMessagesTitle` over `Empty.noMessagesDescription` (`rooms-client.tsx`).
       @Test func anEmptyChannelInvitesTheFirstMessage() async throws {
         let appearances = try await Self.lightAndDark(named: "copy-empty-transcript") { dark in
-          let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
+          let state = WorkspaceState(clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) })
           state.rooms = [Self.channel()]
-          state.timeline.reset(roomId: Self.roomId)
-          state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-          state.transcriptError = nil
+          state.openRoom.room.timeline.reset(roomId: Self.roomId)
+          state.openRoom.room.timeline.failInitialLoad(message: "", generation: state.openRoom.room.timeline.generation)
+          state.openRoom.room.timeline.errorMessage = nil
           return try await Self.render(RoomTimelineView(roomId: Self.roomId).environmentObject(state).environmentObject(AuthState()),
                                        size: NSSize(width: 640, height: 300), dark: dark)
         }
@@ -163,8 +163,8 @@
           saved.save(draft)
           let state = WorkspaceState()
           state.rooms = [Self.channel()]
-          state.timeline.reset(roomId: Self.roomId)
-          state.timeline.failInitialLoad(message: "Fixture has no server", generation: state.timeline.generation)
+          state.openRoom.room.timeline.reset(roomId: Self.roomId)
+          state.openRoom.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.openRoom.room.timeline.generation)
           return try await Self.render(ChatComposerView(userId: userId, organizationId: nil, roomId: Self.roomId)
             .environmentObject(state).environmentObject(AuthState())
             .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress()),
@@ -288,13 +288,13 @@
         }
         let rows = try #require(String(bytes: encoder.encode(messages), encoding: .utf8))
         let body = "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-10-05T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":\(messages.count),\"nextCursor\":null}}}"
-        return try Client.connecting(to: #require(URL(string: "https://example.com")), transport: FixedBodyTransport(body: body))
+        return try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: FixedBodyTransport(body: body))
       }
     }
   }
 
   /// What a hosted view drew, and the words it exposes.
-  private struct Drawn {
+  struct Drawn {
     let bitmap: NSBitmapImageRep
     let texts: [String]
   }

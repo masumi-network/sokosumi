@@ -30,7 +30,8 @@ const CMO = "https://app.cmo.xyz";
 const CORE = "https://core.test";
 const ISSUER = `${CORE}/auth`;
 const CLIENT_ID = "cmo-client";
-const CLIENT_SECRET = "cmo-secret";
+// Characters that form-url-encoding and `encodeURIComponent` treat differently.
+const CLIENT_SECRET = "cmo secret!(1)";
 const CALLBACK = `${CMO}/api/auth/callback/sokosumi`;
 const TWO_HOURS_S = 7_200;
 /** How long CMO waits before asking an unreachable Core again. */
@@ -88,18 +89,14 @@ async function createFakeCore(): Promise<FakeCore> {
     return Response.json(body, { status });
   }
 
+  // Core registers CMO as `client_secret_basic` and refuses a body secret.
+  // It form-url-decodes each half of the Basic credential (RFC 6749 2.3.1).
   function hasClientCredentials(request: Request, form: URLSearchParams) {
     const basic = request.headers.get("authorization");
-    if (basic?.startsWith("Basic ")) {
-      return (
-        atob(basic.slice(6)) ===
-        `${encodeURIComponent(CLIENT_ID)}:${encodeURIComponent(CLIENT_SECRET)}`
-      );
-    }
-    return (
-      form.get("client_id") === CLIENT_ID &&
-      form.get("client_secret") === CLIENT_SECRET
-    );
+    if (form.has("client_secret") || !basic?.startsWith("Basic ")) return false;
+    const [id, secret] = atob(basic.slice(6)).split(":");
+    const decode = (value = "") => new URLSearchParams(`v=${value}`).get("v");
+    return decode(id) === CLIENT_ID && decode(secret) === CLIENT_SECRET;
   }
 
   async function issueTokens(nonce?: string) {
@@ -372,11 +369,12 @@ const LINK_ROUTES = { "/signin": signInLink, "/signup": signUpLink };
 async function followLink(
   jar: CookieJar,
   path: keyof typeof LINK_ROUTES,
+  query = "",
 ): Promise<Response> {
   // Better Auth's origin check needs a request object; the routes pass it
   // headers only, so a cross-site link without an Origin may start the flow.
   const response = await LINK_ROUTES[path](
-    new Request(`${jar.origin}${path}`, {
+    new Request(`${jar.origin}${path}${query}`, {
       headers: { cookie: jar.header(), "x-vercel-forwarded-for": jar.ip },
     }),
   );
@@ -459,11 +457,49 @@ describe("CMO auth handler", () => {
     expect(stateCookies[0]).not.toMatch(/domain=/i);
     const authorizeUrl = response.headers.get("location") ?? "";
     expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
+    expect(new URL(authorizeUrl).searchParams.has("signup_context")).toBe(
+      false,
+    );
     await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
     expect(await sessionUser(auth, jar)).toEqual({
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
+  });
+
+  it("forwards a Create account link's query as the sign-up context", async () => {
+    const response = await followLink(
+      jar,
+      "/signup",
+      "?url=nmkr.io&ref=a&ref=b&seats=3",
+    );
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("prompt")).toBe("create");
+    // Compared as text: key order is the link's, and Core keeps the first 10.
+    expect(authorize.searchParams.get("signup_context")).toBe(
+      JSON.stringify({ url: "nmkr.io", ref: "a", seats: "3" }),
+    );
+  });
+
+  it("forwards keys named like Object.prototype members", async () => {
+    const response = await followLink(
+      jar,
+      "/signup",
+      "?constructor=partner&url=nmkr.io",
+    );
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("signup_context")).toBe(
+      JSON.stringify({ constructor: "partner", url: "nmkr.io" }),
+    );
+  });
+
+  it("forwards no sign-up context from a sign-in link", async () => {
+    const response = await followLink(jar, "/signin", "?url=nmkr.io");
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.has("signup_context")).toBe(false);
   });
 
   it.each([

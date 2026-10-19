@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
@@ -10,6 +11,8 @@ export interface HTTPExceptionMetadata {
   extensions?: Record<string, unknown>;
   /** Seconds clients should wait before retrying; sent as `Retry-After`. */
   retryAfterSeconds?: number;
+  /** Bearer challenge sent as `WWW-Authenticate` (RFC 6750 §3). */
+  wwwAuthenticate?: string;
 }
 
 /**
@@ -207,6 +210,17 @@ export const badGateway = (
 };
 
 /**
+ * 426 Upgrade Required
+ * The client build is older than the server still serves
+ */
+export const upgradeRequired = (
+  message: string = "Upgrade Required",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(426, message, metadata);
+};
+
+/**
  * 503 Service Unavailable
  * The server is not ready to handle the request
  */
@@ -216,6 +230,12 @@ export const serviceUnavailable = (
 ): HTTPException => {
   return createHTTPException(503, message, metadata);
 };
+
+/** 503 for a `ComposioConfigError`: Web matches on the kind, not the message. */
+export const integrationNotConfigured = (): HTTPException =>
+  serviceUnavailable("Integrations are not configured on this server.", {
+    kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+  });
 
 export function shouldReportHttpException(error: HTTPException): boolean {
   if (error.status < 500) {

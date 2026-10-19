@@ -50,16 +50,13 @@ function retained() {
     messagesNextCursor: "m1",
   });
   cache.client.setQueryData(cache.key("room"), entry);
-  cache.update("room", entry.lifetime, (value) => ({
-    ...value,
-    position: {
-      anchorId: "m10",
-      anchorCreatedAt: 10000,
-      offset: 0,
-      atLiveEdge: false,
-      visibleMessageIds: ["m10", "m11", "m12"],
-    },
-  }));
+  cache.setPosition("room", entry.lifetime, {
+    anchorId: "m10",
+    anchorCreatedAt: 10000,
+    offset: 0,
+    atLiveEdge: false,
+    visibleMessageIds: ["m10", "m11", "m12"],
+  });
   cache.markDirty("room");
   return { cache, lifetime: entry.lifetime };
 }
@@ -161,12 +158,14 @@ describe("authoritative retained history reconciliation", () => {
   it("replaces transcript identity when reconciliation writes", async () => {
     const { cache, lifetime } = retained();
     const before = cache.get("room")?.transcript;
+    const position = cache.getPosition("room");
     vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
       messages: [message(90)],
       nextCursor: null,
     });
     await cache.refresh("room", lifetime, () => true);
     expect(cache.get("room")?.transcript).not.toBe(before);
+    expect(cache.getPosition("room")).toBe(position);
     cache.clear();
   });
 
@@ -194,6 +193,7 @@ describe("authoritative retained history reconciliation", () => {
 
   it("does not restore cleared-session history from an outstanding request", async () => {
     const { cache, lifetime } = retained();
+    const position = cache.getPosition("room")!;
     let finish!: (page: typeof head) => void;
     vi.mocked(fetchRoomMessages).mockImplementationOnce(
       () =>
@@ -206,6 +206,8 @@ describe("authoritative retained history reconciliation", () => {
     finish(head);
     await refreshing;
     expect(cache.get("room")).toBeUndefined();
+    cache.setPosition("room", lifetime, position);
+    expect(cache.getPosition("room")).toBeUndefined();
   });
   it("starts a separate read after leaving and rejoining during an old request", async () => {
     const { cache, lifetime } = retained();
@@ -222,6 +224,14 @@ describe("authoritative retained history reconciliation", () => {
     cache.joined("room");
     const rejoined = cache.seed(props);
     cache.client.setQueryData(cache.key("room"), rejoined);
+    cache.setPosition("room", lifetime, {
+      anchorId: "m10",
+      anchorCreatedAt: 10000,
+      offset: 42,
+      atLiveEdge: false,
+      visibleMessageIds: ["m10"],
+    });
+    expect(cache.getPosition("room")).toBeUndefined();
     vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
       messages: [{ ...message(90), content: "after rejoin" }],
       nextCursor: null,
@@ -234,5 +244,96 @@ describe("authoritative retained history reconciliation", () => {
     ).toEqual(["after rejoin"]);
     expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
     cache.clear();
+  });
+});
+
+describe("room open prefetched on click", () => {
+  function opening() {
+    const cache = new RoomTranscriptCache(
+      new QueryClient(),
+      "reader",
+      "workspace",
+    );
+    const seed = () => {
+      const entry = cache.seed({
+        activeOrganization: null,
+        rooms: [],
+        organizationMembers: [],
+        currentUserId: "reader",
+        isOrgOwnerOrAdmin: false,
+        coworkers: [],
+        selectedRoomId: "room",
+        messageLoadFailed: false,
+        membersLoadFailed: false,
+        messages: [],
+        messagesNextCursor: null,
+        loadHistoryOnClient: true,
+      });
+      cache.client.setQueryData(cache.key("room"), entry);
+      return entry.lifetime;
+    };
+    return { cache, seed };
+  }
+  beforeEach(() => {
+    vi.mocked(fetchRoomMessages).mockReset();
+    vi.useRealTimers();
+  });
+
+  it("serves the open's first head read from the click's read", async () => {
+    const { cache, seed } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetch("room");
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+    const lifetime = seed();
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+    expect(cache.get("room")?.resolved).toBe(true);
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not prefetch a room already painted from cache", () => {
+    const { cache } = retained();
+    cache.prefetch("room");
+    expect(fetchRoomMessages).not.toHaveBeenCalled();
+  });
+
+  it("reads again with access handling when the click's read failed", async () => {
+    const { cache, seed } = opening();
+    vi.mocked(fetchRoomMessages)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(head);
+    cache.prefetch("room");
+    await cache.refresh("room", seed(), () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fetchRoomMessages).mock.calls[1][3]).toEqual(
+      expect.any(Function),
+    );
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+  });
+
+  it("drops a click's read the transcript has moved past", async () => {
+    const { cache, seed } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetch("room");
+    const lifetime = seed();
+    cache.setTranscript("room", lifetime, (transcript) => ({
+      ...transcript,
+      messages: [message(90)],
+    }));
+    await cache.refresh("room", lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not hand an old click's read to a later open", async () => {
+    vi.useFakeTimers();
+    const { cache, seed } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetch("room");
+    vi.advanceTimersByTime(10_001);
+    await cache.refresh("room", seed(), () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
   });
 });

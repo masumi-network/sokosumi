@@ -16,7 +16,7 @@ import {
  * through the exact same machinery (PR1-SPEC §3.5): one debit path, one
  * out-of-credits pause rule.
  */
-export const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
+const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
   TaskStatus.DRAFT,
   TaskStatus.QUEUED,
   TaskStatus.READY,
@@ -59,8 +59,13 @@ export async function applyGuardedTaskStatusUpdate(params: {
   }
 }
 
+/**
+ * Charges a Task to its Owner (ADR 0057): their balance in the Task's
+ * Organization, or their personal credits. `userId` null is work without an
+ * Owner, charged to the Organization pool with no member.
+ */
 export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
-  userId: string;
+  userId: string | null;
   organizationId: string | null;
   cents: bigint;
   currentStatus: TaskStatus;

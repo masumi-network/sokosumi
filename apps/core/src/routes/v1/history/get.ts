@@ -199,7 +199,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .filter((agentId): agentId is string => agentId != null),
       ),
     ];
-    const userIds = [...new Set(pagedRows.map((row) => row.userId))];
+    const userIds = [
+      ...new Set(
+        pagedRows
+          .map((row) => row.userId)
+          .filter((userId): userId is string => userId != null),
+      ),
+    ];
     const [jobStatusByEntityId, agentPreviewById, userPreviewById] =
       await Promise.all([
         loadComputedJobStatusByEntityId(jobEntityIds, prisma),

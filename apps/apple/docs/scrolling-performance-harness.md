@@ -215,21 +215,22 @@ shutil.copy(work/'Probe.swift',out/'Sokosumi/App/SokosumiApp.swift')
 shutil.copy(source/'SokosumiTests/Chat/Timeline/ScrollMediaProtocol.swift',out/'Sokosumi/App/ScrollMediaProtocol.swift')
 
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','struct MentionRetryRequest: Hashable {','@MainActor public enum M6MentionRetryProbe {\n  public static var sourceCollections = 0\n}\n\nstruct MentionRetryRequest: Hashable {')
-patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages')
+patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.transcript.timeline.messages')
 patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    var body: some View {\n      content','    var body: some View {\n      let _ = M6Probe.threadBody()\n      content')
 if '    private var preparedMessages:' in (out/'Sokosumi/Chat/Threads/ReplyThreadView.swift').read_text():
  patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
 print(out)
 
 patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', 'public enum M6Preparation {', 'public enum M6Preparation {\n  private static let overlayBuilds = Mutex(0)\n  public static func takeOverlayBuilds() -> Int { overlayBuilds.withLock { let value = $0; $0 = 0; return value } }\n  static func overlayBuilt() { overlayBuilds.withLock { $0 += 1 } }')
-patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', '    let byId = Dictionary(live.map', '    M6Preparation.overlayBuilt()\n    let byId = Dictionary(live.map')
+patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', '  public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {', '  public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {\n    M6Preparation.overlayBuilt()')
 
 patch('Sokosumi/Chat/Timeline/MessageRowView.swift', '      let _ = M6Probe.body(message.id)', '      let _ = M6Probe.body(message.id)\n      let _ = M6Probe.observe(message, document: preparedDocument)')
 if 'let messages = preparedMessages' in (out/'Sokosumi/Chat/Timeline/RoomTimelineView.swift').read_text():
  patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', 'let messages = preparedMessages', 'let messages = preparedMessages\n      let _ = M6Probe.projected(messages)')
 else:
- patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', '      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {', '      let _ = M6Probe.projected(messages)\n      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {')
-patch('Sokosumi/Chat/Threads/ReplyThreadView.swift', '      if let parent = messages.first {', '      let _ = M6Probe.projected(messages)\n      if let parent = messages.first {')
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', '    private var transcriptBody: some View {', '    private var transcriptBody: some View {\n      let _ = M6Probe.projected(messages)')
+# Count only rows that enter the current-scope render branch, not an outgoing child's teardown body.
+patch('Sokosumi/Chat/Threads/ReplyThreadView.swift', '        let jumpTarget = readyJump(in: messages)', '        let jumpTarget = readyJump(in: messages)\n        let _ = M6Probe.projected(messages)')
 ```
 
 ### Probe.swift
@@ -315,6 +316,7 @@ import Synchronization
       if kind == "code" { content = base + "\n\n```swift\n" + String(repeating: "let result = values.map { $0 * 2 }\n", count: 8) + "```" }
       if kind == "images" { content = base + "\n\n![Fixture](https://scroll-fixture.invalid/\(mix)-\(count)-\(index).png)" }
       var value = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: content,
+        createdAt: Date(timeIntervalSince1970: 1_700_000_000 + Double(index)*60),
         sender: .init(id: "author-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
       value.id = "fixture-\(index)"
       value.createdAt = Date(timeIntervalSince1970: 1_700_000_000 + Double(index)*60)
@@ -341,14 +343,14 @@ import Synchronization
       if thread { for index in 1..<count { fixture[index].parentMessageId = fixture[0].id } }
       M6Probe.reset()
       if env["M6_ONLY"] == "prepare" { await prepareSamples(fixture, count: count, mix: mix); continue }
-      let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
-      state.timeline.reset(roomId: "fixture")
-      state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-      state.timeline.messages = thread ? [fixture[0]] : fixture
+      let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+      state.room.timeline.reset(roomId: "fixture")
+      state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+      state.room.timeline.messages = thread ? [fixture[0]] : fixture
       if thread {
         state.thread.open(fixture[0])
-        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-        state.thread.timeline.messages = Array(fixture.dropFirst())
+        state.thread.transcript.timeline.failInitialLoad(message: "", generation: state.thread.transcript.timeline.generation)
+        state.thread.transcript.timeline.messages = Array(fixture.dropFirst())
       }
       if env["M6_ONLY"] == "lookup" {
         let message = fixture[count/2]
@@ -372,7 +374,7 @@ import Synchronization
         }
         continue
       }
-      let auth = AuthState()
+      let auth = AuthState(store: InMemoryTokenStore())
       let host = NSHostingView(rootView: Group {
         if thread { ReplyThreadView() } else { RoomTimelineView(roomId: "fixture") }
       }.environmentObject(state).environmentObject(auth))
@@ -391,7 +393,7 @@ import Synchronization
       guard let scroll, (scroll.documentView?.frame.height ?? 0) > 1000 else { fatalError("Transcript not ready") }
       await pause(1500)
       if env["M6_ONLY"] == "updates" {
-        await validateUpdates(state, auth: auth, host: host, fixture: fixture, thread: thread)
+        await validateUpdates(state, host: host, fixture: fixture, thread: thread)
         window.close()
         continue
       }
@@ -412,16 +414,16 @@ import Synchronization
       let payload = try! JSONSerialization.data(withJSONObject: ["data": object, "meta": ["timestamp": "2026-09-21T12:00:00.000Z", "requestId": "m6"]])
       M6ReactionProtocol.response.withLock { $0 = payload }
       let started = ProcessInfo.processInfo.systemUptime
-      do { _ = try await state.toggleReaction(fixture[count/2], emoji: "🎉", auth: auth) } catch { fatalError("Reaction fixture failed: \(error)") }
+      do { _ = try await state.toggleReaction(fixture[count/2], emoji: "🎉") } catch { fatalError("Reaction fixture failed: \(error)") }
       await pause(500)
       M6Probe.emit(["phase": "reaction", "count": count, "mix": mix, "wall_ms": (ProcessInfo.processInfo.systemUptime-started)*1000, "prepare": M6Preparation.take(), "bodies": M6Probe.totalBodies, "room_bodies": M6Probe.roomBodies])
       window.orderOut(nil); window.contentView = nil; window.close()
       await pause(300)
     } }
   }
-  func validateUpdates(_ state: WorkspaceState, auth: AuthState, host: NSView,
+  func validateUpdates(_ state: WorkspaceState, host: NSView,
                        fixture: [Components.Schemas.ChatRoomMessage], thread: Bool) async {
-    let timeline = thread ? state.thread.timeline : state.timeline
+    let timeline = thread ? state.thread.transcript.timeline : state.room.timeline
     let target = fixture.last!.id
     var passed: [String] = []
     func check(_ label: String, _ condition: () -> Bool) async {
@@ -454,7 +456,7 @@ import Synchronization
     }
     var reactionFinished = false
     let reaction = Task {
-      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth) }
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉") }
       catch { fatalError("M6 reaction failed: \(error)") }
       reactionFinished = true
     }
@@ -465,7 +467,7 @@ import Synchronization
     M6ReactionProtocol.status.withLock { $0 = 500 }
     var rollbackFinished = false
     let rollback = Task {
-      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth); fatalError("Expected reaction failure") }
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉"); fatalError("Expected reaction failure") }
       catch { rollbackFinished = true }
     }
     await check("optimistic reaction removal") { !reacted() }
@@ -483,9 +485,10 @@ import Synchronization
     timeline.messages.removeAll { $0.id == "arriving" }
     await check("removal") { !M6Probe.projectedRows.contains { $0.id == "arriving" } }
 
-    let outbox = thread ? state.thread.outbox : state.outbox
+    let outbox = thread ? state.thread.transcript.outbox : state.room.outbox
     let shell = OutboundShell(clientTurnId: "projection-outbox", roomId: "fixture",
       parentMessageId: thread ? fixture.first!.id : nil, content: "Pending projection marker",
+      createdAt: Date(timeIntervalSince1970: 1_700_000_000),
       sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
     var releaseSend: CheckedContinuation<Components.Schemas.ChatRoomMessage, Error>?
     outbox.enqueue(shell, send: {

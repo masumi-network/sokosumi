@@ -443,6 +443,7 @@ export type SokoBotDeletionResult = {
         chatMessages: number;
         uploadedTaskFiles: number;
         taskSchedules: number;
+        jobs: number;
     };
 };
 
@@ -1368,21 +1369,14 @@ export type AdminTaskListItem = {
     name: string;
     status: TaskStatus;
     createdAt: Date;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
-    /**
-     * Deprecated. Use owner instead.
-     *
-     * @deprecated
-     */
-    user: {
-        id: string;
-        name: string;
-        email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1411,21 +1405,14 @@ export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 export type AdminTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
-    /**
-     * Deprecated. Use owner instead.
-     *
-     * @deprecated
-     */
-    user: {
-        id: string;
-        name: string;
-        email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -1438,17 +1425,25 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -1488,7 +1483,10 @@ export type Task = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -1610,30 +1608,19 @@ export type TaskParticipant = {
     addedAt: Date;
 };
 
-/**
- * Actor that created the task. Exactly one of user, coworker, or sokoBot.
- */
-export type TaskCreator = ({
-    type: 'user';
-} & TaskCreatorUser) | ({
-    type: 'coworker';
-} & TaskCreatorCoworker) | ({
-    type: 'sokoBot';
-} & TaskCreatorSokoBot);
-
-export type TaskCreatorUser = {
+export type WorkCreatorUser = {
     type: 'user';
     id: string;
     user: UserSummary;
 };
 
-export type TaskCreatorCoworker = {
+export type WorkCreatorCoworker = {
     type: 'coworker';
     id: string;
     coworker: CoworkerSummary;
 };
 
-export type TaskCreatorSokoBot = {
+export type WorkCreatorSokoBot = {
     type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
@@ -1826,17 +1813,29 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId?: string | null;
@@ -3142,8 +3141,49 @@ export type ChatResultAvailable = {
     recurrence?: string | null;
     question?: string | null;
     outputs?: Array<ChatResultOutput>;
-    task?: ChatResultTask | null;
-    social?: ChatResultSocial | null;
+    task?: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        status: TaskStatus;
+        priority: TaskPriority;
+        visibility: TaskVisibility;
+        createdAt: Date | null;
+        runAt: Date | null;
+        project: {
+            id: string;
+            name: string;
+            identifier: string | null;
+            logo: string | null;
+        } | null;
+        assignee: {
+            id: string;
+            name: string;
+            image?: string | null;
+            kind: 'user' | 'coworker' | 'sokoBot';
+            slug?: string;
+            avatarSeed?: string | null;
+        } | null;
+        participants: Array<{
+            id: string;
+            name: string;
+            image?: string | null;
+            kind: 'user' | 'coworker' | 'sokoBot';
+            slug?: string;
+            avatarSeed?: string | null;
+        }>;
+        commentsCount: number;
+        tags: TaskTags;
+    } | null;
+    social?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        account: {
+            handle: string | null;
+            displayName: string | null;
+            avatarUrl: string | null;
+        } | null;
+        timestamp: Date | null;
+    } | null;
     actor?: {
         id: string;
         name: string;
@@ -3168,7 +3208,21 @@ export type ChatResultAvailable = {
         identifier: string | null;
         logo: string | null;
     } | null;
-    decision?: SokoBotPendingDecision | null;
+    decision?: {
+        id: string;
+        turnId: string;
+        toolName: string;
+        proposal: {
+            [key: string]: unknown;
+        };
+        reason: string;
+        status: 'PENDING' | 'PROCESSING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+        expiresAt: Date;
+        resolvedAt: Date | null;
+        resultingEntityId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
 };
 
 export type ChatResultOutput = {
@@ -3180,54 +3234,14 @@ export type ChatResultOutput = {
     downloadHref?: string | null;
 };
 
-export type ChatResultTask = {
-    id: string;
-    name: string;
-    identifier: string | null;
-    status: TaskStatus;
-    priority: TaskPriority;
-    visibility: TaskVisibility;
-    createdAt: Date | null;
-    runAt: Date | null;
-    project: {
-        id: string;
-        name: string;
-        identifier: string | null;
-        logo: string | null;
-    } | null;
-    assignee: {
-        id: string;
-        name: string;
-        image?: string | null;
-        kind: 'user' | 'coworker' | 'sokoBot';
-        slug?: string;
-        avatarSeed?: string | null;
-    } | null;
-    participants: Array<{
-        id: string;
-        name: string;
-        image?: string | null;
-        kind: 'user' | 'coworker' | 'sokoBot';
-        slug?: string;
-        avatarSeed?: string | null;
-    }>;
-    commentsCount: number;
-    tags: TaskTags;
-};
-
-export type ChatResultSocial = {
-    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
-    account: {
-        handle: string | null;
-        displayName: string | null;
-        avatarUrl: string | null;
-    } | null;
-    timestamp: Date | null;
-};
-
 export type ChatResultUnavailable = {
     id: string;
     state: 'unavailable';
+};
+
+export type ChatRoomMessageResults = {
+    messageId: string;
+    results: Array<ChatResultPreview>;
 };
 
 export type CreateChatRoomMessageRequest = {
@@ -3471,11 +3485,14 @@ export type DeveloperTaskListItem = {
     updatedAt: Date;
     assignee: DeveloperCoworkerRef;
     creatorCoworker: DeveloperCoworkerRef;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -3491,11 +3508,14 @@ export type DeveloperCoworkerRef = {
 
 export type DeveloperTaskDetail = {
     task: Task;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
     owner: {
         id: string;
         name: string;
         email: string;
-    };
+    } | null;
     organization: {
         id: string;
         name: string;
@@ -4822,60 +4842,9 @@ export type NotificationPreference = {
     enabled: boolean;
 };
 
-export type PreferredOrganization = {
-    /**
-     * Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.
-     */
-    organizationId: string | null;
-};
-
-export type PersonalWorkspaceCreated = {
-    /**
-     * Id of the newly created personal workspace
-     */
-    workspaceId: string;
-};
-
-export type PersonalWorkspaceDeleted = {
-    /**
-     * Id of the deleted personal workspace
-     */
-    workspaceId: string;
-};
-
-export type WorkspaceAccess = {
-    gate: WorkspaceGateStatus;
-    /**
-     * Whether the user owns a personal workspace row
-     */
-    hasPersonalWorkspace: boolean;
-    /**
-     * Whether the user is a member of at least one organization
-     */
-    hasOrganizationMembership: boolean;
-    /**
-     * Whether the user has at least one non-expired pending organization invitation by email
-     */
-    hasPendingOrganizationInvites: boolean;
-};
-
-/**
- * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
- */
-export const WorkspaceGateStatus = {
-    READY: 'ready',
-    PENDING_INVITES: 'pending-invites',
-    IDENTITY_ONBOARDING: 'identity-onboarding'
-} as const;
-
-/**
- * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
- */
-export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
-
 export type UserWorkspaces = {
     /**
-     * Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding
+     * Workspaces the person can act in: their personal workspace first, then their organizations. Exactly one is `preferred` whenever the list is non-empty. Empty means the person still needs identity onboarding
      */
     workspaces: Array<UserWorkspace>;
     /**
@@ -4936,6 +4905,13 @@ export type CreateUserWorkspace = {
 export type SetPreferredUserWorkspace = {
     /**
      * Id of a workspace the person can act in
+     */
+    workspaceId: string;
+};
+
+export type PersonalWorkspaceDeleted = {
+    /**
+     * Id of the deleted personal workspace
      */
     workspaceId: string;
 };
@@ -5141,6 +5117,23 @@ export type SignUpConversionResponse = {
 
 export type SignUpConversionRequest = {
     utmAttribution?: UtmAttributionRequest;
+};
+
+export type SignUpContext = {
+    /**
+     * The product the account was created through: `sokosumi`, a first-party client's sign-up origin such as `cmo`, or `unknown` for a client without one.
+     */
+    origin: string;
+    /**
+     * The values the sign-up origin handed over, as untrusted text, numbers or booleans.
+     */
+    context: {
+        [key: string]: string | number | boolean;
+    };
+    /**
+     * When the sign-up was recorded
+     */
+    createdAt: Date;
 };
 
 export type CoworkerWorkspaceAccess = {
@@ -5707,9 +5700,9 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
-     * User who owns the Task Schedule and the Tasks it creates
+     * Owner of the Task Schedule and the Tasks it creates; null when it has none
      */
-    taskOwnerId: string;
+    taskOwnerId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -5744,7 +5737,12 @@ export type SocialPostCalendarItem = {
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    revision: number;
     externalHandle: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     projectName: string;
     scheduledByName: string | null;
     scheduledByImage: string | null;
@@ -5757,6 +5755,13 @@ export type SocialPostCalendarItem = {
         kind: 'image' | 'gif' | 'video';
     } | null;
     scheduledAt: Date;
+    /**
+     * Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.
+     */
+    lastAttempt: {
+        outcome: string | null;
+        errorKind: string | null;
+    } | null;
     sourceId: string;
     sourceProjectId: string;
     sourceWorkspaceId: string;
@@ -5847,6 +5852,125 @@ export const ProjectSocialProvider = {
 
 export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
+export type SocialAccountStatisticsPage = {
+    accounts: Array<SocialAccountStatisticsAccount>;
+    posts: Array<SocialAccountPost>;
+    nextCursor: string | null;
+    headline: SocialPerformanceHeadline;
+    consistency: SocialPerformanceConsistency;
+};
+
+export type SocialAccountStatisticsAccount = ProjectSocialConnection & {
+    statistics?: SocialAccountStatistics;
+    postCount: number;
+    sync?: SocialSyncReadModel;
+};
+
+export type SocialAccountStatistics = {
+    metrics: Array<SocialAccountMetric>;
+    fetchedAt: Date | null;
+    refreshAttemptedAt: Date | null;
+    error: string | null;
+    historyNextCursor: string | null;
+    historyComplete: boolean;
+    historyFetchedAt: Date | null;
+    historyError: string | null;
+    metricWarning?: string | null;
+    consecutiveFailures?: number;
+} | null;
+
+export type SocialAccountMetric = {
+    key: string;
+    value: number | null;
+    period: string | null;
+    unit: string | null;
+};
+
+export type SocialSyncReadModel = {
+    status: 'fresh' | 'stale' | 'queued' | 'running' | 'reauth_required' | 'partial';
+    dataFetchedAt: Date | null;
+    headFetchedAt: Date | null;
+    dataVersion: string;
+    mayAutoRequest: boolean;
+    lastError: string | null;
+    partialWarnings: Array<string>;
+};
+
+export type SocialAccountPost = {
+    id: string;
+    connectionId: string;
+    provider: ProjectSocialProvider;
+    externalId: string;
+    text: string;
+    publishedAt: Date | null;
+    url: string | null;
+    metrics: SocialPostMetrics;
+    additionalMetrics: Array<SocialAccountMetric>;
+    fetchedAt: Date;
+    strong?: boolean;
+    canRecycle?: boolean;
+};
+
+export type SocialPostMetrics = {
+    views: number | null;
+    impressions: number | null;
+    likes: number | null;
+    comments: number | null;
+    shares: number | null;
+    saves: number | null;
+};
+
+export type SocialPerformanceHeadline = {
+    current: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    previous: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    deltas: {
+        postCount: number | null;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    daily: Array<{
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+        date: Date;
+    }>;
+};
+
+export type SocialPerformanceConsistency = {
+    from: Date | null;
+    until: Date | null;
+    daily: Array<{
+        date: Date;
+        postCount: number;
+        interactions: number | null;
+    }>;
+};
+
+export type RefreshSocialAccountStatisticsResponse = {
+    account: SocialAccountStatisticsAccount;
+    importedPostCount: number;
+};
+
+export type RefreshSocialAccountStatisticsRequest = {
+    continueHistory?: boolean;
+};
+
+export type SocialConnectionSuggestedTimes = {
+    hours: Array<number>;
+};
+
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
     redirectUrl: string;
@@ -5871,11 +5995,658 @@ export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection 
     providerRevocation: 'succeeded' | 'failed' | 'skipped';
 };
 
+export type ProjectAdAccount = {
+    id: string;
+    connectionId: string;
+    provider: ProjectAdProvider;
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+    /**
+     * Google manager account reaching this account, if any
+     */
+    loginCustomerId: string | null;
+    createdAt: Date;
+};
+
+export const ProjectAdProvider = { GOOGLE_ADS: 'google_ads', META_ADS: 'meta_ads' } as const;
+
+export type ProjectAdProvider = typeof ProjectAdProvider[keyof typeof ProjectAdProvider];
+
+export type InitiateProjectAdConnectionRequest = {
+    provider: ProjectAdProvider;
+};
+
+export type FinalizeProjectAdConnectionResponse = {
+    /**
+     * Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked
+     */
+    connection: ProjectAdConnection | null;
+    availableAccounts: Array<AvailableAdAccount>;
+};
+
+export type ProjectAdConnection = {
+    /**
+     * Pass this as `adConnectionId` when attaching accounts
+     */
+    id: string;
+    provider: ProjectAdProvider;
+    status: 'active' | 'reauthorization_required' | 'disconnected';
+    createdAt: Date;
+};
+
+export type AvailableAdAccount = {
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+};
+
+export type AttachProjectAdAccountsRequest = {
+    /**
+     * The connection `id` returned by finalize
+     */
+    adConnectionId: string;
+    externalAccountIds: Array<string>;
+};
+
+export type ListAdCampaignsResponse = {
+    campaigns: Array<AdCampaign>;
+    range: AdRange;
+    /**
+     * ISO 4217 code of the ad account; money is in this currency
+     */
+    currency: string;
+};
+
+export type AdCampaign = {
+    /**
+     * Provider campaign id
+     */
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'PAUSED' | 'ENDED' | 'OTHER';
+    /**
+     * Google channel type or Meta objective
+     */
+    objective: string | null;
+    /**
+     * Decimal in the account currency
+     */
+    dailyBudget: number | null;
+    /**
+     * Over the range, decimal
+     */
+    spend: number;
+    impressions: number;
+    clicks: number;
+    /**
+     * clicks / impressions; null without impressions
+     */
+    ctr: number | null;
+    /**
+     * spend / clicks; null without clicks
+     */
+    cpc: number | null;
+    /**
+     * Over the range; null only when the provider omits the metric
+     */
+    conversions: number | null;
+};
+
+export const AdRange = { LAST_7_DAYS: 'LAST_7_DAYS', LAST_30_DAYS: 'LAST_30_DAYS' } as const;
+
+export type AdRange = typeof AdRange[keyof typeof AdRange];
+
+export type AdCampaignDetails = {
+    campaign: AdCampaignDetailsCampaign;
+    targeting: AdCampaignTargeting;
+    keywords: Array<AdCampaignKeyword>;
+    /**
+     * The campaign's only ad; null when it has none or several
+     */
+    ad: AdCampaignAd | null;
+    sitelinks: Array<AdCampaignSitelink>;
+    callouts: Array<AdCampaignCallout>;
+    performance: AdCampaignPerformance;
+};
+
+export type AdCampaignDetailsCampaign = {
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'PAUSED' | 'ENDED' | 'OTHER';
+    type: 'SEARCH' | 'DISPLAY' | 'OTHER';
+    /**
+     * Google advertising channel type
+     */
+    channelType: string;
+    /**
+     * Decimal in the account currency
+     */
+    dailyBudget: number;
+    currency: string;
+    biddingStrategyType: string;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    startDate: string | null;
+    /**
+     * YYYY-MM-DD in the account time zone; null when not set
+     */
+    endDate: string | null;
+    /**
+     * The start date is today or earlier in the account time zone
+     */
+    started: boolean;
+    /**
+     * One ad group with one ad of the campaign type's responsive format
+     */
+    editable: boolean;
+    notEditableReason: 'TYPE' | 'AD_GROUPS' | 'AD_TYPE' | null;
+};
+
+export type AdCampaignTargeting = {
+    /**
+     * Empty targets all countries
+     */
+    locations: Array<GoogleLocation>;
+    /**
+     * Empty targets all languages
+     */
+    languages: Array<GoogleLanguage>;
+};
+
+export type GoogleLocation = {
+    /**
+     * Geo target constant id; pass it in `google.locationIds`
+     */
+    id: string;
+    name: string;
+    canonicalName: string;
+    /**
+     * Null when Google omits it
+     */
+    targetType: string | null;
+    /**
+     * Null when Google omits it
+     */
+    countryCode: string | null;
+};
+
+export type GoogleLanguage = {
+    /**
+     * Language constant id; pass it in `google.languageIds`
+     */
+    id: string;
+    code: string;
+    name: string;
+};
+
+export type AdCampaignKeyword = {
+    id: string;
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+    status: string;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignAd = {
+    id: string;
+    status: string;
+    approvalStatus: string | null;
+    reviewStatus: string | null;
+    adStrength: string | null;
+    /**
+     * The first final URL; empty without one
+     */
+    finalUrl: string;
+    search?: AdCampaignSearchAd;
+    display?: AdCampaignDisplayAd;
+};
+
+/**
+ * Set for a responsive search ad
+ */
+export type AdCampaignSearchAd = {
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1: string | null;
+    path2: string | null;
+};
+
+/**
+ * Set for a responsive display ad
+ */
+export type AdCampaignDisplayAd = {
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    images: Array<AdCampaignDisplayImage>;
+};
+
+export type AdCampaignDisplayImage = {
+    assetId: string;
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+    url: string;
+    width: number;
+    height: number;
+};
+
+export type AdCampaignSitelink = {
+    assetId: string;
+    text: string;
+    finalUrl: string;
+    description1: string | null;
+    description2: string | null;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignCallout = {
+    assetId: string;
+    text: string;
+    approvalStatus: string | null;
+};
+
+export type AdCampaignPerformance = {
+    totals: AdCampaignTotals;
+    /**
+     * Every day of the range, oldest first; days without data are zero
+     */
+    daily: Array<AdCampaignDailyMetrics>;
+};
+
+export type AdCampaignTotals = {
+    /**
+     * Over the range, decimal
+     */
+    spend: number;
+    impressions: number;
+    clicks: number;
+    /**
+     * clicks / impressions; null without impressions
+     */
+    ctr: number | null;
+    /**
+     * spend / clicks; null without clicks
+     */
+    cpc: number | null;
+    /**
+     * Over the range; null only when the provider omits the metric
+     */
+    conversions: number | null;
+};
+
+export type AdCampaignDailyMetrics = {
+    date: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+};
+
+export type UpdateAdCampaignRequest = {
+    status?: 'ACTIVE' | 'PAUSED';
+    /**
+     * Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422
+     */
+    dailyBudget?: number;
+};
+
+/**
+ * Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update
+ */
+export type EditAdCampaignRequest = {
+    name: string;
+    /**
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     */
+    dailyBudget: number;
+    google: GoogleCampaignEditSpec;
+};
+
+/**
+ * The campaign's settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign's type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date
+ */
+export type GoogleCampaignEditSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignEditSpec);
+
+export type GoogleSearchCampaignSpec = {
+    type: 'SEARCH';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    /**
+     * Repeats of a keyword with the same match type (ignoring case) are dropped
+     */
+    keywords: Array<GoogleKeyword>;
+    headlines: Array<string>;
+    descriptions: Array<string>;
+    path1?: string;
+    /**
+     * Requires path1
+     */
+    path2?: string;
+    sitelinks?: Array<GoogleSitelink>;
+    callouts?: Array<string>;
+};
+
+export type GoogleKeyword = {
+    /**
+     * Plain text, without quotes or brackets
+     */
+    text: string;
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT';
+};
+
+export type GoogleSitelink = {
+    text: string;
+    finalUrl: string;
+    description1?: string;
+    description2?: string;
+};
+
+export type GoogleDisplayCampaignEditSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * The ad's images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once
+     */
+    images: Array<GoogleDisplayImage | GoogleKeptDisplayImage>;
+};
+
+export type GoogleDisplayImage = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    /**
+     * Bytes; at most 5120 KB
+     */
+    size: number;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/gif';
+    /**
+     * LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type GoogleKeptDisplayImage = {
+    /**
+     * Asset id of one of the ad's current images, as the campaign details report it
+     */
+    assetId: string;
+    /**
+     * The slot the image fills; see GoogleDisplayImage
+     */
+    role: 'LANDSCAPE' | 'SQUARE' | 'LOGO';
+};
+
+export type CreateAdCampaignResponse = {
+    /**
+     * Provider campaign id
+     */
+    id: string;
+};
+
+/**
+ * There is no status: a new campaign is always created paused
+ */
+export type CreateAdCampaignRequest = {
+    name: string;
+    /**
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
+     */
+    dailyBudget: number;
+    /**
+     * Required for Meta ad accounts; 422 for Google
+     */
+    objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
+    google?: GoogleCampaignSpec;
+};
+
+/**
+ * Required for Google ad accounts; 422 for Meta
+ */
+export type GoogleCampaignSpec = ({
+    type: 'SEARCH';
+} & GoogleSearchCampaignSpec) | ({
+    type: 'DISPLAY';
+} & GoogleDisplayCampaignSpec);
+
+export type GoogleDisplayCampaignSpec = {
+    type: 'DISPLAY';
+    /**
+     * Campaign starts at 00:00:00 of this day in the account's time zone
+     */
+    startDate?: string;
+    /**
+     * Campaign ends at 23:59:59 of this day in the account's time zone; not before startDate
+     */
+    endDate?: string;
+    /**
+     * Geo target constant ids (0-25); none targets all
+     */
+    locationIds: Array<string>;
+    /**
+     * Language constant ids (0-25); none targets all
+     */
+    languageIds: Array<string>;
+    finalUrl: string;
+    businessName: string;
+    headlines: Array<string>;
+    longHeadline: string;
+    descriptions: Array<string>;
+    /**
+     * Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once
+     */
+    images: Array<GoogleDisplayImage>;
+};
+
+export type ListGoogleLocationsResponse = {
+    locations: Array<GoogleLocation>;
+};
+
+export type ListGoogleLanguagesResponse = {
+    languages: Array<GoogleLanguage>;
+};
+
+export type GetAdMarketProfileResponse = {
+    /**
+     * Null until a market profile is saved
+     */
+    profile: AdMarketProfile | null;
+};
+
+export type AdMarketProfile = {
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    /**
+     * Google geo target constant id of the country, for campaign targeting
+     */
+    locationId: string;
+    languageCode: AdMarketLanguageCode;
+    updatedAt: Date;
+};
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export const AdMarketCountryCode = {
+    US: 'US',
+    GB: 'GB',
+    DE: 'DE',
+    FR: 'FR',
+    ES: 'ES',
+    IT: 'IT',
+    NL: 'NL',
+    CH: 'CH',
+    AT: 'AT',
+    BE: 'BE',
+    IE: 'IE',
+    CA: 'CA',
+    AU: 'AU',
+    BR: 'BR',
+    MX: 'MX',
+    IN: 'IN',
+    JP: 'JP'
+} as const;
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export type AdMarketCountryCode = typeof AdMarketCountryCode[keyof typeof AdMarketCountryCode];
+
+export const AdMarketLanguageCode = {
+    EN: 'en',
+    DE: 'de',
+    FR: 'fr',
+    ES: 'es',
+    IT: 'it',
+    NL: 'nl',
+    PT: 'pt',
+    JA: 'ja'
+} as const;
+
+export type AdMarketLanguageCode = typeof AdMarketLanguageCode[keyof typeof AdMarketLanguageCode];
+
+export type PutAdMarketProfileResponse = {
+    profile: AdMarketProfile;
+};
+
+export type PutAdMarketProfileRequest = {
+    /**
+     * 1 to 10 keywords of at most 80 characters; duplicates (ignoring case) are dropped
+     */
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    languageCode: AdMarketLanguageCode;
+};
+
+export type ListAdMarketKeywordsResponse = {
+    /**
+     * At most 50, by search volume descending, nulls last
+     */
+    keywords: Array<AdMarketKeyword>;
+    /**
+     * When DataForSEO was last asked; results are cached for 24h
+     */
+    fetchedAt: Date;
+};
+
+/**
+ * Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.
+ */
+export type AdMarketKeyword = {
+    keyword: string;
+    searchVolume: number | null;
+    trend: Array<{
+        year: number;
+        month: number;
+        searchVolume: number | null;
+    }>;
+    competition: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+    competitionIndex: number | null;
+    cpc: number | null;
+    lowTopOfPageBid: number | null;
+    highTopOfPageBid: number | null;
+};
+
+export type ListAdMarketAdsResponse = {
+    /**
+     * ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.
+     */
+    status: 'ready' | 'gathering' | 'failed';
+    /**
+     * At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first
+     */
+    ads: Array<AdMarketAd>;
+    /**
+     * When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet
+     */
+    fetchedAt: Date | null;
+};
+
+/**
+ * A recent Google ad of a search competitor (a domain ranking organically for the profile keywords). previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.
+ */
+export type AdMarketAd = {
+    creativeId: string;
+    advertiserId: string;
+    advertiserName: string;
+    format: 'text' | 'image' | 'video' | 'other';
+    previewImage: {
+        url: string;
+        width: number | null;
+        height: number | null;
+    } | null;
+    previewUrl: string | null;
+    firstShown: Date | null;
+    lastShown: Date | null;
+    verified: boolean;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
+    firstComment: string | null;
     media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
@@ -5891,6 +6662,7 @@ export type SocialPost = {
     publishedAt: Date | null;
     publishedExternalId: string | null;
     publishedUrl: string | null;
+    statistics?: SocialPostStatistics;
     lastError: string | null;
     attemptCount: number;
     nextAttemptAt: Date | null;
@@ -5903,6 +6675,10 @@ export type SocialPost = {
     canSchedule: boolean;
     canCancel: boolean;
     canPublishNow: boolean;
+    /**
+     * True when the post can be copied into a new draft (published, failed, or missed)
+     */
+    canDuplicate: boolean;
     /**
      * The linked connection exists but is not active, so the post cannot go out until someone reconnects
      */
@@ -5953,6 +6729,13 @@ export type SocialPostCreator = {
     name: string | null;
 };
 
+export type SocialPostStatistics = {
+    metrics: SocialPostMetrics;
+    fetchedAt: Date | null;
+    refreshAttemptedAt: Date | null;
+    error: string | null;
+} | null;
+
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
@@ -5971,6 +6754,7 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
@@ -5980,8 +6764,22 @@ export type CreateSocialPostRequest = {
     timezone?: string;
 };
 
+export type SocialPostStatisticsPage = {
+    posts: Array<SocialPost>;
+    summary: Array<SocialPostStatisticsSummary>;
+    nextCursor: string | null;
+};
+
+export type SocialPostStatisticsSummary = {
+    provider: string;
+    postCount: number;
+    measuredPostCount: number;
+    metrics: SocialPostMetrics;
+};
+
 export type UpdateSocialPostRequest = {
     text?: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
@@ -6008,6 +6806,11 @@ export type CancelSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+};
+
+export type RecycleSocialAccountPostRequest = {
+    delayDays?: 7 | 14 | 30;
+    timezone?: string;
 };
 
 export type ProjectImageStudioState = {
@@ -6067,17 +6870,29 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     /**
-     * Job owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId?: string | null;
     organization?: OrganizationSummary;
     projectId: string | null;
@@ -7004,17 +7819,25 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Task owner. Always a user.
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
-    ownerId: string;
-    owner: UserSummary;
+    ownerId: string | null;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    owner: UserSummary | null;
     /**
      * Deprecated. Use ownerId instead.
      *
      * @deprecated
      */
-    userId: string;
-    user: UserSummary & unknown;
+    userId: string | null;
+    /**
+     * Deprecated. Use owner instead.
+     *
+     * @deprecated
+     */
+    user: UserSummary | null;
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
@@ -7054,7 +7877,10 @@ export type TaskListItem = {
      * @deprecated
      */
     coworker: CoworkerSummary | null;
-    creator: TaskCreator;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     /**
      * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
@@ -7142,10 +7968,17 @@ export type TaskSchedule = {
     id: string;
     workspaceId: string;
     organizationId: string | null;
-    ownerId: string;
+    /**
+     * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
+     */
+    ownerId: string | null;
     creatorUserId: string | null;
     creatorCoworkerId: string | null;
     creatorSokoBotId: string | null;
+    /**
+     * Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.
+     */
+    creator: WorkCreatorUser | WorkCreatorCoworker | WorkCreatorSokoBot | null;
     state: TaskScheduleState;
     rule: {
         expr: string;
@@ -8149,6 +8982,10 @@ export type WorkspaceCalendarSource = {
      * Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
+    /**
+     * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
+     */
+    latestScheduledSocialPostAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
@@ -8184,6 +9021,11 @@ export type ContextUserId = string;
  * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
  */
 export type ContextOrganizationId = string;
+
+/**
+ * Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
+ */
+export type SokosumiClient = string;
 
 export type StopAdminImpersonationData = {
     body?: never;
@@ -14359,6 +15201,21 @@ export type GetAgentsByIdReviewsMeData = {
 
 export type GetAgentsByIdReviewsMeErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -14448,6 +15305,21 @@ export type GetAgentsByIdRatingsEligibilityData = {
 
 export type GetAgentsByIdRatingsEligibilityErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -14536,6 +15408,21 @@ export type PostAgentsByIdRatingsData = {
 };
 
 export type PostAgentsByIdRatingsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -15669,6 +16556,21 @@ export type GetAgentsByIdJobsData = {
 };
 
 export type GetAgentsByIdJobsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -22574,6 +23476,107 @@ export type GetChatRoomMessageResultsResponses = {
 
 export type GetChatRoomMessageResultsResponse = GetChatRoomMessageResultsResponses[keyof GetChatRoomMessageResultsResponses];
 
+export type GetChatRoomMessageResultsBatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Comma-separated message ids, at most 50.
+         */
+        messageIds: string;
+    };
+    url: '/chats/rooms/{id}/message-results';
+};
+
+export type GetChatRoomMessageResultsBatchErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid message ids
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchError = GetChatRoomMessageResultsBatchErrors[keyof GetChatRoomMessageResultsBatchErrors];
+
+export type GetChatRoomMessageResultsBatchResponses = {
+    /**
+     * Authorized recorded results for each live message; missing, deleted or unhydratable messages are omitted
+     */
+    200: {
+        data: Array<ChatRoomMessageResults>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsBatchResponse = GetChatRoomMessageResultsBatchResponses[keyof GetChatRoomMessageResultsBatchResponses];
+
 export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
     body?: never;
     headers?: {
@@ -24814,6 +25817,20 @@ export type GetDeveloperOwnedCoworkerTaskResponse = GetDeveloperOwnedCoworkerTas
 
 export type GetDriveCollectionsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -24826,6 +25843,21 @@ export type GetDriveCollectionsData = {
 };
 
 export type GetDriveCollectionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -24891,12 +25923,41 @@ export type PostDriveCollectionsData = {
         scope: 'me' | 'org';
         organizationId?: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/collections';
 };
 
 export type PostDriveCollectionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -24964,6 +26025,20 @@ export type PostDriveCollectionsResponse = PostDriveCollectionsResponses[keyof P
 
 export type DeleteDriveCollectionsByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -24978,6 +26053,21 @@ export type DeleteDriveCollectionsByIdData = {
 };
 
 export type DeleteDriveCollectionsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -25051,6 +26141,20 @@ export type PatchDriveCollectionsByIdData = {
         scope: 'me' | 'org';
         organizationId?: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -25059,6 +26163,21 @@ export type PatchDriveCollectionsByIdData = {
 };
 
 export type PatchDriveCollectionsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -25141,6 +26260,20 @@ export type PatchDriveCollectionsByIdResponse = PatchDriveCollectionsByIdRespons
 
 export type GetDriveFilesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -25292,6 +26425,20 @@ export type GetDriveFilesResponse = GetDriveFilesResponses[keyof GetDriveFilesRe
 
 export type PostDriveFilesData = {
     body: CreateDriveFileUploadSessionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/files';
@@ -25447,12 +26594,41 @@ export type PostDriveFilesFinalizeData = {
         organizationId?: string;
         pathname: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/files/finalize';
 };
 
 export type PostDriveFilesFinalizeErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -25537,6 +26713,20 @@ export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[key
 
 export type PatchDriveFilesMoveData = {
     body: MoveDriveItemRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/files/move';
@@ -25670,6 +26860,20 @@ export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof Pat
 
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/files/rename';
@@ -25803,6 +27007,20 @@ export type PatchDriveFilesRenameResponse = PatchDriveFilesRenameResponses[keyof
 
 export type DeleteDriveFilesDeleteData = {
     body: DeleteDriveFileRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/files/delete';
@@ -25914,6 +27132,20 @@ export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[key
 
 export type GetDriveLabelsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -25928,6 +27160,21 @@ export type GetDriveLabelsData = {
 };
 
 export type GetDriveLabelsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -25989,12 +27236,41 @@ export type PostDriveLabelsData = {
         scope: 'me' | 'org';
         organizationId?: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/labels';
 };
 
 export type PostDriveLabelsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -26087,6 +27363,20 @@ export type PatchDriveLabelsByIdData = {
         scope: 'me' | 'org';
         organizationId?: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -26095,6 +27385,21 @@ export type PatchDriveLabelsByIdData = {
 };
 
 export type PatchDriveLabelsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -26192,6 +27497,20 @@ export type PatchDriveLabelsByIdResponse = PatchDriveLabelsByIdResponses[keyof P
 
 export type GetDriveFoldersData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -26204,6 +27523,21 @@ export type GetDriveFoldersData = {
 };
 
 export type GetDriveFoldersErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -26256,6 +27590,20 @@ export type GetDriveFoldersResponse = GetDriveFoldersResponses[keyof GetDriveFol
 
 export type PostDriveFoldersData = {
     body: CreateDriveFolderRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/folders';
@@ -26389,6 +27737,20 @@ export type PostDriveFoldersResponse = PostDriveFoldersResponses[keyof PostDrive
 
 export type DeleteDriveFoldersDeleteData = {
     body: DeleteDriveFolderRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/folders/delete';
@@ -26500,6 +27862,20 @@ export type DeleteDriveFoldersDeleteResponse = DeleteDriveFoldersDeleteResponses
 
 export type PatchDriveFoldersRenameData = {
     body: RenameDriveFolderRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/folders/rename';
@@ -26633,6 +28009,20 @@ export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[k
 
 export type GetDriveRecentsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -26749,6 +28139,20 @@ export type PostDriveResourcesSelectionTokenData = {
         organizationId?: string;
         windowCursor: string;
     };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/resources/selection-token';
@@ -26827,6 +28231,20 @@ export type PostDriveResourcesMetadataBatchData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -26916,6 +28334,20 @@ export type PostDriveResourcesMetadataBatchResponse = PostDriveResourcesMetadata
 
 export type GetDriveResourcesByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -26930,6 +28362,21 @@ export type GetDriveResourcesByIdData = {
 };
 
 export type GetDriveResourcesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -26997,6 +28444,20 @@ export type GetDriveResourcesByIdResponse = GetDriveResourcesByIdResponses[keyof
 
 export type GetDriveResourcesByIdContentData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -27015,6 +28476,21 @@ export type GetDriveResourcesByIdContentData = {
 };
 
 export type GetDriveResourcesByIdContentErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27090,6 +28566,20 @@ export type GetDriveResourcesByIdContentResponse = GetDriveResourcesByIdContentR
 
 export type GetDriveResourcesByIdRelatedData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -27104,6 +28594,21 @@ export type GetDriveResourcesByIdRelatedData = {
 };
 
 export type GetDriveResourcesByIdRelatedErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27171,6 +28676,20 @@ export type GetDriveResourcesByIdRelatedResponse = GetDriveResourcesByIdRelatedR
 
 export type PatchDriveResourcesByIdMetadataData = {
     body: UpdateFileMetadataRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -27185,6 +28704,21 @@ export type PatchDriveResourcesByIdMetadataData = {
 };
 
 export type PatchDriveResourcesByIdMetadataErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27282,6 +28816,20 @@ export type PatchDriveResourcesByIdMetadataResponse = PatchDriveResourcesByIdMet
 
 export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionData = {
     body: FileSuggestionDecisionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
         suggestionId: string;
@@ -27297,6 +28845,21 @@ export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionData = {
 };
 
 export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27394,6 +28957,20 @@ export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponse = Po
 
 export type PostDriveResourcesByIdReindexData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -27408,6 +28985,21 @@ export type PostDriveResourcesByIdReindexData = {
 };
 
 export type PostDriveResourcesByIdReindexErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27493,6 +29085,20 @@ export type PostDriveResourcesByIdReindexResponse = PostDriveResourcesByIdReinde
 
 export type GetDriveSearchData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -27636,6 +29242,21 @@ export type GetDriveTablesData = {
 };
 
 export type GetDriveTablesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -27782,6 +29403,21 @@ export type PostDriveTablesData = {
 
 export type PostDriveTablesErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -27904,6 +29540,21 @@ export type GetDriveTablesByIdData = {
 };
 
 export type GetDriveTablesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -28040,6 +29691,21 @@ export type PatchDriveTablesByIdData = {
 };
 
 export type PatchDriveTablesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -28178,6 +29844,21 @@ export type PostDriveTablesByIdQueryData = {
 };
 
 export type PostDriveTablesByIdQueryErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -28331,6 +30012,21 @@ export type PostDriveTablesByIdRowsData = {
 
 export type PostDriveTablesByIdRowsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -28471,6 +30167,21 @@ export type PostDriveTablesByIdViewsData = {
 
 export type PostDriveTablesByIdViewsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -28596,6 +30307,21 @@ export type PostDriveTablesByIdUndoData = {
 };
 
 export type PostDriveTablesByIdUndoErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -28728,6 +30454,21 @@ export type GetDriveTablesByIdHistoryData = {
 
 export type GetDriveTablesByIdHistoryErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -28858,6 +30599,21 @@ export type PostDriveTablesByIdEnrichData = {
 
 export type PostDriveTablesByIdEnrichErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -28957,6 +30713,20 @@ export type PostDriveTablesByIdEnrichResponse = PostDriveTablesByIdEnrichRespons
 
 export type GetDriveTasksData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -29101,6 +30871,20 @@ export type GetDriveTasksResponse = GetDriveTasksResponses[keyof GetDriveTasksRe
 
 export type PostDriveTasksCopyData = {
     body: CopyTaskFileToDriveRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/drive/tasks/copy';
@@ -30656,7 +32440,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -30665,6 +32449,21 @@ export type GetUsersByIdCreditsData = {
 };
 
 export type GetUsersByIdCreditsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -30836,7 +32635,7 @@ export type GetUsersByIdDeletionData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -30929,7 +32728,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31052,7 +32851,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31159,7 +32958,7 @@ export type GetUsersByIdOrganizationsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31168,6 +32967,21 @@ export type GetUsersByIdOrganizationsData = {
 };
 
 export type GetUsersByIdOrganizationsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -31266,7 +33080,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -31279,6 +33093,21 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
 };
 
 export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -31450,7 +33279,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -31547,7 +33376,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31680,7 +33509,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31689,21 +33518,6 @@ export type PatchUsersByIdPreferencesData = {
 };
 
 export type PatchUsersByIdPreferencesErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
     /**
      * Unauthorized
      */
@@ -31738,6 +33552,21 @@ export type PatchUsersByIdPreferencesErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -31792,443 +33621,11 @@ export type PatchUsersByIdPreferencesResponses = {
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
 
-export type GetUsersByIdPreferredOrganizationData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/preferred-organization';
-};
-
-export type GetUsersByIdPreferredOrganizationErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * User not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdPreferredOrganizationError = GetUsersByIdPreferredOrganizationErrors[keyof GetUsersByIdPreferredOrganizationErrors];
-
-export type GetUsersByIdPreferredOrganizationResponses = {
-    /**
-     * The resolved organization selection for workspace restoration
-     */
-    200: {
-        data: PreferredOrganization;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdPreferredOrganizationResponse = GetUsersByIdPreferredOrganizationResponses[keyof GetUsersByIdPreferredOrganizationResponses];
-
-export type PutUsersByIdPreferredOrganizationData = {
-    body?: PreferredOrganization;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/preferred-organization';
-};
-
-export type PutUsersByIdPreferredOrganizationErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - The user is not a member of the organization
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - User not found, or personal workspace is missing
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity - organizationId key required; send null for personal
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PutUsersByIdPreferredOrganizationError = PutUsersByIdPreferredOrganizationErrors[keyof PutUsersByIdPreferredOrganizationErrors];
-
-export type PutUsersByIdPreferredOrganizationResponses = {
-    /**
-     * The persisted preferred organization
-     */
-    200: {
-        data: PreferredOrganization;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
-
-export type DeleteUsersByIdPersonalWorkspaceData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/personal-workspace';
-};
-
-export type DeleteUsersByIdPersonalWorkspaceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Personal workspace is missing
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - Last workspace, or dependents prevent delete
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteUsersByIdPersonalWorkspaceError = DeleteUsersByIdPersonalWorkspaceErrors[keyof DeleteUsersByIdPersonalWorkspaceErrors];
-
-export type DeleteUsersByIdPersonalWorkspaceResponses = {
-    /**
-     * Personal workspace deleted
-     */
-    200: {
-        data: PersonalWorkspaceDeleted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteUsersByIdPersonalWorkspaceResponse = DeleteUsersByIdPersonalWorkspaceResponses[keyof DeleteUsersByIdPersonalWorkspaceResponses];
-
-export type PostUsersByIdPersonalWorkspaceData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/personal-workspace';
-};
-
-export type PostUsersByIdPersonalWorkspaceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - Personal workspace already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdPersonalWorkspaceError = PostUsersByIdPersonalWorkspaceErrors[keyof PostUsersByIdPersonalWorkspaceErrors];
-
-export type PostUsersByIdPersonalWorkspaceResponses = {
-    /**
-     * Personal workspace created
-     */
-    201: {
-        data: PersonalWorkspaceCreated;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdPersonalWorkspaceResponse = PostUsersByIdPersonalWorkspaceResponses[keyof PostUsersByIdPersonalWorkspaceResponses];
-
 export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -32343,104 +33740,25 @@ export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
 
 export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
 
-export type GetUsersByIdWorkspaceAccessData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/workspace-access';
-};
-
-export type GetUsersByIdWorkspaceAccessErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdWorkspaceAccessError = GetUsersByIdWorkspaceAccessErrors[keyof GetUsersByIdWorkspaceAccessErrors];
-
-export type GetUsersByIdWorkspaceAccessResponses = {
-    /**
-     * Retrieve the user's workspace access
-     */
-    200: {
-        data: WorkspaceAccess;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
-
 export type GetUsersByIdWorkspacesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32449,6 +33767,21 @@ export type GetUsersByIdWorkspacesData = {
 };
 
 export type GetUsersByIdWorkspacesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers (this route needs no `X-Context-Organization-Id`)
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -32533,7 +33866,7 @@ export type PostUsersByIdWorkspacesData = {
     body?: CreateUserWorkspace;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32652,11 +33985,133 @@ export type PostUsersByIdWorkspacesResponses = {
 
 export type PostUsersByIdWorkspacesResponse = PostUsersByIdWorkspacesResponses[keyof PostUsersByIdWorkspacesResponses];
 
+export type GetUsersByIdWorkspacesPreferredData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/preferred';
+};
+
+export type GetUsersByIdWorkspacesPreferredErrors = {
+    /**
+     * Bad Request - invalid coworker context headers (this route needs no `X-Context-Organization-Id`)
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found, or no preferred workspace the caller may see
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesPreferredError = GetUsersByIdWorkspacesPreferredErrors[keyof GetUsersByIdWorkspacesPreferredErrors];
+
+export type GetUsersByIdWorkspacesPreferredResponses = {
+    /**
+     * The preferred workspace
+     */
+    200: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesPreferredResponse = GetUsersByIdWorkspacesPreferredResponses[keyof GetUsersByIdWorkspacesPreferredResponses];
+
 export type PutUsersByIdWorkspacesPreferredData = {
     body?: SetPreferredUserWorkspace;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32764,7 +34219,7 @@ export type DeleteUsersByIdWorkspacesByWorkspaceIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -32891,7 +34346,7 @@ export type GetUsersByIdPendingOrganizationInvitationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32984,7 +34439,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33079,7 +34534,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -33195,7 +34650,7 @@ export type GetUserBadgeCampaignsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33273,7 +34728,7 @@ export type MarkUserBadgeCampaignSeenData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -33348,7 +34803,7 @@ export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33461,7 +34916,7 @@ export type PostUsersByIdFilesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33599,7 +35054,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33781,11 +35236,89 @@ export type PostUsersByIdSignUpConversionResponses = {
 
 export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
 
+export type GetUsersByIdSignUpData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up';
+};
+
+export type GetUsersByIdSignUpErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User or sign-up not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpError = GetUsersByIdSignUpErrors[keyof GetUsersByIdSignUpErrors];
+
+export type GetUsersByIdSignUpResponses = {
+    /**
+     * The user's sign-up
+     */
+    200: {
+        data: SignUpContext;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpResponse = GetUsersByIdSignUpResponses[keyof GetUsersByIdSignUpResponses];
+
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33878,7 +35411,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -33975,7 +35508,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34072,7 +35605,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34169,7 +35702,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34267,7 +35800,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34360,7 +35893,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34457,7 +35990,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         grantId: string;
@@ -34551,7 +36084,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         grantId: string;
@@ -34651,7 +36184,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34750,7 +36283,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34849,7 +36382,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34948,7 +36481,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35055,7 +36588,7 @@ export type GetUsersByIdData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35064,6 +36597,21 @@ export type GetUsersByIdData = {
 };
 
 export type GetUsersByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -35148,7 +36696,7 @@ export type PatchUsersByIdData = {
     body?: UpdateUserName;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35254,6 +36802,20 @@ export type PatchUsersByIdResponse = PatchUsersByIdResponses[keyof PatchUsersByI
 
 export type GetOrganizationBySlugData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         /**
          * Organization slug
@@ -35265,6 +36827,21 @@ export type GetOrganizationBySlugData = {
 };
 
 export type GetOrganizationBySlugErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -35347,6 +36924,20 @@ export type GetOrganizationBySlugResponse = GetOrganizationBySlugResponses[keyof
 
 export type GetOrganizationsByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         /**
          * Organization ID
@@ -35358,6 +36949,21 @@ export type GetOrganizationsByIdData = {
 };
 
 export type GetOrganizationsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -38875,6 +40481,21 @@ export type GetProjectsStatsData = {
 
 export type GetProjectsStatsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -39413,6 +41034,21 @@ export type GetProjectsByIdContextMdData = {
 };
 
 export type GetProjectsByIdContextMdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -40260,6 +41896,21 @@ export type GetProjectsByIdNeedsAttentionData = {
 
 export type GetProjectsByIdNeedsAttentionErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -40541,6 +42192,21 @@ export type GetProjectsByIdSocialConnectionsData = {
 
 export type GetProjectsByIdSocialConnectionsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -40664,6 +42330,585 @@ export type GetProjectsByIdSocialConnectionsResponses = {
 };
 
 export type GetProjectsByIdSocialConnectionsResponse = GetProjectsByIdSocialConnectionsResponses[keyof GetProjectsByIdSocialConnectionsResponses];
+
+export type GetProjectsByIdSocialConnectionsStatisticsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        connectionId?: string;
+    };
+    url: '/projects/{id}/social-connections/statistics';
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsError = GetProjectsByIdSocialConnectionsStatisticsErrors[keyof GetProjectsByIdSocialConnectionsStatisticsErrors];
+
+export type GetProjectsByIdSocialConnectionsStatisticsResponses = {
+    /**
+     * Social account statistics
+     */
+    200: {
+        data: SocialAccountStatisticsPage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsResponse = GetProjectsByIdSocialConnectionsStatisticsResponses[keyof GetProjectsByIdSocialConnectionsStatisticsResponses];
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        provider?: ProjectSocialProvider;
+        connectionId?: string;
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        format?: 'csv' | 'xlsx';
+    };
+    url: '/projects/{id}/social-connections/statistics/export';
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportError = GetProjectsByIdSocialConnectionsStatisticsExportErrors[keyof GetProjectsByIdSocialConnectionsStatisticsExportErrors];
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponses = {
+    /**
+     * Statistics export
+     */
+    200: string;
+};
+
+export type GetProjectsByIdSocialConnectionsStatisticsExportResponse = GetProjectsByIdSocialConnectionsStatisticsExportResponses[keyof GetProjectsByIdSocialConnectionsStatisticsExportResponses];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData = {
+    body: RefreshSocialAccountStatisticsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/refresh';
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshError = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshErrors];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses = {
+    /**
+     * Social account refresh accepted
+     */
+    200: {
+        data: RefreshSocialAccountStatisticsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query: {
+        timezone: string;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/suggested-times';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesError = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses = {
+    /**
+     * Suggested posting hours
+     */
+    200: {
+        data: SocialConnectionSuggestedTimes;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponse = GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesResponses];
 
 export type PostProjectsByIdSocialConnectionsInitiateData = {
     body: InitiateProjectSocialConnectionRequest;
@@ -41119,6 +43364,2535 @@ export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponses = {
 
 export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponse = DeleteProjectsByIdSocialConnectionsByConnectionIdResponses[keyof DeleteProjectsByIdSocialConnectionsByConnectionIdResponses];
 
+export type GetProjectsByIdAdsAccountsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type GetProjectsByIdAdsAccountsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsError = GetProjectsByIdAdsAccountsErrors[keyof GetProjectsByIdAdsAccountsErrors];
+
+export type GetProjectsByIdAdsAccountsResponses = {
+    /**
+     * Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsResponse = GetProjectsByIdAdsAccountsResponses[keyof GetProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsAccountsData = {
+    body: AttachProjectAdAccountsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type PostProjectsByIdAdsAccountsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsError = PostProjectsByIdAdsAccountsErrors[keyof PostProjectsByIdAdsAccountsErrors];
+
+export type PostProjectsByIdAdsAccountsResponses = {
+    /**
+     * Attached Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsResponse = PostProjectsByIdAdsAccountsResponses[keyof PostProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsConnectionsInitiateData = {
+    body: InitiateProjectAdConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/initiate';
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateError = PostProjectsByIdAdsConnectionsInitiateErrors[keyof PostProjectsByIdAdsConnectionsInitiateErrors];
+
+export type PostProjectsByIdAdsConnectionsInitiateResponses = {
+    /**
+     * Project ad connection initiated
+     */
+    201: {
+        data: InitiateProjectSocialConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateResponse = PostProjectsByIdAdsConnectionsInitiateResponses[keyof PostProjectsByIdAdsConnectionsInitiateResponses];
+
+export type PostProjectsByIdAdsConnectionsFinalizeData = {
+    body: FinalizeProjectSocialConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/finalize';
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeError = PostProjectsByIdAdsConnectionsFinalizeErrors[keyof PostProjectsByIdAdsConnectionsFinalizeErrors];
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponses = {
+    /**
+     * Project ad connection and its available ad accounts
+     */
+    200: {
+        data: FinalizeProjectAdConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponse = PostProjectsByIdAdsConnectionsFinalizeResponses[keyof PostProjectsByIdAdsConnectionsFinalizeResponses];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}';
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdError = DeleteProjectsByIdAdsAccountsByAccountIdErrors[keyof DeleteProjectsByIdAdsAccountsByAccountIdErrors];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponses = {
+    /**
+     * Ad account detached
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponse = DeleteProjectsByIdAdsAccountsByAccountIdResponses[keyof DeleteProjectsByIdAdsAccountsByAccountIdResponses];
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        adConnectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/{adConnectionId}';
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdError = DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors];
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses = {
+    /**
+     * Ad connection discarded
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponse = DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Metrics window: the last 7 or 30 complete days, excluding today
+         */
+        range?: AdRange & unknown;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsError = GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
+    /**
+     * Ad account campaigns
+     */
+    200: {
+        data: ListAdCampaignsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsData = {
+    body: CreateAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns';
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsError = PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors[keyof PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors];
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
+    /**
+     * Campaign created (paused)
+     */
+    201: {
+        data: CreateAdCampaignResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsByAccountIdCampaignsResponse = PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: {
+        /**
+         * Metrics window: the last 7 or 30 complete days, excluding today
+         */
+        range?: AdRange & unknown;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign details
+     */
+    200: {
+        data: AdCampaignDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: UpdateAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign updated
+     */
+    204: void;
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: EditAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (1-20 digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign edited, or nothing to change
+     */
+    204: void;
+};
+
+export type PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: {
+        /**
+         * Place name to find, in any case (1-80 characters); send either `q` or `ids`
+         */
+        q?: string;
+        /**
+         * Comma-separated geo target constant ids (1-25); send either `q` or `ids`
+         */
+        ids?: string;
+    };
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/locations';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsError = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses = {
+    /**
+     * Matching Google locations
+     */
+    200: {
+        data: ListGoogleLocationsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsResponses];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/targeting/languages';
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesError = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesErrors];
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses = {
+    /**
+     * Targetable Google languages
+     */
+    200: {
+        data: ListGoogleLanguagesResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponse = GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses[keyof GetProjectsByIdAdsAccountsByAccountIdTargetingLanguagesResponses];
+
+export type GetProjectsByIdAdsMarketData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type GetProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketError = GetProjectsByIdAdsMarketErrors[keyof GetProjectsByIdAdsMarketErrors];
+
+export type GetProjectsByIdAdsMarketResponses = {
+    /**
+     * Project ads market profile
+     */
+    200: {
+        data: GetAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketResponse = GetProjectsByIdAdsMarketResponses[keyof GetProjectsByIdAdsMarketResponses];
+
+export type PutProjectsByIdAdsMarketData = {
+    body: PutAdMarketProfileRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type PutProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketError = PutProjectsByIdAdsMarketErrors[keyof PutProjectsByIdAdsMarketErrors];
+
+export type PutProjectsByIdAdsMarketResponses = {
+    /**
+     * Saved Project ads market profile
+     */
+    200: {
+        data: PutAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketResponse = PutProjectsByIdAdsMarketResponses[keyof PutProjectsByIdAdsMarketResponses];
+
+export type GetProjectsByIdAdsMarketKeywordsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/keywords';
+};
+
+export type GetProjectsByIdAdsMarketKeywordsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsError = GetProjectsByIdAdsMarketKeywordsErrors[keyof GetProjectsByIdAdsMarketKeywordsErrors];
+
+export type GetProjectsByIdAdsMarketKeywordsResponses = {
+    /**
+     * Market keywords
+     */
+    200: {
+        data: ListAdMarketKeywordsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsResponse = GetProjectsByIdAdsMarketKeywordsResponses[keyof GetProjectsByIdAdsMarketKeywordsResponses];
+
+export type GetProjectsByIdAdsMarketAdsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/ads';
+};
+
+export type GetProjectsByIdAdsMarketAdsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsError = GetProjectsByIdAdsMarketAdsErrors[keyof GetProjectsByIdAdsMarketAdsErrors];
+
+export type GetProjectsByIdAdsMarketAdsResponses = {
+    /**
+     * Market ads
+     */
+    200: {
+        data: ListAdMarketAdsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsResponse = GetProjectsByIdAdsMarketAdsResponses[keyof GetProjectsByIdAdsMarketAdsResponses];
+
 export type GetProjectsByIdSocialPostsData = {
     body?: never;
     headers?: {
@@ -41156,6 +45930,21 @@ export type GetProjectsByIdSocialPostsData = {
 };
 
 export type GetProjectsByIdSocialPostsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -41542,6 +46331,302 @@ export type PostProjectsByIdSocialPostsByPostIdPublishResponses = {
 
 export type PostProjectsByIdSocialPostsByPostIdPublishResponse = PostProjectsByIdSocialPostsByPostIdPublishResponses[keyof PostProjectsByIdSocialPostsByPostIdPublishResponses];
 
+export type GetProjectsByIdSocialPostsStatisticsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+    };
+    url: '/projects/{id}/social-posts/statistics';
+};
+
+export type GetProjectsByIdSocialPostsStatisticsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialPostsStatisticsError = GetProjectsByIdSocialPostsStatisticsErrors[keyof GetProjectsByIdSocialPostsStatisticsErrors];
+
+export type GetProjectsByIdSocialPostsStatisticsResponses = {
+    /**
+     * Social post statistics
+     */
+    200: {
+        data: SocialPostStatisticsPage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialPostsStatisticsResponse = GetProjectsByIdSocialPostsStatisticsResponses[keyof GetProjectsByIdSocialPostsStatisticsResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdStatisticsRefreshData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/statistics/refresh';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdStatisticsRefreshErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdStatisticsRefreshError = PostProjectsByIdSocialPostsByPostIdStatisticsRefreshErrors[keyof PostProjectsByIdSocialPostsByPostIdStatisticsRefreshErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdStatisticsRefreshResponses = {
+    /**
+     * Social post statistics refreshed
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdStatisticsRefreshResponse = PostProjectsByIdSocialPostsByPostIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialPostsByPostIdStatisticsRefreshResponses];
+
 export type GetProjectsByIdSocialPostsByPostIdData = {
     body?: never;
     headers?: {
@@ -41567,6 +46652,21 @@ export type GetProjectsByIdSocialPostsByPostIdData = {
 };
 
 export type GetProjectsByIdSocialPostsByPostIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -41988,6 +47088,21 @@ export type PostProjectsByIdSocialPostsByPostIdCancelData = {
 
 export type PostProjectsByIdSocialPostsByPostIdCancelErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -42096,6 +47211,306 @@ export type PostProjectsByIdSocialPostsByPostIdCancelResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdCancelResponse = PostProjectsByIdSocialPostsByPostIdCancelResponses[keyof PostProjectsByIdSocialPostsByPostIdCancelResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/duplicate';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateError = PostProjectsByIdSocialPostsByPostIdDuplicateErrors[keyof PostProjectsByIdSocialPostsByPostIdDuplicateErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponses = {
+    /**
+     * Social post duplicated
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponse = PostProjectsByIdSocialPostsByPostIdDuplicateResponses[keyof PostProjectsByIdSocialPostsByPostIdDuplicateResponses];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData = {
+    body: RecycleSocialAccountPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        accountPostId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-account-posts/{accountPostId}/recycle';
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleError = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses = {
+    /**
+     * Social post recycled
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponse = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses];
 
 export type GetProjectsByIdImageStudioData = {
     body?: never;
@@ -42510,6 +47925,103 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
 
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/social-media';
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaError = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaErrors];
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses = {
+    /**
+     * Drive file ready to attach
+     */
+    200: {
+        data: SocialPostMediaRef;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponse = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {
@@ -42599,6 +48111,21 @@ export type GetProjectsByIdData = {
 };
 
 export type GetProjectsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -42823,6 +48350,21 @@ export type GetJobsData = {
 
 export type GetJobsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -42911,6 +48453,21 @@ export type GetJobsByIdData = {
 };
 
 export type GetJobsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -43137,6 +48694,21 @@ export type PostJobsByIdRefundData = {
 
 export type PostJobsByIdRefundErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -43256,6 +48828,21 @@ export type GetJobsByIdFilesData = {
 
 export type GetJobsByIdFilesErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -43337,6 +48924,20 @@ export type GetJobsByIdFilesResponse = GetJobsByIdFilesResponses[keyof GetJobsBy
 
 export type GetJobsByIdFilesByFileIdContentData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
         fileId: string;
@@ -43348,6 +48949,21 @@ export type GetJobsByIdFilesByFileIdContentData = {
 };
 
 export type GetJobsByIdFilesByFileIdContentErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -43445,6 +49061,21 @@ export type GetJobsByIdLinksData = {
 };
 
 export type GetJobsByIdLinksErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -43549,6 +49180,21 @@ export type GetJobsByIdInputRequestData = {
 };
 
 export type GetJobsByIdInputRequestErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -43818,6 +49464,21 @@ export type GetJobsByIdEventsData = {
 
 export type GetJobsByIdEventsErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -43921,6 +49582,21 @@ export type DeleteJobsByIdShareData = {
 };
 
 export type DeleteJobsByIdShareErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -50533,6 +56209,21 @@ export type GetTasksData = {
 
 export type GetTasksErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -50959,6 +56650,21 @@ export type GetTasksSchedulesData = {
 
 export type GetTasksSchedulesErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -51229,6 +56935,21 @@ export type DeleteTasksSchedulesByIdData = {
 
 export type DeleteTasksSchedulesByIdErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -51325,6 +57046,21 @@ export type GetTasksSchedulesByIdData = {
 };
 
 export type GetTasksSchedulesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -51549,6 +57285,21 @@ export type PostTasksSchedulesByIdPauseData = {
 
 export type PostTasksSchedulesByIdPauseErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -51653,6 +57404,21 @@ export type PostTasksSchedulesByIdResumeData = {
 
 export type PostTasksSchedulesByIdResumeErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -51756,6 +57522,21 @@ export type PostTasksSchedulesByIdEndData = {
 };
 
 export type PostTasksSchedulesByIdEndErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -51881,6 +57662,21 @@ export type GetTasksSchedulesByIdRunsData = {
 };
 
 export type GetTasksSchedulesByIdRunsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -53413,6 +59209,20 @@ export type PutTasksByIdShareResponse = PutTasksByIdShareResponses[keyof PutTask
 
 export type GetTasksByIdWorkspaceData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -53421,6 +59231,21 @@ export type GetTasksByIdWorkspaceData = {
 };
 
 export type GetTasksByIdWorkspaceErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -56134,12 +61959,41 @@ export type PostRealtimeAblyTokenResponse = PostRealtimeAblyTokenResponses[keyof
 
 export type ListVendorsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/vendors';
 };
 
 export type ListVendorsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -57887,6 +63741,20 @@ export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploa
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/workspaces/design-md/adhoc';
@@ -57990,12 +63858,41 @@ export type PostWorkspacesDesignMdAdhocResponse = PostWorkspacesDesignMdAdhocRes
 
 export type GetWorkspacesDesignMdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/workspaces/design-md';
 };
 
 export type GetWorkspacesDesignMdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -58244,11 +64141,35 @@ export type GetWorkspacesCalendarSourcesData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+    };
     url: '/workspaces/calendar/sources';
 };
 
 export type GetWorkspacesCalendarSourcesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -58283,6 +64204,21 @@ export type GetWorkspacesCalendarSourcesErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -58406,6 +64342,20 @@ export type PostWorkspacesByIdCalendarIdentityLabelsResponse = PostWorkspacesByI
 
 export type GetWorkspacesByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -58414,6 +64364,21 @@ export type GetWorkspacesByIdData = {
 };
 
 export type GetWorkspacesByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -58478,3 +64443,280 @@ export type GetWorkspacesByIdResponses = {
 };
 
 export type GetWorkspacesByIdResponse = GetWorkspacesByIdResponses[keyof GetWorkspacesByIdResponses];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        connectionId?: string;
+    };
+    url: '/workspaces/{id}/social-connections/statistics';
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsError = GetWorkspacesByIdSocialConnectionsStatisticsErrors[keyof GetWorkspacesByIdSocialConnectionsStatisticsErrors];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsResponses = {
+    /**
+     * Workspace social account statistics
+     */
+    200: {
+        data: SocialAccountStatisticsPage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsResponse = GetWorkspacesByIdSocialConnectionsStatisticsResponses[keyof GetWorkspacesByIdSocialConnectionsStatisticsResponses];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        provider?: ProjectSocialProvider;
+        connectionId?: string;
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        format?: 'csv' | 'xlsx';
+    };
+    url: '/workspaces/{id}/social-connections/statistics/export';
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportError = GetWorkspacesByIdSocialConnectionsStatisticsExportErrors[keyof GetWorkspacesByIdSocialConnectionsStatisticsExportErrors];
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportResponses = {
+    /**
+     * Statistics export
+     */
+    200: string;
+};
+
+export type GetWorkspacesByIdSocialConnectionsStatisticsExportResponse = GetWorkspacesByIdSocialConnectionsStatisticsExportResponses[keyof GetWorkspacesByIdSocialConnectionsStatisticsExportResponses];

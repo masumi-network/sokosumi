@@ -9,6 +9,7 @@ import {
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostProviderSchema } from "@/schemas/social-post.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
@@ -90,6 +91,11 @@ export const projectCalendarQuerySchema = workspaceCalendarQueryObjectSchema
   .strict()
   .openapi("ProjectCalendarQuery");
 
+export const workspaceCalendarSourcesQuerySchema =
+  workspaceCalendarQueryObjectSchema
+    .pick({ includeSocialPosts: true, scope: true })
+    .openapi("WorkspaceCalendarSourcesQuery");
+
 export const workspaceCalendarItemSchema = z
   .object({
     id: z.string().openapi({
@@ -136,8 +142,9 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
-    taskOwnerId: z.string().openapi({
-      description: "User who owns the Task Schedule and the Tasks it creates",
+    taskOwnerId: z.union([z.string(), z.null()]).openapi({
+      description:
+        "Owner of the Task Schedule and the Tasks it creates; null when it has none",
       example: "user_123",
     }),
     scheduledAt: dateTimeSchema.openapi({
@@ -185,6 +192,10 @@ export const workspaceCalendarSourceSchema = z
         "Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.",
       example: true,
     }),
+    latestScheduledSocialPostAt: dateTimeSchema.nullable().optional().openapi({
+      description:
+        "Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.",
+    }),
   })
   .openapi("WorkspaceCalendarSource");
 
@@ -215,7 +226,9 @@ export const socialPostCalendarItemSchema = z
     provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
+    revision: z.number().int().nonnegative(),
     externalHandle: z.string().nullable(),
+    avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     projectName: z.string(),
     scheduledByName: z.string().nullable(),
     scheduledByImage: z.string().nullable(),
@@ -230,6 +243,16 @@ export const socialPostCalendarItemSchema = z
         description: "The post's first attachment, for a thumbnail.",
       }),
     scheduledAt: dateTimeSchema,
+    lastAttempt: z
+      .object({
+        outcome: z.string().nullable(),
+        errorKind: z.string().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "Latest publish attempt outcome and error kind for Failed and Missed chips. Never the raw provider error.",
+      }),
     sourceId: z.string(),
     sourceProjectId: z.uuid(),
     sourceWorkspaceId: z.uuid(),

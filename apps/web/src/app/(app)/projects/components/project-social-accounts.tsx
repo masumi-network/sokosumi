@@ -2,11 +2,20 @@
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Link2,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
+import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
@@ -26,19 +35,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
+  refreshProjectSocialAccountStatistics,
 } from "@/lib/actions/project/action";
-import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
+import {
+  type ComposioConnectionStage,
+  useComposioConnection,
+} from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  /** Closing or closed projects cannot add or replace accounts. */
+  connectDisabled?: boolean;
+  reconnections?: SocialReconnection[];
+  onReconnected?: (connection: ProjectSocialConnection) => void;
 }
 
 interface PendingConfirmation {
@@ -75,6 +92,45 @@ function formatHandle(
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+function normalizeAccountLabel(value: string): string {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function accountLabels(
+  connection: ProjectSocialConnection,
+  formattedHandle: string,
+): { primary: string; secondaryHandle: string | null } {
+  const displayName = connection.displayName?.trim() ?? "";
+  if (!displayName) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  const rawHandle = connection.externalHandle?.trim() ?? "";
+  if (
+    normalizeAccountLabel(displayName) === normalizeAccountLabel(rawHandle) ||
+    normalizeAccountLabel(displayName) ===
+      normalizeAccountLabel(formattedHandle)
+  ) {
+    return { primary: formattedHandle, secondaryHandle: null };
+  }
+
+  return {
+    primary: displayName,
+    secondaryHandle: rawHandle ? formattedHandle : null,
+  };
+}
+
+function accountName(
+  connection: ProjectSocialConnection,
+  unknownHandle: string,
+): string {
+  return accountLabels(
+    connection,
+    formatHandle(connection.externalHandle, connection.provider) ??
+      unknownHandle,
+  ).primary;
+}
+
 function isExpiredIntentError(error: ActionError): boolean {
   return error.message?.toLowerCase().includes("unknown or expired") ?? false;
 }
@@ -82,22 +138,26 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  connectDisabled = false,
+  reconnections,
+  onReconnected,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
-  const { runPopupOAuth } = useComposioOAuthPopup();
+  const postsT = useTranslations("App.Projects.SocialPosts");
+  const { connect } = useComposioConnection();
   const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
   // Replace and Disconnect open from a row menu that is gone by the time the
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const headingRef = useRef<HTMLElement | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<
-    "disconnect" | OAuthAction | null
+    "disconnect" | "startOver" | "sync" | OAuthAction | null
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
@@ -132,22 +192,27 @@ export function ProjectSocialAccounts({
     }
   }
 
-  function showActionError(error: ActionError, fallback: string): void {
+  function showActionError(error: ActionError | null, fallback: string): void {
+    if (!error) {
+      showFeedback({ kind: "error", message: fallback });
+      return;
+    }
     const message = error.message?.toLowerCase();
     showFeedback({
       kind: "error",
-      message: message?.includes("not configured")
-        ? t("errors.notConfigured")
-        : isExpiredIntentError(error)
-          ? t("errors.intent")
-          : message?.includes("already connected")
-            ? t("errors.duplicate")
-            : message?.includes("reconnect must match")
-              ? t("errors.reconnectMismatch")
-              : error.kind ===
-                  CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
-                ? t("errors.facebookPage")
-                : fallback,
+      message:
+        error.kind === CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED
+          ? t("errors.notConfigured")
+          : isExpiredIntentError(error)
+            ? t("errors.intent")
+            : message?.includes("already connected")
+              ? t("errors.duplicate")
+              : message?.includes("reconnect must match")
+                ? t("errors.reconnectMismatch")
+                : error.kind ===
+                    CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
+                  ? t("errors.facebookPage")
+                  : fallback,
     });
   }
 
@@ -156,100 +221,103 @@ export function ProjectSocialAccounts({
     socialConnectionId?: string,
     provider?: ProjectSocialConnection["provider"],
   ): Promise<void> {
-    try {
-      const popupRun = await runPopupOAuth(async (flow) => {
+    const outcome = await connect({
+      onStart: () => {
         setFeedback(null);
         setPendingAction(action);
         setPendingTarget(provider ?? socialConnectionId ?? null);
-        const refreshAfterReplace = action === "replace";
-        let refreshed = false;
+      },
+      initiate: () =>
+        initiateProjectSocialConnection({
+          projectId,
+          action,
+          ...(provider ? { provider } : {}),
+          ...(socialConnectionId ? { socialConnectionId } : {}),
+        }),
+      finalize: (connectionId) =>
+        finalizeProjectSocialConnection({ projectId, connectionId }),
+    });
 
-        try {
-          const initiation = await initiateProjectSocialConnection({
-            projectId,
-            action,
-            ...(provider ? { provider } : {}),
-            ...(socialConnectionId ? { socialConnectionId } : {}),
-          });
-          if (!initiation.ok) {
-            showActionError(initiation.error, t("errors.intent"));
-            return;
-          }
+    if (outcome.kind === "in_flight") {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+    if (outcome.kind === "popup_blocked") {
+      showFeedback({ kind: "error", message: t("errors.popupBlocked") });
+      return;
+    }
 
-          if (!isMountedRef.current) return;
-
-          const { connectionId, redirectUrl } = initiation.value;
-          flow.navigate(redirectUrl);
-          const callback = await flow.waitForCallback();
-
-          if (callback.kind === "cancelled") return;
-          if (callback.kind === "timeout") {
-            showFeedback({ kind: "error", message: t("errors.timeout") });
-            return;
-          }
-
-          const { payload } = callback;
-          if (payload.status === "error") {
-            showFeedback({
-              kind: "error",
-              message: t("errors.providerCallback"),
-            });
-            return;
-          }
-          if (payload.connectionId && payload.connectionId !== connectionId) {
-            showFeedback({
-              kind: "error",
-              message: t("errors.legacyCallback"),
-            });
-            return;
-          }
-          if (!payload.sessionUri) {
-            showFeedback({
-              kind: "error",
-              message: t("errors.legacyCallback"),
-            });
-            return;
-          }
-
-          const completion = await completeComposioAuthCallbackAction({
-            connectionId,
-            sessionUri: payload.sessionUri,
-          });
-          if (!completion.ok) {
-            showActionError(completion.error, t("errors.verifier"));
-            return;
-          }
-
-          const finalization = await finalizeProjectSocialConnection({
-            projectId,
-            connectionId,
-          });
-          if (!finalization.ok) {
-            showActionError(finalization.error, t("errors.finalize"));
-            return;
-          }
-
-          showFeedback({ kind: "success", message: t("success.connected") });
-          router.refresh();
-          refreshed = true;
-        } catch {
-          showFeedback({ kind: "error", message: t("errors.finalize") });
-        } finally {
-          if (refreshAfterReplace && !refreshed) {
-            router.refresh();
-          }
-          finishAction();
-        }
+    if (outcome.kind === "connected") {
+      showFeedback({
+        kind: "success",
+        message: t("success.connected", {
+          account: accountName(outcome.value, t("unknownHandle")),
+        }),
       });
+      if (action === "reconnect") onReconnected?.(outcome.value);
+    } else if (outcome.kind === "timeout") {
+      showFeedback({ kind: "error", message: t("errors.timeout") });
+    } else if (outcome.kind === "failed") {
+      showFailure(outcome.stage, outcome.error);
+    }
+    // Replacing disconnects the old account when it starts, so the list is
+    // stale however the flow ended.
+    if (action === "replace" || outcome.kind === "connected") {
+      router.refresh();
+    }
+    finishAction();
+  }
 
-      if (popupRun.kind === "in_flight") {
-        showFeedback({ kind: "error", message: t("errors.inFlight") });
+  function showFailure(
+    stage: ComposioConnectionStage,
+    error: ActionError | null,
+  ): void {
+    switch (stage) {
+      case "provider_callback":
+        showFeedback({ kind: "error", message: t("errors.providerCallback") });
+        return;
+      case "legacy_callback":
+        showFeedback({ kind: "error", message: t("errors.legacyCallback") });
+        return;
+      case "initiate":
+        showActionError(error, t("errors.intent"));
+        return;
+      case "verify":
+        showActionError(error, t("errors.verifier"));
+        return;
+      default:
+        showActionError(error, t("errors.finalize"));
+    }
+  }
+
+  async function handleSyncNow(
+    connection: ProjectSocialConnection,
+  ): Promise<void> {
+    if (isBusy) {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+
+    setFeedback(null);
+    setPendingAction("sync");
+    setPendingTarget(connection.id);
+    try {
+      const result = await refreshProjectSocialAccountStatistics({
+        projectId,
+        connectionId: connection.id,
+      });
+      if (!result.ok) {
+        showFeedback({ kind: "error", message: t("errors.sync") });
+        return;
       }
-      if (popupRun.kind === "popup_blocked") {
-        showFeedback({ kind: "error", message: t("errors.popupBlocked") });
-      }
+      showFeedback({
+        kind: "success",
+        message: t("success.syncStarted"),
+      });
     } catch {
-      showFeedback({ kind: "error", message: t("errors.finalize") });
+      showFeedback({ kind: "error", message: t("errors.sync") });
+    } finally {
+      finishAction();
     }
   }
 
@@ -275,7 +343,12 @@ export function ProjectSocialAccounts({
         return;
       }
 
-      showFeedback({ kind: "success", message: t("success.disconnected") });
+      showFeedback({
+        kind: "success",
+        message: t("success.disconnected", {
+          account: accountName(connection, t("unknownHandle")),
+        }),
+      });
       if (result.value.providerRevocation === "failed") {
         showFeedback({
           kind: "warning",
@@ -289,6 +362,45 @@ export function ProjectSocialAccounts({
       disconnectInFlightRef.current = false;
       finishAction();
     }
+  }
+
+  async function handleStartOver(
+    connection: ProjectSocialConnection,
+  ): Promise<void> {
+    if (connectDisabled) return;
+    if (disconnectInFlightRef.current || isBusy) {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+
+    disconnectInFlightRef.current = true;
+    setFeedback(null);
+    setPendingAction("startOver");
+    setPendingTarget(connection.id);
+
+    let disconnected = false;
+    try {
+      const result = await disconnectProjectSocialConnection({
+        projectId,
+        socialConnectionId: connection.id,
+      });
+      if (!result.ok) {
+        showActionError(result.error, t("errors.disconnect"));
+        return;
+      }
+      disconnected = true;
+    } catch {
+      showFeedback({ kind: "error", message: t("errors.disconnect") });
+      return;
+    } finally {
+      disconnectInFlightRef.current = false;
+      finishAction();
+    }
+
+    if (!disconnected) return;
+
+    await startOAuth("connect", undefined, connection.provider);
+    router.refresh();
   }
 
   function requestConfirmation(
@@ -313,36 +425,95 @@ export function ProjectSocialAccounts({
   }
 
   const confirmationIsDisconnect = pendingConfirmation?.action === "disconnect";
+  const listedConnections = connections.filter(
+    (connection) => connection.status !== "disconnected",
+  );
+  const confirmationAccount = pendingConfirmation
+    ? accountLabels(
+        pendingConfirmation.connection,
+        formatHandle(
+          pendingConfirmation.connection.externalHandle,
+          pendingConfirmation.connection.provider,
+        ) ?? t("unknownHandle"),
+      ).primary
+    : "";
+
+  if (reconnections) {
+    return (
+      <ul className="grid gap-2" aria-label={postsT("reconnection.accounts")}>
+        {reconnections.map(({ connection, affectedPosts }) => (
+          <li
+            key={connection.id}
+            className="bg-card-background flex flex-wrap items-center gap-3 rounded-lg border p-3"
+            data-testid={`social-reconnect-${connection.id}`}
+          >
+            <AccountChipMark
+              avatarUrl={connection.avatarUrl}
+              provider={connection.provider}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium break-words">
+                {postsT("reconnection.title", {
+                  account:
+                    formatHandle(
+                      connection.externalHandle,
+                      connection.provider,
+                    ) ??
+                    connection.displayName ??
+                    t("unknownHandle"),
+                })}
+              </p>
+              {affectedPosts.length > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {postsT("reconnection.affected", {
+                    count: affectedPosts.length,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-11 md:h-8"
+              disabled={isBusy || connectDisabled}
+              loading={pendingTarget === connection.id}
+              onClick={() => void startOAuth("reconnect", connection.id)}
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              {t("reconnect")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <section
-      aria-labelledby="social-accounts-heading"
+      ref={headingRef}
+      tabIndex={-1}
+      aria-label={t("title")}
       className="space-y-4"
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2
-            id="social-accounts-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-base font-semibold"
-          >
-            {t("title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
+      <div className="flex items-center justify-end gap-4">
+        {connectDisabled ? (
+          <p className="text-muted-foreground me-auto text-sm">
+            {t("projectClosed")}
+          </p>
+        ) : null}
         <DropdownMenu>
           {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
               from opening the menu. */}
-          <DropdownMenuTrigger asChild disabled={isBusy}>
+          <DropdownMenuTrigger asChild disabled={isBusy || connectDisabled}>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
+              className="h-11 shrink-0 md:h-8"
               loading={pendingAction === "connect"}
             >
               <Plus className="size-4" aria-hidden />
@@ -356,6 +527,7 @@ export function ProjectSocialAccounts({
               return (
                 <DropdownMenuItem
                   key={id}
+                  className="min-h-11"
                   aria-label={
                     comingSoon
                       ? t("connectComingSoon", { provider: name })
@@ -398,19 +570,29 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {connections.length > 0 ? (
+      {listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
-          {connections.map((connection) => {
+          {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
-            const handle =
-              formatHandle(connection.externalHandle, connection.provider) ??
-              t("unknownHandle");
+            const formattedHandle = formatHandle(
+              connection.externalHandle,
+              connection.provider,
+            );
+            const { primary, secondaryHandle } = accountLabels(
+              connection,
+              formattedHandle ?? t("unknownHandle"),
+            );
             const canReconnect =
               connection.status === "reauthorization_required";
-            const canReplace = connection.status === "active" || canReconnect;
+            const isWarningStatus =
+              canReconnect || connection.status === "pending";
+            const canStartOver = connection.status === "pending";
+            const canReplace =
+              !connectDisabled &&
+              (connection.status === "active" || canReconnect);
             const canDisconnect = connection.status !== "disconnected";
             const isRowPending =
               pendingAction !== "connect" && pendingTarget === connection.id;
@@ -421,27 +603,22 @@ export function ProjectSocialAccounts({
                 className="flex flex-wrap items-center gap-3 p-3"
                 data-testid={`project-social-connection-${connection.id}`}
               >
-                <span
-                  aria-hidden
-                  className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
-                >
-                  {provider ? (
-                    <provider.Icon className="size-5" />
-                  ) : (
-                    providerName.slice(0, 1)
-                  )}
-                </span>
+                <AccountChipMark
+                  avatarUrl={connection.avatarUrl}
+                  provider={connection.provider}
+                />
                 <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{handle}</p>
+                  <p className="truncate text-sm font-medium">{primary}</p>
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                    {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
-                        canReconnect && "text-semantic-warning-label",
+                        isWarningStatus && "text-semantic-warning-label",
                       )}
                     >
-                      {canReconnect ? (
+                      {isWarningStatus ? (
                         <TriangleAlert className="size-3" aria-hidden />
                       ) : (
                         <span
@@ -464,7 +641,8 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={isBusy}
+                      className="h-11 md:h-8"
+                      disabled={isBusy || connectDisabled}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
@@ -472,6 +650,21 @@ export function ProjectSocialAccounts({
                     >
                       <RefreshCw className="size-4" aria-hidden />
                       {t("reconnect")}
+                    </Button>
+                  ) : null}
+                  {canStartOver ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isBusy || connectDisabled}
+                      loading={isRowPending && pendingAction === "startOver"}
+                      onClick={() => {
+                        void handleStartOver(connection);
+                      }}
+                    >
+                      <RotateCcw className="size-4" aria-hidden />
+                      {t("startOver")}
                     </Button>
                   ) : null}
                   {canDisconnect ? (
@@ -492,16 +685,29 @@ export function ProjectSocialAccounts({
                           variant="ghost"
                           size="icon"
                           loading={
-                            isRowPending && pendingAction !== "reconnect"
+                            isRowPending &&
+                            pendingAction !== "reconnect" &&
+                            pendingAction !== "startOver"
                           }
-                          aria-label={t("actions", { account: handle })}
+                          aria-label={t("actions", { account: primary })}
                         >
                           <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {connection.status === "active" ? (
+                          <DropdownMenuItem
+                            className="min-h-11"
+                            onSelect={() => {
+                              void handleSyncNow(connection);
+                            }}
+                          >
+                            {t("syncNow")}
+                          </DropdownMenuItem>
+                        ) : null}
                         {canReplace ? (
                           <DropdownMenuItem
+                            className="min-h-11"
                             onSelect={() => {
                               requestConfirmation("replace", connection);
                             }}
@@ -510,6 +716,7 @@ export function ProjectSocialAccounts({
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem
+                          className="min-h-11"
                           variant="destructive"
                           onSelect={() => {
                             requestConfirmation("disconnect", connection);
@@ -525,7 +732,15 @@ export function ProjectSocialAccounts({
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <div data-testid="project-social-accounts-empty">
+          <EmptyState
+            description={t("emptyHint")}
+            icon={Link2}
+            title={t("empty")}
+          />
+        </div>
+      )}
 
       <AlertDialog
         open={pendingConfirmation !== null}
@@ -549,8 +764,8 @@ export function ProjectSocialAccounts({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmationIsDisconnect
-                ? t("disconnectDialog.title")
-                : t("replaceDialog.title")}
+                ? t("disconnectDialog.title", { account: confirmationAccount })
+                : t("replaceDialog.title", { account: confirmationAccount })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmationIsDisconnect

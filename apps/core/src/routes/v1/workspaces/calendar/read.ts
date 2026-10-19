@@ -39,6 +39,11 @@ import {
 } from "@/services/task-schedule.service";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
+import {
+  getCalendarBrowseEnd,
+  scheduledSocialPostWhere,
+} from "./social-post-range.js";
+
 interface CalendarCursor {
   id: string;
   scheduledAt: string;
@@ -181,11 +186,6 @@ function validateRange(from: string, to: string): { from: Date; to: Date } {
   if (toDate.getTime() - fromDate.getTime() > RUN_HORIZON_MS) {
     throw badRequest("Calendar range cannot exceed 90 days");
   }
-  if (toDate.getTime() > Date.now() + RUN_HORIZON_MS) {
-    throw badRequest(
-      "Calendar browse range cannot extend beyond the next 90 days",
-    );
-  }
   return { from: fromDate, to: toDate };
 }
 
@@ -259,6 +259,34 @@ export async function readWorkspaceCalendar(
 ) {
   if (options.projectId && options.sourceId) {
     throw badRequest("projectId and sourceId cannot be combined");
+  }
+
+  const includePosts =
+    query.includeSocialPosts &&
+    !options.sourceId &&
+    !query.assigneeId &&
+    !query.assigneeUserId &&
+    !query.status;
+  if (query.to.getTime() > Date.now() + RUN_HORIZON_MS) {
+    const latestPost = includePosts
+      ? await prisma.socialPost.aggregate({
+          where: scheduledSocialPostWhere(
+            workspaceId,
+            userId,
+            query.scope,
+            options.projectId,
+          ),
+          _max: { scheduledAt: true },
+        })
+      : null;
+    if (
+      query.to >
+      getCalendarBrowseEnd(new Date(), latestPost?._max.scheduledAt ?? null)
+    ) {
+      throw badRequest(
+        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled Social post's month",
+      );
+    }
   }
 
   const { cursor, from, to } = query;
@@ -489,12 +517,6 @@ export async function readWorkspaceCalendar(
       }),
     ];
   });
-  const includePosts =
-    query.includeSocialPosts &&
-    !options.sourceId &&
-    !query.assigneeId &&
-    !query.assigneeUserId &&
-    !query.status;
   const socialBaseWhere: Prisma.SocialPostWhereInput = {
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
@@ -535,12 +557,20 @@ export async function readWorkspaceCalendar(
             provider: true,
             text: true,
             status: true,
+            revision: true,
             scheduledAt: true,
             projectId: true,
             workspaceId: true,
-            socialConnection: { select: { externalHandle: true } },
+            socialConnection: {
+              select: { externalHandle: true, avatarUrl: true },
+            },
             project: { select: { name: true } },
             scheduledByUser: { select: { name: true, image: true } },
+            attempts: {
+              orderBy: { attempt: "desc" },
+              take: 1,
+              select: { outcome: true, errorKind: true },
+            },
             // `media: true` returns the whole Json blob just to count its refs.
             // Prisma cannot project `json_array_length(media)` into this select,
             // so the payload is the price of a single bounded query per page
@@ -560,7 +590,9 @@ export async function readWorkspaceCalendar(
       provider: post.provider,
       text: post.text,
       status: post.status,
+      revision: post.revision,
       externalHandle: post.socialConnection?.externalHandle ?? null,
+      avatarUrl: post.socialConnection?.avatarUrl ?? null,
       projectName: post.project.name,
       scheduledByName: post.scheduledByUser?.name ?? null,
       scheduledByImage: post.scheduledByUser?.image ?? null,
@@ -569,6 +601,12 @@ export async function readWorkspaceCalendar(
         ? { fileUrl: media[0].fileUrl, kind: media[0].kind }
         : null,
       scheduledAt: post.scheduledAt?.toISOString(),
+      lastAttempt: post.attempts[0]
+        ? {
+            outcome: post.attempts[0].outcome,
+            errorKind: post.attempts[0].errorKind,
+          }
+        : null,
       sourceId: `project:${post.projectId}`,
       sourceProjectId: post.projectId,
       sourceWorkspaceId: post.workspaceId,

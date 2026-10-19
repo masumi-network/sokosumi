@@ -6,17 +6,6 @@ public enum InvitationAction: Sendable {
   case accept, decline
 }
 
-/// One invitation response at a time, like web's single `respondingInvitation` across the External rows.
-public struct InvitationResponse: Equatable, Sendable {
-  public let invitationId: String
-  public let action: InvitationAction
-
-  public init(invitationId: String, action: InvitationAction) {
-    self.invitationId = invitationId
-    self.action = action
-  }
-}
-
 /// Web `organization-chat-list.client.tsx` External section: pending rows above joined external rooms, refreshed on
 /// mount and recovery in every workspace. Loads fail soft; a local accept/decline wins over an older response.
 @MainActor
@@ -96,7 +85,7 @@ public final class InvitationDetail: ObservableObject {
     } catch {
       guard attempt == generation, !Task.isCancelled, !(error is CancellationError) else { return }
       // Web's `getInvitation` treats 403/404 as "not found"; other failures are retryable.
-      if case let ChatServiceError.unprocessable(status, _) = error, status == 403 || status == 404 {
+      if case let ChatServiceError.unprocessable(status, _, _) = error, status == 403 || status == 404 {
         presentation = .notFound
       } else {
         loadError = friendlyMessage(for: error)

@@ -13,64 +13,22 @@ public struct ChatService: Sendable {
 
   /// `GET /users/me/workspaces`.
   private func fetchWorkspaces(client: Client) async throws -> Components.Schemas.UserWorkspaces {
-    let response = try await client.getUsersIdWorkspaces(.init(path: .init(id: "me")))
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call { try await client.getUsersIdWorkspaces(.init(path: .init(id: "me"))) }.ok.body.json.data
   }
 
   /// `PUT /users/me/workspaces/preferred`: the workspace a new session opens.
   func setPreferredWorkspace(client: Client, workspaceId: String) async throws {
-    let response = try await client.putUsersIdWorkspacesPreferred(
-      .init(path: .init(id: "me"), body: .json(.init(workspaceId: workspaceId)))
-    )
-    switch response {
-    case .ok:
-      return
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .unprocessableContent(invalid):
-      throw try rejected(status: 422, message: invalid.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    _ = try await call {
+      try await client.putUsersIdWorkspacesPreferred(
+        .init(path: .init(id: "me"), body: .json(.init(workspaceId: workspaceId)))
+      )
+    }.ok
   }
 
   /// Session user (`GET /users/me`): id excludes yourself from Direct
   /// display names, name/email feed the "me" section and Settings.
   private func fetchCurrentUser(client: Client) async throws -> Components.Schemas.User {
-    let response = try await client.getUsersId(.init(path: .init(id: "me")))
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call { try await client.getUsersId(.init(path: .init(id: "me"))) }.ok.body.json.data
   }
 
   /// Restores the server-selected workspace without writing a preference.
@@ -123,67 +81,46 @@ public struct ChatService: Sendable {
     var rooms: [Components.Schemas.ChatRoom] = []
     var cursor: String?
     for _ in 0 ..< Self.roomListMaxPages {
-      let response = try await client.getChatsRooms(
-        .init(
-          query: .init(
-            cursor: cursor,
-            limit: Self.roomListLimit,
-            kind: kind,
-            status: status
-          ),
-          headers: .init(xOrganizationSlug: organizationSlug)
+      let okResponse = try await call {
+        try await client.getChatsRooms(
+          .init(
+            query: .init(
+              cursor: cursor,
+              limit: Self.roomListLimit,
+              kind: kind,
+              status: status
+            ),
+            headers: .init(xOrganizationSlug: organizationSlug)
+          )
         )
-      )
-      switch response {
-      case let .ok(okResponse):
-        let payload = try okResponse.body.json
-        let nextCursor = payload.meta.pagination.nextCursor
-        if let current = cursor, nextCursor == current {
-          return rooms
-        }
-        rooms.append(contentsOf: payload.data)
-        guard let next = nextCursor else {
-          return rooms
-        }
-        cursor = next
-      case let .unauthorized(value):
-        throw try unauthorized(value.body.json.message)
-      case let .badRequest(badRequest):
-        throw try rejected(status: 400, message: badRequest.body.json.message)
-      case let .forbidden(forbidden):
-        throw try rejected(status: 403, message: forbidden.body.json.message)
-      case let .notFound(notFound):
-        throw try rejected(status: 404, message: notFound.body.json.message)
-      case let .internalServerError(serverError):
-        throw try rejected(status: 500, message: serverError.body.json.message)
-      case let .undocumented(statusCode, payload):
-        throw await unprocessableError(statusCode: statusCode, payload: payload)
+      }.ok
+      let payload = try okResponse.body.json
+      let nextCursor = payload.meta.pagination.nextCursor
+      if let current = cursor, nextCursor == current {
+        return rooms
       }
+      rooms.append(contentsOf: payload.data)
+      guard let next = nextCursor else {
+        return rooms
+      }
+      cursor = next
     }
     return rooms
   }
 
-  /// Best-effort short message for undocumented statuses: Core's `{message}`
-  /// when the body parses, otherwise just the rejection.
-  func unprocessableError(
-    statusCode: Int,
-    payload: OpenAPIRuntime.UndocumentedPayload
-  ) async -> ChatServiceError {
-    if let body = payload.body,
-       let bytes = try? await Array(collecting: body, upTo: 8192),
-       let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
-       let message = json["message"] as? String,
-       !message.isEmpty {
-      return .unprocessable(statusCode: statusCode, message: message)
+  /// Runs one generated operation. The generated client wraps `CoreErrorMiddleware`'s `ChatServiceError` and
+  /// `ClientBuildMiddleware`'s `CoreUpdateRequired` in `ClientError`; callers match the plain errors instead.
+  func call<Output>(_ operation: () async throws -> Output) async throws -> Output {
+    do {
+      return try await operation()
+    } catch let error as ClientError {
+      if let failure = error.underlyingError as? ChatServiceError {
+        throw failure
+      }
+      if let update = error.underlyingError as? CoreUpdateRequired {
+        throw update
+      }
+      throw error
     }
-    return .unprocessable(statusCode: statusCode, message: "Core rejected the request.")
-  }
-
-  func unauthorized(_ message: String) -> ChatServiceError {
-    ChatServiceError.unauthorized(message)
-  }
-
-  func rejected(status: Int, message: String) -> ChatServiceError {
-    .unprocessable(statusCode: status, message: message)
   }
 }

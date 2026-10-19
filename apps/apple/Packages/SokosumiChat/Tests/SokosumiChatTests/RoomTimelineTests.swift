@@ -32,7 +32,7 @@ private actor PausedHistoryTransport: ClientTransport {
 
 /// Scripted pages whose `heldRequest` (1-based) waits for `release()`, so a
 /// second page can be requested while one is in flight.
-private actor HeldPageTransport: ClientTransport {
+actor HeldPageTransport: ClientTransport {
   private var responses: [(Int, String)]
   private let heldRequest: Int
   private(set) var paths: [String] = []
@@ -74,7 +74,7 @@ private actor HeldPageTransport: ClientTransport {
 @MainActor
 struct RoomTimelineTests {
   private func client(_ transport: some ClientTransport) -> Client {
-    Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+    Client.core(baseURL: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
   private func row(_ id: String, content: String, date: String = testTimestamp) -> String {
@@ -147,6 +147,23 @@ struct RoomTimelineTests {
     #expect(timeline.cursor == nil)
   }
 
+  /// M6: every older page inserted above the reader costs the transcript a frame, so a page brings 100 rows (the
+  /// latest page's size) and the reader meets a third as many insertions as with 30.
+  @Test func olderPageAsksForAHundredRows() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Earlier", date: "2025-12-31T23:59:00.000Z")], nextCursor: nil))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    let path = try #require(transport.requests[1].request.path)
+    let query = try #require(URLComponents(string: path)?.queryItems)
+    #expect(query.first { $0.name == "cursor" }?.value == "older")
+    #expect(query.first { $0.name == "limit" }?.value == "100")
+  }
+
   @Test func failedOlderPageRetainsMessagesAndRetryCursor() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("b", content: "Retained")], nextCursor: "older")),
@@ -198,32 +215,6 @@ struct RoomTimelineTests {
     #expect(timeline.isLoading)
     #expect(!timeline.hasLoadedHistory)
     #expect(timeline.messages.isEmpty)
-  }
-
-  @Test func resizingAndExhaustedHistoryDoNotUnpinLatest() {
-    var intent = TimelineScrollIntent()
-    let resizeLoads = intent.beginAutomaticOlderPage(userIsScrolling: false, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(!resizeLoads)
-    #expect(intent.followsLatest)
-    let exhaustedLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: false, isLoading: false)
-    #expect(!exhaustedLoads)
-    #expect(intent.followsLatest)
-    let scrollLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(scrollLoads)
-    #expect(!intent.followsLatest)
-  }
-
-  @Test func scrollIntentPreservesReadingPositionUntilExplicitReturn() {
-    var intent = TimelineScrollIntent()
-    #expect(intent.followsLatest)
-    intent.userScrolled(isNearBottom: false)
-    #expect(!intent.followsLatest)
-    intent.followLatest()
-    #expect(intent.followsLatest)
-    intent.readOlder()
-    #expect(!intent.followsLatest)
-    intent.userScrolled(isNearBottom: true)
-    #expect(intent.followsLatest)
   }
 
   @Test func historicalJumpKeepsHeadAndFillsGap() async throws {

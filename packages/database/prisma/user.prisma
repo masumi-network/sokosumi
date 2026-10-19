@@ -21,6 +21,7 @@ model User {
   userAgentRatings UserAgentRating[]
   transactions     Transaction[]
   ownedJobs        Job[]             @relation("JobOwner")
+  createdJobs      Job[]             @relation("JobCreatorUser")
 
   stripeCustomerId        String?
   preferredOrganizationId String?
@@ -58,6 +59,7 @@ model User {
 
   // UTM Attribution
   utmAttribution UTMAttribution?
+  signUpContext  SignUpContext?
 
   // Vendor membership and coworker assignments
   vendorMembers           VendorMember[]
@@ -82,7 +84,7 @@ model User {
   coworkerUsages          CoworkerUsage[]
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
-  sokoBotRequestedTurns   SokoBotTurn[]            @relation("SokoBotTurnRequestedBy")
+  sokoBotAskedTurns       SokoBotTurn[]            @relation("SokoBotTurnAskedBy")
   sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
@@ -120,7 +122,8 @@ model User {
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
   /// Per-user Soko Bot identity and control-plane state.
-  sokoBots                 SokoBot[]
+  sokoBots                 SokoBot[]                 @relation("SokoBotOwner")
+  createdSokoBots          SokoBot[]                 @relation("SokoBotCreatedBy")
   hermesPendingConnections HermesPendingConnection[]
   authoredSokoBotVersions  SokoBotAuthoredVersion[]  @relation("SokoBotAuthoredVersionAuthor")
 

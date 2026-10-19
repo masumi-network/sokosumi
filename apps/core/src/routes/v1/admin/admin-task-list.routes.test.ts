@@ -111,7 +111,7 @@ describe("GET /v1/admin/tasks", () => {
     taskCountMock.mockResolvedValue(1);
   });
 
-  it("returns tasks with user, organization, and pagination meta", async () => {
+  it("returns tasks with owner, organization, and pagination meta", async () => {
     const app = createApp(mountListAdminTasks);
     const res = await app.request("/");
 
@@ -124,7 +124,6 @@ describe("GET /v1/admin/tasks", () => {
         status: "RUNNING",
         createdAt: "2025-01-01T00:00:00.000Z",
         owner: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
-        user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
     ]);
@@ -136,6 +135,16 @@ describe("GET /v1/admin/tasks", () => {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
+  });
+
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindManyMock.mockResolvedValue([makeTask({ owner: null })]);
+
+    const res = await createApp(mountListAdminTasks).request("/");
+
+    expect(res.status).toBe(200);
+    const [item] = (await res.json()).data;
+    expect(item.owner).toBeNull();
   });
 
   it("returns null organization for personal tasks", async () => {

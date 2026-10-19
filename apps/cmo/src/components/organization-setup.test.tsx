@@ -103,3 +103,56 @@ it("shows errors by their fields and keeps what was typed", async () => {
   await act(async () => root.unmount());
   container.remove();
 });
+
+it("starts the website with the one the sign-up link carried", () => {
+  const html = renderToStaticMarkup(
+    <OrganizationSetup
+      createOrganizationWorkspace={vi.fn()}
+      websiteUrl="nmkr.io"
+    />,
+  );
+
+  expect(html).toMatch(
+    /<input id="organization-website"[^>]* name="websiteUrl" value="nmkr.io"\/>/,
+  );
+  expect(html).toMatch(/<input id="organization-name"[^>]* value=""\/>/);
+});
+
+it("sends the website as edited, not as prefilled", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const createOrganizationWorkspace = vi.fn(
+    async (
+      previous: OrganizationFormState,
+      _formData: FormData,
+    ): Promise<OrganizationFormState> => previous,
+  );
+  await act(async () => {
+    root.render(
+      <OrganizationSetup
+        createOrganizationWorkspace={createOrganizationWorkspace}
+        websiteUrl="nmkr.io"
+      />,
+    );
+  });
+
+  const name = container.querySelector<HTMLInputElement>("#organization-name");
+  const website = container.querySelector<HTMLInputElement>(
+    "#organization-website",
+  );
+  if (!name || !website) throw new Error("The form has no fields");
+  expect(website.value).toBe("nmkr.io");
+  name.value = "NMKR";
+  website.value = "nmkr.com";
+  const submit = container.querySelector<HTMLButtonElement>(
+    'button[type="submit"]',
+  );
+  await act(async () => submit?.click());
+
+  const formData = createOrganizationWorkspace.mock.calls[0]?.[1];
+  expect(formData?.get("websiteUrl")).toBe("nmkr.com");
+
+  await act(async () => root.unmount());
+  container.remove();
+});

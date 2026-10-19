@@ -15,6 +15,7 @@ import {
   projectSocialConnectionSchema,
 } from "@/schemas/project-social-connection.schema";
 import { finalizeProjectSocialConnection } from "@/services/project-social-connections.service";
+import { scheduleSocialAccountRefresh } from "@/services/social-account-sync";
 
 import { mapProjectSocialConnectionServiceError } from "../route-helpers.js";
 
@@ -68,6 +69,12 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         connectionId,
       });
+      await scheduleSocialAccountRefresh({
+        projectId,
+        workspaceId: workspaceContext.workspaceId,
+        connectionId: connection.id,
+        trigger: "connect",
+      }).catch(() => undefined);
       return created(c, projectSocialConnectionSchema.parse(connection));
     } catch (error) {
       return mapProjectSocialConnectionServiceError(error);

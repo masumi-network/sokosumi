@@ -39,36 +39,32 @@ const projectSchema = z.object({
   identifier: z.string().nullable(),
   logo: z.string().max(2000).nullable(),
 });
-const taskPreviewSchema = z
-  .object({
-    id: z.string().max(200),
-    name: z.string().max(500),
-    identifier: z.string().max(200).nullable(),
-    status: taskStatusSchema,
-    priority: taskPrioritySchema,
-    visibility: taskVisibilitySchema,
-    createdAt: dateTimeSchema.nullable(),
-    runAt: dateTimeSchema.nullable(),
-    project: projectSchema.nullable(),
-    assignee: actorSchema.nullable(),
-    participants: z.array(actorSchema).max(6),
-    commentsCount: z.number().int().nonnegative(),
-    tags: taskTagsSchema,
-  })
-  .openapi("ChatResultTask");
-const socialPreviewSchema = z
-  .object({
-    provider: socialPostProviderSchema,
-    account: z
-      .object({
-        handle: z.string().max(500).nullable(),
-        displayName: z.string().max(500).nullable(),
-        avatarUrl: z.string().max(2000).nullable(),
-      })
-      .nullable(),
-    timestamp: dateTimeSchema.nullable(),
-  })
-  .openapi("ChatResultSocial");
+const taskPreviewSchema = z.object({
+  id: z.string().max(200),
+  name: z.string().max(500),
+  identifier: z.string().max(200).nullable(),
+  status: taskStatusSchema,
+  priority: taskPrioritySchema,
+  visibility: taskVisibilitySchema,
+  createdAt: dateTimeSchema.nullable(),
+  runAt: dateTimeSchema.nullable(),
+  project: projectSchema.nullable(),
+  assignee: actorSchema.nullable(),
+  participants: z.array(actorSchema).max(6),
+  commentsCount: z.number().int().nonnegative(),
+  tags: taskTagsSchema,
+});
+const socialPreviewSchema = z.object({
+  provider: socialPostProviderSchema,
+  account: z
+    .object({
+      handle: z.string().max(500).nullable(),
+      displayName: z.string().max(500).nullable(),
+      avatarUrl: z.string().max(2000).nullable(),
+    })
+    .nullable(),
+  timestamp: dateTimeSchema.nullable(),
+});
 
 export const chatResultAvailableSchema = z
   .object({
@@ -99,9 +95,12 @@ export const chatResultAvailableSchema = z
     recurrence: z.string().max(200).nullable().default(null),
     question: z.string().max(4000).nullable().default(null),
     outputs: z.array(outputSchema).max(12).default([]),
-    task: z.union([taskPreviewSchema, z.null()]).default(null),
-    social: z.union([socialPreviewSchema, z.null()]).default(null),
-    actor: z.union([actorSchema, z.null()]).default(null),
+    // Nullable objects stay inline (`type: ["object", "null"]`): the Apple
+    // client's swift-openapi-generator drops any property whose schema has a
+    // `null` subschema, which `anyOf [$ref, null]` always has.
+    task: taskPreviewSchema.nullable().default(null),
+    social: socialPreviewSchema.nullable().default(null),
+    actor: actorSchema.nullable().default(null),
     agent: z
       .object({
         name: z.string().max(500),
@@ -110,8 +109,13 @@ export const chatResultAvailableSchema = z
       .nullable()
       .default(null),
     projectOptions: z.array(projectSchema).max(12).default([]),
-    projectInfo: z.union([projectSchema, z.null()]).default(null),
-    decision: z.union([sokoBotPendingDecisionSchema, z.null()]).default(null),
+    projectInfo: projectSchema.nullable().default(null),
+    // Unnamed copy: `.nullable()` on the named schema emits `allOf`, which
+    // drops `| null` from the web client.
+    decision: z
+      .object(sokoBotPendingDecisionSchema.shape)
+      .nullable()
+      .default(null),
   })
   .openapi("ChatResultAvailable");
 

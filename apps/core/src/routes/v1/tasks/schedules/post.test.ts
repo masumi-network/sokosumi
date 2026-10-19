@@ -98,6 +98,15 @@ describe("POST /tasks/schedules", () => {
     expect(taskScheduleTestDb.schedules).toHaveLength(1);
   });
 
+  it("returns the person who makes a schedule as Creator and Owner", async () => {
+    const response = await post({ name: "Weekly report", rule: WEEKLY_RULE });
+
+    expect(response.status).toBe(201);
+    const { data } = await response.json();
+    expect(data.creator).toMatchObject({ type: "user", id: OWNER_ID });
+    expect(data.ownerId).toBe(OWNER_ID);
+  });
+
   describe("Runs", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"] });
@@ -373,6 +382,21 @@ describe("POST /tasks/schedules", () => {
         creatorUserId: null,
         creatorCoworkerId: COWORKER_ID,
       });
+    });
+
+    it("returns the Coworker as Creator and the person it acted for as Owner", async () => {
+      const response = await post(
+        { name: "Weekly report", rule: WEEKLY_RULE, assigneeId: COWORKER_ID },
+        createTaskScheduleTestApp(mountPostTaskSchedule, COWORKER_AUTH),
+      );
+
+      expect(response.status).toBe(201);
+      const { data } = await response.json();
+      expect(data.creator).toMatchObject({
+        type: "coworker",
+        id: COWORKER_ID,
+      });
+      expect(data.ownerId).toBe(OWNER_ID);
     });
 
     it("is refused without a workspace grant", async () => {

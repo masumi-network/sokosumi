@@ -44,7 +44,9 @@
         #expect(initialOffset > 600)
         try await scrollAwayFromBottom(scroll, host: host)
         if media {
-          #expect(ScrollMediaProtocol.completedRequests > completed)
+          _ = try await waitForView(in: host, timeoutMessage: "The thread's fixture media did not finish loading.") {
+            ScrollMediaProtocol.completedRequests > completed ? scroll : nil
+          }
         }
         // Lazy row estimates rewrite document height, so absolute minY can
         // grow while the reader moves up (CI: 18186 vs initial-400 of 7957).
@@ -52,15 +54,19 @@
         #expect(Self.distanceFromBottom(scroll) > 400)
       }
 
+      /// The jump's mark runs on a test clock that stays at its landing, so a slow runner cannot let the hold end the
+      /// Thread's jump before the check.
       @Test(arguments: [false, true])
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
-        let state = try Self.fixtureState(thread: thread, media: false)
+        let clock = ManualJumpMarkClock()
+        let state = try Self.fixtureState(thread: thread, media: false, clock: clock)
+        #expect(!clock.wasRead, "Only the jump reads the clock, so the check below proves it landed.")
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: "fixture-2")
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          state.openRoom.thread.transcript.requestJump(to: "fixture-2")
+          #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
-          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+          #expect(try await state.openRoom.openMessage("fixture-2") == .opened)
         }
         let host = NSHostingView(rootView: Group {
           if thread {
@@ -68,7 +74,7 @@
           } else {
             RoomTimelineView(roomId: "fixture")
           }
-        }.background(.background).environmentObject(state).environmentObject(auth))
+        }.background(.background).environment(\.jumpMarkClock, clock).environmentObject(state).environmentObject(auth))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = host
         window.orderFront(nil)
@@ -78,25 +84,73 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
+        #expect(clock.wasRead, "The jump landed on the test clock.")
         if thread {
-          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+          #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == "fixture-2")
         } else {
-          #expect(state.messageJump == nil)
+          #expect(state.openRoom.messageJump == nil)
         }
         #expect(Self.distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
         // check falls back to the scroll-offset assertion above; locally the OCR check runs.
-        if let visibleText = try recognizedLines(in: bitmap) {
+        if let visibleText = try Self.recognizedLines(in: bitmap) {
           #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
           #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
         }
       }
 
+      /// Your own send brings the list back to the latest message, even after the reader scrolled up; the room and the
+      /// Thread follow the same rule.
+      @Test(arguments: [false, true])
+      func ownSendReturnsToLatest(thread: Bool) async throws {
+        let state = try Self.fixtureState(thread: thread, media: false)
+        let host = NSHostingView(rootView: Group {
+          if thread {
+            ReplyThreadView()
+          } else {
+            RoomTimelineView(roomId: "fixture")
+          }
+        }.environmentObject(state).environmentObject(AuthState()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        let scroll = try await loadedTranscriptScrollView(in: host)
+        _ = try await waitForView(in: host, timeoutMessage: "The list did not start at the bottom; distance \(Self.distanceFromBottom(scroll)) pt") {
+          abs(Self.distanceFromBottom(scroll)) <= 1 ? scroll : nil
+        }
+        try await scrollAwayFromBottom(scroll, host: host)
+        try #require(Self.distanceFromBottom(scroll) > 400)
+        // A real wheel gesture ends; until it does the list counts the reader as scrolling.
+        let ended = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 0, wheel2: 0, wheel3: 0))
+        ended.setIntegerValueField(.scrollWheelEventScrollPhase, value: 4)
+        try scroll.scrollWheel(with: #require(NSEvent(cgEvent: ended)))
+        try await Task.sleep(for: .milliseconds(300))
+        let input = try #require(Self.inputView(in: host))
+        window.makeFirstResponder(input)
+        input.insertText("Sent from above", replacementRange: NSRange(location: 0, length: 0))
+        try input.keyDown(with: MessageEditComposerFixture.returnEvent())
+        let outbox = thread ? state.openRoom.thread.transcript.outbox : state.openRoom.room.outbox
+        _ = try await waitForView(in: host, timeoutMessage: "The composer did not send; it holds \(input.string.debugDescription)") {
+          outbox.shells.isEmpty ? nil : scroll
+        }
+        _ = try await waitForView(in: host, timeoutMessage: "The send left the list \(Self.distanceFromBottom(scroll)) pt above the bottom") {
+          Self.distanceFromBottom(scroll) < 50 ? scroll : nil
+        }
+      }
+
+      private static func inputView(in view: NSView) -> MacComposerTextInput.InputView? {
+        if let input = view as? MacComposerTextInput.InputView {
+          return input
+        }
+        return view.subviews.lazy.compactMap { inputView(in: $0) }.first
+      }
+
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
       /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
-      private func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+      static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
         let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -113,7 +167,7 @@
       }
 
       /// Says which OCR path ran: on stdout, and as an attachment in the result bundle.
-      private func note(_ line: String) {
+      private static func note(_ line: String) {
         print(line)
         Attachment.record(line, named: "message-link-ocr-path.txt")
       }
@@ -139,16 +193,20 @@
       }
 
       /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
-      static func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
-        let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
-        state.timeline.reset(roomId: "fixture")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.timeline.messages = fixtureMessages(media: media)
+      /// `clock`, when given, is the transcripts' clock; the view under test needs it as its `jumpMarkClock` too.
+      static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
+        let state = WorkspaceState(
+          clientProvider: { _ in Client.core(baseURL: URL(string: "https://example.com")!) },
+          now: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
+        )
+        state.openRoom.room.timeline.reset(roomId: "fixture")
+        state.openRoom.room.timeline.failInitialLoad(message: "", generation: state.openRoom.room.timeline.generation)
+        state.openRoom.room.timeline.messages = fixtureMessages(media: media)
         if thread {
-          let parent = try #require(state.timeline.messages.first)
-          state.thread.open(parent)
-          state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-          state.thread.timeline.messages = state.timeline.messages.dropFirst().map { message in
+          let parent = try #require(state.openRoom.room.timeline.messages.first)
+          state.openRoom.thread.open(parent)
+          state.openRoom.thread.transcript.timeline.failInitialLoad(message: "", generation: state.openRoom.thread.transcript.timeline.generation)
+          state.openRoom.thread.transcript.timeline.messages = state.openRoom.room.timeline.messages.dropFirst().map { message in
             var reply = message
             reply.parentMessageId = parent.id
             return reply

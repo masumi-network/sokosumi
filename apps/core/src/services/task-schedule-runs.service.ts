@@ -63,10 +63,7 @@ type RuleState = Pick<
 >;
 
 /** First Run after `from`, or null once the end rule is reached. */
-export function computeNextScheduleRun(
-  schedule: RuleState,
-  from: Date,
-): Date | null {
+function computeNextScheduleRun(schedule: RuleState, from: Date): Date | null {
   if (
     schedule.endsMode === TaskScheduleEndsMode.AFTER &&
     schedule.targetRunCount != null &&
@@ -377,7 +374,7 @@ class ReleaseClaimLostError extends Error {
 
 export interface ReleasedTask {
   id: string;
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }
 
@@ -641,17 +638,20 @@ export async function announceReleasedTasks(
 ): Promise<void> {
   await Promise.all(
     tasks.map(async (task) => {
-      try {
-        await publishTaskEventData({
-          userId: task.ownerId,
-          taskId: task.id,
-          eventType: "task_event",
-        });
-      } catch (error) {
-        Sentry.captureException(error, {
-          tags: { error_type: "publish_task_event" },
-          extra: { taskId: task.id, source: "task-schedule-release" },
-        });
+      const ownerId = task.ownerId;
+      if (ownerId) {
+        try {
+          await publishTaskEventData({
+            userId: ownerId,
+            taskId: task.id,
+            eventType: "task_event",
+          });
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: { error_type: "publish_task_event" },
+            extra: { taskId: task.id, source: "task-schedule-release" },
+          });
+        }
       }
       if (task.assigneeUserId) {
         await notifyTaskHumanAssignee(task.id, task.assigneeUserId);

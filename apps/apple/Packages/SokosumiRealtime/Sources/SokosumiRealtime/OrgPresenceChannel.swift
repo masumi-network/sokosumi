@@ -12,130 +12,79 @@ import SokosumiChat
 /// only on a resumed connection. Switching organizations leaves the previous
 /// channel first; `stop` leaves on sign-out and teardown.
 final class OrgPresenceChannel: @unchecked Sendable {
-  private struct Subscription {
-    let channel: ARTRealtimeChannel
-    let listener: ARTEventListener?
-    let id: UUID
-  }
+  private let engine: GatedChannel<OrgPresencePolicy>
+  private let policy: OrgPresencePolicy
 
-  private let queue = DispatchQueue(label: "com.sokosumi.org-presence")
-  private let realtime: ARTRealtime
-  private let onEvent: RealtimeEventHandler
-  private var scope = OrgPresenceScope()
-  private var subscription: Subscription?
-  private var members: [String: ChatPresenceMember] = [:]
-  private var latestData: ChatPresenceMemberData?
-  private var active = true
-  private var retry: Task<Void, Never>?
-  private var connectionListener: ARTEventListener?
-
-  init(realtime: ARTRealtime, onEvent: @escaping RealtimeEventHandler) {
-    self.realtime = realtime
-    self.onEvent = onEvent
-    // Token renewal emits `update` while still connected. Only a real reconnect
-    // starts another authorization; reacting to our own renewal would mint forever.
-    connectionListener = realtime.connection.on(.connected) { [weak self] _ in
-      self?.queue.async { [weak self] in
-        guard let self, active, scope.organizationId != nil else { return }
-        synchronize()
-      }
-    }
+  init(realtime: ARTRealtime, onEvent: @escaping RealtimeEventHandler,
+       sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+    let queue = DispatchQueue(label: "com.sokosumi.org-presence")
+    policy = OrgPresencePolicy(queue: queue, realtime: realtime, onEvent: onEvent)
+    engine = GatedChannel(queue: queue, host: realtime, policy: policy, sleep: sleep)
+    policy.engine = engine
   }
 
   /// Enters `organizationId`'s channel (nil: personal, leave only).
   func setOrganization(_ organizationId: String?) {
-    queue.async { [self] in
-      guard active, scope.organizationId != organizationId else { return }
-      leaveChannel()
-      retry?.cancel()
-      retry = nil
-      scope.setOrganization(organizationId)
-      if organizationId != nil {
-        synchronize()
-      }
-    }
+    engine.setTarget(organizationId)
   }
 
   /// Latest presence data; sent now when the channel is granted, otherwise
   /// kept for the enter that follows authorization.
   func publish(_ data: ChatPresenceMemberData) {
-    queue.async { [self] in
-      guard active else { return }
-      latestData = data
-      guard scope.isGranted, let subscription else { return }
-      send(data, subscription: subscription)
-    }
+    engine.whileActive { [policy] in policy.publish(data) }
   }
 
   /// Synchronous so `disconnect` can close after leave is issued, not before.
   func stop() {
-    queue.sync { [self] in
-      active = false
-      retry?.cancel()
-      retry = nil
-      if let connectionListener {
-        realtime.connection.off(connectionListener)
-      }
-      connectionListener = nil
-      leaveChannel()
-      scope.setOrganization(nil)
-    }
+    engine.stop()
+  }
+}
+
+/// The presence channel's part: `presence` on `presence:org_*` attaches it, hydrates the member set and enters with
+/// the latest data. Called on the engine's queue.
+private final class OrgPresencePolicy: GatedChannelPolicy, @unchecked Sendable {
+  private struct Subscription {
+    let channel: ARTRealtimeChannel
+    let listener: ARTEventListener?
+    let id: UUID
+    let organizationId: String
   }
 
-  private func synchronize() {
-    guard active else { return }
-    let state = realtime.connection.state
-    guard state != .closing, state != .closed, state != .failed else { return }
-    retry?.cancel()
-    retry = nil
-    guard let generation = scope.requestAuthorization() else { return }
-    realtime.auth.authorize { [weak self] token, error in
-      let capability = token?.capability
-      let failed = error != nil
-      self?.queue.async { [weak self] in
-        self?.settle(capability: capability, failed: failed, generation: generation)
-      }
-    }
+  weak var engine: GatedChannel<OrgPresencePolicy>?
+  private let queue: DispatchQueue
+  private let realtime: ARTRealtime
+  private let onEvent: RealtimeEventHandler
+  private var subscription: Subscription?
+  private var members: [String: ChatPresenceMember] = [:]
+  private var latestData: ChatPresenceMemberData?
+
+  init(queue: DispatchQueue, realtime: ARTRealtime, onEvent: @escaping RealtimeEventHandler) {
+    self.queue = queue
+    self.realtime = realtime
+    self.onEvent = onEvent
   }
 
-  private func settle(capability: String?, failed: Bool, generation: UUID) {
-    guard active else { return }
-    switch scope.finishAuthorization(generation, capability: capability, failed: failed) {
-    case .stale:
-      return
-    case let .granted(organizationId):
-      attach(organizationId)
-    case let .denied(failed):
-      // A missing grant stays off until the next connection; a failed mint retries.
-      leaveChannel()
-      if failed {
-        retry = Task { [weak self] in
-          do { try await Task.sleep(for: .seconds(15)) } catch { return }
-          self?.queue.async { [weak self] in self?.synchronize() }
-        }
-      }
-    }
-    if scope.takeQueued() {
-      synchronize()
-    }
+  /// The granted channel's name: Core scopes it outside production (ADR 0055).
+  func grant(in capability: String?, target: String) -> String? {
+    orgPresenceChannelNames(grantedPresenceIn: capability)?[target]
   }
 
-  private func attach(_ organizationId: String) {
+  func attach(_ organizationId: String, grant channelName: String) {
     let subscription: Subscription
     if let existing = self.subscription {
       subscription = existing
     } else {
-      let channel = realtime.channels.get(orgPresenceChannelName(organizationId: organizationId))
+      let channel = realtime.channels.get(channelName)
       let id = UUID()
       // Ably objects are not Sendable: reduce each message to a value before hopping queues.
       let listener = channel.presence.subscribe { [weak self] message in
         guard let change = PresenceChange(message) else { return }
         self?.queue.async { [weak self] in
-          guard let self, active, self.subscription?.id == id else { return }
+          guard let self, self.subscription?.id == id else { return }
           apply(change, organizationId: organizationId)
         }
       }
-      subscription = Subscription(channel: channel, listener: listener, id: id)
+      subscription = Subscription(channel: channel, listener: listener, id: id, organizationId: organizationId)
       self.subscription = subscription
     }
     // Non-resumed reconnects leave the local set stale (ghost members); the
@@ -144,7 +93,7 @@ final class OrgPresenceChannel: @unchecked Sendable {
       guard let messages else { return }
       let present = messages.compactMap { PresenceChange($0) }.filter(\.present).map(\.member)
       self?.queue.async { [weak self] in
-        guard let self, active, self.subscription?.id == subscription.id else { return }
+        guard let self, self.subscription?.id == subscription.id else { return }
         members = Dictionary(present.map { ($0.clientId, $0) }, uniquingKeysWith: { _, last in last })
         emit(organizationId: organizationId)
       }
@@ -152,6 +101,28 @@ final class OrgPresenceChannel: @unchecked Sendable {
     if let latestData {
       send(latestData, subscription: subscription)
     }
+  }
+
+  func denied(_: String) {
+    detach()
+  }
+
+  func detach() {
+    guard let subscription else { return }
+    self.subscription = nil
+    members = [:]
+    if let listener = subscription.listener {
+      subscription.channel.presence.unsubscribe(listener)
+    }
+    subscription.channel.presence.leave(nil)
+    subscription.channel.detach()
+    emit(organizationId: subscription.organizationId)
+  }
+
+  func publish(_ data: ChatPresenceMemberData) {
+    latestData = data
+    guard let subscription else { return }
+    send(data, subscription: subscription)
   }
 
   private func apply(_ change: PresenceChange, organizationId: String) {
@@ -169,8 +140,8 @@ final class OrgPresenceChannel: @unchecked Sendable {
 
   /// `update` keeps an existing member's data; a member Ably no longer holds
   /// (hard reconnect) needs `enter` again. Own writes are mirrored locally,
-  /// since this connection does not echo. Failed enter retries in 15 s: the
-  /// coordinator already marked this payload published.
+  /// since this connection does not echo. A failed enter retries through the
+  /// engine: the coordinator already marked this payload published.
   private func send(_ data: ChatPresenceMemberData, subscription: Subscription) {
     let wire = data.wire
     subscription.channel.presence.update(wire) { [weak self] error in
@@ -189,40 +160,20 @@ final class OrgPresenceChannel: @unchecked Sendable {
   }
 
   private func scheduleSendRetry() {
-    guard active, retry == nil, scope.isGranted, subscription != nil, latestData != nil else { return }
-    retry = Task { [weak self] in
-      do { try await Task.sleep(for: .seconds(15)) } catch { return }
-      self?.queue.async { [weak self] in
-        guard let self, active, let subscription, let latestData else { return }
-        retry = nil
-        send(latestData, subscription: subscription)
-      }
+    guard subscription != nil, latestData != nil else { return }
+    engine?.retryLater { [weak self] in
+      guard let self, let subscription, let latestData else { return }
+      send(latestData, subscription: subscription)
     }
   }
 
   private func mirrorOwnMember(_ data: ChatPresenceMemberData, subscription: Subscription) {
     guard let clientId = realtime.auth.clientId else { return }
     queue.async { [weak self] in
-      guard let self, active, self.subscription?.id == subscription.id,
-            let organizationId = scope.organizationId else { return }
-      retry?.cancel()
-      retry = nil
+      guard let self, self.subscription?.id == subscription.id else { return }
+      engine?.cancelRetry()
       members[clientId] = ChatPresenceMember(clientId: clientId, data: data)
-      emit(organizationId: organizationId)
-    }
-  }
-
-  private func leaveChannel() {
-    guard let subscription else { return }
-    self.subscription = nil
-    members = [:]
-    if let listener = subscription.listener {
-      subscription.channel.presence.unsubscribe(listener)
-    }
-    subscription.channel.presence.leave(nil)
-    subscription.channel.detach()
-    if let organizationId = scope.organizationId {
-      emit(organizationId: organizationId)
+      emit(organizationId: subscription.organizationId)
     }
   }
 }

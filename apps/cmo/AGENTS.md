@@ -1,6 +1,6 @@
 # CMO app
 
-CMO is the product at cmo.xyz (see **CMO** and **Sign in with Sokosumi** in [CONTEXT.md](../../CONTEXT.md), and [ADR 0045](../../docs/adr/0045-cmo-signs-in-through-core-oauth-provider.md)). This app is its own Next.js deployment at app.cmo.xyz, not part of Web.
+CMO is the product at cmo.xyz (see **CMO** and **Sign in with Sokosumi** in [GLOSSARY.md](../../GLOSSARY.md), and [ADR 0045](../../docs/adr/0045-cmo-signs-in-through-core-oauth-provider.md)). This app is its own Next.js deployment at app.cmo.xyz, not part of Web.
 
 - **Own components.** Build every component inside `apps/cmo`; Web's components stay Web's.
 - **Submit buttons.** Use `SubmitButton`; it shows the loading bar and keeps the pressed button focused.

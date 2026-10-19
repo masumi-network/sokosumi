@@ -10,13 +10,14 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
+import { workOwnerWithEmailSchema } from "@/schemas/work-creator.schema";
 
 /**
  * Lower page-size cap than the global pagination limit: every overview row
  * fans out into per-user credit and subscription queries, so large pages
  * multiply database load.
  */
-export const ADMIN_USER_OVERVIEW_MAX_LIMIT = 50;
+const ADMIN_USER_OVERVIEW_MAX_LIMIT = 50;
 
 export const adminSearchQuerySchema = z.object({
   query: z
@@ -40,7 +41,7 @@ export const adminUserOptionSchema = z
 
 export const adminUserSearchResponseSchema = z.array(adminUserOptionSchema);
 
-export const adminOrganizationOptionSchema = z
+const adminOrganizationOptionSchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),
     name: z.string().openapi({ example: "Acme Corp" }),
@@ -79,7 +80,7 @@ export const adminUserOverviewQuerySchema = z
       }),
   });
 
-export const adminUserOverviewItemSchema = z
+const adminUserOverviewItemSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Ada Lovelace" }),
@@ -115,7 +116,7 @@ export const adminOrganizationSlugParamSchema = z.object({
   }),
 });
 
-export const ADMIN_ORGANIZATION_OVERVIEW_MAX_LIMIT = 50;
+const ADMIN_ORGANIZATION_OVERVIEW_MAX_LIMIT = 50;
 
 export const adminOrganizationOverviewQuerySchema = z
   .object({
@@ -144,7 +145,7 @@ export const adminOrganizationOverviewQuerySchema = z
       }),
   });
 
-export const adminOrganizationOverviewItemSchema = z
+const adminOrganizationOverviewItemSchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),
     name: z.string().openapi({ example: "Acme Corp" }),
@@ -192,7 +193,7 @@ export const adminOrganizationMemberOverviewItemSchema = z
   })
   .openapi("AdminOrganizationMemberOverviewItem");
 
-export const ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT = 50;
+const ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT = 50;
 
 export const adminOrganizationMemberOverviewQuerySchema = z
   .object({})
@@ -299,7 +300,7 @@ export const adminOrganizationMemberIdParamSchema = z.object({
   }),
 });
 
-export const adminMatchedChannelListStatusSchema = z
+const adminMatchedChannelListStatusSchema = z
   .enum(["active", "archived"])
   .openapi("AdminMatchedChannelListStatus");
 
@@ -376,7 +377,7 @@ export const adminMatchedChannelParticipantParamsSchema = z.object({
     }),
 });
 
-export const adminMatchedChannelParticipantInfoSchema = z
+const adminMatchedChannelParticipantInfoSchema = z
   .object({
     userId: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Ada Lovelace" }),
@@ -482,7 +483,7 @@ export const adminAddMatchedChannelFromOrganizationResultSchema = z
 /**
  * Same rationale as the user overview cap: keep admin list pages bounded.
  */
-export const ADMIN_TASK_LIST_MAX_LIMIT = 50;
+const ADMIN_TASK_LIST_MAX_LIMIT = 50;
 
 export const adminTaskListQuerySchema = z
   .object({
@@ -512,24 +513,13 @@ export const adminTaskListQuerySchema = z
       }),
   });
 
-const adminTaskOwnerSchema = z.object({
-  id: z.string().openapi({ example: "user_123" }),
-  name: z.string().openapi({ example: "Ada Lovelace" }),
-  email: z.string().openapi({ example: "ada@example.com" }),
-});
-
-export const adminTaskListItemSchema = z
+const adminTaskListItemSchema = z
   .object({
     id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
     name: z.string().openapi({ example: "Quarterly report" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
     createdAt: dateTimeSchema,
-    owner: adminTaskOwnerSchema,
-    /** @deprecated Use `owner`. */
-    user: adminTaskOwnerSchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    owner: workOwnerWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),
@@ -556,12 +546,7 @@ export const adminTaskIdParamSchema = z.object({
 export const adminTaskDetailSchema = z
   .object({
     task: taskSchema,
-    owner: adminTaskOwnerSchema,
-    /** @deprecated Use `owner`. */
-    user: adminTaskOwnerSchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    owner: workOwnerWithEmailSchema,
     organization: z
       .object({
         id: z.string().openapi({ example: "org_123" }),

@@ -26,10 +26,14 @@ public final class RoomOutbox: ObservableObject {
   private var timer: Task<Void, Never>?
   private let timeout: Duration
   private let now: () -> Date
+  private let sleep: (Duration) async throws -> Void
 
-  public init(timeout: Duration = .seconds(30), now: @escaping () -> Date = Date.init) {
+  /// `sleep` paces the send timeout and how long Sent feedback stays.
+  public init(timeout: Duration = .seconds(30), now: @escaping () -> Date = Date.init,
+              sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
     self.timeout = timeout
     self.now = now
+    self.sleep = sleep
   }
 
   public func enqueue(
@@ -104,8 +108,8 @@ public final class RoomOutbox: ObservableObject {
     let confirmedAt = now()
     guard confirmedAt.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
     sentAt[messageId] = confirmedAt
-    Task { [weak self] in
-      try? await Task.sleep(for: .milliseconds(1600))
+    Task { [weak self, sleep] in
+      try? await sleep(.milliseconds(1600))
       guard self?.sentAt[messageId] == confirmedAt else { return }
       self?.sentAt[messageId] = nil
     }
@@ -130,9 +134,9 @@ public final class RoomOutbox: ObservableObject {
         }
         self?.settle(id, attempt: attempt, result: result)
       }
-      timer = Task { [weak self, timeout] in
+      timer = Task { [weak self, timeout, sleep] in
         do {
-          try await Task.sleep(for: timeout)
+          try await sleep(timeout)
         } catch { return }
         self?.settle(id, attempt: attempt, result: .failure(SendTimeout()))
       }

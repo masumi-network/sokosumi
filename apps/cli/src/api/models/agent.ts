@@ -34,8 +34,6 @@ export function parseAgent(input: unknown): Agent {
     name: nullableString(record.name),
     description: nullableString(record.description),
     credits: nullableNumber(record.credits),
-    tags: Array.isArray(record.categories)
-      ? parseDisplayTags(record.categories)
-      : parseDisplayTags(record.tags),
+    tags: parseDisplayTags(record.categories),
   };
 }

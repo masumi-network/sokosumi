@@ -13,8 +13,8 @@ import { describe, expect, it } from "vitest";
  * forgot to seed. That is the failure this file exists to make loud.
  *
  * Asserted as a set of files rather than by mocking a creation, because the
- * risk is a *fourth* creation site written later by someone who has not read
- * `workspace.repository.ts`. A behavioural test of the three that exist cannot
+ * risk is a *new* creation site written later by someone who has not read
+ * `workspace.repository.ts`. A behavioural test of the existing sites cannot
  * fail for a site that does not exist yet; this one does, and the failure names
  * the file so its author has to decide rather than discover it in production.
  */
@@ -22,9 +22,9 @@ import { describe, expect, it } from "vitest";
 const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 
 /**
- * The three known creation sites, with why each is allowed.
+ * The known creation sites, with why each is allowed.
  *
- * `workspace.repository.ts` holds two and calls `seedCuratedVocabulary`
+ * `workspace.repository.ts` calls `seedCuratedVocabulary`
  * directly. `helpers/personal-workspace.ts` (behind both personal workspace
  * create routes) does not go through the repository and calls the same
  * exported function.

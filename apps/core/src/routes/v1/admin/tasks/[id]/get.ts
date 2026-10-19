@@ -53,12 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       adminTaskDetailSchema.parse({
         task: mapTask(task, c.var.authContext),
-        owner: {
-          id: task.owner.id,
-          name: task.owner.name,
-          email: task.owner.email,
-        },
-        user: {
+        owner: task.owner && {
           id: task.owner.id,
           name: task.owner.name,
           email: task.owner.email,

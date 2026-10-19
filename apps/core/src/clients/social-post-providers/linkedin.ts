@@ -3,14 +3,14 @@ import { socialPostProviderLabel } from "@sokosumi/utils";
 
 import {
   ComposioApiError,
-  deleteProjectSocialSession,
+  deleteComposioToolSession,
 } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -55,7 +55,7 @@ async function registerLinkedInImage(input: {
   file: SocialPostMediaBytes;
   signal?: AbortSignal;
 }): Promise<string> {
-  const registered = await executeSocialPublishTool({
+  const registered = await executeComposioTool({
     sessionId: input.sessionId,
     toolSlug: LINKEDIN_REGISTER_IMAGE_TOOL_SLUG,
     arguments: { owner_urn: input.ownerUrn },
@@ -101,7 +101,7 @@ export async function publishLinkedInPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("linkedin");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "linkedin",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -116,7 +116,7 @@ export async function publishLinkedInPost(
     let toolSlug = LINKEDIN_CREATE_POST_TOOL_SLUG;
 
     if (video) {
-      const uploaded = await executeSocialPublishTool({
+      const uploaded = await executeComposioTool({
         sessionId,
         toolSlug: LINKEDIN_UPLOAD_VIDEO_TOOL_SLUG,
         arguments: { video_url: video.fileUrl },
@@ -133,7 +133,7 @@ export async function publishLinkedInPost(
       }
       toolSlug = LINKEDIN_CREATE_VIDEO_TOOL_SLUG;
       const post = await guardSocialCreateOutcome(label, () =>
-        executeSocialPublishTool({
+        executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
           arguments: {
@@ -165,7 +165,7 @@ export async function publishLinkedInPost(
         );
       }
       const post = await guardSocialCreateOutcome(label, () =>
-        executeSocialPublishTool({
+        executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
           arguments: {
@@ -183,7 +183,7 @@ export async function publishLinkedInPost(
       externalId = externalIdOf(post);
     } else {
       const post = await guardSocialCreateOutcome(label, () =>
-        executeSocialPublishTool({
+        executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
           arguments: {
@@ -211,7 +211,7 @@ export async function publishLinkedInPost(
       toolSlug,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project LinkedIn publish session",
     );

@@ -1,18 +1,20 @@
 import { z } from "@hono/zod-openapi";
 import {
   isValidTimezone,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   type SocialPostProvider,
 } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   projectSocialConnectionProjectParamsSchema,
   projectSocialConnectionSchema,
 } from "@/schemas/project-social-connection.schema";
+import { socialPostStatisticsSchema } from "@/schemas/social-post-statistics.schema";
 
 const SOCIAL_POST_PROVIDER_KEYS = Object.keys(SOCIAL_POST_TEXT_LIMITS) as [
   SocialPostProvider,
@@ -55,18 +57,15 @@ const socialPostTextSchema = z
   .max(SOCIAL_POST_TEXT_MAX)
   .openapi({ example: "Shipping the new Calendar today." });
 
+const socialPostFirstCommentSchema = z
+  .string()
+  .trim()
+  .max(SOCIAL_POST_FIRST_COMMENT_MAX)
+  .openapi({ example: "#launch" });
+
 export const socialPostMediaRefSchema = z
   .object({
-    pathname: z.string().min(1).openapi({
-      example: "drive/users/user_123/launch.png",
-      description: "Drive blob pathname; must belong to the active workspace",
-    }),
-    fileUrl: z.string().url().openapi({
-      example:
-        "https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png",
-      description: "Public Blob URL of the Drive file",
-    }),
-    name: z.string().min(1).openapi({ example: "launch.png" }),
+    ...driveFileRefShape,
     size: z.number().int().min(0).openapi({ example: 240000 }),
     mimeType: z.string().min(1).openapi({ example: "image/png" }),
     kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
@@ -143,6 +142,7 @@ export const socialPostSchema = z
     }),
     provider: socialPostProviderSchema,
     text: z.string(),
+    firstComment: z.string().nullable(),
     media: z.array(socialPostMediaRefSchema),
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
@@ -158,6 +158,7 @@ export const socialPostSchema = z
     publishedAt: dateTimeSchema.nullable(),
     publishedExternalId: z.string().nullable(),
     publishedUrl: z.string().nullable(),
+    statistics: socialPostStatisticsSchema.nullable().optional(),
     lastError: z.string().nullable(),
     attemptCount: z.number().int().min(0).openapi({ example: 0 }),
     nextAttemptAt: dateTimeSchema.nullable(),
@@ -171,6 +172,10 @@ export const socialPostSchema = z
     canSchedule: z.boolean(),
     canCancel: z.boolean(),
     canPublishNow: z.boolean(),
+    canDuplicate: z.boolean().openapi({
+      description:
+        "True when the post can be copied into a new draft (published, failed, or missed)",
+    }),
     connectionNeedsReconnect: z.boolean().openapi({
       description:
         "The linked connection exists but is not active, so the post cannot go out until someone reconnects",
@@ -189,6 +194,7 @@ function hasTextOrMedia(value: {
 export const createSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema,
+    firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
@@ -202,6 +208,7 @@ export const createSocialPostRequestSchema = z
 export const updateSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema.optional(),
+    firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().nullable().optional(),
     revision: socialPostRevisionSchema,

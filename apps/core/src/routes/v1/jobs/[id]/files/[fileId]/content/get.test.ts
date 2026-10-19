@@ -34,6 +34,19 @@ function app() {
 }
 describe("authorized job output bytes", () => {
   beforeEach(() => vi.clearAllMocks());
+  it("documents the workspace headers its sibling job routes accept", () => {
+    const operation = app().getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Sokosumi API", version: "1.0.0" },
+    }).paths?.["/{id}/files/{fileId}/content"]?.get;
+    expect(operation?.parameters).toEqual(
+      expect.arrayContaining([
+        { $ref: "#/components/parameters/OrganizationSlug" },
+        { $ref: "#/components/parameters/ContextUserId" },
+        { $ref: "#/components/parameters/ContextOrganizationId" },
+      ]),
+    );
+  });
   it("denies revoked job access before reading an output or storage", async () => {
     mocks.access.mockRejectedValue(forbidden("Denied"));
     const response = await app().request("/job/files/file/content");

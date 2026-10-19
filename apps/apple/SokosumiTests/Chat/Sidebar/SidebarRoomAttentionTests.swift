@@ -61,8 +61,8 @@
         let state = WorkspaceState()
         state.rooms = rooms
         let preferences = #"{"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":true,"notificationPreferences":[]},"meta":{"timestamp":"2026-09-23T12:00:00.000Z","requestId":"fixture"}}"#
-        try await state.chatDisplay.refresh(client: Client.connecting(
-          to: #require(URL(string: "https://example.com")), transport: AttentionPreferencesTransport(body: preferences)
+        try await state.chatDisplay.refresh(client: Client.core(
+          baseURL: #require(URL(string: "https://example.com")), transport: AttentionPreferencesTransport(body: preferences)
         ))
         return state
       }

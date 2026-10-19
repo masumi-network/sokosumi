@@ -3,34 +3,39 @@ import { requireJobReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import {
   contentDispositionFor,
   contentSecurityPolicyFor,
   openStoredFileContentStream,
 } from "@/services/file-content.service";
 
-const route = createRoute({
-  method: "get",
-  path: "/{id}/files/{fileId}/content",
-  tags: ["Jobs"],
-  description:
-    "Stream a ready job output, checking job access on every read without exposing a storage URL.",
-  request: {
-    params: z.object({ id: z.string().min(1), fileId: z.string().min(1) }),
-    query: z.object({ download: z.enum(["true", "false"]).optional() }),
-  },
-  responses: {
-    200: {
-      description: "Output bytes",
-      content: { "*/*": { schema: { type: "string", format: "binary" } } },
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/{id}/files/{fileId}/content",
+    tags: ["Jobs"],
+    description:
+      "Stream a ready job output, checking job access on every read without exposing a storage URL.",
+    request: {
+      params: z.object({ id: z.string().min(1), fileId: z.string().min(1) }),
+      query: z.object({ download: z.enum(["true", "false"]).optional() }),
     },
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    503: jsonErrorResponse("Storage unavailable"),
-  },
-});
+    responses: {
+      200: {
+        description: "Output bytes",
+        content: { "*/*": { schema: { type: "string", format: "binary" } } },
+      },
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Storage unavailable"),
+    },
+  }),
+);
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id, fileId } = c.req.valid("param");

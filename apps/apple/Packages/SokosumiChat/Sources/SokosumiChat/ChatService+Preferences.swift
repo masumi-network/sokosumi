@@ -13,21 +13,13 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
 extension ChatService {
   /// `GET /users/me/preferences`.
   func userPreferences(client: Client) async throws -> UserPreferencesSnapshot {
-    let response = try await client.getUsersIdPreferences(.init(path: .init(id: "me")))
-    switch response {
-    case let .ok(value):
-      let data = try value.body.json.data
-      return .init(
-        showRoomUnreadCount: data.showRoomUnreadCount,
-        pushOptIn: data.pushOptIn,
-        cells: data.notificationPreferences
-      )
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    let value = try await call { try await client.getUsersIdPreferences(.init(path: .init(id: "me"))) }.ok
+    let data = try value.body.json.data
+    return .init(
+      showRoomUnreadCount: data.showRoomUnreadCount,
+      pushOptIn: data.pushOptIn,
+      cells: data.notificationPreferences
+    )
   }
 
   /// `PATCH /users/me/preferences` with only the fields the caller changed.
@@ -38,28 +30,22 @@ extension ChatService {
     pushOptIn: Bool? = nil,
     notificationPreferences: [Components.Schemas.NotificationPreference]? = nil
   ) async throws -> UserPreferencesSnapshot {
-    let response = try await client.patchUsersIdPreferences(.init(
-      path: .init(id: "me"),
-      body: .json(.init(
-        pushOptIn: pushOptIn,
-        showRoomUnreadCount: showRoomUnreadCount,
-        notificationPreferences: notificationPreferences
+    let value = try await call {
+      try await client.patchUsersIdPreferences(.init(
+        path: .init(id: "me"),
+        body: .json(.init(
+          pushOptIn: pushOptIn,
+          showRoomUnreadCount: showRoomUnreadCount,
+          notificationPreferences: notificationPreferences
+        ))
       ))
-    ))
-    switch response {
-    case let .ok(value):
-      let data = try value.body.json.data
-      return .init(
-        showRoomUnreadCount: data.showRoomUnreadCount,
-        pushOptIn: data.pushOptIn,
-        cells: data.notificationPreferences
-      )
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    }.ok
+    let data = try value.body.json.data
+    return .init(
+      showRoomUnreadCount: data.showRoomUnreadCount,
+      pushOptIn: data.pushOptIn,
+      cells: data.notificationPreferences
+    )
   }
 }
 

@@ -1,15 +1,11 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
-import { cn } from "@/lib/utils";
+import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 
 /**
  * Social as a destination of its own.
  *
- * The same surface the studio and the project workspace draw: one gutter, one
- * border weight. There is no tab strip and no identity row, because Social is
- * no longer one area of a project — it is a top-level page scoped to a
- * project, the way Tasks, Calendar and the studio are, and the sidebar row,
- * the breadcrumb and the project switcher already say which project it is.
+ * Same shell as Ads and other project-scoped pages, plus bottom clearance for
+ * the mobile create FAB.
  */
 export function SocialPageShell({
   children,
@@ -25,15 +21,11 @@ export function SocialPageShell({
   title: string;
 }) {
   return (
-    <div
-      className={cn(
-        PROJECTS_WORKSPACE_SHELL_CLASS,
-        "min-w-0 pt-2 md:pt-3",
-        LIST_MOBILE_CREATE_FAB_CLEARANCE,
-      )}
+    <WorkspacePageShell
+      className={LIST_MOBILE_CREATE_FAB_CLEARANCE}
+      title={title}
     >
-      <h1 className="sr-only">{title}</h1>
       {children}
-    </div>
+    </WorkspacePageShell>
   );
 }

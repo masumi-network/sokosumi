@@ -20,12 +20,16 @@ const projectServiceMock = {
   cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
   createSocialPost: vi.fn(),
+  duplicateSocialPost: vi.fn(),
+  recycleSocialAccountPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
   finalizeSocialConnection: vi.fn(),
   getProjectContextMd: vi.fn(),
   initiateSocialConnection: vi.fn(),
   patchProject: vi.fn(),
   publishSocialPost: vi.fn(),
+  refreshSocialPostStatistics: vi.fn(),
+  refreshSocialAccountStatistics: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   retryProjectClose: vi.fn(),
   scheduleSocialPost: vi.fn(),
@@ -614,6 +618,86 @@ describe("project actions", () => {
       revision: 0,
     };
 
+    it("syncs account statistics with retained history and returns serialized Core errors", async () => {
+      const projectId = "11111111-1111-4111-8111-111111111111";
+      const connectionId = "22222222-2222-4222-8222-222222222222";
+      const data = { account: {}, importedPostCount: 5 };
+      projectServiceMock.refreshSocialAccountStatistics.mockResolvedValue(data);
+      const { refreshProjectSocialAccountStatistics } = await import(
+        "./action"
+      );
+      const { revalidatePath } = await import("next/cache");
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId,
+          connectionId,
+          continueHistory: true,
+        }),
+      ).toEqual({ ok: true, value: data });
+      expect(
+        projectServiceMock.refreshSocialAccountStatistics,
+      ).toHaveBeenCalledWith(projectId, connectionId, true);
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      projectServiceMock.refreshSocialAccountStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId,
+          connectionId,
+        }),
+      ).toMatchObject({ ok: false, error: { message: "Denied" } });
+    });
+
+    it("rejects malformed account sync parameters", async () => {
+      const { refreshProjectSocialAccountStatistics } = await import(
+        "./action"
+      );
+      expect(
+        await refreshProjectSocialAccountStatistics({
+          projectId: "bad",
+          connectionId: "bad",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(
+        projectServiceMock.refreshSocialAccountStatistics,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("refreshes statistics and revalidates the published post surfaces", async () => {
+      const projectId = "11111111-1111-4111-8111-111111111111";
+      const postId = "22222222-2222-4222-8222-222222222222";
+      projectServiceMock.refreshSocialPostStatistics.mockResolvedValue(post);
+      const { refreshProjectSocialPostStatistics } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      expect(
+        await refreshProjectSocialPostStatistics({ projectId, postId }),
+      ).toEqual({ ok: true, value: post });
+      expect(
+        projectServiceMock.refreshSocialPostStatistics,
+      ).toHaveBeenCalledWith(projectId, postId);
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      projectServiceMock.refreshSocialPostStatistics.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await refreshProjectSocialPostStatistics({ projectId, postId }),
+      ).toMatchObject({ ok: false, error: { message: "Denied" } });
+    });
+
+    it("rejects malformed statistics refresh ids", async () => {
+      const { refreshProjectSocialPostStatistics } = await import("./action");
+      expect(
+        await refreshProjectSocialPostStatistics({
+          projectId: "",
+          postId: "bad",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(
+        projectServiceMock.refreshSocialPostStatistics,
+      ).not.toHaveBeenCalled();
+    });
+
     it("creates a draft with trimmed ids and revalidates the social route", async () => {
       projectServiceMock.createSocialPost.mockResolvedValue(post);
 
@@ -787,6 +871,173 @@ describe("project actions", () => {
       );
       expect(canceled).toMatchObject({ ok: true, value: { revision: 2 } });
       expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("duplicates a post into a draft and revalidates", async () => {
+      projectServiceMock.duplicateSocialPost.mockResolvedValue({
+        ...post,
+        id: "post-copy",
+        status: "DRAFT",
+      });
+
+      const { duplicateProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await duplicateProjectSocialPost({
+        projectId: " project-1 ",
+        postId: " post-1 ",
+      });
+
+      expect(projectServiceMock.duplicateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: { ...post, id: "post-copy", status: "DRAFT" },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("rejects empty ids before duplicating", async () => {
+      const { duplicateProjectSocialPost } = await import("./action");
+      expect(
+        await duplicateProjectSocialPost({ projectId: "", postId: "post-1" }),
+      ).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(projectServiceMock.duplicateSocialPost).not.toHaveBeenCalled();
+    });
+
+    it("recycles a Performance post into a draft and revalidates", async () => {
+      projectServiceMock.recycleSocialAccountPost.mockResolvedValue({
+        ...post,
+        id: "post-recycle",
+        status: "DRAFT",
+      });
+
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await recycleProjectSocialAccountPost({
+        projectId: " project-1 ",
+        accountPostId: " account-post-1 ",
+      });
+
+      expect(projectServiceMock.recycleSocialAccountPost).toHaveBeenCalledWith(
+        "project-1",
+        "account-post-1",
+        {},
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: { ...post, id: "post-recycle", status: "DRAFT" },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("recycles a Performance post with a delay and timezone", async () => {
+      projectServiceMock.recycleSocialAccountPost.mockResolvedValue({
+        ...post,
+        id: "post-recycle",
+        status: "SCHEDULED",
+      });
+
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      await recycleProjectSocialAccountPost({
+        projectId: "project-1",
+        accountPostId: "account-post-1",
+        delayDays: 14,
+        timezone: "Europe/Berlin",
+      });
+
+      expect(projectServiceMock.recycleSocialAccountPost).toHaveBeenCalledWith(
+        "project-1",
+        "account-post-1",
+        { delayDays: 14, timezone: "Europe/Berlin" },
+      );
+    });
+
+    it("rejects a delay without a timezone before recycling", async () => {
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      expect(
+        await recycleProjectSocialAccountPost({
+          projectId: "project-1",
+          accountPostId: "account-post-1",
+          delayDays: 7,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(
+        projectServiceMock.recycleSocialAccountPost,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("schedules with the revision supplied by the calendar", async () => {
+      projectServiceMock.scheduleSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+        revision: 5,
+      });
+
+      const { scheduleProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await scheduleProjectSocialPost({
+        projectId: " project-1 ",
+        postId: " post-1 ",
+        scheduledAt: "2026-10-02T14:00:00.000Z",
+        revision: 4,
+      });
+
+      expect(projectServiceMock.scheduleSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        {
+          scheduledAt: new Date("2026-10-02T14:00:00.000Z"),
+          revision: 4,
+        },
+      );
+      expect(result).toMatchObject({ ok: true, value: { revision: 5 } });
+      expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    });
+
+    it("returns Core's stale-revision conflict without retrying the calendar move", async () => {
+      const error = new CoreApiRequestError(
+        "Social post was modified, reload and retry",
+        {
+          status: 409,
+          kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        },
+      );
+      projectServiceMock.scheduleSocialPost.mockRejectedValue(error);
+      toCoreApiActionErrorMock.mockReturnValue({
+        code: "BAD_INPUT",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: error.message,
+      });
+
+      const { scheduleProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await scheduleProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        scheduledAt: "2026-10-02T14:00:00.000Z",
+        revision: 4,
+      });
+
+      expect(
+        projectServiceMock.scheduleSocialPost,
+      ).toHaveBeenCalledExactlyOnceWith("project-1", "post-1", {
+        scheduledAt: new Date("2026-10-02T14:00:00.000Z"),
+        revision: 4,
+      });
+      expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(error);
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: "BAD_INPUT",
+          kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+          message: error.message,
+        },
+      });
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
 
     it("publishes a post now through the service and revalidates", async () => {

@@ -1,12 +1,12 @@
-import { socialPostProviderLabel } from "@sokosumi/utils";
+import { socialPostProviderLabel, splitYouTubePostText } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
@@ -19,16 +19,6 @@ import { downloadSocialPostMedia } from "@/helpers/social-post-media";
 const YOUTUBE_UPLOAD_TOOL_SLUG = "YOUTUBE_UPLOAD_VIDEO";
 /** People & Blogs; YouTube requires a category id. */
 const YOUTUBE_DEFAULT_CATEGORY_ID = "22";
-const YOUTUBE_TITLE_LIMIT = 100;
-
-/** First non-empty line, trimmed and capped at YouTube's title limit. */
-export function deriveYouTubeTitle(text: string): string {
-  const line = text
-    .split(/\r?\n/)
-    .map((part) => part.trim())
-    .find((part) => part.length > 0);
-  return (line ?? "Untitled").slice(0, YOUTUBE_TITLE_LIMIT);
-}
 
 function videoIdOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.id, data?.videoId, data?.video_id];
@@ -46,7 +36,7 @@ export async function publishYouTubeVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("youtube");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "youtube",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -70,13 +60,14 @@ export async function publishYouTubeVideo(
       file: video,
       signal: context.signal,
     });
+    const { title, description } = splitYouTubePostText(context.text);
     const uploaded = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeComposioTool({
         sessionId,
         toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
         arguments: {
-          title: deriveYouTubeTitle(context.text),
-          description: context.text,
+          title: title || "Untitled",
+          description,
           tags: [],
           categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
           privacyStatus: "public",
@@ -105,7 +96,7 @@ export async function publishYouTubeVideo(
       toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project YouTube publish session",
     );

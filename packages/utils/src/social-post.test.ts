@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
+  SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
+  splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
 
@@ -73,6 +83,110 @@ describe("per-provider limits and requirements", () => {
   ] as const)("labels %s as %s", (provider, label) => {
     expect(socialPostProviderLabel(provider)).toBe(label);
   });
+
+  it.each([
+    ["x", true, null],
+    ["linkedin", true, null],
+    ["facebook", true, null],
+    ["instagram", false, "Instagram requires at least one image or video"],
+    ["tiktok", false, "TikTok requires a video"],
+    ["youtube", false, "YouTube requires a video"],
+  ] as const)(
+    "treats empty media on %s as ready=%s",
+    (provider, ready, message) => {
+      expect(socialPostMeetsMediaRequirement(provider, [])).toBe(ready);
+      expect(socialPostMediaRequirementMessage(provider)).toBe(message);
+    },
+  );
+
+  it("accepts one video for TikTok and YouTube, and any file for Instagram", () => {
+    expect(socialPostMeetsMediaRequirement("tiktok", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("tiktok", [image])).toBe(false);
+    expect(socialPostMeetsMediaRequirement("youtube", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("instagram", [jpeg])).toBe(true);
+  });
+
+  it("exposes the strictest request bounds and the schedule lead", () => {
+    expect(SOCIAL_POST_TEXT_MAX).toBe(SOCIAL_POST_TEXT_LIMITS.facebook);
+    expect(SOCIAL_POST_MEDIA_MAX).toBe(4);
+    expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
+    expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
+  });
+
+  it.each([
+    ["x", 280],
+    ["linkedin", 1250],
+    ["facebook", 8000],
+    ["instagram", 300],
+    ["youtube", 10_000],
+  ] as const)("caps %s first comments at %i characters", (provider, limit) => {
+    expect(SOCIAL_POST_FIRST_COMMENT_LIMITS[provider]).toBe(limit);
+    expect(socialPostFirstCommentLimit(provider)).toBe(limit);
+    expect(socialPostSupportsFirstComment(provider)).toBe(true);
+  });
+
+  it("leaves TikTok without a first comment", () => {
+    expect(socialPostFirstCommentLimit("tiktok")).toBeNull();
+    expect(socialPostSupportsFirstComment("tiktok")).toBe(false);
+    expect(SOCIAL_POST_FIRST_COMMENT_MAX).toBe(10_000);
+  });
+});
+
+describe("splitYouTubePostText", () => {
+  it("uses the first non-empty line as the trimmed title", () => {
+    expect(splitYouTubePostText("\n  Launch today  \nmore text")).toEqual({
+      title: "Launch today",
+      description: "more text",
+    });
+  });
+
+  it("caps the title at 100 characters and keeps the leftover", () => {
+    expect(splitYouTubePostText("T".repeat(140))).toEqual({
+      title: "T".repeat(100),
+      description: "T".repeat(40),
+    });
+  });
+
+  it.each(["Launching today", "T".repeat(100)])(
+    "leaves the description empty for a title-only post: %s",
+    (text) => {
+      expect(splitYouTubePostText(text)).toEqual({
+        title: text,
+        description: "",
+      });
+    },
+  );
+
+  it("trims the leftover of a long title line", () => {
+    const firstLine = `${"T".repeat(100)} leftover caption`;
+    expect(splitYouTubePostText(firstLine)).toEqual({
+      title: "T".repeat(100),
+      description: "leftover caption",
+    });
+  });
+
+  it("keeps first-line leftover ahead of later lines", () => {
+    const firstLine = `${"T".repeat(100)} leftover`;
+    expect(splitYouTubePostText(`${firstLine}\nSecond line`)).toEqual({
+      title: "T".repeat(100),
+      description: "leftover\nSecond line",
+    });
+  });
+
+  it.each(["", "   \n  "])("leaves blank text empty: %j", (text) => {
+    expect(splitYouTubePostText(text)).toEqual({ title: "", description: "" });
+  });
+
+  it("normalizes CRLF and preserves paragraphs and interior whitespace", () => {
+    expect(
+      splitYouTubePostText(
+        "\r\n  Launch today  \r\n  First  paragraph\r\n\r\n  Second paragraph  \r\n",
+      ),
+    ).toEqual({
+      title: "Launch today",
+      description: "First  paragraph\n\n  Second paragraph",
+    });
+  });
 });
 
 describe("socialPostMaxBytesForKind", () => {
@@ -108,6 +222,7 @@ describe("socialPostMediaKindForMime", () => {
     ["video/mp4", "video"],
     ["video/quicktime", "video"],
     ["IMAGE/PNG", "image"],
+    ["  image/png  ", "image"],
   ])("maps %s to %s", (mime, kind) => {
     expect(socialPostMediaKindForMime(mime)).toBe(kind);
   });
@@ -191,6 +306,12 @@ describe("validateSocialPostMedia", () => {
         ref({ mimeType: "image/svg+xml", kind: "image" }),
       ]),
     ).toEqual({ ok: false, reason: "unsupported_type" });
+  });
+
+  it("accepts a padded mime type the provider already allows", () => {
+    expect(
+      validateSocialPostMedia("x", [ref({ mimeType: "  image/png  " })]),
+    ).toEqual({ ok: true });
   });
 
   it("rejects a kind that does not match the mime type", () => {

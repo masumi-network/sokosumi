@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-export const blobFileMetadataSchema = z
+const blobFileMetadataSchema = z
   .object({
     pathname: z.string().openapi({
       example: "users/user_123/document_abc.pdf",
@@ -25,7 +25,7 @@ export const blobFileMetadataSchema = z
   })
   .openapi("BlobFileMetadata");
 
-export const blobFileSchema = z
+const blobFileSchema = z
   .object({
     publicUrl: z.string().openapi({
       example:
@@ -39,4 +39,3 @@ export const blobFileSchema = z
 export const blobFilesSchema = z.array(blobFileSchema);
 
 export type BlobFile = z.infer<typeof blobFileSchema>;
-export type BlobFileMetadata = z.infer<typeof blobFileMetadataSchema>;

@@ -23,7 +23,7 @@ export function creditBucketActivatesAtOrBeforeSql(now: Date): Prisma.Sql {
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
-export const FREE_CREDIT_REFERENCE_SEGMENT = "free";
+const FREE_CREDIT_REFERENCE_SEGMENT = "free";
 
 export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   if (!Number.isFinite(days) || !Number.isInteger(days) || days < 0) {

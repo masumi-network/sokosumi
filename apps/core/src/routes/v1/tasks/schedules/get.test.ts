@@ -4,6 +4,7 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  OWNER_ID,
   PERSONAL_WORKSPACE_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
@@ -38,7 +39,11 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => ({
 }));
 
 interface ListBody {
-  data: Array<{ id: string; canWrite: boolean }>;
+  data: Array<{
+    id: string;
+    canWrite: boolean;
+    ownerId: string | null;
+  }>;
   meta: { pagination: { nextCursor: string | null; total: number } };
 }
 
@@ -72,6 +77,25 @@ describe("GET /tasks/schedules", () => {
       older.id,
     ]);
     expect(body.meta.pagination.total).toBe(2);
+  });
+
+  it("returns the Owner of each schedule, null for one without an Owner", async () => {
+    const owned = seedTaskSchedule({
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+    });
+    const withoutOwner = seedTaskSchedule({
+      ownerId: null,
+      creatorUserId: null,
+    });
+
+    const { body } = await list();
+
+    expect(
+      Object.fromEntries(
+        body.data.map((schedule) => [schedule.id, schedule.ownerId]),
+      ),
+    ).toEqual({ [owned.id]: OWNER_ID, [withoutOwner.id]: null });
   });
 
   it("filters by project and state", async () => {
