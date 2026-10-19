@@ -3496,7 +3496,7 @@ describe("ProjectSocialPosts", () => {
         name: "Post actions for @sokosumi",
       }),
     );
-    expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Post now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
