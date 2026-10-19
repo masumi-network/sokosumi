@@ -58,18 +58,18 @@ struct SignInView: View {
 private struct SignInColumn: View {
   @EnvironmentObject private var auth: AuthState
   @Environment(\.colorScheme) private var colorScheme
+  @ScaledMetric(relativeTo: .largeTitle) private var logInSize = 24.0
 
   var body: some View {
     VStack(spacing: 24) {
       VStack(spacing: 4) {
         Text("Log in")
-          .font(.system(size: 24, weight: .light))
+          .font(.system(size: logInSize, weight: .light))
           .tracking(-0.4)
+          .accessibilityAddTraits(.isHeader)
         Text("Hire agents on our platform")
           .foregroundStyle(.secondary)
       }
-      .accessibilityElement(children: .combine)
-      .accessibilityAddTraits(.isHeader)
 
       switch auth.status {
       case .notConfigured:
@@ -225,6 +225,8 @@ private struct SignInFooter: View {
 private struct SignInHeroPanel: View {
   let imageName: String
 
+  @ScaledMetric(relativeTo: .largeTitle) private var claimSize = 40.0
+
   private static let bullets = [
     "Specialized AI coworker built for marketing.",
     "Built for small and large marketing teams.",
@@ -251,13 +253,13 @@ private struct SignInHeroPanel: View {
       .overlay(alignment: .topLeading) {
         VStack(alignment: .leading, spacing: 40) {
           Text("AI coworkers\nfor marketing")
-            .font(.system(size: 40, weight: .medium))
+            .font(.system(size: claimSize, weight: .medium))
             .tracking(-0.8)
             .accessibilityAddTraits(.isHeader)
           VStack(alignment: .leading, spacing: 0) {
             ForEach(Self.bullets, id: \.self) { bullet in
               Text(bullet)
-                .font(.system(size: 15))
+                .font(.title3)
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)

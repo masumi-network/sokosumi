@@ -216,6 +216,76 @@
         ], lack: ["Continue in browser", "Server (Debug build)"])
       }
 
+      /// Larger Text has to change the heading, the hero claim, and a bullet. The shortest accessibility frame is the
+      /// text itself, so a sibling that already scaled cannot make this pass.
+      @Test func largerTextGrowsTheSignInCopy() async throws {
+        let labels = ["Log in", "AI coworkers", "Specialized AI coworker built for marketing."]
+        let base = try await Self.copyHeights(labels, typeSize: .large)
+        let grown = try await Self.copyHeights(labels, typeSize: .xxxLarge)
+        for (index, label) in labels.enumerated() {
+          #expect(grown[index] > base[index], "\(label) stayed \(base[index])pt at a larger text size")
+        }
+      }
+
+      private static func copyHeights(_ labels: [String], typeSize: DynamicTypeSize) async throws -> [CGFloat] {
+        let size = Self.wide
+        let host = NSHostingView(rootView: SignInView()
+          .environmentObject(Self.auth())
+          .frame(width: size.width, height: size.height)
+          .background(.background)
+          .environment(\.locale, Locale(identifier: "en_US"))
+          .environment(\.dynamicTypeSize, typeSize))
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered,
+                              defer: false)
+        window.ignoresMouseEvents = true
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        _ = try await ComposerSkillsTests.waitForText("Continue in browser", in: host)
+        await ComposerSkillsTests.settle(host)
+        var heights: [CGFloat] = []
+        for label in labels {
+          heights.append(try await Self.shortestFrame(matching: label, in: host).height)
+        }
+        return heights
+      }
+
+      private static func shortestFrame(matching text: String, in host: NSView) async throws -> CGRect {
+        _ = await hostedTexts(in: host)
+        let window = try #require(host.window)
+        var best: CGRect?
+        var seen: Set<ObjectIdentifier> = []
+        func walk(_ element: Any) {
+          guard let object = element as? NSObject, seen.insert(ObjectIdentifier(object)).inserted else { return }
+          if object.responds(to: NSSelectorFromString("accessibilityLabel")),
+             let label = object.value(forKey: "accessibilityLabel") as? String,
+             Self.label(label, matches: text) {
+            let frame = host.convert(window.convertFromScreen(object.accessibilityFrame()), from: nil)
+            if frame.height > 1, best == nil || frame.height < best?.height ?? .greatestFiniteMagnitude {
+              best = frame
+            }
+          }
+          if object.responds(to: NSSelectorFromString("accessibilityChildren")) {
+            for child in (object.value(forKey: "accessibilityChildren") as? [Any]) ?? [] {
+              walk(child)
+            }
+          }
+          for subview in (object as? NSView)?.subviews ?? [] {
+            walk(subview)
+          }
+        }
+        walk(host)
+        return try #require(best, "No accessibility frame for \(text)")
+      }
+
+      private static func label(_ label: String, matches text: String) -> Bool {
+        if label == text { return true }
+        let parts = label.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+        if parts.contains(where: { $0.trimmingCharacters(in: .whitespaces) == text }) { return true }
+        let rest = label.dropFirst(text.count)
+        return label.hasPrefix(text) && (rest.isEmpty || rest.first?.isWhitespace == true)
+      }
+
       @Test func anUnconfiguredBuildSaysSo() async throws {
         let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: WaitingBrowser())
         let render = try await Self.render(named: "sign-in-not-configured", auth, size: Self.narrow,
