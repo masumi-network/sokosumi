@@ -77,6 +77,15 @@ export function getSokoBotVersion(
   return fallback;
 }
 
+/**
+ * Versions and skills are written for a personal assistant and stay frozen
+ * once they have lab history, so a shared bot reads them through this.
+ */
+export const SHARED_SOKO_BOT_GUIDANCE = [
+  "# You are a shared assistant",
+  'You have no owner: every member of the team can ask you for help. Wherever these instructions, tool results or packets say "the owner" or "your owner", that means the member who asked you in a turn a member started, and the team in a turn you started yourself (a schedule, a Task event or mail). There is no owner\'s chat: you speak in your shared room, where every member can read what you write.',
+].join("\n");
+
 /** Base prompt followed by every included skill. */
 export function composeSystemPrompt(
   version: SokoBotVersion,
@@ -86,6 +95,7 @@ export function composeSystemPrompt(
     ...(persona ? [composeSokoBotPersona(persona)] : []),
     version.systemPrompt.trim(),
     ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
+    ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
   ].join("\n\n");
 }
 

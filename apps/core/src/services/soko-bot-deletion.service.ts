@@ -26,9 +26,10 @@ import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integratio
  * - `deleted`: nothing references the bot, so the row goes too.
  * - `tombstoned`: Tasks, task events, billing usage or chat messages still
  *   reference it. Those are other people's records and must keep resolving, so
- *   an emptied, renamed row stays behind. The partial unique index on
- *   `(userId, workspaceId) WHERE deleted_at IS NULL` is what lets it stay
- *   without blocking the owner's next bot.
+ *   an emptied, renamed row stays behind. A shared bot with a room is always
+ *   tombstoned, so its room stays a read-only archive. The partial unique
+ *   index on `(userId, workspaceId) WHERE deleted_at IS NULL` is what lets it
+ *   stay without blocking the owner's next bot.
  */
 export type SokoBotDeletionOutcome = "deleted" | "tombstoned";
 
@@ -87,7 +88,7 @@ export async function deleteSokoBot(
   const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, sharedRoomId: true },
     });
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
@@ -170,6 +171,7 @@ export async function deleteSokoBot(
     };
 
     if (
+      bot.sharedRoomId === null &&
       tasks === 0 &&
       taskEvents === 0 &&
       billingRecords === 0 &&

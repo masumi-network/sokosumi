@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
   type SokoBotOwnerNameSource,
 } from "@/helpers/soko-bot-owner";
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
+import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   commentNamesBot,
@@ -31,6 +33,22 @@ const MAX_EVENTS_PER_TASK = 5;
 const WORK_STATUSES = new Set(["READY", "QUEUED"]);
 
 const TERMINAL = ["COMPLETED", "CANCELED", "DRAFT"] as const;
+
+const TASKBOARD_BOT_SELECT = {
+  id: true,
+  name: true,
+  userId: true,
+  projectId: true,
+  createdByUserId: true,
+  workspaceId: true,
+  workspace: { select: { organizationId: true } },
+  followWholeBoard: true,
+  ingestTimezone: true,
+} as const satisfies Prisma.SokoBotSelect;
+
+type TaskboardBot = Prisma.SokoBotGetPayload<{
+  select: typeof TASKBOARD_BOT_SELECT;
+}>;
 
 export interface SokoBotTaskboardSyncInput {
   abortSignal: AbortSignal;
@@ -155,14 +173,7 @@ export class SokoBotTaskboardSyncService {
         archivedAt: null,
         adminPausedAt: null,
       },
-      select: {
-        id: true,
-        name: true,
-        userId: true,
-        workspaceId: true,
-        followWholeBoard: true,
-        ingestTimezone: true,
-      },
+      select: TASKBOARD_BOT_SELECT,
     });
     for (const bot of bots) {
       if (!input.shouldContinue()) break;
@@ -170,14 +181,7 @@ export class SokoBotTaskboardSyncService {
       try {
         await ensureSystemSchedules(bot);
         const woke = await this.syncBot(
-          {
-            id: bot.id,
-            name: bot.name,
-            userId: bot.userId,
-            workspaceId: bot.workspaceId,
-            followWholeBoard: bot.followWholeBoard,
-            ingestTimezone: bot.ingestTimezone,
-          },
+          bot,
           since,
           input.abortSignal,
           scan.createdAt,
@@ -207,14 +211,7 @@ export class SokoBotTaskboardSyncService {
   }
 
   private async syncBot(
-    bot: {
-      id: string;
-      name: string | null;
-      userId: string;
-      workspaceId: string;
-      followWholeBoard: boolean;
-      ingestTimezone: string;
-    },
+    bot: TaskboardBot,
     since: Date,
     abortSignal: AbortSignal,
     cutoverAt: Date,
@@ -228,6 +225,7 @@ export class SokoBotTaskboardSyncService {
       },
       update: {},
     });
+    const scope = rhythmTaskScope(bot);
     const readTaskPage = (cursor?: string | null) =>
       prisma.task.findMany({
         where: {
@@ -260,7 +258,7 @@ export class SokoBotTaskboardSyncService {
                   : []),
               ],
             },
-            buildSokoBotOwnerTaskVisibilityWhere(bot.userId),
+            scope.visible,
           ],
         },
         select: {
@@ -439,9 +437,13 @@ export class SokoBotTaskboardSyncService {
         status: task.status,
         assignedToBot,
         work,
+        // A shared bot handles every Task it delegated: they are the team's.
         designatedHandlerBotId:
           task.assigneeSokoBotId ??
-          (taskIds.has(task.id) && task.ownerId === bot.userId ? bot.id : null),
+          (taskIds.has(task.id) &&
+          (scope.ownerUserId === null || task.ownerId === scope.ownerUserId)
+            ? bot.id
+            : null),
         cursor: cursorEvent
           ? { at: cursorEvent.createdAt, id: cursorEvent.id }
           : undefined,
@@ -467,6 +469,7 @@ export class SokoBotTaskboardSyncService {
     const attention = await findAttentionItems({
       id: bot.id,
       userId: bot.userId,
+      projectId: bot.projectId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
@@ -481,6 +484,8 @@ export class SokoBotTaskboardSyncService {
     const gate = await proactiveGate(bot.id, now);
     if (!gate.ok) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
+    // A personal bot runs for its owner; a shared bot runs for nobody.
+    const starter = sokoBotSelfStarter(bot);
     const message = [
       ...(batch.length > 0 ? [buildTaskboardMessage(batch), ""] : []),
       ...attentionBlock(attention),
@@ -494,7 +499,7 @@ export class SokoBotTaskboardSyncService {
       .join("\n")
       .trim();
     const started = await sokoBotControlPlane.startTurn({
-      userId: bot.userId,
+      ...starter,
       workspaceId: bot.workspaceId,
       clientTurnId: `taskboard:${createHash("sha256")
         .update(

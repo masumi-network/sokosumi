@@ -267,6 +267,25 @@ export function exceedsUnattendedHireBudget(params: {
   return unattended && params.maxCredits > params.ceiling;
 }
 
+/** Who an unattended turn tells the bot to ask: a shared bot has no owner. */
+function unattendedAsk(shared: boolean): string {
+  return shared ? "the team in your shared room" : "the owner";
+}
+
+/** Why a second hire in a turn nobody asked for was refused. */
+export function unattendedSecondHireRefusal(shared: boolean): string {
+  return `A turn nobody asked for may hire once. Report what you found and ask ${unattendedAsk(shared)} before hiring again.`;
+}
+
+/** Why a hire over the unattended ceiling was refused. */
+export function unattendedHireOverCeilingRefusal(
+  shared: boolean,
+  ceiling: number,
+  maxCredits: number,
+): string {
+  return `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${maxCredits}. ${shared ? `Ask ${unattendedAsk(true)} instead.` : "Ask the owner in their chat instead."}`;
+}
+
 /** Reads plus the sandbox: what every owner turn starts from. */
 const OWNER_BASE_CAPABILITIES = [
   ...DIRECT_READ_CAPABILITIES,

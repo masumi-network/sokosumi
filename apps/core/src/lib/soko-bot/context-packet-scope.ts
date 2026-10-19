@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
+import { needsProactiveDestination } from "@/helpers/soko-bot-notice-room";
 import {
   buildSokoBotReaderJobWhere,
   buildSokoBotReaderTaskWhere,
@@ -39,6 +40,8 @@ export interface ContextPacketReaderInput {
   roomId?: string | null;
   /** Null for a personal bot. */
   sharedScope: SokoBotScope | null;
+  /** What started the turn; a shared bot's self-started turn has no asker. */
+  source?: string;
 }
 
 /** The filters every packet read takes, one per collection. */
@@ -46,7 +49,10 @@ export interface ContextPacketScope {
   askedByKind: SokoBotPacketAudience;
   /** Whose name the packet looks up as the asker, if anyone's. */
   askerUserId: string | null;
-  /** Owner reminders reach only the owner's own packets. */
+  /**
+   * Owner reminders reach only the owner's own packets. A shared bot's
+   * reminders are about Tasks in its scope, which every member can read.
+   */
   includeReminders: boolean;
   projectWhere: Prisma.ProjectWhereInput;
   taskWhere: Prisma.TaskWhereInput;
@@ -153,12 +159,18 @@ function sharedPacketScope(
   scope: SokoBotScope,
 ): ContextPacketScope {
   const askedByKind = sharedSokoBotAudience(input.askedByKind);
+  // A turn the bot started itself runs for a member nobody asked on behalf
+  // of: naming them as the asker would say they asked.
+  const selfStarted =
+    input.source !== undefined && needsProactiveDestination(input.source);
   const askerUserId =
-    askedByKind === "TEAMMATE" ? (input.askedByUserId ?? input.userId) : null;
+    askedByKind === "TEAMMATE" && !selfStarted
+      ? (input.askedByUserId ?? input.userId)
+      : null;
   return {
     askedByKind,
     askerUserId,
-    includeReminders: false,
+    includeReminders: true,
     projectWhere: {
       workspaceId: scope.workspaceId,
       ...(scope.projectId === null ? {} : { id: scope.projectId }),

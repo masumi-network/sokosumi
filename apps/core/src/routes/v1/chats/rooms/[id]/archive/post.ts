@@ -4,6 +4,7 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { assertNotSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
@@ -108,6 +109,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "Only an organization owner or admin can archive this room.",
         );
       }
+
+      await assertNotSharedSokoBotRoom(existing.id, "archive", tx);
 
       const archivedAt = new Date();
       const updated = await tx.chatRoom.updateMany({

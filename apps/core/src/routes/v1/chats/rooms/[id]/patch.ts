@@ -10,6 +10,7 @@ import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { assertNotSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -187,6 +188,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         });
         assertChatRoomPatchAuth({ role, body });
+        // Also while the bot is archived: reactivation puts it back in.
+        if (
+          body.discoverability !== undefined &&
+          body.discoverability !== "public"
+        ) {
+          await assertNotSharedSokoBotRoom(
+            existing.id,
+            body.discoverability,
+            tx,
+          );
+        }
 
         // external → public/private only when no guests remain and no live
         // pending invitations (convert would orphan invite lifecycle).

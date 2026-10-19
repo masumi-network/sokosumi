@@ -11,6 +11,8 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/clients/composio.client", () => ({ getComposio: () => null }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   catalogLogos: vi.fn().mockResolvedValue(new Map()),
+}));
+vi.mock("@/services/soko-bot-integration-connection.service", () => ({
   requireBot: requireBotMock,
 }));
 
