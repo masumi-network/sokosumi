@@ -57,6 +57,19 @@ function classifyToolError(
       ? `${label} rejected the post${status ? ` (${status})` : ""}: ${providerMessage}`
       : error.message,
   );
+  const isXMediaStep = provider === "x" && /media|upload/i.test(error.message);
+  if (
+    status === 401 ||
+    (status === 403 &&
+      (isXMediaStep ||
+        /permission|scope|forbidden|unauthori[sz]ed/i.test(providerMessage))) ||
+    (isXMediaStep && /\b40[13]\b/.test(providerMessage)) ||
+    /unauthori[sz]ed|expired.?token|token.*expired|missing.?permission|missing.?scope/i.test(
+      providerMessage,
+    )
+  ) {
+    return { kind: "unauthorized", transient: false, summary };
+  }
   if (status === 429 || /rate.?limit|\b429\b/i.test(providerMessage)) {
     return { kind: "rate_limited", transient: true, summary };
   }

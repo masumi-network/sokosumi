@@ -90,5 +90,3 @@ export const notificationCountsSchema = z
     }),
   })
   .openapi("NotificationCounts");
-
-export type NotificationItem = z.infer<typeof notificationItemSchema>;

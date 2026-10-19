@@ -9,7 +9,7 @@
 
 [REPORTED: user decision] Developers need brief local sessions, retained workspace-only Coworkers, and permanent hosted runtimes. They may connect solely to test eligibility. They need not complete capabilities in a fixed order or publish their Coworker.
 
-[VERIFIED: source inspection at 63377d7] `apps/cli/SPEC.md` V1, V6, and V58 reject Coworker credentials in the developer CLI. Core registration is admin-only (`apps/core/src/routes/v1/coworkers/post.ts:75-132`). Global whitelist mutation is admin-only (`apps/core/src/routes/v1/coworkers/[id]/whitelist/patch.ts:42-55`). These are implementation facts, not capabilities delivered by this ADR.
+[VERIFIED: source inspection at 63377d7] `apps/cli/SPEC.md` V1, V6, and V58 reject Coworker credentials in the developer CLI. Core creation allows platform admin on any network and own Vendor admin on Preprod (`apps/core/src/routes/v1/coworkers/post.ts:83-112`). Global whitelist mutation is admin-only (`apps/core/src/routes/v1/coworkers/[id]/whitelist/patch.ts:42-55`). These are implementation facts, not capabilities delivered by this ADR.
 
 ## Alternatives
 

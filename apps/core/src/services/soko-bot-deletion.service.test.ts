@@ -32,6 +32,7 @@ const {
     chatMessage: 0,
     uploadedTaskFile: 0,
     taskSchedule: 0,
+    job: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
@@ -99,6 +100,7 @@ vi.mock("@/lib/db/transaction", () => ({
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
       taskSchedule: { count: vi.fn(async () => counts.taskSchedule) },
+      job: { count: vi.fn(async () => counts.job) },
     }),
   ),
 }));
@@ -159,6 +161,16 @@ describe("deleteSokoBot", () => {
 
     expect(result.outcome).toBe("tombstoned");
     expect(result.retained.taskSchedules).toBe(1);
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("tombstones a bot that created a Job, whose creator FK restricts deletion", async () => {
+    counts.job = 1;
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(result.retained.jobs).toBe(1);
     expect(txBotDeleteMock).not.toHaveBeenCalled();
   });
 

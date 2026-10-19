@@ -15,7 +15,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a", "room-b"],
       organizationIds: [],
       workspaceIds: ["workspace-personal"],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability).toEqual({
@@ -45,7 +45,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a", "room-b"],
       organizationIds: ["org_a"],
       workspaceIds: [],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(
@@ -67,7 +67,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a"],
       organizationIds: ["org_a"],
       workspaceIds: ["workspace-personal", "workspace-org-a"],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["notifications:all:user_user_123"]).toEqual([
@@ -88,7 +88,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: [],
-      notificationChannelEnvironment: {
+      channelEnvironment: {
         network: "Mainnet",
         vercelEnv: "preview",
         vercelGitCommitRef: "fix/push-urls",
@@ -103,13 +103,37 @@ describe("buildAblyClientCapability", () => {
     ).toEqual(["subscribe", "presence", "push-subscribe"]);
   });
 
+  // ADR 0055: a preview's rooms and users exist in production too, so its
+  // token must not name a single production channel.
+  it("grants only scoped channels to a preview token", () => {
+    const capability = buildAblyClientCapability({
+      userId: "u1",
+      roomIds: ["r1"],
+      organizationIds: ["o1"],
+      workspaceIds: ["w1"],
+      channelEnvironment: {
+        network: "Mainnet",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "fix/x",
+      },
+    });
+
+    const keys = Object.keys(capability);
+    expect(keys).toHaveLength(9);
+    for (const key of keys) {
+      expect(key.split(":").slice(1, 4).join(":")).toBe(
+        "preview:mainnet:branch_fix%2Fx",
+      );
+    }
+  });
+
   it("grants presence on each organization channel", () => {
     const capability = buildAblyClientCapability({
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a", "org_b"],
       workspaceIds: ["workspace-org-a", "workspace-org-b"],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["presence:org_org_a"]).toEqual(["presence", "subscribe"]);
@@ -123,7 +147,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: [],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["chat_rooms:room_anything"]).toBeUndefined();
@@ -141,7 +165,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a"],
       organizationIds: [],
       workspaceIds: [],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["chat_rooms:*:user_user_123"]).toBeUndefined();
@@ -154,7 +178,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: ["workspace-personal", "workspace-org-a"],
-      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(

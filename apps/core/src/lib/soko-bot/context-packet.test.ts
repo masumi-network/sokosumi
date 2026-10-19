@@ -880,7 +880,11 @@ describe("ContextPacketBuilder", () => {
     expect(recentTurnFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          chatMention: { message: { roomId: "room-one" } },
+          OR: [
+            { chatMention: { message: { roomId: "room-one" } } },
+            // What a background run reported into this room.
+            { parentTurnId: { not: null }, destinationRoomId: "room-one" },
+          ],
         }),
       }),
     );

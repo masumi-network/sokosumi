@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   CalendarClock,
   Clock,
+  Hourglass,
   ListChecks,
   Mail,
   ShieldCheck,
@@ -27,6 +28,7 @@ interface SokoBotMessageMetadata {
   source?: string;
   schedule_name?: string;
   schedule_key?: string | null;
+  background_run_title?: string;
 }
 
 function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
@@ -52,6 +54,10 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
         : undefined,
     schedule_key:
       typeof record.schedule_key === "string" ? record.schedule_key : null,
+    background_run_title:
+      typeof record.background_run_title === "string"
+        ? record.background_run_title
+        : undefined,
   };
 }
 
@@ -60,11 +66,14 @@ type SourceLabel =
   | { kind: "standup" }
   | { kind: "weeklyWrap" }
   | { kind: "scheduled"; name: string }
+  | { kind: "background"; name: string }
   | { kind: "taskUpdate" };
 
 /** Where a message the bot sent on its own came from; null for replies. */
 export function sokoBotSourceLabel(metadata: unknown): SourceLabel | null {
   const info = readSokoBotMetadata(metadata);
+  if (info?.background_run_title)
+    return { kind: "background", name: info.background_run_title };
   switch (info?.source) {
     case "INGEST":
       return { kind: "inbox" };
@@ -86,6 +95,7 @@ const SOURCE_ICONS = {
   standup: CalendarClock,
   weeklyWrap: CalendarClock,
   scheduled: Clock,
+  background: Hourglass,
   taskUpdate: ListChecks,
 } as const;
 
@@ -98,8 +108,8 @@ export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
   return (
     <div className="text-muted-foreground mb-1 inline-flex items-center gap-1.5 text-xs">
       <Icon aria-hidden className="size-3" />
-      {label.kind === "scheduled"
-        ? t("scheduled", { name: label.name })
+      {label.kind === "scheduled" || label.kind === "background"
+        ? t(label.kind, { name: label.name })
         : t(label.kind)}
     </div>
   );

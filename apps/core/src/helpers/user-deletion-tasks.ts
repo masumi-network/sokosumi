@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import {
+  type Prisma,
   TaskPaymentClaimStatus,
+  TaskScheduleState,
+  TaskVisibility,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
@@ -20,6 +23,7 @@ import {
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
+import { stopPlannedTaskScheduleRuns } from "@/services/task-schedule-runs.service";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -47,14 +51,47 @@ function throwPendingX402PaymentDeletionBlocker(
 }
 
 /**
- * Clear creator RESTRICT blockers and delete the user in one transaction.
+ * Pause, as a member would, the public Task Schedules that will have no Owner
+ * once `userId` is gone.
+ */
+async function pausePublicTaskSchedules(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const schedules = await tx.taskSchedule.findMany({
+    where: {
+      ownerId: userId,
+      visibility: TaskVisibility.PUBLIC,
+      state: TaskScheduleState.ACTIVE,
+    },
+    select: { id: true },
+  });
+  const now = new Date();
+  for (const schedule of schedules) {
+    await stopPlannedTaskScheduleRuns(tx, schedule.id, now, {
+      keepOwed: false,
+      exceptions: "keep",
+    });
+  }
+  await tx.taskSchedule.updateMany({
+    where: { id: { in: schedules.map((schedule) => schedule.id) } },
+    data: {
+      state: TaskScheduleState.PAUSED,
+      nextRunAt: null,
+      revision: { increment: 1 },
+    },
+  });
+}
+
+/**
+ * Clear deletion blockers and delete the user in one transaction.
  *
- * - Owned tasks and Task Schedules are deleted (owner cascade would anyway).
- * - Tasks and Task Schedules this user (or their assigned coworkers) created
- *   but do not own keep the row and re-point creator to the owner as a user
- *   creator.
- * - Coworker assignments cascade-delete with the user; creatorCoworkerId is
- *   RESTRICT, so those refs must be cleared first.
+ * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
+ *   and so is the work in their personal workspace.
+ * - Public work stays with its workspace (ADR 0057); the database empties
+ *   this user's Owner and Creator columns on it. Public Task Schedules this
+ *   user owned are paused, so nothing keeps running with nobody behind it;
+ *   the member who resumes one becomes its Owner.
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
  *   re-checked here under lock. Terminal claims are removed so their RESTRICT
  *   transaction relations do not block user cascade.
@@ -75,7 +112,7 @@ function throwPendingX402PaymentDeletionBlocker(
  * - Chat rooms this user created re-point `createdByUserId` to another remaining
  *   human member. Rooms with no other human member are deleted so Restrict does
  *   not 500 an allowed wipe.
- * - Public blob files for owned tasks are best-effort deleted after the DB
+ * - Public blob files for deleted tasks are best-effort deleted after the DB
  *   cascade (URLs remain public if blob GC fails).
  */
 export async function prepareTasksForUserDeletion(
@@ -469,55 +506,12 @@ export async function prepareTasksForUserDeletion(
           },
         });
 
-        const coworkerIds = (
-          await tx.coworkerAssignment.findMany({
-            where: { userId },
-            select: { coworkerId: true },
-          })
-        ).map((assignment) => assignment.coworkerId);
-
-        const createdByUser = [
-          { creatorUserId: userId },
-          ...(coworkerIds.length > 0
-            ? [{ creatorCoworkerId: { in: coworkerIds } }]
-            : []),
-        ];
-        const createdTasks = await tx.task.findMany({
-          where: { OR: createdByUser },
-          select: { id: true, ownerId: true },
-        });
-
-        for (const task of createdTasks) {
-          if (task.ownerId === userId) continue;
-
-          await tx.task.update({
-            where: { id: task.id },
-            data: {
-              creatorUserId: task.ownerId,
-              creatorCoworkerId: null,
-              creatorSokoBotId: null,
-            },
-          });
-        }
-
-        // Task Schedules carry the same RESTRICT creator FKs as Tasks.
-        const createdSchedules = await tx.taskSchedule.findMany({
-          where: { ownerId: { not: userId }, OR: createdByUser },
-          select: { id: true, ownerId: true },
-        });
-        for (const schedule of createdSchedules) {
-          await tx.taskSchedule.update({
-            where: { id: schedule.id },
-            data: {
-              creatorUserId: schedule.ownerId,
-              creatorCoworkerId: null,
-              creatorSokoBotId: null,
-            },
-          });
-        }
-
+        const privateTaskWhere = {
+          ownerId: userId,
+          visibility: TaskVisibility.PRIVATE,
+        };
         const ownedFiles = await tx.taskFile.findMany({
-          where: { task: { ownerId: userId } },
+          where: { task: privateTaskWhere },
           select: { fileUrl: true, taskId: true },
         });
 
@@ -545,12 +539,19 @@ export async function prepareTasksForUserDeletion(
           }
         }
 
-        await tx.taskSchedule.deleteMany({
-          where: { ownerId: userId },
+        await tx.taskSchedule.deleteMany({ where: privateTaskWhere });
+        await pausePublicTaskSchedules(tx, userId);
+        // Before their Tasks, which would only detach them. Jobs in the
+        // personal workspace go too: that workspace is deleted with the user.
+        await tx.job.deleteMany({
+          where: {
+            OR: [
+              { ownerId: userId, task: { is: privateTaskWhere } },
+              { workspace: { userId } },
+            ],
+          },
         });
-        await tx.task.deleteMany({
-          where: { ownerId: userId },
-        });
+        await tx.task.deleteMany({ where: privateTaskWhere });
 
         const createdRooms = await tx.chatRoom.findMany({
           where: { createdByUserId: userId },
@@ -598,9 +599,9 @@ export async function prepareTasksForUserDeletion(
       // Prisma's default interactive-transaction timeout is 5 s, and this
       // callback stopped being a handful of indexed lookups when the x402
       // locks, guards and sweeps moved in: lock waits behind an in-flight
-      // charge and the per-task creator-repoint loop both count against the
-      // same budget. On expiry Prisma throws P2028, which the conflict
-      // mapping below does not (and should not) match, so a heavy account
+      // charge and the per-row sweeps all count against the same budget. On
+      // expiry Prisma throws P2028, which the conflict mapping below does not
+      // (and should not) match, so a heavy account
       // would 500 deterministically on every retry. 30 s is headroom, not a
       // target — the transaction stays atomic either way.
       { maxWait: 5_000, timeout: 30_000 },
@@ -641,8 +642,8 @@ export async function prepareTasksForUserDeletion(
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come
-      // from the claim sweep, the creator-repoint loop, the owned-task
-      // delete, or the user-row lock contending with an unrelated FK insert.
+      // from the claim sweep, the owned-task delete, or the user-row lock
+      // contending with an unrelated FK insert.
       // Naming a task payment here would send support chasing a payment that
       // may not exist.
       throw new APIError("BAD_REQUEST", {

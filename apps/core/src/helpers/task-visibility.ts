@@ -44,10 +44,7 @@ export function buildHumanJobParentVisibilityWhere(
 }
 
 export function isPrivateTaskVisibleToHuman(
-  task: Pick<
-    { visibility: TaskVisibility; ownerId: string },
-    "visibility" | "ownerId"
-  >,
+  task: { visibility: TaskVisibility; ownerId: string | null },
   userId: string,
 ): boolean {
   if (task.visibility !== TaskVisibility.PRIVATE) {

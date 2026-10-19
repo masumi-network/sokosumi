@@ -142,10 +142,20 @@ export function SocialCalendarPreviewProvider({
           ) : (
             <div
               aria-hidden
-              className="space-y-2"
+              className="space-y-3"
               data-testid="social-calendar-preview-skeleton"
             >
-              <Skeleton className="h-4 w-32" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-10 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton
+                  className="size-5 shrink-0 rounded-sm"
+                  data-testid="social-calendar-preview-platform-mark"
+                />
+              </div>
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-4 w-2/3" />
             </div>

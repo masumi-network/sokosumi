@@ -45,7 +45,7 @@ import type { FileCandidate } from "@/lib/files/retrieval";
  * applied: the head is what a reader looks at.
  */
 export const SEARCH_RERANK_CANDIDATES = 6;
-export const RELATED_RERANK_CANDIDATES = 6;
+const RELATED_RERANK_CANDIDATES = 6;
 
 export type RankingMode = "deterministic" | "model";
 

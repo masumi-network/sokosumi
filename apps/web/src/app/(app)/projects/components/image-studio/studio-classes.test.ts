@@ -4,6 +4,7 @@ import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+  STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 
 describe("studio column height", () => {
@@ -11,6 +12,7 @@ describe("studio column height", () => {
     expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).toContain(
       "max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]",
     );
+    expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).toContain("max-md:-m-4");
     expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).not.toContain("max-md:h-full");
   });
 
@@ -20,12 +22,14 @@ describe("studio column height", () => {
     );
   });
 
-  it("keeps the desktop column below the in-flow header and page pad", () => {
+  it("docks the desktop column like an open chat room", () => {
     expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain(
-      "md:h-[calc(100dvh-6rem-env(safe-area-inset-top))]",
+      "md:h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
-    expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain(
-      "env(safe-area-inset-top)",
-    );
+    expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain("md:-m-4");
+  });
+
+  it("uses the same composer gutter as chat", () => {
+    expect(STUDIO_COMPOSER_GUTTER_CLASS).toBe("px-3 md:px-5");
   });
 });

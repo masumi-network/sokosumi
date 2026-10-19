@@ -93,7 +93,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
       const turn = await db.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           source: "CHAT",
           status: "COMPLETED",

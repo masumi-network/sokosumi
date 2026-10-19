@@ -87,6 +87,8 @@ describe("socialAccountPostSchema", () => {
     },
     additionalMetrics: [],
     fetchedAt: "2026-10-08T12:00:00.000Z",
+    strong: false,
+    canRecycle: true,
   };
 
   it("rejects a non-http post url", () => {

@@ -17,30 +17,20 @@ public extension ChatService {
     parentMessageId: String? = nil,
     quoteMessageId: String? = nil
   ) async throws -> HTTPBody {
-    let response = try await client.postChatsRoomsIdStream(.init(
-      path: .init(id: roomId),
-      headers: .init(xOrganizationSlug: organizationSlug),
-      body: .json(.init(
-        value1: .init(messages: [.init(
-          role: .user,
-          parts: streamParts(text: text, attachments: attachments),
-          id: messageId
-        )], id: roomId),
-        value2: .init(parentMessageId: parentMessageId, roomId: roomId, quote: quoteMessageId.map { .init(messageId: $0) })
+    try await call {
+      try await client.postChatsRoomsIdStream(.init(
+        path: .init(id: roomId),
+        headers: .init(xOrganizationSlug: organizationSlug),
+        body: .json(.init(
+          value1: .init(messages: [.init(
+            role: .user,
+            parts: streamParts(text: text, attachments: attachments),
+            id: messageId
+          )], id: roomId),
+          value2: .init(parentMessageId: parentMessageId, roomId: roomId, quote: quoteMessageId.map { .init(messageId: $0) })
+        ))
       ))
-    ))
-    switch response {
-    case let .ok(value): return try value.body.textEventStream
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .conflict(value): throw try ChatServiceError.unprocessable(statusCode: 409, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .serviceUnavailable(value): throw try ChatServiceError.unprocessable(statusCode: 503, message: value.body.json.message)
-    case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
-    }
+    }.ok.body.textEventStream
   }
 
   /// Text keeps the markdown links for the persisted message; file parts let the model read the files.
@@ -55,17 +45,14 @@ public extension ChatService {
 
   /// A 204 is an idle room, not a thinking or error state.
   func resumeDirectStream(client: Client, roomId: String, organizationSlug: String?) async throws -> HTTPBody? {
-    let response = try await client.getChatsRoomsIdStreamActive(.init(
-      path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case let .ok(value): return try value.body.textEventStream
-    case .noContent: return nil
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
+    let response = try await call {
+      try await client.getChatsRoomsIdStreamActive(.init(
+        path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug)
+      ))
     }
+    if case .noContent = response {
+      return nil
+    }
+    return try response.ok.body.textEventStream
   }
 }

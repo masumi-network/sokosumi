@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
+  COWORKER_ID,
+  MEMBER_ID,
+  OWNER_ID,
   resetTaskScheduleTestDb,
   runsOf,
   seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
+  userAuth,
 } from "@/test-fixtures/task-schedule";
 import {
   createTaskScheduleTestApp,
@@ -198,4 +201,67 @@ describe("POST /tasks/schedules/{id}/resume", () => {
       expect(stored(schedule.id)?.state).toBe(state);
     },
   );
+
+  it("makes the member who resumes a schedule without an Owner its Owner", async () => {
+    // A public schedule whose person deleted their account.
+    const schedule = seedTaskSchedule({
+      state: "PAUSED",
+      nextRunAt: null,
+      ownerId: null,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+    });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      state: "ACTIVE",
+      ownerId: MEMBER_ID,
+    });
+    expect(await response.json()).toMatchObject({
+      data: { ownerId: MEMBER_ID },
+    });
+  });
+
+  it("sets no Owner when resuming ends a schedule without an Owner", async () => {
+    const schedule = seedTaskSchedule({
+      state: "PAUSED",
+      nextRunAt: null,
+      ownerId: null,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      endsMode: "ON",
+      endsOn: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      state: "ENDED",
+      ownerId: null,
+    });
+  });
+
+  it("keeps the Owner of a schedule that has one", async () => {
+    const schedule = seedTaskSchedule({ state: "PAUSED", nextRunAt: null });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)).toMatchObject({
+      state: "ACTIVE",
+      ownerId: OWNER_ID,
+    });
+  });
 });

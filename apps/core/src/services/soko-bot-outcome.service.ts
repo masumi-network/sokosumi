@@ -10,6 +10,7 @@ import {
   readSokoBotPacketAudience,
   type SokoBotPacketAudience,
 } from "@/helpers/task-visibility";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 
 import {
   ACTION_CAPABILITIES,
@@ -351,7 +352,11 @@ export async function assessSokoBotIntentOutcome(
 ) {
   const turn = await tx.sokoBotTurn.findUnique({
     where: { id: turnId },
-    include: { intent: true, contextSnapshot: { select: { packet: true } } },
+    include: {
+      intent: true,
+      contextSnapshot: { select: { packet: true } },
+      sokoBot: { select: { userId: true } },
+    },
   });
   if (!turn?.intent || turn.intentRevision !== turn.intent.revision)
     return null;
@@ -431,7 +436,7 @@ export async function assessSokoBotIntentOutcome(
         workspaceId: turn.workspaceId,
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(
-          turn.userId,
+          sokoBotActingUserId(turn),
           readSokoBotPacketAudience(turn.contextSnapshot?.packet),
         ),
       },
@@ -541,7 +546,7 @@ export async function assessSokoBotIntentOutcome(
           workspaceId: turn.workspaceId,
           status: { in: ["READY", "RUNNING", "COMPLETED", "CANCELED"] },
           ...buildSokoBotAudienceTaskVisibilityWhere(
-            turn.userId,
+            sokoBotActingUserId(turn),
             readSokoBotPacketAudience(turn.contextSnapshot?.packet),
           ),
         },
@@ -694,11 +699,11 @@ export async function readSokoBotTaskOutcome(
       id: input.turnId,
       sokoBotId: input.sokoBotId,
       workspaceId: input.workspaceId,
-      userId: input.userId,
+      requestedByUserId: input.userId,
       intentId: input.intentId,
       intentRevision: input.intentRevision,
       chainDepth: 0,
-      OR: [{ requestedByUserId: null }, { requestedByUserId: input.userId }],
+      OR: [{ askedByUserId: null }, { askedByUserId: input.userId }],
     },
     select: {
       contextSnapshot: { select: { packet: true } },

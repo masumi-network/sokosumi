@@ -8,7 +8,7 @@ import {
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-export const adminAgentListSortBySchema = z
+const adminAgentListSortBySchema = z
   .enum(["displayName", "registryName", "hasOverride", "status", "createdAt"])
   .default("createdAt")
   .openapi({
@@ -17,7 +17,7 @@ export const adminAgentListSortBySchema = z
     example: "createdAt",
   });
 
-export const adminAgentListSortOrderSchema = z
+const adminAgentListSortOrderSchema = z
   .enum(["asc", "desc"])
   .default("desc")
   .openapi({
@@ -55,7 +55,7 @@ export const adminAgentIdParamSchema = z.object({
   }),
 });
 
-export const adminAgentMetadataOverrideExampleSchema = z
+const adminAgentMetadataOverrideExampleSchema = z
   .object({
     name: z.string().min(1),
     mimeType: z.string().min(1),

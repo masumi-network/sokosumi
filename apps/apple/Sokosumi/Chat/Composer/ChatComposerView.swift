@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -10,7 +9,6 @@ import UniformTypeIdentifiers
   /// gives each account/workspace/room a distinct identity before loading its draft.
   struct ChatComposerView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Binding var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     @State private var draft: String
     @State private var filePickerPresented = false
@@ -26,6 +24,7 @@ import UniformTypeIdentifiers
     @EnvironmentObject private var uploads: ComposeUploads
     @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
     @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.composerFocusRequest) private var composerFocus
 
     /// A pasted Message link that became the pending quote.
     private struct QuotedLink {
@@ -35,13 +34,17 @@ import UniformTypeIdentifiers
 
     private let savedDraft: SavedComposeDraft
     private let quoteFocusRequest: String?
+    /// The room's messages or empty state are on screen: a sidebar click's focus request waits for them, as web's
+    /// `focusOnMount={!messagesPending}`.
+    private let transcriptShown: Bool
     private let roomId: String
     private let parentMessageId: String?
     private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, onAccepted: (() -> Void)? = nil) {
+    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, transcriptShown: Bool = false, onAccepted: (() -> Void)? = nil) {
       _pendingQuote = pendingQuote
       self.quoteFocusRequest = quoteFocusRequest
+      self.transcriptShown = transcriptShown
       self.onAccepted = onAccepted
       self.roomId = roomId
       self.parentMessageId = parentMessageId
@@ -62,7 +65,7 @@ import UniformTypeIdentifiers
     /// The coworker 1:1 stream needs words to answer, so a quote cannot be the
     /// whole message there.
     private var requiresBody: Bool {
-      workspaces.directStream.roomId == roomId
+      workspaces.openRoom.directStream.roomId == roomId
     }
 
     /// Typing belongs to the room's main transcript (ADR 0033): the Thread composer announces nothing
@@ -83,17 +86,17 @@ import UniformTypeIdentifiers
     }
 
     private var canAttachFiles: Bool {
-      workspaces.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil && !attachmentIngress.isReceiving
+      workspaces.openRoom.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil && !attachmentIngress.isReceiving
     }
 
     private var canSend: Bool {
       preparedContent.canSend(quoted: pendingQuote != nil && !requiresBody)
         && uploads.uploadingName == nil
         && !attachmentIngress.isReceiving
-        && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
-        && !workspaces.directStream.isBusy
-        && workspaces.transcriptRoomId == roomId
-        && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
+        && (uploads.attachments.isEmpty || workspaces.openRoom.canAttachFiles(roomId: roomId))
+        && !workspaces.openRoom.directStream.isBusy
+        && workspaces.openRoom.room.timeline.roomId == roomId
+        && (parentMessageId == nil || workspaces.openRoom.thread.parent?.id == parentMessageId)
     }
 
     var body: some View {
@@ -108,7 +111,7 @@ import UniformTypeIdentifiers
           HStack {
             ComposerTooLongHint()
             Spacer(minLength: 8)
-            if !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
+            if !draft.isEmpty, workspaces.openRoom.canAttachFiles(roomId: roomId) {
               Button("Convert to file", systemImage: "doc.text") { attachOverflow() }
                 .controlSize(.small)
                 .disabled(!canAttachFiles)
@@ -124,7 +127,7 @@ import UniformTypeIdentifiers
       }
       .sheet(isPresented: $drivePickerPresented) {
         DriveFilePickerView(load: { folder, query in
-          try await workspaces.driveItems(folder: folder, query: query, roomId: roomId, auth: auth)
+          try await workspaces.openRoom.driveItems(folder: folder, query: query, roomId: roomId)
         }, select: { attachment in
           guard canAttachFiles else { return }
           uploads.add(attachment)
@@ -146,14 +149,14 @@ import UniformTypeIdentifiers
         guard announcesTyping, !active else { return }
         Task { @MainActor in workspaces.composerStoppedTyping(roomId: roomId) }
       }
-      .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
-        guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
+      .onChange(of: workspaces.openRoom.directStream.restoredDraft, initial: true) { _, _ in
+        guard let text = workspaces.openRoom.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
         if pendingQuote == nil {
-          pendingQuote = workspaces.directStream.restoredQuote
+          pendingQuote = workspaces.openRoom.directStream.restoredQuote
         }
         Task { @MainActor in
-          workspaces.directStream.consumeRestoredDraft()
+          workspaces.openRoom.directStream.consumeRestoredDraft()
         }
       }
     }
@@ -168,13 +171,16 @@ import UniformTypeIdentifiers
       ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       input.onPaste = { paste in quotePastedLink(paste) }
       input.insertion = insertion
+      if transcriptShown {
+        input.takesFocus = { [composerFocus, roomId] in composerFocus?.take(roomId) == true }
+      }
       if announcesTyping {
         input.onEdit = { text in
           workspaces.composerEdited(roomId: roomId, hasText: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, now: Date())
         }
         input.onBlur = { workspaces.composerStoppedTyping(roomId: roomId) }
       }
-      if workspaces.canAttachFiles(roomId: roomId) {
+      if workspaces.openRoom.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }
         input.attachmentsEnabled = canAttachFiles
@@ -184,7 +190,7 @@ import UniformTypeIdentifiers
       }
       if allowsSkills {
         input.skills = ComposerSkills(selected: skills, search: { query in
-          try await workspaces.searchSkills(query, auth: auth)
+          try await workspaces.searchSkills(query)
         }, change: { skills = $0 })
       }
       return input
@@ -198,8 +204,8 @@ import UniformTypeIdentifiers
       // One quote per message: never swap a quote the sender already chose.
       guard pendingQuote == nil else { return }
       Task { @MainActor in
-        guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL, auth: auth),
-              generation == pasteGeneration, pendingQuote == nil, workspaces.transcriptRoomId == roomId,
+        guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL),
+              generation == pasteGeneration, pendingQuote == nil, workspaces.openRoom.room.timeline.roomId == roomId,
               // Nothing to swap once the link was edited away.
               paste.remove() else { return }
         pendingQuote = quote
@@ -218,7 +224,7 @@ import UniformTypeIdentifiers
     private func attachFiles(_ files: [URL]) {
       guard canAttachFiles else { return }
       uploads.upload(files) { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
+        try await workspaces.openRoom.uploadAttachment(file, roomId: roomId)
       }
     }
 
@@ -240,7 +246,7 @@ import UniformTypeIdentifiers
     private func attachTemporary(_ data: Data, filename: String, completed: (() -> Void)? = nil) {
       guard canAttachFiles else { return }
       uploads.upload(data, filename: filename, using: { file in
-        try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
+        try await workspaces.openRoom.uploadAttachment(file, roomId: roomId)
       }, completed: completed)
     }
 
@@ -250,8 +256,8 @@ import UniformTypeIdentifiers
       let content = preparedContent.text
       let attached = allowsSkills ? skills : []
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
-        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
+        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached)
+        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached)
       guard accepted else { return false }
       pasteGeneration += 1
       quotedLink = nil

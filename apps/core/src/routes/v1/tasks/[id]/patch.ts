@@ -320,7 +320,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           context,
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
-          ownerId: task.ownerId,
+          ownerId: task.ownerId ?? userContext.userId,
           actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,
@@ -377,10 +377,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
-    if (result.statusChanged) {
+    const ownerId = result.task.ownerId;
+    if (result.statusChanged && ownerId) {
       try {
         await publishTaskEventData({
-          userId: result.task.ownerId,
+          userId: ownerId,
           taskId: result.task.id,
           eventType: "task_event",
         });
@@ -389,7 +390,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tags: { error_type: "publish_task_event" },
           extra: {
             taskId: result.task.id,
-            userId: result.task.ownerId,
+            userId: ownerId,
           },
         });
       }

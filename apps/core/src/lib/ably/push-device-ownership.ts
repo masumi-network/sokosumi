@@ -1,12 +1,12 @@
 import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import type { DeviceDetails, Rest } from "ably";
 import { badGateway } from "@/helpers/error";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 export function getPushDeviceChannel(userId: string): string {
   return makeUserNotificationsChannelName(
     userId,
-    getNotificationChannelEnvironment(),
+    getRealtimeChannelEnvironment(),
   );
 }
 

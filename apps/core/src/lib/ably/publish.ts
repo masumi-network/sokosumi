@@ -25,7 +25,7 @@ import {
   chatRoomMessagePublishBody,
 } from "./ably-message-size";
 import { getRestClient } from "./client";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 interface JobStatusData {
   jobId: string;
@@ -123,10 +123,11 @@ export async function publishCalendarInvalidationToUsers({
   invalidation,
 }: PublishCalendarInvalidationInput): Promise<void> {
   const client = getRestClient();
+  const environment = getRealtimeChannelEnvironment();
   await Promise.all(
     [...new Set(userIds)].map((userId) =>
       client.channels
-        .get(makeWorkspaceCalendarChannelName(workspaceId, userId))
+        .get(makeWorkspaceCalendarChannelName(workspaceId, userId, environment))
         .publish(CALENDAR_INVALIDATED_EVENT_NAME, invalidation),
     ),
   );
@@ -140,7 +141,12 @@ export async function publishCalendarAccessRevoked(input: {
 }): Promise<void> {
   const client = getRestClient();
   await client.channels
-    .get(makeUserCalendarControlChannelName(input.userId))
+    .get(
+      makeUserCalendarControlChannelName(
+        input.userId,
+        getRealtimeChannelEnvironment(),
+      ),
+    )
     .publish(CALENDAR_ACCESS_REVOKED_EVENT_NAME, {
       workspaceId: input.workspaceId,
       organizationId: input.organizationId,
@@ -231,7 +237,9 @@ export async function publishTaskEventData({
   taskId,
 }: PublishTaskEventDataInput) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserTasksChannelName(userId));
+  const channel = client.channels.get(
+    makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
+  );
   await channel.publish("task_event", {
     taskId,
     eventType: "task_event",
@@ -247,7 +255,7 @@ export async function publishJobStatusData({
 }: PublishJobStatusDataInput) {
   const client = getRestClient();
   const channel = client.channels.get(
-    makeAgentJobsChannelName(agentId, userId),
+    makeAgentJobsChannelName(agentId, userId, getRealtimeChannelEnvironment()),
   );
   await channel.publish("job_status_data", {
     jobId,
@@ -264,10 +272,7 @@ export async function publishNotificationEvent({
 }: PublishNotificationEventInput) {
   const client = getRestClient();
   const channel = client.channels.get(
-    makeUserNotificationsChannelName(
-      userId,
-      getNotificationChannelEnvironment(),
-    ),
+    makeUserNotificationsChannelName(userId, getRealtimeChannelEnvironment()),
   );
   await channel.publish({
     name: "notification_created",
@@ -334,7 +339,9 @@ export async function publishChatRoomMessageEvent(
 ) {
   const client = getRestClient();
   const roomId = isPatchEventInput(input) ? input.roomId : input.message.roomId;
-  const channel = client.channels.get(makeChatRoomChannelName(roomId));
+  const channel = client.channels.get(
+    makeChatRoomChannelName(roomId, getRealtimeChannelEnvironment()),
+  );
 
   if (isPatchEventInput(input)) {
     await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, {
@@ -368,7 +375,9 @@ export async function publishChatMembershipRevoked({
   reason,
 }: PublishChatMembershipRevokedInput) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserChatControlChannelName(userId));
+  const channel = client.channels.get(
+    makeUserChatControlChannelName(userId, getRealtimeChannelEnvironment()),
+  );
   await channel.publish(CHAT_MEMBERSHIP_REVOKED_EVENT_NAME, {
     roomId,
     reason,
@@ -426,7 +435,10 @@ export async function publishChatRoomsChanged({
   collections,
   roomId,
 }: PublishChatRoomsChangedInput): Promise<void> {
-  const channels = [...new Set(userIds)].map(makeUserChatControlChannelName);
+  const environment = getRealtimeChannelEnvironment();
+  const channels = [...new Set(userIds)].map((userId) =>
+    makeUserChatControlChannelName(userId, environment),
+  );
   if (channels.length === 0) return;
   try {
     const client = getRestClient();
