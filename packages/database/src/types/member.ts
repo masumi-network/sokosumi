@@ -4,11 +4,11 @@ export const memberUserInclude = {
   user: true,
 } as const;
 
-export const memberRoleOrderBy = {
+const memberRoleOrderBy = {
   role: "asc",
 } as const;
 
-export const memberUserNameOrderBy = {
+const memberUserNameOrderBy = {
   user: {
     name: "asc",
   },

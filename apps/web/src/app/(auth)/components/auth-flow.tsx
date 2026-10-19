@@ -27,6 +27,8 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
   buildAuthPageUrl,
+  buildSignedOAuthQueryFromSearchParams,
+  oauthRequestSignsUpOnWebsite,
   readAuthPageContext,
   readAuthReturnUrl,
 } from "@/lib/auth/auth.utils";
@@ -103,6 +105,10 @@ export default function AuthFlow({
     invitationId: lockedInvitationId,
   });
   const signInHref = useSignInHref();
+  // The Apple app's people register on the website, outside its sign-in sheet.
+  const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
+  const signsUpOnWebsite =
+    oauthQuery !== undefined && oauthRequestSignsUpOnWebsite(oauthQuery);
   // Lives here, not in step 2: Continue sends the code before step 2 opens.
   const emailCode = useEmailCode({
     eventType: mode,
@@ -244,45 +250,52 @@ export default function AuthFlow({
             : undefined
         }
         detour={
-          isSignIn
+          isSignIn && signsUpOnWebsite
             ? {
-                title: signInT("NoAccount.title"),
-                description: signInT("NoAccount.description"),
-                label: signInT("NoAccount.createAccount"),
-                href: signUpHref,
-                // Register's first step would only ask Core again and send
-                // this code, so it is sent here and Register opens on its
-                // second step.
-                follow: async (newEmail, signal, { captchaPass }) => {
-                  const codeSentAt = await emailCode.sendCode(newEmail, {
-                    signal,
-                    captchaPass,
-                  });
-                  if (signal.aborted) return;
-                  rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
-                  router.push(signUpHref);
-                },
+                title: signInT("NoAccountOnWebsite.title"),
+                description: signInT("NoAccountOnWebsite.description"),
+                label: signInT("NoAccountOnWebsite.createAccount"),
+                href: "/signup",
               }
-            : {
-                // Log in's first step would only ask Core again and send this
-                // code, so it opens on its second step, an invitation's too.
-                handOver: async (knownEmail, signal, account) => {
-                  const method = chooseSignInMethod(lastUsedMethod, account);
-                  const codeSentAt =
-                    method === "code"
-                      ? await emailCode.sendCode(knownEmail, {
-                          signal,
-                          captchaPass: account.captchaPass,
-                        })
-                      : null;
-                  if (signal.aborted) return;
-                  rememberAuthEmailHint(knownEmail, {
-                    signIn:
-                      method === "code" ? { method, codeSentAt } : { method },
-                  });
-                  router.push(signInHref);
-                },
-              }
+            : isSignIn
+              ? {
+                  title: signInT("NoAccount.title"),
+                  description: signInT("NoAccount.description"),
+                  label: signInT("NoAccount.createAccount"),
+                  href: signUpHref,
+                  // Register's first step would only ask Core again and send
+                  // this code, so it is sent here and Register opens on its
+                  // second step.
+                  follow: async (newEmail, signal, { captchaPass }) => {
+                    const codeSentAt = await emailCode.sendCode(newEmail, {
+                      signal,
+                      captchaPass,
+                    });
+                    if (signal.aborted) return;
+                    rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
+                    router.push(signUpHref);
+                  },
+                }
+              : {
+                  // Log in's first step would only ask Core again and send this
+                  // code, so it opens on its second step, an invitation's too.
+                  handOver: async (knownEmail, signal, account) => {
+                    const method = chooseSignInMethod(lastUsedMethod, account);
+                    const codeSentAt =
+                      method === "code"
+                        ? await emailCode.sendCode(knownEmail, {
+                            signal,
+                            captchaPass: account.captchaPass,
+                          })
+                        : null;
+                    if (signal.aborted) return;
+                    rememberAuthEmailHint(knownEmail, {
+                      signIn:
+                        method === "code" ? { method, codeSentAt } : { method },
+                    });
+                    router.push(signInHref);
+                  },
+                }
         }
         onFormStart={handleFormStart}
         onEmailChange={setTypedEmail}
@@ -320,7 +333,21 @@ export default function AuthFlow({
         disabled={isEmailPending}
         onPendingChange={setIsProviderPending}
       />
-      {isSignIn ? (
+      {isSignIn && signsUpOnWebsite ? (
+        <div className="flex flex-row flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center">
+          <span className="text-muted-foreground text-sm">
+            {signInT("RegisterOnWebsite.message")}
+          </span>
+          <Link
+            href="/signup"
+            target="_blank"
+            rel="noopener"
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            {signInT("RegisterOnWebsite.link")}
+          </Link>
+        </div>
+      ) : isSignIn ? (
         <div className="flex flex-row items-center justify-center gap-2">
           <span className="text-muted-foreground text-sm">
             {signInT("Register.message")}

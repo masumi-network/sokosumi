@@ -14,7 +14,7 @@ const memberUserSchema = z.object({
     .openapi({ example: "https://example.com/avatar.png" }),
 });
 
-export const memberWithUserSchema = z
+const memberWithUserSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
@@ -28,8 +28,6 @@ export const memberWithUserSchema = z
     }),
   })
   .openapi("Member");
-
-export type MemberWithUser = z.infer<typeof memberWithUserSchema>;
 
 export const membersSchema = z.array(memberWithUserSchema);
 
@@ -49,14 +47,12 @@ export const memberRecordSchema = z
   })
   .openapi("MemberRecord");
 
-export type MemberRecord = z.infer<typeof memberRecordSchema>;
-
 /**
  * A membership of the authenticated user including the embedded organization
  * record (see {@link organizationRecordSchema}). Shape mirrors the Prisma
  * `MemberWithOrganization` type.
  */
-export const memberWithOrganizationSchema = z
+const memberWithOrganizationSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     userId: z.string().openapi({ example: "user_123" }),
@@ -67,10 +63,6 @@ export const memberWithOrganizationSchema = z
     organization: organizationRecordSchema,
   })
   .openapi("MemberWithOrganization");
-
-export type MemberWithOrganization = z.infer<
-  typeof memberWithOrganizationSchema
->;
 
 export const membersWithOrganizationSchema = z.array(
   memberWithOrganizationSchema,

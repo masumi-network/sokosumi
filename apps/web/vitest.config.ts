@@ -123,6 +123,15 @@ export default defineConfig({
         test: {
           name: "happy-dom",
           environment: "happy-dom",
+          // 21.x turns iframe page loading off (SSRF). Print and PDF tests
+          // write into iframe.contentDocument, so the harness opts back in.
+          environmentOptions: {
+            happyDOM: {
+              settings: {
+                enableIframePageLoading: true,
+              },
+            },
+          },
           setupFiles: ["src/test/setup.ts", "src/test/setup.dom.ts"],
           include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
           exclude: [...defaultExclude, "src/**/*.webkit.test.{ts,tsx}"],

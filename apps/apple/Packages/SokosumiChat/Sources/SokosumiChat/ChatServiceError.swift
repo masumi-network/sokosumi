@@ -6,8 +6,8 @@ public enum ChatServiceError: Error, Equatable, Sendable {
   /// loaded rooms for this attempt.
   case blocked(WorkspaceGate)
   case unauthorized(String)
-  /// Core answered with an undocumented status (e.g. its 422 validation
-  /// hook): short status + Core message, never a header dump.
-  case unprocessable(statusCode: Int, message: String)
+  /// Core refused the request with any status but 401: short status, Core's
+  /// message and its machine-readable `kind` when it sent one, never a header dump.
+  case unprocessable(statusCode: Int, message: String, kind: String? = nil)
   case unexpectedResponse(String)
 }

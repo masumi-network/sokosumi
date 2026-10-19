@@ -52,7 +52,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Tasks board](./tasks-board.md) — `/tasks` task manager (Board / Calendar tabs; kanban or list).
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
 - [Calendar](./calendar.md) — Calendar tab on `/tasks` (`/calendar` redirects); Month / Week / Agenda. Not a sidebar row.
-- [Content Studio](./studio.md) — `/studio` image studio; project picker when no `?projectId=`.
+- [Content Studio](./studio.md) — `/studio` image studio (curated styles with no `?projectId=`; picker only for a missing project).
 - [Projects](./projects.md) — `/projects` list or empty state (not a desktop sidebar row).
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
 - [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).

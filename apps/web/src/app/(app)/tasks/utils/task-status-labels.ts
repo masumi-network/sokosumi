@@ -24,9 +24,3 @@ export function buildTaskStatusLabels(
 ): Record<TaskStatus, string> {
   return buildTaskStatusLabelRecord(translate);
 }
-
-export function buildTaskStatusAbbreviationLabels(
-  translate: (key: TaskStatusLabelKey) => string,
-): Record<TaskStatus, string> {
-  return buildTaskStatusLabelRecord(translate);
-}

@@ -142,13 +142,14 @@ function sqlUnreadThreadReplies(
  * must see its mark go quiet, and folding the two made that impossible.
  * `total` is the sum, which is what `unreadCount` has always meant on the wire.
  */
-export interface ChatRoomUnreadBreakdown {
+interface ChatRoomUnreadBreakdown {
   channel: number;
   thread: number;
   total: number;
 }
 
-export function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
+/** Zero unread on both legs. Rooms missing from a count map read as this. */
+function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
   return { channel: 0, thread: 0, total: 0 };
 }
 
@@ -253,7 +254,7 @@ export async function getChatRoomUnreadCounts(
   return byRoom;
 }
 
-export interface ChatRoomUnreadThreadPreview {
+interface ChatRoomUnreadThreadPreview {
   parentMessageId: string;
   /** Where opening the Thread lands: the oldest reply still unread. */
   firstUnreadReplyId: string;
@@ -279,7 +280,8 @@ export interface ChatRoomUnreadThreads {
   unreadThreadMentionCount: number;
 }
 
-export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
+/** Empty unread-Thread bag. Rooms with no Thread unread, or a miss in the map. */
+function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
   return { threads: [], unreadThreadCount: 0, unreadThreadMentionCount: 0 };
 }
 
@@ -412,7 +414,7 @@ export async function listChatRoomUnreadThreads(
 }
 
 /** An unread Thread with the room it is in, for the cross-room list. */
-export interface UnreadThreadInRoom extends ChatRoomUnreadThreadPreview {
+interface UnreadThreadInRoom extends ChatRoomUnreadThreadPreview {
   roomId: string;
 }
 
@@ -534,7 +536,7 @@ export async function listUnreadThreadsOfRoomsWithThreadUnread(
  * so an answer without the Threads would empty the row's inset list. The
  * Threads are read only when the room has Thread unread, which most do not.
  */
-export async function roomUnreadFields(
+async function roomUnreadFields(
   breakdown: ChatRoomUnreadBreakdown | undefined,
   roomId: string,
   userId: string,
@@ -740,7 +742,7 @@ export async function listEarlierThreadsAcrossRooms(
   };
 }
 
-export interface ChatRoomThreadAggregate {
+interface ChatRoomThreadAggregate {
   parentMessageId: string;
   replyCount: number;
   lastReplyAt: Date;
@@ -952,7 +954,7 @@ export async function listChatRoomThreads(
   return mapThreadAggregates(roomId, userId, tx, aggregates);
 }
 
-export interface ChatRoomThreadListPage {
+interface ChatRoomThreadListPage {
   items: Awaited<ReturnType<typeof mapThreadAggregates>>;
   nextCursor: string | null;
   total: number;

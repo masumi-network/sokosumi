@@ -41,6 +41,8 @@ export interface SokoBotDeletionResult {
     uploadedTaskFiles: number;
     /** Task Schedules it created; the creator FK restricts a hard delete. */
     taskSchedules: number;
+    /** Jobs it hired; the creator FK restricts a hard delete. */
+    jobs: number;
   };
 }
 
@@ -146,6 +148,9 @@ export async function deleteSokoBot(
     const taskSchedules = await tx.taskSchedule.count({
       where: { creatorSokoBotId: bot.id },
     });
+    const jobs = await tx.job.count({
+      where: { creatorSokoBotId: bot.id },
+    });
     const tasks = createdTasks + assignedTasks;
 
     const retained = {
@@ -155,6 +160,7 @@ export async function deleteSokoBot(
       chatMessages,
       uploadedTaskFiles,
       taskSchedules,
+      jobs,
     };
 
     if (
@@ -163,7 +169,8 @@ export async function deleteSokoBot(
       billingRecords === 0 &&
       chatMessages === 0 &&
       uploadedTaskFiles === 0 &&
-      taskSchedules === 0
+      taskSchedules === 0 &&
+      jobs === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
       return {

@@ -48,7 +48,7 @@ export async function generateMetadata({
 
   if (resource.kind === "job") {
     const agentImage = getAgentResolvedImage(resource.job.agent);
-    const userName = resource.job.owner.name;
+    const userName = resource.job.owner?.name;
     const jobName = resource.job.name ?? tJobs("defaultName");
 
     return {
@@ -59,7 +59,7 @@ export async function generateMetadata({
         description: tJobs("description"),
         type: "article",
         url: `${siteConfig.url}/share/${token}`,
-        authors: [userName],
+        authors: userName ? [userName] : undefined,
         images: agentImage
           ? [
               {

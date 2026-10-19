@@ -2,6 +2,13 @@ import type { ChatPresenceMemberData } from "@sokosumi/utils";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
+
 import { ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS } from "@/lib/ably/should-publish-org-presence";
 
 const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(

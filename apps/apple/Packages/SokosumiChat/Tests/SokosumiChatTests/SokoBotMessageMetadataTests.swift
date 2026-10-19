@@ -244,9 +244,9 @@ struct SokoBotChainMetadataTests {
     let transport = TestTransport([(200, testMessagesPageBody(messages: [reply("shell", thinking), reply("failed", failed)], nextCursor: nil))])
     let session = ThreadSession()
     #expect(session.open(root))
-    _ = try await session.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.timeline.generation)
+    _ = try await session.transcript.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.transcript.timeline.generation)
     // Same timestamp, so the page orders them by id.
-    #expect(session.displayedReplies.map(\.id) == ["failed", "shell"])
+    #expect(session.transcript.displayedMessages.map(\.id) == ["failed", "shell"])
   }
 }
 
@@ -276,7 +276,7 @@ struct SokoBotChainMetadataTests {
     switch error {
     case .unauthorized:
       #expect(status == 401)
-    case let .unprocessable(statusCode, message):
+    case let .unprocessable(statusCode, message, _):
       #expect(statusCode == status)
       #expect(message == "Turn not found")
     default:

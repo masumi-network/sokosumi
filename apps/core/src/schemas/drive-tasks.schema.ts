@@ -6,7 +6,7 @@ import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 /**
  * Drive Tasks list item - discriminated union by level.
  */
-export const driveTasksProjectItemSchema = z
+const driveTasksProjectItemSchema = z
   .object({
     type: z.literal("project").openapi({
       example: "project",
@@ -27,7 +27,7 @@ export const driveTasksProjectItemSchema = z
   })
   .openapi("DriveTasksProjectItem");
 
-export const driveTasksNoProjectItemSchema = z
+const driveTasksNoProjectItemSchema = z
   .object({
     type: z.literal("no-project").openapi({
       example: "no-project",
@@ -45,7 +45,7 @@ export const driveTasksNoProjectItemSchema = z
   })
   .openapi("DriveTasksNoProjectItem");
 
-export const driveTasksTaskItemSchema = z
+const driveTasksTaskItemSchema = z
   .object({
     type: z.literal("task").openapi({
       example: "task",
@@ -66,7 +66,7 @@ export const driveTasksTaskItemSchema = z
   })
   .openapi("DriveTasksTaskItem");
 
-export const driveTasksTaskFileItemSchema = z
+const driveTasksTaskFileItemSchema = z
   .object({
     type: z.literal("task-file").openapi({
       example: "task-file",
@@ -115,7 +115,7 @@ export const driveTasksTaskFileItemSchema = z
   })
   .openapi("DriveTasksTaskFileItem");
 
-export const driveTasksListItemSchema = z
+const driveTasksListItemSchema = z
   .discriminatedUnion("type", [
     driveTasksProjectItemSchema,
     driveTasksNoProjectItemSchema,

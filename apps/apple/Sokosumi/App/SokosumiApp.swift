@@ -1,3 +1,4 @@
+import CoreAPI
 import SokosumiAuth
 import SokosumiChat
 import SokosumiRealtime
@@ -6,18 +7,27 @@ import SwiftUI
 
 @main
 struct SokosumiApp: App {
-  @StateObject private var auth = AuthState()
+  @StateObject private var auth: AuthState
   @StateObject private var workspaces: WorkspaceState
+  @StateObject private var updater = AppUpdater()
   /// Device-local clock preference; every window's timestamps read it from the environment.
   @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
 
   init() {
+    let auth = AuthState()
     let cooldown = ChatReadCooldown()
     // The Unreads filter is remembered per install (row 24f2); tests and previews leave it transient.
-    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) }, unreadsFilter: .standard)
-    // Live room updates over Ably (SOK-976). The state drives the socket;
-    // without this factory it stays HTTP-only.
-    workspaces.realtimeConnectionFactory = { AblyRealtimeConnection() }
+    let workspaces = WorkspaceState(
+      auth: auth,
+      clientProvider: { auth in
+        auth.oauthSession.map { Client.workspace(session: $0, cooldown: cooldown, baseURL: CoreSettings.baseURL, build: CoreSettings.build) }
+      },
+      unreadsFilter: .standard,
+      // Live room updates over Ably (SOK-976); the state drives the socket.
+      realtimeConnectionFactory: { AblyRealtimeConnection() },
+      notificationPresenter: ChatNotificationCenter.shared
+    )
+    _auth = StateObject(wrappedValue: auth)
     _workspaces = StateObject(wrappedValue: workspaces)
   }
 
@@ -29,12 +39,18 @@ struct SokosumiApp: App {
         .environment(\.timeFormat, timeFormat)
     }
     Settings {
-      SettingsView()
+      SettingsView(updater: updater)
         .environmentObject(auth)
         .environmentObject(workspaces)
     }
     .commands {
       CommandGroup(after: .appInfo) {
+        if AppUpdater.isPublishBuild {
+          Button("Check for Updates…") {
+            updater.checkForUpdates()
+          }
+          .disabled(!updater.canCheckForUpdates)
+        }
         Button("Sign out") {
           auth.signOut()
         }
@@ -54,7 +70,7 @@ struct SokosumiApp: App {
         .disabled(!auth.isSignedIn)
 
         Button("Mark All as Read") {
-          Task { @MainActor in await workspaces.markAllUnreadRead(auth: auth) }
+          Task { @MainActor in await workspaces.markAllUnreadRead() }
         }
         .disabled(!workspaces.offersMarkAllUnreadRead(isSignedIn: auth.isSignedIn))
       }

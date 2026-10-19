@@ -38,6 +38,7 @@
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.overLimit
         try await fixture.waitForDraft(Self.overLimit)
+        try await fixture.waitForLayout(showing: "Too long to send as text")
         let bitmap = try fixture.record(named: "message-edit-over-limit.png")
         guard let read = try Self.recognizedText(in: bitmap) else { return }
         let lines = read.map(\.text)
@@ -85,7 +86,7 @@
           saving = try Self.darkestTextLuminance(fixture)
         } while saving < 0.35 && clock.now < deadline
         #expect(editing.isSaving, "The save is still in flight.")
-        #expect(saving >= 0.35, "The text dims while saving, as web's opacity-50 (idle \(idle), saving \(saving)).")
+        #expect(saving >= 0.35, "The text dims while saving (idle \(idle), saving \(saving)).")
         #expect(!fixture.input.isEditable, "The field takes no typing while saving.")
       }
 

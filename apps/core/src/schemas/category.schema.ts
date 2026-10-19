@@ -37,7 +37,7 @@ export const categoryStylesSchema = z
   })
   .openapi("CategoryStyles");
 
-export type CategoryStyles = z.infer<typeof categoryStylesSchema>;
+type CategoryStyles = z.infer<typeof categoryStylesSchema>;
 
 export function parseCategoryStyles(
   raw: string | null | undefined,

@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/utils";
 
 import { getRestClient } from "@/lib/ably/client";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 export interface PublishChatRoomPinnedMessageRealtimeInput {
   action: ChatRoomPinnedMessageAction;
@@ -19,7 +20,9 @@ export async function publishChatRoomPinnedMessageRealtime(
 ): Promise<void> {
   try {
     const client = getRestClient();
-    const channel = client.channels.get(makeChatRoomChannelName(input.roomId));
+    const channel = client.channels.get(
+      makeChatRoomChannelName(input.roomId, getRealtimeChannelEnvironment()),
+    );
     await channel.publish(CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME, {
       action: input.action,
       roomId: input.roomId,

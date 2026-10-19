@@ -76,6 +76,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     connections: { id: string }[];
     projectId: string;
     selectedPostId?: string;
+    requestedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
@@ -83,6 +84,7 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
       data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
+      data-requested={props.requestedPostId ?? ""}
       data-selected={props.selectedPostId}
     >
       {props.actions}
@@ -96,11 +98,13 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ProjectSocialAccounts: (props: {
     connections: { id: string }[];
     projectId: string;
+    connectDisabled?: boolean;
   }) => (
     <div
       data-testid="social-accounts"
       data-connections={props.connections.length}
       data-project={props.projectId}
+      data-connect-disabled={String(Boolean(props.connectDisabled))}
     />
   ),
 }));
@@ -112,8 +116,12 @@ vi.mock("./components/social-all-projects-tabs", () => ({
     actions: React.ReactNode;
     calendar: React.ReactNode;
     notice?: string;
+    workspaceId: string;
   }) => (
-    <div data-testid="social-all-projects-tabs">
+    <div
+      data-testid="social-all-projects-tabs"
+      data-workspace={props.workspaceId}
+    >
       {props.actions}
       {props.calendar}
       <div data-testid="social-no-project">
@@ -271,7 +279,10 @@ describe("SocialPage", () => {
     );
     // The same tab row a project gets; accounts belong to a project, so
     // their tab says so instead.
-    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-workspace",
+      "workspace-1",
+    );
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
@@ -348,6 +359,10 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
+    expect(screen.getByTestId("social-accounts")).toHaveAttribute(
+      "data-connect-disabled",
+      "false",
+    );
     // One read per list: drafts and needs attention. Scheduled, published
     // and canceled posts are left to the calendar tab.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
@@ -403,12 +418,55 @@ describe("SocialPage", () => {
     );
   });
 
+  it.each([
+    ["closing", { closingAt: new Date("2026-10-01T00:00:00.000Z") }],
+    ["closed", { closedAt: new Date("2026-10-01T00:00:00.000Z") }],
+  ])(
+    "disables account connect when the project is %s",
+    async (_label, extra) => {
+      projectServiceMock.getProjectById.mockResolvedValue({
+        ...PROJECT,
+        ...extra,
+      });
+
+      await visit({ projectId: "project-1" });
+
+      expect(screen.getByTestId("social-accounts")).toHaveAttribute(
+        "data-connect-disabled",
+        "true",
+      );
+    },
+  );
+
   it("does not fetch a post when the URL names none", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
     await visit({ projectId: "project-1" });
 
     expect(projectServiceMock.getSocialPost).not.toHaveBeenCalled();
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-requested",
+      "",
+    );
+  });
+
+  it("still names a missing post so the list can tell the reader", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1", postId: "post-gone" });
+
+    expect(projectServiceMock.getSocialPost).toHaveBeenCalledWith(
+      "project-1",
+      "post-gone",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-requested",
+      "post-gone",
+    );
+    expect(screen.getByTestId("social-posts")).not.toHaveAttribute(
+      "data-selected",
+    );
   });
 
   /**

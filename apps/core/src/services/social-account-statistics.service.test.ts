@@ -33,6 +33,7 @@ vi.mock("@/services/social-performance-snapshots.service", () => ({
 }));
 
 import {
+  exportSocialAccountStatistics,
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "./social-account-statistics.service";
@@ -167,6 +168,25 @@ describe("Social account statistics", () => {
       postCount: 1,
     });
   });
+  it("exports every matching cached post without paging", async () => {
+    const publishedFrom = new Date("2026-10-01T00:00:00Z");
+    const result = await exportSocialAccountStatistics({
+      ...scope,
+      connectionId,
+      publishedFrom,
+    });
+    expect(result.posts).toHaveLength(1);
+    expect(result.accountName(connectionId)).toBe("Launch");
+    expect(mocks.posts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          connectionId: { in: [connectionId] },
+          publishedAt: { gte: publishedFrom },
+        },
+      }),
+    );
+    expect(mocks.posts.mock.calls[0][0].take).toBeUndefined();
+  });
   it("pages cached history and keeps the account totals on every page", async () => {
     const second = {
       ...cachedPost,
@@ -177,6 +197,22 @@ describe("Social account statistics", () => {
     expect(result.posts).toHaveLength(1);
     expect(result.nextCursor).toBe(postId);
     expect(result.accounts[0].postCount).toBe(40);
+  });
+  it("lists every connected account in the workspace when no project is selected", async () => {
+    const result = await listSocialAccountStatistics({ workspaceId });
+    expect(mocks.listAccounts).not.toHaveBeenCalled();
+    expect(mocks.connections).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          project: { workspaceId },
+          status: { not: "disconnected" },
+        },
+      }),
+    );
+    expect(result.accounts[0]).toMatchObject({
+      id: connectionId,
+      postCount: 40,
+    });
   });
   it("blocks cross-workspace reads before fetching raw cached records", async () => {
     mocks.listAccounts.mockRejectedValue(new Error("Project not found"));
@@ -235,6 +271,11 @@ describe("Social account statistics", () => {
           text: providerPost.text,
           metrics,
           additionalMetrics: providerPost.additionalMetrics,
+          fetchedAt: expect.any(Date),
+        }),
+        update: expect.objectContaining({
+          metrics,
+          fetchedAt: expect.any(Date),
         }),
       }),
     );

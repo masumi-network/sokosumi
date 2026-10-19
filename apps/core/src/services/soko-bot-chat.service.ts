@@ -6,6 +6,7 @@ import {
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import prisma from "@/lib/db/prisma";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 
@@ -78,12 +79,14 @@ async function publishRealtime(
  * memory, so a teammate asking sees only the tool steps.
  */
 function thoughtSteps(turn: {
-  userId: string;
   requestedByUserId: string | null;
+  sokoBot: { userId: string };
+  askedByUserId: string | null;
   events: { type: string; toolName: string | null; summary: string | null }[];
 }): string[] {
   const ownerAsked =
-    turn.requestedByUserId === null || turn.requestedByUserId === turn.userId;
+    turn.askedByUserId === null ||
+    turn.askedByUserId === sokoBotActingUserId(turn);
   const summaries = ownerAsked
     ? turn.events.flatMap((event) =>
         event.type === "reasoning.completed" && event.summary
@@ -131,8 +134,9 @@ async function loadChatLinkedTurn(
           message: { select: { roomId: true } },
         },
       },
-      userId: true,
       requestedByUserId: true,
+      sokoBot: { select: { userId: true } },
+      askedByUserId: true,
       events: {
         where: { type: { in: ["actions.requested", "reasoning.completed"] } },
         orderBy: { sequence: "asc" },

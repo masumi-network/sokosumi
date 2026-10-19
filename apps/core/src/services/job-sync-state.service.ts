@@ -33,7 +33,11 @@ type MasumiAgentJobStatus = JobStatusResponseSchemaType & {
 };
 
 interface JobSyncTransactionResult {
-  extractionContext?: { eventId: string; result: string; userId: string };
+  extractionContext?: {
+    eventId: string;
+    result: string;
+    userId: string | null;
+  };
   job: JobWithSokosumiStatus;
   jobStatus: SokosumiJobStatus;
 }
@@ -207,10 +211,16 @@ export async function finalizeJobSyncResult(
       break;
   }
 
+  // The live channel is a person's: a Job without an Owner has none.
+  const ownerId = updatedJob.ownerId;
+  if (!ownerId) {
+    return;
+  }
+
   try {
     await publishJobStatusData({
       agentId: updatedJob.agentId,
-      userId: updatedJob.ownerId,
+      userId: ownerId,
       jobId: updatedJob.id,
       jobStatus: updatedJob.status,
       jobStatusSettled: updatedJob.jobStatusSettled,
@@ -267,9 +277,7 @@ export async function applyAgentState(
   const oldJobStatus = initialJob.status;
   const transactionResult = await prisma.$transaction(
     async (tx): Promise<JobSyncTransactionResult> => {
-      let extractionContext:
-        | { eventId: string; result: string; userId: string }
-        | undefined;
+      let extractionContext: JobSyncTransactionResult["extractionContext"];
 
       let currentJob = initialJob;
       const latestJobEvent = await jobEventRepository.getLatestJobEventByJobId(

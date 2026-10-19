@@ -92,6 +92,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={<SocialCalendar calendar={calendar} />}
             notice={projectId ? t("pickUnavailable") : undefined}
+            workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>
       </SocialPageShell>
@@ -141,6 +142,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
             actions={
@@ -165,6 +167,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            requestedPostId={query.postId}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>
