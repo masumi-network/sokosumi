@@ -96,7 +96,11 @@ function effect(overrides = {}) {
     },
     receipt: {
       status: "COMPLETED",
-      turn: { workspaceId: "workspace", userId: "owner", sokoBotId: "bot" },
+      turn: {
+        workspaceId: "workspace",
+        requestedByUserId: "owner",
+        sokoBotId: "bot",
+      },
     },
     ...overrides,
   };
@@ -274,6 +278,32 @@ describe("committed effect outbox", () => {
       "COMPLETED",
       null,
       { throwOnError: true },
+    );
+  });
+
+  /** The live update reaches the Task's Owner; a Task without one has nobody. */
+  it.each([
+    ["its Owner", "asker"],
+    ["nobody when it has no Owner", null],
+  ])("publishes a Soko Bot Task event to %s", async (_who, ownerId) => {
+    mocks.taskPublish.mockClear();
+    mocks.find.mockResolvedValue(
+      effect({
+        purpose: "TASK_EVENT",
+        payload: { taskId: "task", eventId: "event" },
+      }),
+    );
+    mocks.event.mockResolvedValue({
+      id: "event",
+      taskId: "task",
+      status: null,
+      task: { ownerId, creatorUserId: null },
+    });
+
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+
+    expect(mocks.taskPublish.mock.calls.map(([input]) => input.userId)).toEqual(
+      ownerId ? [ownerId] : [],
     );
   });
 });

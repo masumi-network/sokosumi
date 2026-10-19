@@ -47,6 +47,14 @@ describe("sokoBotSourceLabel", () => {
     ).toEqual({ kind: "scheduled", name: "Monday check-in" });
   });
 
+  it("names a background run by its title", () => {
+    expect(
+      sokoBotSourceLabel(
+        meta({ source: "CHAT", background_run_title: "Gmail CRM" }),
+      ),
+    ).toEqual({ kind: "background", name: "Gmail CRM" });
+  });
+
   it("labels nothing on replies or non-bot messages", () => {
     expect(sokoBotSourceLabel(meta({ source: "CHAT" }))).toBeNull();
     expect(sokoBotSourceLabel(meta({}))).toBeNull();

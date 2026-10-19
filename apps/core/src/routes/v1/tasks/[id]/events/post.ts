@@ -13,7 +13,7 @@ import { waitUntil } from "@vercel/functions";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
-  readTaskWorkspaceOrganizationId,
+  readWorkspaceOrganizationId,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
@@ -34,6 +34,7 @@ import {
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
@@ -80,7 +81,7 @@ const paramsSchema = z.object({
 
 interface SettleTaskEventChargeParams {
   task: {
-    ownerId: string;
+    ownerId: string | null;
     organizationId: string | null;
     status: TaskStatus;
   };
@@ -305,19 +306,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const isAgent = isAgentAuthContext(authContext);
 
       if (!isCancelOnlyWrite) {
-        const assignedSeatUserId = isAgent
-          ? task.ownerId
-          : requireUserContext(authContext).userId;
-        // Agents spend the task billing org. A person acts in the workspace
-        // the task currently lives in (move does not rewrite billing org).
-        const seatOrganizationId = isAgent
-          ? task.organizationId
-          : await readTaskWorkspaceOrganizationId(task.workspaceId, tx);
-        await requireAssignedOrganizationSeat(
-          assignedSeatUserId,
-          seatOrganizationId,
-          tx,
-        );
+        if (isAgent) {
+          // Agents spend the task billing org for its Owner.
+          await requireOwnerSeat(task.ownerId, task.organizationId, tx);
+        } else {
+          // A person acts in the workspace the task currently lives in (move
+          // does not rewrite billing org).
+          await requireAssignedOrganizationSeat(
+            requireUserContext(authContext).userId,
+            await readWorkspaceOrganizationId(task.workspaceId, tx),
+            tx,
+          );
+        }
       }
 
       if (!isAgent && credits != null) {
@@ -703,7 +703,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(masumiPurchasePromise);
     }
 
-    const taskIdsToPublish = [{ userId, taskId }];
+    // Live updates go to the Owner; work without one has nobody to tell.
+    const taskIdsToPublish = userId ? [{ userId, taskId }] : [];
 
     await Promise.all(
       taskIdsToPublish.map(

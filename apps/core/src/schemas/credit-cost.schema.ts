@@ -17,8 +17,6 @@ export const creditCostSchema = z
   })
   .openapi("CreditCost");
 
-export type CreditCost = z.infer<typeof creditCostSchema>;
-
 export const createCreditCostRequestSchema = z
   .object({
     unit: z.string().min(1).openapi({ example: "TOKEN" }),

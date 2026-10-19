@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -26,11 +27,16 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
-  const { createTranslator } =
+  const { createFormatter, createTranslator } =
     await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
-    useFormatter: () =>
-      createTestFormatter({ timeZone: "America/Los_Angeles" }),
+    useFormatter: () => ({
+      ...createTestFormatter({ timeZone: "America/Los_Angeles" }),
+      relativeTime: createFormatter({
+        locale: "en",
+        now: new Date("2026-10-14T08:00:00Z"),
+      }).relativeTime,
+    }),
     useTranslations: () =>
       createTranslator({
         locale: "en",
@@ -168,7 +174,10 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => page() });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("SocialPostStatistics account history", () => {
   it("shows placeholder cards while statistics load", () => {
@@ -203,6 +212,58 @@ describe("SocialPostStatistics account history", () => {
     expect(await screen.findByText(post.text)).toBeVisible();
   });
 
+  it("shows a quiet Updating line while a background sync is queued", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { status: "queued", mayAutoRequest: false },
+          },
+          secondAccount,
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText("Updating…")).toBeVisible();
+    expect(screen.getByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByText(/Launch account.*queued/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Sync now|Refresh Launch/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the reconnect hint and a relative Updated line when data is fresh", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            status: "reauthorization_required",
+            sync: { status: "reauth_required", mayAutoRequest: false },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const header = screen
+      .getByRole("combobox", { name: "Connected accounts" })
+      .closest("section");
+    expect(header).toBeTruthy();
+    expect(within(header as HTMLElement).getByText(/^Updated /)).toBeVisible();
+    expect(
+      screen.getByText(/Reconnect this account before syncing statistics/),
+    ).toBeVisible();
+    expect(screen.queryByText("Updating…")).not.toBeInTheDocument();
+  });
+
   it("shows headline metrics and imported posts without the old account-card grid", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
@@ -233,7 +294,12 @@ describe("SocialPostStatistics account history", () => {
     expect(screen.getAllByText("Interactions")[0]).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "Connected accounts" }),
-    ).toBeVisible();
+    ).toHaveClass(
+      "h-11",
+      "md:h-10",
+      "data-[size=default]:h-11",
+      "md:data-[size=default]:h-10",
+    );
     expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
@@ -261,6 +327,70 @@ describe("SocialPostStatistics account history", () => {
       screen.getByRole("menuitem", { name: "Export spreadsheet" }),
     ).toHaveAttribute("href", expect.stringContaining("format=xlsx"));
   });
+  it("dates All accounts from the latest fetched snapshot", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            statistics: { ...snapshot, fetchedAt: "2026-10-01T08:00:00Z" },
+          },
+          {
+            ...secondAccount,
+            statistics: { ...snapshot, fetchedAt: "2026-10-08T08:00:00Z" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
+    expect(screen.queryByText("Updated 13 days ago")).not.toBeInTheDocument();
+  });
+  it("keeps Impressions on All accounts when an X account is connected", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [account],
+        headline: {
+          ...headline,
+          current: {
+            ...headline.current,
+            views: null,
+            impressions: 400,
+          },
+          deltas: { ...headline.deltas, views: null, impressions: -20 },
+          daily: [
+            {
+              date: "2026-10-01",
+              postCount: 1,
+              views: null,
+              impressions: 400,
+              interactions: 6,
+            },
+          ],
+        },
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const overview = screen.getByTestId("social-performance-overview");
+    expect(within(overview).getByText("Impressions")).toBeVisible();
+    expect(within(overview).queryByText("Views")).not.toBeInTheDocument();
+  });
+  it("shows a platform logo on each published post row", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    const row = screen.getByText(post.text).closest("li");
+    expect(row).not.toBeNull();
+    expect(
+      row?.querySelectorAll("[data-testid='social-post-provider-icon']"),
+    ).toHaveLength(1);
+    expect(row).toHaveTextContent("Launch account");
+  });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,
@@ -275,6 +405,17 @@ describe("SocialPostStatistics account history", () => {
     expect(
       screen.queryByRole("heading", { name: "Performance over time" }),
     ).not.toBeInTheDocument();
+  });
+  it("uses the shared empty state when no imported posts match", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...page(), posts: [] }),
+    });
+    renderStatistics();
+    expect(
+      await screen.findByText(en.App.Projects.SocialPosts.statistics.empty),
+    ).toBeVisible();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
   it("filters cached posts by account, platform and UTC dates while retaining the account overview", async () => {
     renderStatistics(
@@ -313,6 +454,12 @@ describe("SocialPostStatistics account history", () => {
       "End date must be on or after",
     );
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-performance-overview"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Posting consistency" }),
+    ).not.toBeInTheDocument();
     const url = new URL(mocks.fetch.mock.calls[0][0], "https://web.test");
     expect(url.searchParams.has("publishedFrom")).toBe(false);
     expect(url.searchParams.has("publishedUntil")).toBe(false);
@@ -367,6 +514,84 @@ describe("SocialPostStatistics account history", () => {
       ).searchParams.get("cursor"),
     ).toBe("next-post");
   });
+  it("shows an inline error when loading more posts fails", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => page("next-post") })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          posts: [{ ...post, id: "post-2", text: "Second external post" }],
+        }),
+      });
+    renderStatistics();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load more posts" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load more.",
+    );
+    expect(
+      screen.queryByText("Failed to load statistics"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(post.text)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Load more posts" }));
+    expect(await screen.findByText("Second external post")).toBeVisible();
+    expect(screen.queryByText("Couldn't load more.")).not.toBeInTheDocument();
+  });
+  it("asks for a background refresh when Performance opens with stale accounts", async () => {
+    mocks.refresh.mockResolvedValue(response(account));
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { mayAutoRequest: true, status: "stale" },
+          },
+          {
+            ...secondAccount,
+            sync: { mayAutoRequest: false, status: "fresh" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
+    expect(mocks.refresh).toHaveBeenCalledWith({
+      projectId: "project-1",
+      connectionId: account.id,
+    });
+    expect(
+      screen.getByRole("button", { name: "Sync all accounts" }),
+    ).toBeEnabled();
+    expect(screen.getByText(post.text)).toBeVisible();
+  });
+
+  it("does not auto-request a refresh when every account is already fresh", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            sync: { mayAutoRequest: false, status: "fresh" },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("enqueues one refresh per account and never walks history in the browser", async () => {
     mocks.refresh
       .mockResolvedValueOnce(response(account, "provider-page-2"))
@@ -561,6 +786,64 @@ describe("SocialPostStatistics account history", () => {
       expect.stringContaining(
         "/api/workspaces/workspace-1/social-statistics/export?",
       ),
+    );
+  });
+
+  it("keeps the single Updated line and Sync control", async () => {
+    renderStatistics();
+    await screen.findByText(post.text);
+    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Sync all accounts" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("polls while a sync is queued and stops when it is fresh", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mocks.fetch.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, sync: { status: "queued" } }],
+      }),
+    }));
+    renderStatistics();
+    await screen.findByText(post.text);
+    const afterFirst = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(mocks.fetch.mock.calls.length).toBeGreaterThan(afterFirst);
+    mocks.fetch.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, sync: { status: "fresh" } }],
+      }),
+    }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    const afterFresh = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(mocks.fetch.mock.calls.length).toBe(afterFresh);
+  });
+
+  it("refetches when the tab is focused", async () => {
+    renderStatistics();
+    await screen.findByText(post.text);
+    const afterLoad = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      window.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() =>
+      expect(mocks.fetch.mock.calls.length).toBeGreaterThan(afterLoad),
     );
   });
 });

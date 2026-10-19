@@ -8,7 +8,9 @@ const {
   fetchMock,
   toolCallUpsertMock,
   toolCallUpdateManyMock,
+  turnFindUniqueMock,
 } = vi.hoisted(() => ({
+  turnFindUniqueMock: vi.fn(),
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
@@ -27,7 +29,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: createEventMock,
       findFirst: findFirstEventMock,
     },
-    sokoBotTurn: { findUnique: vi.fn().mockResolvedValue(null) },
+    sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
@@ -90,6 +92,13 @@ function modelRequest(overrides: Record<string, string> = {}) {
   };
 }
 
+function headersTimeoutError() {
+  return Object.assign(new Error("Headers Timeout Error"), {
+    name: "HeadersTimeoutError",
+    code: "UND_ERR_HEADERS_TIMEOUT",
+  });
+}
+
 function gatewayAnswer(content: unknown[] = []) {
   return new Response(
     JSON.stringify({
@@ -114,6 +123,7 @@ describe("sandbox turn service", () => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
     findFirstEventMock.mockResolvedValue(null);
+    turnFindUniqueMock.mockResolvedValue(null);
     createEventMock.mockResolvedValue({});
     authorizeMock.mockResolvedValue({
       turn: { id: claims.turnId, versionId: "v16" },
@@ -245,6 +255,42 @@ describe("sandbox turn service", () => {
       proxySandboxModelCall(claims, modelRequest()),
     ).rejects.toThrow();
     expect(events().map((event) => event.type)).toContain("step.completed");
+  });
+
+  it("maps an AI Gateway fetch timeout to 502 instead of an unexpected 500", async () => {
+    const fetchFailed = Object.assign(new TypeError("fetch failed"), {
+      cause: headersTimeoutError(),
+    });
+    fetchMock.mockRejectedValue(fetchFailed);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(fetchFailed);
+    expect(((error as Error).cause as Error).cause).toMatchObject({
+      name: "HeadersTimeoutError",
+      code: "UND_ERR_HEADERS_TIMEOUT",
+    });
+  });
+
+  it("maps a bare undici headers timeout to 502", async () => {
+    const timeout = headersTimeoutError();
+    fetchMock.mockRejectedValue(timeout);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(timeout);
+  });
+
+  it("does not map an unrelated TypeError to 502", async () => {
+    const boom = new TypeError("Cannot read properties of undefined");
+    fetchMock.mockRejectedValue(boom);
+    await expect(proxySandboxModelCall(claims, modelRequest())).rejects.toBe(
+      boom,
+    );
   });
 
   it("drops zero retention only for the Gateway-run search call", async () => {
@@ -448,6 +494,68 @@ describe("sandbox turn service", () => {
       runSandboxTool(claims, {
         capability: "post_chat",
         toolCallId: "c5",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  it("lets work the owner asked for brief a Coworker after reading the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "assign_task",
+      toolCallId: "c6",
+      toolInput: { taskId: "task", coworkerId: "hannah" },
+    });
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("lets a background run save to Files after running a command, but not post to others", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: "parent",
+      askedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: null,
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "upload_file",
+      toolCallId: "c7",
+      toolInput: { filename: "index.html", content: "<h1>Hi</h1>" },
+    });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "post_chat",
+        toolCallId: "c8",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a teammate's turn from briefing a Coworker after reading the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: "teammate",
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "assign_task",
+        toolCallId: "c9",
         toolInput: {},
       }),
     ).rejects.toThrow("ask the owner in chat");

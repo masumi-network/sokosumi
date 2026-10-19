@@ -75,7 +75,7 @@ describe.skipIf(!databaseUrl)(
       const turn = await db.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           source: "EVENT",
           status: "RUNNING",

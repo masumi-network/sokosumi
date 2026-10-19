@@ -137,6 +137,22 @@ describe("loadJobDetails", () => {
     });
   });
 
+  it("opens a job without an Owner to the viewer", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockResolvedValue({
+      data: { id: "job-1", agent: { id: "agent-1" }, ownerId: null },
+    });
+
+    const { loadJobDetails } = await import("./load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
+
+    expect(result.readOnly).toBe(false);
+  });
+
   it("calls notFound when core reports a missing job", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },

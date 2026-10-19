@@ -98,7 +98,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
       const deadlineAt = new Date(Date.now() + 600_000);
       const original = await db.sokoBotTurn.create({
         data: {
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,
           source: "CHAT",
@@ -131,7 +131,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
       const proposal = { name: "Confirmed task", description: "Proof fixture" };
       const decision = await db.sokoBotPendingDecision.create({
         data: {
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,
           turnId: original.id,
@@ -160,7 +160,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
       });
       const turn = await db.sokoBotTurn.create({
         data: {
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,
           source: "CHAT",
@@ -168,7 +168,7 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
           status: "STARTING",
           clientTurnId: randomUUID(),
           userMessage: "yes",
-          requestedByUserId: userId,
+          askedByUserId: userId,
           intentId: intent.id,
           intentRevision: 1,
           deadlineAt,

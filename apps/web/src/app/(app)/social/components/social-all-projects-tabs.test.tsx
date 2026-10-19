@@ -49,6 +49,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "sections.calendar",
       "sections.drafts",
+      "sections.attention",
       "sections.statistics",
       "sections.accounts",
     ]);
@@ -56,12 +57,15 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
-  it("asks for a project on Drafts and Accounts, and shows workspace Performance", async () => {
+  it("asks for a project on Drafts, Needs attention and Accounts, and shows workspace Performance", async () => {
     const user = userEvent.setup();
     renderTabs();
 
     await user.click(screen.getByRole("tab", { name: "sections.drafts" }));
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "sections.attention" }));
+    expect(screen.getByText("choose a project for attention")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
     expect(screen.getByText("workspace performance workspace-1")).toBeVisible();
@@ -73,7 +77,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
   });
 
-  it("opens the tab the URL names, and falls back for a project-only one", () => {
+  it("opens the tab the URL names", () => {
     const { unmount } = renderTabs("?tab=accounts");
     expect(
       screen.getByRole("tab", { name: "sections.accounts" }),
@@ -82,8 +86,18 @@ describe("SocialAllProjectsTabs", () => {
 
     renderTabs("?tab=attention");
     expect(
+      screen.getByRole("tab", { name: "sections.attention" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("choose a project for attention")).toBeVisible();
+  });
+
+  it("falls back to the calendar when the URL names an unknown tab", () => {
+    renderTabs("?tab=bogus");
+
+    expect(
       screen.getByRole("tab", { name: "sections.calendar" }),
     ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
   });
 
   it("shows every project's posts on the calendar without asking for a project", () => {
@@ -93,22 +107,23 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.queryByText(/choose a project/)).not.toBeInTheDocument();
   });
 
-  it("gives tabs 44px phone targets and scrolls from the start", () => {
+  it("sizes the tab row like Tasks: content-width pills, action on the right", () => {
     renderTabs();
 
     const tablist = screen.getByRole("tablist");
     expect(tablist).toHaveClass(
-      "min-h-11",
-      "flex-1",
-      "min-w-0",
-      "justify-start",
-      "overflow-x-auto",
+      "w-fit",
+      "bg-card-background",
+      "max-sm:justify-start",
+      "max-sm:overflow-x-auto",
     );
-    expect(tablist).not.toHaveClass("md:w-fit");
-    expect(tablist.parentElement).toHaveClass("gap-3");
+    expect(tablist).not.toHaveClass("min-h-11", "flex-1");
+    expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(tablist.parentElement?.parentElement).toHaveClass("justify-between");
     for (const tab of screen.getAllByRole("tab")) {
-      expect(tab).toHaveClass("min-h-11", "shrink-0");
+      expect(tab).not.toHaveClass("min-h-11");
     }
+    expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
   it("says a lost project is gone above the calendar", () => {

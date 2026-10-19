@@ -6,7 +6,7 @@
 
 [CORRECTION, REPORTED: user product direction, 2026-09-27] The earlier plan centered the hackathon developer flow. The CLI and Skill are a continuing, framework-neutral product. Private Workspace setup with an existing agent comes first. Developer onboarding and global listing follow that path. The hackathon is the first milestone. Discover and reuse existing Workspaces, Vendors, and Coworkers before proposing creation. Hermes is optional; the shared runtime commands remain the common interface. Hosts can use the operator's hardware or cloud environment.
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`] Current Core creation still requires platform admin. Current CLI connection requires Vendor-admin membership and membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. The CLI does not connect a personal Workspace through this path. These product instructions do not change Core permissions or billing.
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`, `apps/core/src/routes/v1/coworkers/post.ts:83-112`] Current Core creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). Current CLI connection requires Vendor-admin membership and membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. The CLI does not connect a personal Workspace through this path. These product instructions do not change Core permissions or billing.
 
 [VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258`, `apps/cli/src/coworker/runtime-task.ts:195`, at `c2271e441`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. `runtime receipt` reads an existing Task payment through Core. Completion submits status and result text without `masumiPayment`. [OPEN] Live execution and intended seller wallet receipt remain unproven. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
 
@@ -67,13 +67,13 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 1. [REPORTED: user decision] A platform admin selects the organization Workspace and invites the intended developers. [VERIFIED: `CONTEXT.md:250`] On a paid Organization, its owner or admin must assign a Seat before a member can use Tasks. Check the actual Preprod plan and Seat capacity before the event; they have not been verified.
 2. [VERIFIED: `apps/core/src/routes/v1/vendors/post.ts:23-25,87-104`] Each developer can create their own Vendor and becomes its admin. The developer gives the organizer the Vendor ID and final Coworker name. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:82-113`] Creation derives a unique slug from the name. Check name availability before provisioning.
-3. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`] A platform admin creates the Coworker under that Vendor. Core checks that the Vendor exists, but the organizer must verify that the Vendor ID belongs to the intended developer. Core creates the Coworker with `isWhitelisted: false`. The organizer returns the Coworker ID only. The ID identifies a record; the `coworker_*` key grants runtime access and stays with the developer.
+3. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:83-112,128-150`] A platform admin may create the Coworker under that Vendor on any network. On Preprod, the Vendor's own admin can also create. Core checks that the Vendor exists, but the organizer must verify that the Vendor ID belongs to the intended developer. Core creates the Coworker with `isWhitelisted: false`. The organizer returns the Coworker ID only. The ID identifies a record; the `coworker_*` key grants runtime access and stays with the developer.
 4. [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts:250-315`; `apps/core/src/helpers/coworker-workspace-access.ts:458-481`] The developer runs the CLI on their laptop. They connect the Coworker to the selected Workspace and create its key. A Vendor admin who belongs to that Workspace gets `GRANTED` access through the current Core route. Different Vendors can connect Coworkers to the same Workspace. A `GRANTED` record makes a private Coworker selectable by Workspace members.
 5. [REPORTED: user decision] Each developer runs their agent against a real Task and proves Preprod payment receipt. [VERIFIED: `apps/core/src/routes/v1/tasks/[id]/events/post.ts:319-328,419-460`; `apps/core/src/services/task-payment-claim.service.ts:146`] The assigned Coworker can submit `masumiPayment` on a Task event. `TaskPaymentClaim.PURCHASED` alone does not prove that the seller received funds. Collect the actual seller receipt for each developer.
 
 [OPEN] The hosted-agent adapter, MPS seller identity and wallet setup, safe runtime-key delivery, CLI executable distribution, Preprod credits, and Seat capacity need an event test. The CLI has no `masumiPayment` command yet.
 
-[CORRECTION, VERIFIED: CLI fixtures] The earlier track left admin provisioning as a direct Core operation. `coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks` now calls that route from the CLI. It returns the Coworker ID for the developer to connect and create a key. Core still requires platform admin access. The organizer does not need membership in the developer's Vendor. Workspace creation and invitations use the existing Web flow. The current `coworkers register` command still requires Vendor admin and Workspace membership. [Provisioning tests](../test/cli/provision.test.ts) · [Setup steps](../README.md#private-workspace-setup-and-coworker-provisioning)
+[CORRECTION, VERIFIED: CLI fixtures] The earlier track left admin provisioning as a direct Core operation. `coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks` now calls that route from the CLI. It returns the Coworker ID for the developer to connect and create a key. On Mainnet, Core still requires platform admin; on Preprod, a Vendor admin can provision under their own Vendor. The organizer does not need membership in the developer's Vendor. Workspace creation and invitations use the existing Web flow. The current `coworkers register` command still requires Vendor admin and Workspace membership. [Provisioning tests](../test/cli/provision.test.ts) · [Setup steps](../README.md#private-workspace-setup-and-coworker-provisioning)
 
 [CORRECTION, VERIFIED: `../../core/src/routes/v1/coworkers/post.ts`] Core no longer requires platform admin access for every creation. On Preprod, a Vendor admin can provision a private Coworker under their own Vendor.
 
@@ -93,7 +93,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [VERIFIED: ADR 0005, 2026-09-21] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Developer auth (OAuth / user API key) remains separate from runtime auth (`coworker_*` only). A short-lived developer-delegation token is rejected for the current path.
 
-[VERIFIED] Current Core Coworker creation requires platform admin authentication. This CLI work does not change that permission. Vendor admins can manage an existing Coworker, grant Workspace access, and create a runtime key. If ordinary developers must create Coworkers themselves, the Sokosumi team must define that server-side path. [Create route](../../core/src/routes/v1/coworkers/post.ts#L77-L80) · [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [Workspace access](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
+[VERIFIED] Current Core Coworker creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). This CLI work does not change that permission. Vendor admins can manage an existing Coworker, grant Workspace access, and create a runtime key. [Create route](../../core/src/routes/v1/coworkers/post.ts#L83-L112) · [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [Workspace access](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
 
 [VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
 
@@ -129,11 +129,11 @@ Sokosumi CLI
   v
 Sokosumi Preprod
   |
-  +-- Create Coworker: current Core role is platform admin
+  +-- Create Coworker: platform admin on any network; own Vendor admin on Preprod
   |     isWhitelisted starts false
   |
-  +-- Ordinary Vendor admin: existing Core create route rejects request
-  |     Platform-admin provisioning is required under current permissions
+  +-- Mainnet Vendor admin: existing Core create route rejects request
+  |     Preprod Vendor admin may create under their own Vendor
   |
   v
 Vendor admin selects an existing Workspace
@@ -215,7 +215,7 @@ Customer charging and seller receipt are separate outcomes. `TaskPaymentClaim.PU
 
 | Source | Observed behavior | Consequence |
 | --- | --- | --- |
-| `apps/core/src/routes/v1/coworkers/post.ts:75-132` | Admin-only registration; requires Vendor; creates an unwhitelisted Coworker | Self-service registration needs an approved Core contract |
+| `apps/core/src/routes/v1/coworkers/post.ts:83-112` | Platform admin any network; own Vendor admin on Preprod; requires Vendor; creates an unwhitelisted Coworker | Mainnet still needs platform-admin create; Preprod Vendor admin can self-provision |
 | `apps/cli/src/auth/config.ts:43-46` | Developer CLI rejects Coworker keys | Do not remove the guard to make a plugin work |
 | `apps/core/src/helpers/access-control.ts:199-265` | Human availability and Coworker actor access are separate checks | Workspace-only listing is not a credential restriction |
 | `apps/core/src/routes/v1/coworkers/me/events/get.ts:68-94` | Pulls events for assigned non-DRAFT Tasks | Reuse as an input source, not as a work-claim protocol |
@@ -255,10 +255,10 @@ These units describe independently reviewable outcomes, not a forced user journe
    - Files: `apps/cli/SPEC.md`, `apps/cli/docs/developer-cli-implementation-plan.md`, `apps/cli/src/api/models/organization-workspace.ts`, `apps/cli/src/api/models/vendor.ts`, `apps/cli/src/api/services/organization-workspace-service.ts`, `apps/cli/src/api/services/vendor-service.ts`, `apps/cli/src/cli/commands/discover.ts`, `apps/cli/src/cli/commands/vendors.ts`, `apps/cli/src/cli/commands/workspaces.ts`, `apps/cli/src/cli/index.ts`, `apps/cli/test/api/vendor-workspace-service.test.ts`, `apps/cli/test/cli/bin.test.ts`, `apps/cli/test/cli/commands/vendors-workspaces.test.ts`, `apps/cli/test/cli/index.test.ts`.
    - Checks: `pnpm --filter ./apps/cli test`; `pnpm --filter ./apps/cli typecheck`; `pnpm --filter ./apps/cli build`; `pnpm --filter core test src/routes/v1/vendors/get.test.ts src/routes/v1/vendors/vendor-admin.test.ts src/routes/v1/users/user-path-access.test.ts src/routes/v1/users/user-route-context.test.ts`; `pnpm exec biome check apps/cli/src apps/cli/test`; remove and restore V79/V80 guards, then rerun `pnpm --filter ./apps/cli test` to prove red and green.
    - Allowed: authenticated exact commands, Vendor memberships with roles, organization-workspace candidates, text output, one-document JSON. Denied: unauthenticated Core calls, bare/wrong subcommands, malformed lists, missing IDs, organization metadata output, Vendor creation, registration, and TUI changes.
-1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. Headless `coworkers register` requires at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. Gate copy directs blocked developers to `sokosumi vendors create`; Coworker create remains platform-admin only. Signed-in TUI has no Register screen; create stays headless until T41.
+1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. Headless `coworkers register` requires at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. Gate copy directs blocked developers to `sokosumi vendors create`; Core Coworker create allows platform admin on any network and own Vendor admin on Preprod. Signed-in TUI has no Register screen; create stays headless until T41.
 1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
 2. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity uses `coworker_*`. Keep it separate from developer auth and preserve developer-key guards.
-3. [BLOCKING TEAM DEPENDENCY] Current Core requires platform admin to create a Coworker. With permissions unchanged, a platform admin must provision the record before a Vendor admin can finish onboarding. The CLI must not bypass this role check. If the team expects ordinary developers to create records, the Core team must define that API separately.
+3. Current Core allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). The CLI must not bypass this role check.
    [REPORTED: user decision, 2026-09-25] For the hackathon, this is an organizer task for each developer. Follow the [hackathon track](#hackathon-track). This flow does not provide instant self-service registration.
 4. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Enforce Preprod-only Coworker registration in CLI. On Mainnet, show “Preprod only” and send no registration request. Keep other CLI commands network-configurable.
 5. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Select an existing Coworker, administered Vendor, and Workspace. Use the existing Core workspace-access route. Report registration complete only after `GRANTED`. The CLI directs users to Web to create or join a Workspace.
@@ -276,7 +276,7 @@ Remote owner approval URL is another MVP dependency. The current OAuth flow uses
 
 Owners: CLI controls setup; Core owns existing Vendor authorization, Coworker records, Workspace grants, expiry, and revocation; the runtime adapter owns its connection.
 
-Prerequisites: a Coworker record exists under a Vendor the developer administers. Current Core requires platform admin for Coworker creation. With permissions unchanged, a platform admin must provision the record. Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). The developer selects an existing Workspace. The current CLI sends users to Sokosumi Web to create or join a Workspace when none exists.
+Prerequisites: a Coworker record exists under a Vendor the developer administers. Current Core allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). The developer selects an existing Workspace. The current CLI sends users to Sokosumi Web to create or join a Workspace when none exists.
 
 Acceptance cases:
 - The CLI refuses Coworker registration on Mainnet and sends no request. Other commands retain their selected network.

@@ -61,6 +61,48 @@ import Testing
     #expect(realtime.log.suffix(2) == ["unsubscribe chat_rooms:room_a", "detach chat_rooms:room_a"])
   }
 
+  /// ADR 0055: a malformed token falls back to the production name; the next token that names the room moves it.
+  @Test func membershipMovesARoomOntoTheChannelALaterTokenNames() async throws {
+    let scoped = "chat_rooms:development:mainnet:room_a"
+    let mints = AuthorizationRequests()
+    let realtime = RecordingRealtime(options: Self.offlineOptions())
+    let subscriptions = RoomMembershipSubscriptions(
+      realtime: realtime,
+      authorize: { completion in
+        mints.record()
+        completion(mints.count == 1 ? "garbage" : #"{"\#(scoped)":["subscribe"]}"#, false)
+      },
+      onEvent: { _ in }
+    )
+    defer {
+      subscriptions.stop()
+      realtime.close()
+    }
+    subscriptions.update(["a"])
+    for _ in 0 ..< 100 where !realtime.log.contains("subscribe chat_rooms:room_a") {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    // One subscribe per room event name.
+    let production = Array(repeating: "subscribe chat_rooms:room_a", count: 3)
+    #expect(realtime.log == production)
+
+    subscriptions.refresh()
+    for _ in 0 ..< 100 where !realtime.log.contains("subscribe \(scoped)") {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let moved = production + ["unsubscribe chat_rooms:room_a", "detach chat_rooms:room_a"]
+      + Array(repeating: "subscribe \(scoped)", count: 3)
+    #expect(realtime.log == moved)
+
+    // The same name again leaves the room where it is.
+    subscriptions.refresh()
+    for _ in 0 ..< 100 where mints.count < 3 {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(realtime.log == moved)
+  }
+
   @Test func membershipRetriesAFailedMintOnItsClock() async throws {
     let requests = AuthorizationRequests()
     let clock = ManualSleep()

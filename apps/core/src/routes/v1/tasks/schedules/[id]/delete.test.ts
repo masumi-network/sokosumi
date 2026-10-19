@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   MEMBER_ID,
   PROJECT_ID,
@@ -13,8 +12,16 @@ import {
   createTaskScheduleTestApp,
   jsonRequest,
 } from "@/test-fixtures/task-schedule-app";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 import mountDeleteTaskSchedule from "./delete";
+
+const { resolveMemberOrganizationByIdMock } = vi.hoisted(() => ({
+  resolveMemberOrganizationByIdMock: vi.fn(),
+}));
+vi.mock("@/helpers/organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -98,5 +105,70 @@ describe("DELETE /tasks/schedules/{id}", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  describe("who may delete a schedule (ADR 0057)", () => {
+    beforeEach(() => {
+      resolveMemberOrganizationByIdMock.mockResolvedValue({
+        organization: { id: "org_123" },
+        role: "member",
+      });
+    });
+
+    function seedPublicSchedule(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return seedTaskSchedule(columns);
+    }
+
+    it.each(WORK_MAKERS)(
+      "lets the Owner delete a schedule made by a %s",
+      async (maker) => {
+        const schedule = seedPublicSchedule(publicWorkMadeBy(maker, MEMBER_ID));
+
+        const response = await remove(
+          schedule.id,
+          createTaskScheduleTestApp(
+            mountDeleteTaskSchedule,
+            userAuth(MEMBER_ID),
+          ),
+        );
+
+        expect(response.status).toBe(204);
+        expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      },
+    );
+
+    it.each(["owner", "admin"])(
+      "lets an Organization %s delete a schedule without an Owner",
+      async (role) => {
+        const schedule = seedPublicSchedule(publicWorkMadeBy("sokoBot", null));
+        resolveMemberOrganizationByIdMock.mockResolvedValue({
+          organization: { id: "org_123" },
+          role,
+        });
+
+        const response = await remove(
+          schedule.id,
+          createTaskScheduleTestApp(
+            mountDeleteTaskSchedule,
+            userAuth(MEMBER_ID),
+          ),
+        );
+
+        expect(response.status).toBe(204);
+        expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      },
+    );
+
+    it("refuses a plain member a schedule without an Owner", async () => {
+      const schedule = seedPublicSchedule(publicWorkMadeBy("person", null));
+
+      const response = await remove(
+        schedule.id,
+        createTaskScheduleTestApp(mountDeleteTaskSchedule, userAuth(MEMBER_ID)),
+      );
+
+      expect(response.status).toBe(403);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
   });
 });

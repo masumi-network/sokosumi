@@ -25,8 +25,6 @@ const executionMetricsSchema = z
     description: "Execution metrics",
   });
 
-export type ExecutionMetrics = z.infer<typeof executionMetricsSchema>;
-
 const ratingMetricsSchema = z
   .object({
     total: z
@@ -52,8 +50,6 @@ const metricsSchema = z
   .openapi({
     description: "Execution and rating metrics",
   });
-
-export type Metrics = z.infer<typeof metricsSchema>;
 
 const authorSchema = z.object({
   name: z.string().nullable().openapi({ example: "John Doe" }),
@@ -152,7 +148,7 @@ const agentExampleOutputSchema = z
   })
   .openapi("AgentExampleOutput");
 
-export type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
+type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
 
 interface AgentExampleOutputSource {
   exampleOutput: Array<{
@@ -238,8 +234,6 @@ const cardanoAgentListItemSchema = agentSummarySchema
   })
   .openapi("CardanoAgentListItem");
 
-export type CardanoAgentListItem = z.infer<typeof cardanoAgentListItemSchema>;
-
 // Nested: kind splits the rails, then x402AgentSchema splits on pricingType.
 // Flattening the three x402 variants into this union throws — they share
 // kind:"x402".
@@ -248,8 +242,6 @@ export const agentListItemSchema = z
   .openapi("AgentListItem");
 
 export const agentListSchema = z.array(agentListItemSchema);
-
-export type AgentListItem = z.infer<typeof agentListItemSchema>;
 
 export const agentDetailSchema = agentBaseSchema
   .extend({
@@ -314,8 +306,6 @@ export const agentReviewsSchema = z
   })
   .openapi("AgentReviews");
 
-export type AgentReviews = z.infer<typeof agentReviewsSchema>;
-
 // Intentionally omits createdAt/updatedAt: this payload is nullable at the top
 // level (null when the caller has not rated the agent), and the generated
 // client's response transformer does not null-guard a nullable top-level
@@ -350,8 +340,6 @@ export const agentRatingRequestSchema = z
   })
   .openapi("AgentRatingRequest");
 
-export type AgentRatingRequest = z.infer<typeof agentRatingRequestSchema>;
-
 export const agentRatingEligibilitySchema = z
   .object({
     eligible: z.boolean().openapi({
@@ -361,7 +349,3 @@ export const agentRatingEligibilitySchema = z
     }),
   })
   .openapi("AgentRatingEligibility");
-
-export type AgentRatingEligibility = z.infer<
-  typeof agentRatingEligibilitySchema
->;

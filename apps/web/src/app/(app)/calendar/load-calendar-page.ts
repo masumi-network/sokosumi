@@ -38,6 +38,7 @@ export interface CalendarPageSearchParams {
   socialOnly?: string;
   status?: string;
   postStatus?: string;
+  provider?: string;
   view?: string;
   timezone?: string;
 }

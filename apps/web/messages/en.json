@@ -341,6 +341,7 @@
       "design-md": "Design",
       "memory": "Memory",
       "social": "Social Scheduling",
+      "ads": "Ads",
       "evaluations": "Model evaluations"
     },
     "Jobs": {
@@ -1239,10 +1240,19 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
+          "RegisterOnWebsite": {
+            "message": "No account yet? Accounts are created on the website, not in the app.",
+            "link": "Create one on the website"
+          },
           "NoAccount": {
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
             "createAccount": "Create account"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No account for this address",
+            "description": "Check it for typos, or create an account on the website, then sign in here.",
+            "createAccount": "Create account on the website"
           },
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
@@ -1623,6 +1633,7 @@
           "standup": "Daily stand-up",
           "weeklyWrap": "Weekly wrap",
           "scheduled": "Scheduled: {name}",
+          "background": "Background run: {name}",
           "taskUpdate": "Task update"
         }
       }
@@ -2373,6 +2384,7 @@
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "startOver": "Start over",
+        "syncNow": "Sync now",
         "replace": "Replace",
         "disconnect": "Disconnect",
         "unknownHandle": "Unknown account",
@@ -2395,7 +2407,8 @@
         "cancel": "Cancel",
         "success": {
           "connected": "{account} connected.",
-          "disconnected": "{account} disconnected."
+          "disconnected": "{account} disconnected.",
+          "syncStarted": "Sync started."
         },
         "warning": {
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
@@ -2413,7 +2426,8 @@
           "reconnectMismatch": "Reconnect the same account that is already linked to this project.",
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
-          "notConfigured": "This integration is not configured yet. Contact support to enable it."
+          "notConfigured": "This integration is not configured yet. Contact support to enable it.",
+          "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
         "connectComingSoon": "{provider} (coming soon)",
@@ -2422,10 +2436,14 @@
       },
       "SocialPosts": {
         "loadMore": "Load more",
+        "loadMoreError": "Couldn't load more.",
+        "loadMoreOffline": "You're offline.",
+        "loadMoreTimeout": "Timed out.",
         "loading": "Loading…",
         "title": "Social posts",
         "newPost": "New post",
-        "moreActions": "Post actions",
+        "moreActionsNamed": "Post actions for {handle}",
+        "thisDraft": "this draft",
         "noAccount": "No account",
         "outcomes": {
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it.",
@@ -2449,8 +2467,12 @@
           "accounts": "Accounts",
           "statistics": "Performance"
         },
+        "filters": {
+          "platform": "Platform"
+        },
         "empty": {
-          "drafts": "No drafts yet."
+          "drafts": "No drafts yet.",
+          "more": "More posts are available."
         },
         "emptyHint": {
           "drafts": "Save a post as a draft to finish it later."
@@ -2548,6 +2570,10 @@
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
           "dismiss": "Cancel",
+          "discardTitle": "Discard changes?",
+          "discardDescription": "Your changes will be lost.",
+          "discard": "Discard",
+          "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
           "tooLong": "Text length is over the limit."
@@ -2572,10 +2598,12 @@
           "failed": "Something went wrong. Try again.",
           "offline": "You're offline. Try again.",
           "timeout": "Timed out. Try again.",
+          "missingPost": "Couldn't open this post.",
           "unauthenticated": "Please log in to continue.",
           "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
         },
         "needsReconnect": "Account needs reconnecting",
@@ -2599,6 +2627,17 @@
           "description": "The post goes out now.",
           "confirm": "Retry"
         },
+        "bulkRetry": {
+          "selectPost": "Select this post",
+          "selectAll": "Select all posts that can be retried",
+          "selected": "{count} selected",
+          "retrySelected": "Retry selected",
+          "title": "Retry these posts now?",
+          "description": "Each selected post goes out right away. You will see which ones published and which still need attention.",
+          "confirm": "Retry selected",
+          "resultsTitle": "Retry results",
+          "published": "Published"
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
@@ -2614,8 +2653,9 @@
           "now": "now",
           "accountFallback": "Your account",
           "open": "Preview",
+          "openNamed": "Preview {handle}",
           "accounts": "Preview account",
-          "as": "Preview as {handle}",
+          "as": "Preview as {provider} {handle}",
           "dialogTitle": "Post preview",
           "offline": "You're offline.",
           "timeout": "Timed out.",
@@ -2630,7 +2670,9 @@
           },
           "instagram": {
             "more": "more",
-            "mediaRequired": "Instagram needs an image or video."
+            "mediaRequired": "Instagram needs an image or video.",
+            "slide": "{current} of {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Like",
@@ -2646,6 +2688,9 @@
           "tiktok": {
             "more": "more",
             "videoRequired": "TikTok needs a video."
+          },
+          "x": {
+            "more": "Show more"
           }
         },
         "statistics": {
@@ -2664,9 +2709,11 @@
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
+          "loadMoreError": "Couldn't load more.",
           "unavailable": "Unavailable",
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
+          "updating": "Updating…",
           "metrics": {
             "views": "Views",
             "impressions": "Impressions",
@@ -2703,7 +2750,8 @@
             "legendMore": "More",
             "moreActions": "More actions",
             "exportCsv": "Export CSV",
-            "exportXlsx": "Export spreadsheet"
+            "exportXlsx": "Export spreadsheet",
+            "legendUnknown": "Unknown"
           },
           "accountsTitle": "Connected accounts",
           "postsTitle": "Published account posts",
@@ -3034,7 +3082,6 @@
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "pickTitle": "Pick a project",
-      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
@@ -3086,6 +3133,577 @@
       },
       "creditsCheckedOn": "Price checked {date}"
     },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Pick a project",
+      "pickBody": "Ads belong to one project: its ad accounts and campaigns are managed there. Choose a project to open its ads.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "tabsLabel": "Ads sections",
+      "loading": "Loading ads…",
+      "updated": "Updated {time}",
+      "loadError": {
+        "unavailableDescription": "It is not set up for Sokosumi yet.",
+        "failedDescription": "Try again in a moment.",
+        "retry": "Try again"
+      },
+      "tabs": {
+        "campaigns": "Campaigns",
+        "market": "Market",
+        "accounts": "Accounts"
+      },
+      "campaigns": {
+        "emptyTitle": "Connect an ad account to see campaigns",
+        "emptyBody": "Campaigns from Google Ads and Meta Ads appear here once an account is connected.",
+        "emptyAction": "Go to accounts",
+        "noCampaignsTitle": "No campaigns in this account yet",
+        "noCampaignsBody": "Create one with New campaign. It starts paused.",
+        "account": "Ad account",
+        "rangeLabel": "Date range",
+        "range": {
+          "7d": "7 days",
+          "30d": "30 days"
+        },
+        "tableLabel": "Campaigns",
+        "columns": {
+          "name": "Campaign",
+          "status": "Status",
+          "dailyBudget": "Daily budget",
+          "spend": "Spend",
+          "impressions": "Impressions",
+          "clicks": "Clicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions",
+          "actions": "Actions"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended",
+          "OTHER": "Other"
+        },
+        "actions": {
+          "label": "Actions for {name}",
+          "pause": "Pause",
+          "resume": "Resume",
+          "budget": "Change daily budget"
+        },
+        "cancel": "Cancel",
+        "pauseDialog": {
+          "title": "Pause {name}?",
+          "description": "It stops spending until you resume it.",
+          "confirm": "Pause"
+        },
+        "resumeDialog": {
+          "title": "Resume {name}?",
+          "description": "It starts spending again, up to its daily budget.",
+          "confirm": "Resume"
+        },
+        "budget": {
+          "label": "Daily budget ({currency})",
+          "required": "Enter a daily budget greater than 0.",
+          "wholeNumber": "Use a whole number for {currency}.",
+          "precision": "Use at most {digits} decimal places for {currency}.",
+          "managedElsewhere": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there."
+        },
+        "budgetDialog": {
+          "title": "Change daily budget",
+          "description": "{name} spends up to this amount per day.",
+          "save": "Save budget",
+          "change": "Daily budget changes from {old} to {new}.",
+          "notSet": "not set"
+        },
+        "success": {
+          "updated": "Campaign updated successfully"
+        },
+        "errors": {
+          "update": "Failed to update campaign",
+          "notActive": {
+            "title": "Reconnect this account in Accounts",
+            "description": "The connection to this ad account is no longer active.",
+            "action": "Go to accounts"
+          },
+          "unavailable": {
+            "title": "{provider} isn't available yet"
+          },
+          "failed": {
+            "title": "Failed to load campaigns"
+          }
+        },
+        "new": "New campaign",
+        "budgetPerDay": "{budget}/day"
+      },
+      "newCampaign": {
+        "title": "New campaign",
+        "inAccount": "{provider} account {name}",
+        "note": {
+          "google_ads": "Campaigns are created paused. Resume one here when it is ready.",
+          "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
+        },
+        "sections": {
+          "type": "Campaign type",
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "ad": "Ad"
+        },
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Text ads on Google Search results.",
+          "DISPLAY": "Image ads on websites and apps across the Google Display Network."
+        },
+        "name": "Name",
+        "objective": "Objective",
+        "objectivePlaceholder": "Select an objective",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Traffic",
+          "OUTCOME_AWARENESS": "Awareness",
+          "OUTCOME_ENGAGEMENT": "Engagement",
+          "OUTCOME_LEADS": "Leads",
+          "OUTCOME_SALES": "Sales"
+        },
+        "startDate": "Start date",
+        "endDate": "End date",
+        "datesHelp": "Optional. Uses the ad account's time zone.",
+        "targeting": {
+          "locations": {
+            "label": "Locations",
+            "help": "Where your ads can show. Up to {max}.",
+            "full": "Location limit reached ({max}).",
+            "placeholder": "Search for a country, region or city",
+            "search": "Search locations",
+            "loading": "Searching…",
+            "idle": "Type to find a place.",
+            "empty": "No locations found.",
+            "error": "Failed to search locations.",
+            "all": "All countries",
+            "remove": "Remove {name}"
+          },
+          "languages": {
+            "label": "Languages",
+            "help": "Show ads to people who use these languages.",
+            "placeholder": "Choose languages",
+            "search": "Search languages",
+            "empty": "No languages found.",
+            "unavailable": "Failed to load languages. The campaign will target all languages.",
+            "all": "All languages",
+            "remove": "Remove {name}"
+          }
+        },
+        "keywords": {
+          "label": "Keywords",
+          "help": "One keyword per line. Use \"quotes\" for phrase match and [brackets] for exact match.",
+          "placeholder": "running shoes\n\"trail running shoes\"\n[buy running shoes]",
+          "count": "{count, plural, one {# keyword} other {# keywords}}",
+          "addFromMarket": "Add from Market",
+          "marketNone": "No new Market keywords to add",
+          "marketFailed": "Failed to load Market keywords",
+          "errors": {
+            "required": "Add at least one keyword.",
+            "tooMany": "Use at most {max} keywords.",
+            "syntax": "Line {line}: check the quotes and brackets.",
+            "tooLong": "Line {line}: use at most {max} characters.",
+            "tooManyWords": "Line {line}: use at most {max} words."
+          }
+        },
+        "ad": {
+          "finalUrl": "Final URL",
+          "finalUrlHelp": "The page people land on after they click your ad.",
+          "finalUrlPlaceholder": "https://example.com/shoes",
+          "businessName": "Business name",
+          "longHeadline": "Long headline",
+          "displayPath": "Display path",
+          "displayPathHelp": "Optional. Two short paths shown after your domain in the ad.",
+          "path1": "Path 1",
+          "path2": "Path 2",
+          "pathPreview": "Shown as {url}",
+          "headlines": {
+            "label": "Headlines",
+            "help": "{min} to {max} headlines of up to {length} characters. Google combines them to find what works.",
+            "item": "Headline {number}",
+            "add": "Add headline",
+            "remove": "Remove headline {number}"
+          },
+          "descriptions": {
+            "label": "Descriptions",
+            "help": "{min} to {max} descriptions of up to {length} characters.",
+            "item": "Description {number}",
+            "add": "Add description",
+            "remove": "Remove description {number}"
+          },
+          "sitelinks": {
+            "title": "Sitelinks (optional)",
+            "summary": "{count, plural, one {# sitelink} other {# sitelinks}}",
+            "help": "Extra links shown under your ad. Up to {max}. Add both description lines or neither.",
+            "item": "Sitelink {number}",
+            "text": "Link text",
+            "finalUrl": "URL",
+            "description1": "Description line 1",
+            "description2": "Description line 2",
+            "add": "Add sitelink",
+            "remove": "Remove sitelink {number}"
+          },
+          "callouts": {
+            "title": "Callouts (optional)",
+            "summary": "{count, plural, one {# callout} other {# callouts}}",
+            "label": "Callouts",
+            "help": "Short highlights such as \"Free shipping\". Up to {max}, with up to {length} characters each.",
+            "item": "Callout {number}",
+            "add": "Add callout",
+            "remove": "Remove callout {number}"
+          },
+          "images": {
+            "label": "Images",
+            "help": "JPEG, PNG or GIF, up to {maxMb} MB each. Landscape images are 1.91:1 (at least {landscape} px), square images 1:1 (at least {square} px). Up to {maxImages} in total.",
+            "counts": "Landscape {landscape} · Square {square} · {total} of {max} images",
+            "missing": {
+              "both": "Add at least one landscape and one square image.",
+              "landscape": "Add at least one landscape image.",
+              "square": "Add at least one square image."
+            },
+            "logoLabel": "Logo",
+            "logoHelp": "Optional. Square images, 1:1, at least {logo} px. Up to {maxLogos}.",
+            "logoCounts": "{count} of {max} logos",
+            "roles": {
+              "LANDSCAPE": "Landscape",
+              "SQUARE": "Square",
+              "LOGO": "Logo"
+            },
+            "slots": {
+              "images": {
+                "files": "Image files"
+              },
+              "logo": {
+                "files": "Logo files"
+              }
+            },
+            "upload": "Upload",
+            "choose": "Choose from Drive",
+            "remove": "Remove {name}",
+            "uploadFailed": "Failed to upload the image",
+            "uploadDuplicate": "A file with this name already exists in your Drive. Choose it from Drive instead.",
+            "errors": {
+              "unreadable": "{name}: failed to read this image.",
+              "type": "{name}: use a JPEG, PNG or GIF image.",
+              "tooLarge": "{name}: use an image of at most {maxMb} MB.",
+              "duplicate": "{name} is already added.",
+              "full": "Use at most {maxImages} landscape and square images.",
+              "fullLogo": "Use at most {maxLogos} logos.",
+              "ratio": "{name}: use a landscape image (1.91:1, at least {landscape} px) or a square image (1:1, at least {square} px).",
+              "landscapeTooSmall": "{name}: landscape images need at least {landscape} px.",
+              "squareTooSmall": "{name}: square images need at least {square} px.",
+              "logoRatio": "{name}: logos must be square (1:1).",
+              "logoTooSmall": "{name}: logos need at least {logo} px.",
+              "repeated": "Use each image file once."
+            },
+            "kept": "Current image ({role})"
+          }
+        },
+        "submit": "Create campaign",
+        "uploadingImages": "Uploading images…",
+        "success": "Campaign created (paused)",
+        "errors": {
+          "nameRequired": "Enter a name.",
+          "nameTooLong": "Use at most {max} characters.",
+          "objectiveRequired": "Choose an objective.",
+          "finalUrl": "Enter a full address starting with http:// or https://.",
+          "headlineRequired": "Enter a headline or remove this one.",
+          "headlineTooLong": "Use at most {max} characters.",
+          "headlineDuplicate": "Each headline must be different.",
+          "descriptionRequired": "Enter a description or remove this one.",
+          "descriptionTooLong": "Use at most {max} characters.",
+          "tooLong": "Use at most {max} characters.",
+          "pathNeedsFirst": "Fill in path 1 first.",
+          "endBeforeStart": "The end date can't be before the start date.",
+          "sitelinkTextRequired": "Enter the link text or remove this sitelink.",
+          "sitelinkDescriptionsPair": "Add both description lines or neither.",
+          "sitelinkDuplicate": "Each sitelink must be different.",
+          "calloutDuplicate": "Each callout must be different.",
+          "businessNameRequired": "Enter the business name.",
+          "longHeadlineRequired": "Enter a long headline.",
+          "failed": "Failed to create campaign"
+        },
+        "steps": {
+          "type": "Campaign type",
+          "basics": "Basics",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "review": "Review"
+        },
+        "wizard": {
+          "stepsLabel": "Steps",
+          "stepOf": "Step {current} of {total}: {step}",
+          "backTo": "Back to {step}",
+          "goTo": "Go to {step}",
+          "back": "Back",
+          "next": "Next"
+        },
+        "typeTitle": "Where should your ads show?",
+        "typeIntro": "Pick one. It can't be changed once the campaign is created.",
+        "needs": {
+          "title": "You'll need",
+          "keywords": "Keywords people search for",
+          "searchTexts": "{minHeadlines} to {maxHeadlines} headlines and {minDescriptions} to {maxDescriptions} descriptions",
+          "displayTexts": "Up to {maxHeadlines} headlines, a long headline and up to {maxDescriptions} descriptions",
+          "businessName": "Your business name",
+          "images": "A landscape and a square image",
+          "finalUrl": "The page people land on"
+        },
+        "preview": {
+          "title": "Preview",
+          "searchLabel": "Search ad preview",
+          "displayLabel": "Display ad preview",
+          "sponsored": "Sponsored",
+          "note": "Google mixes your texts and images to find what works, so the real ad can look different.",
+          "another": "Show another combination",
+          "noImage": "No image yet",
+          "open": "Open"
+        },
+        "review": {
+          "title": "Summary",
+          "dailyBudget": "Daily budget",
+          "edit": "Edit",
+          "editLabel": "Edit {section}",
+          "schedule": {
+            "label": "Schedule",
+            "range": "{start} to {end}",
+            "from": "From {start}",
+            "until": "Until {end}",
+            "none": "No start or end date"
+          }
+        },
+        "setupFailed": {
+          "title": "Failed to load the campaign form",
+          "body": "Check your connection and try again.",
+          "retry": "Try again"
+        }
+      },
+      "campaignDetails": {
+        "back": "Back to campaigns",
+        "title": "Campaign",
+        "types": {
+          "SEARCH": "Search",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} a day",
+        "noEndDate": "No end date",
+        "sections": {
+          "performance": "Performance",
+          "settings": "Settings",
+          "targeting": "Targeting",
+          "keywords": "Keywords",
+          "ad": "Ad",
+          "sitelinks": "Sitelinks",
+          "callouts": "Callouts"
+        },
+        "performance": {
+          "chartMetric": "Chart metric",
+          "chartLabel": "{metric} per day",
+          "empty": "No activity in this period",
+          "tableCaption": "Daily performance",
+          "date": "Date",
+          "chartHint": "Use the left and right arrow keys to move between days."
+        },
+        "settings": {
+          "bidding": "Bidding",
+          "networks": "Networks"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximize clicks",
+          "MANUAL_CPC": "Manual CPC",
+          "ENHANCED_CPC": "Enhanced CPC",
+          "MANUAL_CPM": "Manual CPM",
+          "TARGET_CPM": "Target CPM",
+          "MAXIMIZE_CONVERSIONS": "Maximize conversions",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximize conversion value",
+          "TARGET_CPA": "Target CPA",
+          "TARGET_ROAS": "Target ROAS",
+          "TARGET_IMPRESSION_SHARE": "Target impression share"
+        },
+        "matchTypes": {
+          "BROAD": "Broad match",
+          "PHRASE": "Phrase match",
+          "EXACT": "Exact match"
+        },
+        "approval": {
+          "APPROVED": "Approved",
+          "APPROVED_LIMITED": "Approved (limited)",
+          "DISAPPROVED": "Disapproved",
+          "PENDING_REVIEW": "Pending review",
+          "UNDER_REVIEW": "Under review",
+          "AREA_OF_INTEREST_ONLY": "Shows in some areas only"
+        },
+        "ad": {
+          "displayUrl": "Display URL",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Review in progress",
+            "UNDER_APPEAL": "Under appeal",
+            "REVIEWED": "Reviewed",
+            "ELIGIBLE_MAY_SERVE": "Eligible to serve"
+          },
+          "strength": "Ad strength: {strength}",
+          "strengths": {
+            "PENDING": "Pending",
+            "NO_ADS": "No ads",
+            "POOR": "Poor",
+            "AVERAGE": "Average",
+            "GOOD": "Good",
+            "EXCELLENT": "Excellent"
+          },
+          "imageAlt": "{role} image {number}"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi doesn't build this campaign type; manage it in Google Ads.",
+          "AD_GROUPS": "This campaign has several ad groups; manage them in Google Ads.",
+          "AD_TYPE": "This campaign doesn't have a single responsive ad; manage its ads in Google Ads."
+        },
+        "errors": {
+          "failed": "Failed to load this campaign"
+        },
+        "networks": {
+          "SEARCH": "Google Search",
+          "DISPLAY": "Display Network"
+        },
+        "edit": "Edit"
+      },
+      "editCampaign": {
+        "title": "Edit campaign",
+        "submit": "Save changes",
+        "reviewNote": "Saving sends the ad back to Google's review.",
+        "startDateLocked": "The start date can't change once a campaign has started.",
+        "success": "Campaign updated",
+        "errors": {
+          "conflict": "This campaign can't be edited here.",
+          "failed": "Failed to save changes"
+        }
+      },
+      "market": {
+        "setupTitle": "Set up your market",
+        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your search competitors are running.",
+        "edit": "Edit market",
+        "editBody": "Trending keywords and ads follow these keywords, country and language.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Press Enter or comma to add one. Up to {max}.",
+          "keywordsPlaceholder": "For example, running shoes",
+          "keywordsFull": "Keyword limit reached",
+          "removeKeyword": "Remove {keyword}",
+          "country": "Country",
+          "countryPlaceholder": "Choose a country",
+          "language": "Language",
+          "languagePlaceholder": "Choose a language",
+          "submit": "Save market",
+          "cancel": "Cancel",
+          "success": "Market saved successfully",
+          "errors": {
+            "keywordsRequired": "Add at least one keyword.",
+            "keywordsTooMany": "Use up to {max} keywords.",
+            "countryRequired": "Choose a country.",
+            "languageRequired": "Choose a language.",
+            "failed": "Failed to save market"
+          }
+        },
+        "keywords": {
+          "title": "Trending keywords",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Monthly searches",
+            "trend": "12 months",
+            "competition": "Competition",
+            "bidRange": "Top-of-page bid"
+          },
+          "competition": {
+            "LOW": "Low",
+            "MEDIUM": "Medium",
+            "HIGH": "High"
+          },
+          "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
+          "searchesPerMonth": "{count} searches a month",
+          "emptyTitle": "No trending keywords found for this market",
+          "emptyBody": "Try other keywords or another country."
+        },
+        "ads": {
+          "title": "Ads from your search competitors",
+          "previewAlt": "Ad by {advertiser}",
+          "textAd": "Text ad",
+          "noPreview": "No preview",
+          "format": {
+            "text": "Text",
+            "image": "Image",
+            "video": "Video",
+            "other": "Other"
+          },
+          "lastShown": "Last shown {time}",
+          "viewAd": "View ad",
+          "emptyTitle": "No competitor ads found",
+          "emptyBody": "Ads from sites ranking for your keywords appear here once they run.",
+          "gatheringTitle": "Gathering ads from your search competitors",
+          "gatheringBody": "This takes a few minutes. You can leave this page.",
+          "refreshing": "Refreshing…",
+          "failedTitle": "Couldn't gather competitor ads",
+          "failedBody": "We'll try again within the hour.",
+          "failedNotice": "Couldn't refresh, we'll try again within the hour"
+        },
+        "errors": {
+          "unavailable": "Market data isn't available yet",
+          "failed": {
+            "profile": "Failed to load your market",
+            "keywords": "Failed to load keywords",
+            "ads": "Failed to load ads"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "No ad accounts connected yet",
+        "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns.",
+        "connect": "Connect {provider}",
+        "comingSoon": "Coming soon",
+        "unavailable": "{provider} isn't available yet",
+        "noAccountsFound": "No ad accounts found for this login",
+        "sectionLabel": "Ad accounts",
+        "listLabel": "Connected ad accounts",
+        "disconnect": "Disconnect",
+        "disconnectLabel": "Disconnect {name}",
+        "cancel": "Cancel",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect {name}?",
+          "description": "Its campaigns will no longer appear here. If this is the last account from that login, Sokosumi also disconnects the login. You can connect it again at any time.",
+          "confirm": "Disconnect"
+        },
+        "picker": {
+          "title": "Choose ad accounts",
+          "description": "Select the {provider} accounts to manage in this project.",
+          "listLabel": "Available ad accounts",
+          "confirm": "Connect selected"
+        },
+        "success": {
+          "connected": "Ad accounts connected successfully",
+          "disconnected": "Ad account disconnected successfully"
+        },
+        "errors": {
+          "connect": "Failed to connect {provider}",
+          "attach": "Failed to connect ad accounts",
+          "disconnect": "Failed to disconnect ad account",
+          "discard": "Failed to discard ad connection",
+          "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
+          "timeout": "Authorization took too long. Try again.",
+          "inFlight": "Another connection is already in progress."
+        }
+      },
+      "error": {
+        "title": "Failed to load ads",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      }
+    },
     "Social": {
       "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
@@ -3106,6 +3724,10 @@
       "accountsNeedProject": {
         "title": "Connect your social accounts",
         "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+      },
+      "attentionNeedProject": {
+        "title": "Needs attention",
+        "body": "Choose a project to see posts that failed or were missed."
       },
       "draftsNeedProject": {
         "title": "Drafts",
@@ -3160,7 +3782,8 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling"
+          "social": "Social Scheduling",
+          "ads": "Ads"
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -7533,7 +8156,8 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}",
-        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}",
+        "platform": "Platform"
       },
       "socialOnly": {
         "label": "Social posts only"

@@ -9,17 +9,15 @@ public extension WorkspaceState {
   /// Web refreshes the invitations collection on mount and recovery in every workspace; loads fail soft.
   func loadPendingInvitations() async {
     let context = compositionContext
-    let slug = selection?.workspace.organizationSlug
     await pendingInvitations.load {
-      try await workspaceOperation(context: context) { client in
+      try await workspaceOperation(context: context) { client, slug in
         try await service.pendingInvitations(client: client, organizationSlug: slug)
       }
     }
   }
 
   func loadInvitation(id: String, context: UUID) async throws -> Components.Schemas.ChatRoomInvitation {
-    let slug = selection?.workspace.organizationSlug
-    return try await workspaceOperation(context: context) { client in
+    try await workspaceOperation(context: context) { client, slug in
       try await service.invitation(client: client, id: id, organizationSlug: slug)
     }
   }
@@ -28,9 +26,8 @@ public extension WorkspaceState {
   @discardableResult
   func acceptInvitation(id: String, context: UUID) async throws -> Bool {
     let sourceRoom = transcriptRoomId
-    let slug = selection?.workspace.organizationSlug
     return try await exclusive(.respondToInvitation(.accept, id: id), context: context) {
-      let invitation = try await workspaceOperation(context: context) { client in
+      let invitation = try await workspaceOperation(context: context) { client, slug in
         try await service.acceptInvitation(client: client, id: id, organizationSlug: slug)
       }
       pendingInvitations.remove(id: id)
@@ -40,9 +37,8 @@ public extension WorkspaceState {
 
   @discardableResult
   func declineInvitation(id: String, context: UUID) async throws -> Bool {
-    let slug = selection?.workspace.organizationSlug
-    return try await exclusive(.respondToInvitation(.decline, id: id), context: context) {
-      _ = try await workspaceOperation(context: context) { client in
+    try await exclusive(.respondToInvitation(.decline, id: id), context: context) {
+      _ = try await workspaceOperation(context: context) { client, slug in
         try await service.declineInvitation(client: client, id: id, organizationSlug: slug)
       }
       pendingInvitations.remove(id: id)
@@ -50,7 +46,7 @@ public extension WorkspaceState {
   }
 
   func resolveGuestInviteLink(token: String, context: UUID) async throws -> Components.Schemas.ResolveChatRoomGuestInviteLink {
-    try await workspaceOperation(context: context) { client in
+    try await workspaceOperation(context: context) { client, _ in
       try await service.resolveGuestInviteLink(client: client, token: token)
     }
   }
@@ -59,9 +55,8 @@ public extension WorkspaceState {
   @discardableResult
   func acceptGuestInviteLink(token: String, context: UUID) async throws -> Bool {
     let sourceRoom = transcriptRoomId
-    let slug = selection?.workspace.organizationSlug
     return try await exclusive(.respondToInvitation(.accept, id: token), context: context) {
-      let joined = try await workspaceOperation(context: context) { client in
+      let joined = try await workspaceOperation(context: context) { client, slug in
         try await service.acceptGuestInviteLink(client: client, token: token, organizationSlug: slug)
       }
       await openJoinedRoom(joined.roomId, sourceRoom: sourceRoom, context: context)

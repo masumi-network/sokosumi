@@ -8,7 +8,8 @@ vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   return {
     useFormatter: () => createTestFormatter(),
-    useTranslations: () => (key: string) => key,
+    useTranslations: () => (key: string, values?: { date?: string }) =>
+      key === "failedAt" ? `Failed ${values?.date ?? ""}` : key,
   };
 });
 
@@ -84,5 +85,86 @@ describe("SocialPostPreviewDialog", () => {
     expect(
       screen.getByRole("button", { name: "composer.reschedule" }),
     ).toHaveClass("min-h-11");
+  });
+
+  it("shows why a failed post did not go out and when", () => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{
+          ...POST,
+          status: "FAILED",
+          publishedUrl: null,
+          lastError: "X rejected the post (403 forbidden)",
+          lastAttempt: {
+            attempt: 3,
+            trigger: "scheduler",
+            outcome: "failed_permanent",
+            errorKind: "provider_rejected",
+            providerOutcome: "403 forbidden",
+            finishedAt: new Date("2026-09-10T10:05:00.000Z"),
+          },
+          canPublishNow: true,
+        }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+
+    const failure = screen.getByTestId("social-post-preview-failure");
+    expect(failure).toHaveTextContent("X rejected the post (403 forbidden)");
+    expect(failure).toHaveTextContent("Failed");
+  });
+
+  it("maps a revoked coworker schedule to the lean outcome copy", () => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{
+          ...POST,
+          status: "FAILED",
+          publishedUrl: null,
+          lastError: "Internal authorization failure text",
+          lastAttempt: {
+            attempt: 1,
+            trigger: "publish_now",
+            outcome: "authorization_revoked",
+            errorKind: "authorization_revoked",
+            providerOutcome: null,
+            finishedAt: new Date("2026-09-10T10:05:00.000Z"),
+          },
+        }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-preview-failure")).toHaveTextContent(
+      "outcomes.authorizationRevoked",
+    );
+    expect(
+      screen.queryByText("Internal authorization failure text"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the miss reason without a failure time", () => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{
+          ...POST,
+          status: "MISSED",
+          publishedUrl: null,
+          lastError: "Scheduled time passed more than an hour ago",
+          lastAttempt: null,
+        }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-preview-failure")).toHaveTextContent(
+      "Scheduled time passed more than an hour ago",
+    );
   });
 });

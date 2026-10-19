@@ -1,0 +1,317 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { AdCampaign, ProjectAdProvider } from "@sokosumi/core-client";
+import { MoreHorizontal } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { updateAdCampaign } from "@/lib/actions/ads/action";
+
+import { useAdsBudget } from "./ads-budget";
+
+type CampaignDialog = "pause" | "resume" | "budget";
+
+interface AdsCampaignActionsProps {
+  accountId: string;
+  /** What the menu and its dialogs read, so the details page can pass its own. */
+  campaign: Pick<AdCampaign, "id" | "name" | "status" | "dailyBudget">;
+  currency: string;
+  projectId: string;
+  provider: ProjectAdProvider;
+}
+
+interface DialogProps extends AdsCampaignActionsProps {
+  onClose: () => void;
+}
+
+/**
+ * A campaign row's menu and the dialogs it opens. Pause and resume ask first,
+ * the budget dialog states the change before it saves, and nothing updates
+ * optimistically: the action revalidates the page and the list refetches.
+ */
+export function AdsCampaignActions(props: AdsCampaignActionsProps) {
+  const { campaign } = props;
+  const t = useTranslations("App.Ads.campaigns.actions");
+  const [dialog, setDialog] = useState<CampaignDialog | null>(null);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={t("label", { name: campaign.name })}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <MoreHorizontal aria-hidden className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {campaign.status === "ACTIVE" ? (
+            <DropdownMenuItem onSelect={() => setDialog("pause")}>
+              {t("pause")}
+            </DropdownMenuItem>
+          ) : null}
+          {campaign.status === "PAUSED" ? (
+            <DropdownMenuItem onSelect={() => setDialog("resume")}>
+              {t("resume")}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onSelect={() => setDialog("budget")}>
+            {t("budget")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {dialog === "budget" ? (
+        <BudgetDialog {...props} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === "pause" || dialog === "resume" ? (
+        <StatusDialog
+          {...props}
+          nextStatus={dialog === "pause" ? "PAUSED" : "ACTIVE"}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function StatusDialog({
+  accountId,
+  campaign,
+  nextStatus,
+  onClose,
+  projectId,
+}: DialogProps & { nextStatus: "ACTIVE" | "PAUSED" }) {
+  const t = useTranslations("App.Ads.campaigns");
+  const copy = nextStatus === "PAUSED" ? "pauseDialog" : "resumeDialog";
+  const [pending, setPending] = useState(false);
+
+  async function handleConfirm(): Promise<void> {
+    setPending(true);
+    try {
+      const result = await updateAdCampaign({
+        projectId,
+        accountId,
+        campaignId: campaign.id,
+        status: nextStatus,
+      });
+      if (result.ok) {
+        toast.success(t("success.updated"));
+        onClose();
+      } else {
+        toast.error(t("errors.update"));
+      }
+    } catch {
+      toast.error(t("errors.update"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t(`${copy}.title`, { name: campaign.name })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t(`${copy}.description`)}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>
+            {t("cancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            loading={pending}
+            onClick={(event) => {
+              event.preventDefault();
+              void handleConfirm();
+            }}
+          >
+            {t(`${copy}.confirm`)}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/**
+ * Edit the daily budget. The input steps by the currency's smallest unit and
+ * the dialog says what will change before "Save budget". Core's refusals are
+ * worded here by status (it is the one action in play), never from its text.
+ */
+function BudgetDialog({
+  accountId,
+  campaign,
+  currency,
+  onClose,
+  projectId,
+  provider,
+}: DialogProps) {
+  const t = useTranslations("App.Ads.campaigns.budgetDialog");
+  const tBudget = useTranslations("App.Ads.campaigns.budget");
+  const tCampaigns = useTranslations("App.Ads.campaigns");
+  const tProvider = useTranslations("App.Ads.accounts.providers");
+  const formatter = useFormatter();
+  const budget = useAdsBudget(currency);
+  const form = useForm<{ dailyBudget: string }>({
+    resolver: zodResolver(z.object({ dailyBudget: budget.schema })),
+    defaultValues: {
+      dailyBudget:
+        campaign.dailyBudget === null ? "" : String(campaign.dailyBudget),
+    },
+  });
+
+  const value = form.watch("dailyBudget");
+  const isValid = budget.schema.safeParse(value).success;
+  const isUnchanged = isValid && Number(value) === campaign.dailyBudget;
+  const money = (amount: number) =>
+    formatter.number(amount, { style: "currency", currency });
+
+  function refusalMessage(status: number | undefined): string {
+    if (status === 409) {
+      return tBudget("managedElsewhere", { provider: tProvider(provider) });
+    }
+    return status === 422
+      ? budget.precisionMessage
+      : tCampaigns("errors.update");
+  }
+
+  async function handleSubmit(values: { dailyBudget: string }): Promise<void> {
+    try {
+      const result = await updateAdCampaign({
+        projectId,
+        accountId,
+        campaignId: campaign.id,
+        dailyBudget: Number(values.dailyBudget),
+      });
+      if (result.ok) {
+        toast.success(tCampaigns("success.updated"));
+        onClose();
+      } else {
+        form.setError("dailyBudget", {
+          message: refusalMessage(result.error.status),
+        });
+      }
+    } catch {
+      form.setError("dailyBudget", { message: tCampaigns("errors.update") });
+    }
+  }
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <Form {...form}>
+          <form
+            className="grid gap-4"
+            noValidate
+            onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("title")}</DialogTitle>
+              <DialogDescription>
+                {t("description", { name: campaign.name })}
+              </DialogDescription>
+            </DialogHeader>
+            <FormField
+              control={form.control}
+              name="dailyBudget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{budget.label}</FormLabel>
+                  <FormControl>
+                    <Input
+                      inputMode="decimal"
+                      min={0}
+                      step={budget.step}
+                      type="number"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  {isValid && !isUnchanged ? (
+                    <p className="text-muted-foreground text-sm" role="status">
+                      {t("change", {
+                        old:
+                          campaign.dailyBudget === null
+                            ? t("notSet")
+                            : money(campaign.dailyBudget),
+                        new: money(Number(value)),
+                      })}
+                    </p>
+                  ) : null}
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button onClick={onClose} type="button" variant="ghost">
+                {tCampaigns("cancel")}
+              </Button>
+              <Button
+                disabled={isUnchanged}
+                loading={form.formState.isSubmitting}
+                type="submit"
+              >
+                {t("save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

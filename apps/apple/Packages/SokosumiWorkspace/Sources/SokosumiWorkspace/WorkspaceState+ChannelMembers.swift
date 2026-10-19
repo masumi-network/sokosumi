@@ -18,10 +18,7 @@ public extension WorkspaceState {
         try await service.addChannelMembers(client: client, roomId: roomId, recipients: recipients, organizationSlug: slug)
       }
       // A list read already in flight predates this roster edit.
-      sidebar.invalidateRefresh()
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      }
+      sidebar.replace(room)
     }
   }
 
@@ -42,15 +39,13 @@ public extension WorkspaceState {
         }
       }
       // A list read already in flight predates this roster edit.
-      sidebar.invalidateRefresh()
-      guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
       if let updated {
-        rooms[index] = updated
+        sidebar.replace(updated)
       } else if case let .human(userId) = member {
-        var room = rooms[index]
-        room.userMembers.removeAll { $0.id == userId }
-        room.sokoBotMembers.removeAll { $0.ownerUserId == userId }
-        rooms[index] = room
+        sidebar.update(roomId, invalidatingRefresh: true) { room in
+          room.userMembers.removeAll { $0.id == userId }
+          room.sokoBotMembers.removeAll { $0.ownerUserId == userId }
+        }
       }
     }
   }
