@@ -39,6 +39,7 @@ import mountInitiateProjectSocialConnection from "./[id]/social-connections/init
 import mountExportSocialAccountStatistics from "./[id]/social-connections/statistics/export/get.js";
 import mountListSocialAccountStatistics from "./[id]/social-connections/statistics/get.js";
 import mountCancelProjectSocialPost from "./[id]/social-posts/[postId]/cancel/post.js";
+import mountDuplicateProjectSocialPost from "./[id]/social-posts/[postId]/duplicate/post.js";
 import mountGetProjectSocialPost from "./[id]/social-posts/[postId]/get.js";
 import mountPatchProjectSocialPost from "./[id]/social-posts/[postId]/patch.js";
 import mountPublishProjectSocialPost from "./[id]/social-posts/[postId]/publish/post.js";
@@ -110,6 +111,7 @@ mountGetProjectSocialPost(app);
 mountPatchProjectSocialPost(app);
 mountScheduleProjectSocialPost(app);
 mountCancelProjectSocialPost(app);
+mountDuplicateProjectSocialPost(app);
 mountGetProjectImageStudio(app);
 mountCreateProjectImageJob(app);
 mountCancelProjectImageJob(app);

@@ -2605,7 +2605,8 @@
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
           "publishFailedItem": "{account} — {error}",
-          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
+          "duplicated": "Draft created."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2616,7 +2617,8 @@
         "actions": {
           "publishNow": "Post now",
           "retry": "Retry",
-          "dismiss": "Dismiss"
+          "dismiss": "Dismiss",
+          "duplicate": "Duplicate as draft"
         },
         "publishDialog": {
           "title": "Post this now?",
@@ -2849,7 +2851,8 @@
           "retryTitle": "Retry failed posts?",
           "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
           "later": "Later"
-        }
+        },
+        "moreActions": "Post actions"
       },
       "Detail": {
         "back": "Back to projects",
@@ -3140,7 +3143,8 @@
         "megapixels": "megapixel",
         "processedMegapixels": "processed megapixel"
       },
-      "creditsCheckedOn": "Price checked {date}"
+      "creditsCheckedOn": "Price checked {date}",
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
     },
     "Ads": {
       "title": "Ads",
@@ -3747,6 +3751,10 @@
       "platforms": {
         "label": "Social platforms",
         "pause": "Pause platforms"
+      },
+      "statisticsNeedProject": {
+        "title": "Choose a project to see performance",
+        "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
       }
     },
     "Error": {

@@ -2605,7 +2605,8 @@
           "published": "Publicación publicada.",
           "publishFailed": "Error al publicar: {error}",
           "publishFailedItem": "{account} — {error}",
-          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
+          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
+          "duplicated": "Borrador creado."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2616,7 +2617,8 @@
         "actions": {
           "publishNow": "Publicar ahora",
           "retry": "Reintentar",
-          "dismiss": "Descartar"
+          "dismiss": "Descartar",
+          "duplicate": "Duplicar como borrador"
         },
         "publishDialog": {
           "title": "¿Publicar ahora?",
@@ -2849,7 +2851,8 @@
           "retryTitle": "¿Reintentar las publicaciones fallidas?",
           "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
           "later": "Más tarde"
-        }
+        },
+        "moreActions": "Acciones de la publicación"
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -3140,7 +3143,8 @@
         "megapixels": "megapíxel",
         "processedMegapixels": "megapíxel procesado"
       },
-      "creditsCheckedOn": "Precio comprobado el {date}"
+      "creditsCheckedOn": "Precio comprobado el {date}",
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
     },
     "Ads": {
       "title": "Anuncios",
@@ -3747,6 +3751,10 @@
       "platforms": {
         "label": "Plataformas de redes sociales",
         "pause": "Pausar plataformas"
+      },
+      "statisticsNeedProject": {
+        "title": "Elige un proyecto para ver el rendimiento",
+        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {

@@ -22867,6 +22867,10 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canDuplicate: {
+            type: 'boolean',
+            description: 'True when the post can be copied into a new draft (published, failed, or missed)'
+        },
         connectionNeedsReconnect: {
             type: 'boolean',
             description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
@@ -22900,6 +22904,7 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canDuplicate',
         'connectionNeedsReconnect'
     ]
 } as const;

@@ -2605,7 +2605,8 @@
           "published": "Beitrag veröffentlicht.",
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
           "publishFailedItem": "{account} — {error}",
-          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
+          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
+          "duplicated": "Entwurf erstellt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2616,7 +2617,8 @@
         "actions": {
           "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
-          "dismiss": "Verwerfen"
+          "dismiss": "Verwerfen",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt posten?",
@@ -2849,7 +2851,8 @@
           "retryTitle": "Fehlgeschlagene Beiträge erneut versuchen?",
           "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
           "later": "Später"
-        }
+        },
+        "moreActions": "Beitragsaktionen"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -3140,7 +3143,8 @@
         "megapixels": "Megapixel",
         "processedMegapixels": "verarbeitetes Megapixel"
       },
-      "creditsCheckedOn": "Preis geprüft am {date}"
+      "creditsCheckedOn": "Preis geprüft am {date}",
+      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen."
     },
     "Ads": {
       "title": "Ads",
@@ -3747,6 +3751,10 @@
       "platforms": {
         "label": "Social-Media-Plattformen",
         "pause": "Plattformen pausieren"
+      },
+      "statisticsNeedProject": {
+        "title": "Wähle ein Projekt, um die Leistung zu sehen",
+        "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
       }
     },
     "Error": {

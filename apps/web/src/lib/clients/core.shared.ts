@@ -459,6 +459,7 @@ import {
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdDuplicate as corePostProjectsByIdSocialPostsByPostIdDuplicate,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
@@ -3545,6 +3546,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialPostsByPostIdDuplicate(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdDuplicate({
+          client,
+          path: { id, postId },
+        }),
+      "Failed to duplicate Project social post",
+    );
+  }
+
   async function postProjectsByIdSocialPostsByPostIdPublish(
     id: string,
     postId: string,
@@ -6540,6 +6556,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdDuplicate,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,

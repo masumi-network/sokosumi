@@ -6669,6 +6669,10 @@ export type SocialPost = {
     canCancel: boolean;
     canPublishNow: boolean;
     /**
+     * True when the post can be copied into a new draft (published, failed, or missed)
+     */
+    canDuplicate: boolean;
+    /**
      * The linked connection exists but is not active, so the post cannot go out until someone reconnects
      */
     connectionNeedsReconnect: boolean;
@@ -47041,6 +47045,156 @@ export type PostProjectsByIdSocialPostsByPostIdCancelResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdCancelResponse = PostProjectsByIdSocialPostsByPostIdCancelResponses[keyof PostProjectsByIdSocialPostsByPostIdCancelResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/duplicate';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateError = PostProjectsByIdSocialPostsByPostIdDuplicateErrors[keyof PostProjectsByIdSocialPostsByPostIdDuplicateErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponses = {
+    /**
+     * Social post duplicated
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdDuplicateResponse = PostProjectsByIdSocialPostsByPostIdDuplicateResponses[keyof PostProjectsByIdSocialPostsByPostIdDuplicateResponses];
 
 export type GetProjectsByIdImageStudioData = {
     body?: never;

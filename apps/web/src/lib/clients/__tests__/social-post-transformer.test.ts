@@ -3,6 +3,7 @@ import {
   getProjectsByIdSocialPostsResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
@@ -39,6 +40,7 @@ function buildPost() {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
 }
@@ -49,6 +51,7 @@ const transformers = [
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
 ];
 

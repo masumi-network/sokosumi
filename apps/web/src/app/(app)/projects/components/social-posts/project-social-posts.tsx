@@ -73,6 +73,7 @@ import {
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   cancelProjectSocialPost,
+  duplicateProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
@@ -320,6 +321,7 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [duplicatePending, setDuplicatePending] = useState(false);
   const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -562,6 +564,27 @@ export function ProjectSocialPosts({
     showTab(calendar !== undefined ? "calendar" : null);
   }
 
+  async function handleDuplicate(post: SocialPost): Promise<void> {
+    if (duplicatePending) return;
+    setDuplicatePending(true);
+    try {
+      const result = await duplicateProjectSocialPost({
+        projectId,
+        postId: post.id,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.duplicated"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setDuplicatePending(false);
+    }
+  }
+
   async function handleConfirmCancel(): Promise<void> {
     const target = cancelTarget;
     if (!target || cancelPending) return;
@@ -728,7 +751,8 @@ export function ProjectSocialPosts({
       canPublishNow ||
       (showComposeInMenu && post.canEdit) ||
       (showComposeInMenu && post.canSchedule) ||
-      post.canCancel;
+      post.canCancel ||
+      post.canDuplicate;
     const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
@@ -811,6 +835,17 @@ export function ProjectSocialPosts({
                   {post.status === "SCHEDULED" || isRetry
                     ? t("composer.reschedule")
                     : t("composer.schedule")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canDuplicate ? (
+                <DropdownMenuItem
+                  className="min-h-11"
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    void handleDuplicate(post);
+                  }}
+                >
+                  {t("actions.duplicate")}
                 </DropdownMenuItem>
               ) : null}
               {post.canCancel ? (

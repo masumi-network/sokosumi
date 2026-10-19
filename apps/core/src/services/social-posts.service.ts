@@ -57,6 +57,11 @@ const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "FAILED",
   "MISSED",
 ];
+const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
+  "PUBLISHED",
+  "FAILED",
+  "MISSED",
+];
 /** Statuses where a stale connection blocks the next publish. */
 const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -145,6 +150,7 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
 }
@@ -214,6 +220,14 @@ export interface CancelSocialPostInput extends ProjectScope {
   revision: number;
 }
 
+export interface DuplicateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  postId: string;
+}
+
 function mapCreator(record: SocialPostRecord): SocialPostCreator {
   if (record.creatorUser) {
     return { kind: "user", ...record.creatorUser };
@@ -266,6 +280,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       PUBLISH_NOW_STATUSES.includes(record.status) &&
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
+    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -796,4 +811,47 @@ export async function cancelSocialPost(
       tx,
     ),
   );
+}
+
+export async function duplicateSocialPost(
+  input: DuplicateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const source = await requireScopedPost(input, tx);
+  if (!DUPLICATABLE_STATUSES.includes(source.status)) {
+    throw conflict(
+      "Only a published, failed, or missed post can be duplicated",
+    );
+  }
+
+  const provider = requireProvider(source.provider);
+  const media = normalizeSocialPostMedia({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    provider,
+    media: parseSocialPostMedia(source.media, source.id),
+  });
+  const text = requireTextWithinLimit(source.text, provider, media.length > 0);
+  requireMediaRequirement(provider, media);
+  const socialConnectionId =
+    source.socialConnection && source.socialConnection.status !== "disconnected"
+      ? source.socialConnection.id
+      : null;
+
+  const post = await tx.socialPost.create({
+    data: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      socialConnectionId,
+      provider,
+      text,
+      media: mediaJson(media),
+      status: "DRAFT",
+      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorCoworkerId: input.coworkerId ?? null,
+    },
+    include: socialPostInclude,
+  });
+  return mapSocialPost(post);
 }
