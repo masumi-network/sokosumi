@@ -16,6 +16,7 @@ import {
   isValidTimezone,
   normalizeWebsiteUrl,
   projectIdentifierSchema,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
 } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -103,6 +104,7 @@ interface DisconnectProjectSocialConnectionParameters
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   text: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
@@ -114,6 +116,7 @@ interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   text?: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -618,6 +621,7 @@ const createProjectSocialPostSchema = z
   .object({
     projectId: trimmedId,
     text: z.string(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     scheduledAt: isoTimestamp.nullish(),
@@ -633,6 +637,7 @@ const updateProjectSocialPostSchema = z
     projectId: trimmedId,
     postId: trimmedId,
     text: z.string().optional(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     revision: revisionSchema,
@@ -703,6 +708,7 @@ export const createProjectSocialPost = withSession<
   async ({
     projectId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     scheduledAt,
@@ -711,6 +717,7 @@ export const createProjectSocialPost = withSession<
     const parsed = createProjectSocialPostSchema.safeParse({
       projectId,
       text,
+      firstComment,
       media,
       socialConnectionId,
       scheduledAt,
@@ -725,6 +732,9 @@ export const createProjectSocialPost = withSession<
         parsed.data.projectId,
         {
           text: parsed.data.text,
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
           ...(parsed.data.media ? { media: parsed.data.media } : {}),
           ...(parsed.data.socialConnectionId
             ? { socialConnectionId: parsed.data.socialConnectionId }
@@ -746,40 +756,54 @@ export const createProjectSocialPost = withSession<
 export const updateProjectSocialPost = withSession<
   UpdateProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, text, media, socialConnectionId, revision }) => {
-  const parsed = updateProjectSocialPostSchema.safeParse({
+>(
+  async ({
     projectId,
     postId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     revision,
-  });
-  if (!parsed.success) {
-    return badSocialPostInput(parsed);
-  }
+  }) => {
+    const parsed = updateProjectSocialPostSchema.safeParse({
+      projectId,
+      postId,
+      text,
+      firstComment,
+      media,
+      socialConnectionId,
+      revision,
+    });
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
 
-  try {
-    const post = await projectService.updateSocialPost(
-      parsed.data.projectId,
-      parsed.data.postId,
-      {
-        ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
-        ...(parsed.data.media !== undefined
-          ? { media: parsed.data.media }
-          : {}),
-        ...(parsed.data.socialConnectionId !== undefined
-          ? { socialConnectionId: parsed.data.socialConnectionId }
-          : {}),
-        revision: parsed.data.revision,
-      },
-    );
-    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
-    return toActionResult(ok(post));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    try {
+      const post = await projectService.updateSocialPost(
+        parsed.data.projectId,
+        parsed.data.postId,
+        {
+          ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
+          ...(parsed.data.media !== undefined
+            ? { media: parsed.data.media }
+            : {}),
+          ...(parsed.data.socialConnectionId !== undefined
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          revision: parsed.data.revision,
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const scheduleProjectSocialPost = withSession<
   ScheduleProjectSocialPostParameters,

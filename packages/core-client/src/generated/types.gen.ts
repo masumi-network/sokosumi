@@ -6661,6 +6661,7 @@ export type SocialPost = {
     projectId: string;
     provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
+    firstComment: string | null;
     media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
@@ -6768,6 +6769,7 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
@@ -6792,6 +6794,7 @@ export type SocialPostStatisticsSummary = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    firstComment?: string;
     /**
      * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */

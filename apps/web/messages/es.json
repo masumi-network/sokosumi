@@ -2498,6 +2498,9 @@
           "rescheduleTitle": "Reprogramar publicación",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
+          "firstComment": "Primer comentario",
+          "firstCommentPlaceholder": "Hashtags o una llamada a la acción",
+          "firstCommentTooLong": "El primer comentario es demasiado largo.",
           "textForAccount": "Texto de esta cuenta",
           "characters": "{count} / {limit}",
           "media": {

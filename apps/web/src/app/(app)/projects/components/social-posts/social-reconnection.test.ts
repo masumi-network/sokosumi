@@ -21,6 +21,7 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: "project-1",
     provider: "x",
     text: "Hello",
+    firstComment: null,
     media: [],
     status: "FAILED",
     socialConnection: connection,

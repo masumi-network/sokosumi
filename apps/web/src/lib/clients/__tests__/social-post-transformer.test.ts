@@ -19,6 +19,7 @@ function buildPost() {
     projectId: "project-1",
     provider: "x",
     text: "Scheduled post",
+    firstComment: null,
     status: "SCHEDULED",
     scheduledAt: timestamp,
     timezone: "Europe/Prague",
