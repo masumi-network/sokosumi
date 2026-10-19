@@ -378,7 +378,8 @@ model History {
   id             String      @id @default(uuid(7))
   kind           HistoryKind
   entityId       String
-  userId         String
+  /// The Owner of TASK and JOB rows; null when they have none.
+  userId         String?
   workspaceId    String?     @db.Uuid
   organizationId String?
   title          String
@@ -480,6 +481,12 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
+  adConnections     ProjectAdConnection[]
+  adAccounts        ProjectAdAccount[]
+  adMarketProfile   ProjectAdMarketProfile?
+  adMarketSnapshots ProjectAdMarketSnapshot[]
+  adMarketAdsJob    ProjectAdMarketAdsJob?
+
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
@@ -546,31 +553,31 @@ model ProjectStar {
 }
 
 model ProjectSocialConnection {
-  id                         String    @id @default(uuid(7)) @db.Uuid
-  projectId                  String    @db.Uuid
-  provider                   String
-  externalAccountId          String
-  externalHandle             String?
+  id                            String    @id @default(uuid(7)) @db.Uuid
+  projectId                     String    @db.Uuid
+  provider                      String
+  externalAccountId             String
+  externalHandle                String?
   /// Profile display name read at connect/reconnect; previews fall back to the handle.
-  displayName                String?
+  displayName                   String?
   /// Public Blob copy of the profile picture (provider CDN URLs expire).
-  avatarUrl                  String?
-  composioConnectedAccountId String
-  status                     String
-  activeExternalAccountKey   String?
-  connectorUserId            String
-  connectedAt                DateTime?
-  disconnectedAt             DateTime?
+  avatarUrl                     String?
+  composioConnectedAccountId    String
+  status                        String
+  activeExternalAccountKey      String?
+  connectorUserId               String
+  connectedAt                   DateTime?
+  disconnectedAt                DateTime?
   /// Cached account metrics and provider history progress; separate from scheduled posts.
-  statistics                 Json?
+  statistics                    Json?
   /// Collection scheduling, including failed attempts, prevents retrying denied accounts continuously.
   performanceRefreshAttemptedAt DateTime?
   /// Successful latest-page observation; attempts do not suppress retries after cancellation.
   performanceHeadFetchedAt      DateTime?
   /// Manual/connect dirty flag. Reads never set this.
   performanceRefreshRequestedAt DateTime?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
 
   project              Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audits               ProjectSocialConnectionAudit[]
@@ -657,6 +664,117 @@ model ProjectSocialConnectionAudit {
 
   @@index([projectSocialConnectionId, createdAt])
   @@map("project_social_connection_audit")
+}
+
+/// One Composio OAuth grant to an ads provider (`google_ads` | `meta_ads`) for a
+/// Project. The ad accounts the user picked from it are ProjectAdAccount rows.
+model ProjectAdConnection {
+  id                         String   @id @default(uuid(7)) @db.Uuid
+  projectId                  String   @db.Uuid
+  provider                   String
+  /// Unique so a retried finalize cannot create a second connection for one grant.
+  composioConnectedAccountId String   @unique
+  connectorUserId            String
+  /// `active` | `reauthorization_required` | `disconnected`, as ProjectSocialConnection.
+  status                     String
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  accounts ProjectAdAccount[]
+
+  @@index([projectId])
+  @@map("project_ad_connection")
+}
+
+/// An ad account a Project manages through one ProjectAdConnection: a Google
+/// customer id or a Meta `act_…` id.
+model ProjectAdAccount {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  projectId         String   @db.Uuid
+  connectionId      String   @db.Uuid
+  /// Copy of connection.provider, kept for the unique key.
+  provider          String
+  externalAccountId String
+  /// Google manager account id sent as `login-customer-id`; null for direct access and Meta.
+  loginCustomerId   String?
+  name              String
+  /// ISO 4217 code; money in API responses is a decimal in this currency.
+  currency          String
+  timeZone          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  connection ProjectAdConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider, externalAccountId])
+  @@index([connectionId])
+  @@map("project_ad_account")
+}
+
+/// A Project's market profile: what the market keyword and ads lookups search for.
+model ProjectAdMarketProfile {
+  projectId    String   @id @db.Uuid
+  keywords     String[]
+  /// DataForSEO location code (country).
+  locationCode Int
+  languageCode String
+  updatedAt    DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ad_market_profile")
+}
+
+/// Cached DataForSEO response for a Project's market profile. `requestKey` is a
+/// hash of the profile; rows older than 24h are refetched.
+model ProjectAdMarketSnapshot {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  projectId  String   @db.Uuid
+  /// `keywords` | `ads`.
+  kind       String
+  requestKey String
+  payload    Json
+  fetchedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, kind, requestKey])
+  @@map("project_ad_market_snapshot")
+}
+
+enum ProjectAdMarketAdsJobStage {
+  /// Organic SERP tasks, to find the search competitors.
+  SERP
+  /// Ads Transparency tasks, one per competitor domain.
+  ADS
+  /// Every task of a stage failed; kept for an hour so polling does not repost.
+  FAILED
+}
+
+/// The queued DataForSEO tasks that build a Project's market ads. One row per
+/// Project, advanced by the polling client and deleted once the ads snapshot is
+/// written.
+model ProjectAdMarketAdsJob {
+  projectId      String                     @id @db.Uuid
+  /// Hash of the market profile the job was started for.
+  requestKey     String
+  stage          ProjectAdMarketAdsJobStage
+  /// DataForSEO task ids of the current stage not yet collected.
+  pendingTaskIds String[]
+  /// What the finished tasks gave, one entry per finished task: `{domain, rank}[][]`
+  /// in SERP, `MarketAd[][]` in ADS.
+  collected      Json
+  /// Start of the current stage.
+  startedAt      DateTime
+  /// No check before this time. A request claims the job by moving it ahead
+  /// (a lease longer than a check) and writes only while the value is its own.
+  nextCheckAt    DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ad_market_ads_job")
 }
 
 enum SocialPostStatus {
@@ -1362,8 +1480,21 @@ model Job {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownerId String
-  owner   User   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// The Owner: the person who answers for the Job (ADR 0057). Null when a
+  /// Soko Bot hired it on its own or the Owner deleted their account.
+  ownerId String?
+  owner   User?   @relation("JobOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  /// Creator, as on Task. At most one creator FK is set (DB check
+  /// `Job_creator_at_most_one_check`).
+  creatorUserId String?
+  creatorUser   User?   @relation("JobCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("JobCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("JobCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -1417,6 +1548,9 @@ model Job {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
   @@index([jobType])
   @@index([taskId])
   @@index([workspaceId])
@@ -1906,6 +2040,7 @@ model Coworker {
   createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorCoworker")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  createdJobs             Job[]                    @relation("JobCreatorCoworker")
   changedTaskScheduleRuns TaskScheduleRun[]        @relation("TaskScheduleRunActorCoworker")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
@@ -2194,6 +2329,7 @@ model SokoBot {
   createdTasks         Task[]                   @relation("TaskCreatorSokoBot")
   createdSocialPosts   SocialPost[]             @relation("SocialPostCreatorSokoBot")
   createdTaskSchedules TaskSchedule[]           @relation("TaskScheduleCreatorSokoBot")
+  createdJobs          Job[]                    @relation("JobCreatorSokoBot")
   taskEvents           TaskEvent[]
   uploadedTaskFiles    TaskFile[]               @relation("TaskFileUploadedBySokoBot")
   sokoBotUsages        SokoBotUsage[]
@@ -2284,8 +2420,10 @@ model SokoBotTurn {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2350,13 +2488,21 @@ model SokoBotTurn {
   errorDetail             String?
 
   /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
-  requestedByUserId String?
-  requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  askedByUserId String?
+  askedBy       User?   @relation("SokoBotTurnAskedBy", fields: [askedByUserId], references: [id], onDelete: SetNull)
 
   /// Bot-to-bot hops behind this turn (see ChatRoomMention.chainDepth). Above
   /// zero the turn exists because another bot spoke, not because a person did,
   /// so it draws on the owner's allowance for unprompted work.
   chainDepth Int @default(0)
+
+  /// Set on a background run: the turn that started it. A run works beside
+  /// the bot's chat instead of blocking it, on its own computer.
+  parentTurnId    String?       @db.Uuid
+  parentTurn      SokoBotTurn?  @relation("SokoBotBackgroundRuns", fields: [parentTurnId], references: [id], onDelete: SetNull)
+  backgroundRuns  SokoBotTurn[] @relation("SokoBotBackgroundRuns")
+  /// The name the owner sees for a background run.
+  backgroundTitle String?
 
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
   chatMentionId         String?                 @unique @db.Uuid
@@ -2380,7 +2526,8 @@ model SokoBotTurn {
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
-  @@index([userId, createdAt(sort: Desc)])
+  @@index([sokoBotId, parentTurnId, status])
+  @@index([requestedByUserId, createdAt(sort: Desc)])
   @@index([sokoBotId, status, createdAt(sort: Desc)])
   @@index([status, reconcilerHeartbeatAt])
   @@map("soko_bot_turn")
@@ -2744,8 +2891,10 @@ model SokoBotPendingDecision {
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2760,7 +2909,7 @@ model SokoBotPendingDecision {
   resultingTurnId   String?               @db.Uuid
   resultingEntityId String?
 
-  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([requestedByUserId, status, createdAt(sort: Desc)])
   @@index([sokoBotId, status])
   @@map("soko_bot_pending_decision")
 }
@@ -2773,8 +2922,10 @@ model SokoBotSchedule {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Requester: the member who asked (ADR 0057). Null for built-in rhythms
+  /// and work the bot started on its own. Never changed after creation.
+  requestedByUserId String?
+  requestedBy       User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2791,6 +2942,9 @@ model SokoBotSchedule {
   legacyScheduleId    String?   @unique
   /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
   systemKey           String?
+  /// Tools of the turn that wrote it; a run gets them back instead of being
+  /// classified again. Empty for schedules the owner set in the console.
+  capabilityNames     String[]  @default([])
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
@@ -2799,7 +2953,7 @@ model SokoBotSchedule {
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
-  @@index([userId, createdAt(sort: Desc)])
+  @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
 
@@ -2891,9 +3045,12 @@ model Task {
   updatedAt       DateTime                 @updatedAt
   archivedAt      DateTime?
 
-  /// Workspace/billing owner. Always a user.
-  ownerId String
-  owner   User   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// The Owner: the person who answers for the Task, and the only reader of a
+  /// private one (ADR 0057). Private Tasks always have one (DB check
+  /// `task_private_has_owner_check`). Account deletion deletes the private
+  /// Tasks a person owns; on public ones the Owner is emptied.
+  ownerId String?
+  owner   User?   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -2933,10 +3090,11 @@ model Task {
   assigneeUserId String?
   assigneeUser   User?   @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
-  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
-  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  /// Creator: at most one creator FK is set (DB check
+  /// `task_creator_at_most_one_check`); none means a person who deleted their
+  /// account. Immutable after create.
   creatorUserId String?
-  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
   creatorCoworkerId String?
   creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
@@ -3037,12 +3195,15 @@ model TaskSchedule {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  ownerId String
-  owner   User   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// As on Task (DB check `task_schedule_private_has_owner_check`): emptied
+  /// on public schedules when the Owner is deleted.
+  ownerId String?
+  owner   User?   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
-  /// Exactly one creator FK is set (DB check), as on Task.
+  /// At most one creator FK is set (DB check
+  /// `task_schedule_creator_at_most_one_check`), as on Task.
   creatorUserId String?
-  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
 
   creatorCoworkerId String?
   creatorCoworker   Coworker? @relation("TaskScheduleCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)

@@ -1006,6 +1006,27 @@ describe("social post publisher service", () => {
         }),
       });
     });
+
+    it("fails permanently when a TikTok post has no video", async () => {
+      socialPostFindFirstMock.mockReset();
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({ ...duePost, provider: "tiktok", media: [] })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1, published: 0 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_missing",
+          providerOutcome: "TikTok requires a video",
+        }),
+      });
+    });
   });
 
   it("skips a post another worker claimed first", async () => {
@@ -1285,6 +1306,37 @@ describe("social post publisher service", () => {
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["tiktok", "TikTok requires a video"],
+      ["youtube", "YouTube requires a video"],
+      ["instagram", "Instagram requires at least one image or video"],
+    ] as const)(
+      "refuses to publish a %s draft now without required media",
+      async (provider, message) => {
+        socialPostFindFirstMock.mockResolvedValue({
+          ...failedPost,
+          status: "DRAFT",
+          provider,
+          media: [],
+          scheduledAt: null,
+          socialConnection: activeConnection,
+        });
+        const { publishSocialPostNow } = await loadService();
+
+        await expect(
+          publishSocialPostNow({
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            postId: POST_ID,
+            revision: 4,
+          }),
+        ).rejects.toMatchObject({ status: 400, message });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        expect(publishXPostMock).not.toHaveBeenCalled();
+      },
+    );
   });
   it("checks delegation immediately before publishing a coworker-scheduled post", async () => {
     socialPostFindFirstMock

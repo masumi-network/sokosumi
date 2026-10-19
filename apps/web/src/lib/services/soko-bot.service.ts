@@ -37,7 +37,7 @@ import {
 } from "@/lib/soko-bot/connect-prompt";
 
 /** Turns the chat surface renders and polls; keeps one Core round-trip small. */
-export const SOKO_BOT_RECENT_TURN_LIMIT = 20;
+const SOKO_BOT_RECENT_TURN_LIMIT = 20;
 
 /**
  * Signed-in user's Soko Bot. All reads/writes go through Core; web never

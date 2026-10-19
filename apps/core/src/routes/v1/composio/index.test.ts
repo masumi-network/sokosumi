@@ -1,7 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ComposioConfigError } from "@/clients/composio.client";
 import { forbidden } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -45,6 +48,7 @@ function createApp(authContext: AuthenticationContext) {
   const route = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
+  route.onError(errorHandler);
   route.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
@@ -152,6 +156,27 @@ describe("POST /composio/callback/complete", () => {
       userId: "user_123",
     });
   });
+  it("tags a missing Composio configuration with a machine-readable kind", async () => {
+    completeComposioCallbackMock.mockRejectedValue(
+      new ComposioConfigError("not configured"),
+    );
+    const response = await createApp(SESSION_AUTH).request(
+      "http://localhost/callback/complete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: "ca_123",
+          sessionUri: "opaque-session-token",
+        }),
+      },
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+    });
+  });
+
   it.each(["", null, 123, undefined])(
     "rejects an invalid callback credential: %s",
     async (sessionUri) => {

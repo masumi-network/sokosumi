@@ -8,11 +8,15 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
-import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
+import {
+  inheritedScheduleRoute,
+  systemScheduleRoute,
+} from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
@@ -65,12 +69,14 @@ interface ClaimedOccurrence {
   schedule: {
     id: string;
     sokoBotId: string;
-    userId: string;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string };
     workspaceId: string;
     cronExpression: string;
     timezone: string;
     prompt: string;
     systemKey: string | null;
+    capabilityNames: string[];
     consecutiveFailures: number;
   };
   scheduledFor: Date;
@@ -169,7 +175,9 @@ export class SokoBotSchedulesSyncService {
           },
         ],
       },
-      include: { schedule: true },
+      include: {
+        schedule: { include: { sokoBot: { select: { userId: true } } } },
+      },
       orderBy: [{ leaseExpiresAt: "asc" }, { id: "asc" }],
     });
     if (!pending) return null;
@@ -225,6 +233,7 @@ export class SokoBotSchedulesSyncService {
           proactivePaused: false,
         },
       },
+      include: { sokoBot: { select: { userId: true } } },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
@@ -493,14 +502,16 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const started = await sokoBotControlPlane.startTurn({
-          userId: schedule.userId,
+          userId: sokoBotActingUserId(schedule),
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,
           source: "SCHEDULE",
           // Built-in rhythms run on the route Core gives them; a schedule the
           // owner or the bot wrote is classified like any message.
-          presetRoute: systemScheduleRoute(schedule.systemKey),
+          presetRoute:
+            systemScheduleRoute(schedule.systemKey) ??
+            inheritedScheduleRoute(schedule.capabilityNames),
           scheduleReservation: {
             runId: run.id,
             attempt: run.attempt,

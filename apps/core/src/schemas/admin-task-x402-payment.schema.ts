@@ -133,7 +133,7 @@ export type ResolveAdminTaskX402PaymentBody = z.infer<
  * deliberately absent (bearer instrument); `amount` is the chain-native
  * base-unit demand, `creditsCharged` is the debited credit count.
  */
-export const adminTaskX402PaymentSchema = z
+const adminTaskX402PaymentSchema = z
   .object({
     id: z.string(),
     createdAt: dateTimeSchema,
@@ -298,7 +298,7 @@ export const adminTaskX402PaymentAggregateQuerySchema = z.object({
  * `failureCount` is the durable count of node-refusal outcomes — the secondary
  * signal. A bleeding agent registration is the one an operator disables.
  */
-export const adminTaskX402PaymentAgentAggregateSchema = z
+const adminTaskX402PaymentAgentAggregateSchema = z
   .object({
     agentId: z.string(),
     total: z.number().int().nonnegative(),

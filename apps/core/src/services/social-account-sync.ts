@@ -114,7 +114,7 @@ export async function requestSocialAccountRefresh(
     return err({ code: "reauth_required", connectionId: input.connectionId });
   }
   const now = new Date();
-  await prisma.projectSocialConnection.updateMany({
+  const updated = await prisma.projectSocialConnection.updateMany({
     where: {
       id: input.connectionId,
       projectId: input.projectId,
@@ -139,6 +139,9 @@ export async function requestSocialAccountRefresh(
   });
   if (!row) {
     return err({ code: "not_found", connectionId: input.connectionId });
+  }
+  if (updated.count === 0) {
+    return err({ code: "reauth_required", connectionId: input.connectionId });
   }
   return ok({
     connectionId: input.connectionId,

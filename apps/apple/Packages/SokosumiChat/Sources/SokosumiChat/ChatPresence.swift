@@ -3,26 +3,13 @@ import Foundation
 
 // Org presence wire contract (ADR 0003).
 //
-// Humans enter Ably Presence on `presence:org_{organizationId}` for the
+// Humans enter Ably Presence on `presence:org_{organizationId}` (scoped
+// outside production and read from the token's grant, ADR 0055) for the
 // active organization only, as `{userId}:{instanceId}` members carrying
 // `lastActiveAt` / `visible`. Readers aggregate every member of one user:
 // any device online → online; any device connected otherwise → afk; none →
 // offline. Coworkers and Soko Bots stay always-online (ADR 0003 v1).
 // Online window is 5m; publish throttle is 4m so a refresh lands before afk.
-
-private let orgPresenceChannelPrefix = "presence:org_"
-
-/// Org-scoped Ably Presence channel (`presence:org_{organizationId}`).
-public func orgPresenceChannelName(organizationId: String) -> String {
-  orgPresenceChannelPrefix + organizationId
-}
-
-/// Inverse of `orgPresenceChannelName`. Nil for other channels or an empty id.
-func parseOrganizationId(fromPresenceChannelName channelName: String) -> String? {
-  guard channelName.hasPrefix(orgPresenceChannelPrefix) else { return nil }
-  let organizationId = String(channelName.dropFirst(orgPresenceChannelPrefix.count))
-  return organizationId.isEmpty ? nil : organizationId
-}
 
 /// User id from a presence member's `{userId}:{instanceId}` client id. Malformed
 /// ids are rejected so a free-form client id cannot spoof another user.
@@ -34,17 +21,11 @@ func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
   return userId
 }
 
-/// Organization ids whose `presence:org_*` channel the token grants `presence`
-/// on. Nil when the capability is missing or malformed: never attach on a
-/// guess, Ably answers a bare attach with capability-denied failures.
-public func organizationIds(grantedPresenceIn capability: String?) -> [String]? {
-  guard let capability, let data = capability.data(using: .utf8),
-        let map = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-  return map.compactMap { channel, operations in
-    guard let operations = operations as? [Any],
-          operations.contains(where: { $0 as? String == "presence" }) else { return nil }
-    return parseOrganizationId(fromPresenceChannelName: channel)
-  }.sorted()
+/// Organization id → channel name for every org presence channel the token
+/// grants `presence` on. Nil when the capability is missing or malformed: never
+/// attach on a guess, Ably answers a bare attach with capability-denied failures.
+public func orgPresenceChannelNames(grantedPresenceIn capability: String?) -> [String: String]? {
+  grantedChannelIds(in: capability, namespace: "presence", kind: "org", operation: "presence")
 }
 
 /// Wire data on one presence member.

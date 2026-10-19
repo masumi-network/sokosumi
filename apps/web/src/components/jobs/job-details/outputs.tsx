@@ -21,6 +21,8 @@ interface JobDetailsOutputsProps {
   job: Job;
   event: JobEvent;
   readOnly?: boolean;
+  /** Refund. Defaults to whoever may edit, so callers that omit it stay put. */
+  canManage?: boolean;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -35,10 +37,16 @@ export default function JobDetailsOutputs({
   job,
   event,
   readOnly = false,
+  canManage,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner job={job} event={event} readOnly={readOnly} />
+      <JobDetailsOutputsInner
+        job={job}
+        event={event}
+        readOnly={readOnly}
+        canManage={canManage}
+      />
     </DefaultErrorBoundary>
   );
 }
@@ -47,6 +55,7 @@ function JobDetailsOutputsInner({
   job,
   event,
   readOnly,
+  canManage,
 }: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
@@ -62,7 +71,8 @@ function JobDetailsOutputsInner({
   const onChainResultHash = job.resultHash ?? null;
   const isCompleted = event.status === AgentJobStatus.COMPLETED;
   const highlightTerm = (searchParams?.get("query") ?? "").trim();
-  const refundJob = !readOnly && canRenderRefundRequest(job) ? job : null;
+  const refundJob =
+    (canManage ?? !readOnly) && canRenderRefundRequest(job) ? job : null;
 
   return (
     <JobDetailsOutputsLayout>

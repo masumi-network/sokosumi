@@ -16,7 +16,8 @@ export interface AdminTaskListItem {
   name: string;
   status: TaskStatus;
   createdAt: Date;
-  owner: AdminTaskOwner;
+  /** The Owner; null when the task has none. */
+  owner: AdminTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;
@@ -28,7 +29,8 @@ export interface AdminTaskListItem {
 /** Full task payload plus owner/organization context for admin views. */
 export interface AdminTaskDetail {
   task: Task;
-  owner: AdminTaskOwner;
+  /** The Owner; null when the task has none. */
+  owner: AdminTaskOwner | null;
   /** Null for tasks in a personal workspace. */
   organization: {
     id: string;

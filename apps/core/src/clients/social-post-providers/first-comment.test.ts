@@ -10,12 +10,12 @@ const { createSessionMock, executeToolMock, deleteSessionMock } = vi.hoisted(
 );
 
 vi.mock("@/clients/composio.client", () => ({
-  deleteProjectSocialSession: deleteSessionMock,
+  deleteComposioToolSession: deleteSessionMock,
 }));
 
 vi.mock("@/clients/social-post-providers/tools", () => ({
-  createSocialPostToolSession: createSessionMock,
-  executeSocialPostTool: executeToolMock,
+  createComposioToolSession: createSessionMock,
+  executeComposioTool: executeToolMock,
 }));
 
 import {

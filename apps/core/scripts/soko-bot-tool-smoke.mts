@@ -100,7 +100,7 @@ await prisma.sokoBotContextSnapshot.create({
       create: {
         id: turnId,
         sokoBotId: bot.id,
-        userId: bot.userId,
+        requestedByUserId: bot.userId,
         workspaceId: bot.workspaceId,
         clientTurnId: `lab:toolsmoke:${Date.now()}`,
         userMessage: "tool smoke",

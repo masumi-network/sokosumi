@@ -1,4 +1,3 @@
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -101,9 +100,8 @@ extension ChatNotificationCenter: UNUserNotificationCenterDelegate {
   }
 }
 
-/// Wires the adapter to the coordinator for the app lifetime and routes an opened banner like a chat link.
+/// Starts the adapter once a window shows (the workspace got it at launch) and routes an opened banner like a chat link.
 struct ChatNotificationLifecycleModifier: ViewModifier {
-  @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @State private var openError: String?
   @State private var openTask: Task<Void, Never>?
@@ -112,7 +110,6 @@ struct ChatNotificationLifecycleModifier: ViewModifier {
     content
       .onAppear {
         Task { @MainActor in
-          workspaces.notificationPresenter = ChatNotificationCenter.shared
           ChatNotificationCenter.shared.start { target in open(target) }
         }
       }
@@ -134,7 +131,7 @@ struct ChatNotificationLifecycleModifier: ViewModifier {
     openTask?.cancel()
     openTask = Task { @MainActor in
       do {
-        if try await workspaces.openNotification(target, auth: auth) == .unavailable, !Task.isCancelled {
+        if try await workspaces.openNotification(target) == .unavailable, !Task.isCancelled {
           openError = "This message or conversation is no longer available."
         }
       } catch {

@@ -1076,6 +1076,8 @@ export const sokoBotDeletionResultSchema = z
       uploadedTaskFiles: z.number().int().nonnegative(),
       /** Task Schedules it created; the creator FK restricts a hard delete. */
       taskSchedules: z.number().int().nonnegative(),
+      /** Jobs it hired; the creator FK restricts a hard delete. */
+      jobs: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

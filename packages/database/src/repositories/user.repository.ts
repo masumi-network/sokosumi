@@ -70,15 +70,4 @@ export const userRepository = {
 
     return { users, total };
   },
-
-  updatePreferredOrganizationId: async (
-    userId: string,
-    preferredOrganizationId: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({
-      where: { id: userId },
-      data: { preferredOrganizationId },
-    });
-  },
 };

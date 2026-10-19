@@ -134,7 +134,7 @@ export async function ensureSystemSchedules(bot: {
       .create({
         data: {
           sokoBotId: bot.id,
-          userId: bot.userId,
+          requestedByUserId: bot.userId,
           workspaceId: bot.workspaceId,
           name: schedule.name,
           timezone: bot.ingestTimezone,
@@ -220,7 +220,7 @@ export async function findAttentionItems(bot: {
       // Work done for a teammate is the teammate's to chase, not the owner's.
       turn: {
         sokoBotId: bot.id,
-        OR: [{ requestedByUserId: null }, { requestedByUserId: bot.userId }],
+        OR: [{ askedByUserId: null }, { askedByUserId: bot.userId }],
       },
     },
     select: { taskId: true },
@@ -556,8 +556,18 @@ export async function buildSystemBeatMessage(input: {
         workspaceId: bot.workspaceId,
         archivedAt: null,
         updatedAt: { gte: new Date(now.getTime() - 24 * HOUR_MS) },
-        NOT: { OR: ownTasks },
-        AND: [visible],
+        // Not `NOT: { OR: ownTasks }`: SQL drops the rows whose columns
+        // in it are null.
+        AND: [
+          visible,
+          { OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }] },
+          {
+            OR: [
+              { assigneeSokoBotId: null },
+              { assigneeSokoBotId: { not: bot.id } },
+            ],
+          },
+        ],
       },
       select: {
         name: true,
@@ -572,7 +582,7 @@ export async function buildSystemBeatMessage(input: {
       lines.push("## Team activity (last 24h)");
       for (const task of team) {
         lines.push(
-          `- ${task.owner.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
+          `- ${task.owner?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
         );
       }
       lines.push("");

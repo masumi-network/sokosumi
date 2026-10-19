@@ -13,10 +13,10 @@ public struct MermaidDiagram: Equatable, Sendable {
   }
 
   /// Web `MAX_MERMAID_LENGTH`, `MAX_MERMAID_EDGES` and the inline token and line limits.
-  public static let maxLength = 4000
-  public static let maxEdges = 50
-  public static let maxWords = 200
-  public static let maxLines = 100
+  private static let maxLength = 4000
+  private static let maxEdges = 50
+  private static let maxWords = 200
+  private static let maxLines = 100
   /// Diagrams drawn per message section; later fences keep their source.
   public static let maxPerSection = 8
 
@@ -153,7 +153,7 @@ public struct MermaidFigure: Equatable, Sendable {
   }
 
   public static let zoomRange = 0.5 ... 3.0
-  public static let zoomStep = 0.25
+  private static let zoomStep = 0.25
 
   public static func zoomedIn(_ zoom: Double) -> Double {
     min(zoomRange.upperBound, zoom + zoomStep)

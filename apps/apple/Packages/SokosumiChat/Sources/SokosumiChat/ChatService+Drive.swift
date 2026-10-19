@@ -18,19 +18,11 @@ public extension ChatService {
   }
 
   private func drivePage(client: Client, organizationId: String?, folder: String, query: String, cursor: String?) async throws -> Operations.GetDriveFiles.Output.Ok.Body.JsonPayload {
-    let response = try await client.getDriveFiles(.init(query: .init(
-      scope: organizationId == nil ? .me : .org, organizationId: organizationId,
-      folder: folder.isEmpty ? nil : folder, q: query.isEmpty ? nil : query, cursor: cursor, limit: 100
-    )))
-    switch response {
-    case let .ok(value): return try value.body.json
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
-    case let .serviceUnavailable(value): throw try ChatServiceError.unprocessable(statusCode: 503, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call {
+      try await client.getDriveFiles(.init(query: .init(
+        scope: organizationId == nil ? .me : .org, organizationId: organizationId,
+        folder: folder.isEmpty ? nil : folder, q: query.isEmpty ? nil : query, cursor: cursor, limit: 100
+      )))
+    }.ok.body.json
   }
 }

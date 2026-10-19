@@ -112,7 +112,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
     async function setup() {
       const turn = await prisma.sokoBotTurn.create({
         data: {
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId,
           source: "CHAT",
@@ -126,7 +126,8 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         },
       });
       const authorized: AuthorizedSokoBotRuntime = {
-        turn,
+        toolCallLimit: 64,
+        turn: { ...turn, actingUserId: userId },
         classificationConfidence: 1,
         grant: {
           userId,

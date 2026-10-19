@@ -4,6 +4,8 @@ import {
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -19,6 +21,7 @@ import { badRequest, conflict, notFound } from "@/helpers/error";
 import { SOCIAL_BETA_USER_WHERE } from "@/helpers/social-beta-access";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
+  parseSocialPostMedia,
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
@@ -406,6 +409,10 @@ async function attemptPublish(
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
     media = requireSocialPostMedia(post.media, post.id);
+    const mediaRequirement = socialPostMediaRequirementMessage(provider);
+    if (mediaRequirement && !socialPostMeetsMediaRequirement(provider, media)) {
+      throw new SocialPostMediaError("media_missing", mediaRequirement);
+    }
     const mediaValidation = validateSocialPostMedia(provider, media);
     if (!mediaValidation.ok) {
       throw new SocialPostMediaError(
@@ -661,6 +668,16 @@ export async function publishSocialPostNow(
     }
     if (post.socialConnection.status !== "active") {
       throw conflict("Social connection is not active");
+    }
+  }
+  if (isSocialPostProvider(post.provider)) {
+    const media = parseSocialPostMedia(post.media, post.id);
+    const mediaRequirement = socialPostMediaRequirementMessage(post.provider);
+    if (
+      mediaRequirement &&
+      !socialPostMeetsMediaRequirement(post.provider, media)
+    ) {
+      throw badRequest(mediaRequirement);
     }
   }
 

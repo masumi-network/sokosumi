@@ -217,6 +217,30 @@
         }
       }
     },
+    "now" : {
+      "comment" : "A social post preview's time when the post has no publish time yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "now"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jetzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ahora"
+          }
+        }
+      }
+    },
     "…see more" : {
       "comment" : "Unfolds a LinkedIn post's long text in a social post preview.",
       "extractionState" : "manual",

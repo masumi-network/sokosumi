@@ -131,6 +131,10 @@ describe("Soko Bot billing", () => {
     expect(turnFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({ take: 3 }),
     );
+    // Background runs are not the yardstick for a chat reply.
+    expect(turnFindManyMock.mock.calls[0]?.[0].where).toMatchObject({
+      parentTurnId: null,
+    });
 
     balanceMock.mockResolvedValue(convertCreditsToCents(75));
     await expect(

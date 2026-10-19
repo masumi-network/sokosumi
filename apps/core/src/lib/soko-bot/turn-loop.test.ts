@@ -35,6 +35,7 @@ import {
   latestExchange,
   RuntimeEventLog,
   runtimeEvent,
+  sokoBotMaxSteps,
 } from "./turn-loop";
 
 describe("RuntimeEventLog", () => {
@@ -268,5 +269,13 @@ describe("finishTurn", () => {
     await finish("Nothing to add.", false);
     expect(turnFind).not.toHaveBeenCalled();
     expect(completedMessage()).toBe("Nothing to add.");
+  });
+});
+
+describe("sokoBotMaxSteps", () => {
+  it("keeps 40 for a quarter hour and scales longer turns", () => {
+    expect(sokoBotMaxSteps(15 * 60 * 1_000)).toBe(40);
+    expect(sokoBotMaxSteps(60 * 60 * 1_000)).toBe(160);
+    expect(sokoBotMaxSteps(60_000)).toBe(40);
   });
 });

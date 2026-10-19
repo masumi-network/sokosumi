@@ -2,7 +2,9 @@ import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getProjectsByIdSocialPostsResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
@@ -40,6 +42,7 @@ function buildPost() {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
 }
@@ -50,6 +53,8 @@ const transformers = [
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
 ];
 

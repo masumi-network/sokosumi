@@ -37,8 +37,9 @@ function isRequirementIssue(
 }
 
 /**
- * Composer-side view of the provider's rules; the server enforces the same
- * rules authoritatively on create, update, and schedule.
+ * Composer-side view of the provider's publish rules. The server enforces
+ * the same rules on schedule and publish. Drafts skip the media-presence
+ * check — see {@link socialPostComposerDraftIssue}.
  */
 export function socialPostComposerIssue(
   provider: SocialPostProvider,
@@ -65,12 +66,30 @@ export function socialPostComposerIssue(
 }
 
 /**
+ * Instagram, TikTok, and YouTube drafts may omit media. Attached files
+ * still have to be a type the network accepts, and a draft still needs
+ * text or a file.
+ */
+export function socialPostComposerDraftIssue(
+  provider: SocialPostProvider,
+  text: string,
+  media: readonly SocialPostMediaRef[],
+): SocialPostComposerIssue | null {
+  const issue = socialPostComposerIssue(provider, text, media);
+  if (issue !== "media_required" && issue !== "video_required") {
+    return issue;
+  }
+  const validation = validateSocialPostMedia(provider, media);
+  if (!validation.ok) return validation.reason;
+  return text.trim().length > 0 || media.length > 0 ? null : issue;
+}
+
+/**
  * One row per selected provider that still needs text or media. The same
  * "add text or media" line is not repeated when several networks share it.
  */
 export function socialPostComposerRequirements(
-  providers: readonly SocialPostProvider[],
-  text: string,
+  accounts: readonly { provider: SocialPostProvider; text: string }[],
   media: readonly SocialPostMediaRef[],
 ): {
   provider: SocialPostProvider;
@@ -81,14 +100,20 @@ export function socialPostComposerRequirements(
     provider: SocialPostProvider;
     issue: SocialPostComposerRequirementIssue;
   }[] = [];
-  for (const provider of providers) {
-    const issue = socialPostComposerIssue(provider, text, media);
+  for (const account of accounts) {
+    const issue = socialPostComposerIssue(
+      account.provider,
+      account.text,
+      media,
+    );
     if (!isRequirementIssue(issue)) continue;
     const key =
-      issue === "text_or_media_required" ? issue : `${issue}:${provider}`;
+      issue === "text_or_media_required"
+        ? issue
+        : `${issue}:${account.provider}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    hints.push({ provider, issue });
+    hints.push({ provider: account.provider, issue });
   }
   return hints;
 }

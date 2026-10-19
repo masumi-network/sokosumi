@@ -306,12 +306,15 @@ async function signDpopProof(
   return `${signingInput}.${Buffer.from(signature).toString("base64url")}`;
 }
 
-async function tokenRequest(key: DpopKey): Promise<Request> {
+async function tokenRequest(
+  key: DpopKey,
+  htu: string = TOKEN_URL,
+): Promise<Request> {
   return new Request(asServedOnVercel(TOKEN_URL), {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
-      dpop: await signDpopProof(key, { htm: "POST", htu: TOKEN_URL }),
+      dpop: await signDpopProof(key, { htm: "POST", htu }),
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
@@ -337,12 +340,26 @@ async function userInfoRequest(
   });
 }
 
+// 1.7.9 (#10799) checks DPoP `htu` against `baseURL`, not `request.url`, so a
+// public-URL proof matches the HTTP request Vercel actually delivers.
 describe("DPoP on the OAuth provider behind Vercel's TLS termination", () => {
-  it("rejects a proof for the public token URL while the request stays plain HTTP", async () => {
+  it("accepts a proof for the public token URL while the request stays plain HTTP", async () => {
     const auth = createProvider();
     const key = await createDpopKey();
 
     const response = await auth.handler(await tokenRequest(key));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ token_type: "DPoP" });
+  });
+
+  it("rejects a proof for the internal HTTP URL the socket reports", async () => {
+    const auth = createProvider();
+    const key = await createDpopKey();
+
+    const response = await auth.handler(
+      await tokenRequest(key, asServedOnVercel(TOKEN_URL)),
+    );
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
@@ -363,12 +380,10 @@ describe("DPoP on the OAuth provider behind Vercel's TLS termination", () => {
     expect(await response.json()).toMatchObject({ token_type: "DPoP" });
   });
 
-  it("serves userinfo to a DPoP-bound token only once the scheme is restored", async () => {
+  it("serves userinfo to a DPoP-bound token while the request stays plain HTTP", async () => {
     const auth = createProvider();
     const key = await createDpopKey();
-    const issued = await auth.handler(
-      withPublicScheme(await tokenRequest(key), "production"),
-    );
+    const issued = await auth.handler(await tokenRequest(key));
     const { access_token: accessToken } = (await issued.json()) as {
       access_token: string;
     };
@@ -378,11 +393,8 @@ describe("DPoP on the OAuth provider behind Vercel's TLS termination", () => {
       withPublicScheme(await userInfoRequest(key, accessToken), "production"),
     );
 
-    expect(plain.status).toBe(401);
-    expect(await plain.json()).toEqual({
-      error: "invalid_dpop_proof",
-      error_description: "DPoP proof htu does not match the request URL",
-    });
+    expect(plain.status).toBe(200);
+    expect(await plain.json()).toMatchObject({ sub: USER_ID });
     expect(restored.status).toBe(200);
     expect(await restored.json()).toMatchObject({ sub: USER_ID });
   });

@@ -8,6 +8,7 @@ import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -83,7 +84,7 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   // Real lookup against the tx double, so seat tests see the workspace org.
-  readTaskWorkspaceOrganizationId: async (
+  readWorkspaceOrganizationId: async (
     workspaceId: string,
     tx: {
       workspace: {
@@ -276,7 +277,10 @@ function createTask(
     assigneeSokoBotId: string | null;
     assigneeUserId: string | null;
     status: TaskStatus;
-    ownerId: string;
+    ownerId: string | null;
+    creatorUserId: string | null;
+    creatorCoworkerId: string | null;
+    creatorSokoBotId: string | null;
     workspaceId: string;
     projectId: string | null;
     runAt: Date | null;
@@ -291,6 +295,9 @@ function createTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     ownerId: USER_ID,
+    creatorUserId: null,
+    creatorCoworkerId: null,
+    creatorSokoBotId: null,
     workspaceId: "ws_123",
     organizationId: null,
     projectId: null,
@@ -3174,6 +3181,68 @@ describe("POST /{id}/events", () => {
     ).toHaveLength(notificationCount);
   });
 
+  /**
+   * The Owner (ADR 0057) is told and gets the live update; a Task without an
+   * Owner tells no one.
+   */
+  it.each([
+    ["its Owner", "user_owner"],
+    ["nobody when it has no Owner", null],
+  ])(
+    "sends a canceled Task's notification and live update to %s",
+    async (_who, ownerId) => {
+      const task = createTask({
+        status: TaskStatus.RUNNING,
+        ownerId,
+      });
+      requireTaskStatusWriteAccessMock.mockResolvedValue(task);
+      prismaTaskFindUniqueMock.mockResolvedValue({
+        ...task,
+        name: "Test task",
+        assignee: null,
+        assigneeSokoBot: null,
+        project: null,
+      });
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              status: TaskStatus.CANCELED,
+              userId: "user_other",
+              coworkerId: null,
+            }),
+          ),
+        },
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      };
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: "user_other",
+        organizationId: "org_123",
+        role: "user",
+      });
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: TaskStatus.CANCELED }),
+      });
+
+      expect(response.status).toBe(201);
+      await Promise.all(waitUntilCapturedPromises);
+      const notified = createNotificationMock.mock.calls
+        .filter(([input]) => input.messageKey === "Notifications.Task.canceled")
+        .map(([input]) => input.userId);
+      const published = publishTaskEventDataMock.mock.calls.map(
+        ([input]) => input.userId,
+      );
+      const expected = ownerId ? [ownerId] : [];
+      expect(notified).toEqual(expected);
+      expect(published).toEqual(expected);
+    },
+  );
+
   it("lets an org workspace member cancel another member's task", async () => {
     requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({
@@ -4332,5 +4401,156 @@ describe("POST /{id}/events", () => {
       data: [{ taskId: TASK_ID, userId: "user_alice" }],
       skipDuplicates: true,
     });
+  });
+});
+
+describe("POST /{id}/events charges the Owner (ADR 0057)", () => {
+  const ORGANIZATION_ID = "org_charges";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    waitUntilCapturedPromises.length = 0;
+    createTaskEventTransactionMock.mockResolvedValue("txn_owner");
+  });
+
+  async function chargeCredits(task: ReturnType<typeof createTask>) {
+    requireTaskCollaborationMock.mockResolvedValue(task);
+    requireTaskStatusWriteAccessMock.mockResolvedValue(task);
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            cents: convertCreditsToCents(2),
+            transactionId: "txn_owner",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+    return await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.RUNNING, credits: 2 }),
+    });
+  }
+
+  it.each([
+    { madeBy: "a person", columns: { creatorUserId: "user_owner" } },
+    {
+      madeBy: "a Coworker for a person",
+      columns: { creatorCoworkerId: COWORKER_ID },
+    },
+    {
+      madeBy: "a Soko Bot for a person",
+      columns: { creatorSokoBotId: "bot_123" },
+    },
+  ])(
+    "charges public work made by $madeBy to its Owner and checks their Seat",
+    async ({ columns }) => {
+      const owner = "user_owner";
+      const response = await chargeCredits(
+        createTask({
+          status: TaskStatus.READY,
+          organizationId: ORGANIZATION_ID,
+          ownerId: owner,
+          ...columns,
+        }),
+      );
+
+      expect(response.status).toBe(201);
+      expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+        owner,
+        ORGANIZATION_ID,
+        expect.anything(),
+      );
+      expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: owner,
+          organizationId: ORGANIZATION_ID,
+          cents: convertCreditsToCents(2),
+        }),
+      );
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+        userId: owner,
+        organizationId: ORGANIZATION_ID,
+      });
+    },
+  );
+
+  it("charges private work to its Owner", async () => {
+    const response = await chargeCredits(
+      createTask({
+        status: TaskStatus.READY,
+        organizationId: ORGANIZATION_ID,
+        visibility: TaskVisibility.PRIVATE,
+        ownerId: "user_owner",
+        creatorSokoBotId: "bot_123",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_owner" }),
+    );
+  });
+
+  it("charges a Task without an Owner to the Organization pool with no member and no Seat check", async () => {
+    const response = await chargeCredits(
+      createTask({
+        status: TaskStatus.READY,
+        organizationId: ORGANIZATION_ID,
+        ownerId: null,
+        creatorSokoBotId: "bot_123",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
+    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: null,
+        organizationId: ORGANIZATION_ID,
+      }),
+    );
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: null,
+      organizationId: ORGANIZATION_ID,
+    });
+  });
+
+  it("refuses a Task Schedule Run's charge when its Owner lost their Seat", async () => {
+    vi.mocked(requireAssignedOrganizationSeat).mockImplementationOnce(
+      async (userId) => {
+        if (userId === "user_unseated") {
+          throw forbidden(
+            "An assigned seat is required to use this organization",
+            {
+              kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
+            },
+          );
+        }
+      },
+    );
+
+    const response = await chargeCredits(
+      createTask({
+        status: TaskStatus.READY,
+        organizationId: ORGANIZATION_ID,
+        scheduleId: "sched_123",
+        ownerId: "user_unseated",
+        creatorUserId: "user_unseated",
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
 });

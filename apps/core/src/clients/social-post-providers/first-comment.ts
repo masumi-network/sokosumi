@@ -4,10 +4,10 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import {
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 
 const FIRST_COMMENT_TOOLS = {
@@ -115,7 +115,7 @@ export async function publishSocialPostFirstComment(
   if (!args) return;
 
   const label = socialPostProviderLabel(input.provider);
-  const sessionId = await createSocialPostToolSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: tool.toolkitSlug,
     connectedAccountId: input.connectedAccountId,
     executorUserId: input.executorUserId,
@@ -124,7 +124,7 @@ export async function publishSocialPostFirstComment(
     signal: input.signal,
   });
   try {
-    await executeSocialPostTool({
+    await executeComposioTool({
       sessionId,
       toolSlug: tool.toolSlug,
       arguments: args,
@@ -133,7 +133,7 @@ export async function publishSocialPostFirstComment(
       signal: input.signal,
     });
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       `delete Project ${label} first-comment session`,
     );
