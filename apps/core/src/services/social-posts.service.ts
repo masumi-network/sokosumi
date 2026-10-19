@@ -40,15 +40,21 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
 
-const EDITABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "FAILED",
   "MISSED",
 ];
 const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "FAILED",
   "MISSED",
@@ -67,6 +73,7 @@ const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
 /** Statuses where a stale connection blocks the next publish. */
 const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
 ];
 
@@ -153,6 +160,8 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canApprove: boolean;
+  canReject: boolean;
   canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
@@ -221,6 +230,18 @@ export interface ScheduleSocialPostInput extends ProjectScope {
 export interface CancelSocialPostInput extends ProjectScope {
   userId: string;
   coworkerId?: string;
+  postId: string;
+  revision: number;
+}
+
+export interface ApproveSocialPostInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+}
+
+export interface RejectSocialPostInput extends ProjectScope {
+  userId: string;
   postId: string;
   revision: number;
 }
@@ -297,6 +318,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
     canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
+    canApprove: record.status === "NEEDS_APPROVAL",
+    canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -658,6 +681,7 @@ export async function createSocialPost(
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
+  const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
 
   const post = await tx.socialPost.create({
     data: {
@@ -668,7 +692,7 @@ export async function createSocialPost(
       text,
       firstComment,
       media: mediaJson(media),
-      status: scheduled ? "SCHEDULED" : "DRAFT",
+      status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
       creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
@@ -689,7 +713,9 @@ export async function updateSocialPost(
   await requireScopedProject(input, tx);
   const post = await requireScopedPost(input, tx);
   if (!EDITABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be edited");
+    throw conflict(
+      "Only a draft, scheduled, or needs-approval post can be edited",
+    );
   }
   requireRevision(post, input.revision);
 
@@ -816,7 +842,8 @@ export async function scheduleSocialPost(
       input,
       input.revision,
       {
-        status: "SCHEDULED",
+        status:
+          post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
         scheduledAt: input.scheduledAt,
         timezone: input.timezone ?? post.timezone,
         socialConnectionId: connection.id,
@@ -843,8 +870,72 @@ export async function cancelSocialPost(
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
     throw conflict(
-      "Only a draft, scheduled, failed, or missed post can be canceled",
+      "Only a draft, scheduled, needs-approval, failed, or missed post can be canceled",
     );
+  }
+  requireRevision(post, input.revision);
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "CANCELED",
+        canceledAt: new Date(),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function approveSocialPost(
+  input: ApproveSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be approved");
+  }
+  requireRevision(post, input.revision);
+  const due = post.scheduledAt;
+  const schedule =
+    due != null &&
+    due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+  if (schedule) {
+    await requireActiveProjectConnection(
+      input.projectId,
+      post.socialConnectionId,
+      tx,
+    );
+  }
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: schedule ? "SCHEDULED" : "DRAFT",
+        ...(schedule
+          ? {
+              scheduledByUserId: input.userId,
+              scheduledByCoworkerId: null,
+            }
+          : {}),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function rejectSocialPost(
+  input: RejectSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be rejected");
   }
   requireRevision(post, input.revision);
 

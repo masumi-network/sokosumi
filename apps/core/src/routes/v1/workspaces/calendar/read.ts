@@ -521,13 +521,18 @@ export async function readWorkspaceCalendar(
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
     ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
-    // The agenda view shows only what is still to come: a scheduled or
-    // publishing post whose `scheduledAt` is today or later (the `from` bound
-    // below). Everything else is history the agenda would filter out anyway.
+    // The agenda view shows only what is still to come: a scheduled,
+    // needs-approval, or publishing post whose `scheduledAt` is today or later
+    // (the `from` bound below). Everything else is history the agenda would
+    // filter out anyway.
     ...(query.agendaOnly
       ? {
           status: {
-            in: [SocialPostStatus.SCHEDULED, SocialPostStatus.PUBLISHING],
+            in: [
+              SocialPostStatus.NEEDS_APPROVAL,
+              SocialPostStatus.SCHEDULED,
+              SocialPostStatus.PUBLISHING,
+            ],
           },
         }
       : { status: { not: "DRAFT" } }),

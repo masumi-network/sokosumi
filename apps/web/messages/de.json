@@ -2479,6 +2479,7 @@
         },
         "status": {
           "DRAFT": "Entwurf",
+          "NEEDS_APPROVAL": "Freigabe nötig",
           "SCHEDULED": "Geplant",
           "PUBLISHING": "Wird veröffentlicht",
           "PUBLISHED": "Veröffentlicht",

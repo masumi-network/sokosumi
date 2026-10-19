@@ -1492,7 +1492,7 @@ describe("project social connections service", () => {
       where: {
         projectId: PROJECT_ID,
         socialConnectionId: SOCIAL_CONNECTION_ID,
-        status: { in: ["DRAFT", "SCHEDULED"] },
+        status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
       data: { socialConnectionId: SOCIAL_CONNECTION_ID },
     });
@@ -1535,7 +1535,7 @@ describe("project social connections service", () => {
       where: {
         projectId: PROJECT_ID,
         socialConnectionId: SOCIAL_CONNECTION_ID,
-        status: { in: ["DRAFT", "SCHEDULED"] },
+        status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
       data: { socialConnectionId: replacementId },
     });
@@ -1552,7 +1552,7 @@ describe("project social connections service", () => {
       where: {
         projectId: PROJECT_ID,
         socialConnectionId: SOCIAL_CONNECTION_ID,
-        status: { in: ["DRAFT", "SCHEDULED"] },
+        status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
       data: { socialConnectionId: replacementId },
     });
