@@ -2435,6 +2435,19 @@
         "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Try again",
+          "help": "Everything else still works. Check your connection and try again.",
+          "projectHelp": "Showing all projects for now. Try again, or choose another one.",
+          "title": {
+            "drafts": "Couldn't load drafts",
+            "attention": "Couldn't load posts that need attention",
+            "accounts": "Couldn't load accounts",
+            "calendar": "Couldn't load the calendar",
+            "post": "Couldn't open that post",
+            "project": "Couldn't load that project"
+          }
+        },
         "loadMore": "Load more",
         "loadMoreError": "Couldn't load more.",
         "loadMoreOffline": "You're offline.",
@@ -2711,9 +2724,9 @@
           "clearFilters": "Clear filters",
           "invalidRange": "End date must be on or after the start date.",
           "loading": "Loading statistics…",
-          "loadFailed": "Failed to load statistics",
+          "loadFailed": "Couldn't load stats.",
           "retry": "Try again",
-          "refreshFailed": "Failed to refresh statistics. Previous results are retained. Check the connected account and permissions, then try again.",
+          "refreshFailed": "Couldn't refresh.",
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",

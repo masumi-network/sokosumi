@@ -2435,6 +2435,19 @@
         "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Inténtalo de nuevo",
+          "help": "Todo lo demás sigue funcionando. Comprueba tu conexión e inténtalo de nuevo.",
+          "projectHelp": "Por ahora se muestran todos los proyectos. Inténtalo de nuevo o elige otro.",
+          "title": {
+            "drafts": "No se pudieron cargar los borradores",
+            "attention": "No se pudieron cargar las publicaciones que requieren atención",
+            "accounts": "No se pudieron cargar las cuentas",
+            "calendar": "No se pudo cargar el calendario",
+            "post": "No se pudo abrir esa publicación",
+            "project": "No se pudo cargar ese proyecto"
+          }
+        },
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más.",
         "loadMoreOffline": "Estás sin conexión.",
@@ -2711,9 +2724,9 @@
           "clearFilters": "Borrar filtros",
           "invalidRange": "La fecha final debe ser igual o posterior a la fecha inicial.",
           "loading": "Cargando estadísticas…",
-          "loadFailed": "No se pudieron cargar las estadísticas",
+          "loadFailed": "No se cargaron las estadísticas.",
           "retry": "Volver a intentar",
-          "refreshFailed": "No se pudieron actualizar las estadísticas. Se conservan los resultados anteriores. Revisa la cuenta conectada y los permisos y vuelve a intentarlo.",
+          "refreshFailed": "No se pudieron actualizar.",
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
