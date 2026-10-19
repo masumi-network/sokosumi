@@ -2380,8 +2380,10 @@
         "account": "{provider} account",
         "connect": "Connect {provider} account",
         "connectAccount": "Connect account",
+        "projectClosed": "This project is closed.",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
+        "startOver": "Start over",
         "syncNow": "Sync now",
         "replace": "Replace",
         "disconnect": "Disconnect",
@@ -5643,8 +5645,10 @@
         }
       },
       "SocialAccounts": {
-        "connected": "is connected",
-        "notConnected": "is not connected",
+        "title": "Sign-in",
+        "description": "Use these accounts to sign in.",
+        "connected": "{provider} is connected",
+        "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",

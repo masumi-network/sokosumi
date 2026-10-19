@@ -43,12 +43,14 @@ const MESSAGES: Record<string, string> = {
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
+  projectClosed: "This project is closed.",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
   empty: "No accounts yet.",
   emptyHint: "Connect one to post.",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
+  startOver: "Start over",
   syncNow: "Sync now",
   replace: "Replace",
   disconnect: "Disconnect",
@@ -531,6 +533,9 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(connectedRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(connectedRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
     await user.click(
       within(connectedRow).getByRole("button", {
         name: "Actions for @sokosumi",
@@ -561,6 +566,9 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(
+      within(reauthorizationRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Connect account" }),
     ).toBeVisible();
 
@@ -569,8 +577,16 @@ describe("ProjectSocialAccounts", () => {
     );
     expect(within(pendingRow).getByText("Connection pending")).toBeVisible();
     expect(
+      within(pendingRow)
+        .getByText("Connection pending")
+        .closest(".text-semantic-warning-label"),
+    ).toBeTruthy();
+    expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(pendingRow).getByRole("button", { name: "Start over" }),
+    ).toBeVisible();
     await user.click(
       within(pendingRow).getByRole("button", {
         name: "Actions for @pending-auth",
@@ -637,6 +653,89 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("@old-account")).not.toBeInTheDocument();
     expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
+  });
+
+  it("disconnects a pending account and starts a new connection on Start over", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Unavailable" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            id: "connection-3",
+            externalHandle: "pending-auth",
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(disconnectProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        socialConnectionId: "connection-3",
+      });
+      expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        action: "connect",
+        provider: "x",
+      });
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalledWith("Account disconnected.");
+  });
+
+  it("does not start a new connection when Start over cannot disconnect", async () => {
+    const user = userEvent.setup();
+    vi.mocked(disconnectProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "Disconnect failed" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "We could not disconnect this account. Try again.",
+      );
+    });
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("disables Start over on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    const startOver = screen.getByRole("button", { name: "Start over" });
+    expect(startOver).toBeDisabled();
+    await user.click(startOver);
+    expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
   it.each([null, "ca_known"])(
@@ -1281,5 +1380,42 @@ describe("ProjectSocialAccounts", () => {
       );
       expect(refreshMock).toHaveBeenCalledOnce();
     });
+  });
+
+  it("blocks connect, reconnect, and replace on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            externalHandle: "needs-auth",
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("This project is closed.")).toBeVisible();
+    const connect = screen.getByRole("button", { name: "Connect account" });
+    expect(connect).toBeDisabled();
+    await user.click(connect);
+    expect(
+      screen.queryByRole("menuitem", { name: "Connect X account" }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Replace" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 });
