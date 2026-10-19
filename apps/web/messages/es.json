@@ -3736,7 +3736,8 @@
       "loading": "Cargando Social…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales"
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
       }
     },
     "Error": {
