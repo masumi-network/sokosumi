@@ -84,7 +84,9 @@ describe("SocialAccountsProjectPrompt", () => {
       throw new Error("Primary platform track is missing");
     }
     expect(within(primary).getByText("TikTok")).toBeVisible();
-    expect(within(primary).getByText("Coming soon")).toBeVisible();
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(
+      SOCIAL_PROVIDERS.filter((provider) => "comingSoon" in provider).length,
+    );
     for (const provider of SOCIAL_PROVIDERS) {
       expect(within(primary).getByText(provider.name)).toBeVisible();
     }
