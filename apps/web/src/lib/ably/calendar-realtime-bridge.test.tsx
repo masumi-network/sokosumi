@@ -2,6 +2,13 @@ import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
+
 const { ablyState, refreshMock, replaceMock } = vi.hoisted(() => {
   interface TestChannel {
     attach: ReturnType<typeof vi.fn>;

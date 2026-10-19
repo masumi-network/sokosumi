@@ -26,6 +26,18 @@ struct SignInView: View {
           auth.startSignIn()
         }
         .buttonStyle(.borderedProminent)
+        Divider()
+          .padding(.vertical, 4)
+        Text("New to Sokosumi?")
+          .font(.headline)
+        Text("Accounts are created on the website, not in the Mac app. Create yours there, then come back here to sign in.")
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+        Link("Create an account on the website", destination: CoreSettings.signUpURL)
+        #if DEBUG
+          ServerChoiceSection()
+        #endif
       case .signingIn:
         ProgressView("Contacting Sokosumi…")
         Button("Cancel") {

@@ -1,7 +1,6 @@
 /** ReAct-style JSON envelope emitted for OpenRouter image generation. */
-export const OPENROUTER_IMAGE_GENERATION_REACT_ACTION =
-  "openrouter_image_generation";
-export const DALLE_TEXT_TO_IMAGE_REACT_ACTION = "dalle.text2im";
+const OPENROUTER_IMAGE_GENERATION_REACT_ACTION = "openrouter_image_generation";
+const DALLE_TEXT_TO_IMAGE_REACT_ACTION = "dalle.text2im";
 
 const REACT_JSON_FENCE_PREFIX = "```json";
 const IMAGE_GENERATION_REACT_ACTIONS = new Set<string>([
@@ -13,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function findJsonObjectEnd(text: string, startIndex: number): number {
+function findJsonObjectEnd(text: string, startIndex: number): number {
   let depth = 0;
   let inString = false;
   let escaped = false;

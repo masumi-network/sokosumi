@@ -35,6 +35,7 @@ vi.mock("./chat-room-mention-stream", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   ACTIVE_TURN_STATUSES: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"],
+  FOREGROUND_TURN: { parentTurnId: null },
   SokoBotTurnInProgressError: TurnInProgress,
   sokoBotControlPlane: { startTurn, reconcileTurn },
 }));

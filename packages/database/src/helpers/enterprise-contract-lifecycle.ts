@@ -26,12 +26,12 @@ import {
   unassignSeatsOverPurchasedCapacity,
 } from "./organization-paid-subscribe-seats.js";
 
-export interface ActivateEnterpriseContractParams {
+interface ActivateEnterpriseContractParams {
   activatedAt: Date;
   paymentReference?: string | null;
 }
 
-export interface ActivateEnterpriseContractResult {
+interface ActivateEnterpriseContractResult {
   contractId: string;
   periodBucketCreated: boolean;
   periodsCreated: number;
@@ -283,7 +283,7 @@ export async function cancelEnterpriseContract(
   });
 }
 
-export interface CompleteEnterpriseContractsOptions {
+interface CompleteEnterpriseContractsOptions {
   organizationId?: string;
 }
 

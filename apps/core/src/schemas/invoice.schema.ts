@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 /** Stripe invoice statuses surfaced through the admin invoice API. */
-export const invoiceStatusSchema = z
+const invoiceStatusSchema = z
   .enum(["draft", "open", "paid", "uncollectible", "void"])
   .openapi({ example: "open" });
 
@@ -9,7 +9,7 @@ export const invoiceTargetTypeSchema = z
   .enum(["user", "organization"])
   .openapi({ example: "organization" });
 
-export const invoiceStatusFilterSchema = z
+const invoiceStatusFilterSchema = z
   .enum(["unfinished", "all", "draft", "open", "paid", "uncollectible", "void"])
   .openapi({
     example: "unfinished",
@@ -34,7 +34,7 @@ export const invoiceSummarySchema = z
   })
   .openapi("InvoiceSummary");
 
-export const invoiceListItemSchema = z
+const invoiceListItemSchema = z
   .object({
     invoiceId: z.string().openapi({ example: "in_123" }),
     targetType: invoiceTargetTypeSchema.nullable(),
@@ -55,7 +55,7 @@ export const invoiceListItemSchema = z
 
 export const invoiceListSchema = z.array(invoiceListItemSchema);
 
-export const creditPriceOptionSchema = z
+const creditPriceOptionSchema = z
   .object({
     id: z.string().openapi({ example: "price_123" }),
     amountPerCredit: z.number().openapi({ example: 120 }),

@@ -1,4 +1,3 @@
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -18,7 +17,6 @@ struct ChannelLifecycleConfirmation: ViewModifier {
   @Binding var request: ChannelLifecycleRequest?
   var completed: () -> Void = {}
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
   @State private var failure: Failure?
 
   private struct Failure {
@@ -65,10 +63,10 @@ struct ChannelLifecycleConfirmation: ViewModifier {
     Task { @MainActor in
       do {
         let done = switch request.action {
-        case .leave: try await workspaces.leaveChannel(roomId: request.roomId, context: request.context, auth: auth)
-        case .archive: try await workspaces.archiveChannel(roomId: request.roomId, context: request.context, auth: auth)
-        case .restore: try await workspaces.restoreChannel(roomId: request.roomId, context: request.context, auth: auth)
-        case .delete: try await workspaces.deleteChannel(roomId: request.roomId, context: request.context, auth: auth)
+        case .leave: try await workspaces.leaveChannel(roomId: request.roomId, context: request.context)
+        case .archive: try await workspaces.archiveChannel(roomId: request.roomId, context: request.context)
+        case .restore: try await workspaces.restoreChannel(roomId: request.roomId, context: request.context)
+        case .delete: try await workspaces.deleteChannel(roomId: request.roomId, context: request.context)
         }
         if done {
           completed()

@@ -2,6 +2,10 @@ import { makeChatTypingChannelName } from "@sokosumi/utils";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { PRODUCTION } = vi.hoisted(() => ({
+  PRODUCTION: { network: "Mainnet", vercelEnv: "production" } as const,
+}));
+
 const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
   () => {
     const authorize = vi.fn();
@@ -28,6 +32,10 @@ const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
   },
 );
 
+vi.mock("./realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => PRODUCTION,
+}));
+
 vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
@@ -36,7 +44,7 @@ import { useRoomTyping } from "./use-room-typing";
 
 const ROOM_ID = "room-a";
 const SELF = "user_me";
-const TYPING_CHANNEL = makeChatTypingChannelName(ROOM_ID);
+const TYPING_CHANNEL = makeChatTypingChannelName(ROOM_ID, PRODUCTION);
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);

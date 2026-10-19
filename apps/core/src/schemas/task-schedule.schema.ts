@@ -11,6 +11,10 @@ import {
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import {
+  workCreatorField,
+  workOwnerIdSchema,
+} from "@/schemas/work-creator.schema";
 
 /**
  * Task Schedule resource (`/tasks/schedules`, ADR 0041): a repeating rule
@@ -95,7 +99,7 @@ function refineTaskScheduleRule(
 }
 
 /** Create: timezone and endsMode default to UTC and NEVER. */
-export const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
+const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
   .extend({
     timezone: taskScheduleRuleFieldsSchema.shape.timezone.default("UTC"),
     endsMode: taskScheduleRuleFieldsSchema.shape.endsMode.default(
@@ -109,7 +113,7 @@ export const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
  * PATCH replaces the whole rule, so nothing defaults: an omitted timezone or
  * end mode would otherwise silently reset to UTC or NEVER.
  */
-export const taskScheduleRuleReplacementSchema = taskScheduleRuleFieldsSchema
+const taskScheduleRuleReplacementSchema = taskScheduleRuleFieldsSchema
   .superRefine(refineTaskScheduleRule)
   .openapi("TaskScheduleRuleReplacement");
 
@@ -198,10 +202,11 @@ export const taskScheduleSchema = z
     id: z.string().uuid(),
     workspaceId: z.string().uuid(),
     organizationId: z.string().nullable(),
-    ownerId: z.string(),
+    ownerId: workOwnerIdSchema,
     creatorUserId: z.string().nullable(),
     creatorCoworkerId: z.string().nullable(),
     creatorSokoBotId: z.string().uuid().nullable(),
+    ...workCreatorField,
     state: taskScheduleStateSchema,
     rule: z.object({
       expr: z.string(),

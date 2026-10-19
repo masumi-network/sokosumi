@@ -104,7 +104,7 @@ enum ResultFixture {
     }
     switch error {
     case .unauthorized: #expect(status == 401)
-    case let .unprocessable(statusCode, message):
+    case let .unprocessable(statusCode, message, _):
       #expect(statusCode == status)
       #expect(message == "Results unavailable")
     default: Issue.record("unexpected error \(String(describing: error))")

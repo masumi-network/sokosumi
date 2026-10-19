@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-export type CliTarget = "mainnet" | "preprod" | "custom";
+type CliTarget = "mainnet" | "preprod" | "custom";
 
 export type CliEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -15,7 +15,7 @@ export interface CliTargetConfig {
 export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
 export const MAINNET_OAUTH_CLIENT_ID = "GxmewjdHVAaqUEglxWdyCqVFvnTASycj";
-export const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
+const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
 
 const BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
@@ -33,7 +33,7 @@ export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
 export const COWORKER_API_KEY_PREFIX = "coworker_";
 export const WEB_API_KEY_ROUTE = "/connections";
 
-export function rejectCoworkerApiKey(apiKey: string): void {
+function rejectCoworkerApiKey(apiKey: string): void {
   if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
     throw new Error("Coworker API keys are not supported by the CLI");
   }
@@ -110,7 +110,7 @@ export function sanitizeApiUrl(apiUrl: string): string {
   }
 }
 
-export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
+function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
   const normalized = trimUrl(apiUrl);
   if (normalized === MAINNET_API_URL) return "mainnet";
   if (normalized === PREPROD_API_URL) return "preprod";

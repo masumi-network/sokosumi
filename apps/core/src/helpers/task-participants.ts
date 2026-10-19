@@ -61,7 +61,7 @@ export async function addTaskParticipantsFromComment(
     workspaceId: string;
     comment: string;
     visibility: TaskVisibility;
-    ownerId: string;
+    ownerId: string | null;
     /** Human who wrote the comment. Null when a Coworker or agent wrote. */
     excludeUserId?: string | null;
     mentionedUserIds?: readonly string[];
@@ -124,7 +124,7 @@ export async function addSelfAsTaskParticipant(
     taskId: string;
     workspaceId: string;
     visibility: TaskVisibility;
-    ownerId: string;
+    ownerId: string | null;
     userId: string;
   },
 ): Promise<{ added: boolean }> {

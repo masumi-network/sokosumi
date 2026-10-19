@@ -1,7 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 
-export const subscriptionCatalogPlanSchema = z
+const subscriptionCatalogPlanSchema = z
   .object({
     credits: z.number().openapi({ example: 100 }),
     currency: z.string().openapi({ example: "eur" }),
@@ -15,12 +14,6 @@ export const subscriptionCatalogPlanSchema = z
   })
   .openapi("SubscriptionCatalogPlan");
 
-export type SubscriptionCatalogPlanResponse = z.infer<
-  typeof subscriptionCatalogPlanSchema
-> & {
-  name: SelfServeSubscriptionPlanName;
-};
-
 export const subscriptionCatalogSchema = z
   .object({
     free: subscriptionCatalogPlanSchema,
@@ -29,10 +22,3 @@ export const subscriptionCatalogSchema = z
     pro: subscriptionCatalogPlanSchema,
   })
   .openapi("SubscriptionCatalog");
-
-export interface SubscriptionCatalogResponse {
-  free: SubscriptionCatalogPlanResponse;
-  starter: SubscriptionCatalogPlanResponse;
-  standard: SubscriptionCatalogPlanResponse;
-  pro: SubscriptionCatalogPlanResponse;
-}

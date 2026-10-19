@@ -4,6 +4,8 @@ import { CommonErrorCode } from "./error-codes/common";
 export type ActionError = {
   code: string;
   kind?: string | undefined;
+  /** The Core HTTP status, for actions whose UI words each refusal itself. */
+  status?: number | undefined;
   message?: string | undefined | null;
 };
 

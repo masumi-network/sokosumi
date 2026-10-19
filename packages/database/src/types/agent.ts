@@ -11,7 +11,7 @@ export const agentPricingInclude = {
 } as const;
 
 /** Override row with tags + exampleOutputs (order matches marketplace merge). */
-export const agentMetadataOverrideRelationsInclude = {
+const agentMetadataOverrideRelationsInclude = {
   metadataOverride: {
     include: {
       tags: {
@@ -44,11 +44,11 @@ export const agentExampleOutputInclude = {
   ...agentMetadataOverrideRelationsInclude,
 } as const;
 
-export const agentJobCountOrderBy = {
+const agentJobCountOrderBy = {
   jobCount: "desc",
 } as const;
 
-export const agentCreatedAtOrderBy = {
+const agentCreatedAtOrderBy = {
   createdAt: "desc",
 } as const;
 

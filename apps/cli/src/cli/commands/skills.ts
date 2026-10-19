@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CommandOutput } from "./command-helpers.js";
 
-export interface SkillInfo {
+interface SkillInfo {
   name: string;
   description: string;
   path: string;
@@ -17,10 +17,8 @@ async function dirExists(path: string): Promise<boolean> {
   }
 }
 
-// The `skills/` directory ships beside `dist/` at the package root. The two
-// candidates cover the packaged layout (dist/src/cli/commands) and running the
-// TypeScript source directly (src/cli/commands).
-export async function resolveSkillsDir(): Promise<string> {
+// skills/ sits at package root; candidates cover dist and source layouts.
+async function resolveSkillsDir(): Promise<string> {
   const candidates = [
     new URL("../../../skills/", import.meta.url),
     new URL("../../../../skills/", import.meta.url),
@@ -72,7 +70,7 @@ export async function listSkills(): Promise<{
   return { skillsDir, skills };
 }
 
-export interface SkillsCommandOptions {
+interface SkillsCommandOptions {
   subcommand?: string;
   stdout: CommandOutput;
   json?: boolean;

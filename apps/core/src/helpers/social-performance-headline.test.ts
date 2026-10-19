@@ -8,7 +8,7 @@ function post(
   overrides: Partial<
     Parameters<typeof buildSocialPerformanceHeadline>[0]["posts"][number]
   > & {
-    provider?: "x" | "instagram" | "facebook";
+    provider?: "x" | "instagram" | "facebook" | "youtube";
   } = {},
 ) {
   return {
@@ -77,6 +77,24 @@ describe("postInteractions", () => {
         }),
       ),
     ).toBe(8);
+  });
+
+  it("counts YouTube likes and comments when shares are omitted", () => {
+    expect(
+      postInteractions(
+        post({
+          provider: "youtube",
+          metrics: {
+            likes: 8,
+            comments: 2,
+            shares: null,
+            saves: null,
+            views: 400,
+            impressions: null,
+          },
+        }),
+      ),
+    ).toBe(10);
   });
 });
 

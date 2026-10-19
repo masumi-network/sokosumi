@@ -68,13 +68,13 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
-        try #require(state.timeline.messages.count == 60, "The page merged into the timeline.")
+        try #require(state.openRoom.room.timeline.messages.count == 60, "The page merged into the timeline.")
         #expect(abs(documentHeight(scroll) - height) < 100,
                 "The page's rows wait while the reader scrolls: document \(documentHeight(scroll)) pt, was \(height) pt.")
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2, "No further page is asked for while one waits.")
         // A visible message keeps receiving chunks even though the older prefix waits.
-        let streamingIndex = try #require(state.timeline.messages.firstIndex { $0.id == "message-40" })
-        state.timeline.messages[streamingIndex].content = "**Streaming while paging**"
+        let streamingIndex = try #require(state.openRoom.room.timeline.messages.firstIndex { $0.id == "message-40" })
+        state.openRoom.room.timeline.messages[streamingIndex].content = "**Streaming while paging**"
         var streamed = false
         for index in 0 ..< 30 {
           try sendTranscriptScroll(scroll, delta: index.isMultiple(of: 2) ? 3 : -3, phase: 2)
@@ -154,16 +154,16 @@
       /// Room `room`: the latest page (rows 40–69) is loaded; Core holds two older pages, 10–39 and 0–9.
       private func fixture() async throws -> (WorkspaceState, URLSession) {
         let session = TranscriptPageProtocol.session()
-        let client = try Client.connecting(to: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
         let state = WorkspaceState(clientProvider: { _ in client })
         try TranscriptPageProtocol.serve([
           TranscriptPageProtocol.page((40 ..< 70).map(message), cursor: "c40"),
           TranscriptPageProtocol.page((10 ..< 40).map(message), cursor: "c10"),
           TranscriptPageProtocol.page((0 ..< 10).map(message), cursor: nil)
         ])
-        state.timeline.reset(roomId: "room")
-        _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
-        try #require(state.timeline.messages.count == 30 && state.transcriptHasMore)
+        state.openRoom.room.timeline.reset(roomId: "room")
+        _ = try await state.openRoom.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.room.timeline.generation)
+        try #require(state.openRoom.room.timeline.messages.count == 30 && state.openRoom.room.timeline.hasMore)
         return (state, session)
       }
 
