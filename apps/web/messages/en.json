@@ -2498,6 +2498,9 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "firstComment": "First comment",
+          "firstCommentPlaceholder": "Hashtags or a call to action",
+          "firstCommentTooLong": "First comment is too long.",
           "textForAccount": "Text for this account",
           "characters": "{count} / {limit}",
           "media": {

@@ -2498,6 +2498,9 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "firstComment": "Erster Kommentar",
+          "firstCommentPlaceholder": "Hashtags oder ein Aufruf",
+          "firstCommentTooLong": "Der erste Kommentar ist zu lang.",
           "textForAccount": "Text für dieses Konto",
           "characters": "{count} / {limit}",
           "media": {

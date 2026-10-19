@@ -188,6 +188,41 @@ export const SOCIAL_POST_MEDIA_RULES = {
   },
 } as const;
 
+/**
+ * Comment length after a successful publish. TikTok has no Composio comment
+ * tool, so it is omitted. Instagram's tool caps at 300.
+ */
+export const SOCIAL_POST_FIRST_COMMENT_LIMITS = {
+  x: 280,
+  linkedin: 1250,
+  facebook: 8000,
+  instagram: 300,
+  tiktok: null,
+  youtube: 10_000,
+} as const satisfies Record<SocialPostProvider, number | null>;
+
+/** Longest first comment any supporting provider accepts. */
+export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.x,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.linkedin,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.facebook,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.instagram,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.youtube,
+);
+
+/** Comment cap for a provider, or `null` when Composio cannot post one. */
+export function socialPostFirstCommentLimit(
+  provider: SocialPostProvider,
+): number | null {
+  return SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
+}
+
+export function socialPostSupportsFirstComment(
+  provider: SocialPostProvider,
+): boolean {
+  return socialPostFirstCommentLimit(provider) !== null;
+}
+
 /** Longest text any provider accepts: the provider-agnostic request bound. */
 export const SOCIAL_POST_TEXT_MAX = Math.max(
   ...Object.values(SOCIAL_POST_TEXT_LIMITS),
