@@ -4,14 +4,13 @@ import { created } from "@/helpers/response";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import {
-  createSokoBotRequestSchema,
-  sokoBotSchema,
-} from "@/schemas/soko-bot.schema";
+import { sokoBotSchema } from "@/schemas/soko-bot.schema";
+import { createSokoBotRequestSchema } from "@/schemas/soko-bot-scope.schema";
 import {
   SokoBotNotFoundError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { getSokoBotState } from "@/services/soko-bot-state.service";
 import { mapBot, mapControlPlaneError } from "../helpers.js";
 
 const createMeRoute = createRoute({
@@ -42,10 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId: workspace.workspaceId,
         ...c.req.valid("json"),
       });
-      const bot = await sokoBotControlPlane.getForUser(
-        auth.userId,
-        workspace.workspaceId,
-      );
+      const bot = await getSokoBotState(auth.userId, workspace.workspaceId);
       if (!bot) throw new SokoBotNotFoundError("Soko Bot was not created");
       return created(c, sokoBotSchema.parse(mapBot(bot)));
     } catch (error) {

@@ -70,7 +70,7 @@ describe("disconnectLeaverSokoBotIntegrations", () => {
     ).resolves.toBe(1);
     expect(mocks.integrationFindMany.mock.calls[0][0].where).toEqual({
       connectorUserId: "leaver",
-      sokoBot: { workspace: { organizationId: "org" } },
+      sokoBot: { userId: null, workspace: { organizationId: "org" } },
     });
     expect(mocks.integrationDelete).toHaveBeenCalledOnce();
     expect(mocks.integrationDelete.mock.calls[0][0].where).toEqual({
@@ -151,6 +151,14 @@ describe("sweepLeaverSokoBotIntegrations", () => {
     );
 
     await expect(sweepLeaverSokoBotIntegrations()).resolves.toBe(1);
+    expect(mocks.integrationFindMany.mock.calls[0][0].where).toEqual({
+      connectorUserId: { not: null },
+      sokoBot: { userId: null, workspace: { organizationId: { not: null } } },
+    });
+    expect(mocks.integrationFindMany.mock.calls[1][0].where).toEqual({
+      connectorUserId: "leaver",
+      sokoBot: { userId: null, workspace: { organizationId: "org" } },
+    });
     expect(
       mocks.memberFindFirst.mock.calls.map((call) => call[0].where),
     ).toEqual([

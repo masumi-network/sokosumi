@@ -43,12 +43,15 @@ export async function prepareTurnActionResultPreviews(
     | "versionId"
     | "askedByUserId"
     | "chainDepth"
-  > & { sokoBot: { userId: string } },
+  > & { sokoBot: { userId: string | null } },
   tx: Prisma.TransactionClient,
 ) {
+  const actingUserId = sokoBotActingUserId(turn);
+  // Previews are for the owner who asked; a turn for nobody has no reader.
   if (
+    actingUserId === null ||
     turn.chainDepth > 0 ||
-    (turn.askedByUserId && turn.askedByUserId !== sokoBotActingUserId(turn))
+    (turn.askedByUserId && turn.askedByUserId !== actingUserId)
   )
     return;
   if (
@@ -117,7 +120,7 @@ export async function prepareTurnActionResultPreviews(
         {
           reference,
           actor: {
-            userId: sokoBotActingUserId(turn),
+            userId: actingUserId,
             workspaceId: turn.workspaceId,
             kind: "soko_bot",
           },

@@ -12,22 +12,36 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { apiKeyFindManyMock, botFindFirstMock, prismaTransactionMock } =
-  vi.hoisted(() => ({
-    apiKeyFindManyMock: vi.fn(),
-    botFindFirstMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }));
+const {
+  apiKeyFindManyMock,
+  botFindFirstMock,
+  memberFindFirstMock,
+  prismaTransactionMock,
+} = vi.hoisted(() => ({
+  apiKeyFindManyMock: vi.fn(),
+  botFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: { findMany: apiKeyFindManyMock },
     sokoBot: { findFirst: botFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
     $transaction: prismaTransactionMock,
   },
 }));
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
+const WORKSPACE_ID = "workspace_1";
+const OWNED_BOT = {
+  id: BOT_ID,
+  userId: "owner_123",
+  workspaceId: WORKSPACE_ID,
+};
+const SHARED_BOT = { id: BOT_ID, userId: null, workspaceId: WORKSPACE_ID };
+const LIVE = { archivedAt: null, deletedAt: null };
 
 function createRecord(overrides: Record<string, unknown> = {}) {
   return {
@@ -65,13 +79,13 @@ function createApp(
 describe("Soko Bot API keys", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    botFindFirstMock.mockResolvedValue({ id: BOT_ID });
+    botFindFirstMock.mockResolvedValue(OWNED_BOT);
   });
 
   it("creates a sokoBot-prefixed key for an owned live bot", async () => {
     const tx = {
       sokoBot: {
-        findFirst: vi.fn().mockResolvedValue({ id: BOT_ID }),
+        findFirst: vi.fn().mockResolvedValue(OWNED_BOT),
       },
       coworkerApiKey: {
         create: vi.fn().mockResolvedValue(createRecord()),
@@ -98,13 +112,8 @@ describe("Soko Bot API keys", () => {
       },
     });
     expect(tx.sokoBot.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: BOT_ID,
-        userId: "owner_123",
-        archivedAt: null,
-        deletedAt: null,
-      },
-      select: { id: true },
+      where: { id: BOT_ID, ...LIVE },
+      select: { id: true, userId: true, workspaceId: true },
     });
     expect(tx.coworkerApiKey.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,14 +141,7 @@ describe("Soko Bot API keys", () => {
     expect(body.data[0].keyHash).toBeUndefined();
     expect(apiKeyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          sokoBotId: BOT_ID,
-          sokoBot: {
-            userId: "owner_123",
-            archivedAt: null,
-            deletedAt: null,
-          },
-        },
+        where: { sokoBotId: BOT_ID, sokoBot: LIVE },
       }),
     );
   });
@@ -155,9 +157,49 @@ describe("Soko Bot API keys", () => {
     expect(apiKeyFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("returns 404 for another member's personal bot", async () => {
+    botFindFirstMock.mockResolvedValue({ ...OWNED_BOT, userId: "other_user" });
+
+    const response = await createApp().request(
+      `http://localhost/${BOT_ID}/api-keys`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(apiKeyFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["owner", 200],
+    ["admin", 200],
+    ["member", 403],
+  ] as const)("lets a shared bot's %s list keys: %i", async (role, status) => {
+    botFindFirstMock.mockResolvedValue(SHARED_BOT);
+    memberFindFirstMock.mockResolvedValue({ role });
+    apiKeyFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp().request(
+      `http://localhost/${BOT_ID}/api-keys`,
+    );
+
+    expect(response.status).toBe(status);
+    expect(apiKeyFindManyMock).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
+  });
+
+  it("hides a shared bot from a non-member", async () => {
+    botFindFirstMock.mockResolvedValue(SHARED_BOT);
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      `http://localhost/${BOT_ID}/api-keys`,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it("updates only an owned bot key", async () => {
     const updated = createRecord({ name: "Rotated CLI key" });
     const tx = {
+      sokoBot: { findFirst: vi.fn().mockResolvedValue(OWNED_BOT) },
       coworkerApiKey: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirst: vi.fn().mockResolvedValue(updated),
@@ -183,7 +225,7 @@ describe("Soko Bot API keys", () => {
         where: expect.objectContaining({
           id: "agentkey_123",
           sokoBotId: BOT_ID,
-          sokoBot: expect.objectContaining({ userId: "owner_123" }),
+          sokoBot: LIVE,
         }),
       }),
     );
@@ -194,6 +236,7 @@ describe("Soko Bot API keys", () => {
       revokedAt: new Date("2026-09-02T11:00:00.000Z"),
     });
     const tx = {
+      sokoBot: { findFirst: vi.fn().mockResolvedValue(OWNED_BOT) },
       coworkerApiKey: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirst: vi.fn().mockResolvedValue(revoked),
@@ -213,11 +256,7 @@ describe("Soko Bot API keys", () => {
         id: "agentkey_123",
         sokoBotId: BOT_ID,
         revokedAt: null,
-        sokoBot: {
-          userId: "owner_123",
-          archivedAt: null,
-          deletedAt: null,
-        },
+        sokoBot: LIVE,
       },
       data: { revokedAt: expect.any(Date) },
     });

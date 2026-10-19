@@ -305,13 +305,13 @@ function safeAdminActionFailure(error: unknown): {
 
 type TerminalSokoBotTurnStatus = "COMPLETED" | "CANCELLED" | "FAILED";
 
-function memoryHash(markdown: string): string {
+export function memoryHash(markdown: string): string {
   return createHash("sha256").update(markdown).digest("hex");
 }
 
-function safeMemoryRevision<T extends { hash: string; markdown: string }>(
-  revision: T,
-): T {
+export function safeMemoryRevision<
+  T extends { hash: string; markdown: string },
+>(revision: T): T {
   const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
   return { ...revision, markdown, hash: memoryHash(markdown) };
 }
@@ -1275,85 +1275,14 @@ export class SokoBotControlPlane {
     return created;
   }
 
-  /**
-   * Is anything happening, in one indexed read.
-   *
-   * The console watches turns it did not start, so it has to poll often enough
-   * to catch one that runs for a few seconds. Polling the full chat state that
-   * often is not affordable — that loads the bot plus twenty turns with their
-   * events, delegations and decisions — so this carries only what tells the
-   * client whether to go and fetch it.
-   */
-  async getActivityForUser(
-    userId: string,
-    workspaceId: string,
-  ): Promise<{
-    status: string;
-    activeTurnId: string | null;
-    lastTurnAt: Date | null;
-  } | null> {
-    // One Prisma call, though not one SQL statement: the generator does not
-    // enable `relationJoins`, so this still selects the bot and the turn
-    // separately. Both predicates are indexed and the payload is three
-    // columns, which is what makes it affordable to ask every couple of
-    // seconds — not a saved round trip, which it is not.
-    const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
-      select: {
-        status: true,
-        lastTurnAt: true,
-        turns: {
-          where: {
-            ...FOREGROUND_TURN,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { id: true },
-        },
-      },
-    });
-    if (!bot) return null;
-    return {
-      status: bot.status,
-      activeTurnId: bot.turns[0]?.id ?? null,
-      lastTurnAt: bot.lastTurnAt,
-    };
-  }
-
-  async getForUser(userId: string, workspaceId: string) {
-    const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
-      include: {
-        memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
-        legacyMessages: {
-          orderBy: { createdAt: "desc" },
-          take: 200,
-        },
-        pendingDecisions: {
-          where: { status: "PENDING", expiresAt: { gt: new Date() } },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        },
-        schedules: { orderBy: { createdAt: "desc" } },
-      },
-    });
-    if (!bot) return null;
-    const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
-    return {
-      ...bot,
-      memoryHash: memoryRevisions[0]?.hash ?? bot.memoryHash,
-      memoryRevisions,
-    };
-  }
-
   async listTurns(
     userId: string,
     workspaceId: string,
     options: { cursor?: string; take?: number } = {},
+    selector: SokoBotSelector = ME_SOKO_BOT,
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
-    const bot = await memberSokoBot(userId, workspaceId, ME_SOKO_BOT);
+    const bot = await memberSokoBot(userId, workspaceId, selector);
     if (!bot) return { turns: [], count: 0, hasMore: false };
     const turns = await prisma.sokoBotTurn.findMany({
       where: { sokoBotId: bot.id },
@@ -1405,11 +1334,14 @@ export class SokoBotControlPlane {
     };
   }
 
-  async getTurn(userId: string, turnId: string) {
+  /** A shared bot's turns are readable by every member: pass its id. */
+  async getTurn(userId: string, turnId: string, sokoBotId?: string) {
     const turn = await prisma.sokoBotTurn.findFirst({
-      // The caller's own bot: a shared bot's turn also records its asker as
-      // Requester, and leaving the organization must end that read.
-      where: { id: turnId, requestedByUserId: userId, sokoBot: { userId } },
+      // Without a bot, the caller's own bot: a shared bot's turn also records
+      // its asker as Requester, and leaving the organization must end that read.
+      where: sokoBotId
+        ? { id: turnId, sokoBotId }
+        : { id: turnId, requestedByUserId: userId, sokoBot: { userId } },
       include: {
         events: { orderBy: { sequence: "asc" } },
         delegations: true,
@@ -3247,14 +3179,26 @@ export class SokoBotControlPlane {
     }
   }
 
-  async cancelTurn(userId: string, turnId: string): Promise<void> {
+  /**
+   * `caller` is a member, or a shared Soko Bot acting on its own (ADR 0057).
+   * The bot may stop only its own background runs that nobody asked for: a
+   * member's run is theirs or an admin's to stop.
+   */
+  async cancelTurn(
+    caller: string | { sokoBotId: string },
+    turnId: string,
+  ): Promise<void> {
     const turn = await prisma.sokoBotTurn.findFirst({
       where: { id: turnId },
       include: { sokoBot: { select: { userId: true, workspaceId: true } } },
     });
     if (
       !turn ||
-      !(await authorizeSokoBotTurnAction(userId, turn, turn.sokoBot))
+      !(typeof caller === "object"
+        ? turn.sokoBotId === caller.sokoBotId &&
+          turn.parentTurnId !== null &&
+          turn.requestedByUserId === null
+        : await authorizeSokoBotTurnAction(caller, turn, turn.sokoBot))
     )
       throw new SokoBotNotFoundError("Active turn not found");
     if (!["STARTING", "RUNNING", "CANCEL_REQUESTED"].includes(turn.status)) {
@@ -3307,6 +3251,7 @@ export class SokoBotControlPlane {
     workspaceId: string,
     versionId: string,
     options: { allowUnpromoted: boolean } = { allowUnpromoted: false },
+    selector: SokoBotSelector = ME_SOKO_BOT,
   ) {
     // Built-in or console-authored; both share one id namespace. Authored
     // versions are selectable only once promoted, except from the admin lab.
@@ -3316,8 +3261,10 @@ export class SokoBotControlPlane {
     if (!known) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
+    const bot = await memberSokoBot(userId, workspaceId, selector);
+    if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
     const updated = await prisma.sokoBot.updateMany({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { id: bot.id, archivedAt: null },
       data: { versionId },
     });
     if (updated.count === 0)
@@ -3477,9 +3424,14 @@ export class SokoBotControlPlane {
     return translateScheduleErrors(() => updateSokoBotSchedule(input));
   }
 
-  async deleteSchedule(userId: string, scheduleId: string): Promise<void> {
+  /** `bot` reaches a shared bot's schedule the caller did not write. */
+  async deleteSchedule(
+    userId: string,
+    scheduleId: string,
+    bot: { workspaceId?: string; sokoBotId?: string } = {},
+  ): Promise<void> {
     await translateScheduleErrors(() =>
-      deleteSokoBotSchedule(userId, { scheduleId }),
+      deleteSokoBotSchedule(userId, { scheduleId, ...bot }),
     );
   }
 

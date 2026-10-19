@@ -52,6 +52,7 @@ const {
   coworkerFindManyMock,
   integrationListMock,
   transactionBotFindUniqueOrThrowMock,
+  transactionBotFindUniqueMock,
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
   transactionMemoryRevisionFindUniqueMock,
@@ -168,6 +169,7 @@ const {
   coworkerFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
+  transactionBotFindUniqueMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
@@ -424,6 +426,7 @@ vi.mock("@/lib/db/transaction", () => ({
         $queryRaw: transactionTurnLockMock,
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
+          findUnique: transactionBotFindUniqueMock,
           findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
           update: transactionBotUpdateMock,
           updateMany: transactionBotUpdateManyMock,
@@ -2500,11 +2503,15 @@ describe("SokoBotRuntimeService authorization", () => {
       workspaceId: SCOPE.workspaceId,
       projectId: PROJECT_ID,
     };
-    const sharedTurn = (capability: string, sokoBot: object) => {
+    const sharedTurn = (
+      capability: string,
+      sokoBot: object,
+      requestedByUserId: string | null = SCOPE.userId,
+    ) => {
       turnFindUniqueMock.mockResolvedValue({
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: [capability],
         contextSnapshot: {
@@ -2566,6 +2573,22 @@ describe("SokoBotRuntimeService authorization", () => {
       sharedTurn("assign_task", PROJECT_BOT);
       transactionTaskCountMock.mockResolvedValue(1);
       await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+    });
+
+    it("changes a public Task in its Project for nobody, through its scope", async () => {
+      sharedTurn("assign_task", PROJECT_BOT, null);
+      transactionTaskCountMock.mockResolvedValue(1);
+      transactionBotFindUniqueMock.mockResolvedValue(PROJECT_BOT);
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+      expect(transactionTaskFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: "task_1",
+          archivedAt: null,
+          workspaceId: SCOPE.workspaceId,
+          visibility: "PUBLIC",
+          projectId: PROJECT_ID,
+        },
+      });
     });
 
     it("leaves a personal bot's writes unscoped", async () => {
@@ -2820,6 +2843,43 @@ describe("SokoBotRuntimeService authorization", () => {
         eventStatus: TaskStatus.CANCELED,
       }),
     );
+  });
+
+  it("does not cancel a Task without an Owner for a turn that acts for nobody", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      ownerId: null,
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            actingUserId: null,
+            requestedByUserId: null,
+            workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: null,
+            audience: undefined,
+            sharedScope: {
+              sokoBotId: SCOPE.sokoBotId,
+              workspaceId: SCOPE.workspaceId,
+              projectId: null,
+            },
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_nobody",
+      ),
+    ).rejects.toThrow("Only the owner's own Tasks can be canceled");
+    expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
   });
 
   it("does not cancel a Task someone else owns", async () => {
@@ -7656,6 +7716,27 @@ describe("archive_task without approval cards", () => {
       false,
     );
     expect(createDecision).not.toHaveBeenCalled();
+  });
+
+  it("refuses archiving for a turn that acts for nobody", async () => {
+    const service = new SokoBotRuntimeService();
+    const apply = vi.spyOn(
+      service as unknown as {
+        applyTaskMutation: (...args: unknown[]) => Promise<unknown>;
+      },
+      "applyTaskMutation",
+    );
+    await expect(
+      service["mutateTask"](
+        {
+          turn: { id: "turn_1", actingUserId: null, workspaceId: "w" },
+        } as never,
+        { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).rejects.toThrow("needs an Organization owner or admin");
+    expect(apply).not.toHaveBeenCalled();
   });
 
   it("says why a Task the owner may not change can't be archived", async () => {

@@ -22,7 +22,7 @@ export async function disconnectLeaverSokoBotIntegrations(
   const rows = await prisma.sokoBotIntegration.findMany({
     where: {
       connectorUserId: userId,
-      sokoBot: { workspace: { organizationId } },
+      sokoBot: { userId: null, workspace: { organizationId } },
     },
     select: {
       id: true,
@@ -64,7 +64,9 @@ export async function sweepLeaverSokoBotIntegrations(): Promise<number> {
   const rows = await prisma.sokoBotIntegration.findMany({
     where: {
       connectorUserId: { not: null },
-      sokoBot: { workspace: { organizationId: { not: null } } },
+      // Only shared bots: personal bots keep their integrations, and their
+      // rows would cost a read every tick.
+      sokoBot: { userId: null, workspace: { organizationId: { not: null } } },
     },
     select: {
       connectorUserId: true,

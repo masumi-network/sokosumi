@@ -10,7 +10,6 @@ import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -385,7 +384,8 @@ export async function judgeSokoBotLabTurn(input: {
     if (!input.evaluation) return;
     const data = {
       sokoBotId: turn.sokoBotId,
-      userId: sokoBotActingUserId(turn),
+      // The read above matched the turn's Requester to this member.
+      userId: input.userId,
       scenarioId: scenario.id,
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,

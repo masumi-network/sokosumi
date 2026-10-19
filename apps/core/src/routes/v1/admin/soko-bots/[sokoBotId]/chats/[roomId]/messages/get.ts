@@ -99,7 +99,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         .parse(
           [...page]
             .reverse()
-            .map((message) => mapChatRoomMessage(message, bot.userId)),
+            .map((message) =>
+              mapChatRoomMessage(message, bot.userId ?? undefined),
+            ),
         ),
       createPaginationMeta(page, count, take, hasMore, cursor),
     );

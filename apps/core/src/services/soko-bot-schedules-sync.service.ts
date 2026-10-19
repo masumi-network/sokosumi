@@ -72,7 +72,7 @@ interface ClaimedOccurrence {
     id: string;
     sokoBotId: string;
     requestedByUserId: string | null;
-    sokoBot: { userId: string };
+    sokoBot: { userId: string | null };
     workspaceId: string;
     cronExpression: string;
     timezone: string;

@@ -52,6 +52,21 @@ describe("task visibility helpers", () => {
     ).toBe(false);
   });
 
+  it("shows nobody a private Task", () => {
+    expect(
+      isPrivateTaskVisibleToHuman(
+        { visibility: TaskVisibility.PRIVATE, ownerId: null },
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      isPrivateTaskVisibleToHuman(
+        { visibility: TaskVisibility.PUBLIC, ownerId: null },
+        null,
+      ),
+    ).toBe(true);
+  });
+
   it("reuses human visibility for parent-task and Soko Bot owner filters", () => {
     const humanWhere = buildHumanTaskVisibilityWhere("user_a");
 

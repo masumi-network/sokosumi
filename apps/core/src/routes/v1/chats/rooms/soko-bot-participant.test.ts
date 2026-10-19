@@ -8,6 +8,7 @@ import {
 } from "./soko-bot-participant";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
+const ROOM_ID = "01960001-0001-7001-8001-0000000000ab";
 
 function row(overrides: Partial<ChatRoomSokoBotRow> = {}): ChatRoomSokoBotRow {
   return {
@@ -17,6 +18,7 @@ function row(overrides: Partial<ChatRoomSokoBotRow> = {}): ChatRoomSokoBotRow {
     avatarSeed: null,
     userId: "user_ana",
     projectId: null,
+    sharedRoomId: null,
     user: { name: "Ana Lopez" },
     ...overrides,
   };
@@ -34,6 +36,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
       avatarSeed: "orb:user_ana",
       ownerUserId: "user_ana",
       scope: "personal",
+      sharedRoomId: null,
       presence: "online",
     });
     expect(chatRoomSokoBotParticipantSchema.parse(participant)).toEqual(
@@ -48,7 +51,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
     "shows a shared %s bot with no owner, seeded from its own id",
     (scope, projectId, caption) => {
       const participant = mapChatRoomSokoBotParticipant(
-        row({ userId: null, projectId, user: null }),
+        row({ userId: null, projectId, sharedRoomId: ROOM_ID, user: null }),
       );
 
       expect(participant).toMatchObject({
@@ -56,6 +59,7 @@ describe("mapChatRoomSokoBotParticipant", () => {
         avatarSeed: `orb:${BOT_ID}`,
         ownerUserId: null,
         scope,
+        sharedRoomId: ROOM_ID,
       });
       expect(chatRoomSokoBotParticipantSchema.parse(participant)).toEqual(
         participant,

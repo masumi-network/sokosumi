@@ -137,6 +137,7 @@ function renderDialog(
             avatarSeed: null,
             ownerUserId: "user-me",
             scope: "personal",
+            sharedRoomId: null,
             presence: "online",
           },
         ],

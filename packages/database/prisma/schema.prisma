@@ -2259,8 +2259,8 @@ model SokoBot {
   /// `soko_bot_owner_scope_check` allows at most one; it lives in SQL only,
   /// because Prisma cannot express CHECK constraints. One live personal bot per
   /// user and workspace.
-  userId    String
-  user      User     @relation("SokoBotOwner", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation("SokoBotOwner", fields: [userId], references: [id], onDelete: Cascade)
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 

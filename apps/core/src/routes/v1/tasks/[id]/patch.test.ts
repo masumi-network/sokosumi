@@ -642,6 +642,7 @@ describe("PATCH /tasks/{id}", () => {
       WORKSPACE_ID,
       expect.anything(),
       { kind: "user", userId: "user_123" },
+      expect.objectContaining({ projectId: null }),
     );
     expect(taskUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({

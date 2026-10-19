@@ -23,6 +23,7 @@ export interface ChatRoomSokoBotRow {
   avatarSeed: string | null;
   userId: string | null;
   projectId: string | null;
+  sharedRoomId: string | null;
   user: { name: string } | null;
 }
 
@@ -65,6 +66,7 @@ export function mapChatRoomSokoBotParticipant(
     avatarSeed: sokoBotAvatarSeedFor(bot),
     ownerUserId: owner.kind === "personal" ? owner.userId : null,
     scope: owner.kind === "personal" ? "personal" : owner.scope,
+    sharedRoomId: bot.sharedRoomId,
     presence: "online",
   };
 }

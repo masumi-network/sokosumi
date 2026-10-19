@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn(),
+}));
+
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 
 import {
   createSokoBotSchedule,
@@ -170,8 +175,12 @@ describe("schedules of a shared bot", () => {
   const scheduleUpdate = vi.fn();
   const scheduleDelete = vi.fn();
   const scheduleCreate = vi.fn();
+  const botFindUnique = vi.fn(async (args: { where: { id: string } }) => ({
+    userId: BOT_OWNERS[args.where.id],
+    workspace: { organizationId: "org_1" },
+  }));
   const tx = {
-    sokoBot: { findFirst: botFindFirst },
+    sokoBot: { findFirst: botFindFirst, findUnique: botFindUnique },
     workspace: { findFirst: vi.fn().mockResolvedValue({ id: WORKSPACE_ID }) },
     sokoBotSchedule: {
       findFirst: scheduleFindFirst,
@@ -279,6 +288,65 @@ describe("schedules of a shared bot", () => {
       deleteSokoBotSchedule("owner_1", meRef(PERSONAL), tx),
     ).resolves.toEqual({ id: PERSONAL.id, name: PERSONAL.name });
     expect(botFindFirst).not.toHaveBeenCalled();
+  });
+
+  const SEAT_REQUIRED = new Error("An assigned seat is required");
+  const createInput = (userId: string | null, sokoBotId: string) => ({
+    userId,
+    workspaceId: WORKSPACE_ID,
+    sokoBotId,
+    name: "Check-in",
+    timezone: "UTC",
+    cronExpression: "0 9 * * 1",
+    prompt: "How is it going?",
+  });
+
+  it.each([
+    [
+      "creating",
+      () => createSokoBotSchedule(createInput("member_2", SHARED_BOT_ID), tx),
+    ],
+    [
+      "changing",
+      () =>
+        updateSokoBotSchedule(
+          { userId: "member_2", ...turnRef(SHARED), prompt: "New" },
+          tx,
+        ),
+    ],
+  ])(
+    "refuses a member without a Seat %s a shared bot's schedule",
+    async (_label, write) => {
+      vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
+        SEAT_REQUIRED,
+      );
+      await expect(write()).rejects.toBe(SEAT_REQUIRED);
+      expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+        "member_2",
+        "org_1",
+        tx,
+      );
+      expect(scheduleCreate).not.toHaveBeenCalled();
+      expect(scheduleUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("asks no Seat for a personal bot or a shared bot acting on its own", async () => {
+    await updateSokoBotSchedule(
+      { userId: "owner_1", ...meRef(PERSONAL), prompt: "New" },
+      tx,
+    );
+    // The runtime's own lookup: the shared bot, in its workspace.
+    botFindFirst.mockResolvedValueOnce({
+      id: SHARED_BOT_ID,
+      userId: null,
+      workspaceId: WORKSPACE_ID,
+      archivedAt: null,
+    } as never);
+    scheduleFindFirst.mockResolvedValueOnce(null);
+    await createSokoBotSchedule(createInput(null, SHARED_BOT_ID), tx);
+    expect(scheduleCreate).toHaveBeenCalled();
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
   });
 
   it("creates on the turn's own bot, not the member's personal one", async () => {

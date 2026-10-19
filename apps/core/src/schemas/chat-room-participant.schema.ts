@@ -33,6 +33,11 @@ export const chatRoomSokoBotParticipantSchema = z
       example: "user_123",
     }),
     scope: chatRoomSokoBotScopeSchema,
+    sharedRoomId: z.string().uuid().nullable().openapi({
+      description:
+        "The shared Soko Bot's own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.",
+      example: "01960001-0001-7001-8001-0000000000ab",
+    }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
   })
   .openapi("ChatRoomSokoBotParticipant");
