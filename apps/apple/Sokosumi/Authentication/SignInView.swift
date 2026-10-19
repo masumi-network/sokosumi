@@ -1,13 +1,27 @@
 import SokosumiAuth
 import SwiftUI
 
+/// Web's `--primary-solid`: #2B5C78 in light, the same hue at 38% lightness (#336D8F) in dark.
+enum SignInBrand {
+  static let light = (red: 43.0 / 255, green: 92.0 / 255, blue: 120.0 / 255)
+  static let dark = (red: 51.0 / 255, green: 109.0 / 255, blue: 143.0 / 255)
+
+  static func color(_ scheme: ColorScheme) -> Color {
+    let channel = scheme == .dark ? dark : light
+    return Color(red: channel.red, green: channel.green, blue: channel.blue)
+  }
+}
+
 /// Web's Log in page (`apps/web/src/app/(auth)`): the wordmark, one centered column and the legal footer, with the
 /// photo panel beside it once the window is wide enough. Every way in runs through the system browser, where web
 /// offers its own methods (email, Google, Microsoft, passkey); Register opens the website's sign-up page.
 struct SignInView: View {
+  /// The five auth photos, in asset-catalog order.
+  static let heroImageNames = ["AuthHero1", "AuthHero2", "AuthHero3", "AuthHero4", "AuthHero5"]
+
   @EnvironmentObject private var auth: AuthState
   /// Web picks one of five photos per visit; this picks one per window.
-  @State private var heroImage = "AuthHero\(Int.random(in: 1 ... 5))"
+  @State private var heroImage = Self.heroImageNames.randomElement() ?? "AuthHero1"
 
   /// Web shows the panel from `lg` (1024px) on a half-width column; below this the form alone is calmer.
   private static let heroMinimumWidth: CGFloat = 900
@@ -43,6 +57,7 @@ struct SignInView: View {
 /// The centered column: heading, then the state's body at web's 24pt gap.
 private struct SignInColumn: View {
   @EnvironmentObject private var auth: AuthState
+  @Environment(\.colorScheme) private var colorScheme
 
   var body: some View {
     VStack(spacing: 24) {
@@ -58,7 +73,9 @@ private struct SignInColumn: View {
 
       switch auth.status {
       case .notConfigured:
-        SignInNotice(text: "Sign-in is not configured.")
+        Text("Sign-in is not configured.")
+          .font(.callout)
+          .foregroundStyle(.secondary)
         Text("Set the SOKOSUMI_OAUTH_CLIENT_ID environment variable (or the SokosumiOAuthClientID Info.plist key) to the public OAuth client from SOK-970, then relaunch.")
           .font(.callout)
           .foregroundStyle(.secondary)
@@ -67,34 +84,7 @@ private struct SignInColumn: View {
         if let message {
           SignInNotice(text: message)
         }
-        Button {
-          auth.startSignIn()
-        } label: {
-          Text("Continue in browser")
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.extraLarge)
-        .keyboardShortcut(.defaultAction)
-        HStack(spacing: 4) {
-          Text("Don't have an account?")
-            .foregroundStyle(.secondary)
-          // Accounts are created on the website: the sign-in sheet forgets everything once it closes, and the
-          // website's onboarding sets up the new account.
-          Link("Register", destination: CoreSettings.signUpURL)
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .pointerStyle(.link)
-        }
-        Text(SignInLinks.termsNotice)
-          .font(.callout)
-          .foregroundStyle(.secondary)
-          .tint(.secondary)
-          .multilineTextAlignment(.center)
-        #if DEBUG
-          ServerChoiceSection()
-            .multilineTextAlignment(.leading)
-        #endif
+        continueButton
       case .signingIn:
         HStack(spacing: 8) {
           ProgressView()
@@ -114,8 +104,62 @@ private struct SignInColumn: View {
       case .signedIn:
         EmptyView()
       }
+
+      if showsRegistration {
+        registration
+      }
+      #if DEBUG
+        if case .signedOut = auth.status {
+          ServerChoiceSection()
+            .multilineTextAlignment(.leading)
+        }
+      #endif
     }
     .multilineTextAlignment(.center)
+  }
+
+  /// Register and the terms stay up while the browser is open. The Debug server picker does not: it changes the
+  /// issuer, and the attempt already started against the one that was chosen.
+  private var showsRegistration: Bool {
+    switch auth.status {
+    case .signedOut, .signingIn:
+      true
+    case .notConfigured, .signedIn:
+      false
+    }
+  }
+
+  private var continueButton: some View {
+    Button {
+      auth.startSignIn()
+    } label: {
+      Text("Continue in browser")
+        .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.borderedProminent)
+    .tint(SignInBrand.color(colorScheme))
+    .controlSize(.extraLarge)
+    .keyboardShortcut(.defaultAction)
+  }
+
+  private var registration: some View {
+    VStack(spacing: 24) {
+      HStack(spacing: 4) {
+        Text("Don't have an account?")
+          .foregroundStyle(.secondary)
+        // Accounts are created on the website: the sign-in sheet forgets everything once it closes, and the
+        // website's onboarding sets up the new account.
+        Link("Register", destination: CoreSettings.signUpURL)
+          .buttonStyle(.plain)
+          .foregroundStyle(SignInBrand.color(colorScheme))
+          .pointerStyle(.link)
+      }
+      Text(SignInLinks.termsNotice)
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .tint(.secondary)
+        .multilineTextAlignment(.center)
+    }
   }
 }
 
@@ -134,7 +178,7 @@ private struct SignInNotice: View {
   }
 }
 
-private enum SignInLinks {
+enum SignInLinks {
   static let terms = "https://www.sokosumi.com/terms-of-service"
   static let privacy = "https://www.sokosumi.com/privacy-policy"
   static let imprint = "https://www.sokosumi.com/imprint"
@@ -153,7 +197,7 @@ private enum SignInLinks {
   }()
 }
 
-/// Web's `AuthLayoutFooter`: four quiet legal links.
+/// Web's `AuthLayoutFooter`: four quiet legal links that wrap, centered, once the window is too narrow for one row.
 private struct SignInFooter: View {
   private static let links: [(title: String, url: String)] = [
     ("Terms of Service", SignInLinks.terms),
@@ -163,7 +207,7 @@ private struct SignInFooter: View {
   ]
 
   var body: some View {
-    HStack(spacing: 16) {
+    WrappingRow(spacing: 16, centersRows: true) {
       ForEach(Self.links, id: \.url) { link in
         if let url = URL(string: link.url) {
           Link(link.title, destination: url)
@@ -197,9 +241,9 @@ private struct SignInHeroPanel: View {
       }
       .overlay {
         GeometryReader { proxy in
-          LinearGradient(colors: [.black.opacity(0.5), .black.opacity(0.25), .clear], startPoint: .leading, endPoint: .trailing)
+          scrim(from: .leading, to: .trailing)
             .frame(width: proxy.size.width * 0.8)
-          LinearGradient(colors: [.black.opacity(0.5), .black.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom)
+          scrim(from: .top, to: .bottom)
             .frame(height: proxy.size.height * 0.6)
         }
         .accessibilityHidden(true)
@@ -237,6 +281,10 @@ private struct SignInHeroPanel: View {
       }
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.15)))
+  }
+
+  private func scrim(from start: UnitPoint, to end: UnitPoint) -> some View {
+    LinearGradient(colors: [.black.opacity(0.5), .black.opacity(0.25), .clear], startPoint: start, endPoint: end)
   }
 
   private static var hairline: some View {
