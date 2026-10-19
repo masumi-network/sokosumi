@@ -2396,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "{account} ersetzen?",
-          "description": "Alle Entwürfe und geplanten Beiträge dieses Kontos werden auf das neue Konto übertragen. Wenn du sie hier behalten willst, füge ein neues Konto hinzu, statt zu ersetzen.",
+          "description": "Entwürfe und geplante Beiträge wandern auf das neue Konto.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
@@ -2411,14 +2411,14 @@
           "syncStarted": "Synchronisierung gestartet."
         },
         "warning": {
-          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
+          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",
+          "facebookPage": "Facebook braucht ein Konto, das genau eine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Versuche es erneut.",
           "legacyCallback": "Mit dieser Rückmeldung kann dein Konto nicht verifiziert werden. Wende dich an den Support und versuche es erneut.",
           "verifier": "Dein Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
@@ -2475,7 +2475,7 @@
           "more": "Weitere Beiträge sind verfügbar."
         },
         "emptyHint": {
-          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
+          "drafts": "Speichere einen Entwurf für später."
         },
         "status": {
           "DRAFT": "Entwurf",
@@ -2614,14 +2614,14 @@
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
         "actions": {
-          "publishNow": "Jetzt veröffentlichen",
+          "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
           "dismiss": "Verwerfen"
         },
         "publishDialog": {
-          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "title": "Diesen Beitrag jetzt posten?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
-          "confirm": "Jetzt veröffentlichen"
+          "confirm": "Jetzt posten"
         },
         "retryDialog": {
           "title": "Diesen Beitrag erneut versuchen?",
@@ -2642,7 +2642,7 @@
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge gehen von den Konten dieses Projekts.",
-          "action": "X, YouTube, LinkedIn … verbinden"
+          "action": "Konto verbinden"
         },
         "reconnectPrompt": {
           "title": "Erneut verbinden, um zu posten",
@@ -3723,8 +3723,8 @@
         "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
-        "title": "Verbinde deine Social-Media-Konten",
-        "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
+        "title": "Wähle ein Projekt",
+        "body": "Dann verbinde Konten."
       },
       "attentionNeedProject": {
         "title": "Braucht Aufmerksamkeit",
@@ -3734,7 +3734,7 @@
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
-      "loading": "Social wird geladen…",
+      "loading": "Wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen",
@@ -5618,7 +5618,7 @@
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
         "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
-        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
@@ -5633,7 +5633,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
-        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen"
       },
       "Notifications": {

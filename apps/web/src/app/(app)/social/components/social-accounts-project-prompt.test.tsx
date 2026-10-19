@@ -54,6 +54,14 @@ beforeEach(() => {
 });
 
 describe("SocialAccountsProjectPrompt", () => {
+  it("asks to choose a project before connecting", () => {
+    setup();
+    expect(
+      screen.getByRole("heading", { name: "Choose a project" }),
+    ).toBeVisible();
+    expect(screen.getByText("Then connect accounts.")).toBeVisible();
+  });
+
   it("chooses a real project and opens its Accounts tab", async () => {
     const user = userEvent.setup();
     setup();

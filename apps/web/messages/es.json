@@ -2396,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar {account}?",
-          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
+          "description": "Los borradores y las publicaciones programadas pasan a la cuenta nueva.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
@@ -2411,14 +2411,14 @@
           "syncStarted": "Sincronización iniciada."
         },
         "warning": {
-          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
+          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Publicar en Facebook requiere una cuenta que gestione exactamente una página. Usa una cuenta con una sola página gestionable.",
+          "facebookPage": "Facebook necesita una cuenta que gestione exactamente una página.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
-          "providerCallback": "La autorización no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
+          "providerCallback": "La autorización no se completó. Inténtalo de nuevo.",
           "legacyCallback": "Esta respuesta no permite verificar tu cuenta. Contacta con soporte e inténtalo de nuevo.",
           "verifier": "No pudimos verificar tu cuenta. Inicia la conexión de nuevo.",
           "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
@@ -2475,7 +2475,7 @@
           "more": "Hay más publicaciones."
         },
         "emptyHint": {
-          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
+          "drafts": "Guarda un borrador para más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2619,7 +2619,7 @@
           "dismiss": "Descartar"
         },
         "publishDialog": {
-          "title": "¿Publicar esta publicación ahora?",
+          "title": "¿Publicar ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
@@ -2642,7 +2642,7 @@
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
-          "action": "Conectar X, YouTube, LinkedIn…"
+          "action": "Conectar cuenta"
         },
         "reconnectPrompt": {
           "title": "Vuelve a conectar para publicar",
@@ -3723,8 +3723,8 @@
         "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conecta tus cuentas de redes sociales",
-        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
+        "title": "Elige un proyecto",
+        "body": "Luego conecta cuentas."
       },
       "attentionNeedProject": {
         "title": "Requiere atención",
@@ -3734,7 +3734,7 @@
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…",
+      "loading": "Cargando…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales",
@@ -5618,7 +5618,7 @@
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
-        "loadError": "No pudimos cargar tus cuentas conectadas en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
@@ -5633,7 +5633,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
-        "loadError": "No pudimos cargar los detalles de tu cuenta vinculada en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar"
       },
       "Notifications": {
