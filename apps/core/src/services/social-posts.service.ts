@@ -1,7 +1,6 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  isVercelBlobPublicHost,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -16,8 +15,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
-import { assertDriveStoreMatchesWorkspace } from "@/helpers/drive-file-access";
-import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
   conflict,
@@ -380,25 +378,6 @@ function mediaValidationMessage(
   }
 }
 
-function requireDriveFileUrl(ref: SocialPostMediaRef): string {
-  let url: URL;
-  let decodedPathname: string;
-  try {
-    url = new URL(ref.fileUrl);
-    decodedPathname = decodeURIComponent(url.pathname);
-  } catch {
-    throw badRequest(`Media file "${ref.name}" has an invalid URL`);
-  }
-  if (
-    url.protocol !== "https:" ||
-    !isVercelBlobPublicHost(url.hostname) ||
-    decodedPathname !== `/${ref.pathname}`
-  ) {
-    throw badRequest(`Media file "${ref.name}" is not a Drive file`);
-  }
-  return url.toString();
-}
-
 /**
  * Pins every ref to a Drive file in the active workspace store, checks its
  * declared type, and applies the provider's media rules. Returns the refs as
@@ -409,12 +388,7 @@ function normalizeSocialPostMedia(
 ): SocialPostMediaRef[] {
   const provider = requireProvider(input.provider);
   const media = input.media.map((ref): SocialPostMediaRef => {
-    const { scope, ownerId } = parseDriveFilePathname(
-      ref.pathname,
-      input.userId,
-    );
-    assertDriveStoreMatchesWorkspace(input, scope, ownerId);
-    const fileUrl = requireDriveFileUrl(ref);
+    const fileUrl = requireWorkspaceDriveFileUrl(input, ref);
     const mimeType = ref.mimeType.trim().toLowerCase();
     if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
       throw badRequest(
@@ -545,6 +519,11 @@ export async function listSocialPosts(
   const upcoming = input.statuses?.every(
     (status) => status === "SCHEDULED" || status === "PUBLISHING",
   );
+  const attention =
+    Boolean(input.statuses?.length) &&
+    input.statuses?.every(
+      (status) => status === "FAILED" || status === "MISSED",
+    );
   const [rows, count] = await Promise.all([
     prisma.socialPost.findMany({
       where,
@@ -553,7 +532,13 @@ export async function listSocialPosts(
         ? [{ scheduledAt: "asc" }, { id: "asc" }]
         : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
           ? [{ publishedAt: "desc" }, { id: "desc" }]
-          : [{ updatedAt: "desc" }, { id: "desc" }],
+          : attention
+            ? [
+                { lastAttemptAt: { sort: "desc", nulls: "last" } },
+                { scheduledAt: { sort: "desc", nulls: "last" } },
+                { id: "desc" },
+              ]
+            : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),

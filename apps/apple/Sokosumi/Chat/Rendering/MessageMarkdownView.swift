@@ -190,6 +190,8 @@ private struct MarkdownBlockView: View {
       ForEach(segments) { segment in
         if let attachment = segment.attachment {
           MessageAttachmentView(attachment: attachment).id(attachment.url)
+        } else if segment.text.runs.contains(where: { $0.link != nil }) {
+          LinkPointerText(text: styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         } else {
           Text(styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         }
@@ -265,7 +267,7 @@ private struct MarkdownBlockView: View {
   MessageMarkdownView(source: """
   ### Operational report
 
-  Finished **analysis** with _results_.
+  Finished **analysis** with _results_. Details on [the dashboard](https://example.com).
 
   1. Acquisition
      - **New users:** 20

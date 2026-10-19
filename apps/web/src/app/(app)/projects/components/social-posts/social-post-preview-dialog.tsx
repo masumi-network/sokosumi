@@ -18,6 +18,7 @@ import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
+import { SocialPostPreviewFailure } from "./social-post-preview-failure";
 
 export function SocialPostPreviewDialog({
   post,
@@ -91,6 +92,7 @@ export function SocialPostPreviewDialog({
             </Link>
           </p>
         ) : null}
+        {post ? <SocialPostPreviewFailure post={post} /> : null}
         {post ? (
           <SocialPostPreview
             account={

@@ -54,7 +54,7 @@ describe("owner result hydration", () => {
     );
     expect(response.status).toBe(200);
     expect(mocks.turn).toHaveBeenCalledWith({
-      where: { id: turnId, userId: "owner", status: "COMPLETED" },
+      where: { id: turnId, requestedByUserId: "owner", status: "COMPLETED" },
       select: { id: true },
     });
     expect(mocks.collect).toHaveBeenCalledWith(turnId);

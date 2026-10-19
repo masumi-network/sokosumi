@@ -53,6 +53,25 @@ export function socialPostProviderLabel(provider: SocialPostProvider): string {
   return SOCIAL_POST_PROVIDER_LABELS[provider];
 }
 
+const YOUTUBE_TITLE_LIMIT = 100;
+
+/** First non-empty line is the title; overflow and later lines form the description. */
+export function splitYouTubePostText(text: string) {
+  const lines = text.split(/\r?\n/);
+  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
+  if (titleIndex === -1) return { title: "", description: "" };
+  const titleLine = lines[titleIndex].trim();
+  const overflow = titleLine.slice(YOUTUBE_TITLE_LIMIT).trim();
+  const rest = lines
+    .slice(titleIndex + 1)
+    .join("\n")
+    .trim();
+  return {
+    title: titleLine.slice(0, YOUTUBE_TITLE_LIMIT),
+    description: [overflow, rest].filter((part) => part.length > 0).join("\n"),
+  };
+}
+
 export type SocialPostMediaKind = "image" | "gif" | "video";
 
 /** A Drive file attached to a Social post. Provider media handles are never stored. */

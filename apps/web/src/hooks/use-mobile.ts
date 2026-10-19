@@ -1,29 +1,33 @@
-import * as React from "react";
+import { useSyncExternalStore } from "react";
 
 export const MOBILE_BREAKPOINT = 768;
 
+const MOBILE_MEDIA_QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`;
+
+function subscribe(onStoreChange: () => void): () => void {
+  const mql = window.matchMedia(MOBILE_MEDIA_QUERY);
+  mql.addEventListener("change", onStoreChange);
+  return () => mql.removeEventListener("change", onStoreChange);
+}
+
+function getSnapshot(): boolean {
+  return window.innerWidth < MOBILE_BREAKPOINT;
+}
+
+function getServerSnapshot(): undefined {
+  return undefined;
+}
+
 /**
  * Mobile match from `(max-width: MOBILE_BREAKPOINT - 1)`.
- * `undefined` until the media-query subscription runs after mount.
+ * `undefined` during SSR/hydration until the client snapshot runs.
  */
 export function useIsMobileMedia(): boolean | undefined {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
-    undefined,
+  return useSyncExternalStore<boolean | undefined>(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
   );
-
-  // Effect is necessary: Subscribes to external system (media query)
-  // Sets up and tears down event listener for window resize
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    };
-    mql.addEventListener("change", onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-
-  return isMobile;
 }
 
 /** Coerces unresolved media to `false` (desktop-first). Prefer `useIsMobileMedia` when layout must wait. */

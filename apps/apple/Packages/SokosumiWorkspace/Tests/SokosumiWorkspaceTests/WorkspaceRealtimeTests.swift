@@ -1,3 +1,4 @@
+import Combine
 import CoreAPI
 import Foundation
 import HTTPTypes
@@ -572,6 +573,15 @@ struct WorkspaceRealtimeTests {
     await state.reload()
     await waitForRealtimeIdle(state)
     #expect(state.rooms.first?.groupName == nil)
+    var listWrites = 0
+    let watch = state.sidebar.$rooms.dropFirst().sink { _ in listWrites += 1 }
+    defer { watch.cancel() }
+    let plain = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440719", roomId: roomA, content: "Just a message",
+                          createdAt: "2026-01-01T00:00:00.500Z")
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: plain[0])
+    #expect(listWrites == 0, "A message that renames nothing leaves the room list alone.")
 
     let change = #"{"action":"named","name":"Launch crew","actor":{"id":"user_2","name":"Ada"}}"#
     let renamed = try await decodeRealtimeMessages([
@@ -580,7 +590,8 @@ struct WorkspaceRealtimeTests {
     ])
     state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: renamed[0])
     #expect(state.rooms.first?.groupName == "Launch crew")
-    #expect(state.openRoom.displayedTranscript.map(\.content) == ["first", "Ada named the group Launch crew"])
+    #expect(listWrites == 1)
+    #expect(state.openRoom.displayedTranscript.map(\.content) == ["first", "Just a message", "Ada named the group Launch crew"])
 
     let cleared = try await decodeRealtimeMessages([
       realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440718", roomId: roomA, content: "Ada removed the group name",

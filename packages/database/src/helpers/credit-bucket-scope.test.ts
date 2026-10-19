@@ -269,6 +269,69 @@ describe("resolveCreditBucketScopeContext", () => {
       poolAccess: "none",
     });
   });
+
+  // Work without an Owner (ADR 0057): no member, no Seat.
+  it("opens the enterprise pool to a charge with no member under consumable enterprise", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: true,
+      purchasedSeats: 5,
+      contractId: "contract-1",
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: null,
+    });
+
+    const context = await resolveCreditBucketScopeContext(
+      null,
+      "org-1",
+      {} as never,
+    );
+
+    assert.deepEqual(context, {
+      workspace: "organization",
+      userId: null,
+      organizationId: "org-1",
+      poolAccess: "enterprise",
+    });
+    assert.equal(getMemberMock.mock.calls.length, 0);
+  });
+
+  it("opens the shared pool to a charge with no member on a paid self-serve organization", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "starter",
+      purchasedSeats: 5,
+      subscriptionId: "sub-paid",
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const context = await resolveCreditBucketScopeContext(
+      null,
+      "org-1",
+      {} as never,
+    );
+
+    assert.deepEqual(context, {
+      workspace: "organization",
+      userId: null,
+      organizationId: "org-1",
+      poolAccess: "shared",
+    });
+    assert.equal(getMemberMock.mock.calls.length, 0);
+  });
+
+  it("refuses a personal charge with no member", async () => {
+    await assert.rejects(
+      resolveCreditBucketScopeContext(null, null, {} as never),
+      /personal/i,
+    );
+  });
 });
 
 describe("hasAssignedOrganizationSeat", () => {

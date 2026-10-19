@@ -5,10 +5,7 @@ interface ErrorPageProps {
   retry: () => void;
 }
 
-/**
- * The last resort when a page fails. Known sign-in failures go to the
- * signed-out page instead, which says what happened.
- */
+/** The last resort when a page fails. */
 export default function ErrorPage({ retry }: ErrorPageProps) {
   return (
     <main className="hero">

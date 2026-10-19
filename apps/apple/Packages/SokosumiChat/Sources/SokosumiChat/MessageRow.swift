@@ -41,8 +41,6 @@ public struct MessageRow: Equatable, Sendable {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
   public let kind: MessageKind
-  /// Persisted mention shell (thinking or failed); nil for ordinary rows.
-  public let mentionShell: MentionThoughtShell?
   /// Same sender, day and burst as the row above: no avatar, name or clock.
   public let isContinuation: Bool
   public let actions: MessageActions
@@ -50,8 +48,6 @@ public struct MessageRow: Equatable, Sendable {
   public let sokoBotChain: SokoBotChainMetadata?
   /// Web's hover pill and fill: a row not deleted with anything to offer. A thinking shell has no actions (web `showActions`).
   public let showsActionBar: Bool
-  /// The inline edit composer stands in for this row's body.
-  public let isEditing: Bool
   /// What the row draws above its extras, in order.
   public let body: [MessageBodyPart]
   /// Web's "Edited" mark: edited and still there.
@@ -106,12 +102,10 @@ public struct MessageRow: Equatable, Sendable {
     let threadReplyBar = opensThread ? ThreadReplyBar(message: message) : nil
 
     self.kind = kind
-    self.mentionShell = mentionShell
     isContinuation = isMessageContinuation(previous: previous, current: message)
     self.actions = actions
     self.sokoBotChain = sokoBotChain
     showsActionBar = !isDeleted && !isThinking && (!actions.isEmpty || sokoBotChain != nil)
-    self.isEditing = isEditing
     body = Self.bodyParts(of: message, shell: mentionShell, isEditing: isEditing, isDeleted: isDeleted)
     isEdited = message.editedAt != nil && !isDeleted
     self.isDeleted = isDeleted

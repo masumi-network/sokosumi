@@ -228,9 +228,7 @@ public final class WorkspaceState: ObservableObject {
     do {
       return try await operation(service, client, selection?.workspace.organizationSlug)
     } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+      signOutIfUnauthorized(error)
       throw error
     }
   }
@@ -287,12 +285,8 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private func acceptCreatedRoom(_ room: Components.Schemas.ChatRoom, sourceRoom: String?) {
-    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-      rooms[index] = room
-    } else {
-      rooms.append(room)
-    }
-    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+    sidebar.upsert(room)
+    pushMembership()
     // A completed request must not pull the user away from a room they selected meanwhile.
     if transcriptRoomId == sourceRoom {
       selectRoom(room.id)
@@ -330,25 +324,18 @@ public final class WorkspaceState: ObservableObject {
         try await service.updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
       }
       // A list read already in flight predates this settings edit.
-      sidebar.invalidateRefresh()
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      }
+      sidebar.replace(room)
     }
   }
 
   /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
   public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID) async throws -> Bool {
-    let slug = selection?.workspace.organizationSlug
-    return try await exclusive(.updateRoom, context: context) {
-      let room = try await workspaceOperation(context: context) { client in
+    try await exclusive(.updateRoom, context: context) {
+      let room = try await workspaceOperation(context: context) { client, slug in
         try await service.updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
       }
       // A list read already in flight predates this rename.
-      sidebar.invalidateRefresh()
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      }
+      sidebar.replace(room)
     }
   }
 
@@ -370,7 +357,7 @@ public final class WorkspaceState: ObservableObject {
 
   func channelOperation<Value: Sendable>(context: UUID, operation: (Client, String, String) async throws -> Value) async throws -> Value {
     guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
-    return try await workspaceOperation(context: context) { client in
+    return try await workspaceOperation(context: context) { client, _ in
       try await operation(client, organizationId, slug)
     }
   }
@@ -395,18 +382,17 @@ public final class WorkspaceState: ObservableObject {
     runningMutation = nil
   }
 
-  /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
-  func workspaceOperation<Value: Sendable>(context: UUID, operation: (Client) async throws -> Value) async throws -> Value {
+  /// Runs an authenticated request for the current composition context with the open workspace's slug; a workspace
+  /// change or reset turns its result into cancellation.
+  func workspaceOperation<Value: Sendable>(context: UUID, operation: (Client, String?) async throws -> Value) async throws -> Value {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, let client = resolveClient() else { throw CancellationError() }
     do {
-      let value = try await operation(client)
+      let value = try await operation(client, selection?.workspace.organizationSlug)
       guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return value
     } catch {
       guard context == compositionContext else { throw CancellationError() }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
+      signOutIfUnauthorized(error)
       throw error
     }
   }
@@ -428,8 +414,7 @@ public final class WorkspaceState: ObservableObject {
   /// Leaving drops the room like a membership revoke: the open transcript clears and no other room is forced open.
   public func leaveChannel(roomId: String, context: UUID) async throws -> Bool {
     try await exclusive(.channelLifecycle(.leave, roomId: roomId), context: context) {
-      let slug = selection?.workspace.organizationSlug
-      try await workspaceOperation(context: context) { client in
+      try await workspaceOperation(context: context) { client, slug in
         try await service.leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
       }
       applyMembershipRevoked(roomId: roomId)
@@ -476,25 +461,13 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func loadDirectRecipients(context: UUID) async throws -> ChatRecipientRoster {
-    guard phase == .ready, context == compositionContext, !workspaceSession.isSwitching,
-          let client = resolveClient() else { throw CancellationError() }
-    do {
-      let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
-        userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+    let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
+      userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+    )
+    return try await workspaceOperation(context: context) { client, slug in
+      try await service.directRecipients(
+        client: client, yourself: yourself, organizationId: selection?.workspace.organizationId, organizationSlug: slug
       )
-      let roster = try await service.directRecipients(
-        client: client, yourself: yourself,
-        organizationId: selection?.workspace.organizationId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
-      return roster
-    } catch {
-      guard context == compositionContext else { throw CancellationError() }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error)
-      }
-      throw error
     }
   }
 
@@ -508,21 +481,18 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID) async throws -> Bool {
-    guard let first = recipients.recipients.first, let client = resolveClient() else { return false }
+    guard let first = recipients.recipients.first, resolveClient() != nil else { return false }
     let sourceRoom = transcriptRoomId
     var opened = false
     _ = try await exclusive(.openDirect(first), context: context) {
       do {
-        let room = try await service.openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
-        guard !Task.isCancelled, context == compositionContext, phase == .ready else { return }
+        let room = try await workspaceOperation(context: context) { client, slug in
+          try await service.openDirect(client: client, selection: recipients, organizationSlug: slug)
+        }
         acceptCreatedRoom(room, sourceRoom: sourceRoom)
         opened = true
-      } catch {
-        guard context == compositionContext else { return }
-        if let error = error as? ChatServiceError {
-          signOutIfUnauthorized(error)
-        }
-        throw error
+      } catch is CancellationError {
+        return
       }
     }
     return opened
@@ -585,7 +555,7 @@ public final class WorkspaceState: ObservableObject {
       return (client, selection?.workspace.organizationSlug)
     }, failed: { [weak self] error in
       guard let self else { return false }
-      guard let error = error as? ChatServiceError else {
+      guard error is ChatServiceError else {
         logger.error("Sokosumi open room request failed: \(String(describing: error), privacy: .public)")
         return false
       }
@@ -682,9 +652,7 @@ public final class WorkspaceState: ObservableObject {
     closeTyping()
     sidebarRecoveryGeneration = UUID()
     sidebarRecovery.stop()
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
+    cancelRoomsRefresh()
     connectionHealthy = false
     realtimeContinuation?.finish()
     realtimeContinuation = nil
@@ -761,8 +729,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// A pin changed, here or in another client: the sidebar count, the row's pin and the open room's Pins follow.
   func applyPin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
-    guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return }
-    rooms[index].pinnedMessageCount = count
+    guard sidebar.update(roomId, invalidatingRefresh: false, { $0.pinnedMessageCount = count }) else { return }
     openRoom.applyPin(roomId: roomId, messageId: messageId, isPinned: isPinned)
   }
 
@@ -785,9 +752,10 @@ public final class WorkspaceState: ObservableObject {
       sidebarRecovery.requestRefresh([.active])
     }
     // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
-    if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
-       let renamed = rooms[index].applyingGroupNameChange(message) {
-      rooms[index] = renamed
+    // Only a rename writes the list, so an ordinary message republishes nothing.
+    if eventType == .create, roomId == transcriptRoomId,
+       let renamed = sidebar.rooms.first(where: { $0.id == roomId })?.applyingGroupNameChange(message) {
+      sidebar.update(roomId, invalidatingRefresh: false) { $0 = renamed }
     }
     openRoom.apply(eventType: eventType, message: message, roomId: roomId)
   }
@@ -808,22 +776,12 @@ public final class WorkspaceState: ObservableObject {
   /// room that is gone. Remints the token when one exists so caps drop.
   func applyMembershipRevoked(roomId revokedRoomId: String) {
     workspaceSession.applyMembershipRevoked(roomId: revokedRoomId)
-    sidebar.invalidateRefresh()
-    sidebar.rollbackPendingAction(roomId: revokedRoomId)
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
-    let result = SokosumiChat.applyMembershipRevoked(
-      rooms: rooms,
-      selectedRoomId: selectedRoomId,
-      revokedRoomId: revokedRoomId
-    )
-    rooms = result.rooms
-    selectedRoomId = result.selectedRoomId
+    sidebar.revoke(roomId: revokedRoomId)
+    cancelRoomsRefresh()
     if transcriptRoomId == revokedRoomId {
       leaveRoom()
     }
-    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+    pushMembership()
   }
 
   var outboundSender: Components.Schemas.ChatRoomUserParticipant {
@@ -891,8 +849,8 @@ public final class WorkspaceState: ObservableObject {
   /// Signs out when Core rejects the session. Returns whether it did, so
   /// silent callers (attention sync) can keep the side effect explicit.
   @discardableResult
-  func signOutIfUnauthorized(_ error: ChatServiceError) -> Bool {
-    if case let .unauthorized(message) = error {
+  func signOutIfUnauthorized(_ error: Error) -> Bool {
+    if case let ChatServiceError.unauthorized(message) = error {
       auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
       return true
     }
@@ -930,15 +888,13 @@ public final class WorkspaceState: ObservableObject {
       ensureRoomSelection()
     } catch {
       guard context == compositionContext else { return }
-      handleWorkspaceError(error)
+      signOutIfUnauthorized(error)
     }
   }
 
   func switchRooms(option: WorkspaceOption) async {
     renewContext()
-    roomsRefreshTask?.cancel()
-    roomsRefreshTask = nil
-    roomsRefreshID = UUID()
+    cancelRoomsRefresh()
     sidebar.invalidateRefresh()
     let context = compositionContext
     roomsLoading = true
@@ -960,7 +916,7 @@ public final class WorkspaceState: ObservableObject {
       rooms = loaded
       switchError = nil
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
-      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      pushMembership()
       startRealtimeIfNeeded()
       syncPresenceOrganization()
       startSidebarRecovery()
@@ -969,8 +925,20 @@ public final class WorkspaceState: ObservableObject {
     } catch {
       guard context == compositionContext else { return }
       switchError = workspaceSession.errorMessage
-      handleWorkspaceError(error)
+      signOutIfUnauthorized(error)
     }
+  }
+
+  /// The socket's membership follows the listed rooms; every change that adds or drops a room says so.
+  private func pushMembership() {
+    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+  }
+
+  /// Ends the list read the coordinator started; a fresh id turns its completion stale.
+  private func cancelRoomsRefresh() {
+    roomsRefreshTask?.cancel()
+    roomsRefreshTask = nil
+    roomsRefreshID = UUID()
   }
 
   public func refreshRooms() async {
@@ -1020,20 +988,14 @@ public final class WorkspaceState: ObservableObject {
     guard phase == .ready, !roomsLoading, let client = resolveClient() else { return }
     do {
       guard try await sidebar.refresh(client: client, organizationSlug: selection?.workspace.organizationSlug) else { return }
-      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+      pushMembership()
       // Preserve a visible transcript on refresh; open a replacement only if
       // the previous room is no longer membership-visible.
       if selectedRoomId == nil || !rooms.contains(where: { $0.id == selectedRoomId }) {
         ensureRoomSelection()
       }
     } catch {
-      handleWorkspaceError(error)
-    }
-  }
-
-  private func handleWorkspaceError(_ error: Error) {
-    if case let ChatServiceError.unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
+      signOutIfUnauthorized(error)
     }
   }
 }

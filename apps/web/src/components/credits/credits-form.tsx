@@ -10,7 +10,7 @@ import {
 import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { purchaseCredits } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
@@ -121,11 +122,9 @@ export default function CreditsForm({
     },
   });
 
-  // Effect is necessary: Analytics tracking when component is displayed
-  // Fires once on mount to track page view
-  useEffect(() => {
+  useMountEffect(() => {
     fireGTMEvent.viewCredits();
-  }, []);
+  });
 
   const { setValue } = form;
   const credits = useWatch({

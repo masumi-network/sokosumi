@@ -15,13 +15,13 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
   );
 }
 
-export interface GrantSignupBonusCreditsParams {
+interface GrantSignupBonusCreditsParams {
   credits: number;
   expiresAt: Date | null;
   userId: string;
 }
 
-export interface GrantSignupBonusCreditsResult {
+interface GrantSignupBonusCreditsResult {
   bucketId: string;
   created: boolean;
 }

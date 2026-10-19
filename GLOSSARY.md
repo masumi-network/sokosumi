@@ -128,6 +128,24 @@ _Avoid_: Occurrence, instance
 A Run started by hand on an Active or Paused Task Schedule, in addition to the Runs its rule plans. It creates its Task at once and leaves the rule and the planned Runs unchanged.
 _Avoid_: Trigger, manual fire, pulling the next Run forward
 
+### Ownership of work
+
+**Owner**:
+The person who answers for a Task, Task Schedule or Job: who made it, or the person a Coworker or Soko Bot made it for. Private work is visible only to its Owner. Work a Soko Bot started on its own has no Owner, and neither has public work whose Owner deleted their account.
+_Avoid_: Responsible person, requester, creator, payer, assignee, owner (when meaning the Organization owner role)
+
+**Creator**:
+The person, Coworker or Soko Bot that made a Task, Task Schedule or Job.
+_Avoid_: Owner, author
+
+**Requester**:
+The person who asked a Soko Bot to act, recorded on its turns and Soko Bot schedules. A record only: it grants no access and no rights. Work a Coworker or Soko Bot makes for a person belongs to that person as its Owner.
+_Avoid_: Context user, on-behalf-of user, initiator, owner
+
+**Task participant**:
+A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
+_Avoid_: Participant (when meaning a Task), follower, watcher
+
 ### Social publishing
 
 **Social account**:
@@ -177,6 +195,28 @@ _Avoid_: Engagement over the selected period, treating an unavailable counter as
 **Social account post**:
 A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
 _Avoid_: Draft, scheduled Social post, importing history as publishable content
+
+### Ads
+
+**Ad connection**:
+A Project's Composio authorization to one ads provider (Google Ads or Meta Ads), granted by an interactive human user who belongs to the Project's Workspace. It may expose several Ad accounts.
+_Avoid_: Integration, Social connection
+
+**Ad account**:
+A provider ad account (Google customer, Meta `act_…`) that a Project chose to manage through an Ad connection.
+_Avoid_: Social account, advertiser
+
+**Ad campaign**:
+A provider ad campaign inside an Ad account. Sokosumi manages Ad campaigns only, not ad sets or ads. New Ad campaigns are always created paused.
+_Avoid_: Ad, Task, Job
+
+**Market profile**:
+A Project's keywords, country, and language that scope its market lookups.
+_Avoid_: Audience, targeting
+
+**Market ads**:
+Other advertisers' recent ads found for a Market profile, shown with preview images. Not the Project's own Campaigns.
+_Avoid_: Competitor ads, ad library
 
 ### Task payments
 

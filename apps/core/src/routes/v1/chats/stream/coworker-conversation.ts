@@ -17,13 +17,13 @@ const COWORKER_PROVIDER_CONFIG_ERROR_CODES = new Set([
   "account_deactivated",
 ]);
 
-export const COWORKER_CHAT_UNAVAILABLE_MESSAGE =
+const COWORKER_CHAT_UNAVAILABLE_MESSAGE =
   "This AI coworker is temporarily unavailable. Please try again later or choose another coworker.";
 
 export const COWORKER_CHAT_BILLING_MESSAGE =
   "This AI coworker cannot accept messages right now because its provider account needs billing setup.";
 
-export interface CreateCoworkerConversationOptions {
+interface CreateCoworkerConversationOptions {
   responsesApiBaseUrl: string;
   sokosumiUserId: string;
   sokosumiOrganizationId: string | null;
@@ -88,6 +88,11 @@ function userMessageForCoworkerProviderError(code?: string): string {
   return COWORKER_CHAT_UNAVAILABLE_MESSAGE;
 }
 
+/**
+ * Map a failed remote conversation create onto the HTTP error the stream
+ * route already answers with. Provider billing/auth, 429, and 5xx stay
+ * distinct so the client can tell a setup problem from a blip.
+ */
 export function throwCoworkerRemoteConversationHttpError(
   error: unknown,
 ): never {
@@ -132,6 +137,11 @@ export function throwCoworkerRemoteConversationHttpError(
   );
 }
 
+/**
+ * Open a remote Responses API conversation for this coworker turn.
+ * The returned id is what later stream calls attach to. Timeouts and
+ * upstream failures become CoworkerConversationError for the mapper above.
+ */
 export async function createCoworkerConversation(
   options: CreateCoworkerConversationOptions,
 ): Promise<{ id: string }> {

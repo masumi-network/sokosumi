@@ -21,10 +21,11 @@ import prisma from "@/lib/db/prisma";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
 
 const turn = {
-  userId: "owner",
+  requestedByUserId: "owner",
+  sokoBot: { userId: "owner" },
   workspaceId: "workspace",
   versionId: "v21",
-  requestedByUserId: null,
+  askedByUserId: null,
   chainDepth: 0,
 };
 const tx = prisma;
@@ -140,7 +141,7 @@ describe("automatic result previews", () => {
 
   it.each([
     { ...turn, versionId: "v19" },
-    { ...turn, requestedByUserId: "colleague" },
+    { ...turn, askedByUserId: "colleague" },
     { ...turn, chainDepth: 1 },
   ])(
     "never widens old versions or another caller's access",

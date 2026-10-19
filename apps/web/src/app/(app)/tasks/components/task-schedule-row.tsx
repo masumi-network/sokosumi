@@ -33,6 +33,8 @@ interface TaskScheduleRowProps {
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   canCreatePrivate: boolean;
+  /** Delete of a schedule with no Owner. Defaults closed. */
+  canDeleteUnowned?: boolean;
   onChanged: () => void;
 }
 
@@ -59,6 +61,7 @@ export function TaskScheduleRow({
   coworkerOptions,
   projectOptions,
   canCreatePrivate,
+  canDeleteUnowned = false,
   onChanged,
 }: TaskScheduleRowProps) {
   const t = useTranslations("App.Tasks.Schedules");
@@ -155,6 +158,7 @@ export function TaskScheduleRow({
             coworkerOptions={coworkerOptions}
             projectOptions={projectOptions}
             canCreatePrivate={canCreatePrivate}
+            canDeleteUnowned={canDeleteUnowned}
           />
         </div>
       ) : null}
