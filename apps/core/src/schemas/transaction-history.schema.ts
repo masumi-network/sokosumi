@@ -76,7 +76,7 @@ const transactionHistoryBaseItemSchema = z.object({
   }),
 });
 
-export const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
+const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("job"),
     jobId: z.string().openapi({
@@ -98,23 +98,22 @@ export const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
   })
   .openapi("TransactionHistoryJobItem");
 
-export const transactionHistoryImageItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("image"),
-      imageJobId: z.string().uuid().openapi({
-        description: "Image studio generation that consumed the credits",
-        example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      }),
-      modelLabel: z.string().openapi({
-        description:
-          "Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.",
-        example: "Gemini 3.1 Flash Image",
-      }),
-    })
-    .openapi("TransactionHistoryImageItem");
+const transactionHistoryImageItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("image"),
+    imageJobId: z.string().uuid().openapi({
+      description: "Image studio generation that consumed the credits",
+      example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }),
+    modelLabel: z.string().openapi({
+      description:
+        "Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.",
+      example: "Gemini 3.1 Flash Image",
+    }),
+  })
+  .openapi("TransactionHistoryImageItem");
 
-export const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
+const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("task"),
     taskId: z.string().openapi({
@@ -128,16 +127,15 @@ export const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
   })
   .openapi("TransactionHistoryTaskItem");
 
-export const transactionHistoryCoworkerItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("coworker"),
-      coworkerId: z.string().openapi({
-        description: "Coworker whose usage consumed the credits",
-        example: "cow_123",
-      }),
-    })
-    .openapi("TransactionHistoryCoworkerItem");
+const transactionHistoryCoworkerItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("coworker"),
+    coworkerId: z.string().openapi({
+      description: "Coworker whose usage consumed the credits",
+      example: "cow_123",
+    }),
+  })
+  .openapi("TransactionHistoryCoworkerItem");
 
 export const transactionHistorySokoBotItemSchema =
   transactionHistoryBaseItemSchema
@@ -150,23 +148,22 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
-export const transactionHistoryTopUpItemSchema =
-  transactionHistoryBaseItemSchema
-    .extend({
-      kind: z.literal("topUp"),
-      /**
-       * A top up is only ever described by the credit bucket it created, so
-       * the bucket's reference type is the source of the row's label.
-       */
-      bucketSource: z.string().nullable().openapi({
-        description:
-          "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
-        example: "STRIPE_TOPUP",
-      }),
-    })
-    .openapi("TransactionHistoryTopUpItem");
+const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("topUp"),
+    /**
+     * A top up is only ever described by the credit bucket it created, so
+     * the bucket's reference type is the source of the row's label.
+     */
+    bucketSource: z.string().nullable().openapi({
+      description:
+        "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
+      example: "STRIPE_TOPUP",
+    }),
+  })
+  .openapi("TransactionHistoryTopUpItem");
 
-export const transactionHistoryUnattributedItemSchema =
+const transactionHistoryUnattributedItemSchema =
   transactionHistoryBaseItemSchema
     .extend({
       kind: z.literal("unattributed"),
@@ -183,7 +180,7 @@ export const transactionHistoryUnattributedItemSchema =
     })
     .openapi("TransactionHistoryUnattributedItem");
 
-export const transactionHistoryItemSchema = z
+const transactionHistoryItemSchema = z
   .discriminatedUnion("kind", [
     transactionHistoryJobItemSchema,
     transactionHistoryImageItemSchema,

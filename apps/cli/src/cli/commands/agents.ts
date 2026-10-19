@@ -15,7 +15,7 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-export interface AgentsCommandOptions extends CommandContext {
+interface AgentsCommandOptions extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;

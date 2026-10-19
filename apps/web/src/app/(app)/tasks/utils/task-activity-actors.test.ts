@@ -359,4 +359,17 @@ describe("buildTaskActivityActors", () => {
     });
     expect(result.coworkerById).toBeUndefined();
   });
+
+  it("names nobody for a Task whose Owner and Creator deleted their account", () => {
+    const task = {
+      owner: null,
+      assignee: null,
+      creator: null,
+      events: [],
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
+
+    const result = buildTaskActivityActors(task);
+
+    expect(result.userById).toEqual({});
+  });
 });

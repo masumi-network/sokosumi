@@ -1,10 +1,14 @@
-import type { SocialAccountMetric } from "@/schemas/social-account-statistics.schema";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialPostEngagementInput {
   provider: string;
   metrics: SocialPostMetrics;
-  additionalMetrics?: SocialAccountMetric[];
+  additionalMetrics?: Array<{
+    key: string;
+    value: number | null;
+    period?: string | null;
+    unit?: string | null;
+  }>;
 }
 
 function reportsShares(provider: string): boolean {

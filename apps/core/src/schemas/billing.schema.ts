@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-export const creditTopUpTierSchema = z
+const creditTopUpTierSchema = z
   .object({
     minCredits: z.number().int().positive().openapi({ example: 1 }),
     amountPerCredit: z.number().openapi({ example: 120 }),

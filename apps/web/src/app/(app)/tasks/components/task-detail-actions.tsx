@@ -75,6 +75,7 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
@@ -153,6 +154,8 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
+  /** Null when the Task has no Owner. Archive and move then need an org owner or admin. */
+  taskOwnerId: string | null;
   hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
@@ -183,6 +186,7 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
+  taskOwnerId,
   hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
@@ -256,31 +260,42 @@ export function TaskDetailActions({
       : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
-  const canArchiveParked = canArchiveParkedTaskForViewer({
-    forceReadOnly,
-    taskStatus: status,
-    isTaskOwner,
-    isOrganizationTask: currentOrganizationId != null,
-    hasAssignedSeat,
-  });
+  // A Task with an Owner keeps the old gates. One without an Owner can be
+  // archived or moved only by an organization owner or admin, and never into
+  // a personal workspace (ADR 0057).
+  const canManageUnowned =
+    taskOwnerId === null &&
+    viewerIsOrganizationOwnerOrAdmin(currentOrganizationId, organizations);
+  const canArchiveUnowned = taskOwnerId !== null || canManageUnowned;
+  const canArchiveParked =
+    canArchiveUnowned &&
+    canArchiveParkedTaskForViewer({
+      forceReadOnly,
+      taskStatus: status,
+      isTaskOwner,
+      isOrganizationTask: currentOrganizationId != null,
+      hasAssignedSeat,
+    });
   const canArchiveTask =
     canArchiveParked ||
-    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
+    (canArchiveUnowned &&
+      isTaskArchivableStatus(status) &&
+      !isReadOnly &&
+      !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
-  // Move stays owner-only: a member moving the task would take it away from
-  // its owner.
+  const personalMoveAllowed = taskOwnerId !== null && hasPersonalWorkspace;
   const canMove =
     canMutateTask &&
-    isTaskOwner &&
+    (isTaskOwner || canManageUnowned) &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
       organizations,
-      hasPersonalWorkspace,
+      personalMoveAllowed,
     ) > 0;
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
@@ -994,7 +1009,7 @@ export function TaskDetailActions({
           taskId={taskId}
           currentOrganizationId={currentOrganizationId ?? null}
           organizations={organizations ?? []}
-          hasPersonalWorkspace={hasPersonalWorkspace}
+          hasPersonalWorkspace={personalMoveAllowed}
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}

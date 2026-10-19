@@ -26,7 +26,8 @@ export function SocialLoadingSkeleton({ label }: { label: string }) {
   return (
     <SocialLoadingChrome label={label} tab={tab}>
       {tab === "calendar" ? <CalendarPane /> : null}
-      {tab === "drafts" || tab === "attention" ? <ListPane /> : null}
+      {tab === "drafts" ? <DraftsPane /> : null}
+      {tab === "attention" ? <ListPane /> : null}
       {tab === "accounts" ? <AccountsPane /> : null}
       {tab === "statistics" ? <StatisticsPane /> : null}
     </SocialLoadingChrome>
@@ -58,11 +59,10 @@ function SocialLoadingChrome({
     >
       <span className="sr-only">{label}</span>
       <section aria-hidden className="space-y-2">
-        {/* The tab row and New post share one row, as on the page; on a
-            phone New post is only its icon. */}
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-11 w-64 min-w-0 sm:w-72" />
-          <Skeleton className="h-11 w-14 shrink-0 sm:h-10 sm:w-32" />
+        {/* Same row as Tasks: content-sized tab pill, action on the right. */}
+        <div className="flex flex-row items-center justify-between gap-3">
+          <Skeleton className="h-9 w-64 min-w-0 sm:w-72" />
+          <Skeleton className="h-8 w-14 shrink-0 sm:h-10 sm:w-32" />
         </div>
         {children}
       </section>
@@ -118,6 +118,30 @@ function CalendarPane() {
         </div>
       </div>
     </>
+  );
+}
+
+function DraftsPane() {
+  return (
+    <ul className="grid gap-4 pt-2 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 4 }, (_, card) => (
+        <li
+          key={card}
+          className="border-border flex flex-col gap-3 rounded-xl border p-4"
+        >
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </div>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="aspect-video w-full rounded-lg" />
+        </li>
+      ))}
+    </ul>
   );
 }
 

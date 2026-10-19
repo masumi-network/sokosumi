@@ -17,23 +17,38 @@ export function getCalendarRange(dateParam: string) {
   return { from, to };
 }
 
-export function getLatestCalendarDate(now: Date): Date {
+export function getLatestCalendarDate(
+  now: Date,
+  latestScheduledSocialPostAt?: Date | null,
+): Date {
   const horizon = addDays(now, 90);
   const candidate = startOfMonth(horizon);
   const candidateRange = getCalendarRange(format(candidate, "yyyy-MM-dd"));
 
-  return candidateRange.to <= horizon ? candidate : subMonths(candidate, 1);
+  const latestDefaultDate =
+    candidateRange.to <= horizon ? candidate : subMonths(candidate, 1);
+  const latestScheduledMonth = latestScheduledSocialPostAt
+    ? startOfMonth(latestScheduledSocialPostAt)
+    : null;
+
+  return latestScheduledMonth && latestScheduledMonth > latestDefaultDate
+    ? latestScheduledMonth
+    : latestDefaultDate;
 }
 
 export function resolveCalendarDate(
   dateParam: string | undefined,
   now: Date,
+  latestScheduledSocialPostAt?: Date | null,
 ): string {
   const parsedDate = dateParam ? new Date(`${dateParam}T12:00:00`) : now;
   const date = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
-  const latestCalendarDate = getLatestCalendarDate(now);
+  const latestCalendarDate = getLatestCalendarDate(
+    now,
+    latestScheduledSocialPostAt,
+  );
   return format(
-    date > latestCalendarDate ? latestCalendarDate : date,
+    startOfMonth(date) > latestCalendarDate ? latestCalendarDate : date,
     "yyyy-MM-dd",
   );
 }

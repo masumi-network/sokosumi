@@ -71,9 +71,11 @@ describe.skipIf(!databaseUrl)(
         data: { id: botId, userId, workspaceId, status: "RUNNING" },
       });
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
+        toolCallLimit: 64,
         turn: {
           id: turnId,
-          userId,
+          actingUserId: userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: botId,
           eveSessionId: sessionId,
@@ -111,7 +113,7 @@ describe.skipIf(!databaseUrl)(
       const turn = await db.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           source: "CHAT",
           status: "RUNNING",

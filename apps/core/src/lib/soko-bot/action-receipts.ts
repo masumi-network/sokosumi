@@ -73,7 +73,9 @@ export async function verifyTaskArchiveReceipt(
 ): Promise<boolean> {
   const receipt = await tx.sokoBotToolCall.findUnique({
     where: { id: receiptId },
-    include: { turn: { select: { userId: true, workspaceId: true } } },
+    include: {
+      turn: { select: { requestedByUserId: true, workspaceId: true } },
+    },
   });
   if (
     !receipt ||

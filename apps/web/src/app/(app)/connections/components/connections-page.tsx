@@ -32,7 +32,15 @@ export async function ConnectionsPage() {
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl space-y-8 px-4">
         <div className="space-y-6">
-          {socialAccountsSection}
+          <section className="space-y-3" data-testid="connections-sign-in">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">{t("title")}</h2>
+              <p className="text-muted-foreground text-sm">
+                {t("description")}
+              </p>
+            </div>
+            {socialAccountsSection}
+          </section>
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             mcpContent={

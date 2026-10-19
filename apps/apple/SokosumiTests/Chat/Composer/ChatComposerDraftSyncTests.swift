@@ -36,8 +36,8 @@
         let state = WorkspaceState()
         let saved = SavedComposeDraft(userId: userId, organizationId: nil, roomId: roomId)
         defer { saved.save("") }
-        state.timeline.reset(roomId: roomId)
-        state.timeline.failInitialLoad(message: "Fixture has no server", generation: state.timeline.generation)
+        state.openRoom.room.timeline.reset(roomId: roomId)
+        state.openRoom.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.openRoom.room.timeline.generation)
         let content = ChatComposerView(userId: userId, organizationId: nil, roomId: roomId)
           .environmentObject(state).environmentObject(AuthState())
           .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress())

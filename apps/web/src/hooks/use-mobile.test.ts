@@ -1,19 +1,29 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOBILE_BREAKPOINT, useIsMobile, useIsMobileMedia } from "./use-mobile";
 
 function mockMatchMedia(matches: boolean) {
+  const listeners = new Set<() => void>();
   const mql = {
     matches,
     media: `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
     onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+    addEventListener: vi.fn((_type: string, listener: () => void) => {
+      listeners.add(listener);
+    }),
+    removeEventListener: vi.fn((_type: string, listener: () => void) => {
+      listeners.delete(listener);
+    }),
     dispatchEvent: vi.fn(),
     addListener: vi.fn(),
     removeListener: vi.fn(),
-  } as unknown as MediaQueryList;
+    dispatch() {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -44,7 +54,7 @@ describe("useIsMobileMedia", () => {
     vi.restoreAllMocks();
   });
 
-  it("is undefined on the first render, then resolves from the media query", () => {
+  it("reads the media query on the client", () => {
     mockMatchMedia(true);
     Object.defineProperty(window, "innerWidth", {
       writable: true,
@@ -52,18 +62,11 @@ describe("useIsMobileMedia", () => {
       value: MOBILE_BREAKPOINT - 1,
     });
 
-    const values: Array<boolean | undefined> = [];
-    const { result } = renderHook(() => {
-      const value = useIsMobileMedia();
-      values.push(value);
-      return value;
-    });
-
-    expect(values[0]).toBeUndefined();
+    const { result } = renderHook(() => useIsMobileMedia());
     expect(result.current).toBe(true);
   });
 
-  it("resolves to false at the desktop breakpoint after mount", () => {
+  it("resolves to false at the desktop breakpoint", () => {
     mockMatchMedia(false);
     Object.defineProperty(window, "innerWidth", {
       writable: true,
@@ -74,6 +77,28 @@ describe("useIsMobileMedia", () => {
     const { result } = renderHook(() => useIsMobileMedia());
     expect(result.current).toBe(false);
   });
+
+  it("updates when the media query changes", () => {
+    const mql = mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      writable: true,
+      configurable: true,
+      value: MOBILE_BREAKPOINT,
+    });
+
+    const { result } = renderHook(() => useIsMobileMedia());
+    expect(result.current).toBe(false);
+
+    Object.defineProperty(window, "innerWidth", {
+      writable: true,
+      configurable: true,
+      value: MOBILE_BREAKPOINT - 1,
+    });
+    act(() => {
+      mql.dispatch();
+    });
+    expect(result.current).toBe(true);
+  });
 });
 
 describe("useIsMobile", () => {
@@ -81,7 +106,7 @@ describe("useIsMobile", () => {
     vi.restoreAllMocks();
   });
 
-  it("coerces the first unresolved render to false", () => {
+  it("is true when the viewport is mobile", () => {
     mockMatchMedia(true);
     Object.defineProperty(window, "innerWidth", {
       writable: true,
@@ -89,14 +114,7 @@ describe("useIsMobile", () => {
       value: MOBILE_BREAKPOINT - 1,
     });
 
-    const values: boolean[] = [];
-    const { result } = renderHook(() => {
-      const value = useIsMobile();
-      values.push(value);
-      return value;
-    });
-
-    expect(values[0]).toBe(false);
+    const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(true);
   });
 });

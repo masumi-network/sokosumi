@@ -108,7 +108,7 @@ func testRequestQuery(_ request: HTTPRequest) -> String {
 }
 
 func makeTestClient(_ transport: TestTransport) throws -> Client {
-  try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
 }
 
 /// Decodes messages through the real generated client so presentation tests

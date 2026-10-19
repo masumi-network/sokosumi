@@ -1,8 +1,6 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  isVercelBlobPublicHost,
-  SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -11,12 +9,13 @@ import {
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
-import { assertDriveStoreMatchesWorkspace } from "@/helpers/drive-file-access";
-import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
   conflict,
@@ -46,7 +45,12 @@ const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "FAILED",
   "MISSED",
 ];
-const CANCELABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
@@ -248,12 +252,16 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
 }
 
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
+  const media = parseSocialPostMedia(record.media, record.id);
+  const provider = isSocialPostProvider(record.provider)
+    ? record.provider
+    : null;
   return {
     id: record.id,
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
-    media: parseSocialPostMedia(record.media, record.id),
+    media,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -278,7 +286,10 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canEdit: EDITABLE_STATUSES.includes(record.status),
     canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
     canCancel: CANCELABLE_STATUSES.includes(record.status),
-    canPublishNow: PUBLISH_NOW_STATUSES.includes(record.status),
+    canPublishNow:
+      PUBLISH_NOW_STATUSES.includes(record.status) &&
+      provider !== null &&
+      socialPostMeetsMediaRequirement(provider, media),
     canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
@@ -353,22 +364,14 @@ function requireTextWithinLimit(
   return trimmed;
 }
 
-/** Some providers refuse a post without media, or without exactly one video. */
+/** Publish and schedule refuse a post without the media the network needs. */
 function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
 ): void {
-  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
-  if (requirement === "none") return;
-  const label = socialPostProviderLabel(provider);
-  if (requirement === "any") {
-    if (media.length === 0) {
-      throw badRequest(`${label} requires at least one image or video`);
-    }
-    return;
-  }
-  if (media.length !== 1 || media[0]?.kind !== "video") {
-    throw badRequest(`${label} requires a video`);
+  const message = socialPostMediaRequirementMessage(provider);
+  if (message && !socialPostMeetsMediaRequirement(provider, media)) {
+    throw badRequest(message);
   }
 }
 
@@ -400,25 +403,6 @@ function mediaValidationMessage(
   }
 }
 
-function requireDriveFileUrl(ref: SocialPostMediaRef): string {
-  let url: URL;
-  let decodedPathname: string;
-  try {
-    url = new URL(ref.fileUrl);
-    decodedPathname = decodeURIComponent(url.pathname);
-  } catch {
-    throw badRequest(`Media file "${ref.name}" has an invalid URL`);
-  }
-  if (
-    url.protocol !== "https:" ||
-    !isVercelBlobPublicHost(url.hostname) ||
-    decodedPathname !== `/${ref.pathname}`
-  ) {
-    throw badRequest(`Media file "${ref.name}" is not a Drive file`);
-  }
-  return url.toString();
-}
-
 /**
  * Pins every ref to a Drive file in the active workspace store, checks its
  * declared type, and applies the provider's media rules. Returns the refs as
@@ -429,12 +413,7 @@ function normalizeSocialPostMedia(
 ): SocialPostMediaRef[] {
   const provider = requireProvider(input.provider);
   const media = input.media.map((ref): SocialPostMediaRef => {
-    const { scope, ownerId } = parseDriveFilePathname(
-      ref.pathname,
-      input.userId,
-    );
-    assertDriveStoreMatchesWorkspace(input, scope, ownerId);
-    const fileUrl = requireDriveFileUrl(ref);
+    const fileUrl = requireWorkspaceDriveFileUrl(input, ref);
     const mimeType = ref.mimeType.trim().toLowerCase();
     if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
       throw badRequest(
@@ -565,6 +544,11 @@ export async function listSocialPosts(
   const upcoming = input.statuses?.every(
     (status) => status === "SCHEDULED" || status === "PUBLISHING",
   );
+  const attention =
+    Boolean(input.statuses?.length) &&
+    input.statuses?.every(
+      (status) => status === "FAILED" || status === "MISSED",
+    );
   const [rows, count] = await Promise.all([
     prisma.socialPost.findMany({
       where,
@@ -573,7 +557,13 @@ export async function listSocialPosts(
         ? [{ scheduledAt: "asc" }, { id: "asc" }]
         : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
           ? [{ publishedAt: "desc" }, { id: "desc" }]
-          : [{ updatedAt: "desc" }, { id: "desc" }],
+          : attention
+            ? [
+                { lastAttemptAt: { sort: "desc", nulls: "last" } },
+                { scheduledAt: { sort: "desc", nulls: "last" } },
+                { id: "desc" },
+              ]
+            : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),
@@ -635,8 +625,10 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
-  requireMediaRequirement(requireProvider(provider), media);
   const scheduled = input.scheduledAt !== undefined;
+  if (scheduled) {
+    requireMediaRequirement(requireProvider(provider), media);
+  }
 
   const post = await tx.socialPost.create({
     data: {
@@ -676,6 +668,13 @@ export async function updateSocialPost(
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          // Past-due + attemptCount 0 is marked MISSED. Keep the slot due now.
+          ...(post.scheduledAt && post.scheduledAt.getTime() < Date.now()
+            ? { scheduledAt: new Date() }
+            : {}),
         }
       : {};
   const currentProvider = requireProvider(post.provider);
@@ -738,7 +737,9 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    requireMediaRequirement(provider, media);
+    if (post.status === "SCHEDULED") {
+      requireMediaRequirement(provider, media);
+    }
   }
 
   return mapSocialPost(
@@ -803,7 +804,9 @@ export async function cancelSocialPost(
     return mapSocialPost(post);
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be canceled");
+    throw conflict(
+      "Only a draft, scheduled, failed, or missed post can be canceled",
+    );
   }
   requireRevision(post, input.revision);
 

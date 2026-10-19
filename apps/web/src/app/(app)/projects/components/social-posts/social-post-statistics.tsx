@@ -1,11 +1,13 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
@@ -19,6 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   recycleProjectSocialAccountPost,
@@ -36,6 +45,7 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { projectService } from "@/lib/services/project.service";
+import { socialSyncPollIntervalMs } from "@/lib/social-sync-poll";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
@@ -96,6 +106,35 @@ function utcPreset(days: 7 | 30 | 90) {
     from: from.toISOString().slice(0, 10),
     until: until.toISOString().slice(0, 10),
   };
+}
+
+function PerformanceQuerySkeleton({ label }: { label: string }) {
+  return (
+    <div
+      aria-busy="true"
+      className="space-y-6"
+      data-testid="social-statistics-loading"
+      role="status"
+    >
+      <span className="sr-only">{label}</span>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, card) => (
+          <div
+            key={card}
+            className="border-border space-y-3 rounded-lg border p-4"
+          >
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  );
 }
 
 function accountName(account: Account) {
@@ -195,7 +234,28 @@ function RecycleAccountPost({
   );
 }
 
-export function SocialPostStatistics({ projectId }: { projectId: string }) {
+function latestFetchedAt(accounts: Account[]) {
+  let latest: NonNullable<Account["statistics"]>["fetchedAt"] = null;
+  for (const account of accounts) {
+    const fetchedAt = account.statistics?.fetchedAt;
+    if (!fetchedAt) continue;
+    if (!latest || new Date(fetchedAt) > new Date(latest)) latest = fetchedAt;
+  }
+  return latest;
+}
+
+export function SocialPostStatistics(
+  props: { projectId: string } | { workspaceId: string },
+) {
+  const projectId = "projectId" in props ? props.projectId : undefined;
+  const workspaceId = "workspaceId" in props ? props.workspaceId : undefined;
+  const scopeId = projectId ?? workspaceId ?? "";
+  const statisticsPath = projectId
+    ? `/api/projects/${encodeURIComponent(projectId)}/social-statistics`
+    : `/api/workspaces/${encodeURIComponent(workspaceId ?? "")}/social-statistics`;
+  const accountsHref = projectId
+    ? `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`
+    : "/social?tab=accounts";
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
   const { data: session } = useSession();
@@ -226,7 +286,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     "social-account-statistics",
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    projectId,
+    scopeId,
   ];
   const query = useInfiniteQuery({
     queryKey: [...queryScope, filters, publishedFrom, publishedUntil],
@@ -242,10 +302,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       if (publishedUntil)
         params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
       if (pageParam) params.set("cursor", pageParam);
-      const response = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/social-statistics?${params}`,
-        { signal, cache: "no-store" },
-      );
+      const response = await fetch(`${statisticsPath}?${params}`, {
+        signal,
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error(t("loadFailed"));
       const page: StatisticsPage = await response.json();
       if (
@@ -261,7 +321,9 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(session?.user.id),
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: (current) =>
+      socialSyncPollIntervalMs(current.state.data?.pages[0]?.accounts ?? []),
   });
   const accounts = query.data?.pages[0]?.accounts ?? [];
   const accountsById = new Map(
@@ -270,9 +332,13 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const selectedAccount =
     accounts.find((account) => account.id === filters.statisticsAccount) ??
     null;
-  const impressionBased =
-    selectedAccount?.provider === "x" ||
-    selectedAccount?.provider === "linkedin";
+  const impressionBased = selectedAccount
+    ? selectedAccount.provider === "x" ||
+      selectedAccount.provider === "linkedin"
+    : accounts.some(
+        (account) =>
+          account.provider === "x" || account.provider === "linkedin",
+      );
   const headline = query.data?.pages[0]?.headline;
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
@@ -280,6 +346,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   const consistency = query.data?.pages[0]?.consistency;
   const enqueueingRef = useRef(false);
   const mountedRef = useRef(false);
+  const autoRequestedIdsRef = useRef(new Set<string>());
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   useMountEffect(() => {
@@ -289,27 +356,31 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     };
   });
 
-  async function handleSync(targets: Account[]) {
+  async function enqueueRefresh(
+    targets: Account[],
+    { silent = false }: { silent?: boolean } = {},
+  ) {
     if (enqueueingRef.current || targets.length === 0) return;
     enqueueingRef.current = true;
-    setSyncErrors({});
+    if (!silent) setSyncErrors({});
     try {
       for (const account of targets) {
-        setEnqueueingId(account.id);
+        if (!silent) setEnqueueingId(account.id);
         try {
+          if (!projectId) return;
           const result = await refreshProjectSocialAccountStatistics({
             projectId,
             connectionId: account.id,
           });
           if (!mountedRef.current) return;
-          if (!result.ok) {
+          if (!result.ok && !silent) {
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
             }));
           }
         } catch {
-          if (mountedRef.current)
+          if (mountedRef.current && !silent)
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
@@ -323,6 +394,32 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       if (mountedRef.current) setEnqueueingId(null);
     }
   }
+
+  function handleSync(targets: Account[]) {
+    return enqueueRefresh(targets);
+  }
+
+  const autoRequestKey = accounts
+    .filter((account) => account.sync?.mayAutoRequest)
+    .map((account) => account.id)
+    .toSorted()
+    .join(",");
+  useEffect(() => {
+    if (!query.isSuccess) return;
+    for (const account of accounts) {
+      if (!account.sync?.mayAutoRequest)
+        autoRequestedIdsRef.current.delete(account.id);
+    }
+    const stale = accounts.filter(
+      (account) =>
+        account.status === "active" &&
+        account.sync?.mayAutoRequest &&
+        !autoRequestedIdsRef.current.has(account.id),
+    );
+    if (stale.length === 0) return;
+    for (const account of stale) autoRequestedIdsRef.current.add(account.id);
+    void enqueueRefresh(stale, { silent: true });
+  }, [autoRequestKey, query.isSuccess]);
 
   function metricLabel(metric: Metric) {
     const key = `accountMetrics.${ACCOUNT_METRIC_LABELS[metric.key] ?? metric.key}`;
@@ -369,6 +466,19 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       </dl>
     );
   }
+  function exportHref(format: "csv" | "xlsx") {
+    const params = new URLSearchParams({ format });
+    if (filters.statisticsProvider)
+      params.set("provider", filters.statisticsProvider);
+    if (filters.statisticsAccount)
+      params.set("connectionId", filters.statisticsAccount);
+    if (typeof publishedFrom === "string")
+      params.set("publishedFrom", `${publishedFrom}T00:00:00.000Z`);
+    if (typeof publishedUntil === "string")
+      params.set("publishedUntil", `${publishedUntil}T23:59:59.999Z`);
+    return `${statisticsPath}/export?${params}`;
+  }
+
   function formatDate(value: string | Date) {
     return formatter.dateTime(new Date(value), "dateTime", {
       timeZone: "UTC",
@@ -376,10 +486,13 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
     });
   }
   function formatUpdated(value: string | Date) {
-    return formatter.dateTime(new Date(value), {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    });
+    return formatter.relativeTime(new Date(value));
+  }
+
+  function isSyncInFlight(account: Account | undefined) {
+    return (
+      account?.sync?.status === "queued" || account?.sync?.status === "running"
+    );
   }
   function handlePreset(days: "7" | "30" | "90") {
     const window = utcPreset(Number(days) as 7 | 30 | 90);
@@ -391,6 +504,13 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
   }
   const statusAccount = selectedAccount ?? accounts[0];
   const statusSnapshot = statusAccount?.statistics;
+  const latestFetched = latestFetchedAt(
+    selectedAccount ? [selectedAccount] : accounts,
+  );
+  const viewAccounts = selectedAccount ? [selectedAccount] : accounts;
+  const updating =
+    Boolean(enqueueingId) ||
+    viewAccounts.some((account) => isSyncInFlight(account));
 
   const advancedFilterCount = [
     !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
@@ -402,10 +522,10 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       data-testid="social-statistics"
       aria-label={t("title")}
     >
-      <div role="status" className="text-muted-foreground text-sm">
-        {query.isPending ? t("loading") : ""}
-      </div>
-      {query.isError ? (
+      {query.isPending ? (
+        <PerformanceQuerySkeleton label={t("loading")} />
+      ) : null}
+      {query.isPending ? null : query.isError && !query.isFetchNextPageError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -420,10 +540,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
       {!query.isPending && !query.isError && accounts.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           {t("noAccounts")}{" "}
-          <Link
-            className="underline underline-offset-4"
-            href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
-          >
+          <Link className="underline underline-offset-4" href={accountsHref}>
             {t("manageAccounts")}
           </Link>
         </p>
@@ -443,7 +560,7 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
               >
                 <SelectTrigger
                   aria-label={t("performance.accountTabs")}
-                  className="text-foreground w-full sm:w-auto sm:min-w-[200px]"
+                  className="text-foreground h-11 w-full sm:w-auto sm:min-w-[200px] md:h-10 data-[size=default]:h-11 md:data-[size=default]:h-10"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -464,10 +581,12 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 </SelectContent>
               </Select>
               <div className="text-muted-foreground min-w-0 text-sm">
-                {statusSnapshot?.fetchedAt ? (
+                {updating ? (
+                  <p>{t("updating")}</p>
+                ) : latestFetched ? (
                   <p>
                     {t("updatedAt", {
-                      date: formatUpdated(statusSnapshot.fetchedAt),
+                      date: formatUpdated(latestFetched),
                     })}
                   </p>
                 ) : (
@@ -475,40 +594,83 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="h-11 md:h-8"
-              variant="outline"
-              loading={Boolean(enqueueingId)}
-              disabled={
-                Boolean(enqueueingId) ||
-                (selectedAccount
-                  ? selectedAccount.status !== "active"
-                  : !accounts.some((account) => account.status === "active"))
-              }
-              onClick={() =>
-                void handleSync(
-                  selectedAccount
-                    ? [selectedAccount]
-                    : accounts.filter((account) => account.status === "active"),
-                )
-              }
-            >
-              {statusSnapshot?.historyNextCursor &&
-              !statusSnapshot.historyComplete
-                ? t("resumeSync")
-                : selectedAccount || accounts.length === 1
-                  ? t("syncAccount")
-                  : t("syncAll")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {projectId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-11 md:h-8"
+                  variant="outline"
+                  loading={Boolean(enqueueingId)}
+                  disabled={
+                    Boolean(enqueueingId) ||
+                    (selectedAccount
+                      ? selectedAccount.status !== "active"
+                      : !accounts.some(
+                          (account) => account.status === "active",
+                        ))
+                  }
+                  onClick={() =>
+                    void handleSync(
+                      selectedAccount
+                        ? [selectedAccount]
+                        : accounts.filter(
+                            (account) => account.status === "active",
+                          ),
+                    )
+                  }
+                >
+                  {statusSnapshot?.historyNextCursor &&
+                  !statusSnapshot.historyComplete
+                    ? t("resumeSync")
+                    : selectedAccount || accounts.length === 1
+                      ? t("syncAccount")
+                      : t("syncAll")}
+                </Button>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    variant="outline"
+                    aria-label={t("performance.moreActions")}
+                  >
+                    <MoreVertical className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(["csv", "xlsx"] as const).map((exportFormat) => {
+                    const label = t(
+                      exportFormat === "csv"
+                        ? "performance.exportCsv"
+                        : "performance.exportXlsx",
+                    );
+                    return validRange ? (
+                      <DropdownMenuItem key={exportFormat} asChild>
+                        <a href={exportHref(exportFormat)} download>
+                          <Download className="size-4" aria-hidden />
+                          {label}
+                        </a>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem key={exportFormat} disabled>
+                        <Download className="size-4" aria-hidden />
+                        {label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           {statusAccount?.status && statusAccount.status !== "active" ? (
             <p className="text-semantic-warning text-sm">
               {t("reconnectHint")}{" "}
               <Link
                 className="underline underline-offset-4"
-                href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+                href={accountsHref}
               >
                 {t("manageAccounts")}
               </Link>
@@ -532,195 +694,208 @@ export function SocialPostStatistics({ projectId }: { projectId: string }) {
           ) : null}
         </section>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {(["7", "30", "90"] as const).map((days) => (
-          <Button
-            key={days}
-            size="sm"
-            type="button"
-            className={preset === days ? undefined : "text-foreground"}
-            variant={preset === days ? "default" : "outline"}
-            aria-pressed={preset === days}
-            onClick={() => handlePreset(days)}
-          >
-            {t("performance.lastDays", { days: Number(days) })}
-          </Button>
-        ))}
-      </div>
-      <details className="group">
-        <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-          {t("performance.moreFilters")}
-          {advancedFilterCount ? (
-            <span className="text-foreground text-xs">
-              {t("performance.activeFilters", {
-                count: advancedFilterCount,
-              })}
-            </span>
-          ) : null}
-        </summary>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-            <Input
-              id="statistics-from"
-              type="date"
-              value={filters.publishedFrom ?? (publishedFrom || "")}
-              onChange={(event) =>
-                void setFilters({
-                  publishedFrom: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
+      {query.isPending ? null : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {(["7", "30", "90"] as const).map((days) => (
+              <Button
+                key={days}
+                size="sm"
+                type="button"
+                className={
+                  preset === days
+                    ? "h-11 md:h-8"
+                    : "text-foreground h-11 md:h-8"
+                }
+                variant={preset === days ? "default" : "outline"}
+                aria-pressed={preset === days}
+                onClick={() => handlePreset(days)}
+              >
+                {t("performance.lastDays", { days: Number(days) })}
+              </Button>
+            ))}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
-            <Input
-              id="statistics-until"
-              type="date"
-              value={filters.publishedUntil ?? (publishedUntil || "")}
-              min={filters.publishedFrom ?? undefined}
-              aria-invalid={!validRange}
-              onChange={(event) =>
-                void setFilters({
-                  publishedUntil: event.target.value || null,
-                  performanceRange: null,
-                })
-              }
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              void setFilters({
-                statisticsProvider: null,
-                statisticsAccount: null,
-                publishedFrom: null,
-                publishedUntil: null,
-                performanceRange: null,
-              })
-            }
-          >
-            {t("clearFilters")}
-          </Button>
-        </div>
-      </details>
-      {!validRange ? (
-        <p role="alert" className="text-semantic-destructive text-sm">
-          {t("invalidRange")}
-        </p>
-      ) : null}
-      {headline ? (
-        <SocialPerformanceOverview
-          headline={headline}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      {headline?.daily.length ? (
-        <PerformanceTrendChart
-          days={headline.daily}
-          impressionBased={impressionBased}
-        />
-      ) : null}
-      {consistency ? (
-        <PostingConsistency
-          days={consistency.daily.map((day) => ({
-            date:
-              day.date instanceof Date
-                ? day.date.toISOString().slice(0, 10)
-                : day.date,
-            posts: day.postCount,
-            engagement: day.interactions,
-          }))}
-          selectedFrom={filters.publishedFrom}
-          selectedUntil={filters.publishedUntil}
-        />
-      ) : null}
-      <section className="space-y-4" aria-label={t("postsTitle")}>
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
-          <p className="text-muted-foreground text-sm">{t("postsHint")}</p>
-        </div>
-        {!query.isPending &&
-        !query.isError &&
-        validRange &&
-        posts.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-            {t("empty")}
-          </p>
-        ) : null}
-        <ul className="space-y-3">
-          {posts.map((post) => (
-            <li key={post.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <SocialPostProviderIcon
-                    provider={post.provider}
-                    className="size-4 shrink-0"
-                    aria-hidden
-                  />
-                  <p className="font-medium truncate">
-                    {accountsById.get(post.connectionId)?.displayName ??
-                      accountsById.get(post.connectionId)?.externalHandle ??
-                      SOCIAL_PROVIDERS.find(
-                        (provider) => provider.id === post.provider,
-                      )?.name ??
-                      post.provider}
-                  </p>
-                  {post.strong ? (
-                    <Badge variant="secondary">{t("recycle.strong")}</Badge>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {post.publishedAt
-                    ? formatDate(post.publishedAt)
-                    : t("dateUnavailable")}
-                </p>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {post.text || t("mediaPost")}
-              </p>
-              {post.url ? (
-                <a
-                  className="inline-block text-sm underline underline-offset-4"
-                  href={post.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {t("openPost")}
-                </a>
+          <details className="group">
+            <summary className="text-muted-foreground flex w-fit cursor-pointer items-center gap-2 rounded-sm py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              {t("performance.moreFilters")}
+              {advancedFilterCount ? (
+                <span className="text-foreground text-xs">
+                  {t("performance.activeFilters", {
+                    count: advancedFilterCount,
+                  })}
+                </span>
               ) : null}
-              {post.strong && post.canRecycle ? (
-                <RecycleAccountPost
-                  projectId={projectId}
-                  accountPostId={post.id}
+            </summary>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
+                <Input
+                  id="statistics-from"
+                  type="date"
+                  value={filters.publishedFrom ?? (publishedFrom || "")}
+                  onChange={(event) =>
+                    void setFilters({
+                      publishedFrom: event.target.value || null,
+                      performanceRange: null,
+                    })
+                  }
                 />
-              ) : null}
-              <SocialPostMetrics
-                statistics={{
-                  metrics: post.metrics,
-                  fetchedAt: post.fetchedAt,
-                  refreshAttemptedAt: null,
-                  error: null,
-                }}
-              />
-              {post.additionalMetrics.length
-                ? renderMetrics(post.additionalMetrics)
-                : null}
-            </li>
-          ))}
-        </ul>
-        {query.hasNextPage && validRange ? (
-          <Button
-            variant="outline"
-            loading={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            {t("loadMore")}
-          </Button>
-        ) : null}
-      </section>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
+                <Input
+                  id="statistics-until"
+                  type="date"
+                  value={filters.publishedUntil ?? (publishedUntil || "")}
+                  min={filters.publishedFrom ?? undefined}
+                  aria-invalid={!validRange}
+                  onChange={(event) =>
+                    void setFilters({
+                      publishedUntil: event.target.value || null,
+                      performanceRange: null,
+                    })
+                  }
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void setFilters({
+                    statisticsProvider: null,
+                    statisticsAccount: null,
+                    publishedFrom: null,
+                    publishedUntil: null,
+                    performanceRange: null,
+                  })
+                }
+              >
+                {t("clearFilters")}
+              </Button>
+            </div>
+          </details>
+          {!validRange ? (
+            <p role="alert" className="text-semantic-destructive text-sm">
+              {t("invalidRange")}
+            </p>
+          ) : null}
+          {validRange && headline ? (
+            <SocialPerformanceOverview
+              headline={headline}
+              impressionBased={impressionBased}
+            />
+          ) : null}
+          {validRange && headline?.daily.length ? (
+            <PerformanceTrendChart
+              days={headline.daily}
+              impressionBased={impressionBased}
+            />
+          ) : null}
+          {validRange && consistency ? (
+            <PostingConsistency
+              days={consistency.daily.map((day) => ({
+                date:
+                  day.date instanceof Date
+                    ? day.date.toISOString().slice(0, 10)
+                    : day.date,
+                posts: day.postCount,
+                engagement: day.interactions,
+              }))}
+              selectedFrom={filters.publishedFrom}
+              selectedUntil={filters.publishedUntil}
+            />
+          ) : null}
+          <section className="space-y-4" aria-label={t("postsTitle")}>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+              <p className="text-muted-foreground text-sm">{t("postsHint")}</p>
+            </div>
+            {!query.isPending &&
+            !query.isError &&
+            validRange &&
+            posts.length === 0 ? (
+              <EmptyState description={t("empty")} icon={BarChart2} />
+            ) : null}
+            <ul className="space-y-3">
+              {posts.map((post) => (
+                <li key={post.id} className="space-y-3 rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <SocialPostProviderIcon
+                        provider={post.provider}
+                        className="size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <p className="font-medium truncate">
+                        {accountsById.get(post.connectionId)?.displayName ??
+                          accountsById.get(post.connectionId)?.externalHandle ??
+                          SOCIAL_PROVIDERS.find(
+                            (provider) => provider.id === post.provider,
+                          )?.name ??
+                          post.provider}
+                      </p>
+                      {post.strong ? (
+                        <Badge variant="secondary">{t("recycle.strong")}</Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      {post.publishedAt
+                        ? formatDate(post.publishedAt)
+                        : t("dateUnavailable")}
+                    </p>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {post.text || t("mediaPost")}
+                  </p>
+                  {post.url ? (
+                    <a
+                      className="inline-block text-sm underline underline-offset-4"
+                      href={post.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      {t("openPost")}
+                    </a>
+                  ) : null}
+                  {projectId && post.strong && post.canRecycle ? (
+                    <RecycleAccountPost
+                      projectId={projectId}
+                      accountPostId={post.id}
+                    />
+                  ) : null}
+                  <SocialPostMetrics
+                    statistics={{
+                      metrics: post.metrics,
+                      fetchedAt: post.fetchedAt,
+                      refreshAttemptedAt: null,
+                      error: null,
+                    }}
+                  />
+                  {post.additionalMetrics.length
+                    ? renderMetrics(post.additionalMetrics)
+                    : null}
+                </li>
+              ))}
+            </ul>
+            {query.hasNextPage && validRange ? (
+              <div className="space-y-3">
+                {query.isFetchNextPageError ? (
+                  <p className="text-sm" role="alert">
+                    {t("loadMoreError")}
+                  </p>
+                ) : null}
+                <Button
+                  variant="outline"
+                  loading={query.isFetchingNextPage}
+                  onClick={() => void query.fetchNextPage()}
+                >
+                  {t("loadMore")}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        </>
+      )}
     </section>
   );
 }

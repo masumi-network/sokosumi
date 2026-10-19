@@ -10,13 +10,6 @@ private func member(_ userId: String, instance: String = "inst_00000001", active
 }
 
 struct ChatPresenceTests {
-  @Test func channelNamesRoundTrip() {
-    #expect(orgPresenceChannelName(organizationId: "org_1") == "presence:org_org_1")
-    #expect(parseOrganizationId(fromPresenceChannelName: "presence:org_org_1") == "org_1")
-    #expect(parseOrganizationId(fromPresenceChannelName: "presence:org_") == nil)
-    #expect(parseOrganizationId(fromPresenceChannelName: "chat_rooms:room_1") == nil)
-  }
-
   @Test func clientIdParsingRejectsSpoofableShapes() {
     #expect(parseUserId(fromAblyPresenceClientId: "user_1:inst_00000001") == "user_1")
     #expect(parseUserId(fromAblyPresenceClientId: "user_1:short") == nil)
@@ -29,11 +22,11 @@ struct ChatPresenceTests {
     let capability = """
     {"presence:org_a":["presence","subscribe"],"presence:org_b":["subscribe"],"chat_rooms:room_1":["subscribe"],"presence:org_":["presence"]}
     """
-    #expect(organizationIds(grantedPresenceIn: capability) == ["a"])
-    #expect(organizationIds(grantedPresenceIn: "{}")?.isEmpty == true)
-    #expect(organizationIds(grantedPresenceIn: nil) == nil)
-    #expect(organizationIds(grantedPresenceIn: "[1]") == nil)
-    #expect(organizationIds(grantedPresenceIn: "not json") == nil)
+    #expect(orgPresenceChannelNames(grantedPresenceIn: capability) == ["a": "presence:org_a"])
+    #expect(orgPresenceChannelNames(grantedPresenceIn: "{}")?.isEmpty == true)
+    #expect(orgPresenceChannelNames(grantedPresenceIn: nil) == nil)
+    #expect(orgPresenceChannelNames(grantedPresenceIn: "[1]") == nil)
+    #expect(orgPresenceChannelNames(grantedPresenceIn: "not json") == nil)
   }
 
   @Test func memberDataDecodesWebWireShapeOnly() throws {

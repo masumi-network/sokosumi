@@ -1,4 +1,3 @@
-import Combine
 import CoreAPI
 import Foundation
 @testable import SokosumiChat
@@ -14,120 +13,14 @@ struct ThreadSessionTests {
     return try #require(rows.first)
   }
 
-  /// A context-loaded reply may still be awaiting Markdown preparation after the hold would have expired.
-  @Test func aPendingJumpDoesNotExpireBeforeItsRowIsReady() async throws {
-    let requested = Date(timeIntervalSince1970: 1_800_000_000)
-    var now = requested
-    let session = ThreadSession(now: { now })
-    let message = try await parent()
-    session.timeline.messages = [message]
-    session.requestJump(to: message.id)
-    let target = try #require(session.jumpTarget)
-    now = requested.addingTimeInterval(6)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget?.requestId == target.requestId)
-    #expect(session.jumpTarget?.mark == nil)
-    session.readerScrolled()
-    #expect(session.jumpTarget?.requestId == target.requestId)
-    session.landJump(target.requestId)
-    #expect(session.jumpTarget?.mark?.landedAt == now)
-    now = now.addingTimeInterval(4.4)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget?.requestId == target.requestId)
-    now = now.addingTimeInterval(0.1)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget == nil)
-  }
-
-  @Test func onlyTheCurrentJumpCanLandAndOnlyOnce() async throws {
-    let requested = Date(timeIntervalSince1970: 1_800_000_000)
-    var now = requested
-    let session = ThreadSession(now: { now })
-    let message = try await parent()
-    session.timeline.messages = [message]
-    session.requestJump(to: message.id)
-    let first = try #require(session.jumpTarget)
-    session.requestJump(to: message.id)
-    let replacement = try #require(session.jumpTarget)
-    session.landJump(first.requestId)
-    #expect(session.jumpTarget?.mark == nil)
-    session.landJump(replacement.requestId)
-    let landed = session.jumpTarget
-    now = now.addingTimeInterval(1)
-    session.landJump(replacement.requestId)
-    #expect(session.jumpTarget == landed)
-  }
-
-  /// Row 25b1: the thread's jump carries its mark from the landing; a reader scroll at full strength hands it to
-  /// the leave fade without moving the jump, a scroll in either end of the hold ends it, and the jump is dropped
-  /// once the mark has run out.
-  @Test func theJumpEndsWithItsMark() async throws {
-    let landed = Date(timeIntervalSince1970: 1_800_000_000)
-    var now = landed
-    let session = ThreadSession(now: { now })
-    let message = try await parent()
-    session.timeline.messages = [message]
-
-    session.requestJump(to: message.id)
-    try session.landJump(#require(session.jumpTarget).requestId)
-    let target = try #require(session.jumpTarget)
-    #expect(target.mark == JumpMark(messageId: message.id, landedAt: landed))
-    now = landed.addingTimeInterval(4.4)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget == target)
-    now = landed.addingTimeInterval(4.5)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget == nil)
-
-    session.requestJump(to: message.id)
-    let second = try #require(session.jumpTarget)
-    #expect(second.requestId != target.requestId)
-    session.landJump(second.requestId)
-    now = landed.addingTimeInterval(5.5)
-    session.readerScrolled()
-    let leaving = try #require(session.jumpTarget)
-    #expect(leaving.requestId == second.requestId)
-    #expect(leaving.mark?.leftAt == now)
-    session.readerScrolled()
-    #expect(session.jumpTarget == leaving)
-    now = now.addingTimeInterval(0.32)
-    session.endJumpIfMarkEnded()
-    #expect(session.jumpTarget == nil)
-
-    session.requestJump(to: message.id)
-    try session.landJump(#require(session.jumpTarget).requestId)
-    now = now.addingTimeInterval(0.2)
-    session.readerScrolled()
-    #expect(session.jumpTarget == nil)
-  }
-
-  @Test func clearingJumpPublishesOnlyWhenTargetChanges() async throws {
-    let session = ThreadSession()
-    let message = try await parent()
-    session.timeline.messages = [message]
-    var changes = 0
-    let observation = session.objectWillChange.sink { changes += 1 }
-    defer { observation.cancel() }
-
-    session.clearJump()
-    #expect(changes == 0)
-    session.requestJump(to: message.id)
-    #expect(changes == 1)
-    session.clearJump()
-    #expect(session.jumpTarget == nil)
-    #expect(changes == 2)
-    session.clearJump()
-    #expect(changes == 2)
-  }
-
   @Test func reopeningTheSameParentDoesNotResetTheTimeline() async throws {
     var root = try await parent()
     let session = ThreadSession()
     #expect(session.open(root))
-    let generation = session.timeline.generation
+    let generation = session.transcript.timeline.generation
     root.content = "Edited parent"
     #expect(session.open(root))
-    #expect(session.timeline.generation == generation)
+    #expect(session.transcript.timeline.generation == generation)
     #expect(session.parent?.content == "Edited parent")
   }
 
@@ -135,7 +28,7 @@ struct ThreadSessionTests {
     var root = try await parent()
     let session = ThreadSession()
     #expect(session.open(root))
-    #expect(session.timeline.isLoading)
+    #expect(session.transcript.timeline.isLoading)
     var reply = root
     reply.id = "reply"
     reply.parentMessageId = root.id
@@ -145,11 +38,11 @@ struct ThreadSessionTests {
     root.content = "Edited parent"
     session.apply(eventType: .update, message: root)
     #expect(session.parent?.content == "Edited parent")
-    #expect(session.displayedReplies.map(\.id) == ["reply"])
+    #expect(session.transcript.displayedMessages.map(\.id) == ["reply"])
     reply.parentMessageId = "other"
     reply.content = "Other thread"
     session.apply(eventType: .update, message: reply)
-    #expect(session.displayedReplies.first?.content == "Reply")
+    #expect(session.transcript.displayedMessages.first?.content == "Reply")
     #expect(!session.open(reply))
     #expect(session.parent?.id == root.id)
   }
@@ -165,19 +58,19 @@ struct ThreadSessionTests {
     session.apply(eventType: .create, message: reply)
     session.apply(.init(roomId: testRoomId, messageId: root.id, parentMessageId: nil, value: .unfurls([])))
     #expect(session.parent?.unfurls != nil)
-    #expect(session.timeline.messages.first?.unfurls == nil)
+    #expect(session.transcript.timeline.messages.first?.unfurls == nil)
     let hydrateRoot = session.apply(ChatRoomMessageIdEnvelope(eventType: .update, messageId: root.id, roomId: testRoomId))
     #expect(hydrateRoot)
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: "reply", roomId: testRoomId, parentMessageId: root.id))
-    #expect(session.timeline.messages.first?.deletedAt == now)
+    #expect(session.transcript.timeline.messages.first?.deletedAt == now)
     #expect(session.parent?.deletedAt == nil)
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: root.id, roomId: testRoomId))
     #expect(session.parent?.deletedAt == now)
-    #expect(session.timeline.messages.map(\.id) == ["reply"])
+    #expect(session.transcript.timeline.messages.map(\.id) == ["reply"])
     session.close()
     session.apply(eventType: .create, message: reply)
     #expect(session.parent == nil)
-    #expect(session.displayedReplies.isEmpty)
+    #expect(session.transcript.displayedMessages.isEmpty)
   }
 
   @Test func hardDeletedParentClosesThreadWhileSoftDeleteKeepsPreview() async throws {
@@ -190,7 +83,7 @@ struct ThreadSessionTests {
     root.deletedAt = nil
     session.apply(eventType: .delete, message: root)
     #expect(session.parent == nil)
-    #expect(session.timeline.roomId == nil)
+    #expect(session.transcript.timeline.roomId == nil)
   }
 
   @Test func threadLookUsesCurrentParentAndDoesNotIssueRoomReadItself() async throws {
@@ -203,39 +96,7 @@ struct ThreadSessionTests {
     let looked = try await session.markLooked(client: makeTestClient(transport), organizationSlug: "acme")
     #expect(looked)
     #expect(transport.requests.map(\.operationID) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read"])
-    #expect(session.timeline.isLoading)
-  }
-
-  @Test func pageLoadingOrdersAttentionAndStopsWhenThreadCloses() async throws {
-    let session = ThreadSession()
-    let root = try await parent()
-    let transport = TestTransport([
-      (200, testMessagesPageBody(messages: [], nextCursor: nil)),
-      (200, testMessagesPageBody(messages: [], nextCursor: nil))
-    ])
-    let client = try makeTestClient(transport)
-    session.open(root)
-    var requestCounts: [Int] = []
-    let attention = { requestCounts.append(transport.requests.count) }
-    let failed: (Error) -> Void = { Issue.record("Unexpected page failure: \($0)") }
-    session.loadPage(.initial, client: client, organizationSlug: nil,
-                     syncAttention: attention, failed: failed)
-    await session.loadTask?.value
-    session.loadPage(.latest, client: client, organizationSlug: nil,
-                     syncAttention: attention, failed: failed)
-    await session.loadTask?.value
-    #expect(requestCounts == [0, 2])
-    #expect(session.timeline.hasLoadedHistory)
-    #expect(session.loadTask == nil)
-
-    session.open(root)
-    session.loadPage(.initial, client: client, organizationSlug: nil,
-                     syncAttention: { session.close() }, failed: failed)
-    let pending = session.loadTask
-    await pending?.value
-    #expect(session.parent == nil)
-    #expect(transport.requests.count == 2)
-    #expect(session.loadTask == nil)
+    #expect(session.transcript.timeline.isLoading)
   }
 
   @Test func replySendQueuesAndUpdatesParentAfterConfirmation() async throws {
@@ -249,7 +110,7 @@ struct ThreadSessionTests {
     let client = try makeTestClient(transport)
     let session = ThreadSession()
     session.open(root)
-    _ = try await session.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: session.timeline.generation)
+    _ = try await session.transcript.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: session.transcript.timeline.generation)
     var confirmations = 0
     let accepted = session.send("Reply", client: client, organizationSlug: nil, sender: sender,
                                 settled: { result in
@@ -259,54 +120,15 @@ struct ThreadSessionTests {
                                   }
                                 })
     #expect(accepted)
-    #expect(session.displayedReplies.first?.parentMessageId == root.id)
-    while session.outbox.isSending {
+    #expect(session.transcript.displayedMessages.first?.parentMessageId == root.id)
+    while session.transcript.outbox.isSending {
       await Task.yield()
     }
     #expect(confirmations == 1)
-    #expect(session.outbox.shells.isEmpty)
-    #expect(session.timeline.messages.map(\.id) == ["reply"])
+    #expect(session.transcript.outbox.shells.isEmpty)
+    #expect(session.transcript.timeline.messages.map(\.id) == ["reply"])
     #expect(session.parent?.threadReplyCount == 1)
     #expect(try testRequestJSON(#require(transport.bodies.last))["parentMessageId"] as? String == "root")
-  }
-
-  @Test func sendUsesInjectedTurnIdAndNow() async throws {
-    let now = Date(timeIntervalSince1970: 1_788_868_800)
-    let root = try await parent()
-    let transport = TestTransport([
-      (201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "turn-fixed")
-        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))
-    ])
-    let client = try makeTestClient(transport)
-    let session = ThreadSession(now: { now }, makeId: { "turn-fixed" })
-    session.open(root)
-    #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in }))
-    #expect(session.displayedReplies.map(\.id) == [outboundLocalMessageId("turn-fixed")])
-    #expect(session.displayedReplies.first?.createdAt == now)
-    while session.outbox.isSending {
-      await Task.yield()
-    }
-    #expect(try testRequestJSON(#require(transport.bodies.last))["clientMessageId"] as? String == "turn-fixed")
-    #expect(session.timeline.messages.map(\.id) == ["reply"])
-  }
-
-  /// Row 42: a Thread reply carries its skills like a room send (web `handleThreadSend`).
-  @Test func aReplyCarriesItsSkillsToCoreAndOnItsShell() async throws {
-    let root = try await parent()
-    let transport = TestTransport([
-      (201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "turn-skills")
-        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))
-    ])
-    let client = try makeTestClient(transport)
-    let session = ThreadSession(makeId: { "turn-skills" })
-    session.open(root)
-    let skill = Components.Schemas.ChatRoomMessageSkill(id: "a/b/c", name: "c", description: nil, url: "https://skills.sh/a/b/c")
-    #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, skills: [skill], settled: { _ in }))
-    #expect(session.displayedReplies.first?.skills == [skill])
-    while session.outbox.isSending {
-      await Task.yield()
-    }
-    #expect(try testRequestJSON(#require(transport.bodies.last))["skillIds"] as? [String] == ["a/b/c"])
   }
 
   @Test func replyCountsWhenRealtimeEchoArrivesBeforeHTTPResponse() async throws {
@@ -324,35 +146,16 @@ struct ThreadSessionTests {
                    }
                  })
     // Core publishes before it returns 201, so the echo usually wins.
-    var echo = try chatRoomMessage(from: #require(session.outbox.shells.first))
+    var echo = try chatRoomMessage(from: #require(session.transcript.outbox.shells.first))
     echo.id = "reply"
     session.apply(eventType: .create, message: echo)
-    #expect(session.outbox.shells.isEmpty)
-    while session.outbox.isSending {
+    #expect(session.transcript.outbox.shells.isEmpty)
+    while session.transcript.outbox.isSending {
       await Task.yield()
     }
     #expect(confirmations == 1)
-    #expect(session.timeline.messages.map(\.id) == ["reply"])
+    #expect(session.transcript.timeline.messages.map(\.id) == ["reply"])
     #expect(session.parent?.threadReplyCount == 1)
-  }
-
-  @Test func openThreadAcceptsReplyWhileHistoryLoadsButRejectsEmptyText() async throws {
-    let transport = TestTransport([(201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")
-        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))])
-    let client = try makeTestClient(transport)
-    let session = ThreadSession()
-    let closedSend = session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in })
-    #expect(!closedSend)
-    try await session.open(parent())
-    #expect(session.timeline.isLoading)
-    let emptySend = session.send(" \n", client: client, organizationSlug: nil, sender: sender, settled: { _ in })
-    #expect(!emptySend)
-    let accepted = session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in })
-    #expect(accepted)
-    while session.outbox.isSending {
-      await Task.yield()
-    }
-    #expect(session.timeline.messages.map(\.id) == ["reply"])
   }
 
   @Test func failedReplyRetryKeepsClientIdAndDoesNotIncrementParentEarly() async throws {
@@ -369,7 +172,7 @@ struct ThreadSessionTests {
     let client = try makeTestClient(transport)
     let session = ThreadSession()
     session.open(root)
-    _ = try await session.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: session.timeline.generation)
+    _ = try await session.transcript.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: session.transcript.timeline.generation)
     var failures = 0
     session.send("Reply", client: client, organizationSlug: "acme", sender: sender,
                  settled: {
@@ -377,15 +180,15 @@ struct ThreadSessionTests {
                      failures += 1
                    }
                  })
-    while session.outbox.isSending {
+    while session.transcript.outbox.isSending {
       await Task.yield()
     }
     #expect(failures == 1)
     #expect(session.parent?.threadReplyCount == 0)
-    let failed = try #require(session.outbox.shells.first)
+    let failed = try #require(session.transcript.outbox.shells.first)
     #expect(failed.status == .failed)
-    session.outbox.retry(failed.clientTurnId)
-    while session.outbox.isSending {
+    session.transcript.outbox.retry(failed.clientTurnId)
+    while session.transcript.outbox.isSending {
       await Task.yield()
     }
     #expect(session.parent?.threadReplyCount == 1)

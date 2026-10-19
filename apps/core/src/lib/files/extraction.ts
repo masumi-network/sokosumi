@@ -24,7 +24,7 @@ import {
 /** Bytes we will pull into memory to extract. Larger files stay name-only. */
 export const FILE_EXTRACTION_MAX_BYTES = 50 * 1024 * 1024;
 /** Characters we keep from one document, roughly 250k tokens of budget. */
-export const FILE_EXTRACTION_MAX_CHARS = 1_000_000;
+const FILE_EXTRACTION_MAX_CHARS = 1_000_000;
 /** Target chunk size in characters, about 400–600 tokens of English. */
 export const FILE_CHUNK_TARGET_CHARS = 2_000;
 export const FILE_CHUNK_OVERLAP_CHARS = 240;

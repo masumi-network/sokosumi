@@ -1,6 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
+}));
+
 const {
   authorizeMock,
   getMock,

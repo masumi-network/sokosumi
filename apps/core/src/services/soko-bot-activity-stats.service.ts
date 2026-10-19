@@ -90,7 +90,8 @@ export async function activityStats(
       where: {
         workspaceId: bot.workspaceId,
         createdAt: window,
-        NOT: { ownerId: bot.userId },
+        // Work without an Owner (ADR 0057) is the team's too; `NOT` drops it.
+        OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
         AND: [visible],
       },
       select: { owner: { select: { name: true } } },
@@ -102,7 +103,7 @@ export async function activityStats(
         createdAt: window,
         task: {
           workspaceId: bot.workspaceId,
-          NOT: { ownerId: bot.userId },
+          OR: [{ ownerId: { not: bot.userId } }, { ownerId: null }],
           AND: [visible],
         },
       },
@@ -129,15 +130,15 @@ export async function activityStats(
   const team = new Map<string, { completed: number; created: number }>();
   const person = (name: string | null) => name?.trim() || "A teammate";
   for (const task of teamCreated) {
-    const row = team.get(person(task.owner.name)) ?? {
+    const row = team.get(person(task.owner?.name ?? null)) ?? {
       completed: 0,
       created: 0,
     };
     row.created += 1;
-    team.set(person(task.owner.name), row);
+    team.set(person(task.owner?.name ?? null), row);
   }
   for (const event of teamCompleted) {
-    const name = person(event.task.owner.name);
+    const name = person(event.task.owner?.name ?? null);
     const row = team.get(name) ?? { completed: 0, created: 0 };
     row.completed += 1;
     team.set(name, row);

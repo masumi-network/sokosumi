@@ -27,6 +27,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   ACTIVE_TURN_STATUSES: ["STARTING", "RUNNING"],
+  FOREGROUND_TURN: { parentTurnId: null },
   sokoBotControlPlane: { startTurn: startTurnMock },
 }));
 vi.mock("@/services/soko-bot-ingest.service", () => ({

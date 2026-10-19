@@ -172,6 +172,40 @@ struct AuthStateTests {
     #expect(state.status == .signedOut(message: "Logged in, but your session could not be saved on this device. Try again."))
   }
 
+  @Test func reconfiguredIssuerSignsInWhileSignedOut() async throws {
+    let browser = TestBrowser()
+    let transport = StubTokenTransport(response: .success(
+      status: 200,
+      json: #"{"access_token":"access","refresh_token":"refresh","expires_in":7200}"#
+    ))
+    let state = try makeState(browser: browser, transport: transport)
+    let preview = try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://preview.example/auth")), clientID: "test-client"
+    )
+    #expect(state.reconfigure(preview))
+    let operation = try #require(state.startSignIn())
+    await browser.waitUntilStarted()
+    #expect(browser.openedURL?.absoluteString.hasPrefix("https://preview.example/auth/oauth2/authorize?") == true)
+    try browser.complete()
+    await operation.value
+    #expect(state.isSignedIn)
+    #expect(transport.lastRequest?.url.absoluteString == "https://preview.example/auth/oauth2/token")
+  }
+
+  /// Tokens belong to the issuer that minted them, so a signed-in session keeps its issuer.
+  @Test func signedInSessionRefusesAnotherIssuer() throws {
+    let store = InMemoryTokenStore()
+    try store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture))
+    let state = try makeState(store: store, browser: TestBrowser())
+    let preview = try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://preview.example/auth")), clientID: "test-client"
+    )
+    let session = try #require(state.oauthSession)
+    #expect(!state.reconfigure(preview))
+    #expect(state.oauthSession === session)
+    #expect(state.isSignedIn)
+  }
+
   @Test func failedSignOutDoesNotClaimTokensAreGone() async throws {
     let store = FailingClearStore()
     store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture))

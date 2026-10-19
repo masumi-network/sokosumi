@@ -4,8 +4,6 @@ import { TaskStatus } from "@sokosumi/core-client";
 /** Visible comments when the thread is collapsed. More than this → group chrome. */
 export const TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT = 5;
 
-export const TASK_ACTIVITY_EVENTS_PAGE_LIMIT = 100;
-
 /** List name for chat land-and-highlight (`highlightListMessage`). */
 export const TASK_ACTIVITY_MESSAGE_LIST = "task-activity";
 
