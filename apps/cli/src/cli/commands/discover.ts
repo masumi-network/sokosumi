@@ -71,7 +71,8 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "tasks link",
-    usage: "TASK_ID --to TASK_ID --relation RELATION",
+    usage:
+      "TASK_ID --to TASK_ID --relation RELATION [--organization-slug WORKSPACE_SLUG]",
   },
   { command: "jobs list", usage: "" },
   { command: "jobs get", usage: "JOB_ID" },

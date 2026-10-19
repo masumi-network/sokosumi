@@ -486,7 +486,7 @@ test("tasks links lists a task's links", async () => {
       data: [
         {
           id: "tl-1",
-          relation: "parent",
+          relation: "child",
           peerTask: { id: PEER_UUID, identifier: "SOK4-79", name: "Builder" },
           note: null,
         },
@@ -509,18 +509,18 @@ test("tasks link resolves both tasks and posts the relation", async () => {
   const output: string[] = [];
   await runTasksCommand({
     client: resolvingClient(calls, {
-      data: { id: "tl-1", relation: "parent", peerTask: { id: PEER_UUID } },
+      data: { id: "tl-1", relation: "child", peerTask: { id: PEER_UUID } },
     }),
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "link",
     positionalId: "SOK4-71",
-    options: { to: "SOK4-79", relation: "parent", note: "Part of builder" },
+    options: { to: "SOK4-79", relation: "child", note: "Part of builder" },
   });
   assert.deepEqual(calls.at(-1), {
     method: "POST",
     path: `/v1/tasks/${TASK_UUID}/links`,
-    body: { toTaskId: PEER_UUID, relation: "parent", note: "Part of builder" },
+    body: { toTaskId: PEER_UUID, relation: "child", note: "Part of builder" },
   });
   assert.equal(JSON.parse(output.join("")).link.id, "tl-1");
 });

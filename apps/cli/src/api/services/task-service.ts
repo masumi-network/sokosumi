@@ -14,7 +14,7 @@ interface FetchTasksOptions {
   take?: number | string;
 }
 
-interface TaskFields {
+export interface TaskFields {
   name?: string;
   description?: string | null;
   coworkerId?: string | null;

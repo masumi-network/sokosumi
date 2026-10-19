@@ -21,7 +21,7 @@ sokosumi tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 sokosumi tasks update TASK_ID --organization-slug WORKSPACE_SLUG --priority HIGH --description-file ./spec.md --json
-sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation parent --to PARENT_TASK_ID --json
+sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to PARENT_TASK_ID --json
 sokosumi tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 

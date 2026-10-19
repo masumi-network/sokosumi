@@ -13,6 +13,7 @@ import {
   fetchTaskLinks,
   fetchTasks,
   resolveTaskId,
+  type TaskFields,
   updateTask,
 } from "../../api/services/task-service.js";
 import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
@@ -26,7 +27,7 @@ import {
   parsePositiveInteger,
   record,
   truncate,
-  validateStatus,
+  validateChoice,
   writeJson,
   writeText,
 } from "./command-helpers.js";
@@ -176,7 +177,9 @@ async function readDescription(
 }
 
 /** Fields shared by `tasks create` and `tasks update`. */
-async function readTaskFields(options: CommandOptions | undefined) {
+async function readTaskFields(
+  options: CommandOptions | undefined,
+): Promise<TaskFields> {
   const coworkerId = optionString(options, "coworker-id");
   const assigneeUserId = optionString(options, "assignee-user-id");
   if (coworkerId !== undefined && assigneeUserId !== undefined)
@@ -189,7 +192,7 @@ async function readTaskFields(options: CommandOptions | undefined) {
     coworkerId,
     assigneeUserId,
     projectId: optionString(options, "project-id"),
-    priority: validateStatus(
+    priority: validateChoice(
       option(options, "priority"),
       PRIORITIES,
       "--priority",
@@ -286,7 +289,11 @@ export async function runTasksCommand({
       client,
       {
         ...fields,
-        status: validateStatus(option(options, "status"), ["DRAFT", "READY"]),
+        status: validateChoice(
+          option(options, "status"),
+          ["DRAFT", "READY"],
+          "--status",
+        ),
       },
       signal,
     );
@@ -388,21 +395,31 @@ export async function runTasksCommand({
     else printLinks(stdout, links);
     return;
   }
-  const to = optionString(options, "to");
-  const relation = optionString(options, "relation");
-  if (!to) throw new Error("--to is required for `tasks link`");
-  if (!relation || !(LINK_RELATIONS as readonly string[]).includes(relation))
-    throw new Error(`--relation must be one of: ${LINK_RELATIONS.join(", ")}`);
-  const { link } = await createTaskLink(
-    client,
-    await resolveTaskId(client, ref, signal),
-    {
-      toTaskId: await resolveTaskId(client, to, signal),
-      relation,
-      note: optionString(options, "note"),
-    },
-    signal,
-  );
-  if (json) writeJson(stdout, { link });
-  else printLinks(stdout, [link]);
+  if (command === "link") {
+    const to = optionString(options, "to");
+    if (!to) throw new Error("--to is required for `tasks link`");
+    const relation = validateChoice(
+      option(options, "relation"),
+      LINK_RELATIONS,
+      "--relation",
+    );
+    if (!relation)
+      throw new Error(
+        `--relation must be one of: ${LINK_RELATIONS.join(", ")}`,
+      );
+    const { link } = await createTaskLink(
+      client,
+      await resolveTaskId(client, ref, signal),
+      {
+        toTaskId: await resolveTaskId(client, to, signal),
+        relation,
+        note: optionString(options, "note"),
+      },
+      signal,
+    );
+    if (json) writeJson(stdout, { link });
+    else printLinks(stdout, [link]);
+    return;
+  }
+  throw new Error(`Unknown tasks subcommand: ${command}`);
 }
