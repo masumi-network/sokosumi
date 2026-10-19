@@ -80,6 +80,8 @@ const recycled = {
   canCancel: true,
   canPublishNow: true,
   canDuplicate: false,
+  canApprove: false,
+  canReject: false,
   connectionNeedsReconnect: false,
 };
 

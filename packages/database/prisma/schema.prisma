@@ -781,6 +781,7 @@ model ProjectAdMarketAdsJob {
 
 enum SocialPostStatus {
   DRAFT
+  NEEDS_APPROVAL
   SCHEDULED
   PUBLISHING
   PUBLISHED

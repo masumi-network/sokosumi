@@ -1,6 +1,6 @@
 # Coworker Social post scheduling
 
-Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Scheduling publishes automatically through the existing publisher; it does not require a separate per-post approval.
+Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create land as Needs approval and never publish until a person approves them. Setting a time while a post still needs approval keeps that status.
 
 Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace and retain Social beta eligibility. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, human API keys, OAuth tokens, Soko Bot, and orchestrator actors do not gain this access.
 
@@ -14,7 +14,7 @@ Core records the Coworker as creator independently of the contextual human. `sch
 
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
 
-Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, and Publish now/Retry remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow` to false. Calendar's Social feed remains interactive-human-only in this layer.
+Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, Publish now/Retry, and approve/reject remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow`, `canApprove`, and `canReject` to false. Calendar's Social feed remains interactive-human-only in this layer.
 
 ## Published post statistics
 
@@ -46,7 +46,7 @@ Core derives the user and workspace from the active turn and rechecks owner acti
 
 Version `v23` is the default for new or unpinned bots. It keeps v22's model and base behavior and replaces the managed-post performance skill with `social-account-performance`. Use `list_social_account_statistics` for general account performance and external publications, then `refresh_social_account_statistics` when fresh or missing results matter. Continue provider history with `continueHistory: true`, up to ten pages per turn, and report freshness, metric periods, and incomplete coverage. Existing managed-post statistics tools remain available for specific Sokosumi posts. Explicit existing version selections and their prompts remain unchanged. Account refresh and history synchronization are read capabilities under the existing Social access rules and never authorize publication.
 
-Bot-created posts identify the bot as creator. Scheduling runs under the owner's user identity and existing delayed-publish eligibility checks. The owner authorizes publication by requesting scheduling or immediate publishing; drafting alone does not authorize either.
+Bot-created posts identify the bot as creator and land as Needs approval. They never publish until a person approves them in Project Social. Scheduling under the owner's identity only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
 
 ## Provider publishing rules
 
