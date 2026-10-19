@@ -248,10 +248,14 @@ function SocialPostPreviewCard({
   const copy = useTranslations("App.Projects.SocialPosts");
   const openPreview = useSocialCalendarPreview();
   const waiting = item.status === "NEEDS_APPROVAL";
-  const authorName = waiting
+  // A Coworker or Soko Bot post that no person scheduled (waiting, rejected,
+  // or approved as a draft) credits the agent that drafted it.
+  const drafted =
+    waiting || (!item.scheduledByName && item.creator.kind !== "user");
+  const authorName = drafted
     ? item.creator.name?.trim() || copy(`creator.${item.creator.kind}`)
     : (item.scheduledByName ?? t("unknownScheduler"));
-  const attribution = waiting
+  const attribution = drafted
     ? copy("draftedBy", { name: authorName })
     : t("scheduledBy", { name: authorName });
   const providerLabel = socialPostProviderLabel(item.provider);
@@ -311,7 +315,7 @@ function SocialPostPreviewCard({
         <span aria-hidden className="flex shrink-0" title={attribution}>
           <UserProfileAvatar
             name={authorName}
-            image={waiting ? null : item.scheduledByImage}
+            image={drafted ? null : item.scheduledByImage}
           />
         </span>
         <span

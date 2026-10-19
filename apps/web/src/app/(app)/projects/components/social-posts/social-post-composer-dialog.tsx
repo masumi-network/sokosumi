@@ -246,9 +246,17 @@ export function SocialPostComposerDialog({
       (mode.kind === "approve" ? undefined : connections[0]?.id);
     return initial ? [initial] : [];
   });
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-  );
+  // Approving a post whose planned time has passed starts with no time, so
+  // the person picks a new one instead of seeing the stale time as an error.
+  const initialScheduledAt =
+    post?.scheduledAt &&
+    !(
+      mode.kind === "approve" &&
+      new Date(post.scheduledAt).getTime() <= Date.now()
+    )
+      ? toScheduleValue(post.scheduledAt)
+      : "";
+  const [scheduledAt, setScheduledAt] = useState(initialScheduledAt);
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
   const { data: suggestedTimes } = useQuery({
@@ -284,7 +292,7 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    scheduledAt: initialScheduledAt,
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 

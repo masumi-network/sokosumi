@@ -227,6 +227,10 @@ describe("SocialPostComposerDialog approval", () => {
       name: "Schedule and approve",
     });
     expect(approve).toBeDisabled();
+    // The planned time has passed, so it is cleared rather than shown as an error.
+    expect(
+      screen.queryByText("Choose a time at least one minute from now."),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("textbox", { name: "Text" }),
     ).not.toBeInTheDocument();

@@ -381,6 +381,18 @@ describe("Social post calendar event", () => {
     expect(screen.getByRole("button")).not.toHaveAccessibleName(/Scheduled by/);
   });
 
+  it("credits the drafting agent on a rejected post no person scheduled", () => {
+    renderCard({
+      status: "CANCELED",
+      scheduledByName: null,
+      creator: { kind: "sokoBot", id: "bot", name: "Lili" },
+    });
+    expect(screen.getByRole("link")).toHaveAccessibleName(/Drafted by Lili/);
+    expect(
+      screen.queryByText("Scheduled by unknown user"),
+    ).not.toBeInTheDocument();
+  });
+
   it("describes a failed chip without showing the provider error", () => {
     renderCard({
       status: "FAILED",
