@@ -72,6 +72,7 @@ import type {
   GetTransactionsDailyData,
   GetTransactionsData,
   GetWorkspacesCalendarData,
+  GetWorkspacesCalendarSourcesData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
   Notice,
@@ -5037,12 +5038,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getWorkspaceCalendarSources() {
+  async function getWorkspaceCalendarSources(
+    query?: GetWorkspacesCalendarSourcesData["query"],
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetWorkspacesCalendarSources({
           client,
+          query,
           cache: "no-store",
         }),
       "Failed to fetch workspace calendar sources",

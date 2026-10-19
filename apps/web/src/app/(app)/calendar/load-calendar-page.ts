@@ -20,6 +20,7 @@ import {
   getLatestCalendarDate,
   resolveCalendarDate,
 } from "@/lib/schedules/calendar-range";
+import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { projectService } from "@/lib/services/project.service";
 import {
   taskService,
@@ -65,20 +66,32 @@ export function resolveCalendarPageQuery(
   status: string | undefined,
   view?: string,
   timezone?: string,
+  latestScheduledSocialPostAt?: Date | null,
 ) {
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
   const now = new Date();
-  const latestCalendarDate = getLatestCalendarDate(now);
-  const today = Temporal.Now.plainDateISO(
-    isValidTimezone(timezone) ? timezone : "UTC",
+  const calendarTimezone = isValidTimezone(timezone) ? timezone : "UTC";
+  const latestScheduledCalendarDate = latestScheduledSocialPostAt
+    ? new Date(
+        utcToDateTimeLocalInTimezone(
+          latestScheduledSocialPostAt,
+          calendarTimezone,
+        ),
+      )
+    : null;
+  const latestCalendarDate = getLatestCalendarDate(
+    now,
+    latestScheduledCalendarDate,
   );
+  const today = Temporal.Now.plainDateISO(calendarTimezone);
   const initialDate =
-    view === "agenda" ? today.toString() : resolveCalendarDate(date, now);
+    view === "agenda"
+      ? today.toString()
+      : resolveCalendarDate(date, now, latestScheduledCalendarDate);
   const from = new Date(
-    today.toZonedDateTime(isValidTimezone(timezone) ? timezone : "UTC")
-      .epochMilliseconds,
+    today.toZonedDateTime(calendarTimezone).epochMilliseconds,
   );
   const range =
     view === "agenda"
@@ -90,13 +103,23 @@ export function resolveCalendarPageQuery(
 
 export async function loadCalendarPageContext(
   activeOrganizationId: string | null,
-  options: { requireSources?: boolean } = {},
+  options: {
+    requireSources?: boolean;
+    includeSocialPosts?: boolean;
+    scope?: "owned" | "workspace";
+  } = {},
 ) {
   const [sources, coworkerOptions] = await Promise.all([
-    taskService.getWorkspaceCalendarSources().catch((error: unknown) => {
-      if (options.requireSources) throw error;
-      return [];
-    }),
+    taskService
+      .getWorkspaceCalendarSources(
+        options.includeSocialPosts
+          ? { includeSocialPosts: "true", scope: options.scope }
+          : undefined,
+      )
+      .catch((error: unknown) => {
+        if (options.requireSources) throw error;
+        return [];
+      }),
     listTaskAssigneeOptions(activeOrganizationId),
   ]);
 
@@ -130,37 +153,66 @@ export async function loadWorkspaceCalendarPage({
     hasCurrentUserSocialBetaAccess(),
   ]);
   const params = await searchParams;
+  const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
+  const scope = params.scope === "owned" ? "owned" : "workspace";
+  const [{ sources, coworkerOptions }, project] = await Promise.all([
+    loadCalendarPageContext(activeOrganizationId, {
+      requireSources: !routeProjectId || includeSocialPosts,
+      includeSocialPosts,
+      scope,
+    }),
+    routeProjectId
+      ? projectService.getProjectById(routeProjectId)
+      : Promise.resolve(null),
+  ]);
+  if (routeProjectId && !project) {
+    notFound();
+  }
+  const selectedSourceId = routeProjectId
+    ? `project:${routeProjectId}`
+    : params.projectId
+      ? `project:${params.projectId}`
+      : params.sourceId;
+  const socialPostsVisible =
+    includeSocialPosts &&
+    !params.assigneeId &&
+    !params.assigneeUserId &&
+    !Object.values(TaskStatus).some((status) => status === params.status);
+  const latestScheduledSocialPostAt = socialPostsVisible
+    ? sources.reduce<Date | null>((latest, source) => {
+        if (selectedSourceId && source.sourceId !== selectedSourceId) {
+          return latest;
+        }
+        const scheduledAt = source.latestScheduledSocialPostAt;
+        return scheduledAt && (!latest || scheduledAt > latest)
+          ? scheduledAt
+          : latest;
+      }, null)
+    : null;
   const { calendarStatus, latestCalendarDate, initialDate, range } =
     resolveCalendarPageQuery(
       params.date,
       params.status,
       params.view,
       params.timezone,
+      latestScheduledSocialPostAt,
     );
-  const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
-  const scope = params.scope === "owned" ? "owned" : "workspace";
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
 
-  if (routeProjectId) {
-    const project = await projectService.getProjectById(routeProjectId);
-    if (!project) {
-      notFound();
-    }
-
-    const [{ items, pagination }, { sources, coworkerOptions }] =
-      await Promise.all([
-        projectService.getProjectCalendar(project.id, {
-          ...range,
-          agendaOnly: params.view === "agenda" ? "true" : undefined,
-          includeSocialPosts: includeSocialPosts ? "true" : undefined,
-          assigneeId: params.assigneeId,
-          assigneeUserId: params.assigneeUserId,
-          limit: params.view === "agenda" ? 10 : 100,
-          scope,
-          status: calendarStatus,
-        }),
-        loadCalendarPageContext(activeOrganizationId),
-      ]);
+  if (project) {
+    const { items, pagination } = await projectService.getProjectCalendar(
+      project.id,
+      {
+        ...range,
+        agendaOnly: params.view === "agenda" ? "true" : undefined,
+        includeSocialPosts: includeSocialPosts ? "true" : undefined,
+        assigneeId: params.assigneeId,
+        assigneeUserId: params.assigneeUserId,
+        limit: params.view === "agenda" ? 10 : 100,
+        scope,
+        status: calendarStatus,
+      },
+    );
     const sourceId = `project:${project.id}`;
     const projectSource = sources.find(
       (source) => source.sourceId === sourceId,
@@ -184,11 +236,7 @@ export async function loadWorkspaceCalendarPage({
     };
   }
 
-  const [
-    { items, pagination },
-    { sources, coworkerOptions },
-    allProjectOptions,
-  ] = await Promise.all([
+  const [{ items, pagination }, allProjectOptions] = await Promise.all([
     taskService.getWorkspaceCalendar({
       ...range,
       agendaOnly: params.view === "agenda" ? "true" : undefined,
@@ -201,7 +249,6 @@ export async function loadWorkspaceCalendarPage({
       scope,
       status: calendarStatus,
     }),
-    loadCalendarPageContext(activeOrganizationId, { requireSources: true }),
     getProjectFilterOptions(params.projectId),
   ]);
   const workspaceSource = sources.find(

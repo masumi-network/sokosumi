@@ -4234,7 +4234,15 @@ export const getWorkspacesCalendarResponseTransformer = async (data: any): Promi
     return data;
 };
 
+const workspaceCalendarSourceSchemaResponseTransformer = (data: any) => {
+    if (data.latestScheduledSocialPostAt) {
+        data.latestScheduledSocialPostAt = new Date(data.latestScheduledSocialPostAt);
+    }
+    return data;
+};
+
 export const getWorkspacesCalendarSourcesResponseTransformer = async (data: any): Promise<GetWorkspacesCalendarSourcesResponse> => {
+    data.data = data.data.map((item: any) => workspaceCalendarSourceSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
