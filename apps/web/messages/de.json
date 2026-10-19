@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "textForAccount": "Text für dieses Konto",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
@@ -3736,7 +3737,8 @@
       "loading": "Wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
-        "label": "Social-Media-Plattformen"
+        "label": "Social-Media-Plattformen",
+        "pause": "Plattformen pausieren"
       }
     },
     "Error": {

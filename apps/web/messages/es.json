@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Reprogramar publicación",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
+          "textForAccount": "Texto de esta cuenta",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Añadir desde Drive",
@@ -3736,7 +3737,8 @@
       "loading": "Cargando…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales"
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
       }
     },
     "Error": {

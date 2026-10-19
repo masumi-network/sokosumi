@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Reschedule post",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
+          "textForAccount": "Text for this account",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",
@@ -3736,7 +3737,8 @@
       "loading": "Loading…",
       "pickProject": "Choose a project",
       "platforms": {
-        "label": "Social platforms"
+        "label": "Social platforms",
+        "pause": "Pause platforms"
       }
     },
     "Error": {
