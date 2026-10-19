@@ -6,6 +6,7 @@ import {
 } from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
+import { strongSocialAccountPostIds } from "@/helpers/social-account-post-strong";
 import {
   buildSocialPerformanceConsistency,
   consistencyLookbackStart,
@@ -15,6 +16,10 @@ import {
   buildSocialPerformanceHeadline,
   emptySocialPerformanceHeadline,
 } from "@/helpers/social-performance-headline";
+import {
+  suggestBestPostingTimes,
+  suggestedTimesLookbackStart,
+} from "@/helpers/social-suggested-times";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -54,6 +59,7 @@ interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
 
 function mapAccountPosts(
   rows: Array<{
+    id?: string;
     publishedAt: Date | null;
     metrics: Prisma.JsonValue;
     additionalMetrics: Prisma.JsonValue;
@@ -82,6 +88,7 @@ function mapAccountPosts(
       : [];
     return [
       {
+        ...(row.id ? { id: row.id } : {}),
         provider: row.connection.provider as ProjectSocialProvider,
         publishedAt: row.publishedAt,
         metrics,
@@ -218,6 +225,39 @@ async function scopedConnections(input: AccountStatisticsScope) {
   });
 }
 
+/** Hours that already earned engagement. Empty when history is too thin. */
+export async function listSuggestedPostingTimes(input: {
+  projectId: string;
+  workspaceId: string;
+  connectionId: string;
+  timezone: string;
+  now?: Date;
+}) {
+  const accounts = await scopedConnections(input);
+  if (!accounts.some(({ account }) => account.id === input.connectionId))
+    throw notFound("Project social connection not found");
+  const now = input.now ?? new Date();
+  const rows = await prisma.socialAccountPost.findMany({
+    where: {
+      connectionId: input.connectionId,
+      publishedAt: { gte: suggestedTimesLookbackStart(now) },
+    },
+    select: {
+      publishedAt: true,
+      metrics: true,
+      additionalMetrics: true,
+      connection: { select: { provider: true } },
+    },
+  });
+  return {
+    hours: suggestBestPostingTimes({
+      posts: mapAccountPosts(rows),
+      timezone: input.timezone,
+      now,
+    }),
+  };
+}
+
 function selectedConnections(
   allAccounts: Awaited<ReturnType<typeof scopedConnections>>,
   input: Pick<ListSocialAccountStatisticsInput, "provider" | "connectionId">,
@@ -282,6 +322,7 @@ export async function listSocialAccountStatistics(
       "Statistics cursor is outside the selected account history",
     );
   const postSelect = {
+    id: true,
     publishedAt: true,
     metrics: true,
     additionalMetrics: true,
@@ -314,10 +355,22 @@ export async function listSocialAccountStatistics(
           select: postSelect,
         }),
   ]);
+  const winners = strongSocialAccountPostIds(
+    mapAccountPosts(cohort).flatMap((post) =>
+      post.id ? [{ ...post, id: post.id }] : [],
+    ),
+  );
+  const accountById = new Map(
+    allAccounts.map(({ account }) => [account.id, account]),
+  );
   const posts = rows.slice(0, take).map((row) =>
     socialAccountPostSchema.parse({
       ...row,
       provider: row.connection.provider,
+      strong: winners.has(row.id),
+      canRecycle:
+        accountById.get(row.connectionId)?.status === "active" &&
+        row.text.trim().length > 0,
     }),
   );
   return socialAccountStatisticsPageSchema.parse({

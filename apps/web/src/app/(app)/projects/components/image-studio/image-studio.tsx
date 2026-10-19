@@ -494,7 +494,7 @@ export function ImageStudio({
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-col gap-3",
+        "flex min-h-0 min-w-0 flex-col",
         STUDIO_COLUMN_MOBILE_SHELL_CLASS,
         isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -675,7 +675,13 @@ export function ImageStudio({
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setCheckedIds([asset.id]);
+            setPrompt("");
+            setTarget((current) => ({
+              ...current,
+              settings: { ...settingsOf(asset), seed: null },
+            }));
             setViewing(null);
+            requestAnimationFrame(() => promptRef.current?.focus());
           }}
           siblings={state.assets}
         />
@@ -770,7 +776,7 @@ function Notice({
 }) {
   return (
     <p
-      className="bg-card-background text-foreground flex shrink-0 items-start gap-2 rounded-xl p-3 text-sm"
+      className="bg-card-background text-foreground mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-xl p-3 text-sm md:mx-5"
       role="status"
     >
       <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />

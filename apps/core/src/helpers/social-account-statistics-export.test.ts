@@ -25,6 +25,8 @@ const post = {
     { key: "quotes", value: 3, period: "lifetime", unit: "count" },
   ],
   fetchedAt: "2026-10-01T13:00:00.000Z",
+  strong: false,
+  canRecycle: false,
 };
 
 describe("social account statistics export", () => {

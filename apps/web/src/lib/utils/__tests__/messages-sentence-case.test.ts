@@ -66,7 +66,6 @@ const PROPER_WORDS = new Set([
   "Claude",
   "Eve",
   "YouTube",
-  "LinkedIn",
   "Slack",
   "Notion",
   "Linear",

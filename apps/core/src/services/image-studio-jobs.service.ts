@@ -53,6 +53,10 @@ import {
   uploadReference,
 } from "@/lib/image-studio/fal-client";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
+import {
+  applyStudioBrandPrompt,
+  loadStudioBrand,
+} from "@/lib/image-studio/studio-brand";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishImageToFiles } from "@/services/image-studio-files.service";
 
@@ -574,12 +578,17 @@ async function sendClaimedJob(jobId: string) {
   // step rather than guessed from the message afterwards.
   let preflightReason: ImageJobFailureReason = "reference_not_sendable";
   try {
-    const imageUrls = await buildReferenceUrls(job);
+    const [imageUrls, brand] = await Promise.all([
+      buildReferenceUrls(job),
+      loadStudioBrand(job.projectId),
+    ]);
     const settings = readSettings(job.settings);
     preflightReason = "request_not_supported";
+    // Brand is for fal only. The stored prompt stays the brief. A missing
+    // Design or Memory is ignored so a brand read never blocks a generation.
     input = buildFalInput(
       {
-        prompt: job.prompt,
+        prompt: applyStudioBrandPrompt(job.prompt, brand),
         aspectRatio: settings.aspectRatio,
         resolution: settings.resolution,
         outputFormat: settings.outputFormat,

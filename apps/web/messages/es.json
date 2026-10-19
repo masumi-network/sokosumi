@@ -2396,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar {account}?",
-          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
+          "description": "Los borradores y las publicaciones programadas pasan a la cuenta nueva.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
@@ -2411,14 +2411,14 @@
           "syncStarted": "Sincronización iniciada."
         },
         "warning": {
-          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
+          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Publicar en Facebook requiere una cuenta que gestione exactamente una página. Usa una cuenta con una sola página gestionable.",
+          "facebookPage": "Facebook necesita una cuenta que gestione exactamente una página.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
-          "providerCallback": "La autorización no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
+          "providerCallback": "La autorización no se completó. Inténtalo de nuevo.",
           "legacyCallback": "Esta respuesta no permite verificar tu cuenta. Contacta con soporte e inténtalo de nuevo.",
           "verifier": "No pudimos verificar tu cuenta. Inicia la conexión de nuevo.",
           "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
@@ -2475,7 +2475,7 @@
           "more": "Hay más publicaciones."
         },
         "emptyHint": {
-          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
+          "drafts": "Guarda un borrador para más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2498,6 +2498,7 @@
           "rescheduleTitle": "Reprogramar publicación",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
+          "textForAccount": "Texto de esta cuenta",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Añadir desde Drive",
@@ -2548,7 +2549,9 @@
             "dateSelected": "Fecha: {date}",
             "timeSelected": "Hora: {time}",
             "times": "Horas",
-            "now": "Ahora"
+            "now": "Ahora",
+            "suggestedTimes": "Horas sugeridas",
+            "suggested": "Mejor {time}"
           },
           "timezone": {
             "yours": "Tu zona horaria: {zone}",
@@ -2604,7 +2607,8 @@
           "published": "Publicación publicada.",
           "publishFailed": "Error al publicar: {error}",
           "publishFailedItem": "{account} — {error}",
-          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
+          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
+          "duplicated": "Borrador creado."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2615,10 +2619,11 @@
         "actions": {
           "publishNow": "Publicar ahora",
           "retry": "Reintentar",
-          "dismiss": "Descartar"
+          "dismiss": "Descartar",
+          "duplicate": "Duplicar como borrador"
         },
         "publishDialog": {
-          "title": "¿Publicar esta publicación ahora?",
+          "title": "¿Publicar ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
@@ -2641,7 +2646,7 @@
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
-          "action": "Conectar X, YouTube, LinkedIn…"
+          "action": "Conectar cuenta"
         },
         "reconnectPrompt": {
           "title": "Vuelve a conectar para publicar",
@@ -2755,7 +2760,19 @@
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
-          "postsHint": "Historial de solo lectura importado de las plataformas conectadas. Los filtros de publicaciones no cambian el resumen de cuentas.",
+          "postsHint": "Importado de las plataformas conectadas. Vuelve a publicar una publicación destacada.",
+          "recycle": {
+            "action": "Volver a publicar",
+            "strong": "Destacada",
+            "title": "¿Volver a publicar?",
+            "description": "Copia el texto en un nuevo borrador. Nada se publica solo.",
+            "saveDraft": "Guardar como borrador",
+            "inDays": "En {days} días",
+            "drafted": "Borrador creado.",
+            "scheduled": "Programada de nuevo.",
+            "failed": "No se pudo volver a publicar.",
+            "cancel": "Cancelar"
+          },
           "account": "Cuenta",
           "allAccounts": "Todas las cuentas",
           "syncAll": "Sincronizar todas las cuentas",
@@ -2840,7 +2857,16 @@
             "minutes": "minutos",
             "hours": "horas"
           }
-        }
+        },
+        "reconnection": {
+          "accounts": "Cuentas que requieren atención",
+          "title": "{account} necesita reconectarse",
+          "affected": "{count, plural, one {# publicación afectada} other {# publicaciones afectadas}}",
+          "retryTitle": "¿Reintentar las publicaciones fallidas?",
+          "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
+          "later": "Más tarde"
+        },
+        "moreActions": "Acciones de la publicación"
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -3133,7 +3159,8 @@
         "megapixels": "megapíxel",
         "processedMegapixels": "megapíxel procesado"
       },
-      "creditsCheckedOn": "Precio comprobado el {date}"
+      "creditsCheckedOn": "Precio comprobado el {date}",
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
     },
     "Ads": {
       "title": "Anuncios",
@@ -3724,8 +3751,8 @@
         "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conecta tus cuentas de redes sociales",
-        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
+        "title": "Elige un proyecto",
+        "body": "Luego conecta cuentas."
       },
       "attentionNeedProject": {
         "title": "Requiere atención",
@@ -3735,10 +3762,15 @@
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…",
+      "loading": "Cargando…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales"
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
+      },
+      "statisticsNeedProject": {
+        "title": "Elige un proyecto para ver el rendimiento",
+        "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
       }
     },
     "Error": {
@@ -5618,7 +5650,7 @@
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
-        "loadError": "No pudimos cargar tus cuentas conectadas en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
@@ -5633,7 +5665,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
-        "loadError": "No pudimos cargar los detalles de tu cuenta vinculada en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar"
       },
       "Notifications": {

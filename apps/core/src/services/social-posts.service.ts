@@ -57,6 +57,11 @@ const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "FAILED",
   "MISSED",
 ];
+const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
+  "PUBLISHED",
+  "FAILED",
+  "MISSED",
+];
 /** Statuses where a stale connection blocks the next publish. */
 const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -145,6 +150,7 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
 }
@@ -214,6 +220,24 @@ export interface CancelSocialPostInput extends ProjectScope {
   revision: number;
 }
 
+export interface DuplicateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  postId: string;
+}
+
+export interface RecycleSocialAccountPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string;
+}
+
 function mapCreator(record: SocialPostRecord): SocialPostCreator {
   if (record.creatorUser) {
     return { kind: "user", ...record.creatorUser };
@@ -266,6 +290,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       PUBLISH_NOW_STATUSES.includes(record.status) &&
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
+    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -795,5 +820,118 @@ export async function cancelSocialPost(
       },
       tx,
     ),
+  );
+}
+
+export async function duplicateSocialPost(
+  input: DuplicateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const source = await requireScopedPost(input, tx);
+  if (!DUPLICATABLE_STATUSES.includes(source.status)) {
+    throw conflict(
+      "Only a published, failed, or missed post can be duplicated",
+    );
+  }
+
+  const provider = requireProvider(source.provider);
+  const media = normalizeSocialPostMedia({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    provider,
+    media: parseSocialPostMedia(source.media, source.id),
+  });
+  const text = requireTextWithinLimit(source.text, provider, media.length > 0);
+  requireMediaRequirement(provider, media);
+  const socialConnectionId =
+    source.socialConnection && source.socialConnection.status !== "disconnected"
+      ? source.socialConnection.id
+      : null;
+
+  const post = await tx.socialPost.create({
+    data: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      socialConnectionId,
+      provider,
+      text,
+      media: mediaJson(media),
+      status: "DRAFT",
+      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorCoworkerId: input.coworkerId ?? null,
+    },
+    include: socialPostInclude,
+  });
+  return mapSocialPost(post);
+}
+
+const DAY_MS = 86_400_000;
+
+export async function recycleSocialAccountPost(
+  input: RecycleSocialAccountPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const accountPost = await tx.socialAccountPost.findFirst({
+    where: {
+      id: input.accountPostId,
+      connection: {
+        projectId: input.projectId,
+        project: { workspaceId: input.workspaceId },
+      },
+    },
+    include: {
+      connection: { select: { id: true, status: true, provider: true } },
+    },
+  });
+  if (!accountPost) {
+    throw notFound("Performance post not found");
+  }
+
+  const match = await tx.socialPost.findFirst({
+    where: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      publishedExternalId: accountPost.externalId,
+      status: { in: [...DUPLICATABLE_STATUSES] },
+    },
+    select: { id: true },
+  });
+
+  let post: SocialPostSummary;
+  if (match) {
+    post = await duplicateSocialPost({ ...input, postId: match.id }, tx);
+  } else if (!accountPost.text.trim()) {
+    throw badRequest("This post has no text to reshare");
+  } else {
+    post = await createSocialPost(
+      {
+        ...input,
+        text: accountPost.text,
+        socialConnectionId: accountPost.connection.id,
+      },
+      tx,
+    );
+  }
+
+  if (!input.delayDays) return post;
+  if (!input.timezone) {
+    throw badRequest("timezone is required when scheduling");
+  }
+  return scheduleSocialPost(
+    {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      coworkerId: input.coworkerId,
+      postId: post.id,
+      scheduledAt: new Date(Date.now() + input.delayDays * DAY_MS),
+      timezone: input.timezone,
+      socialConnectionId:
+        post.socialConnection?.id ?? accountPost.connection.id,
+      revision: post.revision,
+    },
+    tx,
   );
 }

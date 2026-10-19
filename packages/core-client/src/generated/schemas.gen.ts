@@ -20351,6 +20351,14 @@ export const SocialAccountPostSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        strong: {
+            type: 'boolean',
+            default: false
+        },
+        canRecycle: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
@@ -20662,6 +20670,24 @@ export const RefreshSocialAccountStatisticsRequestSchema = {
         }
     },
     additionalProperties: false
+} as const;
+
+export const SocialConnectionSuggestedTimesSchema = {
+    type: 'object',
+    properties: {
+        hours: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 23
+            },
+            maxItems: 3
+        }
+    },
+    required: [
+        'hours'
+    ]
 } as const;
 
 export const InitiateProjectSocialConnectionResponseSchema = {
@@ -22867,6 +22893,10 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canDuplicate: {
+            type: 'boolean',
+            description: 'True when the post can be copied into a new draft (published, failed, or missed)'
+        },
         connectionNeedsReconnect: {
             type: 'boolean',
             description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
@@ -22900,6 +22930,7 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canDuplicate',
         'connectionNeedsReconnect'
     ]
 } as const;
@@ -23336,6 +23367,39 @@ export const CancelSocialPostRequestSchema = {
     required: [
         'revision'
     ]
+} as const;
+
+export const RecycleSocialAccountPostRequestSchema = {
+    type: 'object',
+    properties: {
+        delayDays: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        7
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        14
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        30
+                    ]
+                }
+            ],
+            example: 7
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    }
 } as const;
 
 export const ProjectImageStudioStateSchema = {
@@ -30714,6 +30778,15 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'boolean',
             description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
+        },
+        latestScheduledSocialPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
         }
     },
     required: [

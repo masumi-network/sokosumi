@@ -58,6 +58,7 @@ import type {
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
   GetProjectsByIdSocialPostsStatisticsData,
@@ -72,6 +73,7 @@ import type {
   GetTransactionsDailyData,
   GetTransactionsData,
   GetWorkspacesCalendarData,
+  GetWorkspacesCalendarSourcesData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
   Notice,
@@ -112,6 +114,7 @@ import type {
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -304,6 +307,7 @@ import {
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -454,11 +458,13 @@ import {
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdDuplicate as corePostProjectsByIdSocialPostsByPostIdDuplicate,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
@@ -3410,6 +3416,24 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
+    id: string,
+    connectionId: string,
+    query: GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch suggested posting times",
+    );
+  }
+
   async function getProjectsByIdSocialConnectionsStatistics(
     id: string,
     query?: GetProjectsByIdSocialConnectionsStatisticsData["query"],
@@ -3558,6 +3582,40 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to cancel Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdDuplicate(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdDuplicate({
+          client,
+          path: { id, postId },
+        }),
+      "Failed to duplicate Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialAccountPostsByAccountPostIdRecycle(
+    id: string,
+    accountPostId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle({
+          client,
+          path: { id, accountPostId },
+          body,
+        }),
+      "Failed to recycle Performance post",
     );
   }
 
@@ -5054,12 +5112,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getWorkspaceCalendarSources() {
+  async function getWorkspaceCalendarSources(
+    query?: GetWorkspacesCalendarSourcesData["query"],
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetWorkspacesCalendarSources({
           client,
+          query,
           cache: "no-store",
         }),
       "Failed to fetch workspace calendar sources",
@@ -6546,6 +6607,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
+    getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
@@ -6554,6 +6616,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+    postProjectsByIdSocialPostsByPostIdDuplicate,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,

@@ -77,6 +77,8 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     projectId: string;
     selectedPostId?: string;
     requestedPostId?: string;
+    affectedPosts?: { id: string }[];
+    managedConnections?: { id: string }[];
   }) => (
     <div
       data-testid="social-posts"
@@ -85,6 +87,10 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-requested={props.requestedPostId ?? ""}
+      data-affected={props.affectedPosts?.map((post) => post.id).join(",")}
+      data-managed={props.managedConnections
+        ?.map((connection) => connection.id)
+        .join(",")}
       data-selected={props.selectedPostId}
     >
       {props.actions}
@@ -363,9 +369,12 @@ describe("SocialPage", () => {
       "data-connect-disabled",
       "false",
     );
-    // One read per list: drafts and needs attention. Scheduled, published
-    // and canceled posts are left to the calendar tab.
-    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
+    // Scheduled posts also supply the affected-post count for reconnection.
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledWith(
+      "project-1",
+      { statuses: ["SCHEDULED"] },
+    );
   });
 
   /**
@@ -373,6 +382,29 @@ describe("SocialPage", () => {
    * left over from the last visit. Task runs never appear on it, so the lock
    * is a prop rather than a toggle the reader has to find and keep set.
    */
+  it("loads later attention and scheduled pages for complete account counts", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts.mockImplementation(
+      async (_id, params) => {
+        if (params.statuses.includes("DRAFT"))
+          return { posts: [], nextCursor: null };
+        if (params.cursor)
+          return { posts: [{ id: params.cursor }], nextCursor: null };
+        const scheduled = params.statuses.includes("SCHEDULED");
+        return {
+          posts: [{ id: scheduled ? "scheduled-1" : "failed-1" }],
+          nextCursor: scheduled ? "scheduled-2" : "failed-2",
+        };
+      },
+    );
+    await visit({ projectId: "project-1" });
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-affected",
+      "failed-1,scheduled-1,failed-2,scheduled-2",
+    );
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(5);
+  });
+
   it("locks its calendar to this project's Social posts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
