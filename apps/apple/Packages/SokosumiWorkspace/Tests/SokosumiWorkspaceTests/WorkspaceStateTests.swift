@@ -579,6 +579,36 @@ struct WorkspaceStateTests {
     #expect(try await state.openDirect(selection, context: context) == false)
   }
 
+  @Test(arguments: ["context", "cancel"]) func openDirectReturnsFalseWhenTheRequestIsNoLongerWanted(ending: String) async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let (state, _, transport, _) = try ephemeralState([
+      (200, workspacesBody()), (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (201, roomReadBody(id: target, unread: 0))
+    ], visible: false)
+    await state.reload()
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
+    selection.add(.coworker("peer"))
+    transport.pauseDirect = true
+    let request = Task { try await state.openDirect(selection, context: context) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms") {
+      await Task.yield()
+    }
+    #expect(state.runningMutation == .openDirect(.coworker("peer")))
+    if ending == "context" {
+      state.reset()
+    } else {
+      request.cancel()
+    }
+    transport.releasePausedRequest()
+    #expect(try await request.value == false)
+    #expect(!state.rooms.contains { $0.id == target })
+    #expect(state.runningMutation == nil)
+  }
+
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
     let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))

@@ -65,6 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: userContext.organizationId,
         workspaceId: workspaceContext.workspaceId,
       },
+      creator: { kind: "user", userId: userContext.userId },
       agentInput: {
         agentId,
         inputData,

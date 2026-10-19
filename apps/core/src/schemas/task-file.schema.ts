@@ -31,7 +31,7 @@ const taskFileUploaderSokoBotSchema = z
   })
   .openapi("TaskFileUploaderSokoBot");
 
-export const taskFileUploaderSchema = z
+const taskFileUploaderSchema = z
   .discriminatedUnion("type", [
     taskFileUploaderUserSchema,
     taskFileUploaderCoworkerSchema,
@@ -39,11 +39,11 @@ export const taskFileUploaderSchema = z
   ])
   .openapi("TaskFileUploader");
 
-export const taskFileStatusSchema = z
+const taskFileStatusSchema = z
   .enum(["PENDING", "READY", "FAILED"])
   .openapi("TaskFileStatus");
 
-export const taskFileOriginSchema = z
+const taskFileOriginSchema = z
   .enum(["USER_UPLOAD", "TASK_OUTPUT"])
   .openapi("TaskFileOrigin");
 
@@ -84,5 +84,3 @@ export const taskFileSchema = z
   .openapi("TaskFile");
 
 export const taskFilesSchema = z.array(taskFileSchema).openapi("TaskFiles");
-
-export type TaskFileDto = z.infer<typeof taskFileSchema>;

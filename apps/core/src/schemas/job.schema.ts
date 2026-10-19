@@ -12,7 +12,13 @@ import {
   sokosumiJobStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
-import { userSummarySchema } from "@/schemas/user.schema";
+import {
+  deprecatedWorkUserIdSchema,
+  deprecatedWorkUserSchema,
+  workCreatorField,
+  workOwnerIdSchema,
+  workOwnerSchema,
+} from "@/schemas/work-creator.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
@@ -55,22 +61,13 @@ export const jobSummarySchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
     /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
+    userId: deprecatedWorkUserIdSchema,
     /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()
@@ -196,22 +193,13 @@ export const jobSchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
     /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
+    userId: deprecatedWorkUserIdSchema,
     /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()

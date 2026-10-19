@@ -405,7 +405,8 @@ struct ChatRealtimeTests {
 
   @Test func channelNamesMatchWeb() {
     #expect(chatRoomChannelName(roomId: "abc") == "chat_rooms:room_abc")
-    #expect(userChatControlChannelName(userId: "user_1") == "chat_control:user_user_1")
+    #expect(userChatControlChannelName(grantedSubscribeIn: #"{"chat_control:user_user_1":["subscribe"]}"#, userId: "user_1")
+      == "chat_control:user_user_1")
     #expect(chatRoomMessageEventName == "chat_room_message")
     #expect(chatMembershipRevokedEventName == "chat_membership_revoked")
     #expect(chatRoomsChangedEventName == "chat_rooms_changed")

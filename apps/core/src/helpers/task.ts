@@ -28,6 +28,7 @@ import {
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
+import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
@@ -326,62 +327,6 @@ export function mapTaskEvent(
   };
 }
 
-function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
-  if (task.creatorUserId != null) {
-    return {
-      type: "user" as const,
-      id: task.creatorUserId,
-      user: userSummaryFromLoadedRelation(
-        `Task ${task.id} creator`,
-        task.creatorUserId,
-        task.creatorUser ?? null,
-      ),
-    };
-  }
-
-  if (task.creatorCoworkerId != null) {
-    const coworker = coworkerSummaryFromLoadedRelation(
-      `Task ${task.id} creator`,
-      task.creatorCoworkerId,
-      task.creatorCoworker ?? null,
-    );
-    if (coworker == null) {
-      throw new Error(
-        `Task ${task.id}: creator coworker summary missing for API mapping`,
-      );
-    }
-
-    return {
-      type: "coworker" as const,
-      id: task.creatorCoworkerId,
-      coworker,
-    };
-  }
-
-  if (task.creatorSokoBotId != null) {
-    const sokoBot = sokoBotSummaryFromLoadedRelation(
-      `Task ${task.id} creator`,
-      task.creatorSokoBotId,
-      task.creatorSokoBot ?? null,
-    );
-    if (sokoBot == null) {
-      throw new Error(
-        `Task ${task.id}: creator sokoBot summary missing for API mapping`,
-      );
-    }
-
-    return {
-      type: "sokoBot" as const,
-      id: task.creatorSokoBotId,
-      sokoBot,
-    };
-  }
-
-  throw new Error(
-    `Task ${task.id}: exactly one creator FK must be set for API mapping`,
-  );
-}
-
 function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
   if (task.assigneeId != null) {
     const coworker = coworkerSummaryFromLoadedRelation(
@@ -443,14 +388,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.organization ?? null,
   );
 
-  const taskOwnerSummary = userSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.ownerId,
-    task.owner,
-  );
+  const taskOwnerSummary = mapOwnerSummary(`Task ${task.id}`, task);
 
   const assignee = mapTaskAssignee(task);
-  const creator = mapTaskCreator(task);
+  const creator = mapWorkCreator(`Task ${task.id}`, task);
 
   return {
     id: task.id,
@@ -477,8 +418,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
     // Deprecated aliases for legacy sokoBot-created tasks.
-    sokoBotId: creator.type === "sokoBot" ? creator.id : null,
-    sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
+    sokoBotId: creator?.type === "sokoBot" ? creator.id : null,
+    sokoBot: creator?.type === "sokoBot" ? creator.sokoBot : null,
     number: task.number,
     identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,

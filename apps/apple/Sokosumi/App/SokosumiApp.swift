@@ -39,7 +39,7 @@ struct SokosumiApp: App {
         .environment(\.timeFormat, timeFormat)
     }
     Settings {
-      SettingsView()
+      SettingsView(updater: updater)
         .environmentObject(auth)
         .environmentObject(workspaces)
     }

@@ -54,9 +54,10 @@ interface EmailStepNoticeDetour {
   href: string;
   /**
    * Takes the person there, e.g. emailing a code first. The link loads until
-   * it has navigated. A click for another tab just opens `href`.
+   * it has navigated. A click for another tab just opens `href`. Without it,
+   * the link opens `href` in a new window and the step stays as it is.
    */
-  follow: (
+  follow?: (
     email: string,
     signal: AbortSignal,
     account: EmailStepAccount,
@@ -207,7 +208,7 @@ export function EmailStep({
 
   async function followDetour(
     email: string,
-    follow: EmailStepNoticeDetour["follow"],
+    follow: NonNullable<EmailStepNoticeDetour["follow"]>,
     account: EmailStepAccount,
   ) {
     const controller = new AbortController();
@@ -379,6 +380,8 @@ export function EmailStep({
                 <Link
                   ref={detourLinkRef}
                   href={notice.href}
+                  target={notice.follow ? undefined : "_blank"}
+                  rel={notice.follow ? undefined : "noopener"}
                   inert={!isDetoured || disabled}
                   aria-describedby={isDetoured ? noticeId : undefined}
                   onAuxClick={() => takeAuthEmailHint()}
@@ -388,6 +391,7 @@ export function EmailStep({
                       event.preventDefault();
                       return;
                     }
+                    if (!notice.follow) return;
                     const email = emailLocked ? "" : form.getValues("email");
                     const account = detourAccount.current;
                     if (email && account && isSameTabClick(event)) {

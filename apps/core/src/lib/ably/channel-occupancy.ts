@@ -1,7 +1,7 @@
 import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 
 import { getSubscribeRestClient } from "./client";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 /**
  * Whether the reader has Sokosumi in front of them right now (SOK-1090).
@@ -25,7 +25,7 @@ import { getNotificationChannelEnvironment } from "./notification-channel-enviro
 export async function hasAppInFront(userId: string): Promise<boolean> {
   const channelName = makeUserNotificationsChannelName(
     userId,
-    getNotificationChannelEnvironment(),
+    getRealtimeChannelEnvironment(),
   );
 
   // Built before the `try`, not inside it. A key that is not `name:secret`,

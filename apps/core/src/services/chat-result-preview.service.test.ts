@@ -212,7 +212,11 @@ describe("authorized chat results", () => {
     });
     expect(botSchedule).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "follow-up", userId: "owner", workspaceId: "workspace" },
+        where: {
+          id: "follow-up",
+          requestedByUserId: "owner",
+          workspaceId: "workspace",
+        },
       }),
     );
     botSchedule.mockResolvedValue(null);
@@ -470,7 +474,7 @@ describe("authorized chat results", () => {
       [{ decision: { status: "ACCEPTED" }, status: "PENDING" }],
     );
     expect(decision).toHaveBeenCalledWith({
-      where: { id, userId: "owner", workspaceId: "workspace" },
+      where: { id, requestedByUserId: "owner", workspaceId: "workspace" },
     });
     decision.mockResolvedValue(null);
     expect(

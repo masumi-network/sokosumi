@@ -91,13 +91,14 @@ function continueFor(maxChecks: number) {
 const scheduledFor = new Date("2026-08-17T12:00:00.000Z");
 const dueSchedule = {
   id: "01960001-0001-7001-8001-000000000001",
-  userId: "user_1",
+  requestedByUserId: "user_1",
   workspaceId: "01960001-0001-7001-8001-000000000002",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
   prompt: "Review active work",
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
+  capabilityNames: [] as string[],
 };
 const claimedRun = {
   id: "01960001-0001-7001-8001-000000000003",
@@ -184,7 +185,7 @@ describe("SokoBotSchedulesSyncService", () => {
       deferred: 1,
     });
     expect(startTurnMock).toHaveBeenCalledWith({
-      userId: dueSchedule.userId,
+      userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
       clientTurnId: sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
       message: dueSchedule.prompt,
@@ -209,6 +210,24 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("runs a follow-up the bot wrote with its writing turn's tools", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      capabilityNames: ["create_table", "write_table_rows", "bash"],
+    });
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetRoute: expect.objectContaining({
+          capabilities: ["create_table", "write_table_rows", "bash"],
+          sandbox: true,
+        }),
+      }),
+    );
   });
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {

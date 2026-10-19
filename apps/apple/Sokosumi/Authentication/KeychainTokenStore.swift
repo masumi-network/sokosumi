@@ -4,8 +4,10 @@ import SokosumiAuth
 
 /// Token persistence using Security, available on both macOS and iOS.
 /// Keep the service/account stable so existing installations restore their session.
+/// The service follows the bundle ID, so the Debug build (`com.sokosumi.app.dev`) keeps its own session
+/// apart from the installed app's `com.sokosumi.app.session`.
 nonisolated struct KeychainTokenStore: TokenStore {
-  private let service = "com.sokosumi.app.session"
+  private let service = "\(Bundle.main.bundleIdentifier ?? "com.sokosumi.app").session"
   private let account = "oauth-tokens"
 
   init() {}

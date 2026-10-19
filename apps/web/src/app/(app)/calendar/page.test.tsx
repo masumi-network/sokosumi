@@ -37,6 +37,7 @@ describe("CalendarPage", () => {
           scope: "owned",
           socialOnly: "true",
           postStatus: "FAILED",
+          provider: "x",
           sourceId: "workspace:workspace-1",
         }),
       }),
@@ -55,6 +56,7 @@ describe("CalendarPage", () => {
     expect(params.get("scope")).toBe("owned");
     expect(params.get("socialOnly")).toBe("true");
     expect(params.get("postStatus")).toBe("FAILED");
+    expect(params.get("provider")).toBe("x");
     expect(params.get("sourceId")).toBe("workspace:workspace-1");
   });
 });

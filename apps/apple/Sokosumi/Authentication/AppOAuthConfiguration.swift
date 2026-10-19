@@ -8,12 +8,12 @@ import SokosumiAuth
 /// environment (Xcode scheme) or the `SokosumiOAuthClientID` Info.plist key.
 /// Absent → `.notConfigured`: the UI says so instead of failing silently.
 enum AppOAuthConfiguration {
-  static func makeConfiguration() -> OAuthConfiguration? {
+  static func makeConfiguration(coreBaseURL: URL = CoreSettings.baseURL) -> OAuthConfiguration? {
     guard let clientID, !clientID.isEmpty else {
       return nil
     }
     return OAuthConfiguration(
-      issuerBaseURL: OAuthConfiguration.issuerBaseURL(coreAPIBaseURL: CoreSettings.baseURL),
+      issuerBaseURL: OAuthConfiguration.issuerBaseURL(coreAPIBaseURL: coreBaseURL),
       clientID: clientID
     )
   }

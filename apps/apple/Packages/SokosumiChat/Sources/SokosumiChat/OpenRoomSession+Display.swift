@@ -39,7 +39,7 @@ public extension OpenRoomSession {
   }
 }
 
-private extension OpenRoomSession {
+extension OpenRoomSession {
   /// Listed among the reactors under the name the open room gives the reader, else their account name.
   var reactionViewer: PendingReactionViewer {
     let viewer = hooks.viewer()

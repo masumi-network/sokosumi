@@ -81,6 +81,12 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyMembersWithOrganizations: () => Promise.resolve([]),
+  },
+}));
+
 import TaskScheduleDetailPage from "./page";
 
 const SCHEDULE = {
