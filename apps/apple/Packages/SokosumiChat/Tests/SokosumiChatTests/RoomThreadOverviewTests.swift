@@ -78,7 +78,7 @@ struct RoomThreadOverviewTests {
       (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older"))
     ])), roomId: testRoomId, organizationSlug: nil)
     let held = PausedOverviewTransport(body: testMessagesPageBody(messages: [threadJSON(id: "second", unread: 0)], nextCursor: nil))
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
     await held.waitForRequest()
     #expect(overview.olderPageStatus == .loading)
@@ -179,7 +179,7 @@ struct RoomThreadOverviewTests {
     ])), roomId: testRoomId, organizationSlug: nil)
     let held = PausedOverviewTransport(body: lateFailure ? #"{"error":"Internal","message":"late"}"# : testMessagesPageBody(messages: [threadJSON(id: "late", unread: 0)], nextCursor: "late-cursor"),
                                        status: lateFailure ? .internalServerError : .ok)
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
     await held.waitForRequest()
     try await overview.load(client: makeTestClient(TestTransport([
@@ -201,7 +201,7 @@ struct RoomThreadOverviewTests {
     ])), roomId: testRoomId, organizationSlug: nil)
     let held = PausedOverviewTransport(body: lateFailure ? #"{"error":"Internal","message":"late"}"# : testMessagesPageBody(messages: [threadJSON(id: "late", unread: 0)], nextCursor: nil),
                                        status: lateFailure ? .internalServerError : .ok)
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
     await held.waitForRequest()
     overview.reset()
@@ -304,7 +304,7 @@ struct RoomThreadOverviewTests {
       ? testMessagesPageBody(messages: [threadJSON(id: "late", unread: 2)], nextCursor: "older")
       : "{\"data\":\(data),\"meta\":{\"timestamp\":\"\(testTimestamp)\",\"requestId\":\"test\"}}"
     let transport = PausedOverviewTransport(body: body)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     let overview = RoomThreadOverview()
     let task = Task {
       switch operation {
@@ -350,7 +350,7 @@ struct RoomThreadOverviewTests {
 
   @Test func reopeningOverviewSupersedesPendingLoad() async throws {
     let oldTransport = PausedOverviewTransport(body: testMessagesPageBody(messages: [threadJSON(id: "old", unread: 1)], nextCursor: "old-cursor"))
-    let oldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: oldTransport)
+    let oldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: oldTransport)
     let currentTransport = TestTransport([(200, testMessagesPageBody(messages: [threadJSON(id: "current", unread: 0)], nextCursor: nil))])
     let overview = RoomThreadOverview()
     let oldLoad = Task { try await overview.load(client: oldClient, roomId: testRoomId, organizationSlug: nil) }
@@ -391,7 +391,7 @@ struct RoomThreadOverviewTests {
       (200, #"{"data":{"count":2,"threads":[{"parentMessageId":"a","unreadReplyCount":3},{"parentMessageId":"b","unreadReplyCount":1}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
     ])), roomId: testRoomId, organizationSlug: nil)
     let held = PausedOverviewTransport(body: #"{"data":{"count":2,"threads":[{"parentMessageId":"a","unreadReplyCount":3},{"parentMessageId":"b","unreadReplyCount":1}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
-    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let heldClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: held)
     let late = Task { try await overview.refreshCount(client: heldClient, roomId: testRoomId, organizationSlug: nil) }
     await held.waitForRequest()
     overview.clearUnreadReplies { $0 == "a" }

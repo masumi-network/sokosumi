@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { getInitials } from "@/lib/utils/text";
@@ -84,6 +85,16 @@ export default function JobDetailsView({
     getVisibleTimelineEvents(timelineEvents, showAllEvents);
 
   const agentName = getAgentName(job.agent);
+  // An owned job keeps move and refund with its owner. A job without an Owner
+  // allows them for an organization owner or admin, and never into a personal
+  // workspace. Edit stays on `readOnly`, so any seated member can still rename.
+  const canManage =
+    job.ownerId !== null
+      ? !readOnly
+      : viewerIsOrganizationOwnerOrAdmin(
+          job.workspace.organizationId,
+          organizations,
+        );
 
   return (
     <div
@@ -127,6 +138,7 @@ export default function JobDetailsView({
                       hasPersonalWorkspace={hasPersonalWorkspace}
                       personalWorkspaceLabel={personalWorkspaceLabel}
                       readOnly={readOnly}
+                      canManage={canManage}
                     />
                   )
                 }
@@ -139,6 +151,7 @@ export default function JobDetailsView({
                 hasPersonalWorkspace={hasPersonalWorkspace}
                 personalWorkspaceLabel={personalWorkspaceLabel}
                 readOnly={readOnly}
+                canManage={canManage}
                 publicJobLayout={publicJobLayout}
                 showInlineActions={!showAgentHeader}
                 controller={nameController}
@@ -165,6 +178,7 @@ export default function JobDetailsView({
                         event={event}
                         isLatestEvent={index === 0}
                         readOnly={readOnly}
+                        canManage={canManage}
                       />
                       {shouldCollapse && index === 0 ? (
                         <CollapsedEventsButton
@@ -201,6 +215,7 @@ function JobDetailsHeader({
   hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   readOnly,
+  canManage,
   publicJobLayout,
   showInlineActions,
   controller,
@@ -210,6 +225,7 @@ function JobDetailsHeader({
   hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel?: string;
   readOnly: boolean;
+  canManage: boolean;
   publicJobLayout: boolean;
   showInlineActions: boolean;
   controller: ReturnType<typeof useJobDetailsNameController>;
@@ -226,6 +242,7 @@ function JobDetailsHeader({
             hasPersonalWorkspace={hasPersonalWorkspace}
             personalWorkspaceLabel={personalWorkspaceLabel}
             readOnly={readOnly}
+            canManage={canManage}
           />
         </div>
       ) : null}
@@ -248,6 +265,7 @@ function JobDetailsTopBarActions({
   onEdit,
   personalWorkspaceLabel,
   readOnly,
+  canManage,
 }: {
   job: Job;
   editing: boolean;
@@ -256,21 +274,24 @@ function JobDetailsTopBarActions({
   onEdit: () => void;
   personalWorkspaceLabel?: string;
   readOnly: boolean;
+  canManage: boolean;
 }) {
   const tName = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const tActions = useTranslations("Components.Jobs.JobDetails.Header.Actions");
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const currentOrganizationId = job.workspace.organizationId ?? null;
+  const personalMoveAllowed = job.ownerId !== null && hasPersonalWorkspace;
   const moveTargetCount = getWorkspaceMoveTargetCount(
     currentOrganizationId,
     organizations,
-    hasPersonalWorkspace,
+    personalMoveAllowed,
   );
-  // Any member of the job's workspace may share it (SOK-1030). Renaming and
-  // moving stay with the owner, so `readOnly` still hides those.
+  // Any member of the job's workspace may share it (SOK-1030). Rename follows
+  // `readOnly`. Move follows `canManage`, and a job without an Owner never
+  // offers a personal workspace.
   const canMoveStandaloneJob =
-    !readOnly && !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
-  const isTaskControlledJob = !readOnly && !!job.taskId;
+    canManage && !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
+  const isTaskControlledJob = canManage && !!job.taskId;
 
   return (
     <>
@@ -339,7 +360,7 @@ function JobDetailsTopBarActions({
           onOpenChange={setIsMoveOpen}
           open={isMoveOpen}
           organizations={organizations ?? []}
-          hasPersonalWorkspace={hasPersonalWorkspace}
+          hasPersonalWorkspace={personalMoveAllowed}
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}
@@ -406,11 +427,13 @@ function JobDetailsContent({
   event,
   isLatestEvent,
   readOnly,
+  canManage,
 }: {
   job: Job;
   event: JobEvent;
   isLatestEvent: boolean;
   readOnly: boolean;
+  canManage: boolean;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
   const { formatTimeAgo } = useLocalizedDateTime();
@@ -496,6 +519,7 @@ function JobDetailsContent({
                     job={job}
                     event={event}
                     readOnly={readOnly}
+                    canManage={canManage}
                   />
                 </section>
               ) : null}

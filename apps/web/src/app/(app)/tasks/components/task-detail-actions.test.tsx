@@ -570,6 +570,22 @@ const sampleOrganizations = [
   { organization: { id: "org-2", name: "Other Org" } },
 ] as unknown as MemberWithOrganization[];
 
+function organizationMembership(
+  role: "admin" | "member" | "owner",
+  organization: { id: string; name: string } = {
+    id: "org-2",
+    name: "Other Org",
+  },
+): MemberWithOrganization[] {
+  return [
+    {
+      organizationId: "org-1",
+      role,
+      organization,
+    },
+  ] as unknown as MemberWithOrganization[];
+}
+
 const defaultTaskLinks = [
   {
     id: "link-parent",
@@ -673,6 +689,7 @@ function renderActions(
       personalWorkspaceLabel={personalWorkspaceLabel}
       isReadOnly={false}
       isTaskOwner
+      taskOwnerId="owner-1"
       {...props}
     />,
   );
@@ -1195,6 +1212,73 @@ describe("TaskDetailActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Move to workspace" }),
     ).toBeNull();
+  });
+
+  it("hides archive and move on a task without an owner from a plain member", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("member"),
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.archive }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows archive and move on a task without an owner to an organization admin", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("admin"),
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides a personal workspace as a move target for a task without an owner", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      taskOwnerId: null,
+      isTaskOwner: false,
+      currentOrganizationId: "org-1",
+      organizations: organizationMembership("admin", {
+        id: "org-1",
+        name: "Org",
+      }),
+      hasPersonalWorkspace: true,
+      hasAssignedSeat: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows archive while grant approval is pending to a member of an organization task", async () => {

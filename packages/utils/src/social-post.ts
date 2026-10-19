@@ -53,6 +53,25 @@ export function socialPostProviderLabel(provider: SocialPostProvider): string {
   return SOCIAL_POST_PROVIDER_LABELS[provider];
 }
 
+const YOUTUBE_TITLE_LIMIT = 100;
+
+/** First non-empty line is the title; overflow and later lines form the description. */
+export function splitYouTubePostText(text: string) {
+  const lines = text.split(/\r?\n/);
+  const titleIndex = lines.findIndex((part) => part.trim().length > 0);
+  if (titleIndex === -1) return { title: "", description: "" };
+  const titleLine = lines[titleIndex].trim();
+  const overflow = titleLine.slice(YOUTUBE_TITLE_LIMIT).trim();
+  const rest = lines
+    .slice(titleIndex + 1)
+    .join("\n")
+    .trim();
+  return {
+    title: titleLine.slice(0, YOUTUBE_TITLE_LIMIT),
+    description: [overflow, rest].filter((part) => part.length > 0).join("\n"),
+  };
+}
+
 export type SocialPostMediaKind = "image" | "gif" | "video";
 
 /** A Drive file attached to a Social post. Provider media handles are never stored. */
@@ -65,6 +84,32 @@ export interface SocialPostMediaRef {
   size: number;
   mimeType: string;
   kind: SocialPostMediaKind;
+}
+
+/** Whether attached media satisfies the provider's presence rule. */
+export function socialPostMeetsMediaRequirement(
+  provider: SocialPostProvider,
+  media: readonly SocialPostMediaRef[],
+): boolean {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return true;
+  if (requirement === "any") return media.length > 0;
+  return media.length === 1 && media[0]?.kind === "video";
+}
+
+/**
+ * Why the provider still needs media, or `null` when presence is optional.
+ * Create and schedule use this; MIME and count rules are separate.
+ */
+export function socialPostMediaRequirementMessage(
+  provider: SocialPostProvider,
+): string | null {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return null;
+  const label = socialPostProviderLabel(provider);
+  return requirement === "any"
+    ? `${label} requires at least one image or video`
+    : `${label} requires a video`;
 }
 
 const SOCIAL_POST_IMAGE_MAX_BYTES = 8 * 1024 * 1024;

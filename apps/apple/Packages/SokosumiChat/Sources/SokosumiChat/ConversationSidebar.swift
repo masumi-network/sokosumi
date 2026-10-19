@@ -260,7 +260,13 @@ public final class ConversationSidebar: ObservableObject {
   }
 
   public func canPerform(_ action: Action, roomId: String) -> Bool {
-    guard !isPending(roomId: roomId), let room = rooms.first(where: { $0.id == roomId }) else { return false }
+    guard let room = rooms.first(where: { $0.id == roomId }) else { return false }
+    return Self.canPerform(action, room: room, selectedRoomId: selectedRoomId, isPending: isPending(roomId: roomId))
+  }
+
+  /// The rule alone, so the room menu (`RoomMenu`) enables its entries from the same code.
+  nonisolated static func canPerform(_ action: Action, room: Components.Schemas.ChatRoom, selectedRoomId: String?, isPending: Bool) -> Bool {
+    guard !isPending else { return false }
     switch action {
     case .pin: return room.starredAt == nil && room.mutedAt == nil
     case .unpin: return room.starredAt != nil && room.mutedAt == nil

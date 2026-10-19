@@ -9,7 +9,7 @@ import { z } from "@hono/zod-openapi";
  * their network has a priced node-ready asset; otherwise both actor types may
  * still discover them as explicitly non-payable previews.
  */
-export const x402FixedAgentPaymentSourceSchema = z
+const x402FixedAgentPaymentSourceSchema = z
   .object({
     caip2Network: z.string().openapi({
       example: "eip155:84532",
@@ -51,7 +51,7 @@ export type X402FixedAgentPaymentSource = z.infer<
   typeof x402FixedAgentPaymentSourceSchema
 >;
 
-export const x402DynamicAgentPaymentSourceSchema = z
+const x402DynamicAgentPaymentSourceSchema = z
   .object({
     pricingType: z.literal("dynamic").openapi({ example: "dynamic" }),
     caip2Network: z.string().openapi({

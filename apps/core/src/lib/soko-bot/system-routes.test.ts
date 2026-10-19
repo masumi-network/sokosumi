@@ -7,11 +7,30 @@ import { describe, expect, it } from "vitest";
 
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
 import {
+  inheritedScheduleRoute,
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
 
 describe("system turn routes", () => {
+  it("runs a bot-written follow-up with exactly its writing turn's tools", () => {
+    const route = inheritedScheduleRoute([
+      "create_table",
+      "write_table_rows",
+      "search_inbox",
+      "bash",
+      "not_a_tool",
+    ]);
+    expect(route?.capabilities).toEqual([
+      "create_table",
+      "write_table_rows",
+      "search_inbox",
+      "bash",
+    ]);
+    expect(route?.sandbox).toBe(true);
+    expect(inheritedScheduleRoute([])).toBeUndefined();
+  });
+
   it("gives every built-in rhythm a route", () => {
     for (const rhythm of SOKO_BOT_SYSTEM_SCHEDULES)
       expect(systemScheduleRoute(rhythm.key)).toBeDefined();

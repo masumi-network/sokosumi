@@ -77,6 +77,19 @@
         return sheet.performKeyEquivalent(with: event)
       }
 
+      /// ⌘C once Copy Image takes it. The control is disabled while a copy runs and enables on the
+      /// render after the copy writes the pasteboard, which a loaded runner draws late; a press the
+      /// disabled control refuses does nothing, so it is safe to repeat.
+      private static func copyImage(in sheet: NSWindow) async throws -> Bool {
+        for _ in 0 ..< 250 {
+          if try press("c", keyCode: 8, in: sheet) {
+            return true
+          }
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        return false
+      }
+
       private static func zoomIn(_ sheet: NSWindow) throws -> Bool {
         try press("=", keyCode: 24, in: sheet)
       }
@@ -211,7 +224,7 @@
         let (sheet, _) = try await Self.open(0, of: 1, .portrait, in: fixture)
 
         var change = pasteboard.changeCount
-        #expect(try Self.press("c", keyCode: 8, in: sheet), "⌘C is Copy Image's key.")
+        #expect(try await Self.copyImage(in: sheet), "⌘C is Copy Image's key.")
         for _ in 0 ..< 250 where pasteboard.changeCount == change {
           try await Task.sleep(for: .milliseconds(20))
         }
@@ -223,7 +236,7 @@
         URLProtocol.registerClass(FailingImageProtocol.self)
         defer { URLProtocol.unregisterClass(FailingImageProtocol.self) }
         change = pasteboard.changeCount
-        #expect(try Self.press("c", keyCode: 8, in: sheet))
+        #expect(try await Self.copyImage(in: sheet), "Copy Image enables again once the first copy is done.")
         for _ in 0 ..< 250 where pasteboard.changeCount == change {
           try await Task.sleep(for: .milliseconds(20))
         }

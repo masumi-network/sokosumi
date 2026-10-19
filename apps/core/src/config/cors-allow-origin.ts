@@ -4,7 +4,7 @@ import { getEnv } from "@/config/env";
  * Loopback hosts used by local `pnpm *:dev` (`localhost`) and portless
  * (`web.sokosumi.localhost`, worktree-prefixed `main.web.sokosumi.localhost`).
  */
-export function isLocalDevHostname(hostname: string): boolean {
+function isLocalDevHostname(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return host === "localhost" || host.endsWith(".localhost");
 }

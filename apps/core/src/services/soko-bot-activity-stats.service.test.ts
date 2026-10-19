@@ -63,7 +63,7 @@ beforeEach(() => {
         },
       ];
     }
-    if (where.task?.NOT) {
+    if (where.task?.OR) {
       return [{ taskId: "t1", task: { owner: { name: "Albina" } } }];
     }
     if (where.status === "FAILED") return [{ taskId: "f" }];
@@ -96,10 +96,22 @@ describe("activityStats", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: { ownerId: "andreas" },
+          OR: [{ ownerId: { not: "andreas" } }, { ownerId: null }],
           AND: [expect.anything()],
         }),
       }),
     );
+  });
+
+  it("counts teammates' work without an Owner as a teammate's", async () => {
+    taskFindManyMock.mockResolvedValue([
+      { owner: { name: "Albina" } },
+      { owner: null },
+    ]);
+    const stats = await activityStats(bot, since, until);
+    expect(stats.team).toEqual([
+      { name: "Albina", completed: 1, created: 1 },
+      { name: "A teammate", completed: 0, created: 1 },
+    ]);
   });
 });

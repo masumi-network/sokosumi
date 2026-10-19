@@ -725,13 +725,13 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.findMany({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -753,15 +753,25 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.findMany({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,
+          // A background run reports into the room it was started from, so
+          // the conversation there includes what it found.
           ...(input.roomId
-            ? { chatMention: { message: { roomId: input.roomId } } }
+            ? {
+                OR: [
+                  { chatMention: { message: { roomId: input.roomId } } },
+                  {
+                    parentTurnId: { not: null },
+                    destinationRoomId: input.roomId,
+                  },
+                ],
+              }
             : { chatMentionId: null }),
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -817,13 +827,13 @@ export class ContextPacketBuilder {
       }),
       prisma.sokoBotPendingDecision.count({
         where: {
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
           sokoBotId: input.sokoBotId,
           expiresAt: { gt: new Date() },
           turn: {
-            requestedByUserId:
+            askedByUserId:
               input.askedByUserId && input.askedByUserId !== input.userId
                 ? input.askedByUserId
                 : null,
@@ -836,10 +846,10 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.count({
         where: {
           sokoBotId: input.sokoBotId,
-          userId: input.userId,
+          requestedByUserId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
-          requestedByUserId:
+          askedByUserId:
             input.askedByUserId && input.askedByUserId !== input.userId
               ? input.askedByUserId
               : null,

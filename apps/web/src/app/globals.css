@@ -849,6 +849,14 @@
 }
 
 /*
+ * Week chips must not grow past the day column. FullCalendar's event host
+ * sizes to content; clip here so the thumb stays inside the chip.
+ */
+.workspace-calendar-theme [data-testid="calendar-social-post"] {
+  max-width: 100%;
+}
+
+/*
  * Below md the day grids keep readable 7rem columns and pan sideways inside
  * the wrapper's overflow-x-auto instead of squeezing seven days into a phone
  * width. FullCalendar's own dayMinWidth needs the premium scrollgrid plugin.

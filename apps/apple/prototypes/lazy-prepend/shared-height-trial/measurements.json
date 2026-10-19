@@ -1,0 +1,2370 @@
+{
+  "baseline_commit": "591392e814f4e3ef6006a4252b0d641ba3affb2f",
+  "date": "2026-10-12",
+  "hardware": "Apple M4 Pro",
+  "os": "macOS 27.0.1",
+  "xcode": "27.0 (27A266a)",
+  "configuration": "Release",
+  "signing_team": "GVWN7HXYJB",
+  "measurement": "Actual main-actor display-link callback uptime gaps; maximum in -50 to +700 ms around each prepared older-page publication. Not presented-frame times.",
+  "budget_ms": 33.4,
+  "protocol": {
+    "room_view": "RoomTimelineView, unchanged production rows/Markdown/transport orchestration",
+    "window_points": [
+      1100,
+      800
+    ],
+    "initial_messages": 100,
+    "page_messages": 100,
+    "pages_per_run": 5,
+    "total_messages": 600,
+    "fixture_latency_ms": 150,
+    "run_order": [
+      "before-1",
+      "after-1",
+      "after-2",
+      "before-2",
+      "before-3",
+      "after-3"
+    ],
+    "gesture": "Native legacy scrollbar drag to top, wait 450 ms, request older page through WorkspaceState, poll loaded count, settle 950 ms. Same sequence in both variants.",
+    "startup_settle_seconds": 3,
+    "page_window_ms": [
+      -50,
+      700
+    ],
+    "parallel_builds_or_tests": false
+  },
+  "production_source_sha256": {
+    "Sokosumi/Chat/Rendering/ExpandableMessageBody.swift": "8d4aaeb3289b81677b3893301e16165aa6627b118547ccfd72fda4538fd68607",
+    "Sokosumi/Chat/Rendering/SharedMessageClampMeasurements.swift": "e979a09b0fb8c5850da8743005a3b955458583273f48a16f2614444ae9c47c33",
+    "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "83d0c0109368ec314b2c2cb4cc1696b1d0400b75387f5ae86d5a2ffa5aac2bea",
+    "Sokosumi/Chat/Threads/ReplyThreadView.swift": "06969b18c64a0aca1b21e5d1ebd6e360a53a5606685d2ba3523f7367ac1191d8"
+  },
+  "runs": [
+    {
+      "cycle": 1,
+      "variant": "before",
+      "result": {
+        "begin_frames_ms": [
+          34,
+          33,
+          38,
+          34,
+          38
+        ],
+        "begins_at_ms": [
+          587,
+          2284,
+          4034,
+          5757,
+          7536
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.23791100003291,
+        "fallback_measurements": 77,
+        "flicks_ms": [],
+        "frames": 502,
+        "frames_over_25ms": 35,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 20,
+        "inserts": [
+          {
+            "at_ms": 750,
+            "max_gap_ms": 47,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 777,
+                "grew": 7,
+                "jump": 0,
+                "ms": 36
+              },
+              {
+                "at_ms": 824,
+                "grew": 5,
+                "jump": 0,
+                "ms": 47
+              },
+              {
+                "at_ms": 859,
+                "grew": 12786,
+                "jump": 12647,
+                "ms": 35
+              },
+              {
+                "at_ms": 1041,
+                "grew": 542,
+                "jump": 66,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 15,
+            "prepared_at_ms": 770
+          },
+          {
+            "at_ms": 2450,
+            "max_gap_ms": 90,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2518,
+                "grew": 10,
+                "jump": 0,
+                "ms": 60
+              },
+              {
+                "at_ms": 2608,
+                "grew": 12326,
+                "jump": 13065,
+                "ms": 90
+              },
+              {
+                "at_ms": 2674,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 2778,
+                "grew": 873,
+                "jump": 103,
+                "ms": 37
+              },
+              {
+                "at_ms": 2808,
+                "grew": 0,
+                "jump": 0,
+                "ms": 29
+              }
+            ],
+            "prepare_ms": 31,
+            "prepared_at_ms": 2489
+          },
+          {
+            "at_ms": 4201,
+            "max_gap_ms": 44,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4231,
+                "grew": -92,
+                "jump": 0,
+                "ms": 39
+              },
+              {
+                "at_ms": 4274,
+                "grew": -89,
+                "jump": 0,
+                "ms": 44
+              },
+              {
+                "at_ms": 4303,
+                "grew": 13485,
+                "jump": 13199,
+                "ms": 28
+              },
+              {
+                "at_ms": 4391,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 4222
+          },
+          {
+            "at_ms": 5927,
+            "max_gap_ms": 44,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 5941,
+                "grew": 52,
+                "jump": 0,
+                "ms": 34
+              },
+              {
+                "at_ms": 5980,
+                "grew": 0,
+                "jump": 0,
+                "ms": 39
+              },
+              {
+                "at_ms": 6024,
+                "grew": 13754,
+                "jump": 13271,
+                "ms": 44
+              },
+              {
+                "at_ms": 6191,
+                "grew": 243,
+                "jump": 173,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 5949
+          },
+          {
+            "at_ms": 7699,
+            "max_gap_ms": 62,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7732,
+                "grew": 33,
+                "jump": 0,
+                "ms": 41
+              },
+              {
+                "at_ms": 7794,
+                "grew": 13798,
+                "jump": 13328,
+                "ms": 62
+              },
+              {
+                "at_ms": 7974,
+                "grew": 126,
+                "jump": 179,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 7723
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 859,
+            "grew": 12786,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12647,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 35,
+            "shifted": 12647
+          },
+          {
+            "at_ms": 1041,
+            "grew": 542,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2608,
+            "grew": 12326,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 90,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2778,
+            "grew": 873,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 37,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4303,
+            "grew": 13485,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 28,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4447,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              78,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 23,
+            "shifted": 78
+          },
+          {
+            "at_ms": 6024,
+            "grew": 13754,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 44,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7794,
+            "grew": 13798,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 62,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 93.60641665989533,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.667958348989487,
+        "p95_ms": 33.330041682347655,
+        "publication_windows": [
+          {
+            "at_ms": 781,
+            "max_gap_ms": 47,
+            "messages": 200
+          },
+          {
+            "at_ms": 2518,
+            "max_gap_ms": 90,
+            "messages": 300
+          },
+          {
+            "at_ms": 4235,
+            "max_gap_ms": 44,
+            "messages": 400
+          },
+          {
+            "at_ms": 5957,
+            "max_gap_ms": 44,
+            "messages": 500
+          },
+          {
+            "at_ms": 7735,
+            "max_gap_ms": 62,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 376,
+        "shared_measurements": 0,
+        "start_uptime": 505569.93571375,
+        "time_over_budget_ms": 846
+      }
+    },
+    {
+      "cycle": 1,
+      "variant": "after",
+      "result": {
+        "begin_frames_ms": [
+          33,
+          33,
+          36,
+          17,
+          39
+        ],
+        "begins_at_ms": [
+          587,
+          2305,
+          4079,
+          5826,
+          7612
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.311929083312862,
+        "fallback_measurements": 0,
+        "flicks_ms": [],
+        "frames": 523,
+        "frames_over_25ms": 23,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 13,
+        "inserts": [
+          {
+            "at_ms": 754,
+            "max_gap_ms": 85,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 855,
+                "grew": 12790,
+                "jump": 12646,
+                "ms": 85
+              },
+              {
+                "at_ms": 1036,
+                "grew": 543,
+                "jump": 66,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 774
+          },
+          {
+            "at_ms": 2476,
+            "max_gap_ms": 66,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2536,
+                "grew": 5,
+                "jump": 0,
+                "ms": 66
+              },
+              {
+                "at_ms": 2565,
+                "grew": 12331,
+                "jump": 13065,
+                "ms": 29
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 2496
+          },
+          {
+            "at_ms": 4243,
+            "max_gap_ms": 55,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4308,
+                "grew": -180,
+                "jump": 0,
+                "ms": 55
+              },
+              {
+                "at_ms": 4420,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 4520,
+                "grew": 1067,
+                "jump": 79,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 4265
+          },
+          {
+            "at_ms": 6003,
+            "max_gap_ms": 43,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 6021,
+                "grew": 53,
+                "jump": 0,
+                "ms": 34
+              },
+              {
+                "at_ms": 6063,
+                "grew": 51,
+                "jump": 0,
+                "ms": 43
+              },
+              {
+                "at_ms": 6103,
+                "grew": 13703,
+                "jump": 13271,
+                "ms": 40
+              },
+              {
+                "at_ms": 6270,
+                "grew": 242,
+                "jump": 173,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 15,
+            "prepared_at_ms": 6030
+          },
+          {
+            "at_ms": 7781,
+            "max_gap_ms": 67,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7803,
+                "grew": 33,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 7870,
+                "grew": 13798,
+                "jump": 13328,
+                "ms": 67
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 7806
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 855,
+            "grew": 12790,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12646,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 85,
+            "shifted": 12646
+          },
+          {
+            "at_ms": 1036,
+            "grew": 543,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2565,
+            "grew": 12331,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 29,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2753,
+            "grew": 872,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 17,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4333,
+            "grew": 13484,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 25,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4520,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              79,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 79
+          },
+          {
+            "at_ms": 6103,
+            "grew": 13703,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 40,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7870,
+            "grew": 13798,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 67,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 85.13504167785868,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.66758331703022,
+        "p95_ms": 20.542750018648803,
+        "publication_windows": [
+          {
+            "at_ms": 785,
+            "max_gap_ms": 85,
+            "messages": 200
+          },
+          {
+            "at_ms": 2503,
+            "max_gap_ms": 66,
+            "messages": 300
+          },
+          {
+            "at_ms": 4277,
+            "max_gap_ms": 55,
+            "messages": 400
+          },
+          {
+            "at_ms": 6041,
+            "max_gap_ms": 43,
+            "messages": 500
+          },
+          {
+            "at_ms": 7818,
+            "max_gap_ms": 67,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 380,
+        "shared_measurements": 2,
+        "start_uptime": 505585.1237730834,
+        "time_over_budget_ms": 570
+      }
+    },
+    {
+      "cycle": 2,
+      "variant": "after",
+      "result": {
+        "begin_frames_ms": [
+          33,
+          33,
+          50,
+          33,
+          35
+        ],
+        "begins_at_ms": [
+          563,
+          2336,
+          4040,
+          5822,
+          7592
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.237822416704148,
+        "fallback_measurements": 0,
+        "flicks_ms": [],
+        "frames": 514,
+        "frames_over_25ms": 29,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 18,
+        "inserts": [
+          {
+            "at_ms": 734,
+            "max_gap_ms": 53,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 799,
+                "grew": 5,
+                "jump": 0,
+                "ms": 53
+              },
+              {
+                "at_ms": 828,
+                "grew": 12785,
+                "jump": 12646,
+                "ms": 29
+              },
+              {
+                "at_ms": 1011,
+                "grew": 543,
+                "jump": 66,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 756
+          },
+          {
+            "at_ms": 2503,
+            "max_gap_ms": 55,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2566,
+                "grew": 10,
+                "jump": 0,
+                "ms": 55
+              },
+              {
+                "at_ms": 2594,
+                "grew": 12326,
+                "jump": 13065,
+                "ms": 29
+              },
+              {
+                "at_ms": 2678,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 2761,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 2523
+          },
+          {
+            "at_ms": 4211,
+            "max_gap_ms": 55,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4228,
+                "grew": -91,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 4282,
+                "grew": -89,
+                "jump": 0,
+                "ms": 55
+              },
+              {
+                "at_ms": 4394,
+                "grew": 0,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 4494,
+                "grew": 1067,
+                "jump": 79,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 17,
+            "prepared_at_ms": 4238
+          },
+          {
+            "at_ms": 5998,
+            "max_gap_ms": 48,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 6059,
+                "grew": 104,
+                "jump": 0,
+                "ms": 48
+              },
+              {
+                "at_ms": 6094,
+                "grew": 13703,
+                "jump": 13271,
+                "ms": 36
+              },
+              {
+                "at_ms": 6278,
+                "grew": 242,
+                "jump": 173,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 6023
+          },
+          {
+            "at_ms": 7763,
+            "max_gap_ms": 44,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7778,
+                "grew": 33,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 7817,
+                "grew": 0,
+                "jump": 0,
+                "ms": 40
+              },
+              {
+                "at_ms": 7861,
+                "grew": 13798,
+                "jump": 13328,
+                "ms": 44
+              },
+              {
+                "at_ms": 8028,
+                "grew": 125,
+                "jump": 179,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 12,
+            "prepared_at_ms": 7784
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 828,
+            "grew": 12785,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12646,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 29,
+            "shifted": 12646
+          },
+          {
+            "at_ms": 1011,
+            "grew": 543,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2594,
+            "grew": 12326,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 29,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2778,
+            "grew": 872,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 17,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4307,
+            "grew": 13484,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 25,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4494,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              79,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 79
+          },
+          {
+            "at_ms": 6094,
+            "grew": 13703,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 36,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7861,
+            "grew": 13798,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 44,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 79.79195832740515,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.666874988004565,
+        "p95_ms": 29.05045833904296,
+        "publication_windows": [
+          {
+            "at_ms": 765,
+            "max_gap_ms": 53,
+            "messages": 200
+          },
+          {
+            "at_ms": 2534,
+            "max_gap_ms": 55,
+            "messages": 300
+          },
+          {
+            "at_ms": 4251,
+            "max_gap_ms": 55,
+            "messages": 400
+          },
+          {
+            "at_ms": 6036,
+            "max_gap_ms": 48,
+            "messages": 500
+          },
+          {
+            "at_ms": 7793,
+            "max_gap_ms": 44,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 373,
+        "shared_measurements": 2,
+        "start_uptime": 505599.14918125,
+        "time_over_budget_ms": 620
+      }
+    },
+    {
+      "cycle": 2,
+      "variant": "before",
+      "result": {
+        "begin_frames_ms": [
+          33,
+          32,
+          33,
+          33,
+          33
+        ],
+        "begins_at_ms": [
+          577,
+          2328,
+          4091,
+          5778,
+          7545
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.2440047916607,
+        "fallback_measurements": 77,
+        "flicks_ms": [],
+        "frames": 515,
+        "frames_over_25ms": 28,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 17,
+        "inserts": [
+          {
+            "at_ms": 745,
+            "max_gap_ms": 66,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 769,
+                "grew": 7,
+                "jump": 0,
+                "ms": 34
+              },
+              {
+                "at_ms": 835,
+                "grew": 12790,
+                "jump": 12646,
+                "ms": 66
+              },
+              {
+                "at_ms": 1018,
+                "grew": 543,
+                "jump": 66,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 12,
+            "prepared_at_ms": 764
+          },
+          {
+            "at_ms": 2505,
+            "max_gap_ms": 40,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2542,
+                "grew": 5,
+                "jump": 0,
+                "ms": 40
+              },
+              {
+                "at_ms": 2583,
+                "grew": 5,
+                "jump": 0,
+                "ms": 40
+              },
+              {
+                "at_ms": 2618,
+                "grew": 12326,
+                "jump": 13065,
+                "ms": 36
+              },
+              {
+                "at_ms": 2802,
+                "grew": 872,
+                "jump": 103,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 17,
+            "prepared_at_ms": 2533
+          },
+          {
+            "at_ms": 4257,
+            "max_gap_ms": 38,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4290,
+                "grew": -91,
+                "jump": 0,
+                "ms": 38
+              },
+              {
+                "at_ms": 4326,
+                "grew": -89,
+                "jump": 0,
+                "ms": 37
+              },
+              {
+                "at_ms": 4352,
+                "grew": 13484,
+                "jump": 13199,
+                "ms": 25
+              },
+              {
+                "at_ms": 4535,
+                "grew": 1067,
+                "jump": 79,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 15,
+            "prepared_at_ms": 4281
+          },
+          {
+            "at_ms": 5946,
+            "max_gap_ms": 83,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 5968,
+                "grew": 53,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 6052,
+                "grew": 13754,
+                "jump": 13271,
+                "ms": 83
+              },
+              {
+                "at_ms": 6218,
+                "grew": 242,
+                "jump": 173,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 5971
+          },
+          {
+            "at_ms": 7714,
+            "max_gap_ms": 83,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7735,
+                "grew": 33,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 7818,
+                "grew": 13798,
+                "jump": 13328,
+                "ms": 83
+              },
+              {
+                "at_ms": 7985,
+                "grew": 125,
+                "jump": 179,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 12,
+            "prepared_at_ms": 7736
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 835,
+            "grew": 12790,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12646,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 66,
+            "shifted": 12646
+          },
+          {
+            "at_ms": 1018,
+            "grew": 543,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2618,
+            "grew": 12326,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 36,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2802,
+            "grew": 872,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4352,
+            "grew": 13484,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 25,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4535,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              79,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 79
+          },
+          {
+            "at_ms": 6052,
+            "grew": 13754,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 83,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7818,
+            "grew": 13798,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 83,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 83.34837498841807,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.66704163653776,
+        "p95_ms": 28.52241665823385,
+        "publication_windows": [
+          {
+            "at_ms": 773,
+            "max_gap_ms": 66,
+            "messages": 200
+          },
+          {
+            "at_ms": 2546,
+            "max_gap_ms": 40,
+            "messages": 300
+          },
+          {
+            "at_ms": 4294,
+            "max_gap_ms": 38,
+            "messages": 400
+          },
+          {
+            "at_ms": 5983,
+            "max_gap_ms": 83,
+            "messages": 500
+          },
+          {
+            "at_ms": 7747,
+            "max_gap_ms": 83,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 371,
+        "shared_measurements": 0,
+        "start_uptime": 505613.12503545836,
+        "time_over_budget_ms": 628
+      }
+    },
+    {
+      "cycle": 3,
+      "variant": "before",
+      "result": {
+        "begin_frames_ms": [
+          33,
+          33,
+          52,
+          35,
+          33
+        ],
+        "begins_at_ms": [
+          564,
+          2329,
+          4046,
+          5797,
+          7576
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.257946750032715,
+        "fallback_measurements": 77,
+        "flicks_ms": [],
+        "frames": 520,
+        "frames_over_25ms": 25,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 14,
+        "inserts": [
+          {
+            "at_ms": 744,
+            "max_gap_ms": 68,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 769,
+                "grew": 7,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 838,
+                "grew": 12790,
+                "jump": 12646,
+                "ms": 68
+              },
+              {
+                "at_ms": 1019,
+                "grew": 543,
+                "jump": 66,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 16,
+            "prepared_at_ms": 770
+          },
+          {
+            "at_ms": 2494,
+            "max_gap_ms": 57,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2560,
+                "grew": 10,
+                "jump": 0,
+                "ms": 57
+              },
+              {
+                "at_ms": 2603,
+                "grew": 12326,
+                "jump": 13065,
+                "ms": 43
+              },
+              {
+                "at_ms": 2771,
+                "grew": 872,
+                "jump": 103,
+                "ms": 35
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 2514
+          },
+          {
+            "at_ms": 4231,
+            "max_gap_ms": 70,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4253,
+                "grew": -91,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 4322,
+                "grew": 13395,
+                "jump": 13199,
+                "ms": 70
+              },
+              {
+                "at_ms": 4503,
+                "grew": 1067,
+                "jump": 79,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 16,
+            "prepared_at_ms": 4258
+          },
+          {
+            "at_ms": 5963,
+            "max_gap_ms": 40,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 5993,
+                "grew": 53,
+                "jump": 0,
+                "ms": 40
+              },
+              {
+                "at_ms": 6019,
+                "grew": 51,
+                "jump": 0,
+                "ms": 27
+              },
+              {
+                "at_ms": 6053,
+                "grew": 13703,
+                "jump": 13271,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 5985
+          },
+          {
+            "at_ms": 7742,
+            "max_gap_ms": 49,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7802,
+                "grew": 65,
+                "jump": 0,
+                "ms": 49
+              },
+              {
+                "at_ms": 7836,
+                "grew": 13766,
+                "jump": 13328,
+                "ms": 34
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 7764
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 838,
+            "grew": 12790,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12646,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 68,
+            "shifted": 12646
+          },
+          {
+            "at_ms": 1019,
+            "grew": 543,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2603,
+            "grew": 12326,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 43,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2771,
+            "grew": 872,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 35,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4322,
+            "grew": 13395,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 70,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4503,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              79,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 79
+          },
+          {
+            "at_ms": 6053,
+            "grew": 13703,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 33,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7836,
+            "grew": 13766,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 34,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 69.54283331288025,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.666958341374993,
+        "p95_ms": 21.314958343282342,
+        "publication_windows": [
+          {
+            "at_ms": 780,
+            "max_gap_ms": 68,
+            "messages": 200
+          },
+          {
+            "at_ms": 2525,
+            "max_gap_ms": 57,
+            "messages": 300
+          },
+          {
+            "at_ms": 4270,
+            "max_gap_ms": 70,
+            "messages": 400
+          },
+          {
+            "at_ms": 5996,
+            "max_gap_ms": 40,
+            "messages": 500
+          },
+          {
+            "at_ms": 7776,
+            "max_gap_ms": 49,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 371,
+        "shared_measurements": 0,
+        "start_uptime": 505627.0406429167,
+        "time_over_budget_ms": 573
+      }
+    },
+    {
+      "cycle": 3,
+      "variant": "after",
+      "result": {
+        "begin_frames_ms": [
+          33,
+          33,
+          17,
+          33,
+          37
+        ],
+        "begins_at_ms": [
+          591,
+          2347,
+          4121,
+          5877,
+          7642
+        ],
+        "count": 600,
+        "document_flipped": true,
+        "elapsed_s": 9.336072499980219,
+        "fallback_measurements": 0,
+        "flicks_ms": [],
+        "frames": 519,
+        "frames_over_25ms": 28,
+        "input_fingerprint_sha256": "ba07b410afdff1bba2c5a2e4a94c77ad30fa573bc9380a66c89dfd7bc67c98ef",
+        "insert_over_25ms": 14,
+        "inserts": [
+          {
+            "at_ms": 768,
+            "max_gap_ms": 49,
+            "messages": 200,
+            "over_25": [
+              {
+                "at_ms": 787,
+                "grew": 7,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 837,
+                "grew": 0,
+                "jump": 0,
+                "ms": 49
+              },
+              {
+                "at_ms": 863,
+                "grew": 12790,
+                "jump": 12646,
+                "ms": 26
+              }
+            ],
+            "prepare_ms": 18,
+            "prepared_at_ms": 796
+          },
+          {
+            "at_ms": 2515,
+            "max_gap_ms": 100,
+            "messages": 300,
+            "over_25": [
+              {
+                "at_ms": 2537,
+                "grew": 5,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 2637,
+                "grew": 12331,
+                "jump": 13065,
+                "ms": 100
+              },
+              {
+                "at_ms": 2821,
+                "grew": 872,
+                "jump": 103,
+                "ms": 50
+              }
+            ],
+            "prepare_ms": 14,
+            "prepared_at_ms": 2539
+          },
+          {
+            "at_ms": 4295,
+            "max_gap_ms": 54,
+            "messages": 400,
+            "over_25": [
+              {
+                "at_ms": 4328,
+                "grew": -91,
+                "jump": 0,
+                "ms": 40
+              },
+              {
+                "at_ms": 4381,
+                "grew": 13395,
+                "jump": 13199,
+                "ms": 54
+              }
+            ],
+            "prepare_ms": 15,
+            "prepared_at_ms": 4319
+          },
+          {
+            "at_ms": 6049,
+            "max_gap_ms": 67,
+            "messages": 500,
+            "over_25": [
+              {
+                "at_ms": 6071,
+                "grew": 53,
+                "jump": 0,
+                "ms": 33
+              },
+              {
+                "at_ms": 6137,
+                "grew": 13754,
+                "jump": 13271,
+                "ms": 67
+              },
+              {
+                "at_ms": 6321,
+                "grew": 242,
+                "jump": 173,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 15,
+            "prepared_at_ms": 6075
+          },
+          {
+            "at_ms": 7808,
+            "max_gap_ms": 51,
+            "messages": 600,
+            "over_25": [
+              {
+                "at_ms": 7872,
+                "grew": 65,
+                "jump": 0,
+                "ms": 51
+              },
+              {
+                "at_ms": 7921,
+                "grew": 13766,
+                "jump": 13328,
+                "ms": 49
+              },
+              {
+                "at_ms": 8087,
+                "grew": 125,
+                "jump": 179,
+                "ms": 33
+              }
+            ],
+            "prepare_ms": 13,
+            "prepared_at_ms": 7832
+          }
+        ],
+        "landings": [
+          {
+            "at_ms": 863,
+            "grew": 12790,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              12646,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 26,
+            "shifted": 12646
+          },
+          {
+            "at_ms": 1037,
+            "grew": 543,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              66,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 17,
+            "shifted": 66
+          },
+          {
+            "at_ms": 2637,
+            "grew": 12331,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13065,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 100,
+            "shifted": 13065
+          },
+          {
+            "at_ms": 2821,
+            "grew": 872,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              103,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 50,
+            "shifted": 103
+          },
+          {
+            "at_ms": 4381,
+            "grew": 13395,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13199,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 54,
+            "shifted": 13199
+          },
+          {
+            "at_ms": 4571,
+            "grew": 1067,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              79,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 17,
+            "shifted": 79
+          },
+          {
+            "at_ms": 6137,
+            "grew": 13754,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13271,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 67,
+            "shifted": 13271
+          },
+          {
+            "at_ms": 7921,
+            "grew": 13766,
+            "kept": false,
+            "moved_pt_around": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              13328,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "moving": false,
+            "ms": 49,
+            "shifted": 13328
+          }
+        ],
+        "max_ms": 100.02412501489744,
+        "messages_end": 600,
+        "moving_over_25ms": 0,
+        "moving_over_budget_ms": 0,
+        "p50_ms": 16.666958341374993,
+        "p95_ms": 26.61229169461876,
+        "publication_windows": [
+          {
+            "at_ms": 803,
+            "max_gap_ms": 49,
+            "messages": 200
+          },
+          {
+            "at_ms": 2552,
+            "max_gap_ms": 100,
+            "messages": 300
+          },
+          {
+            "at_ms": 4331,
+            "max_gap_ms": 54,
+            "messages": 400
+          },
+          {
+            "at_ms": 6086,
+            "max_gap_ms": 67,
+            "messages": 500
+          },
+          {
+            "at_ms": 7845,
+            "max_gap_ms": 51,
+            "messages": 600
+          }
+        ],
+        "requests": 6,
+        "row_bodies": 373,
+        "shared_measurements": 2,
+        "start_uptime": 505641.0727516667,
+        "time_over_budget_ms": 654
+      }
+    }
+  ],
+  "verification": {
+    "before-focused": {
+      "result": "Passed",
+      "passedTests": 43,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "runtimeWarnings": [],
+      "passedCaseExecutions": 50
+    },
+    "after-focused": {
+      "result": "Passed",
+      "passedTests": 45,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "runtimeWarnings": [],
+      "passedCaseExecutions": 53
+    },
+    "after-core": {
+      "result": "Passed",
+      "passedTests": 1618,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "runtimeWarnings": [],
+      "passedCaseExecutions": 2227
+    }
+  },
+  "verification_artifact_note": "Recorded summaries are persisted here. Full xcresult bundles remain local and are not required to replay the archived tests.",
+  "paging_harness_source_sha256": {
+    "before": {
+      "Sokosumi/App/SokosumiApp.swift": "d9ea677f6936ae60764f91784ca0365aa7d0960e860ff7845a15cef149c61aa0",
+      "Sokosumi/App/ScrollMediaProtocol.swift": "72de7625764e6ac95ce6e0712e6305948a8d6462b847e1daa483dd2aed0ba5dd",
+      "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "ec7bc24e3ac946db418ff2c7dc6cb0ba2869d86c970c201e945e952ae955f97f",
+      "Sokosumi/Chat/Timeline/MessageRowView.swift": "8ba4a975bbfe457fc780db9c33ebdb31788b041e5d21629df8a1e8a1447e6a5a",
+      "Sokosumi/Chat/Rendering/ExpandableMessageBody.swift": "b3a8f2f03c3338ec19623645827cb180fa19744d84a514713ee7c7c615b2f6ca"
+    },
+    "after": {
+      "Sokosumi/App/SokosumiApp.swift": "d9ea677f6936ae60764f91784ca0365aa7d0960e860ff7845a15cef149c61aa0",
+      "Sokosumi/App/ScrollMediaProtocol.swift": "72de7625764e6ac95ce6e0712e6305948a8d6462b847e1daa483dd2aed0ba5dd",
+      "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "eadd74ae075a1b8facdd890618bf65e0fb126833250e23533e8a11b1f659c210",
+      "Sokosumi/Chat/Timeline/MessageRowView.swift": "8ba4a975bbfe457fc780db9c33ebdb31788b041e5d21629df8a1e8a1447e6a5a",
+      "Sokosumi/Chat/Rendering/ExpandableMessageBody.swift": "c6dd32efa3a20c959ea773cc448c38e6581fdd436c12c7cabb9dbc851ff6ae1f",
+      "Sokosumi/Chat/Rendering/SharedMessageClampMeasurements.swift": "4cbf838a4eaa1b801c39bf5893c5d3e97cb6482fea603e24fcf1d94e3940cbd4"
+    }
+  }
+}

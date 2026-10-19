@@ -37,8 +37,9 @@ function isRequirementIssue(
 }
 
 /**
- * Composer-side view of the provider's rules; the server enforces the same
- * rules authoritatively on create, update, and schedule.
+ * Composer-side view of the provider's publish rules. The server enforces
+ * the same rules on schedule and publish. Drafts skip the media-presence
+ * check — see {@link socialPostComposerDraftIssue}.
  */
 export function socialPostComposerIssue(
   provider: SocialPostProvider,
@@ -62,6 +63,25 @@ export function socialPostComposerIssue(
   }
   const validation = validateSocialPostMedia(provider, media);
   return validation.ok ? null : validation.reason;
+}
+
+/**
+ * Instagram, TikTok, and YouTube drafts may omit media. Attached files
+ * still have to be a type the network accepts, and a draft still needs
+ * text or a file.
+ */
+export function socialPostComposerDraftIssue(
+  provider: SocialPostProvider,
+  text: string,
+  media: readonly SocialPostMediaRef[],
+): SocialPostComposerIssue | null {
+  const issue = socialPostComposerIssue(provider, text, media);
+  if (issue !== "media_required" && issue !== "video_required") {
+    return issue;
+  }
+  const validation = validateSocialPostMedia(provider, media);
+  if (!validation.ok) return validation.reason;
+  return text.trim().length > 0 || media.length > 0 ? null : issue;
 }
 
 /**

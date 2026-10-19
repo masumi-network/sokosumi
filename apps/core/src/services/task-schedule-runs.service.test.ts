@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import {
   COWORKER_ID,
   MEMBER_ID,
@@ -168,6 +169,46 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(task?.events[0]).toMatchObject({
       userId: null,
       coworkerId: COWORKER_ID,
+    });
+  });
+
+  describe("live update for the released Task", () => {
+    beforeEach(() => {
+      vi.mocked(publishTaskEventData).mockClear();
+    });
+
+    it("reaches the schedule's Owner", async () => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: MONDAY_9,
+        ownerId: MEMBER_ID,
+        creatorUserId: null,
+        creatorCoworkerId: COWORKER_ID,
+      });
+      seedRun(schedule, MONDAY_9);
+
+      await release();
+
+      expect(publishTaskEventData).toHaveBeenCalledWith({
+        userId: MEMBER_ID,
+        taskId: taskScheduleTestDb.tasks[0]?.id,
+        eventType: "task_event",
+      });
+    });
+
+    it("reaches nobody for a schedule without an Owner", async () => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: MONDAY_9,
+        ownerId: null,
+        creatorUserId: null,
+        creatorSokoBotId: SOKO_BOT_ID,
+      });
+      seedRun(schedule, MONDAY_9);
+
+      await release();
+
+      expect(taskScheduleTestDb.tasks).toHaveLength(1);
+      expect(taskScheduleTestDb.tasks[0]?.ownerId).toBeNull();
+      expect(publishTaskEventData).not.toHaveBeenCalled();
     });
   });
 
@@ -616,6 +657,30 @@ describe("taskScheduleReleaseService.releaseDueRunAts", () => {
     ]);
     expect(taskScheduleTestDb.runs).toHaveLength(0);
   });
+
+  it.each([
+    ["its Owner", MEMBER_ID],
+    ["nobody when it has no Owner", null],
+  ])(
+    "writes the Ready event of a public Task in the name of %s",
+    async (_who, ownerId) => {
+      seedTask({
+        status: TaskStatus.QUEUED,
+        runAt: MONDAY_9,
+        ownerId,
+        creatorUserId: null,
+      });
+
+      await releaseRunAts();
+
+      expect(taskScheduleTestDb.tasks[0]?.events).toEqual([
+        expect.objectContaining({
+          status: TaskStatus.READY,
+          userId: ownerId,
+        }),
+      ]);
+    },
+  );
 
   it("leaves a Task whose Run at is still ahead in Queued", async () => {
     seedTask({ status: TaskStatus.QUEUED, runAt: NEXT_MONDAY_9 });

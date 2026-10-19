@@ -3,9 +3,9 @@ import Foundation
 /// Web's image-viewer zoom (`image-viewer.tsx` `MIN_ZOOM`, `MAX_ZOOM`, `ZOOM_STEP`): 25 % to 400 %
 /// in 25 % steps from 100 %; reset returns to 100 %. The viewer keeps one per shown image.
 public struct ImageViewerZoom: Equatable, Sendable {
-  public static let minimum = 0.25
-  public static let maximum = 4.0
-  public static let step = 0.25
+  private static let minimum = 0.25
+  private static let maximum = 4.0
+  private static let step = 0.25
 
   public private(set) var scale: Double
 

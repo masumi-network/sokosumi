@@ -93,10 +93,14 @@ describe("Social post statistics", () => {
     expect(mocks.updateMany.mock.calls[0][0].data.statistics).toMatchObject({
       metrics,
       error: null,
+      fetchedAt: expect.any(String),
     });
+    expect(
+      Date.parse(mocks.updateMany.mock.calls[0][0].data.statistics.fetchedAt),
+    ).not.toBeNaN();
     expect(mocks.fetchMetrics).toHaveBeenCalledWith(
       expect.objectContaining({
-        executorUserId: "connector",
+        executorUserId: "sokosumi:project-executor:project",
         externalId: "external",
         connectedAccountId: "connected",
       }),

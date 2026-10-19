@@ -935,10 +935,28 @@ export async function fetchInboxMessages(
     limit: number;
   },
 ): Promise<SokoBotInboxMessage[]> {
+  return (await fetchInboxPage(integration, options)).messages;
+}
+
+/** One page of mail; Gmail hands back a token for the next page. */
+export async function fetchInboxPage(
+  integration: ActiveIntegration,
+  options: {
+    since?: Date;
+    query?: string;
+    unreadOnly?: boolean;
+    limit: number;
+    pageToken?: string;
+  },
+): Promise<{
+  messages: SokoBotInboxMessage[];
+  nextPageToken: string | null;
+}> {
   const slug = integration.provider.tools.listMessages;
-  if (!slug) return [];
+  if (!slug) return { messages: [], nextPageToken: null };
+  const gmail = integration.provider.id === "gmail";
   const args: Record<string, unknown> = { max_results: options.limit };
-  if (integration.provider.id === "gmail") {
+  if (gmail) {
     const parts = [options.query ?? ""];
     if (options.since)
       parts.push(`after:${Math.floor(options.since.getTime() / 1000)}`);
@@ -946,6 +964,7 @@ export async function fetchInboxMessages(
     args.query = parts.filter(Boolean).join(" ");
     args.include_payload = false;
     args.verbose = false;
+    if (options.pageToken) args.page_token = options.pageToken;
   } else if (options.query) {
     // Graph refuses $search next to $filter or $orderby, and wants it quoted;
     // results come newest first, and since/unread are applied below.
@@ -962,8 +981,8 @@ export async function fetchInboxMessages(
   }
   const data = await execute(integration, slug, args);
   const items = asList(pick(data, "messages", "value", "items", "data"));
-  const searched = integration.provider.id !== "gmail" && !!options.query;
-  return items
+  const searched = !gmail && !!options.query;
+  const messages = items
     .map((item) => normaliseMessage(integration.provider.id, item))
     .filter(
       (message) =>
@@ -973,6 +992,10 @@ export async function fetchInboxMessages(
             message.receivedAt >= options.since.toISOString()) &&
             (!options.unreadOnly || message.unread))),
     );
+  const nextPageToken = gmail
+    ? str(pick(data, "nextPageToken", "next_page_token")) || null
+    : null;
+  return { messages, nextPageToken };
 }
 
 export async function fetchInboxMessage(
