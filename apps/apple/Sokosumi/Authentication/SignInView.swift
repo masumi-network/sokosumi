@@ -93,6 +93,7 @@ private struct SignInColumn: View {
           .multilineTextAlignment(.center)
         #if DEBUG
           ServerChoiceSection()
+            .multilineTextAlignment(.leading)
         #endif
       case .signingIn:
         HStack(spacing: 8) {
