@@ -61,7 +61,7 @@ const MESSAGES: Record<string, string> = {
   unknownHandle: "Unknown account",
   "replaceDialog.title": "Replace {account}?",
   "replaceDialog.description":
-    "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+    "Drafts and scheduled posts move to the new account.",
   "replaceDialog.confirm": "Replace account",
   "disconnectDialog.title": "Disconnect {account}?",
   "disconnectDialog.description":
@@ -72,15 +72,14 @@ const MESSAGES: Record<string, string> = {
   "success.disconnected": "{account} disconnected.",
   "success.syncStarted": "Sync started.",
   "warning.providerRevocationFailed":
-    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
   "errors.notConfigured":
     "This integration is not configured yet. Contact support to enable it.",
   "errors.inFlight": "Another account action is already in progress.",
   "errors.popupBlocked":
     "Your browser blocked the authorization window. Allow popups and try again.",
   "errors.timeout": "Authorization took too long. Try again.",
-  "errors.providerCallback":
-    "Authorization did not complete. Return to the Project’s Social page and try again.",
+  "errors.providerCallback": "Authorization did not complete. Try again.",
   "errors.legacyCallback":
     "This callback cannot verify your account. Contact support and try again.",
   "errors.verifier":
@@ -93,7 +92,7 @@ const MESSAGES: Record<string, string> = {
     "Reconnect the same account that is already linked to this project.",
   "errors.finalize": "We could not finish connecting this account. Try again.",
   "errors.facebookPage":
-    "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+    "Facebook needs an account that manages exactly one Page.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
   "errors.sync": "Couldn't start sync.",
 };
@@ -1089,7 +1088,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Authorization did not complete. Return to the Project’s Social page and try again.",
+        "Authorization did not complete. Try again.",
       );
     });
     expect(toastErrorMock).not.toHaveBeenCalledWith("provider-secret-detail");
@@ -1152,7 +1151,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+        "Facebook needs an account that manages exactly one Page.",
       );
     });
   });
@@ -1310,14 +1309,14 @@ describe("ProjectSocialAccounts", () => {
 
     expect(
       await screen.findByText(
-        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
       ),
     ).toBeVisible();
     expect(toastWarningMock).toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
     expect(toastSuccessMock).not.toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
   });
 
@@ -1338,7 +1337,7 @@ describe("ProjectSocialAccounts", () => {
     const replaceDialog = screen.getByRole("alertdialog");
     expect(replaceDialog).toHaveAccessibleName("Replace @sokosumi?");
     expect(replaceDialog).toHaveTextContent(
-      "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+      "Drafts and scheduled posts move to the new account.",
     );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(

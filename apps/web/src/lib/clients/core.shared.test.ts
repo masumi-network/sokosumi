@@ -5,13 +5,14 @@ import {
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getUsersById as coreGetUsersById,
   getUsersByIdSignUp as coreGetUsersByIdSignUp,
+  getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   startAdminImpersonation as coreStartAdminImpersonation,
   stopAdminImpersonation as coreStopAdminImpersonation,
 } from "@sokosumi/core-client";
-import type { Client } from "@sokosumi/core-client/client";
+import { type Client, createClient } from "@sokosumi/core-client/client";
 import { describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "@/lib/clients/core.shared";
 
@@ -25,12 +26,33 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
     getProjectsByIdClose: vi.fn(),
     getUsersById: vi.fn(),
     getUsersByIdSignUp: vi.fn(),
+    getWorkspacesCalendarSources: vi.fn(),
     postProjectsByIdClose: vi.fn(),
     postProjectsByIdCloseCancelOwed: vi.fn(),
     postProjectsByIdCloseRetry: vi.fn(),
     startAdminImpersonation: vi.fn(),
     stopAdminImpersonation: vi.fn(),
   };
+});
+
+describe("createCoreClient calendar sources", () => {
+  it("forwards Social scope without caching workspace data", async () => {
+    vi.mocked(coreGetWorkspacesCalendarSources).mockResolvedValue({
+      data: { data: [], meta: { timestamp: new Date(), requestId: "req_1" } },
+      response: new Response(null, { status: 200 }),
+    });
+    const client = createClient();
+    const core = createCoreClient(async () => client);
+    const query = { includeSocialPosts: "true", scope: "owned" } as const;
+
+    await core.getWorkspaceCalendarSources(query);
+
+    expect(coreGetWorkspacesCalendarSources).toHaveBeenCalledWith({
+      client,
+      query,
+      cache: "no-store",
+    });
+  });
 });
 
 describe("createCoreClient no-content responses", () => {

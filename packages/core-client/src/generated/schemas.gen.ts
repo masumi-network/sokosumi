@@ -30714,6 +30714,15 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'boolean',
             description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
+        },
+        latestScheduledSocialPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
         }
     },
     required: [

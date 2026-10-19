@@ -111,7 +111,7 @@ const MESSAGES: Record<string, string> = {
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
   attempts: "{count} attempts",
-  "actions.publishNow": "Publish now",
+  "actions.publishNow": "Post now",
   "actions.retry": "Retry",
   "actions.dismiss": "Dismiss",
   "filters.platform": "Platform",
@@ -125,14 +125,14 @@ const MESSAGES: Record<string, string> = {
     "Failed to refresh statistics. Previous results are retained.",
   "connectPrompt.title": "Connect an account to start posting",
   "connectPrompt.body": "Posts go out from this project's accounts.",
-  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
+  "connectPrompt.action": "Connect account",
   "reconnectPrompt.title": "Reconnect to post",
   "reconnectPrompt.body": "Sign in again on a connected account.",
   "reconnectPrompt.action": "Reconnect",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
   "empty.more": "More posts are available.",
-  "emptyHint.drafts": "Save a post as a draft to finish it later.",
+  "emptyHint.drafts": "Save a draft to finish later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
@@ -151,6 +151,7 @@ const MESSAGES: Record<string, string> = {
     "Write the text, pick the account, and choose when it goes out.",
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
+  "composer.textForAccount": "Text for this account",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
   "composer.media.drop": "Drop files to attach",
@@ -218,10 +219,10 @@ const MESSAGES: Record<string, string> = {
   "dismissDialog.title": "Dismiss this post?",
   "dismissDialog.description": "It leaves Needs attention.",
   "dismissDialog.confirm": "Dismiss",
-  "publishDialog.title": "Publish this post now?",
+  "publishDialog.title": "Post this now?",
   "publishDialog.description":
     "The post goes out to X right away instead of waiting for its scheduled time.",
-  "publishDialog.confirm": "Publish now",
+  "publishDialog.confirm": "Post now",
   "retryDialog.title": "Retry this post?",
   "retryDialog.description": "The post goes out now.",
   "retryDialog.confirm": "Retry",
@@ -1686,12 +1687,12 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
     expect(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     ).toHaveClass("h-11", "md:h-8");
     await user.click(
       within(prompt).getByRole("button", {
-        name: "Connect X, YouTube, LinkedIn…",
+        name: "Connect account",
       }),
     );
 
@@ -1802,7 +1803,7 @@ describe("ProjectSocialPosts", () => {
       within(drafts).getByRole("heading", { name: "No drafts yet." }),
     ).toBeVisible();
     expect(
-      within(drafts).getByText("Save a post as a draft to finish it later."),
+      within(drafts).getByText("Save a draft to finish later."),
     ).toBeVisible();
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
@@ -2616,10 +2617,153 @@ describe("ProjectSocialPosts", () => {
     expect(x).toHaveClass("text-destructive");
     expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
     expect(linkedIn).not.toHaveClass("text-destructive");
-    // One text goes to both, so the stricter limit blocks saving.
+    // Shared text still goes to both until an account is edited on its own.
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+    expect(
+      within(dialog).getByTestId("social-post-text-for-account"),
+    ).toHaveTextContent("Text for this account");
+  });
+
+  it("saves different text for each picked account", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Short for X" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Longer for LinkedIn",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Short for X" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Longer for LinkedIn" },
+    });
+    expect(within(dialog).getByTestId("social-post-preview")).toHaveTextContent(
+      "Longer for LinkedIn",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 11 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-platform-linkedin"),
+    ).toHaveTextContent("LinkedIn post · 19 / 3000");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(2);
+    });
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        text: "Short for X",
+        socialConnectionId: "connection-1",
+      }),
+    );
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        text: "Longer for LinkedIn",
+        socialConnectionId: "connection-2",
+      }),
+    );
+  });
+
+  it("lets a long LinkedIn caption save after X is shortened", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(280) },
+    });
+    expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
+      "280 / 280",
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+    expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
+      "300 / 3000",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 280 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-platform-linkedin"),
+    ).toHaveTextContent("LinkedIn post · 300 / 3000");
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
   });
 
   it("keeps each connected network's limit after every account is deselected", async () => {
@@ -3809,7 +3953,7 @@ describe("ProjectSocialPosts", () => {
         name: "Post actions for @sokosumi",
       }),
     );
-    expect(screen.getByRole("menuitem", { name: "Publish now" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Post now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Cancel post" })).toBeVisible();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
@@ -4339,7 +4483,7 @@ describe("ProjectSocialPosts", () => {
       screen.queryByRole("menuitem", { name: "Retry" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", { name: "Publish now" }),
+      screen.queryByRole("menuitem", { name: "Post now" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Edit" }),
@@ -4474,7 +4618,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(alert).getByText("The post goes out now.")).toBeVisible();
     expect(
       within(alert).queryByRole("heading", {
-        name: "Publish this post now?",
+        name: "Post this now?",
       }),
     ).not.toBeInTheDocument();
     await user.click(within(alert).getByRole("button", { name: "Retry" }));
@@ -4712,10 +4856,10 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
+    await user.click(screen.getByRole("menuitem", { name: "Post now" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Publish now",
+        name: "Post now",
       }),
     );
 
@@ -4790,10 +4934,10 @@ describe("ProjectSocialPosts", () => {
 
     await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
+    await user.click(screen.getByRole("menuitem", { name: "Post now" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Publish now",
+        name: "Post now",
       }),
     );
 
