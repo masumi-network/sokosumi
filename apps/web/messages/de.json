@@ -2841,6 +2841,14 @@
             "minutes": "Minuten",
             "hours": "Stunden"
           }
+        },
+        "reconnection": {
+          "accounts": "Konten mit Handlungsbedarf",
+          "title": "{account} muss erneut verbunden werden",
+          "affected": "{count, plural, one {# Beitrag betroffen} other {# Beiträge betroffen}}",
+          "retryTitle": "Fehlgeschlagene Beiträge erneut versuchen?",
+          "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
+          "later": "Später"
         }
       },
       "Detail": {

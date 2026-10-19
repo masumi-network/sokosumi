@@ -28,6 +28,7 @@ import {
 } from "nuqs";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
@@ -95,6 +96,7 @@ import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 import { publishFailureCopy } from "./social-post-publish-failure";
 import { SocialPostStatistics } from "./social-post-statistics";
+import { getSocialReconnections } from "./social-reconnection";
 
 interface ProjectSocialPostsProps {
   /** Social's calendar, shown as the first tab when given. */
@@ -110,6 +112,10 @@ interface ProjectSocialPostsProps {
    * Defaults to `connections.length` when the page only loaded actives.
    */
   accountCount?: number;
+  /** Closing or closed projects cannot reconnect accounts. */
+  connectDisabled?: boolean;
+  managedConnections?: ProjectSocialConnection[];
+  affectedPosts?: SocialPost[];
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
@@ -261,6 +267,9 @@ function SocialPostRowSkeleton() {
 export function ProjectSocialPosts({
   accounts,
   accountCount,
+  connectDisabled = false,
+  managedConnections,
+  affectedPosts = [],
   actions,
   calendar,
   connections,
@@ -356,6 +365,69 @@ export function ProjectSocialPosts({
     );
   }
 
+  const [reconnectedAccounts, setReconnectedAccounts] = useState<
+    ProjectSocialConnection[]
+  >([]);
+  const [retryPosts, setRetryPosts] = useState<SocialPost[]>([]);
+  const [retryPending, setRetryPending] = useState(false);
+  const managed = (managedConnections ?? connections).map(
+    (connection) =>
+      reconnectedAccounts.find((next) => next.id === connection.id) ??
+      connection,
+  );
+  const allAffectedPosts = posts.reduce(upsertPost, affectedPosts);
+  const reconnections = getSocialReconnections(managed, allAffectedPosts);
+
+  function handleReconnected(connection: ProjectSocialConnection): void {
+    const failedPosts =
+      reconnections
+        .find((item) => item.connection.id === connection.id)
+        ?.affectedPosts.filter((post) => post.status === "FAILED") ?? [];
+    setReconnectedAccounts((current) => [
+      ...current.filter((item) => item.id !== connection.id),
+      connection,
+    ]);
+    setRetryPosts(failedPosts);
+  }
+
+  async function handleRetryReconnected(): Promise<void> {
+    if (retryPending) return;
+    setRetryPending(true);
+    const remaining: SocialPost[] = [];
+    try {
+      for (const target of retryPosts) {
+        try {
+          const result = await publishProjectSocialPost({
+            projectId,
+            postId: target.id,
+            revision: target.revision,
+          });
+          if (!result.ok) {
+            handleActionError(result.error);
+            remaining.push(target);
+          } else {
+            setPosts((current) => upsertPost(current, result.value));
+            if (result.value.status !== "PUBLISHED") {
+              remaining.push(result.value);
+              toast.error(
+                t("toasts.publishFailed", {
+                  error: publishFailureCopy(result.value, t),
+                }),
+              );
+            }
+          }
+        } catch (error) {
+          handleActionError(toActionRejectionError(error), error);
+          remaining.push(target);
+        }
+      }
+      setRetryPosts(remaining);
+      router.refresh();
+    } finally {
+      setRetryPending(false);
+    }
+  }
+
   // Needs attention is a tab only while something needs it. Once the last
   // post in it is dealt with, the page goes back to its first tab.
   const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
@@ -364,6 +436,7 @@ export function ProjectSocialPosts({
     return (
       candidate !== "attention" ||
       postsIn(candidate).length > 0 ||
+      reconnections.length > 0 ||
       Boolean(cursors[candidate])
     );
   });
@@ -375,7 +448,8 @@ export function ProjectSocialPosts({
       ? null
       : listedAccountCount === 0
         ? "connect"
-        : connections.length === 0
+        : connections.length === 0 &&
+            !(tab === "attention" && reconnections.length > 0)
           ? "reconnect"
           : null;
   const retryablePosts = postsIn("attention").filter(
@@ -974,6 +1048,35 @@ export function ProjectSocialPosts({
 
   return (
     <section className="space-y-4" data-testid="project-social-posts">
+      <AlertDialog
+        open={retryPosts.length > 0}
+        onOpenChange={(open) => {
+          if (!open && !retryPending) setRetryPosts([]);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("reconnection.retryTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("reconnection.retryDescription", { count: retryPosts.length })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={retryPending}>
+              {t("reconnection.later")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              loading={retryPending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleRetryReconnected();
+              }}
+            >
+              {t("actions.retry")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {!previewOnly ? (
         <Tabs
           className="gap-4"
@@ -998,7 +1101,8 @@ export function ProjectSocialPosts({
                 {tabs.map((candidate) => {
                   const count =
                     candidate === "drafts" || candidate === "attention"
-                      ? postsIn(candidate).length
+                      ? postsIn(candidate).length +
+                        (candidate === "attention" ? reconnections.length : 0)
                       : candidate === "accounts"
                         ? listedAccountCount
                         : 0;
@@ -1095,6 +1199,13 @@ export function ProjectSocialPosts({
               const sectionPosts = postsIn(section).filter(
                 (post) => provider === null || post.provider === provider,
               );
+              const sectionReconnections =
+                section === "attention"
+                  ? reconnections.filter(
+                      ({ connection }) =>
+                        provider === null || connection.provider === provider,
+                    )
+                  : [];
               const cursor = cursors[section];
               return (
                 <TabsContent
@@ -1103,6 +1214,15 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
+                  {sectionReconnections.length > 0 ? (
+                    <ProjectSocialAccounts
+                      connections={managed}
+                      connectDisabled={connectDisabled}
+                      projectId={projectId}
+                      reconnections={sectionReconnections}
+                      onReconnected={handleReconnected}
+                    />
+                  ) : null}
                   {section === "attention" && retryablePosts.length > 0 ? (
                     <div
                       className="flex flex-wrap items-center gap-3"
@@ -1169,7 +1289,7 @@ export function ProjectSocialPosts({
                         </>
                       ) : null}
                     </ul>
-                  ) : cursor ? null : (
+                  ) : cursor || sectionReconnections.length > 0 ? null : (
                     <EmptyState
                       description={t(`emptyHint.${section}`)}
                       icon={FileText}

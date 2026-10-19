@@ -21,9 +21,13 @@ import {
   SocialComposeProvider,
   useSocialCompose,
 } from "@/app/social/components/social-compose-context";
+import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   cancelProjectSocialPost,
   createProjectSocialPost,
+  finalizeProjectSocialConnection,
+  initiateProjectSocialConnection,
   publishProjectSocialPost,
   refreshProjectSocialPostStatistics,
   scheduleProjectSocialPost,
@@ -96,6 +100,13 @@ const MESSAGES: Record<string, string> = {
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
+  reconnect: "Reconnect",
+  "reconnection.accounts": "Accounts needing attention",
+  "reconnection.title": "{account} needs reconnecting",
+  "reconnection.affected": "{count} posts affected",
+  "reconnection.retryTitle": "Retry failed posts?",
+  "reconnection.retryDescription": "Retry {count} failed posts?",
+  "reconnection.later": "Later",
   viewPost: "View post",
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
@@ -302,12 +313,41 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions/project/action", () => ({
+  finalizeProjectSocialConnection: vi.fn(),
+  initiateProjectSocialConnection: vi.fn(),
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
   refreshProjectSocialPostStatistics: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
   updateProjectSocialPost: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/composio/action", () => ({
+  completeComposioAuthCallbackAction: vi.fn(),
+}));
+vi.mock("@/lib/composio/use-composio-oauth-popup", () => ({
+  useComposioOAuthPopup: () => ({
+    runPopupOAuth: async (
+      run: (flow: {
+        navigate: (url: string) => void;
+        waitForCallback: () => Promise<unknown>;
+      }) => Promise<void>,
+    ) => {
+      const value = await run({
+        navigate: vi.fn(),
+        waitForCallback: async () => ({
+          kind: "callback",
+          payload: {
+            status: "success",
+            connectionId: "ca-1",
+            sessionUri: "https://backend.composio.dev/session/reconnect",
+          },
+        }),
+      });
+      return { kind: "completed", value };
+    },
+  }),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -682,6 +722,175 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
+  it("shows a broken account without failed posts in Needs attention", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        affectedPosts={[SCHEDULED_POST]}
+        posts={[]}
+      />,
+    );
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 1");
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-reconnect-connection-1");
+    expect(within(row).getByText("@sokosumi needs reconnecting")).toBeVisible();
+    expect(within(row).getByText("1 posts affected")).toBeVisible();
+  });
+
+  it("hides the generic banner only while per-account reconnect items render", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        accountCount={1}
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        posts={[]}
+      />,
+    );
+    expect(screen.getByTestId("social-reconnect-prompt")).toBeVisible();
+    await openTab(user, "Needs attention");
+    expect(screen.getByTestId("social-reconnect-connection-1")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-reconnect-prompt"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/posts affected/)).not.toBeInTheDocument();
+    await openTab(user, "Calendar");
+    expect(screen.getByTestId("social-reconnect-prompt")).toBeVisible();
+  });
+
+  it("offers retry only after successful reconnect and reuses the publish action", async () => {
+    const user = userEvent.setup();
+    const failed = {
+      ...FAILED_POST,
+      connectionNeedsReconnect: true,
+      lastError: "Social connection needs reconnecting",
+    };
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+      ok: true,
+      value: {
+        connectionId: "ca-1",
+        redirectUrl: "https://connect.composio.dev/reconnect",
+      },
+    });
+    vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
+      ok: true,
+      value: undefined,
+    });
+    vi.mocked(finalizeProjectSocialConnection).mockResolvedValue({
+      ok: true,
+      value: buildConnection({ connectedAt: new Date("2026-10-14") }),
+    });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...PUBLISHED_POST, id: failed.id },
+    });
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        affectedPosts={[
+          failed,
+          SCHEDULED_POST,
+          {
+            ...FAILED_POST,
+            id: "bad-media",
+            lastError: "upload X image failed (400)",
+            connectionNeedsReconnect: true,
+          },
+        ]}
+        posts={[failed]}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    const row = screen.getByTestId("social-reconnect-connection-1");
+    expect(within(row).getByText("2 posts affected")).toBeVisible();
+    await user.click(within(row).getByRole("button", { name: "Reconnect" }));
+    expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      action: "reconnect",
+      socialConnectionId: "connection-1",
+    });
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Retry" }));
+    await waitFor(() =>
+      expect(publishProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: failed.id,
+        revision: failed.revision,
+      }),
+    );
+    expect(publishProjectSocialPost).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByTestId("social-reconnect-connection-1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not offer retry when reconnect fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+      ok: true,
+      value: {
+        connectionId: "ca-1",
+        redirectUrl: "https://connect.composio.dev/reconnect",
+      },
+    });
+    vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
+      ok: true,
+      value: undefined,
+    });
+    vi.mocked(finalizeProjectSocialConnection).mockResolvedValue({
+      ok: false,
+      error: {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Reconnect failed",
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        posts={[FAILED_POST]}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    await user.click(
+      within(screen.getByTestId("social-reconnect-connection-1")).getByRole(
+        "button",
+        { name: "Reconnect" },
+      ),
+    );
+    await waitFor(() =>
+      expect(finalizeProjectSocialConnection).toHaveBeenCalled(),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-reconnect-connection-1"),
+    ).toBeInTheDocument();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
   it("lists drafts in a tab and leaves scheduled and published posts to the calendar", () => {
     render(
       <ProjectSocialPosts
@@ -798,6 +1007,46 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     expect(getTab("Needs attention")).toHaveTextContent("Needs attention 2");
     expect(screen.getByTestId("social-posts-platform-filter")).toBeVisible();
+  });
+
+  it("narrows reconnect rows and attention posts by the same platform", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+          buildConnection({
+            id: "connection-li",
+            provider: "linkedin",
+            status: "reauthorization_required",
+          }),
+        ]}
+        posts={[
+          FAILED_POST,
+          buildPost({
+            ...FAILED_POST,
+            id: "post-failed-li",
+            provider: "linkedin",
+            text: "LinkedIn failed",
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention&provider=linkedin",
+    );
+
+    const attention = screen.getByTestId("social-posts-section-attention");
+    expect(
+      within(attention).getByTestId("social-reconnect-connection-li"),
+    ).toBeVisible();
+    expect(
+      within(attention).queryByTestId("social-reconnect-connection-1"),
+    ).not.toBeInTheDocument();
+    expect(within(attention).getByText("LinkedIn failed")).toBeVisible();
+    expect(
+      within(attention).queryByText("Failed text"),
+    ).not.toBeInTheDocument();
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 4");
   });
 
   it.each([false, true])(

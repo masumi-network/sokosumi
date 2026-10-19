@@ -113,6 +113,77 @@ describe("classifyPublishError", () => {
     expect(classifyPublishError(error, "x")).toMatchObject(expected);
   });
 
+  it.each([401, 403])(
+    "classifies X media-upload %s as unauthorized",
+    (status) => {
+      for (const message of [
+        "X refused the image upload",
+        "X refused the media upload",
+        "X refused the media status check",
+      ]) {
+        expect(
+          classifyPublishError(
+            new ComposioToolError({ message, providerStatus: status }),
+            "x",
+          ),
+        ).toMatchObject({ kind: "unauthorized", transient: false });
+      }
+    },
+  );
+
+  it.each([401, 403])(
+    "recognizes X upload %s in a tool's text error",
+    (status) => {
+      expect(
+        classifyPublishError(
+          new ComposioToolError({
+            message: "X refused the image upload",
+            providerMessage: `${status} Client Error`,
+          }),
+          "x",
+        ),
+      ).toMatchObject({ kind: "unauthorized", transient: false });
+    },
+  );
+
+  it("keeps X media-upload 400 failures out of unauthorized classification", () => {
+    expect(
+      classifyPublishError(
+        new ComposioToolError({
+          message: "upload X image failed (400)",
+          providerStatus: 400,
+          providerMessage: "Invalid image",
+        }),
+        "x",
+      ),
+    ).toMatchObject({ kind: "rejected", transient: false });
+  });
+
+  it("keeps a non-authentication 403 rejection from another provider", () => {
+    expect(
+      classifyPublishError(
+        new ComposioToolError({
+          message: "YouTube refused the upload",
+          providerMessage: "quotaExceeded",
+          providerStatus: 403,
+        }),
+        "youtube",
+      ),
+    ).toMatchObject({ kind: "rejected", transient: false });
+  });
+
+  it("recognizes missing publishing permission without a status", () => {
+    expect(
+      classifyPublishError(
+        new ComposioToolError({
+          message: "X refused the post",
+          providerMessage: "Missing permission to publish",
+        }),
+        "x",
+      ),
+    ).toMatchObject({ kind: "unauthorized", transient: false });
+  });
+
   it("summarizes a tool error with the provider status and message", () => {
     const result = classifyPublishError(
       new ComposioToolError({
