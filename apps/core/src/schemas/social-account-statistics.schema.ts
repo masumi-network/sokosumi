@@ -1,9 +1,11 @@
 import { z } from "@hono/zod-openapi";
+import { isValidTimezone } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   projectSocialConnectionSchema,
   projectSocialProviderSchema,
 } from "@/schemas/project-social-connection.schema";
+import { socialPostProjectParamsSchema } from "@/schemas/social-post.schema";
 import {
   socialPostMetricsSchema,
   socialPostStatisticsQuerySchema,
@@ -83,6 +85,8 @@ export const socialAccountPostSchema = z
     metrics: socialPostMetricsSchema,
     additionalMetrics: z.array(socialAccountMetricSchema).max(100),
     fetchedAt: dateTimeSchema,
+    strong: z.boolean().default(false),
+    canRecycle: z.boolean().default(false),
   })
   .openapi("SocialAccountPost");
 export type SocialAccountPost = z.infer<typeof socialAccountPostSchema>;
@@ -186,6 +190,8 @@ export const socialAccountStatisticsProviderPageSchema = z.object({
         connectionId: true,
         provider: true,
         fetchedAt: true,
+        strong: true,
+        canRecycle: true,
       }),
     )
     .max(1000),
@@ -193,3 +199,33 @@ export const socialAccountStatisticsProviderPageSchema = z.object({
   historyError: z.string().nullable(),
   metricWarning: z.string().nullable().default(null),
 });
+
+export const socialAccountPostParamsSchema =
+  socialPostProjectParamsSchema.extend({
+    accountPostId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: { name: "accountPostId", in: "path" },
+        example: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      }),
+  });
+
+export const recycleSocialAccountPostRequestSchema = z
+  .object({
+    delayDays: z
+      .union([z.literal(7), z.literal(14), z.literal(30)])
+      .optional()
+      .openapi({ example: 7 }),
+    timezone: z
+      .string()
+      .refine((value) => isValidTimezone(value), {
+        message: "timezone must be a valid IANA time zone",
+      })
+      .optional()
+      .openapi({ example: "Europe/Zurich" }),
+  })
+  .refine((value) => !value.delayDays || Boolean(value.timezone), {
+    message: "timezone is required when scheduling",
+  })
+  .openapi("RecycleSocialAccountPostRequest");

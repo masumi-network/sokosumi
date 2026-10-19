@@ -5907,6 +5907,8 @@ export type SocialAccountPost = {
     metrics: SocialPostMetrics;
     additionalMetrics: Array<SocialAccountMetric>;
     fetchedAt: Date;
+    strong?: boolean;
+    canRecycle?: boolean;
 };
 
 export type SocialPostMetrics = {
@@ -6797,6 +6799,11 @@ export type CancelSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+};
+
+export type RecycleSocialAccountPostRequest = {
+    delayDays?: 7 | 14 | 30;
+    timezone?: string;
 };
 
 export type ProjectImageStudioState = {
@@ -47195,6 +47202,156 @@ export type PostProjectsByIdSocialPostsByPostIdDuplicateResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdDuplicateResponse = PostProjectsByIdSocialPostsByPostIdDuplicateResponses[keyof PostProjectsByIdSocialPostsByPostIdDuplicateResponses];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData = {
+    body: RecycleSocialAccountPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        accountPostId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-account-posts/{accountPostId}/recycle';
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleError = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors];
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses = {
+    /**
+     * Social post recycled
+     */
+    201: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponse = PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses[keyof PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses];
 
 export type GetProjectsByIdImageStudioData = {
     body?: never;

@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 const {
   projectFindFirstMock,
   socialConnectionFindFirstMock,
+  socialAccountPostFindFirstMock,
   socialPostCreateMock,
   socialPostFindFirstMock,
   socialPostFindManyMock,
@@ -14,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
+  socialAccountPostFindFirstMock: vi.fn(),
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
   socialPostFindManyMock: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: projectFindFirstMock },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
+    socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
@@ -1811,6 +1814,135 @@ describe("social posts service", () => {
       id: "cow_123",
       name: "Scout",
     });
+  });
+
+  const accountPost = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    connectionId: SOCIAL_CONNECTION_ID,
+    externalId: "1907",
+    text: "Winner on the feed",
+    connection: {
+      id: SOCIAL_CONNECTION_ID,
+      status: "active",
+      provider: "x",
+    },
+  };
+
+  it("recycles a matching published post through duplicate", async () => {
+    const published = {
+      ...scheduledPost,
+      status: "PUBLISHED",
+      text: "Winner on the feed",
+      publishedExternalId: "1907",
+    };
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ id: POST_ID })
+      .mockResolvedValueOnce(published);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      id: "55555555-5555-4555-8555-555555555555",
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { recycleSocialAccountPost } = await loadService();
+
+    const post = await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+    });
+
+    expect(post).toMatchObject({
+      status: "DRAFT",
+      text: "Winner on the feed",
+      publishedExternalId: null,
+    });
+  });
+
+  it("recycles imported text when no Sokosumi post matches", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock.mockResolvedValue(null);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    const { recycleSocialAccountPost } = await loadService();
+
+    await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          text: "Winner on the feed",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          status: "DRAFT",
+        }),
+      }),
+    );
+  });
+
+  it("schedules the recycled draft when a delay is chosen", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(accountPost);
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    socialPostFindFirstMock.mockResolvedValueOnce(null);
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      text: "Winner on the feed",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      socialConnection: scheduledPost.socialConnection,
+    });
+    socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+    const { recycleSocialAccountPost } = await loadService();
+
+    await recycleSocialAccountPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      accountPostId: accountPost.id,
+      delayDays: 7,
+      timezone: "Europe/Zurich",
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SCHEDULED",
+          timezone: "Europe/Zurich",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a missing Performance post", async () => {
+    socialAccountPostFindFirstMock.mockResolvedValue(null);
+    const { recycleSocialAccountPost } = await loadService();
+    await expect(
+      recycleSocialAccountPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        accountPostId: accountPost.id,
+      }),
+    ).rejects.toThrow("Performance post not found");
   });
 
   it("clears retry state when a scheduled post is edited after a failed attempt", async () => {

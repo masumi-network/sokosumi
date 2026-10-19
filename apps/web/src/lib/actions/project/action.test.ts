@@ -21,6 +21,7 @@ const projectServiceMock = {
   createProject: vi.fn(),
   createSocialPost: vi.fn(),
   duplicateSocialPost: vi.fn(),
+  recycleSocialAccountPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
   finalizeSocialConnection: vi.fn(),
   getProjectContextMd: vi.fn(),
@@ -904,6 +905,69 @@ describe("project actions", () => {
         await duplicateProjectSocialPost({ projectId: "", postId: "post-1" }),
       ).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(projectServiceMock.duplicateSocialPost).not.toHaveBeenCalled();
+    });
+
+    it("recycles a Performance post into a draft and revalidates", async () => {
+      projectServiceMock.recycleSocialAccountPost.mockResolvedValue({
+        ...post,
+        id: "post-recycle",
+        status: "DRAFT",
+      });
+
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await recycleProjectSocialAccountPost({
+        projectId: " project-1 ",
+        accountPostId: " account-post-1 ",
+      });
+
+      expect(projectServiceMock.recycleSocialAccountPost).toHaveBeenCalledWith(
+        "project-1",
+        "account-post-1",
+        {},
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: { ...post, id: "post-recycle", status: "DRAFT" },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+    });
+
+    it("recycles a Performance post with a delay and timezone", async () => {
+      projectServiceMock.recycleSocialAccountPost.mockResolvedValue({
+        ...post,
+        id: "post-recycle",
+        status: "SCHEDULED",
+      });
+
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      await recycleProjectSocialAccountPost({
+        projectId: "project-1",
+        accountPostId: "account-post-1",
+        delayDays: 14,
+        timezone: "Europe/Berlin",
+      });
+
+      expect(projectServiceMock.recycleSocialAccountPost).toHaveBeenCalledWith(
+        "project-1",
+        "account-post-1",
+        { delayDays: 14, timezone: "Europe/Berlin" },
+      );
+    });
+
+    it("rejects a delay without a timezone before recycling", async () => {
+      const { recycleProjectSocialAccountPost } = await import("./action");
+      expect(
+        await recycleProjectSocialAccountPost({
+          projectId: "project-1",
+          accountPostId: "account-post-1",
+          delayDays: 7,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(
+        projectServiceMock.recycleSocialAccountPost,
+      ).not.toHaveBeenCalled();
     });
 
     it("schedules with the revision supplied by the calendar", async () => {

@@ -6,6 +6,7 @@ import {
 } from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
+import { strongSocialAccountPostIds } from "@/helpers/social-account-post-strong";
 import {
   buildSocialPerformanceConsistency,
   consistencyLookbackStart,
@@ -54,6 +55,7 @@ interface ListSocialAccountStatisticsInput extends AccountStatisticsScope {
 
 function mapAccountPosts(
   rows: Array<{
+    id?: string;
     publishedAt: Date | null;
     metrics: Prisma.JsonValue;
     additionalMetrics: Prisma.JsonValue;
@@ -82,6 +84,7 @@ function mapAccountPosts(
       : [];
     return [
       {
+        ...(row.id ? { id: row.id } : {}),
         provider: row.connection.provider as ProjectSocialProvider,
         publishedAt: row.publishedAt,
         metrics,
@@ -282,6 +285,7 @@ export async function listSocialAccountStatistics(
       "Statistics cursor is outside the selected account history",
     );
   const postSelect = {
+    id: true,
     publishedAt: true,
     metrics: true,
     additionalMetrics: true,
@@ -314,10 +318,22 @@ export async function listSocialAccountStatistics(
           select: postSelect,
         }),
   ]);
+  const winners = strongSocialAccountPostIds(
+    mapAccountPosts(cohort).flatMap((post) =>
+      post.id ? [{ ...post, id: post.id }] : [],
+    ),
+  );
+  const accountById = new Map(
+    allAccounts.map(({ account }) => [account.id, account]),
+  );
   const posts = rows.slice(0, take).map((row) =>
     socialAccountPostSchema.parse({
       ...row,
       provider: row.connection.provider,
+      strong: winners.has(row.id),
+      canRecycle:
+        accountById.get(row.connectionId)?.status === "active" &&
+        row.text.trim().length > 0,
     }),
   );
   return socialAccountStatisticsPageSchema.parse({

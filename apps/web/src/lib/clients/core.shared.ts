@@ -113,6 +113,7 @@ import type {
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -454,6 +455,7 @@ import {
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -3561,6 +3563,25 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialAccountPostsByAccountPostIdRecycle(
+    id: string,
+    accountPostId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle({
+          client,
+          path: { id, accountPostId },
+          body,
+        }),
+      "Failed to recycle Performance post",
+    );
+  }
+
   async function postProjectsByIdSocialPostsByPostIdPublish(
     id: string,
     postId: string,
@@ -6556,6 +6577,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
     postProjectsByIdSocialPostsByPostIdDuplicate,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,

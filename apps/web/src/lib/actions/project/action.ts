@@ -13,6 +13,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  isValidTimezone,
   normalizeWebsiteUrl,
   projectIdentifierSchema,
   SOCIAL_POST_MEDIA_MAX,
@@ -137,6 +138,14 @@ interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
 interface DuplicateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
+}
+
+interface RecycleProjectSocialAccountPostParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string | null;
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
@@ -656,6 +665,20 @@ const duplicateProjectSocialPostSchema = z.object({
   postId: trimmedId,
 });
 
+const recycleProjectSocialAccountPostSchema = z
+  .object({
+    projectId: trimmedId,
+    accountPostId: trimmedId,
+    delayDays: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional(),
+    timezone: optionalTimezone,
+  })
+  .refine(
+    (value) =>
+      value.delayDays === undefined ||
+      (value.timezone != null && isValidTimezone(value.timezone)),
+    { message: "timezone is required when scheduling" },
+  );
+
 const publishProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -845,6 +868,36 @@ export const duplicateProjectSocialPost = withSession<
     const post = await projectService.duplicateSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const recycleProjectSocialAccountPost = withSession<
+  RecycleProjectSocialAccountPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, accountPostId, delayDays, timezone }) => {
+  const parsed = recycleProjectSocialAccountPostSchema.safeParse({
+    projectId,
+    accountPostId,
+    delayDays,
+    timezone,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.recycleSocialAccountPost(
+      parsed.data.projectId,
+      parsed.data.accountPostId,
+      {
+        ...(parsed.data.delayDays ? { delayDays: parsed.data.delayDays } : {}),
+        ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+      },
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));
