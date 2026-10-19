@@ -1343,6 +1343,16 @@ export function ProjectSocialPosts({
                       </Button>
                     </div>
                   ) : null}
+                  {/* A linked post can still show while its list failed:
+                      keep the retry, as a slim line above it. */}
+                  {failedSections.includes(section) &&
+                  sectionPosts.length > 0 ? (
+                    <SocialLoadError
+                      data-testid={`social-posts-load-error-${section}`}
+                      kind={section}
+                      variant="banner"
+                    />
+                  ) : null}
                   {failedSections.includes(section) &&
                   sectionPosts.length === 0 ? (
                     <SocialLoadError

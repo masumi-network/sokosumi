@@ -1906,6 +1906,30 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the retry above a linked draft when the Drafts list failed", async () => {
+    const user = userEvent.setup();
+    const linked = buildPost({ id: "linked-draft", status: "DRAFT" });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["drafts"]}
+        posts={[linked]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const failed = screen.getByTestId("social-posts-load-error-drafts");
+    expect(failed).toHaveAttribute("role", "status");
+    expect(within(failed).getByText("Couldn't load drafts")).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-posts-drafts-grid")).getAllByRole(
+        "listitem",
+      ),
+    ).not.toHaveLength(0);
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
   it("keeps Needs attention so a failed first page can retry", async () => {
     const user = userEvent.setup();
     render(
