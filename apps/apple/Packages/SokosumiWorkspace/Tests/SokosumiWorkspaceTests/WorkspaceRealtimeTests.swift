@@ -459,7 +459,7 @@ struct WorkspaceRealtimeTests {
     "projectOptions":[{"id":"\(books)","name":"Books","identifier":null,"logo":null}]}],\
     "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
     """
-    let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","scope":"personal","presence":"online"}}"#
     let question = realtimeMessageJSON(id: questionId, roomId: roomA, content: "Which project?")
       .replacingOccurrences(of: #"{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}}"#, with: botSender)
     let (state, _, transport) = try realtimeState([

@@ -5082,6 +5082,42 @@ Web's chip tooltip (Radix, `delayDuration = 0`) opens on keyboard focus as well 
 No window test drives focus. In `ReactionChipHoverTests` the host is never active or key; a volatile `AppleKeyboardUIMode = 2` left `NSApp.isFullKeyboardAccessEnabled` false, and a Tab sent through `sendEvent`, `selectNextKeyView` or the hosting view's `keyDown` left the window itself first responder with no label drawn. A throwaway copy of `apps/apple` whose entry point hosts the chips in an active key window (launched through LaunchServices) showed the same: the `-AppleKeyboardUIMode` argument and the bundle's own defaults domain do not turn Keyboard navigation on, only the global setting does, which the probe did not change. With `.focusable()` added to the chips in that copy only, so focus moves without Keyboard navigation, the label followed focus: "Ada, Bob" on the first chip, "Cyd" after Tab, no fill on the focused chip, nothing once `isScrolling` went true, and the same on read-only chips. A pass with Keyboard navigation on in the signed app is pending.
 
 Review follow-up (Grok on #6376): a focused chip and a chip hovered in another row both drew names, because each `MessageRowView` draws its own label and "the pointer wins" held only inside one reactions row. Web shows one: Radix dispatches `tooltip.open` and every open tooltip closes on it (`@radix-ui/react-tooltip` 1.4.1). The transcript's `TranscriptScrollActivity`, already shared by every row of the room and Thread transcripts, now names the reactions row whose chip is under the pointer (`reactionRowUnderPointer`, a `@Namespace` id, released when the pointer leaves or the row disappears); a row shows its focus label only while that is nil, and reads it only while it holds focus and no pointer. In the throwaway probe with two rows, focus on the first row's chip and the pointer on the second row's chip drew only the second row's label; when the pointer left, the focus label returned. The same review removed a coverage profile (`default.profraw`) that the probe had written into `apps/apple` and the first commit picked up; `*.profraw` is ignored now.
+## SOK-1356: decode shared Soko Bot participants
+
+Not a `/apple-parity-next` row. It is the Apple layer of the shared Soko Bots stack (SOK-1356), on the Core rollout commit `feat(core): create and manage shared Soko Bots`. It must ship before the Core release that adds shared Soko Bots, and `MACOS_MINIMUM_BUILD` must move to the build that carries it: a build whose snapshot still requires `ownerUserId` cannot decode a room or message that carries one.
+
+### Contract
+
+`scripts/update-core-api.py` against the Core OpenAPI document written by `write-openapi-snapshot` at that commit. Structural diff:
+
+- `ChatRoomSokoBotParticipant.ownerUserId` is `string | null` (null for a shared Soko Bot), and a new required `scope` (`ChatRoomSokoBotScope`: `personal`, `project`, `workspace`).
+- `getMySokoBot`: the bot's `userId` is `string | null`, with new optional `projectId` and `viewerCanManage`; the response gains an optional `sharedBots` array of the new `SharedSokoBotSummary`. The endpoint still returns the caller's personal Soko Bot, so `userId` stays set there; Apple reads none of the new fields yet.
+- Descriptions only: `DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}`, `GET /soko-bots/me` 200, the 403 of `resolveMySokoBotDecision`, and `ChatRoom.isReadOnly` (also true for the Channel of an archived or deleted shared Soko Bot).
+
+No selected path was added or dropped. The new shared Soko Bot routes (scoped create, by-id routes) are not selected. A later revision of that commit adds `ChatRoomSokoBotParticipant.sharedRoomId`. This snapshot does not carry it, and its `ChatRoomSokoBotParticipant` sets no `additionalProperties`.
+
+### Behaviour
+
+- `ChannelEditPermissions.canRemove` keeps `ownerUserId == currentUserId`. A null owner never equals the caller, so the members panel offers no Remove for a shared Soko Bot. Core lets any host member remove one; Apple hides the action until it manages shared Soko Bots (a follow-up).
+- Removing a person drops only the Soko Bots they own (`WorkspaceState+ChannelMembers`); a shared Soko Bot stays, as Core keeps it.
+- The generated participant decoder is synthesized `Codable` and does not reject unknown keys, so builds without this change ignore `scope`.
+
+### Tests
+
+- `ChannelEditingTests.decodesSharedSokoBotWithoutOwner`: Core's JSON with `"ownerUserId":null` and `"scope":"project"` decodes, and the result is not removable. `removalMatrixMatchesCore` gains a workspace Soko Bot that nobody removes.
+- `WorkspaceStateTests.channelMembershipChangesReconcileTheRoomInPlace` and `memberRemovalBeatsAnInFlightRoomList`: a shared Soko Bot stays after the Guest leaves.
+- Every existing participant fixture now carries `scope: personal`.
+- Mutants, each restored from a copy: a null owner counted as the caller's in `canRemove` fails 2 tests; a null owner removed with any leaver fails 2 tests.
+
+### Verification
+
+All from `apps/apple`, on the snapshot from that commit:
+- `swift test --package-path Packages/CoreAPI`: **6 tests in 2 suites passed**; `Packages/SokosumiChat`: **1326 tests in 148 suites passed**; `Packages/SokosumiWorkspace`: **205 tests in 4 suites passed**.
+- `xcodebuild test … -enableCodeCoverage NO`: **2,084 tests, 2,082 passed, 2 failed**: `NativeWindowTests/StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` (Vision read the Message yourself row as "• You • Ada Lovelace", so the `hasPrefix("You")` check failed) and `NativeWindowTests/MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` ("The resting pointer filled its row before the gesture"). Both failed again when their two suites ran alone, and both fail the same way on `origin/main` (`f14ec4a8c`), so they are not caused by this change. Neither uses a Soko Bot participant.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0`: **Build complete**.
+- `mint run swiftformat --lint .`: **0/635 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 632 files**.
+
+Unverified: a shared Soko Bot in a running app; no deployed Core could create one when this was written.
 
 ## 01b — the sign-in screen matches web's Log in page
 

@@ -30,6 +30,14 @@ vi.mock("@/app/projects/components/project-header-actions", () => ({
   ProjectHeaderActions: () => <div>Project actions</div>,
 }));
 
+// The Bots tab asks Core about shared bots; off here, as by default.
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: { listShared: async () => null },
+}));
+vi.mock("@/lib/services/user.service", () => ({
+  userService: { getActiveOrganizationId: async () => null },
+}));
+
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
