@@ -500,6 +500,8 @@ model Project {
   /// Prefixes this project used before the current identifier.
   identifierAliases     ProjectIdentifierAlias[]
 
+  sokoBots SokoBot[]
+
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
   @@map("project")
@@ -2163,6 +2165,10 @@ model SokoBotIntegration {
   /// Latest replacement attempt; selected account remains usable until ACTIVE.
   pendingComposioAccountId String?                  @unique
   status                   SokoBotIntegrationStatus @default(PENDING)
+  /// Member who connected the account. No foreign key, like
+  /// ProjectSocialConnection: the row must outlive the member, whose leaving
+  /// disconnects it.
+  connectorUserId          String?
   connectedAt              DateTime?
   lastError                String?
   /// Provider-specific ingest position (e.g. newest seen email timestamp).
@@ -2247,9 +2253,23 @@ model SokoBot {
   /// nothing references is deleted outright instead of tombstoned.
   deletedAt            DateTime?
 
-  /// Owner of this Soko Bot. One row per user and workspace (active or archived).
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Owner scope, with `projectId`: personal (`userId` set), project
+  /// (`projectId` set) or workspace (both null). The CHECK
+  /// `soko_bot_owner_scope_check` allows at most one; it lives in SQL only,
+  /// because Prisma cannot express CHECK constraints. One live personal bot per
+  /// user and workspace.
+  userId    String
+  user      User     @relation("SokoBotOwner", fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Member who created the bot. Provenance only; authorizes nothing.
+  createdByUserId String?
+  createdByUser   User?   @relation("SokoBotCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  /// The one room every member shares with a project or workspace bot.
+  sharedRoomId String?   @unique @db.Uuid
+  sharedRoom   ChatRoom? @relation("SokoBotSharedRoom", fields: [sharedRoomId], references: [id], onDelete: SetNull)
 
   /// Workspace this bot lives in; bots never cross workspaces.
   workspaceId String    @db.Uuid
@@ -2346,6 +2366,8 @@ model SokoBot {
   @@index([lastPolledAt])
   @@index([userId, workspaceId])
   @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdByUserId])
   @@map("soko_bot")
 }
 
@@ -4114,6 +4136,7 @@ model ChatRoom {
   readStates       ChatRoomReadState[]
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
+  sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
