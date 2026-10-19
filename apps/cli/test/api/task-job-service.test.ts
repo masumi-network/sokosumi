@@ -41,6 +41,9 @@ function client(
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>(path: string, body: unknown) => {
       calls.push({ method: "PATCH", path, body });
       return response as T;
@@ -103,6 +106,9 @@ test("fetchTaskEvents follows nextCursor until the list is complete", async () =
     post: async <T>() => ({ data: null }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };

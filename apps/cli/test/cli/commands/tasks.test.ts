@@ -27,6 +27,7 @@ function recordingClient(
       throw new Error("Unexpected PUT");
     },
     patch: (path, body) => handle({ method: "PATCH", path, body }),
+    delete: (path) => handle({ method: "DELETE", path }),
   };
 }
 
@@ -48,6 +49,9 @@ function clientWith(response: unknown): CoreHttpClient {
     post: async <T>() => response as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => response as T,
   };
@@ -86,6 +90,9 @@ test("tasks list sends search as server q and keeps server matches", async () =>
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   await runTasksCommand({
@@ -94,7 +101,7 @@ test("tasks list sends search as server q and keeps server matches", async () =>
     json: true,
     options: { search: "review" },
   });
-  assert.equal(paths[0], "/v1/tasks?q=review");
+  assert.equal(paths[0], "/v1/tasks?q=review&take=100");
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.tasks.length, 1);
   assert.equal(parsed.tasks[0].id, "task-1");
@@ -144,6 +151,9 @@ test("tasks create posts the payload and returns the task with details", async (
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -200,6 +210,9 @@ test("tasks get returns the task with its events and jobs", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -254,6 +267,9 @@ test("tasks comment posts the comment and status and returns the event", async (
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -311,6 +327,9 @@ test("tasks get still emits the task when a details fetch fails", async () => {
     post: async <T>() => ({ data: {} }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -581,4 +600,207 @@ test("tasks update rejects clearing and setting the same field", async () => {
     () => run({ "clear-project": true, "project-id": PEER_UUID }),
     /--clear-project cannot be combined with --project-id/,
   );
+});
+
+test("tasks list follows cursors until Core has no more pages", async () => {
+  const calls: Call[] = [];
+  const output: string[] = [];
+  await runTasksCommand({
+    client: recordingClient(calls, (call) =>
+      call.path.includes("cursor=c1")
+        ? { data: [{ id: "t-2" }] }
+        : {
+            data: [{ id: "t-1" }],
+            meta: { pagination: { nextCursor: "c1" } },
+          },
+    ),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+  });
+  assert.deepEqual(
+    calls.map((call) => call.path),
+    ["/v1/tasks?take=100", "/v1/tasks?take=100&cursor=c1"],
+  );
+  assert.deepEqual(
+    JSON.parse(output.join("")).tasks.map((task: { id: string }) => task.id),
+    ["t-1", "t-2"],
+  );
+});
+
+test("tasks list --limit caps page size and stops at the limit", async () => {
+  const calls: Call[] = [];
+  const output: string[] = [];
+  const page = (prefix: string, count: number) =>
+    Array.from({ length: count }, (_, index) => ({ id: `${prefix}${index}` }));
+  await runTasksCommand({
+    client: recordingClient(calls, (call) =>
+      call.path.includes("cursor=")
+        ? { data: page("b", 50), meta: { pagination: { nextCursor: "c2" } } }
+        : { data: page("a", 100), meta: { pagination: { nextCursor: "c1" } } },
+    ),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    options: { limit: "150" },
+  });
+  assert.deepEqual(
+    calls.map((call) => call.path),
+    ["/v1/tasks?take=100", "/v1/tasks?take=50&cursor=c1"],
+  );
+  assert.equal(JSON.parse(output.join("")).tasks.length, 150);
+});
+
+test("tasks list filters by project, person, and sort", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: recordingClient(calls, () => ({ data: [] })),
+    stdout: { write() {} },
+    json: true,
+    options: {
+      "project-id": PEER_UUID,
+      "assignee-user-id": "user-1",
+      sort: "PRIORITY",
+      status: "READY",
+    },
+  });
+  assert.equal(
+    calls[0]?.path,
+    `/v1/tasks?take=100&projectId=${PEER_UUID}&assigneeUserId=user-1&sort=priority&status=READY`,
+  );
+  await assert.rejects(
+    () =>
+      runTasksCommand({
+        client: clientWith({ data: [] }),
+        stdout: { write() {} },
+        options: { sort: "name" },
+      }),
+    /--sort must be one of: createdAt, updatedAt, priority/,
+  );
+});
+
+function linksClient(
+  calls: Call[],
+  links: unknown[],
+  failPost = false,
+): CoreHttpClient {
+  return recordingClient(calls, (call) => {
+    if (call.method === "GET" && call.path === "/v1/tasks/SOK4-79")
+      return { data: { id: PEER_UUID } };
+    if (call.method === "GET") return { data: links };
+    if (call.method === "POST" && failPost) throw new Error("Core said no");
+    if (call.method === "DELETE") return { data: { deleted: true } };
+    return { data: { id: "tl-new", relation: "child" } };
+  });
+}
+
+const PARENT_LINK = {
+  id: "tl-1",
+  relation: "parent",
+  note: "epic",
+  peerTask: { id: PEER_UUID, identifier: "SOK4-79" },
+};
+const RELATED_LINK = {
+  id: "tl-2",
+  relation: "related",
+  note: null,
+  peerTask: { id: PEER_UUID, identifier: "SOK4-79" },
+};
+
+test("tasks unlink deletes the link to the --to task", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: linksClient(calls, [PARENT_LINK]),
+    stdout: { write() {} },
+    json: true,
+    subcommand: "unlink",
+    positionalId: TASK_UUID,
+    options: { to: "SOK4-79" },
+  });
+  assert.deepEqual(calls.at(-1), {
+    method: "DELETE",
+    path: `/v1/tasks/${TASK_UUID}/links/tl-1`,
+  });
+});
+
+test("tasks unlink needs --relation when several links reach the --to task", async () => {
+  const run = (options: Record<string, string>, calls: Call[] = []) =>
+    runTasksCommand({
+      client: linksClient(calls, [PARENT_LINK, RELATED_LINK]),
+      stdout: { write() {} },
+      subcommand: "unlink",
+      positionalId: TASK_UUID,
+      options,
+    });
+  await assert.rejects(
+    () => run({ to: PEER_UUID }),
+    /2 links to .* \(parent, related\); pass --relation/,
+  );
+  await assert.rejects(
+    () => run({ to: PEER_UUID, relation: "blocks" }),
+    /No blocks link/,
+  );
+  const calls: Call[] = [];
+  await run({ to: PEER_UUID, relation: "related" }, calls);
+  assert.equal(calls.at(-1)?.path, `/v1/tasks/${TASK_UUID}/links/tl-2`);
+});
+
+test("tasks relink replaces the link and keeps its note", async () => {
+  const calls: Call[] = [];
+  const output: string[] = [];
+  await runTasksCommand({
+    client: linksClient(calls, [PARENT_LINK]),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "relink",
+    positionalId: TASK_UUID,
+    options: { to: "SOK4-79", relation: "child" },
+  });
+  assert.deepEqual(
+    calls.filter((call) => call.method !== "GET"),
+    [
+      { method: "DELETE", path: `/v1/tasks/${TASK_UUID}/links/tl-1` },
+      {
+        method: "POST",
+        path: `/v1/tasks/${TASK_UUID}/links`,
+        body: { toTaskId: PEER_UUID, relation: "child", note: "epic" },
+      },
+    ],
+  );
+  assert.equal(JSON.parse(output.join("")).link.id, "tl-new");
+});
+
+test("tasks relink names the restore command when the new link fails", async () => {
+  await assert.rejects(
+    () =>
+      runTasksCommand({
+        client: linksClient([], [PARENT_LINK], true),
+        stdout: { write() {} },
+        subcommand: "relink",
+        positionalId: TASK_UUID,
+        options: { to: PEER_UUID, relation: "child" },
+      }),
+    new RegExp(
+      `Removed the parent link but could not create the child link: Core said no. Restore it with: sokosumi tasks link ${TASK_UUID} --relation parent --to ${PEER_UUID} --note "epic"`,
+    ),
+  );
+});
+
+test("tasks archive resolves the id and archives the task", async () => {
+  const calls: Call[] = [];
+  const output: string[] = [];
+  await runTasksCommand({
+    client: recordingClient(calls, (call) =>
+      call.method === "GET"
+        ? { data: { id: TASK_UUID } }
+        : { data: { id: TASK_UUID, archivedAt: "2026-10-19T00:00:00.000Z" } },
+    ),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "archive",
+    positionalId: "SOK4-71",
+  });
+  assert.deepEqual(calls.at(-1), {
+    method: "DELETE",
+    path: `/v1/tasks/${TASK_UUID}`,
+  });
+  assert.equal(JSON.parse(output.join("")).task.id, TASK_UUID);
 });

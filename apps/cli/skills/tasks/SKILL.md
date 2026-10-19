@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: "Use when creating, updating, linking, inspecting, or commenting on Sokosumi Tasks through the headless CLI."
+description: "Use when creating, updating, linking, archiving, inspecting, or commenting on Sokosumi Tasks through the headless CLI."
 metadata:
   internal: false
 ---
@@ -23,6 +23,8 @@ sokosumi tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEX
 sokosumi tasks update TASK_ID --organization-slug WORKSPACE_SLUG --priority HIGH --description-file ./spec.md --json
 sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to PARENT_TASK_ID --json
 sokosumi tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi tasks unlink TASK_ID --organization-slug WORKSPACE_SLUG --to OTHER_TASK_ID --json
+sokosumi tasks archive TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
 TASK_ID accepts a UUID or a short identifier such as `SOK-12`. For tracking human work (specs, priority, people as assignees, parent and blocker links, status events), follow "Track work as Tasks" in the `sokosumi` Skill.

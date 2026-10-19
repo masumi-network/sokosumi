@@ -131,6 +131,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "to",
   "relation",
   "note",
+  "sort",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([

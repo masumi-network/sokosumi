@@ -4,9 +4,11 @@ import {
   verifyPersonalWorkspace,
 } from "../../api/services/personal-workspace-service.js";
 import {
+  archiveTask,
   createTask,
   createTaskEvent,
   createTaskLink,
+  deleteTaskLink,
   fetchTask,
   fetchTaskEvents,
   fetchTaskJobs,
@@ -42,6 +44,8 @@ const LINK_RELATIONS = [
   "duplicate",
 ] as const;
 
+const SORTS = ["createdAt", "updatedAt", "priority"];
+
 const TASK_ID_COMMANDS = [
   "get",
   "events",
@@ -50,6 +54,9 @@ const TASK_ID_COMMANDS = [
   "update",
   "links",
   "link",
+  "unlink",
+  "relink",
+  "archive",
 ];
 
 export interface TasksCommandContext extends CommandContext {
@@ -164,6 +171,30 @@ function printLinks(
   writeText(stdout, lines);
 }
 
+/** The single link from a Task's links that reaches `peerId`. */
+function findLink(
+  links: readonly unknown[],
+  peerId: string,
+  to: string,
+  relation: string | undefined,
+  ambiguousHint: string,
+): Record<string, unknown> {
+  const toPeer = links
+    .map(record)
+    .filter((link) => record(link.peerTask).id === peerId);
+  const matches = relation
+    ? toPeer.filter((link) => link.relation === relation)
+    : toPeer;
+  if (matches.length === 1) return matches[0];
+  if (!matches.length)
+    throw new Error(
+      relation ? `No ${relation} link to ${to}` : `No link to ${to}`,
+    );
+  throw new Error(
+    `${matches.length} links to ${to} (${matches.map((link) => String(link.relation)).join(", ")}); ${ambiguousHint}`,
+  );
+}
+
 async function readDescription(
   options: CommandOptions | undefined,
 ): Promise<string | undefined> {
@@ -253,13 +284,15 @@ export async function runTasksCommand({
         status: optionString(options, "status"),
         scope: optionString(options, "scope"),
         coworkerId: optionString(options, "coworker-id"),
+        assigneeUserId: optionString(options, "assignee-user-id"),
+        projectId: optionString(options, "project-id"),
+        sort: validateChoice(option(options, "sort"), SORTS, "--sort"),
         take: limit,
       },
       signal,
     );
-    const listed = limit === undefined ? tasks : tasks.slice(0, limit);
-    if (json) writeJson(stdout, { tasks: listed });
-    else printTaskList(stdout, listed);
+    if (json) writeJson(stdout, { tasks });
+    else printTaskList(stdout, tasks);
     return;
   }
   if (command === "create") {
@@ -437,5 +470,56 @@ export async function runTasksCommand({
     else printLinks(stdout, [link]);
     return;
   }
-  throw new Error(`Unknown tasks subcommand: ${command}`);
+  if (command === "archive") {
+    const { task } = await archiveTask(
+      client,
+      await resolveTaskId(client, ref, signal),
+      signal,
+    );
+    if (json) writeJson(stdout, { task });
+    else printTask(stdout, task, {});
+    return;
+  }
+  // unlink and relink act on the one existing link between TASK_ID and --to.
+  const to = optionString(options, "to");
+  if (!to) throw new Error(`--to is required for \`tasks ${command}\``);
+  const relation = validateChoice(
+    option(options, "relation"),
+    LINK_RELATIONS,
+    "--relation",
+  );
+  if (command === "relink" && !relation)
+    throw new Error(`--relation must be one of: ${LINK_RELATIONS.join(", ")}`);
+  const id = await resolveTaskId(client, ref, signal);
+  const peerId = await resolveTaskId(client, to, signal);
+  const { links } = await fetchTaskLinks(client, id, signal);
+  const existing =
+    command === "unlink"
+      ? findLink(links, peerId, to, relation, "pass --relation")
+      : findLink(links, peerId, to, undefined, "unlink the extra ones first");
+  await deleteTaskLink(client, id, String(existing.id), signal);
+  if (command === "unlink") {
+    if (json) writeJson(stdout, { deleted: existing });
+    else
+      writeText(stdout, [`Removed ${String(existing.relation)} link to ${to}`]);
+    return;
+  }
+  // Core's link PATCH cannot reverse a link's direction, so relink recreates it.
+  const oldNote = typeof existing.note === "string" ? existing.note : undefined;
+  const note = optionString(options, "note") ?? oldNote;
+  try {
+    const { link } = await createTaskLink(
+      client,
+      id,
+      { toTaskId: peerId, relation: String(relation), note },
+      signal,
+    );
+    if (json) writeJson(stdout, { link });
+    else printLinks(stdout, [link]);
+  } catch (error) {
+    const restore = `sokosumi tasks link ${id} --relation ${String(existing.relation)} --to ${peerId}${oldNote ? ` --note ${JSON.stringify(oldNote)}` : ""}`;
+    throw new Error(
+      `Removed the ${String(existing.relation)} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. Restore it with: ${restore} (same --organization-slug)`,
+    );
+  }
 }

@@ -11,8 +11,15 @@ interface FetchTasksOptions {
   status?: string | readonly string[];
   scope?: string;
   coworkerId?: string;
-  take?: number | string;
+  assigneeUserId?: string;
+  projectId?: string;
+  sort?: string;
+  /** Total Tasks to return; omitted fetches every page. */
+  take?: number;
 }
+
+/** Core's MAX_PAGINATION_LIMIT. */
+const PAGE_SIZE = 100;
 
 export interface TaskFields {
   name?: string;
@@ -57,16 +64,31 @@ function values(input: string | readonly string[] | undefined): string[] {
   return [];
 }
 
-function tasksPath(options: FetchTasksOptions = {}): string {
+function tasksPath(
+  options: FetchTasksOptions,
+  take: number,
+  cursor?: string,
+): string {
   const params = new URLSearchParams();
   if (options.q) params.set("q", String(options.q).trim());
   if (options.scope) params.set("scope", String(options.scope).trim());
   if (options.coworkerId)
     params.set("assigneeId", String(options.coworkerId).trim());
-  if (options.take !== undefined) params.set("take", String(options.take));
+  params.set("take", String(take));
+  if (options.projectId) params.set("projectId", options.projectId.trim());
+  if (options.assigneeUserId)
+    params.set("assigneeUserId", options.assigneeUserId.trim());
+  if (options.sort) params.set("sort", options.sort);
   for (const status of values(options.status)) params.append("status", status);
-  const query = params.toString();
-  return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;
+  if (cursor) params.set("cursor", cursor);
+  return `${TASKS_PATH}?${params}`;
+}
+
+function nextCursor(response: ApiResponse<unknown[]>): string | null {
+  const pagination = response.meta?.pagination;
+  if (!pagination || typeof pagination !== "object") return null;
+  const next = (pagination as Record<string, unknown>).nextCursor;
+  return typeof next === "string" && next ? next : null;
 }
 
 function taskPayload(data: TaskFields): Record<string, unknown> {
@@ -177,11 +199,29 @@ export async function fetchTasks(
   client: CoreHttpClient,
   options: FetchTasksOptions = {},
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; tasks: Task[] }> {
-  const response = listResponse(
-    parseApiResponse(await client.get<unknown>(tasksPath(options), signal)),
-  );
-  return { response, tasks: response.data.map(parseTask) };
+): Promise<{ tasks: Task[] }> {
+  const tasks: Task[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const remaining =
+      options.take === undefined ? PAGE_SIZE : options.take - tasks.length;
+    const response = listResponse(
+      parseApiResponse(
+        await client.get<unknown>(
+          tasksPath(options, Math.min(remaining, PAGE_SIZE), cursor),
+          signal,
+        ),
+      ),
+    );
+    tasks.push(...response.data.map(parseTask));
+    const next = nextCursor(response);
+    if (!next || next === cursor) break;
+    if (options.take !== undefined && tasks.length >= options.take) break;
+    cursor = next;
+  }
+  return {
+    tasks: options.take === undefined ? tasks : tasks.slice(0, options.take),
+  };
 }
 
 export async function fetchTaskJobs(
@@ -260,4 +300,34 @@ export async function createTaskEvent(
     ),
   );
   return { response, event: response.data };
+}
+
+export async function deleteTaskLink(
+  client: CoreHttpClient,
+  taskId: string,
+  linkId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  requireId(taskId, "taskId");
+  requireId(linkId, "linkId");
+  await client.delete<unknown>(
+    `${TASKS_PATH}/${encodeURIComponent(taskId)}/links/${encodeURIComponent(linkId)}`,
+    signal,
+  );
+}
+
+/** Core archives on DELETE; the Task stays readable. */
+export async function archiveTask(
+  client: CoreHttpClient,
+  taskId: string,
+  signal?: AbortSignal,
+): Promise<{ task: Task }> {
+  requireId(taskId, "taskId");
+  const response = parseApiResponse(
+    await client.delete<unknown>(
+      `${TASKS_PATH}/${encodeURIComponent(taskId)}`,
+      signal,
+    ),
+  );
+  return { task: parseTask(response.data) };
 }

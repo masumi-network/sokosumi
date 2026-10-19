@@ -164,12 +164,19 @@ sokosumi tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNIN
 sokosumi tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
 sokosumi tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
 sokosumi tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
+sokosumi tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
+sokosumi tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --json
+sokosumi tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
 ```
 
 - The returned `task.identifier` is the ticket name; use it in branches and PR descriptions.
 - `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
 - `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
 - `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
+- Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link.
+- `tasks list` reads every page unless `--limit` is set. Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
+- `tasks archive` closes a duplicate or mistaken Task. The Task stays readable.
 - The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
 - Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 

@@ -74,6 +74,20 @@ export const CLI_COMMAND_CATALOG = [
     usage:
       "TASK_ID --to TASK_ID --relation RELATION [--organization-slug WORKSPACE_SLUG]",
   },
+  {
+    command: "tasks unlink",
+    usage:
+      "TASK_ID --to TASK_ID [--relation RELATION] [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks relink",
+    usage:
+      "TASK_ID --to TASK_ID --relation RELATION [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks archive",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
   { command: "jobs list", usage: "" },
   { command: "jobs get", usage: "JOB_ID" },
   { command: "jobs input", usage: "JOB_ID" },
