@@ -13,10 +13,16 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   sendSokoBotTurnFeedbackAction: sendFeedbackMock,
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "user-1" } } }),
+}));
+
 import {
+  canRateSokoBotMessage,
   hasSokoBotMessageFooter,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
+  sharedSokoBotId,
   sokoBotSourceLabel,
 } from "./soko-bot-message-footer";
 
@@ -47,6 +53,14 @@ describe("sokoBotSourceLabel", () => {
     ).toEqual({ kind: "scheduled", name: "Monday check-in" });
   });
 
+  it("names a background run by its title", () => {
+    expect(
+      sokoBotSourceLabel(
+        meta({ source: "CHAT", background_run_title: "Gmail CRM" }),
+      ),
+    ).toEqual({ kind: "background", name: "Gmail CRM" });
+  });
+
   it("labels nothing on replies or non-bot messages", () => {
     expect(sokoBotSourceLabel(meta({ source: "CHAT" }))).toBeNull();
     expect(sokoBotSourceLabel(meta({}))).toBeNull();
@@ -65,15 +79,72 @@ describe("hasSokoBotMessageFooter", () => {
   });
 });
 
+function botSender(
+  scope: "personal" | "project" | "workspace",
+  ownerUserId: string | null,
+) {
+  return {
+    type: "sokoBot" as const,
+    sokoBot: {
+      id: "bot-1",
+      name: "Ops",
+      caption: null,
+      image: null,
+      avatarSeed: null,
+      ownerUserId,
+      scope,
+      sharedRoomId: null,
+      presence: "online" as const,
+    },
+  };
+}
+
+describe("canRateSokoBotMessage", () => {
+  it("lets only the owner rate, because Core stores nothing else", () => {
+    expect(
+      canRateSokoBotMessage(botSender("personal", "user-1"), "user-1"),
+    ).toBe(true);
+    expect(
+      canRateSokoBotMessage(botSender("personal", "user-2"), "user-1"),
+    ).toBe(false);
+    expect(canRateSokoBotMessage(botSender("workspace", null), "user-1")).toBe(
+      false,
+    );
+    expect(
+      canRateSokoBotMessage(botSender("personal", "user-1"), undefined),
+    ).toBe(false);
+    expect(canRateSokoBotMessage({ type: "unknown" }, "user-1")).toBe(false);
+  });
+});
+
 describe("SokoBotFeedbackButtons", () => {
+  it("shows no thumbs on a shared bot's message", () => {
+    render(
+      <SokoBotFeedbackButtons
+        message={{ metadata: meta({}), sender: botSender("project", null) }}
+        buttonClassName=""
+      />,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("renders thumbs only for bot messages and locks after a rating", async () => {
     sendFeedbackMock.mockResolvedValue({ ok: true, value: null });
+    const sender = botSender("personal", "user-1");
     const { rerender } = render(
-      <SokoBotFeedbackButtons metadata={{}} buttonClassName="" />,
+      <SokoBotFeedbackButtons
+        message={{ metadata: {}, sender }}
+        buttonClassName=""
+      />,
     );
     expect(screen.queryByRole("button")).toBeNull();
 
-    rerender(<SokoBotFeedbackButtons metadata={meta({})} buttonClassName="" />);
+    rerender(
+      <SokoBotFeedbackButtons
+        message={{ metadata: meta({}), sender }}
+        buttonClassName=""
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "feedbackUseful" }));
     await waitFor(() =>
       expect(
@@ -122,5 +193,58 @@ describe("SokoBotMessageFooter task previews", () => {
       />,
     );
     expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+describe("approvals from a shared bot", () => {
+  const pending = meta({ pending_decision_ids: ["d1"] });
+  const bot = (scope: "personal" | "project" | "workspace") => ({
+    type: "sokoBot" as const,
+    sokoBot: {
+      id: "bot-1",
+      name: "Ops",
+      caption: null,
+      image: null,
+      avatarSeed: null,
+      ownerUserId: scope === "personal" ? "user-1" : null,
+      scope,
+      sharedRoomId: null,
+      presence: "online" as const,
+    },
+  });
+
+  it("names the sender only for a project or workspace bot", () => {
+    expect(sharedSokoBotId(bot("workspace"))).toBe("bot-1");
+    expect(sharedSokoBotId(bot("project"))).toBe("bot-1");
+    expect(sharedSokoBotId(bot("personal"))).toBeNull();
+    expect(sharedSokoBotId({ type: "unknown" })).toBeNull();
+  });
+
+  it("reads a sender without a scope, from an older Core, as personal", () => {
+    const { scope: _scope, ...withoutScope } = bot("workspace").sokoBot;
+    expect(
+      sharedSokoBotId({
+        type: "sokoBot",
+        sokoBot: withoutScope as typeof withoutScope & {
+          scope: "personal";
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("links a shared bot's approvals to its own console", () => {
+    render(<SokoBotMessageFooter metadata={pending} sharedBotId="bot-1" />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/soko-bots/bot-1?turn=turn-1",
+    );
+  });
+
+  it("links the caller's own approvals to the assistant console", () => {
+    render(<SokoBotMessageFooter metadata={pending} />);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/personal-assistant?turn=turn-1",
+    );
   });
 });

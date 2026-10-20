@@ -35,6 +35,7 @@ const DOM_TEST_TS = [
   "src/lib/utils/composer-*.test.ts",
   "src/lib/ui-preferences/sidebar-state.test.ts",
   "src/lib/ui-preferences/chat-unreads-filter.test.ts",
+  "src/lib/social-compose-prefill.test.ts",
   "src/lib/analytics/consent.test.ts",
   "src/lib/analytics/internal-traffic.test.ts",
   "src/lib/auth/auth-email-hint.test.ts",
@@ -122,6 +123,15 @@ export default defineConfig({
         test: {
           name: "happy-dom",
           environment: "happy-dom",
+          // 21.x turns iframe page loading off (SSRF). Print and PDF tests
+          // write into iframe.contentDocument, so the harness opts back in.
+          environmentOptions: {
+            happyDOM: {
+              settings: {
+                enableIframePageLoading: true,
+              },
+            },
+          },
           setupFiles: ["src/test/setup.ts", "src/test/setup.dom.ts"],
           include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
           exclude: [...defaultExclude, "src/**/*.webkit.test.{ts,tsx}"],

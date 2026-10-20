@@ -3,9 +3,10 @@ import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
 
-/// Minimal Settings: account identity, chat display preferences, the Core
-/// endpoint in use and sign out.
+/// Minimal Settings: account identity, chat display preferences, automatic
+/// update checks (publish build only), the Core and web endpoints in use and sign out.
 struct SettingsView: View {
+  @ObservedObject var updater: AppUpdater
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.scenePhase) private var scenePhase
@@ -43,12 +44,20 @@ struct SettingsView: View {
         isAvailable: auth.isSignedIn && workspaces.notificationPreferences.isLoaded,
         bannersBlocked: workspaces.notificationPreferences.wantsBanner && notificationAuthorization == .denied,
         error: notificationError,
-        onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset, auth: auth) } },
-        onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach], auth: auth) } }
+        onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset) } },
+        onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach]) } }
       )
+      if AppUpdater.isPublishBuild {
+        UpdateSettingsSection(automaticallyChecks: $updater.automaticallyChecksForUpdates)
+      }
       Section("Core") {
         LabeledContent("Base URL") {
           Text(CoreSettings.baseURL.absoluteString)
+            .font(.caption)
+            .textSelection(.enabled)
+        }
+        LabeledContent("Web") {
+          Text(CoreSettings.webBaseURL.absoluteString)
             .font(.caption)
             .textSelection(.enabled)
         }
@@ -67,7 +76,7 @@ struct SettingsView: View {
       saveError = nil
       notificationError = nil
       guard auth.isSignedIn else { return }
-      if await !workspaces.refreshUserPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
+      if await !workspaces.refreshUserPreferences(), !workspaces.notificationPreferences.isLoaded {
         notificationError = "Your notification settings did not load. Reopen Settings to try again."
       }
       await ChatNotificationCenter.shared.refreshAuthorization()
@@ -106,7 +115,7 @@ struct SettingsView: View {
         defer { pendingRoomUnreadCount = nil }
         saveError = nil
         do {
-          try await workspaces.setShowsRoomUnreadCount(enabled, auth: auth)
+          try await workspaces.setShowsRoomUnreadCount(enabled)
         } catch {
           saveError = "Could not save that change. Check your connection and try again."
         }
@@ -142,6 +151,21 @@ struct ChatSettingsSection: View {
       } label: {
         Text("Time format")
         Text("Choose how times are shown. Auto follows your system settings. Saved on this device.")
+      }
+    }
+  }
+}
+
+/// Sparkle's "check automatically" switch (ADR 0054). Whether a found update
+/// installs on its own stays in Sparkle's prompt.
+struct UpdateSettingsSection: View {
+  @Binding var automaticallyChecks: Bool
+
+  var body: some View {
+    Section("Updates") {
+      Toggle(isOn: $automaticallyChecks) {
+        Text("Check for updates automatically")
+        Text("Sokosumi looks for a new version once a day.")
       }
     }
   }

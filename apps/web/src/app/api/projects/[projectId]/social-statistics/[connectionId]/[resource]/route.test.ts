@@ -70,6 +70,112 @@ describe("statistics research read", () => {
     expect(mocks.benchmark).not.toHaveBeenCalled();
   });
 
+  it.each(["audience", "benchmark", "discovery"] as const)(
+    "preserves %s preview data and disables shared caching",
+    async (resource) => {
+      const publishedAt = new Date("2026-10-01T12:00:00Z");
+      const author = {
+        id: "author-1",
+        name: "Ada",
+        username: "ada",
+        avatarUrl: "https://images.test/ada.jpg",
+        followersCount: 90,
+      };
+      const post = {
+        id: connectionId,
+        externalId: "123",
+        text: "Public launch post",
+        publishedAt,
+        url: "https://x.com/ada/status/123",
+        media: [
+          {
+            kind: "image",
+            url: "https://images.test/launch.jpg",
+            thumbnailUrl: null,
+          },
+        ],
+        metrics: {
+          views: 0,
+          impressions: null,
+          likes: 5,
+          comments: 2,
+          shares: 1,
+          saves: null,
+        },
+      };
+      const data =
+        resource === "benchmark"
+          ? {
+              profile: author,
+              posts: [post],
+              observedAt: publishedAt,
+              summary: {
+                postCount: 1,
+                views: 0,
+                impressions: null,
+                interactions: 8,
+              },
+              coverage: "Public sample",
+            }
+          : {
+              contacts: [author],
+              posts: [{ author, post }],
+              nextCursor: "next-sample",
+              observedAt: publishedAt,
+              coverage: "Public sample",
+            };
+      mocks[resource].mockResolvedValue(data);
+      const query =
+        resource === "audience"
+          ? `?kind=reposters&postId=${connectionId}&cursor=next-sample&limit=20`
+          : resource === "benchmark"
+            ? "?username=ada"
+            : "?topic=launch&cursor=next-sample";
+      const response = await read(resource, query);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(await response.json()).toEqual(JSON.parse(JSON.stringify(data)));
+      if (resource === "audience")
+        expect(mocks.audience).toHaveBeenCalledWith("p-1", connectionId, {
+          kind: "reposters",
+          postId: connectionId,
+          cursor: "next-sample",
+          limit: 20,
+        });
+      if (resource === "discovery")
+        expect(mocks.discovery).toHaveBeenCalledWith("p-1", connectionId, {
+          topic: "launch",
+          cursor: "next-sample",
+        });
+    },
+  );
+
+  it("reports unavailable authentication without treating it as signout", async () => {
+    mocks.readSession.mockResolvedValue({
+      status: "unavailable",
+      reason: "network",
+    });
+    const response = await read("audience");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(mocks.audience).not.toHaveBeenCalled();
+  });
+
+  it.each(["benchmark", "discovery"] as const)(
+    "maps an unknown %s failure to 502",
+    async (resource) => {
+      mocks[resource].mockRejectedValue(new Error("Unavailable"));
+      expect(
+        (
+          await read(
+            resource,
+            resource === "benchmark" ? "?username=ada" : "?topic=launch",
+          )
+        ).status,
+      ).toBe(502);
+    },
+  );
+
   it("requires a trusted session", async () => {
     mocks.readSession.mockResolvedValue({ status: "signedOut" });
     expect((await read("audience")).status).toBe(401);

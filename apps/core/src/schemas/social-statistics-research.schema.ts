@@ -79,7 +79,7 @@ export const socialStatisticsResearchPostSchema = socialAccountPostSchema
 
 export const socialPerformancePublicPostSchema = z
   .object({
-    author: socialPerformanceContactSchema.nullable(),
+    author: z.union([socialPerformanceContactSchema, z.null()]),
     post: socialStatisticsResearchPostSchema,
     interactionType: z
       .enum(["reply", "quote", "mention"])

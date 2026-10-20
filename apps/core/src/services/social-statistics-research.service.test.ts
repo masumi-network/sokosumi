@@ -1,14 +1,31 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ComposioApiError } from "@/clients/composio.client";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+import mountAudience from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/audience/get";
+import mountBenchmark from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/benchmark/get";
+import mountDiscovery from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/discovery/get";
 
 const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
+  project: vi.fn(),
+  connections: vi.fn(),
   connection: vi.fn(),
   post: vi.fn(),
   read: vi.fn(),
+  beta: vi.fn(),
+}));
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: mocks.beta,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    projectSocialConnection: { findFirst: mocks.connection },
+    project: { findFirst: mocks.project },
+    projectSocialConnection: {
+      findFirst: mocks.connection,
+      findMany: mocks.connections,
+    },
     socialAccountPost: { findFirst: mocks.post },
   },
 }));
@@ -29,6 +46,7 @@ import {
   readSocialPerformanceAudience,
   readSocialPerformanceBenchmark,
   readSocialPerformanceDiscovery,
+  scopedXConnection,
 } from "./social-statistics-research.service";
 
 const scope = {
@@ -75,6 +93,93 @@ beforeEach(() => {
   });
 });
 afterEach(() => vi.useRealTimers());
+
+describe.each([
+  "audience?kind=followers",
+  "benchmark?username=reader",
+  "discovery?topic=launch",
+])("%s bot access before X", (suffix) => {
+  const personalBot: AuthenticationContext = {
+    actor: "sokoBot",
+    scope: "personal",
+    sokoBotId: "personal-bot",
+    userId: "owner",
+    workspaceId: scope.workspaceId,
+    organizationId: null,
+  };
+  const projectBot: AuthenticationContext = {
+    actor: "sokoBot",
+    scope: "project",
+    sokoBotId: "project-bot",
+    userId: null,
+    workspaceId: scope.workspaceId,
+    organizationId: "organization",
+    projectId: scope.projectId,
+  };
+  const url = `http://localhost/${scope.projectId}/social-connections/${scope.connectionId}/statistics/${suffix}`;
+
+  function createApp(actor: AuthenticationContext) {
+    const app = new OpenAPIHono<EnvVariables>({
+      defaultHook: defaultValidationHook,
+    });
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", actor);
+      c.set("workspaceContext", null);
+      await next();
+    });
+    mountAudience(app);
+    mountBenchmark(app);
+    mountDiscovery(app);
+    return app;
+  }
+
+  beforeEach(() => {
+    mocks.project.mockResolvedValue({
+      id: scope.projectId,
+      workspaceId: scope.workspaceId,
+      workspace: { userId: "owner", organizationId: null },
+    });
+    mocks.beta.mockResolvedValue(undefined);
+    mocks.read.mockImplementation(async (_context, endpoint: string) => ({
+      data: endpoint.includes("/by/username/") ? user : [],
+    }));
+  });
+
+  it.each([personalBot, projectBot])(
+    "allows $scope bot research through X",
+    async (actor) => {
+      expect((await createApp(actor).request(url)).status).toBe(200);
+      expect(mocks.read).toHaveBeenCalled();
+    },
+  );
+
+  it("never calls X when the personal owner's Project access fails", async () => {
+    mocks.project.mockResolvedValue({
+      id: scope.projectId,
+      workspaceId: scope.workspaceId,
+      workspace: { userId: "another-owner", organizationId: null },
+    });
+    expect((await createApp(personalBot).request(url)).status).toBe(404);
+    expect(mocks.accounts).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+
+  it("never calls X when a project bot requests another Project", async () => {
+    expect(
+      (
+        await createApp(projectBot).request(
+          url.replace(scope.projectId, postId),
+        )
+      ).status,
+    ).toBe(403);
+    expect(mocks.project).not.toHaveBeenCalled();
+    expect(mocks.accounts).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+});
 
 describe("scoped X audience and public benchmarking", () => {
   it.each([
@@ -242,7 +347,15 @@ describe("scoped X audience and public benchmarking", () => {
       topic: "launch",
     });
     expect(first.publishedFrom).toBe("2026-10-01T13:00:00.000Z");
-    expect(first.publishedUntil).toBe("2026-10-08T12:00:00.000Z");
+    // X rejects an end_time within 10 seconds of the request, so the default ends 30 seconds ago.
+    expect(first.publishedUntil).toBe("2026-10-08T11:59:30.000Z");
+    expect(mocks.read).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://api.x.com/2/tweets/search/recent",
+      expect.arrayContaining([
+        { name: "end_time", value: "2026-10-08T11:59:30.000Z", type: "query" },
+      ]),
+    );
     vi.setSystemTime(new Date("2026-10-08T12:10:00Z"));
     const query = {
       ...scope,
@@ -316,6 +429,29 @@ describe("scoped X audience and public benchmarking", () => {
         },
       ]),
     );
+  });
+  it("keeps public post evidence when its author expansion is unavailable", async () => {
+    mocks.read.mockResolvedValue({
+      data: [
+        {
+          id: "789",
+          author_id: "456",
+          text: "Public post",
+          created_at: "2026-10-07T12:00:00Z",
+        },
+      ],
+      meta: { result_count: 1 },
+    });
+    for (const result of [
+      await readSocialPerformanceAudience(scope),
+      await readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ]) {
+      expect(result.posts).toHaveLength(1);
+      expect(result.posts[0]).toMatchObject({
+        author: null,
+        post: { externalId: "789" },
+      });
+    }
   });
   it("reports empty discovery samples and safe provider failures", async () => {
     mocks.read.mockResolvedValue({ meta: { result_count: 0 } });
@@ -458,6 +594,29 @@ describe("scoped X audience and public benchmarking", () => {
     expect(mocks.connection).not.toHaveBeenCalled();
     expect(mocks.read).not.toHaveBeenCalled();
   });
+  it("uses the shared project visibility check for every research read before loading connections", async () => {
+    const { listProjectSocialConnections } = await vi.importActual<
+      typeof import("@/services/project-social-connections.service")
+    >("@/services/project-social-connections.service");
+    mocks.accounts.mockImplementation(listProjectSocialConnections);
+    mocks.project.mockResolvedValue(null);
+    for (const read of [
+      () => scopedXConnection(scope),
+      () => readSocialPerformanceAudience(scope),
+      () => readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
+      () => readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ]) {
+      await expect(read()).rejects.toMatchObject({ status: 404 });
+    }
+    expect(mocks.project).toHaveBeenCalledTimes(4);
+    expect(mocks.project).toHaveBeenCalledWith({
+      where: { id: scope.projectId, workspaceId: scope.workspaceId },
+      select: { id: true, closingAt: true, closedAt: true },
+    });
+    expect(mocks.connections).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
 
   it.each([
     { accounts: [], raw: connection },
@@ -590,9 +749,27 @@ describe("scoped X audience and public benchmarking", () => {
   });
 
   it("maps provider failure and malformed cursors to a safe unavailable response", async () => {
-    mocks.read.mockRejectedValue(new Error("access_token=secret"));
+    mocks.read.mockRejectedValue(
+      new ComposioApiError(429, {}, "access_token=secret"),
+    );
     await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
       status: 503,
+      message:
+        "X audience data is unavailable. Check connection scopes, API access and rate limits, then try again.",
+    });
+    await expect(
+      readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message:
+        "X public benchmark is unavailable. Confirm the handle is public, then check connection permissions, API access and rate limits.",
+    });
+    await expect(
+      readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message:
+        "X recent discovery is unavailable. Check connection scopes, search API access and rate limits, then try again.",
     });
     mocks.read.mockResolvedValue({
       data: [],

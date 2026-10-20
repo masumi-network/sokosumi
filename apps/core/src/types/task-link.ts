@@ -4,7 +4,10 @@ import {
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
-import { type AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  requirePersonalSokoBotAuthContext,
+} from "@/middleware/auth";
 
 export const taskLinkPeerTaskSelect = {
   id: true,
@@ -94,7 +97,11 @@ function buildVisiblePeerTaskWhere(
         assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
-        AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
+        AND: [
+          buildSokoBotOwnerTaskVisibilityWhere(
+            requirePersonalSokoBotAuthContext(authContext).userId,
+          ),
+        ],
       };
     }
     default: {

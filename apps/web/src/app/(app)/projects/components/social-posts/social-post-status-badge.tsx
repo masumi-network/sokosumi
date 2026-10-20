@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
  * weight separates statuses that share a hue, and the glyph names it.
  *
  * A draft and a canceled post are `dormant`, like a draft or canceled task.
+ * Needs approval is `staged` and outline: a person still has to let it go.
  * A scheduled post is `staged`, like a scheduled task: the start is
  * arranged. Publishing is `active` and spins. Published is `resolved`.
  * Failed is `fault` at full weight, and missed is `blocked`: it waits on the
@@ -21,6 +22,10 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
   DRAFT: {
     tone: { hue: "dormant", weight: "outline" },
     icon: MARKER_ICONS.draft,
+  },
+  NEEDS_APPROVAL: {
+    tone: { hue: "staged", weight: "outline" },
+    icon: MARKER_ICONS.approval,
   },
   SCHEDULED: {
     tone: { hue: "staged", weight: "filled" },

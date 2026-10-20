@@ -5,8 +5,8 @@ import {
   adminSokoBotActionRequestSchema,
   adminSokoBotVersionMigrationRequestSchema,
   sokoBotSchema,
-  sokoBotStateSchema,
 } from "./soko-bot.schema";
+import { sokoBotStateSchema } from "./soko-bot-scope.schema";
 
 describe("adminSokoBotActionRequestSchema", () => {
   it("requires a caller-owned operation id", () => {

@@ -63,11 +63,14 @@ vi.mock("@/config/env", () => ({
 }));
 
 import {
-  activeIntegrationsForBot,
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
-  fetchInboxMessages,
   finalizeSokoBotIntegration,
+} from "./soko-bot-integration-connection.service";
+import {
+  activeIntegrationsForBot,
+  fetchInboxMessages,
+  fetchInboxPage,
   listIntegrationTools,
   revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
@@ -245,7 +248,6 @@ describe("Soko Bot OAuth replacement", () => {
       await expect(operation(input)).rejects.toThrow("Soko Bot not found");
       expect(mocks.bot).toHaveBeenCalledWith({
         where: { userId: "owner", workspaceId: "workspace", archivedAt: null },
-        select: { id: true },
       });
       expect(mocks.link).not.toHaveBeenCalled();
       expect(mocks.get).not.toHaveBeenCalled();
@@ -273,6 +275,35 @@ describe("Soko Bot OAuth replacement", () => {
         where: { sokoBotId: "bot", status: "ACTIVE" },
       }),
     );
+  });
+
+  it("pages Gmail with the token it handed back", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        successful: true,
+        data: {
+          messages: [{ messageId: "m1", messageTimestamp: "2024-01-02" }],
+          nextPageToken: "page-3",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const page = await fetchInboxPage(integration, {
+      query: "before:2024/04/01",
+      limit: 50,
+      pageToken: "page-2",
+    });
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toMatchObject({
+      query: "before:2024/04/01",
+      max_results: 50,
+      page_token: "page-2",
+    });
+    expect(page.nextPageToken).toBe("page-3");
+    expect(page.messages).toHaveLength(1);
   });
 
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {
@@ -713,6 +744,7 @@ const githubIntegration = {
     tools: {},
   },
   composioAccountId: "acc",
+  connectorUserId: null,
   cursor: null,
 };
 

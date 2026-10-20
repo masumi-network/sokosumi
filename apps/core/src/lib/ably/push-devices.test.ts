@@ -12,8 +12,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { pushDeviceRegistration: { findMany: findRevoked } },
 }));
 vi.mock("./client", () => ({ getPushAdminRestClient: getClient }));
-vi.mock("./notification-channel-environment", () => ({
-  getNotificationChannelEnvironment: environment,
+vi.mock("./realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: environment,
 }));
 const channel = "notifications:all:user_user-1";
 function page(
@@ -51,7 +51,10 @@ describe("listPushDevices", () => {
         admin: { channelSubscriptions: { list }, deviceRegistrations: { get } },
       },
     });
-    environment.mockReturnValue({ network: "Preprod" });
+    environment.mockReturnValue({
+      network: "Preprod",
+      vercelEnv: "production",
+    });
     list.mockResolvedValue(page([]));
     get.mockImplementation(async (id: string) => device(id));
   });

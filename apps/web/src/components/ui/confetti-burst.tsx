@@ -16,7 +16,7 @@ interface ConfettiParticle {
 // The hexes these replace were the same five brand values `--chart-1` through
 // `--chart-5` already hold, copied by hand, so the palette had two owners and
 // the confetti would not have followed a brand change.
-export const CONFETTI_PARTICLES: ConfettiParticle[] = [
+const CONFETTI_PARTICLES: ConfettiParticle[] = [
   { x: -34, y: -30, c: "var(--primary)", s: 6 },
   { x: -14, y: -44, c: "var(--chart-1)", s: 5 },
   { x: 10, y: -46, c: "var(--chart-2)", s: 6 },

@@ -5,6 +5,7 @@ import type {
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -70,6 +71,18 @@ export const imageStudioService = {
       await coreClient.postProjectsByIdImageStudioJobsByJobIdCancel(
         projectId,
         jobId,
+      );
+    return result.data;
+  },
+
+  async getSocialMedia(
+    projectId: string,
+    assetId: string,
+  ): Promise<SocialPostMediaRef> {
+    const result =
+      await coreClient.getProjectsByIdImageStudioAssetsByAssetIdSocialMedia(
+        projectId,
+        assetId,
       );
     return result.data;
   },

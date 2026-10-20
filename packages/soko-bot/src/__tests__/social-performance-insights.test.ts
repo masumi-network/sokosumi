@@ -3,6 +3,7 @@ import {
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
+  limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
@@ -25,6 +26,7 @@ describe("Social performance insights", () => {
         expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(capability);
       }
       expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain(capability);
+      expect(limitSokoBotWrites([capability], [])).toContain(capability);
     }
   });
 
@@ -139,12 +141,17 @@ describe("Social performance insights", () => {
     ).toBe(false);
   });
 
-  it("teaches the new default X research without changing v23", () => {
+  it("adds X research to v25 while retaining chained work and result previews", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    const prior = getSokoBotVersion("v23");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
+    const prior = getSokoBotVersion("v25");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
+    expect(version.skills).toEqual([
+      ...prior.skills,
+      "social-performance-insights",
+    ]);
+    expect(version.createdAt).toBe("2026-10-20");
     const prompt = composeSystemPrompt(version);
     expect(prompt).toContain("list_social_performance");
     expect(prompt).toContain("read_social_performance_audience");
@@ -155,7 +162,9 @@ describe("Social performance insights", () => {
     expect(prompt).not.toContain("omit projectId");
     expect(prompt).not.toContain("posting windows");
     expect(prompt).toContain("Do not invent a numeric draft score");
-    expect(prompt).not.toContain("# Chat result previews");
+    expect(prompt).toContain("# Chat result previews");
+    expect(prompt).toContain("# Chained work");
+    expect(prompt).toContain("# Long and bulk work");
     expect(composeSystemPrompt(prior)).not.toContain(
       "# Social performance insights",
     );

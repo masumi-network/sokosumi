@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -21,7 +21,6 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
   buildDiscoverabilityFilter,
-  isOrganizationOwnerOrAdmin,
   requireActiveOrganizationId,
 } from "../helpers";
 

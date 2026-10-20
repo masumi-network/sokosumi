@@ -61,7 +61,7 @@
         throw failure
       }
       let bytes = fileName.hasSuffix(".png") ? image : fileName.hasSuffix(".wav") ? Self.wave : Data("fixture \(fileName)".utf8)
-      let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
+      let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: OutputBytesTransport(bytes: bytes))
       let file = try await ChatService().resultOutput(client: client, source: source, fileName: fileName, organizationSlug: nil)
       answered += 1
       return file
@@ -128,7 +128,7 @@
           id: "reply", roomId: "room", content: "Done: the schedule is set and the scan is in.",
           resultPreviews: descriptors.map { .init(id: $0, capturedAt: created) }, createdAt: created,
           sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil,
-                                                               ownerUserId: "user_2", presence: .online))),
+                                                               ownerUserId: "user_2", scope: .personal, presence: .online))),
           mentions: [], reactions: [], threadReplyCount: 0,
           metadata: .init(additionalProperties: [
             "mention_id": OpenAPIValueContainer(unvalidatedValue: "mention_1"),
@@ -193,9 +193,9 @@
         let gate = ResultsGate()
         gate.answers = [.success(Self.previews)]
         var opened: [URL] = []
-        let row = try MessageRowView(message: Self.message(descriptors: [Self.taskCard, Self.schedule, Self.job, Self.locked]),
-                                     isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                     loadResultPreviews: { try await gate.load() })
+        let message = try Self.message(descriptors: [Self.taskCard, Self.schedule, Self.job, Self.locked])
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                                 loadResultPreviews: { try await gate.load() })
           .environment(\.openURL, OpenURLAction { opened.append($0)
             return .handled
           })
@@ -226,9 +226,9 @@
       @Test func aFailedReadOffersRetry() async throws {
         let gate = ResultsGate()
         gate.answers = [.failure(ResultsUnavailable()), .success([Self.previews[1]])]
-        let row = try MessageRowView(message: Self.message(descriptors: [Self.schedule]),
-                                     isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                     loadResultPreviews: { try await gate.load() })
+        let message = try Self.message(descriptors: [Self.schedule])
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                                 loadResultPreviews: { try await gate.load() })
         let (window, host) = Self.window(row, size: NSSize(width: 640, height: 500))
         defer { window.orderOut(nil) }
         _ = try await Self.waitForText("Loading results…", in: host)
@@ -280,8 +280,8 @@
 
       /// A row without a reader (a pin's preview, a search hit) draws the footer alone, every Task button included.
       @Test func aRowWithoutAReaderKeepsTheFooter() async throws {
-        let row = try MessageRowView(message: Self.message(descriptors: [Self.taskCard]),
-                                     isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+        let message = try Self.message(descriptors: [Self.taskCard])
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil)
         let (window, host) = Self.window(row, size: NSSize(width: 640, height: 300))
         defer { window.orderOut(nil) }
         _ = try await Self.waitForText("Done: the schedule is set and the scan is in.", in: host)
@@ -301,12 +301,11 @@
           let loading = ResultsGate()
           let loaded = ResultsGate()
           loaded.answers = [.success(Self.previews)]
-          let readingRow = try MessageRowView(message: Self.message(descriptors: [Self.schedule]),
-                                              isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                              loadResultPreviews: { try await loading.load() })
-          let row = try MessageRowView(message: Self.message(descriptors: [Self.taskCard, Self.schedule, Self.job, Self.locked]),
-                                       isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                       loadResultPreviews: { try await loaded.load() })
+          let readingMessage = try Self.message(descriptors: [Self.schedule])
+          let readingRow = MessageRowView(message: readingMessage, row: transcriptRow(readingMessage), outbound: nil, loadResultPreviews: { try await loading.load() })
+          let message = try Self.message(descriptors: [Self.taskCard, Self.schedule, Self.job, Self.locked])
+          let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                                   loadResultPreviews: { try await loaded.load() })
           let reading = try await Self.draw(readingRow.padding(12), size: NSSize(width: 640, height: 150), dark: dark, until: "Loading results…")
           loading.answers = [.success([])]
           loading.release()
