@@ -478,7 +478,10 @@ const readSocialPerformanceDiscoveryInputSchema = socialProjectInputSchema
       .trim()
       .min(1)
       .max(200)
-      .regex(/^[\p{L}\p{N} #@.,!?'’-]+$/u)
+      // A refinement, not .regex(): model gateways reject Unicode property escapes in tool JSON Schema.
+      .refine((value) => /^[\p{L}\p{N} #@.,!?'’-]+$/u.test(value), {
+        message: "Use letters, numbers, spaces and basic punctuation only",
+      })
       .optional(),
     username: z
       .string()

@@ -97,6 +97,13 @@ describe("Soko Bot tool contracts", () => {
     expect(isSokoBotDecisionTarget("clarify_scope")).toBe(false);
   });
 
+  it("keeps every tool schema free of regex features model gateways reject", () => {
+    for (const [name, schema] of Object.entries(SOKO_BOT_TOOL_INPUT_SCHEMAS)) {
+      const json = JSON.stringify(z.toJSONSchema(schema, { io: "input" }));
+      expect(json, name).not.toMatch(/\\\\[pP]\{/);
+    }
+  });
+
   it("converts write_table_rows to an object schema without an intersection root", () => {
     const jsonSchema = z.toJSONSchema(
       SOKO_BOT_TOOL_INPUT_SCHEMAS.write_table_rows,
