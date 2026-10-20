@@ -7,18 +7,23 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { setSokoBotFollowBoardAction } from "@/lib/actions/soko-bot/action";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 /** Whether the bot follows every open Task on the board, not only its own. */
 export function FollowBoardToggle({ initial }: { initial: boolean }) {
   const t = useTranslations("App.SokoBot.Settings");
   const id = useId();
+  const botId = useSokoBotTargetId();
   const [enabled, setEnabled] = useState(initial);
   const [isPending, startTransition] = useTransition();
 
   function handleChange(next: boolean) {
     setEnabled(next);
     startTransition(async () => {
-      const result = await setSokoBotFollowBoardAction({ enabled: next });
+      const result = await setSokoBotFollowBoardAction({
+        enabled: next,
+        botId,
+      });
       if (!result.ok) {
         setEnabled(!next);
         toast.error(result.error.message ?? t("followBoardError"));

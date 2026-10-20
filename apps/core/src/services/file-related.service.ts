@@ -25,7 +25,7 @@ import {
  * see — a related edge must never be the thing that reveals a label.
  */
 
-export const RELATED_CANDIDATE_LIMIT = 40;
+const RELATED_CANDIDATE_LIMIT = 40;
 /**
  * How many of the seed's own words are considered as query terms, and how
  * many of those actually become the query.
@@ -173,7 +173,7 @@ function seedCandidateTerms(text: string): string[] {
   return terms;
 }
 
-export const RELATED_RANK_LIMIT = 12;
+const RELATED_RANK_LIMIT = 12;
 export const RELATED_RESULT_LIMIT = 6;
 
 export type RelatedState =

@@ -12,7 +12,7 @@ import {
 } from "date-fns";
 import { CalendarIcon, Clock, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 
 import { scheduleChipClass } from "@/app/tasks/components/task-schedule-when";
 import { Calendar } from "@/components/ui/calendar";
@@ -62,6 +62,21 @@ export function scheduleQuickPicks(now: Date): Record<ScheduleQuickPick, Date> {
     tomorrowMorning: atMorning(addDays(now, 1)),
     nextMonday: atMorning(nextMonday(now)),
   };
+}
+
+/**
+ * The next local HH:00 for each suggested hour. Today's slot if it is still
+ * open; otherwise tomorrow.
+ */
+export function scheduleSuggestedSlots(
+  hours: number[],
+  earliest: Date,
+): Date[] {
+  return hours.map((hour) => {
+    const today = atWallClock(earliest, hour, 0);
+    if (!isBefore(today, earliest) && today.getHours() === hour) return today;
+    return atWallClock(addDays(startOfDay(earliest), 1), hour, 0);
+  });
 }
 
 /**
@@ -121,6 +136,8 @@ interface SocialPostSchedulePickerProps {
   /** The visible label's id; the picker is one group under it. */
   labelledBy: string;
   onChange: (value: string) => void;
+  /** Hours 0–23 from this account's Performance history. Hidden when empty. */
+  suggestedHours?: number[];
   value: string;
 }
 
@@ -137,15 +154,20 @@ export function SocialPostSchedulePicker({
   invalid,
   labelledBy,
   onChange,
+  suggestedHours,
   value,
 }: SocialPostSchedulePickerProps) {
   const t = useTranslations("App.Projects.SocialPosts.composer.schedulePicker");
   const formatter = useFormatter();
   const quickPicksLabelId = useId();
+  const suggestedTimesLabelId = useId();
   const [dateOpen, setDateOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const selected = parseScheduleValue(value);
   const quickPicks = scheduleQuickPicks(new Date());
+  const suggestedSlots = suggestedHours?.length
+    ? scheduleSuggestedSlots(suggestedHours, earliest)
+    : [];
   const earliestDay = startOfDay(earliest);
 
   function pickDate(day: Date | undefined): void {
@@ -166,6 +188,7 @@ export function SocialPostSchedulePicker({
   }
 
   // The time list is for the chosen day, or the earliest one.
+  const timeOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const slots = scheduleSlotsOf(selected ?? earliest);
   if (
     selected &&
@@ -173,6 +196,54 @@ export function SocialPostSchedulePicker({
   ) {
     slots.push(selected);
     slots.sort((a, b) => a.getTime() - b.getTime());
+  }
+  const enabledSlotIndexes = slots.flatMap((slot, index) =>
+    isBefore(slot, earliest) ? [] : [index],
+  );
+  const selectedIndex = selected
+    ? slots.findIndex((slot) => slot.getTime() === selected.getTime())
+    : -1;
+  const timeTabStop =
+    selectedIndex !== -1 && enabledSlotIndexes.includes(selectedIndex)
+      ? selectedIndex
+      : (enabledSlotIndexes[0] ?? -1);
+
+  function focusTimeOption(index: number): void {
+    timeOptionRefs.current[index]?.focus();
+  }
+
+  function handleTimeListKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (enabledSlotIndexes.length === 0) return;
+    const activeIndex = timeOptionRefs.current.findIndex(
+      (node) => node === event.target,
+    );
+    const from = Math.max(0, enabledSlotIndexes.indexOf(activeIndex));
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusTimeOption(
+        enabledSlotIndexes[(from + 1) % enabledSlotIndexes.length] ??
+          enabledSlotIndexes[0],
+      );
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusTimeOption(
+        enabledSlotIndexes[
+          (from - 1 + enabledSlotIndexes.length) % enabledSlotIndexes.length
+        ] ?? enabledSlotIndexes[0],
+      );
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusTimeOption(enabledSlotIndexes[0] ?? 0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      focusTimeOption(enabledSlotIndexes.at(-1) ?? 0);
+    }
   }
 
   return (
@@ -216,6 +287,31 @@ export function SocialPostSchedulePicker({
           </button>
         );
       })}
+      {suggestedSlots.length > 0 ? (
+        <>
+          <span className="sr-only" id={suggestedTimesLabelId}>
+            {t("suggestedTimes")}
+          </span>
+          {suggestedSlots.map((date) => {
+            const active = selected?.getTime() === date.getTime();
+            return (
+              <button
+                aria-describedby={suggestedTimesLabelId}
+                aria-pressed={active}
+                className={chipClass(active)}
+                disabled={disabled || isBefore(date, earliest)}
+                key={date.getTime()}
+                onClick={() => onChange(toScheduleValue(date))}
+                type="button"
+              >
+                {t("suggested", {
+                  time: formatter.dateTime(date, "time"),
+                })}
+              </button>
+            );
+          })}
+        </>
+      ) : null}
 
       <span aria-hidden className="bg-border mx-1 h-4 w-px" />
 
@@ -279,13 +375,21 @@ export function SocialPostSchedulePicker({
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-44 p-1">
+        <PopoverContent
+          align="start"
+          className="w-44 p-1"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            if (timeTabStop >= 0) focusTimeOption(timeTabStop);
+          }}
+        >
           <div
             aria-label={t("times")}
             className="app-scrollbar flex max-h-64 flex-col overflow-y-auto"
+            onKeyDown={handleTimeListKeyDown}
             role="listbox"
           >
-            {slots.map((slot) => {
+            {slots.map((slot, index) => {
               const isSelected = selected?.getTime() === slot.getTime();
               const tooSoon = isBefore(slot, earliest);
               return (
@@ -303,6 +407,7 @@ export function SocialPostSchedulePicker({
                   onClick={() => pickTime(slot)}
                   // Open on the chosen time, or the first one still open.
                   ref={(node) => {
+                    timeOptionRefs.current[index] = node;
                     if (
                       node &&
                       (isSelected ||
@@ -313,6 +418,7 @@ export function SocialPostSchedulePicker({
                     }
                   }}
                   role="option"
+                  tabIndex={index === timeTabStop ? 0 : -1}
                   type="button"
                 >
                   {formatter.dateTime(slot, "time")}

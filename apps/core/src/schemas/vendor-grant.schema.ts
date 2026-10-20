@@ -4,7 +4,7 @@ import { VendorGrantStatus } from "@sokosumi/database";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { VendorPermissionApi } from "@/helpers/vendor-grants";
 
-export const vendorPermissionSchema = z
+const vendorPermissionSchema = z
   .literal(VendorPermissionApi.WORKSPACE)
   .openapi({ example: VendorPermissionApi.WORKSPACE });
 

@@ -115,15 +115,6 @@ Other available scripts:
 - **Preview database reset:** `/reset-db <mainnet|preprod>` or `/reset-db all` resets an existing managed preview to its parent and redeploys Core. `/deploy <network|all> --reset-db` resets, then deploys like `/deploy`; without a network it shows help. The flag must be on the first line. Preview-only data is lost. Use this after renaming a migration already applied in the preview.
 - **Database migrations:** Core's Vercel build runs `prisma migrate deploy` after a successful app build and before activation. Preview builds require `DATABASE_URL_UNPOOLED`; production continues using the integration's URLs. Web never receives database credentials or runs migrations. See [Core deployment](./apps/core/README.md#deployment-vercel).
 
-### Preview workflow cutover
-
-1. Keep the existing Vercel Git `main` settings and Production Neon connections for both networks. Create or verify the `preview-database` GitHub environment, limited to `main`, without required reviewers or wait timers. Every comment job enters this environment before checking the commenter's permission. Set its variables `NEON_PREVIEW_PROJECT_ID_MAINNET` and `NEON_PREVIEW_PROJECT_ID_PREPROD`; use the existing repository secrets `NEON_API_KEY` and `VERCEL_TOKEN`, and `VERCEL_TEAM_ID` variable. Both project IDs are needed for cleanup. Each project's default branch must be the intended production parent; connection lookup uses `neondb` / `neondb_owner`.
-2. Disable Neon integration branching and credential injection for **Preview** on the connected Vercel projects. Preserve **Production** connections and their pooled/unpooled URLs. Do not uninstall the integration or delete its databases. Verify the integration has no remaining Preview scope before merging this workflow change. Provisioning refuses integration-owned Preview database variables rather than overwriting them.
-3. Merge the workflow change, then comment `/deploy preprod` on an open application PR. Verify Core's migration log uses the new preview host, Web reaches matching Core, and a second `/deploy preprod` reuses the same Neon branch. Close that disposable PR and verify its deployments, variables, and database disappear. Repeat for mainnet before relying on that preview path. These checks delete only disposable preview data.
-4. Inventory legacy `preview/<git-branch>` branches separately, match them to PRs and deployments, and approve an explicit deletion list. This workflow does not adopt or delete legacy previews. Existing accumulated charges will not be reversed by the cutover.
-
-[Neon branch expiration](https://neon.com/blog/expire-neon-branches-automatically) bounds branch lifetime. [Vercel branch-scoped environment variables](https://vercel.com/docs/environment-variables) make both Core build and runtime use the selected database.
-
 ## Contributing
 
 - We use [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow) for branching and pull requests.

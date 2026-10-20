@@ -56,6 +56,7 @@ import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
+import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
   handleUserUpdateStripeEmailSync,
@@ -398,11 +399,18 @@ export const auth = betterAuth({
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
+        const userId = ctx.context.session?.user.id;
         if (typeof organizationId === "string") {
           await deliverOrganizationCalendarInvalidationsNow(
             organizationId,
-            ctx.context.session?.user.id,
+            userId,
           );
+          if (userId) {
+            await disconnectLeaverSokoBotIntegrationsBestEffort(
+              userId,
+              organizationId,
+            );
+          }
         }
       }
 

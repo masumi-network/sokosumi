@@ -16,7 +16,7 @@ const CHIP_CLASSNAME =
   "border-border bg-card-background text-foreground inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs font-medium";
 
 /** A skill attached to a sent message; opens a short preview. */
-export function MessageSkillChip({ skill }: { skill: ChatRoomMessageSkill }) {
+function MessageSkillChip({ skill }: { skill: ChatRoomMessageSkill }) {
   const t = useTranslations("App.Channels.Skills");
   return (
     <Popover>

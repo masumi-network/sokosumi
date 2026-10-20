@@ -61,4 +61,35 @@ describe("ensureSystemSchedules", () => {
     await ensureSystemSchedules(bot);
     expect(scheduleCreateMock).not.toHaveBeenCalled();
   });
+
+  it("leaves a personal bot's rhythms on, with its own prompts", async () => {
+    scheduleFindManyMock.mockResolvedValue([]);
+    await ensureSystemSchedules(bot);
+    const first = scheduleCreateMock.mock.calls[0]?.[0].data;
+    expect(first).not.toHaveProperty("enabled");
+    expect(first.requestedByUserId).toBe("user-1");
+    expect(first.prompt).toBe(SOKO_BOT_SYSTEM_SCHEDULES[0]?.prompt);
+  });
+
+  it("gives a shared bot its shared rhythms off, asked for by nobody", async () => {
+    scheduleFindManyMock.mockResolvedValue([]);
+    await ensureSystemSchedules({ ...bot, userId: null });
+    const rows = scheduleCreateMock.mock.calls.map((call) => call[0].data);
+    expect(rows.map((row) => row.systemKey)).toEqual([
+      "standup",
+      "weekly-wrap",
+      "end-of-day",
+      "monday-plan",
+      "monthly-review",
+      "memory-cleanup",
+    ]);
+    for (const row of rows) {
+      const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
+        (schedule) => schedule.key === row.systemKey,
+      );
+      expect(row.enabled).toBe(false);
+      expect(row.requestedByUserId).toBeNull();
+      expect(row.prompt).toBe(rhythm?.promptShared);
+    }
+  });
 });

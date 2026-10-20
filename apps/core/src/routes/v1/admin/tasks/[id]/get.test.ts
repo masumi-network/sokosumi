@@ -196,6 +196,23 @@ describe("GET /admin/tasks/{id}", () => {
     expect(body.data.organization).toBeNull();
   });
 
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindUniqueMock.mockResolvedValue({
+      ...createTask(),
+      ownerId: null,
+      owner: null,
+    });
+
+    const response = await createApp().request(
+      "/0195b9f4-7d35-7a4e-b14e-111111111111",
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.owner).toBeNull();
+    expect(body.data.task.ownerId).toBeNull();
+  });
+
   it("returns 404 when the task does not exist", async () => {
     taskFindUniqueMock.mockResolvedValue(null);
     const app = createApp();

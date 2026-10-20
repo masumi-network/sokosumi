@@ -27,17 +27,17 @@
         try await scrollToBoundary(scroll)
         host.layoutSubtreeIfNeeded()
         let before = try TranscriptReadingPosition.snapshot(host)
-        try #require(state.thread.timeline.messages.count == 30)
+        try #require(state.openRoom.thread.transcript.timeline.messages.count == 30)
         try TranscriptPageProtocol.releaseHeldPage()
         for _ in 0 ..< 100 {
-          if state.thread.timeline.messages.count == 59 {
+          if state.openRoom.thread.transcript.timeline.messages.count == 59 {
             break
           }
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(TranscriptPageProtocol.requests.withLock { $0 } == 2)
-        #expect(state.thread.timeline.messages.count == 59)
-        #expect(!state.thread.timeline.hasMore)
+        #expect(state.openRoom.thread.transcript.timeline.messages.count == 59)
+        #expect(!state.openRoom.thread.transcript.timeline.hasMore)
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
         try await TranscriptReadingPosition.expectStable(host, before: before)
@@ -57,8 +57,8 @@
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
         let initialOffset = scroll.contentView.bounds.minY
-        let target = try #require(state.thread.timeline.messages.first?.id)
-        state.thread.requestJump(to: target)
+        let target = try #require(state.openRoom.thread.transcript.timeline.messages.first?.id)
+        state.openRoom.thread.transcript.requestJump(to: target)
         for _ in 0 ..< 50 {
           if scroll.contentView.bounds.minY < initialOffset - 200 {
             break
@@ -66,7 +66,7 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(scroll.contentView.bounds.minY < initialOffset - 200)
-        #expect(state.thread.jumpTarget?.messageId == target)
+        #expect(state.openRoom.thread.transcript.jumpTarget?.messageId == target)
       }
 
       private func scrollToBoundary(_ scroll: NSScrollView) async throws {
@@ -84,19 +84,19 @@
 
       private func fixture() async throws -> (WorkspaceState, URLSession) {
         let session = TranscriptPageProtocol.session()
-        let client = try Client.connecting(to: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://\(TranscriptPageProtocol.host)/v1")), session: session)
         let state = WorkspaceState(clientProvider: { _ in client })
-        state.timeline.reset(roomId: "room")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
+        state.openRoom.room.timeline.reset(roomId: "room")
+        state.openRoom.room.timeline.failInitialLoad(message: "", generation: state.openRoom.room.timeline.generation)
         let parent = message(0, parent: nil)
-        state.timeline.messages = [parent]
-        state.thread.open(parent)
+        state.openRoom.room.timeline.messages = [parent]
+        state.openRoom.thread.open(parent)
         // The thread view also reads its mute (row 24b); only reply pages are counted and scripted.
         try TranscriptPageProtocol.serve([
           TranscriptPageProtocol.page((30 ..< 60).map { message($0, parent: parent.id) }, cursor: "older"),
           TranscriptPageProtocol.page((1 ..< 30).map { message($0, parent: parent.id) }, cursor: nil)
         ])
-        _ = try await state.thread.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.thread.timeline.generation)
+        _ = try await state.openRoom.thread.transcript.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.openRoom.thread.transcript.timeline.generation)
         return (state, session)
       }
 

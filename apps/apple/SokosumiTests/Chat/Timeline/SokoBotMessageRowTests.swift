@@ -21,7 +21,7 @@
         createdAt: Date(timeIntervalSince1970: 1_788_868_800),
         deletedAt: nil,
         editedAt: nil,
-        sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online))),
+        sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", scope: .personal, presence: .online))),
         mentions: [],
         reactions: [],
         threadReplyCount: 0,
@@ -62,8 +62,8 @@
       ])
       let chain = try #require(SokoBotChainMetadata(message: hop))
       let content = VStack(alignment: .leading, spacing: 12) {
-        MessageRowView(message: waiting, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: hop, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onQuote: {})
+        MessageRowView(message: waiting, row: transcriptRow(waiting), outbound: nil)
+        MessageRowView(message: hop, row: transcriptRow(hop), outbound: nil, perform: { _ in nil })
         HStack(spacing: 8) {
           SokoBotChainBadge(chain: chain)
           Text(chain.summary).font(.caption).foregroundStyle(.secondary)

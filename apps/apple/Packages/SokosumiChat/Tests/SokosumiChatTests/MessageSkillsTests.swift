@@ -7,7 +7,7 @@ import Testing
 private let viewer = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
 private let peer = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Peer", email: "peer@example.com", presence: .online)
 private let coworker = Components.Schemas.ChatRoomCoworkerParticipant(id: "cow", name: "Helper", slug: "helper", presence: .online)
-private let bot = Components.Schemas.ChatRoomSokoBotParticipant(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", presence: .offline)
+private let bot = Components.Schemas.ChatRoomSokoBotParticipant(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", scope: .personal, presence: .offline)
 
 private func room(
   _ kind: Components.Schemas.ChatRoom.KindPayload,

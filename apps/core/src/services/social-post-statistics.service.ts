@@ -14,6 +14,7 @@ import {
   socialPostMetricsSchema,
   socialPostStatisticsSummarySchema,
 } from "@/schemas/social-post-statistics.schema";
+import { projectExecutorUserId } from "@/services/project-social-connections.service";
 import {
   getSocialPost,
   type ListSocialPostsInput,
@@ -151,7 +152,7 @@ export async function refreshSocialPostStatistics(input: {
       await fetchSocialPostStatistics({
         provider: connection.provider as keyof typeof SOCIAL_POST_TEXT_LIMITS,
         connectedAccountId: connection.composioConnectedAccountId,
-        executorUserId: connection.connectorUserId,
+        executorUserId: projectExecutorUserId(input.projectId),
         externalAccountId: connection.externalAccountId,
         externalId: post.publishedExternalId,
       }),

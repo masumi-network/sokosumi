@@ -1,7 +1,8 @@
 import type { SokoBotCapability, SokoBotRoute } from "./policy.js";
 
 interface SokoBotActorContext {
-  userId: string;
+  /** Null when a shared Soko Bot acts on its own, for nobody (ADR 0057). */
+  userId: string | null;
   sokoBotId: string;
   workspaceId: string;
 }
