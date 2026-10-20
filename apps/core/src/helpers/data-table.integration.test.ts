@@ -393,6 +393,59 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
     });
     expect(second.rows.map((row) => row.values[numberId])).toEqual([10]);
   });
+  it("filters tags by whole option, while text keeps substring matching", async () => {
+    const tagsId = randomUUID();
+    const table = await createDataTable(
+      actor,
+      createDataTableSchema.parse({
+        key: randomUUID(),
+        title: "Tagged",
+        columns: [
+          { id: nameId, name: "Company", type: "text" },
+          {
+            id: tagsId,
+            name: "Tags",
+            type: "multiple_select",
+            options: ["lead", "leader", "customer"],
+          },
+        ],
+        rows: [
+          { values: { [nameId]: "Acme", [tagsId]: ["lead", "customer"] } },
+          { values: { [nameId]: "Beta", [tagsId]: ["leader"] } },
+          { values: { [nameId]: "Gamma", [tagsId]: null } },
+        ],
+      }),
+    );
+    async function names(filter: {
+      columnId: string;
+      operator: "contains";
+      value: string | string[];
+    }) {
+      const { rows } = await queryTableRows(actor, table.id, {
+        filters: [filter],
+      });
+      return rows.map((row) => row.values[nameId]);
+    }
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "lead" }),
+    ).toEqual(["Acme"]);
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "LEADER" }),
+    ).toEqual([]);
+    expect(
+      await names({
+        columnId: tagsId,
+        operator: "contains",
+        value: ["lead", "customer"],
+      }),
+    ).toEqual(["Acme"]);
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "" }),
+    ).toEqual(["Acme", "Beta", "Gamma"]);
+    expect(
+      await names({ columnId: nameId, operator: "contains", value: "cm" }),
+    ).toEqual(["Acme"]);
+  });
   it("enforces selected rows and columns even when a bot omits task context", async () => {
     const table = await createDataTable(actor, input());
     const inserted = await batchTableRows(

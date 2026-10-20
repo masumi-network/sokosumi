@@ -741,6 +741,26 @@ describe("DrivePage recents view", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lists a recently changed table that opens its editor", async () => {
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "table",
+          tableId: "table_1",
+          name: "Leads",
+          activityAt: "2026-08-21T12:00:00.000Z",
+          projectId: null,
+        },
+      ],
+      nextCursor: null,
+    });
+    renderDrive();
+
+    const link = await screen.findByRole("link", { name: /Leads/ });
+    expect(link).toHaveAttribute("href", "/drive/tables/table_1");
+    expect(within(link).getAllByText("tableKind").length).toBeGreaterThan(0);
+  });
+
   it("passes search query to recents fetch", async () => {
     const user = userEvent.setup();
     renderDrive();
