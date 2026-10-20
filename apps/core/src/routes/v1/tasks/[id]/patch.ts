@@ -283,6 +283,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             kind: "user",
             userId: userContext.userId,
           },
+          {
+            visibility: task.visibility,
+            projectId: projectIdWasProvided ? projectId : task.projectId,
+          },
         );
       }
       if (assigneeWrite?.assigneeUserId) {

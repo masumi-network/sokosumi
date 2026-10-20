@@ -1,8 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
-
 import { getEnv } from "@/config/env";
+import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 
 const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
@@ -42,23 +42,65 @@ export function sokoBotUsageCents(
   );
 }
 
-/** Bots in an organization workspace bill the organization, like its Tasks. */
-export async function sokoBotPayerOrganizationId(
+export interface SokoBotPayer {
+  /** Personal owner; null for a shared bot, which only the organization pays for. */
+  userId: string | null;
+  organizationId: string | null;
+}
+
+/**
+ * Bots in an organization workspace bill the organization, like its Tasks.
+ * A member's turn spends through that member, whose Seat gates it; a turn
+ * nobody asked for draws on the pool with no Seat check (ADR 0057).
+ */
+async function sokoBotPayer(
   sokoBotId: string,
   client: Pick<Prisma.TransactionClient, "sokoBot">,
-): Promise<string | null> {
+): Promise<SokoBotPayer | null> {
   const bot = await client.sokoBot.findUnique({
     where: { id: sokoBotId },
-    select: { workspace: { select: { organizationId: true } } },
+    select: { userId: true, workspace: { select: { organizationId: true } } },
   });
-  return bot?.workspace.organizationId ?? null;
+  return bot
+    ? { userId: bot.userId, organizationId: bot.workspace.organizationId }
+    : null;
+}
+
+/** A shared bot's payer is its organization alone, whoever asked. */
+export function sokoBotPayerKey(payer: SokoBotPayer): string {
+  return isPersonalSokoBot(payer)
+    ? `${payer.userId}:${payer.organizationId ?? ""}`
+    : `org:${payer.organizationId ?? ""}`;
+}
+
+/**
+ * A shared bot has no member to read through, so it reads the pool without
+ * a seat check. That answers "is the pool empty?" for the notice only.
+ */
+async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
+  if (isPersonalSokoBot(payer)) {
+    return await creditBucketRepository.getBalance(
+      payer.userId,
+      payer.organizationId,
+      prisma,
+    );
+  }
+  if (payer.organizationId === null) return 0n;
+  return await creditBucketRepository.getOrganizationPoolBalance(
+    payer.organizationId,
+    prisma,
+  );
 }
 
 function payerLabel(organizationId: string | null): string {
   return organizationId ? "organization" : "personal";
 }
 
-/** Tells the owner once a day that self-started turns stopped for credits. */
+/**
+ * Tells the owner once a day that self-started turns stopped for credits.
+ * A shared bot's refusal can be the attributed member's missing seat while the
+ * pool still has credits; that is not "out of credits", so it stays silent.
+ */
 export async function notifySokoBotOutOfCredits(
   sokoBotId: string,
   now: Date = new Date(),
@@ -66,18 +108,34 @@ export async function notifySokoBotOutOfCredits(
   const bot = await prisma.sokoBot.findUnique({
     where: { id: sokoBotId },
     select: {
-      workspace: { select: { organization: { select: { name: true } } } },
+      userId: true,
+      workspace: {
+        select: {
+          organizationId: true,
+          organization: { select: { name: true } },
+        },
+      },
     },
   });
   if (!bot) return;
-  const payer = bot.workspace.organization?.name;
+  const payer: SokoBotPayer = {
+    userId: bot.userId,
+    organizationId: bot.workspace.organizationId,
+  };
+  if (isSharedSokoBot(payer)) {
+    const outOfCredits = await sokoBotIdsOutOfCredits([
+      { id: sokoBotId, ...payer },
+    ]);
+    if (!outOfCredits.has(sokoBotId)) return;
+  }
+  const payerName = bot.workspace.organization?.name;
   const { postSokoBotOwnerNotice } = await import(
     "@/services/soko-bot-chat.service"
   );
   await postSokoBotOwnerNotice({
     sokoBotId,
-    content: payer
-      ? `I'm paused: ${payer} is out of credits.`
+    content: payerName
+      ? `I'm paused: ${payerName} is out of credits.`
       : "I'm paused: you're out of credits.",
     key: `out-of-credits:${sokoBotId}:${now.toISOString().slice(0, 10)}`,
   });
@@ -85,45 +143,52 @@ export async function notifySokoBotOutOfCredits(
 
 /** Ids of the bots whose payer cannot fund even a minimum turn right now. */
 export async function sokoBotIdsOutOfCredits(
-  bots: { id: string; userId: string; organizationId: string | null }[],
+  bots: (SokoBotPayer & { id: string })[],
 ): Promise<Set<string>> {
   const minimumCents = convertCreditsToCents(
     getEnv().SOKO_BOT_MIN_TURN_CREDITS,
   );
-  const payerKey = (bot: (typeof bots)[number]) =>
-    `${bot.userId}:${bot.organizationId ?? ""}`;
-  const payers = [...new Map(bots.map((bot) => [payerKey(bot), bot])).values()];
+  const payers = [
+    ...new Map(bots.map((bot) => [sokoBotPayerKey(bot), bot])).values(),
+  ];
   const balances = new Map(
     await Promise.all(
       payers.map(
         async (bot) =>
-          [
-            payerKey(bot),
-            await creditBucketRepository.getBalance(
-              bot.userId,
-              bot.organizationId,
-              prisma,
-            ),
-          ] as const,
+          [sokoBotPayerKey(bot), await sokoBotPayerBalance(bot)] as const,
       ),
     ),
   );
   return new Set(
     bots
-      .filter((bot) => (balances.get(payerKey(bot)) ?? 0n) < minimumCents)
+      .filter(
+        (bot) => (balances.get(sokoBotPayerKey(bot)) ?? 0n) < minimumCents,
+      )
       .map((bot) => bot.id),
   );
 }
 
+/**
+ * `userId` is the member the turn runs as: their balance view (and so their
+ * Seat) gates the turn. Null reads the Organization pool with no Seat. A
+ * shared bot's cost history is bot-wide, because the
+ * organization pays every member's turns.
+ */
 export async function requireSokoBotTurnFunding(
-  userId: string,
+  /** Null: a shared bot acting on its own, paid by the Organization pool. */
+  userId: string | null,
   sokoBotId: string,
 ): Promise<void> {
+  const payer = await sokoBotPayer(sokoBotId, prisma);
+  const shared = payer !== null && isSharedSokoBot(payer);
+  // Turns record the Requester; usage records the member who paid.
+  const historyMember = shared ? {} : { requestedByUserId: userId };
+  const usageMember = shared ? {} : { userId };
   const [completedTurns, shortfallTurn] = await Promise.all([
     prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId,
-        requestedByUserId: userId,
+        ...historyMember,
         status: "COMPLETED",
         // A six-hour background run costs what a hundred chat turns do; as
         // the yardstick it paused the bot with credits left.
@@ -136,7 +201,7 @@ export async function requireSokoBotTurnFunding(
     prisma.sokoBotTurn.findFirst({
       where: {
         sokoBotId,
-        requestedByUserId: userId,
+        ...historyMember,
         errorKind: SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND,
         completedAt: { not: null },
       },
@@ -149,7 +214,7 @@ export async function requireSokoBotTurnFunding(
       ? prisma.sokoBotUsage.findMany({
           where: {
             sokoBotId,
-            userId,
+            ...usageMember,
             idempotencyKey: {
               in: completedTurns.map(({ id }) =>
                 sokoBotTurnUsageIdempotencyKey(id),
@@ -185,7 +250,7 @@ export async function requireSokoBotTurnFunding(
     shortfallExpectedCents > (shortfallUsage?.cents ?? 0n)
       ? shortfallExpectedCents - (shortfallUsage?.cents ?? 0n)
       : 0n;
-  const organizationId = await sokoBotPayerOrganizationId(sokoBotId, prisma);
+  const organizationId = payer?.organizationId ?? null;
   const balance = await creditBucketRepository.getBalance(
     userId,
     organizationId,
@@ -207,7 +272,8 @@ export async function recordSokoBotTurnUsage(
   input: {
     turnId: string;
     sokoBotId: string;
-    userId: string;
+    /** Null: a shared bot acting on its own, paid by the Organization pool. */
+    userId: string | null;
     costUsdMicros: bigint | null;
     /** The turn spent tokens; bills the minimum when no cost was reported. */
     ranModel?: boolean;
@@ -240,7 +306,8 @@ export async function recordSokoBotTurnUsage(
     };
   }
 
-  const organizationId = await sokoBotPayerOrganizationId(input.sokoBotId, tx);
+  const organizationId =
+    (await sokoBotPayer(input.sokoBotId, tx))?.organizationId ?? null;
   const balance = await creditBucketRepository.getBalance(
     input.userId,
     organizationId,

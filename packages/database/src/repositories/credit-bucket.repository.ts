@@ -6,6 +6,7 @@ import { creditBucketActivatesAtOrBeforeSql } from "../helpers/credit.js";
 import {
   buildCreditBucketScopeSql,
   buildEnterprisePoolScopeSql,
+  buildOrganizationPoolScopeSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
 
@@ -48,24 +49,27 @@ export const creditBucketRepository = {
       tx,
       now,
     );
-    const where = buildCreditBucketScopeSql(scopeContext);
+    return await sumAvailableCents(
+      buildCreditBucketScopeSql(scopeContext),
+      now,
+      tx,
+    );
+  },
 
-    const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
-      WITH bucket_avail AS (
-        SELECT
-          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-        FROM credit_bucket cb
-        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-        WHERE ${where}
-          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-          AND ${creditBucketActivatesAtOrBeforeSql(now)}
-        GROUP BY cb.id, cb.amount
-      )
-      SELECT COALESCE(SUM(available), 0)::bigint AS balance
-      FROM bucket_avail
-    `;
-
-    return result[0]?.balance ?? 0n;
+  /**
+   * The Organization pool a seated member would see, with no seat check. Only
+   * for deciding whether the pool itself is empty; spend uses `getBalance`.
+   */
+  async getOrganizationPoolBalance(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<bigint> {
+    const now = new Date();
+    return await sumAvailableCents(
+      await buildOrganizationPoolScopeSql(organizationId, tx, now),
+      now,
+      tx,
+    );
   },
 
   /**
@@ -75,7 +79,7 @@ export const creditBucketRepository = {
    * then createdAt ASC, then id ASC. Amounts in cents.
    */
   async listAvailableBucketsWithBalances(
-    userId: string,
+    userId: string | null,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
@@ -186,7 +190,7 @@ export const creditBucketRepository = {
   },
 
   async listEnterprisePoolBucketsWithBalances(
-    userId: string,
+    userId: string | null,
     organizationId: string,
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
@@ -284,6 +288,29 @@ export const creditBucketRepository = {
     return consumptions;
   },
 };
+
+async function sumAvailableCents(
+  where: Prisma.Sql,
+  now: Date,
+  tx: Prisma.TransactionClient,
+): Promise<bigint> {
+  const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
+    WITH bucket_avail AS (
+      SELECT
+        (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
+      FROM credit_bucket cb
+      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      WHERE ${where}
+        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+        AND ${creditBucketActivatesAtOrBeforeSql(now)}
+      GROUP BY cb.id, cb.amount
+    )
+    SELECT COALESCE(SUM(available), 0)::bigint AS balance
+    FROM bucket_avail
+  `;
+
+  return result[0]?.balance ?? 0n;
+}
 
 async function getFifoBucketsToCoverSpend(
   userId: string | null,

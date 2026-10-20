@@ -116,6 +116,15 @@ function turn(overrides = {}) {
     ...overrides,
   };
 }
+function botRow(overrides = {}) {
+  return {
+    id: "bot",
+    userId: "owner",
+    archivedAt: null,
+    workspace: { organizationId: "org" },
+    ...overrides,
+  };
+}
 function delivery(overrides = {}) {
   return {
     id: "delivery",
@@ -142,7 +151,7 @@ beforeEach(() => {
   mocks.find.mockResolvedValue(delivery());
   mocks.findOwned.mockResolvedValue(delivery());
   mocks.turn.mockResolvedValue(turn());
-  mocks.bot.mockResolvedValue({ id: "bot" });
+  mocks.bot.mockResolvedValue(botRow());
   mocks.workspace.mockResolvedValue({ id: "workspace" });
   mocks.room.mockResolvedValue({
     id: "room",
@@ -503,6 +512,160 @@ describe("durable delivery", () => {
         data: expect.objectContaining({ status: "SUPPRESSED" }),
       }),
     );
+  });
+
+  it("asks for the turn's bot as the turn's member, in the turn's workspace", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.bot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "bot",
+          workspaceId: "workspace",
+          deletedAt: null,
+          workspace: {
+            id: "workspace",
+            OR: [
+              { userId: "owner" },
+              { organization: { members: { some: { userId: "owner" } } } },
+            ],
+          },
+        },
+      }),
+    );
+  });
+
+  it("delivers a shared bot's own turn to its shared room, naming the member", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+    const roomWhere = mocks.room.mock.calls[0]?.[0]?.where;
+    expect(roomWhere).not.toHaveProperty("kind");
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "@owner Saved result" }),
+      }),
+    );
+  });
+
+  it("keeps a personal bot's own turn in its direct room, unmentioned", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.room.mock.calls[0]?.[0]?.where).toMatchObject({
+      kind: "direct",
+    });
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "Saved result" }),
+      }),
+    );
+  });
+
+  it("delivers to a shared room whose members changed, mentioning only a present member", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "owner" }, { userId: "new-member" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "@owner Saved result" }),
+      }),
+    );
+  });
+
+  it("still delivers a shared bot's own turn after its member left the room, unmentioned", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "someone-else" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.room.mock.calls[0]?.[0]?.where).not.toHaveProperty(
+      "userMembers",
+    );
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "Saved result" }),
+      }),
+    );
+  });
+
+  it("never expands @all in a shared bot's output", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: false }),
+    );
+  });
+
+  it("keeps output out of an archived shared Soko Bot's room", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.room.mock.calls[0]?.[0]?.where).toMatchObject({
+      archivedAt: null,
+      OR: [
+        { sharedSokoBot: { is: null } },
+        { sharedSokoBot: { is: { archivedAt: null, deletedAt: null } } },
+      ],
+    });
+  });
+
+  it("keeps @all and the recipient check for a personal bot's output", async () => {
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.room.mock.calls[0]?.[0]?.where).toMatchObject({
+      userMembers: { some: { userId: "owner" } },
+    });
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: true }),
+    );
+  });
+
+  it.each([
+    ["has no shared room", null],
+    ["targets a room that is not its shared room", "other-room"],
+  ])("suppresses a shared bot's own turn that %s", async (_label, room) => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: room }));
+    expect(await deliverSokoBotDelivery("delivery")).toBe(false);
+    expect(mocks.room).not.toHaveBeenCalled();
+    expect(mocks.message).not.toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ reason: "DESTINATION_REVOKED" }),
+      }),
+    );
+  });
+
+  it("does not mention anyone in a shared bot's chat reply", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "own" }));
+    const chatTurn = turn({
+      source: "CHAT",
+      chatResponseMessageId: "placeholder",
+      chatMentionId: "mention",
+    });
+    mocks.find.mockResolvedValue(delivery({ turn: chatTurn }));
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.persistChat).toHaveBeenCalled();
+    expect(mocks.message).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["an archived bot", botRow({ archivedAt: new Date() })],
+    [
+      "a shared bot outside an Organization workspace",
+      botRow({ userId: null, workspace: { organizationId: null } }),
+    ],
+    ["a bot the member no longer reaches", null],
+  ])("suppresses delivery for %s", async (_label, bot) => {
+    mocks.bot.mockResolvedValue(bot);
+    expect(await deliverSokoBotDelivery("delivery")).toBe(false);
+    expect(mocks.message).not.toHaveBeenCalled();
+    expect(mocks.publish).not.toHaveBeenCalled();
   });
 
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {

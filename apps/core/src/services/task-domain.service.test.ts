@@ -38,6 +38,83 @@ describe("createTaskForActor", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { label: "a shared Soko Bot", botUserId: null, visibility: "PUBLIC" },
+    {
+      label: "a personal Soko Bot",
+      botUserId: "user_123",
+      visibility: "PRIVATE",
+    },
+  ])(
+    "creates $visibility when $label asks for PRIVATE",
+    async ({ botUserId, visibility }) => {
+      const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+      const botFindUniqueMock = vi
+        .fn()
+        .mockResolvedValue({ userId: botUserId });
+      const tx = {
+        task: { create: taskCreateMock },
+        sokoBot: { findUnique: botFindUniqueMock },
+      } as never;
+
+      await createTaskForActor(
+        {
+          actor: { kind: "soko_bot", sokoBotId: "bot_123" },
+          ownerId: "member_123",
+          organizationId: "org_123",
+          workspaceId: "workspace_123",
+          name: "Team Task",
+          status: TaskStatus.DRAFT,
+          visibility: "PRIVATE",
+        },
+        tx,
+      );
+
+      expect(botFindUniqueMock).toHaveBeenCalledWith({
+        where: { id: "bot_123" },
+        select: { userId: true },
+      });
+      expect(taskCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ownerId: "member_123",
+            visibility,
+            creatorSokoBotId: "bot_123",
+            creatorUserId: null,
+          }),
+        }),
+      );
+    },
+  );
+
+  it("reads no bot when a Soko Bot creates a PUBLIC Task", async () => {
+    const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+    const botFindUniqueMock = vi.fn();
+    const tx = {
+      task: { create: taskCreateMock },
+      sokoBot: { findUnique: botFindUniqueMock },
+    } as never;
+
+    await createTaskForActor(
+      {
+        actor: { kind: "soko_bot", sokoBotId: "bot_123" },
+        ownerId: "member_123",
+        organizationId: "org_123",
+        workspaceId: "workspace_123",
+        name: "Team Task",
+        status: TaskStatus.DRAFT,
+      },
+      tx,
+    );
+
+    expect(botFindUniqueMock).not.toHaveBeenCalled();
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ visibility: "PUBLIC" }),
+      }),
+    );
+  });
+
   it("persists the requested priority", async () => {
     const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
     const tx = { task: { create: taskCreateMock } } as never;
@@ -233,5 +310,148 @@ describe("a person changing a Task through the domain update (ADR 0057)", () => 
 
     await expect(rename()).rejects.toMatchObject({ status: 404 });
     expect(tx.task.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("a shared Soko Bot acting on its own (ADR 0057)", () => {
+  const sharedBot = {
+    id: "bot_shared",
+    userId: null,
+    workspaceId: "workspace_org",
+    projectId: "project_1",
+  };
+
+  it("makes a public Task without an Owner", async () => {
+    const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+    const tx = {
+      task: { create: taskCreateMock },
+      sokoBot: { findUnique: vi.fn().mockResolvedValue({ userId: null }) },
+    } as never;
+
+    await createTaskForActor(
+      {
+        actor: { kind: "soko_bot", sokoBotId: "bot_shared" },
+        ownerId: null,
+        organizationId: "org_123",
+        workspaceId: "workspace_org",
+        name: "Team Task",
+        status: TaskStatus.DRAFT,
+      },
+      tx,
+    );
+
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ ownerId: null, visibility: "PUBLIC" }),
+      }),
+    );
+  });
+
+  it.each([
+    { label: "a personal Soko Bot", actor: "soko_bot", botUserId: "user_1" },
+    { label: "a person", actor: "user", botUserId: null },
+  ])(
+    "refuses a Task without an Owner from $label",
+    async ({ actor, botUserId }) => {
+      const taskCreateMock = vi.fn();
+      const tx = {
+        task: { create: taskCreateMock },
+        sokoBot: {
+          findUnique: vi.fn().mockResolvedValue({ userId: botUserId }),
+        },
+      } as never;
+
+      await expect(
+        createTaskForActor(
+          {
+            actor:
+              actor === "user"
+                ? { kind: "user", userId: "user_1" }
+                : { kind: "soko_bot", sokoBotId: "bot_personal" },
+            ownerId: null,
+            organizationId: "org_123",
+            workspaceId: "workspace_org",
+            name: "Task",
+            status: TaskStatus.DRAFT,
+          },
+          tx,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(taskCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  const tx = {
+    sokoBot: { findUnique: vi.fn() },
+    task: { findFirst: vi.fn(), update: vi.fn() },
+  };
+  const update = (archive = false, sokoBotId = "bot_shared") =>
+    updateTaskForActor(
+      {
+        actor: { kind: "soko_bot", sokoBotId },
+        userId: null,
+        workspaceId: "workspace_org",
+        taskId: "task_1",
+        intent: "metadata",
+        ...(archive
+          ? { archive, expectedUpdatedAt: new Date("2026-10-01T10:00:00Z") }
+          : { name: "Renamed" }),
+      },
+      tx as never,
+    );
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    tx.sokoBot.findUnique.mockResolvedValue(sharedBot);
+    tx.task.update.mockImplementation(async ({ data }) => ({
+      id: "task_1",
+      ...data,
+    }));
+  });
+
+  it("edits a public Task of its scope, not by a person's reach", async () => {
+    tx.task.findFirst.mockResolvedValue({
+      id: "task_1",
+      workspaceId: "workspace_org",
+      projectId: "project_1",
+      ownerId: null,
+      status: TaskStatus.DRAFT,
+      visibility: "PUBLIC",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      runAt: null,
+      updatedAt: new Date("2026-10-01T10:00:00Z"),
+    });
+
+    await expect(update()).resolves.toMatchObject({ name: "Renamed" });
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "task_1",
+        archivedAt: null,
+        workspaceId: "workspace_org",
+        visibility: "PUBLIC",
+        projectId: "project_1",
+      },
+    });
+    expect(access.requireTaskWriteAccess).not.toHaveBeenCalled();
+  });
+
+  it("cannot archive: managing work needs an Organization owner or admin", async () => {
+    await expect(update(true)).rejects.toMatchObject({ status: 403 });
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: "a personal bot", bot: { ...sharedBot, userId: "user_1" } },
+    {
+      label: "a bot of another workspace",
+      bot: { ...sharedBot, workspaceId: "workspace_other" },
+    },
+  ])("finds nothing for $label acting for nobody", async ({ bot }) => {
+    tx.sokoBot.findUnique.mockResolvedValue(bot);
+
+    await expect(update()).rejects.toMatchObject({ status: 404 });
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
 });

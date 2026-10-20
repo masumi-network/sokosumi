@@ -10,7 +10,6 @@ import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -88,9 +87,16 @@ export function overallScore(verdict: SokoBotJudgeVerdict): number {
   return Math.max(1, Math.min(5, Math.round(capped)));
 }
 
+/**
+ * `userId` limits the read to that member's turns. Only the admin overview
+ * leaves it out; an empty id still filters (and matches nothing).
+ */
 async function loadTranscript(turnId: string, userId?: string) {
   const turn = await prisma.sokoBotTurn.findFirst({
-    where: { id: turnId, ...(userId ? { requestedByUserId: userId } : {}) },
+    where: {
+      id: turnId,
+      ...(userId === undefined ? {} : { requestedByUserId: userId }),
+    },
     select: {
       sokoBotId: true,
       requestedByUserId: true,
@@ -378,7 +384,8 @@ export async function judgeSokoBotLabTurn(input: {
     if (!input.evaluation) return;
     const data = {
       sokoBotId: turn.sokoBotId,
-      userId: sokoBotActingUserId(turn),
+      // The read above matched the turn's Requester to this member.
+      userId: input.userId,
       scenarioId: scenario.id,
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,

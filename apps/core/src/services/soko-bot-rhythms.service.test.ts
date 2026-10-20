@@ -372,3 +372,23 @@ describe("memory cleanup and deadline watch", () => {
     expect(block.join("\n")).not.toContain("renew domain");
   });
 });
+
+describe("a shared bot's rhythms", () => {
+  const shared = { ...bot, userId: null, projectId: "project-1" };
+
+  it.each(["meeting-prep", "follow-ups"])(
+    "skips %s, which reads one member's mailbox",
+    async (key) => {
+      vi.clearAllMocks();
+      const packet = await buildRhythmPacket({
+        key,
+        bot: shared,
+        now: new Date("2026-10-01T10:00:00.000Z"),
+        dayStart: new Date("2026-10-01T00:00:00.000Z"),
+      });
+      expect(packet).toEqual({ lines: [], skip: true });
+      expect(integrationsMock).not.toHaveBeenCalled();
+      expect(taskFindManyMock).not.toHaveBeenCalled();
+    },
+  );
+});

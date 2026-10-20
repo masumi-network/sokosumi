@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildComposioCallbackInlineScript,
+  COMPOSIO_BOT_ID_STORAGE_KEY,
   COMPOSIO_OAUTH_ACK_TYPE,
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
   COMPOSIO_OAUTH_MESSAGE_TYPE,
@@ -11,6 +12,7 @@ import {
   isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
   parseComposioCallbackSearchParams,
+  rememberComposioBotId,
 } from "@/lib/composio/oauth-popup-protocol";
 
 describe("oauth-popup-protocol", () => {
@@ -237,5 +239,65 @@ describe("same-tab Composio verification", () => {
       },
     });
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("same-tab verification for a shared Soko Bot", () => {
+  const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
+
+  function runCallback(stored: Record<string, string>) {
+    const replace = vi.fn();
+    const removeItem = vi.fn();
+    runInNewContext(buildComposioCallbackInlineScript(), {
+      URLSearchParams,
+      window: {
+        sessionStorage: {
+          getItem: (key: string) => stored[key] ?? null,
+          removeItem,
+        },
+        name: "",
+        location: {
+          origin: "https://app.sokosumi.com",
+          search: `?session_uri=one-use&botId=${encodeURIComponent("attacker")}`,
+          replace,
+        },
+      },
+    });
+    return { replace, removeItem };
+  }
+
+  it("forwards the bot id the tab remembered, and forgets it", () => {
+    const { replace, removeItem } = runCallback({
+      [COMPOSIO_BOT_ID_STORAGE_KEY]: BOT_ID,
+    });
+    expect(replace).toHaveBeenCalledExactlyOnceWith(
+      `/personal-assistant/integrations/verify?session_uri=one-use&botId=${BOT_ID}`,
+    );
+    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_BOT_ID_STORAGE_KEY);
+  });
+
+  it("ignores a botId on Composio's query and verifies the caller's own bot", () => {
+    const { replace } = runCallback({});
+    expect(replace).toHaveBeenCalledExactlyOnceWith(
+      "/personal-assistant/integrations/verify?session_uri=one-use",
+    );
+  });
+
+  it("remembers a shared bot and clears it for the caller's own bot", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      sessionStorage: {
+        setItem: (key: string, value: string) => store.set(key, value),
+        removeItem: (key: string) => store.delete(key),
+      },
+    });
+    try {
+      rememberComposioBotId(BOT_ID);
+      expect(store.get(COMPOSIO_BOT_ID_STORAGE_KEY)).toBe(BOT_ID);
+      rememberComposioBotId(null);
+      expect(store.has(COMPOSIO_BOT_ID_STORAGE_KEY)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

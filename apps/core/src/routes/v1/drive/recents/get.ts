@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { type Prisma, TaskStatus } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
@@ -10,6 +10,7 @@ import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
+import { driveActorTaskWhere } from "@/helpers/drive-task-actor-visibility";
 import {
   DRIVE_TASK_FILE_WHERE,
   fetchDriveTaskOutputRecentsBatch,
@@ -23,10 +24,6 @@ import {
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
-  buildHumanTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -34,7 +31,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -117,22 +114,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       files: {
         some: DRIVE_TASK_FILE_WHERE,
       },
+      ...driveActorTaskWhere(authContext, userContext.userId),
     };
-
-    if (
-      !isCoworkerAuthContext(authContext) &&
-      !isSokoBotAuthContext(authContext)
-    ) {
-      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
-    }
-
-    if (isSokoBotAuthContext(authContext)) {
-      baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
-      baseTaskWhere.status = { not: TaskStatus.DRAFT };
-      baseTaskWhere.AND = [
-        buildSokoBotOwnerTaskVisibilityWhere(authContext.userId),
-      ];
-    }
 
     if (isCoworkerAuthContext(authContext) && authContext.context) {
       const hasWorkspaceGrant = await hasGrantedWorkspaceAccess({

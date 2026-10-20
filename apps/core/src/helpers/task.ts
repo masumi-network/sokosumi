@@ -129,7 +129,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   sokoBot?: {
     id: string;
     name: string | null;
-    userId?: string;
+    userId?: string | null;
   } | null;
 };
 

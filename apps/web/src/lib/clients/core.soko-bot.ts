@@ -1,90 +1,104 @@
 import type {
-  AdminSokoBotActionRequest,
-  AdminSokoBotVersionMigrationRequest,
+  CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
   JudgeSokoBotLabTurnRequest,
   ResolveSokoBotDecisionRequest,
   SokoBotLabIngestRequest,
-  SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
 } from "@sokosumi/core-client";
 import {
-  archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
   archiveMySokoBot as coreArchiveMySokoBot,
+  archiveSokoBot as coreArchiveSokoBot,
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
+  completeSokoBotIntegrationAuth as coreCompleteSokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
-  createAdminSokoBotVersion as coreCreateAdminSokoBotVersion,
+  connectSokoBotIntegration as coreConnectSokoBotIntegration,
   createMySokoBot as coreCreateMySokoBot,
   createMySokoBotSchedule as coreCreateMySokoBotSchedule,
-  deleteAdminSokoBot as coreDeleteAdminSokoBot,
+  createSokoBot as coreCreateSokoBot,
+  createSokoBotSchedule as coreCreateSokoBotSchedule,
   deleteMySokoBotPermanently as coreDeleteMySokoBotPermanently,
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
+  deleteSokoBotPermanently as coreDeleteSokoBotPermanently,
+  deleteSokoBotSchedule as coreDeleteSokoBotSchedule,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
+  disconnectSokoBotIntegration as coreDisconnectSokoBotIntegration,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
-  getAdminSokoBot as coreGetAdminSokoBot,
-  getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
-  getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
-  getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
-  getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getMySokoBot as coreGetMySokoBot,
   getMySokoBotActivity as coreGetMySokoBotActivity,
   getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
   getMySokoBotUsage as coreGetMySokoBotUsage,
+  getSokoBot as coreGetSokoBot,
+  getSokoBotActivity as coreGetSokoBotActivity,
+  getSokoBotStats as coreGetSokoBotStats,
   getSokoBotTeam as coreGetSokoBotTeam,
+  getSokoBotTurn as coreGetSokoBotTurn,
+  getSokoBotTurnResults as coreGetSokoBotTurnResults,
+  getSokoBotUsage as coreGetSokoBotUsage,
   installMySokoBotSkill as coreInstallMySokoBotSkill,
   introduceMySokoBot as coreIntroduceMySokoBot,
   judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
-  listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
-  listAdminSokoBotChats as coreListAdminSokoBotChats,
-  listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
-  listAdminSokoBots as coreListAdminSokoBots,
-  listAdminSokoBotVersions as coreListAdminSokoBotVersions,
   listMySokoBotIntegrations as coreListMySokoBotIntegrations,
   listMySokoBotLabRuns as coreListMySokoBotLabRuns,
   listMySokoBotSkills as coreListMySokoBotSkills,
   listMySokoBotTurns as coreListMySokoBotTurns,
+  listSokoBotIntegrations as coreListSokoBotIntegrations,
+  listSokoBotTurns as coreListSokoBotTurns,
   listSokoBotVersions as coreListSokoBotVersions,
-  migrateAdminSokoBotVersions as coreMigrateAdminSokoBotVersions,
-  performAdminSokoBotAction as corePerformAdminSokoBotAction,
-  promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
+  reactivateSokoBot as coreReactivateSokoBot,
   removeMySokoBotSkill as coreRemoveMySokoBotSkill,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
+  resetSokoBotMemory as coreResetSokoBotMemory,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
+  resolveSokoBotDecision as coreResolveSokoBotDecision,
   runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
-  setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
-  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
-  updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
+  startSokoBotTurn as coreStartSokoBotTurn,
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
   updateMySokoBotProactive as coreUpdateMySokoBotProactive,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
+  updateSokoBotBoardFollowing as coreUpdateSokoBotBoardFollowing,
+  updateSokoBotProactive as coreUpdateSokoBotProactive,
+  updateSokoBotSchedule as coreUpdateSokoBotSchedule,
 } from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
+import { createSokoBotAdminClient } from "./core.soko-bot-admin";
 
 export function createSokoBotClient(getClient: GetCoreClient) {
-  async function getMySokoBot() {
+  /** The caller's own bot, or the shared bot `sokoBotId`. */
+  async function getMySokoBot(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetMySokoBot({ client, cache: "no-store" }),
+      (client) =>
+        sokoBotId
+          ? coreGetSokoBot({ client, path: { sokoBotId }, cache: "no-store" })
+          : coreGetMySokoBot({ client, cache: "no-store" }),
       "Failed to fetch Soko Bot",
     );
   }
 
-  async function getMySokoBotActivity() {
+  async function getMySokoBotActivity(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetMySokoBotActivity({ client, cache: "no-store" }),
+      (client) =>
+        sokoBotId
+          ? coreGetSokoBotActivity({
+              client,
+              path: { sokoBotId },
+              cache: "no-store",
+            })
+          : coreGetMySokoBotActivity({ client, cache: "no-store" }),
       "Failed to fetch Soko Bot activity",
     );
   }
@@ -97,60 +111,42 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function archiveMySokoBot() {
+  /** Create a bot in a scope: personal, or shared by a project or workspace. */
+  async function createSokoBot(body: CreateScopedSokoBotRequest) {
     return executeCoreOperation(
       getClient,
-      (client) => coreArchiveMySokoBot({ client }),
+      (client) => coreCreateSokoBot({ client, body }),
+      "Failed to create Soko Bot",
+    );
+  }
+
+  async function archiveMySokoBot(sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreArchiveSokoBot({ client, path: { sokoBotId } })
+          : coreArchiveMySokoBot({ client }),
       "Failed to archive Soko Bot",
     );
   }
 
-  async function deleteMySokoBotPermanently() {
+  async function reactivateSokoBot(sokoBotId: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreDeleteMySokoBotPermanently({ client }),
-      "Failed to delete Soko Bot",
+      (client) => coreReactivateSokoBot({ client, path: { sokoBotId } }),
+      "Failed to reactivate Soko Bot",
     );
   }
 
-  async function getAdminSokoBotAvailability() {
+  async function deleteMySokoBotPermanently(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetAdminSokoBotAvailability({ client, cache: "no-store" }),
-      "Failed to read Soko Bot availability",
-    );
-  }
-
-  async function setAdminSokoBotAvailability(body: {
-    disabled: boolean;
-    reason?: string;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreSetAdminSokoBotAvailability({ client, body }),
-      "Failed to update Soko Bot availability",
-    );
-  }
-
-  async function deleteAdminSokoBot(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreDeleteAdminSokoBot({ client, path: { sokoBotId } }),
+        sokoBotId
+          ? coreDeleteSokoBotPermanently({ client, path: { sokoBotId } })
+          : coreDeleteMySokoBotPermanently({ client }),
       "Failed to delete Soko Bot",
-    );
-  }
-
-  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreSetAdminSokoBotAvatar({
-          client,
-          path: { sokoBotId },
-          body: { avatarId },
-        }),
-      "Failed to set Soko Bot avatar",
     );
   }
 
@@ -170,14 +166,20 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function updateMySokoBotProactive(body: {
-    paused?: boolean;
-    dailyLimit?: number;
-    timezone?: string;
-  }) {
+  async function updateMySokoBotProactive(
+    body: {
+      paused?: boolean;
+      dailyLimit?: number;
+      timezone?: string;
+    },
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreUpdateMySokoBotProactive({ client, body }),
+      (client) =>
+        sokoBotId
+          ? coreUpdateSokoBotProactive({ client, path: { sokoBotId }, body })
+          : coreUpdateMySokoBotProactive({ client, body }),
       "Failed to update assistant settings",
     );
   }
@@ -194,10 +196,20 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function updateMySokoBotBoardFollowing(body: { enabled: boolean }) {
+  async function updateMySokoBotBoardFollowing(
+    body: { enabled: boolean },
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreUpdateMySokoBotBoardFollowing({ client, body }),
+      (client) =>
+        sokoBotId
+          ? coreUpdateSokoBotBoardFollowing({
+              client,
+              path: { sokoBotId },
+              body,
+            })
+          : coreUpdateMySokoBotBoardFollowing({ client, body }),
       "Failed to update board following",
     );
   }
@@ -218,10 +230,17 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listMySokoBotIntegrations() {
+  async function listMySokoBotIntegrations(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreListMySokoBotIntegrations({ client, cache: "no-store" }),
+      (client) =>
+        sokoBotId
+          ? coreListSokoBotIntegrations({
+              client,
+              path: { sokoBotId },
+              cache: "no-store",
+            })
+          : coreListMySokoBotIntegrations({ client, cache: "no-store" }),
       "Failed to load Soko Bot integrations",
     );
   }
@@ -242,15 +261,22 @@ export function createSokoBotClient(getClient: GetCoreClient) {
   async function connectMySokoBotIntegration(
     provider: string,
     body: { returnUrl: string },
+    sokoBotId?: string,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreConnectMySokoBotIntegration({
-          client,
-          path: { provider },
-          body,
-        }),
+        sokoBotId
+          ? coreConnectSokoBotIntegration({
+              client,
+              path: { sokoBotId, provider },
+              body,
+            })
+          : coreConnectMySokoBotIntegration({
+              client,
+              path: { provider },
+              body,
+            }),
       "Failed to start the integration",
     );
   }
@@ -264,20 +290,40 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
+  async function completeMySokoBotIntegrationAuth(
+    sessionUri: string,
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
+        sokoBotId
+          ? coreCompleteSokoBotIntegrationAuth({
+              client,
+              path: { sokoBotId },
+              body: { sessionUri },
+            })
+          : coreCompleteMySokoBotIntegrationAuth({
+              client,
+              body: { sessionUri },
+            }),
       "Failed to verify the integration",
     );
   }
 
-  async function disconnectMySokoBotIntegration(provider: string) {
+  async function disconnectMySokoBotIntegration(
+    provider: string,
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDisconnectMySokoBotIntegration({ client, path: { provider } }),
+        sokoBotId
+          ? coreDisconnectSokoBotIntegration({
+              client,
+              path: { sokoBotId, provider },
+            })
+          : coreDisconnectMySokoBotIntegration({ client, path: { provider } }),
       "Failed to disconnect the integration",
     );
   }
@@ -290,18 +336,24 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getMySokoBotStats() {
+  async function getMySokoBotStats(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetMySokoBotStats({ client }),
+      (client) =>
+        sokoBotId
+          ? coreGetSokoBotStats({ client, path: { sokoBotId } })
+          : coreGetMySokoBotStats({ client }),
       "Failed to load Soko Bot stats",
     );
   }
 
-  async function getMySokoBotUsage() {
+  async function getMySokoBotUsage(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetMySokoBotUsage({ client }),
+      (client) =>
+        sokoBotId
+          ? coreGetSokoBotUsage({ client, path: { sokoBotId } })
+          : coreGetMySokoBotUsage({ client }),
       "Failed to load Soko Bot usage",
     );
   }
@@ -381,30 +433,57 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listMySokoBotTurns(query?: {
-    cursor?: string;
-    limit?: number;
-  }) {
+  async function listMySokoBotTurns(
+    query?: {
+      cursor?: string;
+      limit?: number;
+    },
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreListMySokoBotTurns({ client, query, cache: "no-store" }),
+      (client) =>
+        sokoBotId
+          ? coreListSokoBotTurns({
+              client,
+              path: { sokoBotId },
+              query,
+              cache: "no-store",
+            })
+          : coreListMySokoBotTurns({ client, query, cache: "no-store" }),
       "Failed to fetch Soko Bot turns",
     );
   }
 
-  async function getMySokoBotTurn(turnId: string) {
+  async function getMySokoBotTurn(turnId: string, sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetMySokoBotTurn({ client, path: { turnId }, cache: "no-store" }),
+        sokoBotId
+          ? coreGetSokoBotTurn({
+              client,
+              path: { sokoBotId, turnId },
+              cache: "no-store",
+            })
+          : coreGetMySokoBotTurn({
+              client,
+              path: { turnId },
+              cache: "no-store",
+            }),
       "Failed to fetch Soko Bot turn",
     );
   }
 
-  async function startMySokoBotTurn(body: StartSokoBotTurnRequest) {
+  async function startMySokoBotTurn(
+    body: StartSokoBotTurnRequest,
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreStartMySokoBotTurn({ client, body }),
+      (client) =>
+        sokoBotId
+          ? coreStartSokoBotTurn({ client, path: { sokoBotId }, body })
+          : coreStartMySokoBotTurn({ client, body }),
       "Failed to start Soko Bot turn",
     );
   }
@@ -417,18 +496,27 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
-  async function resetMySokoBotMemory() {
+  async function resetMySokoBotMemory(sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
-      (client) => coreResetMySokoBotMemory({ client }),
+      (client) =>
+        sokoBotId
+          ? coreResetSokoBotMemory({ client, path: { sokoBotId } })
+          : coreResetMySokoBotMemory({ client }),
       "Failed to reset Soko Bot memory",
     );
   }
 
-  async function createMySokoBotSchedule(body: CreateSokoBotScheduleRequest) {
+  async function createMySokoBotSchedule(
+    body: CreateSokoBotScheduleRequest,
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreCreateMySokoBotSchedule({ client, body }),
+      (client) =>
+        sokoBotId
+          ? coreCreateSokoBotSchedule({ client, path: { sokoBotId }, body })
+          : coreCreateMySokoBotSchedule({ client, body }),
       "Failed to create Soko Bot schedule",
     );
   }
@@ -436,19 +524,39 @@ export function createSokoBotClient(getClient: GetCoreClient) {
   async function updateMySokoBotSchedule(
     scheduleId: string,
     body: UpdateSokoBotScheduleRequest,
+    sokoBotId?: string,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreUpdateMySokoBotSchedule({ client, path: { scheduleId }, body }),
+        sokoBotId
+          ? coreUpdateSokoBotSchedule({
+              client,
+              path: { sokoBotId, scheduleId },
+              body,
+            })
+          : coreUpdateMySokoBotSchedule({
+              client,
+              path: { scheduleId },
+              body,
+            }),
       "Failed to update Soko Bot schedule",
     );
   }
 
-  async function deleteMySokoBotSchedule(scheduleId: string) {
+  async function deleteMySokoBotSchedule(
+    scheduleId: string,
+    sokoBotId?: string,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreDeleteMySokoBotSchedule({ client, path: { scheduleId } }),
+      (client) =>
+        sokoBotId
+          ? coreDeleteSokoBotSchedule({
+              client,
+              path: { sokoBotId, scheduleId },
+            })
+          : coreDeleteMySokoBotSchedule({ client, path: { scheduleId } }),
       "Failed to delete Soko Bot schedule",
     );
   }
@@ -456,195 +564,54 @@ export function createSokoBotClient(getClient: GetCoreClient) {
   async function resolveMySokoBotDecision(
     decisionId: string,
     body: ResolveSokoBotDecisionRequest,
+    sokoBotId?: string,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreResolveMySokoBotDecision({ client, path: { decisionId }, body }),
+        sokoBotId
+          ? coreResolveSokoBotDecision({
+              client,
+              path: { sokoBotId, decisionId },
+              body,
+            })
+          : coreResolveMySokoBotDecision({
+              client,
+              path: { decisionId },
+              body,
+            }),
       "Failed to resolve Soko Bot decision",
     );
   }
 
-  async function listAdminSokoBots(query?: {
-    cursor?: string;
-    query?: string;
-    limit?: number;
-  }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListAdminSokoBots({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bots",
-    );
-  }
-
-  async function getAdminSokoBotQuality(query?: {
-    versionId?: string;
-    sokoBotId?: string;
-  }) {
+  async function getMySokoBotTurnResults(turnId: string, sokoBotId?: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetAdminSokoBotQuality({ client, query, cache: "no-store" }),
-      "Failed to fetch Soko Bot quality",
-    );
-  }
-
-  async function getAdminSokoBotModelEvaluations() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotModelEvaluations({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot model evaluations",
-    );
-  }
-
-  async function getAdminSokoBot(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
-      "Failed to fetch Soko Bot",
-    );
-  }
-
-  async function listAdminSokoBotChats(sokoBotId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotChats({
-          client,
-          path: { sokoBotId },
-          cache: "no-store",
-        }),
-      "Failed to fetch Soko Bot chats",
-    );
-  }
-
-  async function listAdminSokoBotChatMessages(
-    sokoBotId: string,
-    roomId: string,
-    query?: { cursor?: string; limit?: number },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotChatMessages({
-          client,
-          path: { sokoBotId, roomId },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch Soko Bot chat messages",
-    );
-  }
-
-  async function performAdminSokoBotAction(
-    sokoBotId: string,
-    body: AdminSokoBotActionRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePerformAdminSokoBotAction({ client, path: { sokoBotId }, body }),
-      "Failed to perform Soko Bot action",
-    );
-  }
-
-  async function listAdminSokoBotVersions() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreListAdminSokoBotVersions({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot versions",
-    );
-  }
-
-  async function listAdminSokoBotGatewayModels() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreListAdminSokoBotGatewayModels({ client, cache: "no-store" }),
-      "Failed to fetch Soko Bot gateway models",
-    );
-  }
-
-  async function createAdminSokoBotVersion(body: SokoBotVersionWrite) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreCreateAdminSokoBotVersion({ client, body }),
-      "Failed to create Soko Bot version",
-    );
-  }
-
-  async function updateAdminSokoBotVersion(
-    slug: string,
-    body: Omit<SokoBotVersionWrite, "slug">,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreUpdateAdminSokoBotVersion({ client, path: { slug }, body }),
-      "Failed to update Soko Bot version",
-    );
-  }
-
-  async function archiveAdminSokoBotVersion(slug: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreArchiveAdminSokoBotVersion({ client, path: { slug } }),
-      "Failed to archive Soko Bot version",
-    );
-  }
-
-  async function promoteAdminSokoBotVersion(slug: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) => corePromoteAdminSokoBotVersion({ client, path: { slug } }),
-      "Failed to promote Soko Bot version",
-    );
-  }
-
-  async function getAdminSokoBotVersionUsage() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAdminSokoBotVersionUsage({ client, cache: "no-store" }),
-      "Failed to load Soko Bot version usage",
-    );
-  }
-
-  async function migrateAdminSokoBotVersions(
-    body: AdminSokoBotVersionMigrationRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreMigrateAdminSokoBotVersions({ client, body }),
-      "Failed to migrate Soko Bot versions",
-    );
-  }
-
-  async function getMySokoBotTurnResults(turnId: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetMySokoBotTurnResults({
-          client,
-          path: { turnId },
-          cache: "no-store",
-        }),
+        sokoBotId
+          ? coreGetSokoBotTurnResults({
+              client,
+              path: { sokoBotId, turnId },
+              cache: "no-store",
+            })
+          : coreGetMySokoBotTurnResults({
+              client,
+              path: { turnId },
+              cache: "no-store",
+            }),
       "Failed to fetch turn results",
     );
   }
 
   return {
+    ...createSokoBotAdminClient(getClient),
     getMySokoBot,
     getMySokoBotActivity,
     createMySokoBot,
+    createSokoBot,
     archiveMySokoBot,
+    reactivateSokoBot,
     deleteMySokoBotPermanently,
-    getAdminSokoBotAvailability,
-    setAdminSokoBotAvailability,
-    deleteAdminSokoBot,
-    setAdminSokoBotAvatar,
     introduceMySokoBot,
     listSokoBotVersions,
     updateMySokoBotProactive,
@@ -678,21 +645,6 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     updateMySokoBotSchedule,
     deleteMySokoBotSchedule,
     resolveMySokoBotDecision,
-    listAdminSokoBots,
-    getAdminSokoBotQuality,
-    getAdminSokoBotModelEvaluations,
-    getAdminSokoBot,
-    listAdminSokoBotChats,
-    listAdminSokoBotChatMessages,
-    performAdminSokoBotAction,
-    listAdminSokoBotVersions,
-    listAdminSokoBotGatewayModels,
-    createAdminSokoBotVersion,
-    updateAdminSokoBotVersion,
-    archiveAdminSokoBotVersion,
-    promoteAdminSokoBotVersion,
-    getAdminSokoBotVersionUsage,
-    migrateAdminSokoBotVersions,
     getMySokoBotTurnResults,
   };
 }

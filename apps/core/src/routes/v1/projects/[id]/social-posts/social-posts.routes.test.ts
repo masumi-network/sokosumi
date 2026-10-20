@@ -7,11 +7,13 @@ import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 
+import mountApproveSocialPost from "./[postId]/approve/post.js";
 import mountCancelSocialPost from "./[postId]/cancel/post.js";
 import mountDuplicateSocialPost from "./[postId]/duplicate/post.js";
 import mountGetSocialPost from "./[postId]/get.js";
 import mountPatchSocialPost from "./[postId]/patch.js";
 import mountPublishSocialPost from "./[postId]/publish/post.js";
+import mountRejectSocialPost from "./[postId]/reject/post.js";
 import mountScheduleSocialPost from "./[postId]/schedule/post.js";
 import mountRefreshStatistics from "./[postId]/statistics/refresh/post.js";
 import mountListSocialPosts from "./get.js";
@@ -21,6 +23,7 @@ import mountStatistics from "./statistics/get.js";
 const {
   requireAuthorizedUserContextMock,
   requireCoworkerCapabilityMock,
+  approveSocialPostMock,
   cancelSocialPostMock,
   createSocialPostMock,
   duplicateSocialPostMock,
@@ -29,12 +32,14 @@ const {
   refreshSocialPostStatisticsMock,
   listSocialPostsMock,
   publishSocialPostNowMock,
+  rejectSocialPostMock,
   requireSocialBetaAccessMock,
   scheduleSocialPostMock,
   updateSocialPostMock,
 } = vi.hoisted(() => ({
   requireAuthorizedUserContextMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
+  approveSocialPostMock: vi.fn(),
   cancelSocialPostMock: vi.fn(),
   createSocialPostMock: vi.fn(),
   duplicateSocialPostMock: vi.fn(),
@@ -43,6 +48,7 @@ const {
   refreshSocialPostStatisticsMock: vi.fn(),
   listSocialPostsMock: vi.fn(),
   publishSocialPostNowMock: vi.fn(),
+  rejectSocialPostMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   updateSocialPostMock: vi.fn(),
@@ -53,11 +59,13 @@ vi.mock("@/services/social-post-publisher.service", () => ({
 }));
 
 vi.mock("@/services/social-posts.service", () => ({
+  approveSocialPost: approveSocialPostMock,
   cancelSocialPost: cancelSocialPostMock,
   createSocialPost: createSocialPostMock,
   duplicateSocialPost: duplicateSocialPostMock,
   getSocialPost: getSocialPostMock,
   listSocialPosts: listSocialPostsMock,
+  rejectSocialPost: rejectSocialPostMock,
   scheduleSocialPost: scheduleSocialPostMock,
   updateSocialPost: updateSocialPostMock,
 }));
@@ -114,6 +122,7 @@ const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
 
 const SOKO_BOT_CONTEXT_AUTH: AuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: "bot_123",
   userId: USER_ID,
   workspaceId: WORKSPACE_ID,
@@ -155,6 +164,8 @@ const draftPost = {
   canSchedule: true,
   canCancel: true,
   canPublishNow: true,
+  canApprove: false,
+  canReject: false,
   canDuplicate: false,
   connectionNeedsReconnect: false,
 };
@@ -200,6 +211,8 @@ function createApp(
   mountGetSocialPost(app);
   mountPatchSocialPost(app);
   mountScheduleSocialPost(app);
+  mountApproveSocialPost(app);
+  mountRejectSocialPost(app);
   mountCancelSocialPost(app);
   mountDuplicateSocialPost(app);
   mountPublishSocialPost(app);
@@ -227,6 +240,8 @@ function allOperations(app: ReturnType<typeof createApp>) {
       json("POST", { scheduledAt: SCHEDULED_AT, revision: 0 }),
     ),
     app.request(`${base}/${POST_ID}/cancel`, json("POST", { revision: 0 })),
+    app.request(`${base}/${POST_ID}/approve`, json("POST", { revision: 0 })),
+    app.request(`${base}/${POST_ID}/reject`, json("POST", { revision: 0 })),
     app.request(`${base}/${POST_ID}/duplicate`, { method: "POST" }),
     app.request(`${base}/${POST_ID}/publish`, json("POST", { revision: 0 })),
   ];
@@ -239,6 +254,8 @@ function expectNoServiceCalls() {
   expect(updateSocialPostMock).not.toHaveBeenCalled();
   expect(scheduleSocialPostMock).not.toHaveBeenCalled();
   expect(cancelSocialPostMock).not.toHaveBeenCalled();
+  expect(approveSocialPostMock).not.toHaveBeenCalled();
+  expect(rejectSocialPostMock).not.toHaveBeenCalled();
   expect(duplicateSocialPostMock).not.toHaveBeenCalled();
   expect(publishSocialPostNowMock).not.toHaveBeenCalled();
 }
@@ -259,6 +276,21 @@ describe("Project social post routes", () => {
     getSocialPostMock.mockResolvedValue(draftPost);
     updateSocialPostMock.mockResolvedValue({ ...draftPost, revision: 1 });
     scheduleSocialPostMock.mockResolvedValue(scheduledPost);
+    approveSocialPostMock.mockResolvedValue({
+      ...scheduledPost,
+      revision: 2,
+    });
+    rejectSocialPostMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "CANCELED",
+      canceledAt: new Date("2026-09-15T11:00:00.000Z"),
+      revision: 2,
+      canEdit: false,
+      canSchedule: false,
+      canCancel: false,
+      canApprove: false,
+      canReject: false,
+    });
     duplicateSocialPostMock.mockResolvedValue({
       ...draftPost,
       id: "55555555-5555-4555-8555-555555555555",
@@ -301,7 +333,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp(null)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401, 401, 401, 401, 401,
+      401, 401, 401, 401, 401, 401, 401, 401, 401, 401,
     ]);
     expectNoServiceCalls();
   });
@@ -315,7 +347,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp(auth)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403, 403, 403, 403,
     ]);
     expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expectNoServiceCalls();
@@ -329,7 +361,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp()));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403, 403, 403, 403,
     ]);
     expectNoServiceCalls();
   });
@@ -624,6 +656,8 @@ describe("Project social post routes", () => {
       canSchedule: true,
       canCancel: false,
       canPublishNow: true,
+      canApprove: false,
+      canReject: false,
       canDuplicate: true,
     });
 
@@ -771,6 +805,41 @@ describe("Project social post routes", () => {
     });
   });
 
+  it("approves a post that needs approval", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/approve`,
+      json("POST", { revision: 2 }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(approveSocialPostMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 2,
+    });
+  });
+
+  it("rejects a post that needs approval", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/reject`,
+      json("POST", { revision: 2 }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { status: "CANCELED", canApprove: false },
+    });
+    expect(rejectSocialPostMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 2,
+    });
+  });
+
   it("requires a revision to publish now", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/publish`,
@@ -850,7 +919,7 @@ describe("Project social post routes", () => {
       allOperations(createApp(COWORKER_CONTEXT_AUTH)),
     );
     expect(responses.map((response) => response.status)).toEqual([
-      200, 201, 200, 200, 200, 200, 201, 403,
+      200, 201, 200, 200, 200, 200, 403, 403, 201, 403,
     ]);
     expect(createSocialPostMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
@@ -866,8 +935,13 @@ describe("Project social post routes", () => {
       "tasks",
       expect.anything(),
     );
-    expect((await responses[2]!.json()).data.canPublishNow).toBe(false);
+    const getBody = await responses[2]!.json();
+    expect(getBody.data.canPublishNow).toBe(false);
+    expect(getBody.data.canApprove).toBe(false);
+    expect(getBody.data.canReject).toBe(false);
     expect(publishSocialPostNowMock).not.toHaveBeenCalled();
+    expect(approveSocialPostMock).not.toHaveBeenCalled();
+    expect(rejectSocialPostMock).not.toHaveBeenCalled();
   });
   it("keeps coworker scheduling beta-gated", async () => {
     requireAuthorizedUserContextMock.mockResolvedValue({

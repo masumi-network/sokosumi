@@ -12,6 +12,7 @@ import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
+import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -209,7 +210,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     }
     // The sending bot's owner is the workspace fallback and the attribution:
     // their assistant asked, so the console can say whose curiosity this was.
-    const userId = mention.message.senderUserId ?? senderBot?.userId ?? null;
+    // A shared bot has no owner: the member its turn ran for stands in.
+    const userId =
+      mention.message.senderUserId ??
+      (senderBot
+        ? await sokoBotMessageMemberId(senderBot, mention.message)
+        : null);
     if (!userId) {
       await failWithShell("Mention sender is no longer available");
       return;

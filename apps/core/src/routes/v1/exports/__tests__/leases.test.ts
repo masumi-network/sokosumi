@@ -86,6 +86,7 @@ describe("export lease routes", () => {
     },
     {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "bot",
       userId: "owner",
       workspaceId: "workspace",

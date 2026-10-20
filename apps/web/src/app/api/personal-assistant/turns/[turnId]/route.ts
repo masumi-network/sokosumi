@@ -6,11 +6,15 @@ import {
 } from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { readBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { toChatTurnDetail } from "@/lib/soko-bot/chat-state";
 
-/** Full detail for one turn, loaded on demand by the "Explain" disclosure. */
+/**
+ * Full detail for one turn, loaded on demand by the "Explain" disclosure.
+ * `?botId=` reads the turn of a shared bot.
+ */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ turnId: string }> },
 ) {
   const sessionRead = await readRouteSession();
@@ -20,9 +24,13 @@ export async function GET(
   if (sessionRead.status === "signedOut") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const target = readBotIdParam(request.url);
+  if (!target) {
+    return NextResponse.json({ error: "Invalid bot id" }, { status: 400 });
+  }
   const { turnId } = await context.params;
   try {
-    const turn = await sokoBotService.getTurn(turnId);
+    const turn = await sokoBotService.getTurn(turnId, target.botId);
     return NextResponse.json(
       { turn: toChatTurnDetail(turn) },
       { headers: { "Cache-Control": "no-store" } },

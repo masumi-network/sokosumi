@@ -60,6 +60,8 @@ const POST: SocialPost = {
   canSchedule: true,
   canCancel: false,
   canPublishNow: false,
+  canApprove: false,
+  canReject: false,
   canDuplicate: false,
   connectionNeedsReconnect: false,
 };

@@ -47,7 +47,8 @@ const callSchema = z.object({
 });
 const callsSchema = z.array(callSchema).max(MAX_CALLS);
 interface EvaluationActor {
-  userId: string;
+  /** Null for a shared bot acting on its own, which evaluation never binds. */
+  userId: string | null;
   sokoBotId: string;
   clientTurnId: string;
   source: string | null;
