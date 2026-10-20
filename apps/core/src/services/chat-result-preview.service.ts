@@ -555,6 +555,16 @@ export async function hydrateChatResultSnapshots(
             allowedOutputs.has(output.openHref),
           ),
           decision: current.data.decision,
+          // Auto tags, the project and the assignee usually land seconds
+          // after the turn; the card keeps the name and status it reported.
+          task:
+            current.data.task && snapshot.data.task
+              ? {
+                  ...current.data.task,
+                  name: snapshot.data.task.name,
+                  status: snapshot.data.task.status,
+                }
+              : snapshot.data.task,
           // Choices are live: removed projects and old names are never selectable.
           projectOptions: current.data.projectOptions,
         };

@@ -173,6 +173,29 @@ describe("authorized chat results", () => {
       ],
     );
   });
+  it("shows tags added after the turn while keeping the reported status", async () => {
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "task", id: "task-1" },
+      actor,
+    });
+    expect(snapshot.data.task?.tags.automatic).toEqual([]);
+    readTask.mockResolvedValue({
+      id: "task-1",
+      name: "Launch campaign",
+      status: "RUNNING",
+      description: "Prepare launch",
+      number: 12,
+      schedule: null,
+      events: [],
+      automaticTags: ["research"],
+    });
+    const [live] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(live).toMatchObject({
+      status: "READY",
+      task: { status: "READY", tags: { automatic: ["research"] } },
+    });
+  });
+
   it("distinguishes execution schedules from private bot follow-ups", async () => {
     taskSchedule.mockResolvedValue({
       id: "schedule-1",

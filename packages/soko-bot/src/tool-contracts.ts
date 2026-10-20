@@ -84,6 +84,8 @@ export const sokoBotCreateTaskInputSchema = z
     description: z.string().trim().max(20_000).nullable().optional(),
     projectId: z.string().uuid().nullable().optional(),
     coworkerId: z.string().min(1).nullable().optional(),
+    /** The owner does it themselves (pay, sign, decide); not with coworkerId. */
+    assignToOwner: z.literal(true).optional(),
     status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
@@ -122,10 +124,17 @@ export const sokoBotArchiveTaskInputSchema = z
 export const sokoBotAssignTaskInputSchema = z
   .object({
     taskId: z.string().min(1),
-    coworkerId: z.string().min(1),
+    coworkerId: z.string().min(1).optional(),
+    assignToOwner: z.literal(true).optional(),
     ready: z.boolean().default(true),
   })
-  .strict();
+  .strict()
+  .refine(
+    (input) => Boolean(input.coworkerId) !== Boolean(input.assignToOwner),
+    {
+      message: "Give coworkerId or assignToOwner: true",
+    },
+  );
 
 export const sokoBotReplyToTaskInputSchema = z
   .object({
@@ -718,12 +727,13 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
-    "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description.",
+    "Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description.",
   update_task:
     "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
     "Archive a Task the owner could archive in the app: their own, or a public Task of their organization. Pass the exact updatedAt from list_tasks or get_task_status as expectedUpdatedAt; no separate read is needed. One Task per call: to archive several, list them once and call archive_task for all of them in the same step. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template; cancel another one first with reply_to_task status CANCELED when the owner wants it gone. Report success only from the archive result.",
-  assign_task: "Assign Task to available Coworker and optionally make READY.",
+  assign_task:
+    "Assign a Task to an available Coworker (coworkerId), or to the owner with assignToOwner: true, and optionally make it READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   list_tasks:
