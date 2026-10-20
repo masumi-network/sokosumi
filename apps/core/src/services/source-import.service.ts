@@ -11,6 +11,7 @@ import {
   isHttpUrl,
 } from "@sokosumi/utils";
 
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
@@ -187,6 +188,10 @@ export const sourceImportService = {
           },
         });
       } catch (error) {
+        // Rethrow so serializableTransaction retries; per-URL capture would swallow it.
+        if (isPrismaTransactionConflict(error)) {
+          throw error;
+        }
         Sentry.captureException(error);
       }
     }

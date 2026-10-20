@@ -1,5 +1,6 @@
 import {
   CoworkerWorkspaceAccessStatus,
+  MemberRole,
   type Prisma,
   TaskStatus,
   TaskVisibility,
@@ -11,7 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
-  SokoBotAuthenticationContext,
+  PersonalSokoBotAuthenticationContext,
+  SharedSokoBotAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -94,8 +96,13 @@ vi.mock("./organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
 }));
 
-function createTransactionClient() {
+function createTransactionClient(
+  sokoBot: { id: string; userId: string | null } | null = null,
+) {
   return {
+    sokoBot: {
+      findFirst: vi.fn().mockResolvedValue(sokoBot),
+    },
     coworker: {
       findFirst: vi.fn(),
     },
@@ -139,8 +146,9 @@ function createCoworkerContext(
 }
 
 const workspaceId = "11111111-1111-7111-8111-111111111111";
-const sokoBotAuthContext: SokoBotAuthenticationContext = {
+const sokoBotAuthContext: PersonalSokoBotAuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: "22222222-2222-7222-8222-222222222222",
   userId: "user_123",
   workspaceId,
@@ -1835,6 +1843,33 @@ describe("requireTaskAssignableSokoBot", () => {
     ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
   });
 
+  // No member may hand a Task to a shared bot: the gate cannot see the Task's
+  // visibility, and the bot's EVENT turns trust whatever it lets through.
+  it.each(["member", "admin", "owner"])(
+    "refuses a %s assigning work to a shared Soko Bot",
+    async (userId) => {
+      const tx = createTransactionClient({ id: "bot_1", userId: null });
+
+      await expect(
+        requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
+          kind: "user",
+          userId,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    },
+  );
+
+  it("lets a shared Soko Bot assign work to itself", async () => {
+    const tx = createTransactionClient({ id: "bot_1", userId: null });
+
+    await expect(
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
+        kind: "soko_bot",
+        sokoBotId: "bot_1",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("rejects a missing or archived soko bot", async () => {
     const tx = {
       sokoBot: { findFirst: vi.fn().mockResolvedValue(null) },
@@ -2352,17 +2387,17 @@ describe("requireJobReadForRouteVars", () => {
 });
 
 describe("requireJobCollaboration", () => {
-  it("uses ownership for users", async () => {
+  it("allows the job's Owner", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
+      taskId: null,
     } as never);
 
-    await requireJobCollaboration(userAuthContext, "job_123", tx);
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_123", ownerId: "user_123" },
-    });
+    await expect(
+      requireJobCollaboration(userAuthContext, "job_123", tx),
+    ).resolves.toMatchObject({ id: "job_123" });
   });
 
   it("rejects users that do not own the job", async () => {
@@ -2376,10 +2411,15 @@ describe("requireJobCollaboration", () => {
 
   // SOK-1030 widened job *sharing* to any workspace member via
   // `requireJobShareCollaboration`. This helper still guards refund, workspace
-  // move, metadata patch, and input submission, so it must stay owner-only.
-  it("stays owner-only for a member of the same organization", async () => {
+  // move, metadata patch, and input submission, so it stays with the job's
+  // Owner (ADR 0057).
+  it("refuses a member of the same organization a job someone else owns", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_of_another_member",
+      ownerId: "user_123",
+      taskId: null,
+    } as never);
 
     await expect(
       requireJobCollaboration(
@@ -2388,9 +2428,78 @@ describe("requireJobCollaboration", () => {
         tx,
       ),
     ).rejects.toThrow("You can only access your own jobs");
+  });
 
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: { id: "job_of_another_member", ownerId: "member_456" },
+  describe("on a job without an Owner", () => {
+    function jobWithoutOwner(tx: Prisma.TransactionClient) {
+      vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+        id: "job_123",
+        ownerId: null,
+        workspaceId,
+        taskId: null,
+      } as never);
+      vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+        organizationId: "org_123",
+      } as never);
+    }
+
+    it("lets a seated member edit it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx),
+      ).resolves.toMatchObject({ id: "job_123" });
+      expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+        "user_123",
+        "org_123",
+        tx,
+      );
+    });
+
+    it("lets an Organization admin manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      resolveMemberOrganizationByIdMock.mockResolvedValueOnce({
+        role: MemberRole.ADMIN,
+      });
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).resolves.toMatchObject({ id: "job_123" });
+    });
+
+    it("refuses to let an Organization admin without a Seat manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      requireAssignedOrganizationSeatMock.mockRejectedValueOnce(
+        new HTTPException(403, { message: "Seat required" }),
+      );
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it("refuses to let a plain member manage it", async () => {
+      const tx = createTransactionClient();
+      jobWithoutOwner(tx);
+      resolveMemberOrganizationByIdMock.mockResolvedValueOnce({
+        role: MemberRole.MEMBER,
+      });
+
+      await expect(
+        requireJobCollaboration(userAuthContext, "job_123", tx, {
+          right: "manage",
+        }),
+      ).rejects.toMatchObject({
+        status: 403,
+        cause: { kind: "organization_role_forbidden" },
+      });
     });
   });
 
@@ -2404,6 +2513,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst)
@@ -2429,6 +2539,7 @@ describe("requireJobCollaboration", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_123",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -2456,6 +2567,7 @@ describe("requireJobCollaboration", () => {
     } as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
+      ownerId: "user_delegate",
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -2502,5 +2614,56 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
       ]),
     );
     expect(where.archivedAt).toBeNull();
+  });
+});
+
+describe("shared Soko Bot collaboration", () => {
+  const sharedSokoBotAuthContext: SharedSokoBotAuthenticationContext = {
+    actor: "sokoBot",
+    scope: "workspace",
+    sokoBotId: "33333333-3333-7333-8333-333333333333",
+    userId: null,
+    workspaceId,
+    organizationId: "org_123",
+    projectId: null,
+  };
+  const vars: EnvVariables["Variables"] = {
+    isAuthenticated: true,
+    authContext: sharedSokoBotAuthContext,
+    workspaceContext: null,
+  };
+
+  it.each([
+    [
+      "requireTaskCollaboration",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskCollaboration(sharedSokoBotAuthContext, "tsk_123", tx),
+    ],
+    [
+      "requireJobCollaboration",
+      (tx: Prisma.TransactionClient) =>
+        requireJobCollaboration(sharedSokoBotAuthContext, "job_123", tx),
+    ],
+    [
+      "requireTaskCommentAccess",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskCommentAccess(vars, "tsk_123", tx),
+    ],
+    [
+      "requireTaskReadForRouteVars",
+      (tx: Prisma.TransactionClient) =>
+        requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ],
+    [
+      "requireJobReadForRouteVars",
+      (tx: Prisma.TransactionClient) =>
+        requireJobReadForRouteVars(vars, "job_123", tx),
+    ],
+  ])("%s answers 403 before any read", async (_, call) => {
+    const tx = createTransactionClient();
+
+    await expect(call(tx)).rejects.toMatchObject({ status: 403 });
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 });

@@ -27,7 +27,7 @@ Claims use provenance labels:
 
 [OPEN] A waitlist submission route or CLI command was not found in the checked Core, Web, or CLI source. The CLI handoff surface remains undetermined. Do not invent a Core permission endpoint here.
 
-[CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier draft proposed Vendor-admin Coworker creation on Preprod. User clarified that permissions remain unchanged and work outside the CLI belongs to the team. Current `POST /v1/coworkers` requires platform admin authentication. With current permissions, a platform admin must provision the Coworker record before an ordinary Vendor admin can finish setup. [Create route](../../core/src/routes/v1/coworkers/post.ts#L77-L80)
+[CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier draft proposed Vendor-admin Coworker creation on Preprod. User clarified that permissions remain unchanged and work outside the CLI belongs to the team. Current `POST /v1/coworkers` allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). [Create route](../../core/src/routes/v1/coworkers/post.ts#L83-L112)
 
 [VERIFIED: source only] The current create handler sets `isWhitelisted: false`. The Preprod deployment default was not checked.
 
@@ -47,7 +47,7 @@ Claims use provenance labels:
         v
 [Sokosumi Preprod]
         |
-        | Current Core create permission: platform admin
+        | Current Core create: platform admin any network; own Vendor admin on Preprod
         | Coworker starts isWhitelisted=false
         v
 [Platform admin provisions Coworker under Vendor]
@@ -105,7 +105,7 @@ Claims use provenance labels:
 
 [VERIFIED] Masumi's x402 guide says `assetTransferMethod: "masumi"` sends payments through the Masumi smart contract. The current upstream SDK README says its `masumi` lock “cannot be driven through a `masumi-payment-service` node” because the seller authorization differs. [Masumi x402 guide](https://www.masumi.network/dev/masumi/core-concepts/x402) · [SDK and MPS compatibility](https://www.npmjs.com/package/%40x402/cardano/v/2.27.0)
 
-[VERIFIED] Core has Coworker list and workspace routes. `POST /v1/coworkers` exists but requires platform admin authentication. The current Coworker offer schema has no typed Cardano x402 price or recipient. [Coworker list](../../core/src/routes/v1/coworkers/get.ts#L53) · [Create route](../../core/src/routes/v1/coworkers/post.ts#L18) · [Offer schema](../../core/src/schemas/coworker.schema.ts#L82)
+[VERIFIED] Core has Coworker list and workspace routes. `POST /v1/coworkers` allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). The current Coworker offer schema has no typed Cardano x402 price or recipient. [Coworker list](../../core/src/routes/v1/coworkers/get.ts#L53) · [Create route](../../core/src/routes/v1/coworkers/post.ts#L83-L112) · [Offer schema](../../core/src/schemas/coworker.schema.ts#L82)
 
 ## Cardano x402 SDK flow after the MVP
 

@@ -258,7 +258,7 @@ struct RoomSearchRefiningTests {
 
   private func makeSearch() throws -> Harness {
     let transport = GatedSearchTransport()
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
     return Harness(search: RoomSearch(debounce: .zero), transport: transport, client: client)
   }
 

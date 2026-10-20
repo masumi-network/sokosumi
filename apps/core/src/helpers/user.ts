@@ -5,7 +5,7 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 
 export async function getCredits(
-  userId: string,
+  userId: string | null,
   organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {

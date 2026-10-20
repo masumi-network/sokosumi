@@ -12,6 +12,7 @@ export const CORE_API_ERROR_KINDS = {
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A coworker must send `X-Context-Organization-Id`: the context user has no personal workspace. */
   CONTEXT_ORGANIZATION_REQUIRED: "context_organization_required",
+  INTEGRATION_NOT_CONFIGURED: "integration_not_configured",
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
   INSUFFICIENT_BALANCE: "insufficient_balance",

@@ -48,6 +48,7 @@ const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
 function schedule(state: TaskSchedule["state"]): TaskSchedule {
   return {
     id: SCHEDULE_ID,
+    creator: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     organizationId: null,
     ownerId: "user_1",
@@ -211,6 +212,33 @@ describe("TaskScheduleActions", () => {
       scheduleId: SCHEDULE_ID,
     });
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/schedules"));
+  });
+
+  it("hides delete on a schedule without an owner unless the viewer may manage it", () => {
+    const ownerless = { ...schedule("ACTIVE"), ownerId: null };
+    const { rerender } = render(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "delete" })).toBeNull();
+    expect(screen.getByRole("button", { name: "edit" })).toBeInTheDocument();
+
+    rerender(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        canDeleteUnowned
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeInTheDocument();
   });
 
   it("leaves an Ended schedule nothing to change but deleting it", () => {

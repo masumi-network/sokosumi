@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { forbidden, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import mount from "./post";
@@ -58,8 +58,8 @@ const contact = {
   id: "123",
   name: "=2+2",
   username: "reader",
-  description: null,
-  location: null,
+  description: "Public sample biography",
+  location: "Self-reported location",
   avatarUrl: null,
   followersCount: 0,
   interactions: null,
@@ -68,6 +68,33 @@ const contact = {
   mentions: null,
   likes: null,
   reposts: null,
+};
+const incoming = {
+  author: {
+    ...contact,
+    description: "Incoming author biography",
+    location: "Incoming author location",
+  },
+  interactionType: "mention",
+  post: {
+    id: postId,
+    connectionId,
+    provider: "x",
+    externalId: "789",
+    text: "Mention",
+    publishedAt: "2026-10-08T11:00:00Z",
+    url: "https://x.com/reader/status/789",
+    metrics: {
+      views: null,
+      impressions: 0,
+      likes: 0,
+      comments: null,
+      shares: null,
+      saves: null,
+    },
+    additionalMetrics: [],
+    fetchedAt: "2026-10-08T12:00:00Z",
+  },
 };
 function createApp(actor = auth) {
   const app = new OpenAPIHono<EnvVariables>({
@@ -96,7 +123,9 @@ function request(body: unknown) {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.beta.mockResolvedValue(undefined);
-  mocks.scope.mockResolvedValue({});
+  mocks.scope.mockResolvedValue({
+    account: { displayName: "Launch", externalHandle: "launch", provider: "x" },
+  });
   mocks.capability.mockResolvedValue(undefined);
   mocks.delegation.mockRejectedValue(forbidden("Delegation required"));
 });
@@ -118,6 +147,10 @@ describe("loaded X audience sample export", () => {
     const csv = await response.text();
     expect(csv).toContain("Loaded page only; incomplete audience.");
     expect(csv).toContain("'=2+2");
+    expect(csv).toContain("Launch");
+    expect(csv).toContain("Bios and locations are left out by default");
+    expect(csv).not.toContain(contact.description);
+    expect(csv).not.toContain(contact.location);
     expect(mocks.scope).toHaveBeenCalledWith(
       { projectId, workspaceId, connectionId },
       undefined,
@@ -125,6 +158,52 @@ describe("loaded X audience sample export", () => {
     expect(mocks.audience).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
   });
+  it.each(["csv", "xlsx"])(
+    "includes bios and locations in %s only with explicit boolean opt-in",
+    async (format) => {
+      for (const includeProfileDetails of [undefined, false, true]) {
+        const response = await createApp().request(
+          url,
+          request({
+            format,
+            pages: [
+              {
+                ...page,
+                kind: "mentions",
+                contacts: [contact],
+                posts: [incoming],
+              },
+            ],
+            ...(includeProfileDetails === undefined
+              ? {}
+              : { includeProfileDetails }),
+          }),
+        );
+        expect(response.status).toBe(200);
+        let output: string;
+        if (format === "csv") {
+          output = await response.text();
+        } else {
+          const zip = await JSZip.loadAsync(await response.arrayBuffer());
+          output = (
+            await Promise.all(
+              Object.values(zip.files)
+                .filter((file) => file.name.endsWith(".xml"))
+                .map((file) => file.async("string")),
+            )
+          ).join("\n");
+        }
+        expect(output.includes(contact.description)).toBe(
+          includeProfileDetails === true,
+        );
+        expect(output.includes(contact.location)).toBe(
+          includeProfileDetails === true,
+        );
+        expect(output).not.toContain("Incoming author biography");
+        expect(output).not.toContain("Incoming author location");
+      }
+    },
+  );
   it("returns an XLSX workbook with empty sample coverage", async () => {
     const response = await createApp().request(
       url,
@@ -178,6 +257,14 @@ describe("loaded X audience sample export", () => {
       [{ ...page, kind: "likers" }],
       [{ ...page, postId }],
       [{ ...page, contacts: Array.from({ length: 101 }, () => contact) }],
+      [
+        {
+          ...page,
+          kind: "mentions",
+          posts: Array.from({ length: 101 }, () => incoming),
+        },
+      ],
+      [{ ...page, posts: [incoming] }],
     ];
     for (const pages of samples)
       expect(
@@ -198,35 +285,33 @@ describe("loaded X audience sample export", () => {
     expect(response.status).toBe(413);
     expect(mocks.scope).not.toHaveBeenCalled();
   });
+  it("rejects invalid formats, non-boolean opt-ins and unknown body fields before scope reads", async () => {
+    for (const body of [
+      { format: "pdf", pages: [page] },
+      { format: "csv", pages: [page], includeProfileDetails: "true" },
+      { format: "csv", pages: [page], includeProfileDetails: null },
+      { format: "csv", pages: [page], unexpected: true },
+    ])
+      expect((await createApp().request(url, request(body))).status).toBe(422);
+    expect(mocks.scope).not.toHaveBeenCalled();
+  });
   it("rejects incoming evidence from another connection after checking account scope", async () => {
-    const incoming = {
-      author: null,
-      interactionType: "mention",
-      post: {
-        id: postId,
-        connectionId: projectId,
-        provider: "x",
-        externalId: "789",
-        text: "Mention",
-        publishedAt: "2026-10-08T11:00:00Z",
-        url: "https://x.com/reader/status/789",
-        metrics: {
-          views: null,
-          impressions: 0,
-          likes: 0,
-          comments: null,
-          shares: null,
-          saves: null,
-        },
-        additionalMetrics: [],
-        fetchedAt: "2026-10-08T12:00:00Z",
-      },
-    };
     const response = await createApp().request(
       url,
       request({
         format: "csv",
-        pages: [{ ...page, kind: "mentions", posts: [incoming] }],
+        pages: [
+          {
+            ...page,
+            kind: "mentions",
+            posts: [
+              {
+                ...incoming,
+                post: { ...incoming.post, connectionId: projectId },
+              },
+            ],
+          },
+        ],
       }),
     );
     expect(response.status).toBe(400);
@@ -277,13 +362,24 @@ describe("loaded X audience sample export", () => {
   it("rejects bot REST actors and human API keys", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "bot",
       userId: "owner",
       workspaceId,
       organizationId: null,
     };
+    const projectBot: AuthenticationContext = {
+      actor: "sokoBot",
+      scope: "project",
+      sokoBotId: "project-bot",
+      userId: null,
+      workspaceId,
+      organizationId: "organization",
+      projectId,
+    };
     for (const actor of [
       bot,
+      projectBot,
       { ...auth, authenticationMethod: "api_key" } as const,
     ])
       expect(
@@ -294,6 +390,26 @@ describe("loaded X audience sample export", () => {
           )
         ).status,
       ).toBe(403);
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(mocks.scope).not.toHaveBeenCalled();
+  });
+  it("preserves project access errors and maps unexpected failures without leaking details", async () => {
+    for (const [error, status] of [
+      [notFound("Project not found"), 404],
+      [forbidden("Project access denied"), 403],
+      [badRequest("Reconnect the X account"), 400],
+      [new Error("access_token=secret"), 500],
+    ] as const) {
+      mocks.scope.mockRejectedValueOnce(error);
+      const response = await createApp().request(
+        url,
+        request({ format: "csv", pages: [page] }),
+      );
+      expect(response.status).toBe(status);
+      expect(response.headers.get("content-disposition")).toBeNull();
+      expect(await response.text()).not.toContain("secret");
+    }
+    expect(mocks.audience).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 });

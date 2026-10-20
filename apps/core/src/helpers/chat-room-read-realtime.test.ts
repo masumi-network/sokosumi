@@ -4,13 +4,27 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { publishMock, channelsGetMock, captureExceptionMock } = vi.hoisted(
-  () => ({
-    publishMock: vi.fn(),
-    channelsGetMock: vi.fn(),
-    captureExceptionMock: vi.fn(),
-  }),
-);
+const PRODUCTION = {
+  network: "Mainnet",
+  vercelEnv: "production",
+  vercelGitCommitRef: "main",
+} as const;
+
+const {
+  publishMock,
+  channelsGetMock,
+  captureExceptionMock,
+  channelEnvironmentMock,
+} = vi.hoisted(() => ({
+  publishMock: vi.fn(),
+  channelsGetMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
+  channelEnvironmentMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => channelEnvironmentMock(),
+}));
 
 vi.mock("@/lib/ably/client", () => ({
   getRestClient: () => ({ channels: { get: channelsGetMock } }),
@@ -31,6 +45,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   publishMock.mockResolvedValue(undefined);
   channelsGetMock.mockReturnValue({ publish: publishMock });
+  channelEnvironmentMock.mockReturnValue(PRODUCTION);
 });
 
 describe("publishChatRoomReadRealtime", () => {
@@ -42,7 +57,7 @@ describe("publishChatRoomReadRealtime", () => {
     });
 
     expect(channelsGetMock).toHaveBeenCalledWith(
-      makeChatRoomChannelName(ROOM_ID),
+      makeChatRoomChannelName(ROOM_ID, PRODUCTION),
     );
     expect(publishMock).toHaveBeenCalledWith({
       name: CHAT_ROOM_READ_EVENT_NAME,
@@ -55,6 +70,24 @@ describe("publishChatRoomReadRealtime", () => {
       // history, rewind or resume.
       extras: { ephemeral: true },
     });
+  });
+
+  it("publishes a preview read receipt on the scoped room channel", async () => {
+    channelEnvironmentMock.mockReturnValueOnce({
+      network: "Mainnet",
+      vercelEnv: "preview",
+      vercelGitCommitRef: "fix/x",
+    });
+
+    await publishChatRoomReadRealtime({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+      lastReadAt: LAST_READ_AT,
+    });
+
+    expect(channelsGetMock).toHaveBeenCalledWith(
+      `chat_rooms:preview:mainnet:branch_fix%2Fx:room_${ROOM_ID}`,
+    );
   });
 
   it("swallows a publish failure so the caller never sees it", async () => {

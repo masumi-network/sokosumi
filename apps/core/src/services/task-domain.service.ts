@@ -16,7 +16,6 @@ import {
   isAgentOnlyTaskStatus,
   isTaskEditableStatus,
 } from "@sokosumi/utils";
-
 import {
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
@@ -31,8 +30,14 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import type { AssignedTask } from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
+import {
+  buildSokoBotScopeTaskWhere,
+  sokoBotSharedScopeOf,
+} from "@/helpers/task-visibility";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -40,6 +45,7 @@ import {
   requireTaskNotParked,
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
+import { creatorFields } from "@/helpers/work-creator";
 
 export type TaskDomainActor =
   | { kind: "user"; userId: string }
@@ -53,7 +59,8 @@ export type TaskDomainActor =
 
 export interface CreateTaskDomainInput {
   actor: TaskDomainActor;
-  ownerId: string;
+  /** Null only for a shared Soko Bot acting on its own (ADR 0057). */
+  ownerId: string | null;
   organizationId: string | null;
   workspaceId: string;
   projectId?: string | null;
@@ -83,7 +90,11 @@ export interface CreateTaskDomainInput {
 
 export interface UpdateTaskDomainInput {
   actor: TaskDomainActor;
-  ownerId: string;
+  /**
+   * The person the actor acts as: the user, or the Soko Bot's person. Null
+   * only for a shared Soko Bot acting on its own (ADR 0057).
+   */
+  userId: string | null;
   /** Required for Soko Bot. User routes retain owner-scoped PATCH semantics. */
   workspaceId?: string;
   taskId: string;
@@ -187,6 +198,8 @@ export async function requireTaskReferences(
     workspaceId: string;
     actor: TaskDomainActor;
     assigneeAuthorization?: TaskAssigner;
+    /** The Task as it will be after the write; a shared bot gates on it. */
+    assignedTask?: AssignedTask;
   },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
@@ -208,6 +221,7 @@ export async function requireTaskReferences(
       input.workspaceId,
       tx,
       taskAssigner(input.actor),
+      input.assignedTask,
     );
   }
   if (input.assigneeUserId !== null && input.assigneeUserId !== undefined) {
@@ -216,29 +230,6 @@ export async function requireTaskReferences(
       input.workspaceId,
       tx,
     );
-  }
-}
-
-export function creatorFields(actor: TaskDomainActor) {
-  switch (actor.kind) {
-    case "user":
-      return {
-        creatorUserId: actor.userId,
-        creatorCoworkerId: null,
-        creatorSokoBotId: null,
-      };
-    case "coworker":
-      return {
-        creatorUserId: null,
-        creatorCoworkerId: actor.coworkerId,
-        creatorSokoBotId: null,
-      };
-    case "soko_bot":
-      return {
-        creatorUserId: null,
-        creatorCoworkerId: null,
-        creatorSokoBotId: actor.sokoBotId,
-      };
   }
 }
 
@@ -294,6 +285,22 @@ async function resolvePendingGrant(
 }
 
 /**
+ * A shared Soko Bot works for its whole scope, so its Tasks are always PUBLIC.
+ * Read only when PRIVATE is asked for, so other creates cost no query.
+ */
+async function isSharedSokoBotActor(
+  actor: TaskDomainActor,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> {
+  if (actor.kind !== "soko_bot") return false;
+  const bot = await tx.sokoBot.findUnique({
+    where: { id: actor.sokoBotId },
+    select: { userId: true },
+  });
+  return bot !== null && isSharedSokoBot(bot);
+}
+
+/**
  * Canonical Task creation operation. Authentication and workspace ownership
  * happen before this seam; Task invariants and durable side effects live here.
  */
@@ -306,8 +313,12 @@ export async function createTaskForActor(
     input.assigneeSokoBotId,
     input.assigneeUserId,
   );
+  if (input.ownerId === null && !(await isSharedSokoBotActor(input.actor, tx)))
+    throw badRequest("Only a shared Soko Bot makes a Task without an Owner");
   const visibility =
-    input.visibility === "PRIVATE" && input.organizationId != null
+    input.visibility === "PRIVATE" &&
+    input.organizationId != null &&
+    !(await isSharedSokoBotActor(input.actor, tx))
       ? TaskVisibility.PRIVATE
       : TaskVisibility.PUBLIC;
 
@@ -317,7 +328,13 @@ export async function createTaskForActor(
     );
   }
   requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
-  await requireTaskReferences(input, tx);
+  await requireTaskReferences(
+    {
+      ...input,
+      assignedTask: { visibility, projectId: input.projectId ?? null },
+    },
+    tx,
+  );
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
   // GRANT_PENDING is agent-only. A delegated create that parks for a vendor
@@ -386,17 +403,21 @@ function sokoBotEditableStatuses(
  * The live Task an actor may change. A user changes their own Tasks here; a
  * Soko Bot changes what its owner could change in the app (their own Tasks,
  * and public Tasks of an organization they hold a seat in), and only inside
- * the bot's own workspace.
+ * the bot's own workspace. Archiving is managing the Task.
  */
 async function findActorTask(
   input: UpdateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
+  if (input.actor.kind === "soko_bot" && input.userId === null)
+    return findSharedSokoBotTask(input, input.actor.sokoBotId, tx);
+  if (input.userId === null) throw notFound("Task not found");
   if (input.actor.kind === "soko_bot") {
     const task = await requireTaskWriteAccess(
-      { source: "context", userId: input.ownerId, organizationId: null },
+      { source: "context", userId: input.userId, organizationId: null },
       input.taskId,
       tx,
+      { right: input.archive ? "manage" : "edit" },
     );
     if (task.workspaceId !== input.workspaceId)
       throw notFound("Task not found");
@@ -405,9 +426,39 @@ async function findActorTask(
   const task = await tx.task.findFirst({
     where: {
       id: input.taskId,
-      ownerId: input.ownerId,
+      ownerId: input.userId,
       archivedAt: null,
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+    },
+  });
+  if (!task) throw notFound("Task not found");
+  return task;
+}
+
+/**
+ * A shared Soko Bot acting on its own edits the public Tasks of its scope:
+ * work without an Owner is editable (ADR 0057). Managing it needs an
+ * Organization owner or admin, so archiving is refused.
+ */
+async function findSharedSokoBotTask(
+  input: UpdateTaskDomainInput,
+  sokoBotId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Task> {
+  if (input.archive)
+    throw forbidden("Archiving a Task needs an Organization owner or admin");
+  const bot = await tx.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { id: true, userId: true, workspaceId: true, projectId: true },
+  });
+  const scope = bot ? sokoBotSharedScopeOf(bot) : null;
+  if (!scope || scope.workspaceId !== input.workspaceId)
+    throw notFound("Task not found");
+  const task = await tx.task.findFirst({
+    where: {
+      id: input.taskId,
+      archivedAt: null,
+      ...buildSokoBotScopeTaskWhere(scope),
     },
   });
   if (!task) throw notFound("Task not found");
@@ -620,6 +671,11 @@ export async function updateTaskForActor(
         : undefined,
       assigneeUserId: assigneeWrite ? assigneeWrite.assigneeUserId : undefined,
       actor: input.actor,
+      assignedTask: {
+        visibility: task.visibility,
+        projectId:
+          input.projectId !== undefined ? input.projectId : task.projectId,
+      },
     },
     tx,
   );
@@ -631,7 +687,6 @@ export async function updateTaskForActor(
   return tx.task.update({
     where: {
       id: task.id,
-      ownerId: input.ownerId,
       archivedAt: null,
       status: { in: [...allowedStatuses] },
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),

@@ -1,4 +1,7 @@
-import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
+import {
+  buildSokoBotKeyAuthContext,
+  sokoBotKeyWorkspaceWhere,
+} from "@/helpers/soko-bot-auth-context";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -9,10 +12,7 @@ import type {
   CoworkerAuthenticationContext,
   SokoBotAuthenticationContext,
 } from "@/middleware/auth";
-import {
-  BEARER_USER_SELECT,
-  isActiveUser,
-} from "@/middleware/auth-active-user";
+import { BEARER_USER_SELECT } from "@/middleware/auth-active-user";
 
 /**
  * Resolves a dedicated agent API key to the context it may act in, or `null`
@@ -54,6 +54,7 @@ export async function resolveAgentApiKeyAuthContext(
           archivedAt: true,
           deletedAt: true,
           userId: true,
+          projectId: true,
           workspaceId: true,
           user: { select: BEARER_USER_SELECT },
         },
@@ -85,45 +86,24 @@ export async function resolveAgentApiKeyAuthContext(
     };
   }
 
-  if (
-    apiKey.sokoBotId &&
-    apiKey.sokoBot &&
-    !apiKey.sokoBot.archivedAt &&
-    !apiKey.sokoBot.deletedAt
-  ) {
-    // Banning the owner does not revoke the bot key. requireUserContext then
-    // maps this actor to that owner, so the check has to live here.
-    if (!isActiveUser(apiKey.sokoBot.user)) {
-      return null;
-    }
+  if (apiKey.sokoBotId && apiKey.sokoBot) {
+    // Neither leaving the organization nor a ban revokes the key, and the key
+    // carries its own workspace context, so a route that trusted that context
+    // alone would still serve the bot. Reading access here, live, denies every
+    // direct-key route at once.
+    const where = sokoBotKeyWorkspaceWhere(apiKey.sokoBot);
+    const workspace = where
+      ? await prisma.workspace.findFirst({
+          where,
+          select: { organizationId: true },
+        })
+      : null;
 
-    // Leaving the organization does not revoke the bot key either, and the key
-    // carries its own workspace and organization context, so a route that
-    // trusts that context alone would still serve the bot. Reading the owner's
-    // access here denies every direct-key route at once.
-    //
-    // This costs one query per bot-key request, where the organization id used
-    // to ride along on the key lookup. Membership has to be read live, so the
-    // join cannot answer it: the key and its stored context both survive the
-    // exit unchanged.
-    const workspace = await prisma.workspace.findFirst({
-      where: sokoBotWorkspaceAccessWhere(
-        apiKey.sokoBot.userId,
-        apiKey.sokoBot.workspaceId,
-      ),
-      select: { organizationId: true },
-    });
-    if (!workspace) {
-      return null;
-    }
-
-    return {
-      actor: "sokoBot",
-      sokoBotId: apiKey.sokoBotId,
-      userId: apiKey.sokoBot.userId,
-      workspaceId: apiKey.sokoBot.workspaceId,
-      organizationId: workspace.organizationId,
-    };
+    return buildSokoBotKeyAuthContext(
+      apiKey.sokoBotId,
+      apiKey.sokoBot,
+      workspace,
+    );
   }
 
   return null;

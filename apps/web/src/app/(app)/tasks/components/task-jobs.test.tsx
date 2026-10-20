@@ -46,6 +46,7 @@ function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
 
   return {
     id: "job-1",
+    creator: null,
     agentId: "agent-1",
     ownerId: overrides.ownerId ?? owner.id,
     owner,

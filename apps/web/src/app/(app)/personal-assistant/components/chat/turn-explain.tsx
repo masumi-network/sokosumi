@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 
 import Markdown from "@/components/markdown";
 import { formatTokens, formatUsd } from "@/components/soko-bot/format";
+import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import type { ChatToolCall, ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
-
+import { useSokoBotTargetId } from "../soko-bot-target";
 import { useToolLabel } from "./turn-progress";
 
 type ChainItem =
@@ -391,14 +392,18 @@ export function TurnExplain({
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<ChatTurnDetail | null>(null);
   const [error, setError] = useState(false);
+  const botId = useSokoBotTargetId();
 
   useEffect(() => {
     if (!open || detail) return;
     let cancelled = false;
-    fetch(`/api/personal-assistant/turns/${encodeURIComponent(turnId)}`, {
-      credentials: "same-origin",
-      cache: "no-store",
-    })
+    fetch(
+      withBotIdParam(
+        `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+        botId,
+      ),
+      { credentials: "same-origin", cache: "no-store" },
+    )
       .then(async (response) => {
         if (!response.ok) throw new Error("unavailable");
         const body = (await response.json()) as { turn: ChatTurnDetail };
@@ -410,7 +415,7 @@ export function TurnExplain({
     return () => {
       cancelled = true;
     };
-  }, [open, detail, turnId]);
+  }, [open, detail, turnId, botId]);
 
   return (
     <div className="pr-10">

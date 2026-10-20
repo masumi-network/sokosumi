@@ -3,8 +3,9 @@ import type { EnvConfig } from "@/config/env";
 /**
  * Vercel terminates TLS before the function and `@hono/node-server` reads the
  * scheme off the socket, so a deployment sees every request as plain HTTP.
- * Whatever compares the request URL to a public one then fails: a DPoP
- * proof's `htu`, an origin check, the URL reported to Sentry.
+ * Whatever compares the request URL to a public one then fails: an origin
+ * check, the OAuth-proxy production URL, the URL reported to Sentry.
+ * Better Auth 1.7.9 checks DPoP `htu` against `baseURL`, not `request.url`.
  *
  * The scheme is a constant here, not `x-forwarded-proto`. Vercel redirects
  * HTTP to HTTPS before a function runs, so a deployment is only ever reached

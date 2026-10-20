@@ -72,8 +72,11 @@ function RoomCacheSession({
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
   useEffect(() => {
-    const select = (url: URL) =>
+    const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
+      const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+      if (roomId) cache.prefetch(roomId);
+    };
     const clicked = (event: MouseEvent) => {
       if (
         event.button !== 0 ||
@@ -108,7 +111,7 @@ function RoomCacheSession({
       window.removeEventListener("click", clicked, true);
       window.removeEventListener("popstate", popped);
     };
-  }, [pathname]);
+  }, [cache, pathname]);
   useEffect(() => {
     cache.activate();
     const ended = () => {

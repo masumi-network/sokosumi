@@ -67,11 +67,5 @@ struct RoomSubscriptionMembership {
 /// Nil means malformed/missing capability (web falls back to membership).
 /// An empty set is a valid token granting no explicit room subscriptions.
 func roomIdsFromCapability(_ capability: String?) -> Set<String>? {
-  guard let capability, let data = capability.data(using: .utf8),
-        let map = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-  return Set(map.compactMap { channel, operations in
-    guard let operations = operations as? [Any],
-          operations.contains(where: { $0 as? String == "subscribe" }) else { return nil }
-    return parseChatRoomId(fromChannelName: channel)
-  })
+  chatRoomChannelNames(grantedSubscribeIn: capability).map { Set($0.keys) }
 }

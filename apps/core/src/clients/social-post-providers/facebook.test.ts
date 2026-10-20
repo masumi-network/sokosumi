@@ -162,6 +162,7 @@ describe("publishFacebookPost", () => {
           page_id: "page_123",
           photo_urls: [IMAGE_REF.fileUrl, second.fileUrl],
           message: "Hello Facebook",
+          published: true,
         },
       },
     ]);

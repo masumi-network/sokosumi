@@ -11,7 +11,7 @@
 
 [CORRECTION, VERIFIED: `apps/cli/package.json`, 2026-09-30] The earlier private-package statement is obsolete. The manifest names `@masumi_network/sokosumi`, sets public npm access, and includes `dist` and `skills`. A Skill install still does not install the CLI executable. The published version was not checked for this update. [Distribution](../../skills/sokosumi/references/distribution.md) · [Package](../../package.json) · [README](../../README.md)
 
-[VERIFIED: source] CLI registration sends the selected organization ID to Core's Workspace access route after Coworker creation. Core still requires platform admin auth to create the Coworker. [CLI registration](../../src/cli/commands/coworkers.ts) · [Core route](../../../core/src/routes/v1/coworkers/post.ts)
+[VERIFIED: source] CLI registration sends the selected organization ID to Core's Workspace access route after Coworker creation. Core allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). [CLI registration](../../src/cli/commands/coworkers.ts) · [Core route](../../../core/src/routes/v1/coworkers/post.ts)
 
 [VERIFIED: CLI source] The CLI defaults to Preprod for `coworkers register` and `coworkers connect` when no target is configured. Both commands reject Mainnet before a Core request. Other commands retain their target selection. [Session bootstrap](../../src/auth/bootstrap.ts) · [Register command](../../src/cli/commands/coworkers.ts)
 

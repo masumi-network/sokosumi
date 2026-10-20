@@ -1,14 +1,10 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState } from "react";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { DisclosureContent, DisclosureTrigger } from "@/components/disclosure";
+import { Collapsible } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
   ChannelGrid,
@@ -73,15 +69,7 @@ function FoldRow({
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className="flex flex-col gap-2 px-4 py-3 @xl:flex-row @xl:items-center @xl:gap-4">
-        <CollapsibleTrigger className="group focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] @xl:flex-1">
-          {/* Turned on the same 200ms ease-out the fold opens on, so the
-              mark and the box it belongs to stop together. Under reduced
-              motion it has no transition at all and simply points the other
-              way, which is what the fold does too. */}
-          <ChevronRight
-            className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform"
-            aria-hidden="true"
-          />
+        <DisclosureTrigger className="w-full min-w-0 @xl:flex-1">
           {/* The name carries the weight. The line under it is the same size
               and longer, so at one weight the two were told apart by colour
               alone. */}
@@ -94,7 +82,7 @@ function FoldRow({
               {description}
             </span>
           </span>
-        </CollapsibleTrigger>
+        </DisclosureTrigger>
         {answer ? (
           <div className="shrink-0 self-end @xl:self-auto">{answer}</div>
         ) : null}
@@ -104,7 +92,7 @@ function FoldRow({
           the height mean anything: without it they stand at full height while
           the box around them is still growing. A reader who asked for less
           motion gets the old jump, which is the honest thing to give them. */}
-      <CollapsibleContent className="group/fold motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
+      <DisclosureContent className="group/fold">
         {/* No padding above the children. What comes first is the line of
             column names, and it carries its own, so the names sit under the
             border the way a table head sits under its rule rather than
@@ -119,7 +107,7 @@ function FoldRow({
         <div className="bg-card-background motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
           {children}
         </div>
-      </CollapsibleContent>
+      </DisclosureContent>
     </Collapsible>
   );
 }

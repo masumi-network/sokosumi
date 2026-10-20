@@ -4,6 +4,7 @@ import {
   CoreApiRequestError,
   coreClientNoRedirect,
 } from "@/lib/clients/core.client";
+import { readBotIdParam } from "@/lib/soko-bot/bot-id-param";
 
 /**
  * Cheap activity probe for the console poller.
@@ -19,11 +20,17 @@ import {
  * round trip to check first is the more expensive half of the request. The
  * non-redirecting client is what makes that work — the redirecting one turns
  * Core's 401 into a thrown Next redirect that would surface here as a 502.
+ * `?botId=` probes a shared bot instead of the caller's own.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const target = readBotIdParam(request.url);
+  if (!target) {
+    return NextResponse.json({ error: "Invalid bot id" }, { status: 400 });
+  }
   try {
-    const { data: activity } =
-      await coreClientNoRedirect.getMySokoBotActivity();
+    const { data: activity } = await coreClientNoRedirect.getMySokoBotActivity(
+      target.botId,
+    );
     return NextResponse.json(
       { activity },
       { headers: { "Cache-Control": "no-store" } },

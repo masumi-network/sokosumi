@@ -8,10 +8,12 @@ const paramsSchema = z.object({
   projectId: z.string(),
   connectionId: z.uuid(),
 });
-const exportSchema = z.object({
-  format: z.enum(["csv", "xlsx"]),
-  pages: z.array(z.record(z.string(), z.unknown())).min(1).max(20),
-});
+const exportSchema = z
+  .object({
+    format: z.enum(["csv", "xlsx"]),
+    pages: z.array(z.record(z.string(), z.unknown())).min(1).max(20),
+  })
+  .strict();
 
 /** Core validates and authorizes the loaded sample without another provider read. */
 export async function POST(

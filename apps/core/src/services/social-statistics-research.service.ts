@@ -476,16 +476,21 @@ export async function readSocialPerformanceDiscovery(
   const publishedFrom = request.publishedFrom
     ? new Date(request.publishedFrom).toISOString()
     : new Date(cutoff + 3_600_000).toISOString();
-  const publishedUntil = request.publishedUntil
-    ? new Date(request.publishedUntil).toISOString()
-    : now.toISOString();
+  // X rejects a recent-search end_time less than 10 seconds before the request.
+  const latestEnd = now.getTime() - 30_000;
+  const requestedUntil = request.publishedUntil
+    ? new Date(request.publishedUntil)
+    : null;
+  const publishedUntil = new Date(
+    Math.min(requestedUntil?.getTime() ?? latestEnd, latestEnd),
+  ).toISOString();
   if (request.cursor && new Date(publishedFrom).getTime() <= cutoff)
     throw badRequest(
       "This X discovery cursor range has expired. Start a new search within the last seven days.",
     );
   if (
     new Date(publishedFrom).getTime() <= cutoff ||
-    new Date(publishedUntil) > now ||
+    (requestedUntil !== null && requestedUntil > now) ||
     new Date(publishedFrom) >= new Date(publishedUntil)
   )
     throw badRequest(

@@ -2,6 +2,7 @@ import {
   NotificationKind,
   type TransactionHistoryItem,
 } from "@sokosumi/core-client";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**
@@ -36,10 +37,11 @@ export function getHistoryItemHref(
       return item.projectId
         ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
         : "/studio";
-    // History lists the owner's own spend, so a Soko Bot row is always their
-    // own assistant, whose page shows what it did.
+    // A Soko Bot row is the viewer's own bot or a shared bot they asked, which
+    // bills the asking member. Open that bot's console; the by-id page sends
+    // the viewer's own personal bot on to their assistant page.
     case "sokoBot":
-      return "/personal-assistant";
+      return sokoBotConsoleRoute(item.sokoBotId);
     // Coworker seats, top ups and unattributed spends are ledger entries with
     // no page behind them. A link to nowhere is worse than no link.
     default:

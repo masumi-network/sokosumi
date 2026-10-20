@@ -2,11 +2,16 @@ import type { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
 import type * as z from "zod";
 import type { ZodSchema } from "zod";
 
-type EndsWithFormString<T extends string> = T extends `${string}.Form`
-  ? T
+// Find form namespaces without expanding every message path in the catalog.
+type FormNamespaceKeys<Messages> = Messages extends object
+  ? {
+      [Key in keyof Messages & string]: Key extends "Form"
+        ? Key
+        : `${Key}.${FormNamespaceKeys<Messages[Key]>}`;
+    }[keyof Messages & string]
   : never;
 
-type FormIntlNamespaceKeys = EndsWithFormString<IntlNamespaceKeys>;
+type FormIntlNamespaceKeys = FormNamespaceKeys<IntlMessages>;
 
 type MessageKeysIn<Path extends string> = MessageKeys<
   NestedValueOf<IntlMessages, Path>,

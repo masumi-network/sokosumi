@@ -5,10 +5,11 @@ import {
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
+  sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -16,6 +17,10 @@ import {
   memoryTasks,
   tasksIn,
 } from "@/lib/soko-bot/memory-task-ownership";
+import {
+  type RhythmScopeBot,
+  rhythmTaskScope,
+} from "@/lib/soko-bot/rhythm-task-scope";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
   activityStats,
@@ -30,6 +35,7 @@ import {
   buildRhythmPacket,
   dueSoonBlock,
   RHYTHM_KEYS,
+  type RhythmBot,
 } from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
@@ -111,13 +117,19 @@ export async function proactiveGate(
   return { ok: true, usedToday, limit };
 }
 
-/** Creates the built-in rhythms a bot is missing; idempotent per (bot, key). */
+/**
+ * Creates the built-in rhythms a bot is missing; idempotent per (bot, key).
+ * A shared bot gets only the rhythms with an owner-free prompt, all switched
+ * off: no rhythm runs for a team until a member turns it on. A shared bot's
+ * rhythms have no Requester: nobody asked for them (ADR 0057).
+ */
 export async function ensureSystemSchedules(bot: {
   id: string;
-  userId: string;
+  userId: string | null;
   workspaceId: string;
   ingestTimezone: string;
 }): Promise<void> {
+  const shared = isSharedSokoBot(bot);
   const existing = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: bot.id, systemKey: { not: null } },
     select: { systemKey: true },
@@ -125,6 +137,8 @@ export async function ensureSystemSchedules(bot: {
   const have = new Set(existing.map((row) => row.systemKey));
   for (const schedule of SOKO_BOT_SYSTEM_SCHEDULES) {
     if (have.has(schedule.key)) continue;
+    const prompt = sokoBotSystemSchedulePrompt(schedule, shared);
+    if (prompt === null) continue;
     const nextRunAt = computeNextRunWithMinimumInterval(
       { cron: schedule.cronExpression, timezone: bot.ingestTimezone },
       60_000,
@@ -134,12 +148,13 @@ export async function ensureSystemSchedules(bot: {
       .create({
         data: {
           sokoBotId: bot.id,
-          userId: bot.userId,
+          requestedByUserId: bot.userId,
           workspaceId: bot.workspaceId,
           name: schedule.name,
+          ...(shared ? { enabled: false } : {}),
           timezone: bot.ingestTimezone,
           cronExpression: schedule.cronExpression,
-          prompt: schedule.prompt,
+          prompt,
           systemKey: schedule.key,
           nextRunAt,
         },
@@ -182,14 +197,13 @@ export interface AttentionItem {
  * Returns items not raised in the last 24h; call `stageSokoBotNudges` after they
  * were handed to the bot.
  */
-export async function findAttentionItems(bot: {
-  id: string;
-  userId: string;
-  workspaceId: string;
-  followWholeBoard: boolean;
-  now: Date;
-  cutoverAt?: Date;
-}): Promise<AttentionItem[]> {
+export async function findAttentionItems(
+  bot: RhythmScopeBot & {
+    followWholeBoard: boolean;
+    now: Date;
+    cutoverAt?: Date;
+  },
+): Promise<AttentionItem[]> {
   await prisma.sokoBotNudge.updateMany({
     where: {
       sokoBotId: bot.id,
@@ -212,15 +226,24 @@ export async function findAttentionItems(bot: {
     },
   });
   const since = new Date(bot.now.getTime() - 30 * 24 * HOUR_MS);
+  const scope = rhythmTaskScope(bot);
   const delegated = await prisma.sokoBotDelegation.findMany({
     where: {
       taskId: { not: null },
       createdAt: { gte: since },
       ...INVOLVING_DELEGATION,
       // Work done for a teammate is the teammate's to chase, not the owner's.
+      // A shared bot's work is all the team's, whoever asked.
       turn: {
         sokoBotId: bot.id,
-        OR: [{ requestedByUserId: null }, { requestedByUserId: bot.userId }],
+        ...(scope.ownerUserId === null
+          ? {}
+          : {
+              OR: [
+                { askedByUserId: null },
+                { askedByUserId: scope.ownerUserId },
+              ],
+            }),
       },
     },
     select: { taskId: true },
@@ -246,7 +269,7 @@ export async function findAttentionItems(bot: {
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
       id: { in: delegatedIds },
-      ownerId: bot.userId,
+      ...scope.chased,
       OR: [{ assigneeSokoBotId: null }, { assigneeSokoBotId: { not: bot.id } }],
     },
     select: {
@@ -384,7 +407,7 @@ export function attentionBlock(items: AttentionItem[]): string[] {
 
 /** "Follow-ups due" lines from the bot's latest memory. */
 export async function followUpsBlock(
-  bot: { id: string; userId: string },
+  bot: RhythmScopeBot,
   timeZone: string,
   now: Date,
 ): Promise<string[]> {
@@ -417,13 +440,8 @@ export async function followUpsBlock(
 
 /** The live packet for a built-in rhythm turn. */
 export async function buildSystemBeatMessage(input: {
-  bot: {
-    id: string;
-    name?: string | null;
+  bot: RhythmBot & {
     coworkerId?: string | null;
-    userId: string;
-    workspaceId: string;
-    ingestTimezone: string;
     followWholeBoard: boolean;
   };
   key: string;
@@ -512,18 +530,11 @@ export async function buildSystemBeatMessage(input: {
     }
   }
   {
-    const items = await findAttentionItems({
-      id: bot.id,
-      userId: bot.userId,
-      workspaceId: bot.workspaceId,
-      followWholeBoard: bot.followWholeBoard,
-      now,
-    });
+    const items = await findAttentionItems({ ...bot, now });
     lines.push(...attentionBlock(items));
     nudgeKeys.push(...items.map((item) => item.key));
   }
-  const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
-  const ownTasks = [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }];
+  const { visible, own: ownTasks, notOwn: notOwnTasks } = rhythmTaskScope(bot);
   const open = await prisma.task.findMany({
     where: {
       workspaceId: bot.workspaceId,
@@ -556,8 +567,7 @@ export async function buildSystemBeatMessage(input: {
         workspaceId: bot.workspaceId,
         archivedAt: null,
         updatedAt: { gte: new Date(now.getTime() - 24 * HOUR_MS) },
-        NOT: { OR: ownTasks },
-        AND: [visible],
+        AND: [visible, ...notOwnTasks],
       },
       select: {
         name: true,
@@ -572,7 +582,7 @@ export async function buildSystemBeatMessage(input: {
       lines.push("## Team activity (last 24h)");
       for (const task of team) {
         lines.push(
-          `- ${task.owner.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
+          `- ${task.owner?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
         );
       }
       lines.push("");

@@ -19,6 +19,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     generate: t("generate"),
     refine: t("refine"),
     regenerate: t("regenerate"),
+    schedule: t("schedule"),
+    scheduleFailed: t("scheduleFailed"),
     reroll: t("reroll"),
     reusePrompt: t("reusePrompt"),
     download: t("download"),

@@ -42,7 +42,7 @@ struct RoomRosterTests {
       .init(id: "cow", name: "Aaron", slug: "helper", caption: "Profile caption", presence: .online),
       .init(id: "cow0", name: "", slug: "", caption: nil, presence: .online)
     ]
-    value.sokoBotMembers = [.init(id: "bot", name: "Assistant", caption: "My assistant", ownerUserId: "me", presence: .offline)]
+    value.sokoBotMembers = [.init(id: "bot", name: "Assistant", caption: "My assistant", ownerUserId: "me", scope: .personal, presence: .offline)]
     let roster = groups(value)
     // Nobody has read the room, so both people sit under "Not read yet", by name (the email until they have one).
     #expect(roster.people.isEmpty)

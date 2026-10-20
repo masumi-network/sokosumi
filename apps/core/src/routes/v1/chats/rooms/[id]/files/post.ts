@@ -31,8 +31,8 @@ import {
 import {
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireWritableChatRoom,
 } from "../../helpers";
+import { requireWritableChatRoom } from "../../writable-chat-room";
 
 const paramsSchema = z.object({
   id: z

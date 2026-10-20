@@ -1,7 +1,8 @@
 import { getEnv } from "@/config/env";
+import type { SokoBotSelector } from "@/helpers/soko-bot-resolver";
+import { requireBot } from "@/services/soko-bot-integration-connection.service";
 import {
   composioEntityId,
-  requireBot,
   SokoBotIntegrationError,
   withComposio,
 } from "@/services/soko-bot-integrations.service";
@@ -43,9 +44,10 @@ export async function completeSokoBotIntegrationAuth(input: {
   userId: string;
   workspaceId: string;
   sessionUri: string;
+  selector?: SokoBotSelector;
 }): Promise<{ provider: string; composioAccountId: string }> {
   const { apiKey, baseUrl } = requireComposioCredentials();
-  const bot = await requireBot(input.userId, input.workspaceId);
+  const bot = await requireBot(input.userId, input.workspaceId, input.selector);
   // Keep any path prefix on the configured base; `new URL` would drop it.
   const endpoint = `${baseUrl.replace(/\/+$/, "")}${COMPLETE_AUTH_PATH}`;
   // A timeout or a transport failure must surface the same way as every other

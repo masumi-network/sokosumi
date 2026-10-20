@@ -1,3 +1,4 @@
+import { SokoBotScope } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
@@ -11,6 +12,8 @@ import {
   TeamSection,
   YourAssistantSection,
 } from "./components/roster";
+import { SharedBotsSection } from "./components/shared-bots-section";
+import { loadSharedBots } from "./shared-bots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -27,12 +30,13 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function SokoBotsPage() {
   await getSessionOrRedirect();
-  const [t, team] = await Promise.all([
+  const [t, team, shared] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {
       if (error instanceof CoreApiRequestError) return null;
       throw error;
     }),
+    loadSharedBots(),
   ]);
   const me = team?.members.find((member) => member.isYou) ?? null;
   const stats = me?.bot
@@ -46,6 +50,16 @@ export default async function SokoBotsPage() {
         <div className="space-y-12 md:space-y-16">
           <SokoBotsHero team={team} />
           <YourAssistantSection me={me} stats={stats} />
+          {/* Shared bots exist only in organization workspaces. */}
+          {shared && team?.workspace.kind === "organization" ? (
+            <SharedBotsSection
+              bots={shared.bots}
+              projects={shared.projects}
+              canCreatePersonal={!me?.bot}
+              defaultScope={SokoBotScope.WORKSPACE}
+              title={t("Shared.title")}
+            />
+          ) : null}
           {team ? (
             <TeamSection team={team} />
           ) : (

@@ -2,7 +2,6 @@
   import AppKit
   import CoreAPI
   @testable import Sokosumi
-  import SokosumiAuth
   import SokosumiChat
   import SokosumiWorkspace
   import SwiftUI
