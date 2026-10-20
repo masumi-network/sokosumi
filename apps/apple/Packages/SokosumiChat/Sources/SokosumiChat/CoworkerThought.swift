@@ -104,5 +104,5 @@ func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
 /// Direct-stream coworker overlay: `DirectStreamSession` prefixes the id `stream:`.
 /// The user turn of the same stream also uses that prefix.
 public func isCoworkerStreamOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  message.id.hasPrefix("stream:") && isCoworkerSender(message)
+  MessageKind(message) == .streaming && isCoworkerSender(message)
 }

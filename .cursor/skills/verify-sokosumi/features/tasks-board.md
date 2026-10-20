@@ -28,7 +28,7 @@ Preconditions:
 ## Gotchas
 
 - Empty columns / list empty-state (“No tasks”) are valid — do not require existing tasks. There is no onboarding overlay.
-- Column headings are Title Case from i18n (`App.Tasks.Columns.*`); the header has no CSS `uppercase`.
+- Column headings match i18n (`App.Tasks.Columns.*`): **Backlog**, **Todo**, **In progress**, **Input required**, **Done**. They are not CSS `uppercase`, and "In progress" / "Input required" are not Title Case.
 - Prefer **explicit** board mode. agent-browser 0.36+: `agent-browser cookies set tasks_view_mode board --url "$WEB_URL" --secure` then reload. Do **not** pass `name=value` as one argument (`tasks_view_mode=board`) — CDP returns `Invalid cookie fields`. Absent cookie → **list** on mobile/tablet UA, board on desktop. **List mode does not render kanban column headers** (flat rows or “No tasks”); only board mode shows Backlog…Done. **Board** / **Calendar** tabs alone still count as shell.
 - Creating or editing a task is out of scope; this feature proves landing + Board-tab shell only.
 - The **Calendar** tab on the same page is [Calendar](./calendar.md) — proving the Board tab shell is enough for this entry. There is no Jobs tab.

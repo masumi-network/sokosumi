@@ -5,14 +5,20 @@ import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-bi
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { workspaceCalendarSourceSchema } from "@/schemas/workspace-calendar.schema";
+import {
+  workspaceCalendarSourceSchema,
+  workspaceCalendarSourcesQuerySchema,
+} from "@/schemas/workspace-calendar.schema";
 import { canCreateTaskSchedules } from "@/services/task-schedule.service";
+import { scheduledSocialPostWhere } from "../social-post-range.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -21,6 +27,7 @@ const route = withCoworkerContextHeaderParameters(
     description:
       "List workspace and Project Calendar sources, including sources only available for event display and filtering",
     tags: ["Workspaces"],
+    request: { query: workspaceCalendarSourcesQuerySchema },
     responses: {
       200: jsonSuccessResponse(
         z.array(workspaceCalendarSourceSchema),
@@ -29,6 +36,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
 );
@@ -36,12 +44,17 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    // Still an authorization check, even though nothing reads the context.
-    await requireAuthorizedUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    const query = c.req.valid("query");
+    const includeSocialPosts = query.includeSocialPosts === "true";
+    if (includeSocialPosts) {
+      requireInteractiveUserAuthContext(c.var.authContext);
+      await requireSocialBetaAccess(userContext.userId, prisma);
+    }
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await canCreateTaskSchedules(c.var);
 
-    const [workspace, projects] = await Promise.all([
+    const [workspace, projects, latestPostDates] = await Promise.all([
       prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: {
@@ -60,12 +73,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           closedAt: true,
         },
       }),
+      includeSocialPosts
+        ? prisma.socialPost.groupBy({
+            by: ["projectId"],
+            where: scheduledSocialPostWhere(
+              workspaceId,
+              userContext.userId,
+              query.scope,
+            ),
+            _max: { scheduledAt: true },
+          })
+        : [],
     ]);
     if (!workspace) {
       throw notFound("Workspace not found");
     }
 
     const workspaceOwner = workspace.organization ?? workspace.user;
+    const latestPostByProject = new Map(
+      latestPostDates.map((post) => [post.projectId, post._max.scheduledAt]),
+    );
     const sources = [
       workspaceCalendarSourceSchema.parse({
         sourceId: getCalendarSourceId({
@@ -94,6 +121,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             isSchedulable &&
             project.closingAt === null &&
             project.closedAt === null,
+          ...(includeSocialPosts
+            ? {
+                latestScheduledSocialPostAt:
+                  latestPostByProject.get(project.id) ?? null,
+              }
+            : {}),
         }),
       ),
     ];

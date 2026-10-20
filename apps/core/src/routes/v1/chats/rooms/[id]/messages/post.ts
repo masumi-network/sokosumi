@@ -24,6 +24,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isSharedSokoBotAuthContext,
   isSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -45,7 +46,6 @@ import {
   quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireWritableChatRoom,
   resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
@@ -54,6 +54,7 @@ import {
   resolveThreadParentMessageId,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
+import { requireWritableChatRoom } from "../../writable-chat-room";
 
 const paramsSchema = z.object({
   id: z
@@ -143,6 +144,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           messageId: message.id,
           roomId: room.id,
           content: body.content,
+          // A shared bot's room holds the whole organization.
+          expandAll: !isSharedSokoBotAuthContext(authContext),
         });
 
         await tx.chatRoom.update({

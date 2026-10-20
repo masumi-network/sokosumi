@@ -84,7 +84,7 @@ struct PinnedRoomsReorderTests {
   }
 
   private func client(_ transport: PausedReorderTransport) throws -> Client {
-    try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
   }
 
   private func pinnedIds(_ sidebar: ConversationSidebar) -> [String] {

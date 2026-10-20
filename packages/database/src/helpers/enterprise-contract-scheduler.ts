@@ -26,14 +26,14 @@ type ScheduledEnterprisePeriod = Prisma.EnterpriseContractPeriodGetPayload<{
   include: typeof scheduledPeriodInclude;
 }>;
 
-export interface EnterpriseContractSchedulerPassResult {
+interface EnterpriseContractSchedulerPassResult {
   catchUpGranted: number;
   completedContracts: number;
   expiredPeriods: number;
   preCreated: number;
 }
 
-export interface GrantEnterpriseScheduledPeriodResult {
+interface GrantEnterpriseScheduledPeriodResult {
   bucketCreated: boolean;
   periodActivated: boolean;
 }
@@ -49,7 +49,7 @@ export function resolveCatchUpActivatesAt(
   return now;
 }
 
-export function isCatchUpPeriodElapsed(
+function isCatchUpPeriodElapsed(
   period: Pick<ScheduledEnterprisePeriod, "periodEnd">,
   now: Date,
 ): boolean {

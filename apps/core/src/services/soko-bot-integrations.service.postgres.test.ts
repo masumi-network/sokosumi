@@ -42,7 +42,7 @@ import { deleteSokoBot } from "./soko-bot-deletion.service";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
-} from "./soko-bot-integrations.service";
+} from "./soko-bot-integration-connection.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&

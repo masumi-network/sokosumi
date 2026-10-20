@@ -1,19 +1,21 @@
 import {
   CoworkerWorkspaceAccessStatus,
   type Job,
+  MemberRole,
   type Prisma,
   type Task,
   TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -25,7 +27,7 @@ import {
   type WorkspaceContext,
 } from "@/middleware/workspace";
 import type { CoworkerCapability } from "./coworker-capability";
-import { forbidden, notFound } from "./error";
+import { badRequest, forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
 import { requireAssignedOrganizationSeat } from "./organization-assigned-seat";
 import {
@@ -43,8 +45,84 @@ import {
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
-// User ownership (resource belongs to the authenticated user)
+// Ownership (the authenticated user is the work's Owner, ADR 0057)
 // -----------------------------------------------------------------------------
+
+/**
+ * What a member does to work: `edit` changes it, `manage` deletes, moves or
+ * refunds it. Both belong to the Owner. Work without an Owner belongs to its
+ * workspace's organization instead: any seated member may edit it, and only
+ * an Organization owner or admin may manage it.
+ */
+export type WorkRight = "edit" | "manage";
+
+/**
+ * The {@link WorkRight} on work without an Owner; owned work passes
+ * untouched. Only public organization work can be in that state; a personal
+ * workspace has nobody to hand it to, so it is refused there.
+ *
+ * @throws {forbidden} If the work has no Owner and the user is not a member
+ *   with the right
+ */
+export async function requireRightOnWorkWithoutOwner(
+  userId: string,
+  work: { ownerId: string | null; workspaceId: string },
+  right: WorkRight,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (work.ownerId !== null) {
+    return;
+  }
+  const organizationId = await readWorkspaceOrganizationId(
+    work.workspaceId,
+    tx,
+  );
+  if (!organizationId) {
+    throw forbidden("This work has no Owner");
+  }
+  // Both rights need a Seat (ADR 0020), which also refuses non-members.
+  await requireAssignedOrganizationSeat(userId, organizationId, tx);
+  if (right === "edit") {
+    return;
+  }
+  const { role } = await resolveMemberOrganizationById({
+    id: organizationId,
+    userId,
+    tx,
+  });
+  if (role !== MemberRole.OWNER && role !== MemberRole.ADMIN) {
+    throw forbidden(
+      "Only an Organization owner or admin can delete, move or refund work without an Owner",
+      { kind: CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN },
+    );
+  }
+}
+
+/**
+ * A personal workspace has nobody to hand work without an Owner to, so such
+ * work cannot move there.
+ *
+ * @throws {badRequest} If the work has no Owner and the target is a personal
+ *   workspace (`null`)
+ */
+export function requireOwnerForPersonalWorkspace(
+  work: { ownerId: string | null },
+  targetOrganizationId: string | null,
+): void {
+  if (targetOrganizationId === null && work.ownerId === null) {
+    throw badRequest(
+      "Work without an Owner cannot move to a personal workspace",
+    );
+  }
+}
+
+/** Whether someone other than `userId` owns the work. */
+function isOwnedBySomeoneElse(
+  work: { ownerId: string | null },
+  userId: string,
+): boolean {
+  return work.ownerId !== null && work.ownerId !== userId;
+}
 
 /**
  * Validates that the job exists and is owned by the authenticated user.
@@ -95,6 +173,31 @@ export async function requireTaskOwnership(
 }
 
 /**
+ * Moving a Task to another workspace belongs to its Owner, and a Task without
+ * an Owner needs an Organization owner or admin. Unlike other Task writes, a
+ * member may not move a Task someone else owns: it would take the Task away
+ * from them.
+ *
+ * @throws {notFound} If the task is missing, archived, or someone else owns it
+ * @throws {forbidden} If it has no Owner and the user may not manage it
+ */
+export async function requireTaskMoveAccess(
+  userContext: UserContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const task = await tx.task.findFirst({
+    where: { id: taskId, archivedAt: null },
+  });
+
+  if (!task || isOwnedBySomeoneElse(task, userContext.userId)) {
+    throw notFound("Task not found");
+  }
+  await requireRightOnWorkWithoutOwner(userContext.userId, task, "manage", tx);
+  return task;
+}
+
+/**
  * Who may act on a Task: its owner, or any member of the Task's organization
  * when the Task is public. Private Tasks stay owner-only (SOK-1046), and a
  * personal-workspace Task has no organization, so only its owner matches.
@@ -114,11 +217,12 @@ export function buildTaskWriteAccessWhere(
 }
 
 /**
- * Organization whose workspace holds the task. `Task.organizationId` is the
- * billing org and stays put when the task moves, so a seat check against it
- * misses the workspace the member is acting in.
+ * Organization whose workspace holds a Task or Job, null for a personal
+ * workspace. `Task.organizationId` is the billing org and stays put when the
+ * task moves, so a seat check against it misses the workspace the member is
+ * acting in.
  */
-export async function readTaskWorkspaceOrganizationId(
+export async function readWorkspaceOrganizationId(
   workspaceId: string,
   tx: Prisma.TransactionClient,
 ): Promise<string | null> {
@@ -132,17 +236,20 @@ export async function readTaskWorkspaceOrganizationId(
 /**
  * Validates that the task exists, is not archived, and the user may act on it
  * ({@link buildTaskWriteAccessWhere}). A member who is not the owner also needs
- * an assigned seat in the task's workspace organization. Parked
- * (`GRANT_PENDING`) Tasks pass; mutations that must not run on them use
- * {@link requireMutableTaskWriteAccess}.
+ * an assigned seat in the task's workspace organization. Deleting a Task
+ * without an Owner (`right: "manage"`) needs an Organization
+ * owner or admin. Parked (`GRANT_PENDING`) Tasks pass; mutations that must not
+ * run on them use {@link requireMutableTaskWriteAccess}.
  *
  * @throws {notFound} If the task does not exist or the user may not act on it
- * @throws {forbidden} If a non-owner member has no assigned seat
+ * @throws {forbidden} If a non-owner member has no assigned seat, or may not
+ *   manage a Task without an Owner
  */
 export async function requireTaskWriteAccess(
   userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  { right = "edit" }: { right?: WorkRight } = {},
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
@@ -157,7 +264,7 @@ export async function requireTaskWriteAccess(
   }
 
   if (task.ownerId !== userContext.userId) {
-    const placementOrganizationId = await readTaskWorkspaceOrganizationId(
+    const placementOrganizationId = await readWorkspaceOrganizationId(
       task.workspaceId,
       tx,
     );
@@ -169,6 +276,9 @@ export async function requireTaskWriteAccess(
       placementOrganizationId,
       tx,
     );
+    if (right === "manage") {
+      await requireRightOnWorkWithoutOwner(userContext.userId, task, right, tx);
+    }
   }
 
   return task;
@@ -413,37 +523,7 @@ export async function requireTaskAssignableUser(
   }
 }
 
-/**
- * Owner (or the PA itself) may assign a Task onto a live Soko Bot in this
- * workspace. Marketplace coworkers cannot dump work onto another user's PA.
- */
-export async function requireTaskAssignableSokoBot(
-  sokoBotId: string,
-  workspaceId: string,
-  tx: Prisma.TransactionClient = prisma,
-  assigner: TaskAssigner = null,
-): Promise<void> {
-  const bot = await tx.sokoBot.findFirst({
-    where: {
-      id: sokoBotId,
-      workspaceId,
-      archivedAt: null,
-      deletedAt: null,
-    },
-    select: { id: true, userId: true },
-  });
-  if (!bot) {
-    throw notFound("Soko Bot is not usable in this workspace");
-  }
-  if (!assigner) return;
-  const isOwner =
-    assigner.kind === "user"
-      ? bot.userId === assigner.userId
-      : assigner.kind === "soko_bot" && bot.id === assigner.sokoBotId;
-  if (!isOwner) {
-    throw forbidden("Only the owner can assign work to this Soko Bot");
-  }
-}
+export { requireTaskAssignableSokoBot } from "./soko-bot-task-assign";
 
 // -----------------------------------------------------------------------------
 // Task collaboration (user ownership or coworker on assigned task)
@@ -698,7 +778,7 @@ export async function requireTaskCollaboration(
     return task;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       authContext.userId,
@@ -754,7 +834,7 @@ export async function requireTaskCommentAccess(
     return task;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       authContext.userId,
@@ -911,7 +991,7 @@ export async function requireTaskReadForRouteVars(
     );
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     if (include) {
       return await requireSokoBotTaskRead(
         authContext.sokoBotId,
@@ -1010,7 +1090,11 @@ export async function requireTaskWorkspaceMapping(
       throw forbidden("You do not have access to this task");
     }
 
-    return task;
+    return {
+      name: task.name,
+      workspaceId: task.workspaceId,
+      workspace: task.workspace,
+    };
   }
 
   const task = await requireTaskReadForRouteVars(
@@ -1151,7 +1235,7 @@ export async function requireJobReadForRouteVars(
     );
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });
@@ -1211,26 +1295,33 @@ export async function requireParentTaskNotParked(
 
 /**
  * Collaboration (write) access for a job: the authenticated user must own the
- * job, or the delegated coworker must have the tasks capability and be assigned
- * to the job's task. Mirrors `requireTaskCollaboration` for jobs.
+ * job, or hold the {@link WorkRight} on a job without an Owner; a delegated
+ * coworker must have the tasks capability, act for the job's Owner, and be
+ * assigned to the job's task.
+ * Mirrors `requireTaskCollaboration` for jobs.
  *
- * @throws {forbidden} If the user does not own the job, a bare coworker is used,
- *   a delegated coworker is not assigned to the job's task, or the parent task
- *   is parked
+ * @throws {forbidden} If the user may not change the job, a bare coworker is
+ *   used, a delegated coworker is not assigned to the job's task, or the
+ *   parent task is parked
  */
 export async function requireJobCollaboration(
   authContext: AuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
+  { right = "edit" }: { right?: WorkRight } = {},
 ): Promise<Job> {
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
-    const job = await requireJobOwnership(userContext, jobId, tx);
+    const job = await tx.job.findFirst({ where: { id: jobId } });
+    if (!job || isOwnedBySomeoneElse(job, userContext.userId)) {
+      throw forbidden("You can only access your own jobs");
+    }
+    await requireRightOnWorkWithoutOwner(userContext.userId, job, right, tx);
     await requireParentTaskNotParked(job, tx);
     return job;
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });

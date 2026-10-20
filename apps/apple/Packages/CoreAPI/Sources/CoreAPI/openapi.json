@@ -13447,7 +13447,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Current user's Soko Bot state",
+            "description": "Current user's Soko Bot state, and the shared bots they can reach",
             "content": {
               "application/json": {
                 "schema": {
@@ -26559,7 +26559,7 @@
     },
     "/chats/rooms/{id}/soko-bots/{sokoBotId}": {
       "delete": {
-        "description": "Remove your own Soko Bot from a Channel. Only its owner may remove it; it also leaves when its owner leaves or is removed.",
+        "description": "Remove a Soko Bot from a Channel. Only its owner may remove a personal Soko Bot; it also leaves when its owner leaves or is removed. Any member may remove a shared Soko Bot, except from its own shared room.",
         "tags": [
           "Chat Rooms"
         ],
@@ -29313,10 +29313,10 @@
     },
     "/soko-bots/me/decisions/{decisionId}": {
       "post": {
-        "operationId": "resolveMySokoBotDecision",
         "tags": [
           "Soko Bots"
         ],
+        "operationId": "resolveMySokoBotDecision",
         "parameters": [
           {
             "schema": {
@@ -29441,7 +29441,7 @@
             }
           },
           "403": {
-            "description": "Forbidden",
+            "description": "Forbidden: on a shared Soko Bot, only the member who asked or an organization owner or admin",
             "content": {
               "application/json": {
                 "schema": {
@@ -29769,7 +29769,7 @@
           },
           "isReadOnly": {
             "type": "boolean",
-            "description": "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
+            "description": "Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.",
             "example": false
           },
           "groupName": {
@@ -30659,9 +30659,15 @@
             "example": "orb:user_123"
           },
           "ownerUserId": {
-            "type": "string",
-            "description": "The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.",
             "example": "user_123"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ChatRoomSokoBotScope"
           },
           "presence": {
             "$ref": "#/components/schemas/ChatRoomPresence"
@@ -30674,6 +30680,7 @@
           "image",
           "avatarSeed",
           "ownerUserId",
+          "scope",
           "presence"
         ]
       },
@@ -32154,7 +32161,20 @@
                 "format": "uuid"
               },
               "userId": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "projectId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "viewerCanManage": {
+                "type": "boolean"
               },
               "name": {
                 "type": [
@@ -32324,6 +32344,12 @@
               "createdAt",
               "updatedAt"
             ]
+          },
+          "sharedBots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SharedSokoBotSummary"
+            }
           }
         },
         "required": [
@@ -34429,6 +34455,90 @@
           "resolution"
         ],
         "additionalProperties": false
+      },
+      "ChatRoomSokoBotScope": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "project",
+          "workspace"
+        ],
+        "description": "Who the Soko Bot belongs to: one person, a Project, or the whole workspace.",
+        "example": "personal"
+      },
+      "SharedSokoBotSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "project",
+              "workspace"
+            ]
+          },
+          "projectId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "avatarSeed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avatarImageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/SokoBotStatus"
+          },
+          "archivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "sharedRoomId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "viewerCanManage": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "projectId",
+          "avatarSeed",
+          "avatarImageUrl",
+          "status",
+          "archivedAt",
+          "sharedRoomId",
+          "viewerCanManage"
+        ]
       }
     }
   }

@@ -104,6 +104,7 @@ describe("buildVisibleTaskLinksInclude", () => {
     const include = buildVisibleTaskLinksInclude(
       {
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "30000000-0000-4000-8000-000000000001",
         userId: "user_1",
         workspaceId: "10000000-0000-4000-8000-000000000001",
@@ -157,5 +158,24 @@ describe("buildVisibleTaskLinksInclude", () => {
         },
       },
     });
+  });
+});
+
+describe("buildVisibleTaskLinksInclude for a shared Soko Bot", () => {
+  it("answers 403 until shared bot visibility exists", () => {
+    expect(() =>
+      buildVisibleTaskLinksInclude(
+        {
+          actor: "sokoBot",
+          scope: "workspace",
+          sokoBotId: "30000000-0000-4000-8000-000000000001",
+          userId: null,
+          workspaceId: "10000000-0000-4000-8000-000000000001",
+          organizationId: "org_1",
+          projectId: null,
+        },
+        "10000000-0000-4000-8000-000000000001",
+      ),
+    ).toThrow(expect.objectContaining({ status: 403 }));
   });
 });

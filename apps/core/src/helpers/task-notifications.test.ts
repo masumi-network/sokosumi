@@ -115,6 +115,25 @@ describe("notifyTaskParticipantsAdded", () => {
     );
   });
 
+  /**
+   * The person a Coworker or Soko Bot made a Task for is added as a Task
+   * participant (ADR 0057), so the participant alert is how they hear.
+   */
+  it("alerts the person a Task was made for through their Task participant row", async () => {
+    prismaTaskFindFirstMock.mockResolvedValue(
+      taskWithParticipants(["user_asker"]),
+    );
+
+    await notifyTaskParticipantsAdded("task_1", "event_1", ["user_asker"]);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_asker",
+        messageKey: "Notifications.Task.participantAdded",
+      }),
+    );
+  });
+
   it("keeps alerting the rest when one user's notification fails", async () => {
     prismaTaskFindFirstMock.mockResolvedValue(
       taskWithParticipants(["user_a", "user_b"]),
@@ -418,6 +437,69 @@ describe("dispatchTaskNotification", () => {
   });
 });
 
+describe("dispatchTaskNotification: a Task without an Owner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createNotificationMock.mockResolvedValue({});
+    markSettledAttentionReadMock.mockResolvedValue(0);
+    prismaTaskParticipantFindManyMock.mockResolvedValue([]);
+  });
+
+  // A Soko Bot made it on its own, or its Owner deleted their account.
+  const TASK_WITHOUT_OWNER = {
+    id: "task_1",
+    ownerId: null,
+    assigneeUserId: "user_2",
+    name: "Launch",
+    assignee: null,
+    assigneeSokoBot: null,
+    project: null,
+    projectId: null,
+    workspaceId: null,
+  };
+
+  it("notifies nobody", async () => {
+    await dispatchTaskNotification(
+      TASK_WITHOUT_OWNER,
+      "event_1",
+      "FAILED",
+      null,
+    );
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("still clears the assignee's rows", async () => {
+    await dispatchTaskNotification(
+      TASK_WITHOUT_OWNER,
+      "event_1",
+      "COMPLETED",
+      null,
+    );
+
+    expect(markSettledAttentionReadMock).toHaveBeenCalledTimes(1);
+    expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+      "user_2",
+      "TASK",
+      "task_1",
+      "Notifications.Task.completed",
+    );
+  });
+
+  it("clears run attention for the assignee alone on resume", async () => {
+    await dispatchTaskNotification(
+      TASK_WITHOUT_OWNER,
+      "event_resume",
+      "RUNNING",
+      null,
+    );
+
+    expect(
+      markAttentionReadMock.mock.calls.map(([readerId]) => readerId),
+    ).toEqual(["user_2"]);
+  });
+});
+
 describe("notifyTaskStatusEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -631,5 +713,19 @@ describe("markTaskArchivedRead", () => {
     await markTaskArchivedRead({ ...ARCHIVED_TASK, assigneeUserId: "user_1" });
 
     expect(markAttentionReadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks only the assignee's and the participants' rows when the Task has no Owner", async () => {
+    prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
+
+    await markTaskArchivedRead({
+      id: "task_1",
+      ownerId: null,
+      assigneeUserId: "user_2",
+    });
+
+    expect(
+      markAttentionReadMock.mock.calls.map(([readerId]) => readerId),
+    ).toEqual(["user_2", "user_3"]);
   });
 });

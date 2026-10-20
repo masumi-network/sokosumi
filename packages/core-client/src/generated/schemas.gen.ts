@@ -965,7 +965,14 @@ export const AdminSokoBotListItemSchema = {
             minimum: 0
         },
         owner: {
-            $ref: '#/components/schemas/AdminSokoBotOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         createdAt: {
             type: 'string',
@@ -1820,6 +1827,10 @@ export const SokoBotDeletionResultSchema = {
                 taskSchedules: {
                     type: 'integer',
                     minimum: 0
+                },
+                jobs: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1828,7 +1839,8 @@ export const SokoBotDeletionResultSchema = {
                 'billingRecords',
                 'chatMessages',
                 'uploadedTaskFiles',
-                'taskSchedules'
+                'taskSchedules',
+                'jobs'
             ]
         }
     },
@@ -2384,9 +2396,24 @@ export const ChatRoomSokoBotParticipantSchema = {
             example: 'orb:user_123'
         },
         ownerUserId: {
-            type: 'string',
-            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.',
             example: 'user_123'
+        },
+        scope: {
+            $ref: '#/components/schemas/ChatRoomSokoBotScope'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The shared Soko Bot\'s own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.',
+            example: '01960001-0001-7001-8001-0000000000ab'
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
@@ -2399,8 +2426,21 @@ export const ChatRoomSokoBotParticipantSchema = {
         'image',
         'avatarSeed',
         'ownerUserId',
+        'scope',
+        'sharedRoomId',
         'presence'
     ]
+} as const;
+
+export const ChatRoomSokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ],
+    description: 'Who the Soko Bot belongs to: one person, a Project, or the whole workspace.',
+    example: 'personal'
 } as const;
 
 export const ChatRoomMessageMentionSchema = {
@@ -2859,7 +2899,14 @@ export const AdminSokoBotDetailSchema = {
                     example: '2021-01-01T00:00:00.000Z'
                 },
                 owner: {
-                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/AdminSokoBotOwner'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 },
                 turns: {
                     type: 'array',
@@ -4201,7 +4248,20 @@ export const SokoBotSchema = {
             format: 'uuid'
         },
         userId: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
         },
         name: {
             type: [
@@ -5604,26 +5664,34 @@ export const AdminTaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5689,26 +5757,34 @@ export const AdminTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5761,29 +5837,52 @@ export const TaskSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Task owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -5888,7 +5987,21 @@ export const TaskSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -6325,7 +6438,14 @@ export const SokoBotSummarySchema = {
             example: 'https://blob.example/mascot.png'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -6356,30 +6476,7 @@ export const TaskParticipantSchema = {
     ]
 } as const;
 
-export const TaskCreatorSchema = {
-    oneOf: [
-        {
-            $ref: '#/components/schemas/TaskCreatorUser'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorCoworker'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    ],
-    discriminator: {
-        propertyName: 'type',
-        mapping: {
-            user: '#/components/schemas/TaskCreatorUser',
-            coworker: '#/components/schemas/TaskCreatorCoworker',
-            sokoBot: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    },
-    description: 'Actor that created the task. Exactly one of user, coworker, or sokoBot.'
-} as const;
-
-export const TaskCreatorUserSchema = {
+export const WorkCreatorUserSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6403,7 +6500,7 @@ export const TaskCreatorUserSchema = {
     ]
 } as const;
 
-export const TaskCreatorCoworkerSchema = {
+export const WorkCreatorCoworkerSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6427,7 +6524,7 @@ export const TaskCreatorCoworkerSchema = {
     ]
 } as const;
 
-export const TaskCreatorSokoBotSchema = {
+export const WorkCreatorSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6668,7 +6765,14 @@ export const TaskEventSchema = {
                     example: 'https://blob.example/mascot.png'
                 },
                 owner: {
-                    $ref: '#/components/schemas/UserSummary'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/UserSummary'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [
@@ -6909,29 +7013,69 @@ export const JobSummarySchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -7068,6 +7212,7 @@ export const JobSummarySchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
         'userId',
         'user',
         'workspace',
@@ -9787,7 +9932,7 @@ export const ChatRoomSchema = {
         },
         isReadOnly: {
             type: 'boolean',
-            description: 'Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.',
+            description: 'Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.',
             example: false
         },
         groupName: {
@@ -11819,6 +11964,26 @@ export const ChatResultUnavailableSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageResultsSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        results: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultPreview'
+            }
+        }
+    },
+    required: [
+        'messageId',
+        'results'
+    ]
+} as const;
+
 export const CreateChatRoomMessageRequestSchema = {
     type: 'object',
     properties: {
@@ -12494,26 +12659,34 @@ export const DeveloperTaskListItemSchema = {
             $ref: '#/components/schemas/DeveloperCoworkerRef'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -12587,26 +12760,34 @@ export const DeveloperTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -19399,8 +19580,15 @@ export const WorkspaceCalendarItemSchema = {
             example: 'user_123'
         },
         taskOwnerId: {
-            type: 'string',
-            description: 'User who owns the Task Schedule and the Tasks it creates',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the Task Schedule and the Tasks it creates; null when it has none',
             example: 'user_123'
         },
         scheduledAt: {
@@ -19509,6 +19697,7 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'NEEDS_APPROVAL',
                 'SCHEDULED',
                 'PUBLISHING',
                 'PUBLISHED',
@@ -19517,11 +19706,24 @@ export const SocialPostCalendarItemSchema = {
                 'CANCELED'
             ]
         },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
         externalHandle: {
             type: [
                 'string',
                 'null'
             ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
         projectName: {
             type: 'string'
@@ -19621,7 +19823,9 @@ export const SocialPostCalendarItemSchema = {
         'provider',
         'text',
         'status',
+        'revision',
         'externalHandle',
+        'avatarUrl',
         'projectName',
         'scheduledByName',
         'scheduledByImage',
@@ -20217,6 +20421,14 @@ export const SocialAccountPostSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        strong: {
+            type: 'boolean',
+            default: false
+        },
+        canRecycle: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
@@ -20980,6 +21192,24 @@ export const SocialPerformanceDiscoveryResponseSchema = {
     ]
 } as const;
 
+export const SocialConnectionSuggestedTimesSchema = {
+    type: 'object',
+    properties: {
+        hours: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 23
+            },
+            maxItems: 3
+        }
+    },
+    required: [
+        'hours'
+    ]
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {
@@ -21099,6 +21329,1925 @@ export const DisconnectProjectSocialConnectionResponseSchema = {
     ]
 } as const;
 
+export const ProjectAdAccountSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        connectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        },
+        externalAccountId: {
+            type: 'string',
+            description: 'Google customer id or Meta `act_…` id',
+            example: '1234567890'
+        },
+        name: {
+            type: 'string',
+            example: 'Sokosumi Ads'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code; money is a decimal in this currency',
+            example: 'EUR'
+        },
+        timeZone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Berlin'
+        },
+        loginCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Google manager account reaching this account, if any'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'connectionId',
+        'provider',
+        'externalAccountId',
+        'name',
+        'currency',
+        'timeZone',
+        'loginCustomerId',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectAdProviderSchema = {
+    type: 'string',
+    enum: [
+        'google_ads',
+        'meta_ads'
+    ],
+    example: 'google_ads'
+} as const;
+
+export const InitiateProjectAdConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
+export const FinalizeProjectAdConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connection: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectAdConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked'
+        },
+        availableAccounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'connection',
+        'availableAccounts'
+    ]
+} as const;
+
+export const ProjectAdConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Pass this as `adConnectionId` when attaching accounts',
+            example: 'cccccccc-cccc-4ccc-cccc-cccccccccccc'
+        },
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'status',
+        'createdAt'
+    ]
+} as const;
+
+export const AvailableAdAccountSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string',
+            description: 'Google customer id or Meta `act_…` id',
+            example: '1234567890'
+        },
+        name: {
+            type: 'string',
+            example: 'Sokosumi Ads'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code; money is a decimal in this currency',
+            example: 'EUR'
+        },
+        timeZone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Berlin'
+        }
+    },
+    required: [
+        'externalAccountId',
+        'name',
+        'currency',
+        'timeZone'
+    ]
+} as const;
+
+export const AttachProjectAdAccountsRequestSchema = {
+    type: 'object',
+    properties: {
+        adConnectionId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The connection `id` returned by finalize'
+        },
+        externalAccountIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            minItems: 1,
+            maxItems: 50
+        }
+    },
+    required: [
+        'adConnectionId',
+        'externalAccountIds'
+    ]
+} as const;
+
+export const ListAdCampaignsResponseSchema = {
+    type: 'object',
+    properties: {
+        campaigns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaign'
+            }
+        },
+        range: {
+            $ref: '#/components/schemas/AdRange'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code of the ad account; money is in this currency',
+            example: 'EUR'
+        }
+    },
+    required: [
+        'campaigns',
+        'range',
+        'currency'
+    ]
+} as const;
+
+export const AdCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Provider campaign id'
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED',
+                'ENDED',
+                'OTHER'
+            ]
+        },
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Google channel type or Meta objective',
+            example: 'SEARCH'
+        },
+        dailyBudget: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Decimal in the account currency',
+            example: 25.5
+        },
+        spend: {
+            type: 'number',
+            description: 'Over the range, decimal'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        ctr: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'clicks / impressions; null without impressions'
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'spend / clicks; null without clicks'
+        },
+        conversions: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Over the range; null only when the provider omits the metric'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'objective',
+        'dailyBudget',
+        'spend',
+        'impressions',
+        'clicks',
+        'ctr',
+        'cpc',
+        'conversions'
+    ]
+} as const;
+
+export const AdRangeSchema = {
+    type: 'string',
+    enum: [
+        'LAST_7_DAYS',
+        'LAST_30_DAYS'
+    ],
+    example: 'LAST_30_DAYS'
+} as const;
+
+export const AdCampaignDetailsSchema = {
+    type: 'object',
+    properties: {
+        campaign: {
+            $ref: '#/components/schemas/AdCampaignDetailsCampaign'
+        },
+        targeting: {
+            $ref: '#/components/schemas/AdCampaignTargeting'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignKeyword'
+            }
+        },
+        ad: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdCampaignAd'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The campaign\'s only ad; null when it has none or several'
+        },
+        sitelinks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignSitelink'
+            }
+        },
+        callouts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignCallout'
+            }
+        },
+        performance: {
+            $ref: '#/components/schemas/AdCampaignPerformance'
+        }
+    },
+    required: [
+        'campaign',
+        'targeting',
+        'keywords',
+        'ad',
+        'sitelinks',
+        'callouts',
+        'performance'
+    ]
+} as const;
+
+export const AdCampaignDetailsCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED',
+                'ENDED',
+                'OTHER'
+            ]
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'SEARCH',
+                'DISPLAY',
+                'OTHER'
+            ]
+        },
+        channelType: {
+            type: 'string',
+            description: 'Google advertising channel type',
+            example: 'SEARCH'
+        },
+        dailyBudget: {
+            type: 'number',
+            description: 'Decimal in the account currency',
+            example: 25.5
+        },
+        currency: {
+            type: 'string',
+            example: 'EUR'
+        },
+        biddingStrategyType: {
+            type: 'string',
+            example: 'MAXIMIZE_CLICKS'
+        },
+        startDate: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'YYYY-MM-DD in the account time zone; null when not set'
+        },
+        endDate: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'YYYY-MM-DD in the account time zone; null when not set'
+        },
+        started: {
+            type: 'boolean',
+            description: 'The start date is today or earlier in the account time zone'
+        },
+        editable: {
+            type: 'boolean',
+            description: 'One ad group with one ad of the campaign type\'s responsive format'
+        },
+        notEditableReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'TYPE',
+                'AD_GROUPS',
+                'AD_TYPE',
+                null
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'type',
+        'channelType',
+        'dailyBudget',
+        'currency',
+        'biddingStrategyType',
+        'startDate',
+        'endDate',
+        'started',
+        'editable',
+        'notEditableReason'
+    ]
+} as const;
+
+export const AdCampaignTargetingSchema = {
+    type: 'object',
+    properties: {
+        locations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLocation'
+            },
+            description: 'Empty targets all countries'
+        },
+        languages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLanguage'
+            },
+            description: 'Empty targets all languages'
+        }
+    },
+    required: [
+        'locations',
+        'languages'
+    ]
+} as const;
+
+export const GoogleLocationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Geo target constant id; pass it in `google.locationIds`',
+            example: '2276'
+        },
+        name: {
+            type: 'string',
+            example: 'Berlin'
+        },
+        canonicalName: {
+            type: 'string',
+            example: 'Berlin,Berlin,Germany'
+        },
+        targetType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'City'
+        },
+        countryCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when Google omits it',
+            example: 'DE'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'canonicalName',
+        'targetType',
+        'countryCode'
+    ]
+} as const;
+
+export const GoogleLanguageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Language constant id; pass it in `google.languageIds`',
+            example: '1001'
+        },
+        code: {
+            type: 'string',
+            example: 'de'
+        },
+        name: {
+            type: 'string',
+            example: 'German'
+        }
+    },
+    required: [
+        'id',
+        'code',
+        'name'
+    ]
+} as const;
+
+export const AdCampaignKeywordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        matchType: {
+            type: 'string',
+            enum: [
+                'BROAD',
+                'PHRASE',
+                'EXACT'
+            ]
+        },
+        status: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'text',
+        'matchType',
+        'status',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignAdSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        reviewStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        adStrength: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            description: 'The first final URL; empty without one'
+        },
+        search: {
+            $ref: '#/components/schemas/AdCampaignSearchAd'
+        },
+        display: {
+            $ref: '#/components/schemas/AdCampaignDisplayAd'
+        }
+    },
+    required: [
+        'id',
+        'status',
+        'approvalStatus',
+        'reviewStatus',
+        'adStrength',
+        'finalUrl'
+    ]
+} as const;
+
+export const AdCampaignSearchAdSchema = {
+    type: 'object',
+    properties: {
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        path1: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        path2: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'headlines',
+        'descriptions',
+        'path1',
+        'path2'
+    ],
+    description: 'Set for a responsive search ad'
+} as const;
+
+export const AdCampaignDisplayAdSchema = {
+    type: 'object',
+    properties: {
+        businessName: {
+            type: 'string'
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        longHeadline: {
+            type: 'string'
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        images: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignDisplayImage'
+            }
+        }
+    },
+    required: [
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ],
+    description: 'Set for a responsive display ad'
+} as const;
+
+export const AdCampaignDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ]
+        },
+        url: {
+            type: 'string'
+        },
+        width: {
+            type: 'number'
+        },
+        height: {
+            type: 'number'
+        }
+    },
+    required: [
+        'assetId',
+        'role',
+        'url',
+        'width',
+        'height'
+    ]
+} as const;
+
+export const AdCampaignSitelinkSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        finalUrl: {
+            type: 'string'
+        },
+        description1: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        description2: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'assetId',
+        'text',
+        'finalUrl',
+        'description1',
+        'description2',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignCalloutSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        approvalStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'assetId',
+        'text',
+        'approvalStatus'
+    ]
+} as const;
+
+export const AdCampaignPerformanceSchema = {
+    type: 'object',
+    properties: {
+        totals: {
+            $ref: '#/components/schemas/AdCampaignTotals'
+        },
+        daily: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaignDailyMetrics'
+            },
+            description: 'Every day of the range, oldest first; days without data are zero'
+        }
+    },
+    required: [
+        'totals',
+        'daily'
+    ]
+} as const;
+
+export const AdCampaignTotalsSchema = {
+    type: 'object',
+    properties: {
+        spend: {
+            type: 'number',
+            description: 'Over the range, decimal'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        ctr: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'clicks / impressions; null without impressions'
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'spend / clicks; null without clicks'
+        },
+        conversions: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Over the range; null only when the provider omits the metric'
+        }
+    },
+    required: [
+        'spend',
+        'impressions',
+        'clicks',
+        'ctr',
+        'cpc',
+        'conversions'
+    ]
+} as const;
+
+export const AdCampaignDailyMetricsSchema = {
+    type: 'object',
+    properties: {
+        date: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01'
+        },
+        spend: {
+            type: 'number'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        conversions: {
+            type: 'number'
+        }
+    },
+    required: [
+        'date',
+        'spend',
+        'impressions',
+        'clicks',
+        'conversions'
+    ]
+} as const;
+
+export const UpdateAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED'
+            ]
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0. Core rejects budgets with more fraction digits than the currency allows (JPY 0, USD 2) with 422',
+            example: 25.5
+        }
+    }
+} as const;
+
+export const EditAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'Spring sale'
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
+            example: 25.5
+        },
+        google: {
+            $ref: '#/components/schemas/GoogleCampaignEditSpec'
+        }
+    },
+    required: [
+        'name',
+        'dailyBudget',
+        'google'
+    ],
+    description: 'Edit of a Google campaign that is editable (see `campaign.editable` of the details). The status is not part of it; use the status/budget update'
+} as const;
+
+export const GoogleCampaignEditSpecSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        },
+        {
+            $ref: '#/components/schemas/GoogleDisplayCampaignEditSpec'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignEditSpec'
+        }
+    },
+    description: 'The campaign\'s settings after the edit; it replaces every field, and only what differs from the campaign is changed. `type` must be the campaign\'s type. Omit `startDate` to keep the start date (it cannot change once the campaign started); omit `endDate` to remove the end date'
+} as const;
+
+export const GoogleSearchCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'SEARCH'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleKeyword'
+            },
+            minItems: 1,
+            maxItems: 50,
+            description: 'Repeats of a keyword with the same match type (ignoring case) are dropped'
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 3,
+            maxItems: 15
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 2,
+            maxItems: 4
+        },
+        path1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15
+        },
+        path2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 15,
+            description: 'Requires path1'
+        },
+        sitelinks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleSitelink'
+            },
+            maxItems: 8
+        },
+        callouts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 25
+            },
+            minItems: 0,
+            maxItems: 10
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'keywords',
+        'headlines',
+        'descriptions'
+    ]
+} as const;
+
+export const GoogleKeywordSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            description: 'Plain text, without quotes or brackets',
+            example: 'running shoes'
+        },
+        matchType: {
+            type: 'string',
+            enum: [
+                'BROAD',
+                'PHRASE',
+                'EXACT'
+            ]
+        }
+    },
+    required: [
+        'text',
+        'matchType'
+    ]
+} as const;
+
+export const GoogleSitelinkSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        description1: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        },
+        description2: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 35
+        }
+    },
+    required: [
+        'text',
+        'finalUrl'
+    ]
+} as const;
+
+export const GoogleDisplayCampaignEditSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'DISPLAY'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        longHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 90
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        images: {
+            type: 'array',
+            items: {
+                anyOf: [
+                    {
+                        $ref: '#/components/schemas/GoogleDisplayImage'
+                    },
+                    {
+                        $ref: '#/components/schemas/GoogleKeptDisplayImage'
+                    }
+                ]
+            },
+            maxItems: 8,
+            description: 'The ad\'s images after the edit: `{assetId, role}` keeps a current image, a Drive file (as in a create) uploads a new one. 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each image once'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ]
+} as const;
+
+export const GoogleDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5242880,
+            description: 'Bytes; at most 5120 KB',
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            enum: [
+                'image/jpeg',
+                'image/png',
+                'image/gif'
+            ]
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'LANDSCAPE (1.91:1) and SQUARE (1:1) are the marketing images, LOGO the optional square (1:1, at least 128x128) logos. Google checks the aspect ratio and size and answers 422 for an image that does not fit'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'role'
+    ]
+} as const;
+
+export const GoogleKeptDisplayImageSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            pattern: '^\\d{1,20}$',
+            description: 'Asset id of one of the ad\'s current images, as the campaign details report it'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'LANDSCAPE',
+                'SQUARE',
+                'LOGO'
+            ],
+            description: 'The slot the image fills; see GoogleDisplayImage'
+        }
+    },
+    required: [
+        'assetId',
+        'role'
+    ]
+} as const;
+
+export const CreateAdCampaignResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Provider campaign id'
+        }
+    },
+    required: [
+        'id'
+    ]
+} as const;
+
+export const CreateAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'Spring sale'
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
+            example: 25.5
+        },
+        objective: {
+            type: 'string',
+            enum: [
+                'OUTCOME_TRAFFIC',
+                'OUTCOME_AWARENESS',
+                'OUTCOME_ENGAGEMENT',
+                'OUTCOME_LEADS',
+                'OUTCOME_SALES'
+            ],
+            description: 'Required for Meta ad accounts; 422 for Google'
+        },
+        google: {
+            $ref: '#/components/schemas/GoogleCampaignSpec'
+        }
+    },
+    required: [
+        'name',
+        'dailyBudget'
+    ],
+    description: 'There is no status: a new campaign is always created paused'
+} as const;
+
+export const GoogleCampaignSpecSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/GoogleSearchCampaignSpec'
+        },
+        {
+            $ref: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            SEARCH: '#/components/schemas/GoogleSearchCampaignSpec',
+            DISPLAY: '#/components/schemas/GoogleDisplayCampaignSpec'
+        }
+    },
+    description: 'Required for Google ad accounts; 422 for Meta'
+} as const;
+
+export const GoogleDisplayCampaignSpecSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'DISPLAY'
+            ]
+        },
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign starts at 00:00:00 of this day in the account\'s time zone'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-01',
+            description: 'Campaign ends at 23:59:59 of this day in the account\'s time zone; not before startDate'
+        },
+        locationIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Geo target constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        languageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^\\d{1,20}$'
+            },
+            maxItems: 25,
+            description: 'Language constant ids (0-25); none targets all',
+            example: [
+                '2276'
+            ]
+        },
+        finalUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri',
+            example: 'https://example.com/spring'
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 25
+        },
+        headlines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 30
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        longHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 90
+        },
+        descriptions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 90
+            },
+            minItems: 1,
+            maxItems: 5
+        },
+        images: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleDisplayImage'
+            },
+            maxItems: 8,
+            description: 'Drive images: 1+ LANDSCAPE and 1+ SQUARE (6 together at most), and 0-2 LOGO. Each file once'
+        }
+    },
+    required: [
+        'type',
+        'locationIds',
+        'languageIds',
+        'finalUrl',
+        'businessName',
+        'headlines',
+        'longHeadline',
+        'descriptions',
+        'images'
+    ]
+} as const;
+
+export const ListGoogleLocationsResponseSchema = {
+    type: 'object',
+    properties: {
+        locations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLocation'
+            },
+            maxItems: 25
+        }
+    },
+    required: [
+        'locations'
+    ]
+} as const;
+
+export const ListGoogleLanguagesResponseSchema = {
+    type: 'object',
+    properties: {
+        languages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/GoogleLanguage'
+            }
+        }
+    },
+    required: [
+        'languages'
+    ]
+} as const;
+
+export const GetAdMarketProfileResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdMarketProfile'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a market profile is saved'
+        }
+    },
+    required: [
+        'profile'
+    ]
+} as const;
+
+export const AdMarketProfileSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        countryCode: {
+            $ref: '#/components/schemas/AdMarketCountryCode'
+        },
+        locationId: {
+            type: 'string',
+            description: 'Google geo target constant id of the country, for campaign targeting',
+            example: '2840'
+        },
+        languageCode: {
+            $ref: '#/components/schemas/AdMarketLanguageCode'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'keywords',
+        'countryCode',
+        'locationId',
+        'languageCode',
+        'updatedAt'
+    ]
+} as const;
+
+export const AdMarketCountryCodeSchema = {
+    type: 'string',
+    enum: [
+        'US',
+        'GB',
+        'DE',
+        'FR',
+        'ES',
+        'IT',
+        'NL',
+        'CH',
+        'AT',
+        'BE',
+        'IE',
+        'CA',
+        'AU',
+        'BR',
+        'MX',
+        'IN',
+        'JP'
+    ],
+    description: 'ISO 3166-1 alpha-2 code of a supported market',
+    example: 'DE'
+} as const;
+
+export const AdMarketLanguageCodeSchema = {
+    type: 'string',
+    enum: [
+        'en',
+        'de',
+        'fr',
+        'es',
+        'it',
+        'nl',
+        'pt',
+        'ja'
+    ],
+    example: 'de'
+} as const;
+
+export const PutAdMarketProfileResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            $ref: '#/components/schemas/AdMarketProfile'
+        }
+    },
+    required: [
+        'profile'
+    ]
+} as const;
+
+export const PutAdMarketProfileRequestSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80
+            },
+            minItems: 1,
+            maxItems: 10,
+            description: '1 to 10 keywords of at most 80 characters; duplicates (ignoring case) are dropped',
+            example: [
+                'running shoes'
+            ]
+        },
+        countryCode: {
+            $ref: '#/components/schemas/AdMarketCountryCode'
+        },
+        languageCode: {
+            $ref: '#/components/schemas/AdMarketLanguageCode'
+        }
+    },
+    required: [
+        'keywords',
+        'countryCode',
+        'languageCode'
+    ]
+} as const;
+
+export const ListAdMarketKeywordsResponseSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdMarketKeyword'
+            },
+            description: 'At most 50, by search volume descending, nulls last'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When DataForSEO was last asked; results are cached for 24h'
+        }
+    },
+    required: [
+        'keywords',
+        'fetchedAt'
+    ]
+} as const;
+
+export const AdMarketKeywordSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string'
+        },
+        searchVolume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        trend: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    year: {
+                        type: 'number'
+                    },
+                    month: {
+                        type: 'number'
+                    },
+                    searchVolume: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'year',
+                    'month',
+                    'searchVolume'
+                ]
+            }
+        },
+        competition: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'LOW',
+                'MEDIUM',
+                'HIGH',
+                null
+            ]
+        },
+        competitionIndex: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        lowTopOfPageBid: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        highTopOfPageBid: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'keyword',
+        'searchVolume',
+        'trend',
+        'competition',
+        'competitionIndex',
+        'cpc',
+        'lowTopOfPageBid',
+        'highTopOfPageBid'
+    ],
+    description: 'Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.'
+} as const;
+
+export const ListAdMarketAdsResponseSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ready',
+                'gathering',
+                'failed'
+            ],
+            description: 'ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot\'s, if any.'
+        },
+        ads: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdMarketAd'
+            },
+            description: 'At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first'
+        },
+        fetchedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet'
+        }
+    },
+    required: [
+        'status',
+        'ads',
+        'fetchedAt'
+    ]
+} as const;
+
+export const AdMarketAdSchema = {
+    type: 'object',
+    properties: {
+        creativeId: {
+            type: 'string'
+        },
+        advertiserId: {
+            type: 'string'
+        },
+        advertiserName: {
+            type: 'string'
+        },
+        format: {
+            type: 'string',
+            enum: [
+                'text',
+                'image',
+                'video',
+                'other'
+            ]
+        },
+        previewImage: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                url: {
+                    type: 'string'
+                },
+                width: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                height: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'url',
+                'width',
+                'height'
+            ]
+        },
+        previewUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        firstShown: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastShown: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        verified: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'creativeId',
+        'advertiserId',
+        'advertiserName',
+        'format',
+        'previewImage',
+        'previewUrl',
+        'firstShown',
+        'lastShown',
+        'verified'
+    ],
+    description: 'A recent Google ad of a search competitor (a domain ranking organically for the profile keywords). previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google\'s Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.'
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {
@@ -21125,6 +23274,12 @@ export const SocialPostSchema = {
         },
         text: {
             type: 'string'
+        },
+        firstComment: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         media: {
             type: 'array',
@@ -21264,6 +23419,16 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canApprove: {
+            type: 'boolean'
+        },
+        canReject: {
+            type: 'boolean'
+        },
+        canDuplicate: {
+            type: 'boolean',
+            description: 'True when the post can be copied into a new draft (published, failed, or missed)'
+        },
         connectionNeedsReconnect: {
             type: 'boolean',
             description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
@@ -21274,6 +23439,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'firstComment',
         'media',
         'status',
         'scheduledAt',
@@ -21297,6 +23463,9 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canApprove',
+        'canReject',
+        'canDuplicate',
         'connectionNeedsReconnect'
     ]
 } as const;
@@ -21355,6 +23524,7 @@ export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
         'DRAFT',
+        'NEEDS_APPROVAL',
         'SCHEDULED',
         'PUBLISHING',
         'PUBLISHED',
@@ -21574,6 +23744,11 @@ export const CreateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
+        },
         media: {
             type: 'array',
             items: {
@@ -21664,6 +23839,11 @@ export const UpdateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
+        },
         media: {
             type: 'array',
             items: {
@@ -21720,6 +23900,36 @@ export const ScheduleSocialPostRequestSchema = {
     ]
 } as const;
 
+export const ApproveSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const RejectSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const CancelSocialPostRequestSchema = {
     type: 'object',
     properties: {
@@ -21733,6 +23943,39 @@ export const CancelSocialPostRequestSchema = {
     required: [
         'revision'
     ]
+} as const;
+
+export const RecycleSocialAccountPostRequestSchema = {
+    type: 'object',
+    properties: {
+        delayDays: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        7
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        14
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        30
+                    ]
+                }
+            ],
+            example: 7
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    }
 } as const;
 
 export const ProjectImageStudioStateSchema = {
@@ -21970,29 +24213,69 @@ export const JobSchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -22376,6 +24659,7 @@ export const JobSchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
         'userId',
         'user',
         'projectId',
@@ -23764,7 +26048,20 @@ export const SokoBotStateSchema = {
                     format: 'uuid'
                 },
                 userId: {
-                    type: 'string'
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                projectId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                viewerCanManage: {
+                    type: 'boolean'
                 },
                 name: {
                     type: [
@@ -23934,10 +26231,91 @@ export const SokoBotStateSchema = {
                 'createdAt',
                 'updatedAt'
             ]
+        },
+        sharedBots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SharedSokoBotSummary'
+            }
         }
     },
     required: [
         'sokoBot'
+    ]
+} as const;
+
+export const SharedSokoBotSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'project',
+                'workspace'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'scope',
+        'projectId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'status',
+        'archivedAt',
+        'sharedRoomId',
+        'viewerCanManage'
     ]
 } as const;
 
@@ -25324,6 +27702,84 @@ export const JudgeSokoBotLabTurnRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const CreateScopedSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        avatarId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        personalityTone: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityDetail: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityStyle: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        scope: {
+            $ref: '#/components/schemas/SokoBotScope'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'name',
+        'scope'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ]
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -25794,29 +28250,52 @@ export const TaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Task owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -25921,7 +28400,21 @@ export const TaskListItemSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -26191,7 +28684,16 @@ export const TaskScheduleSchema = {
             ]
         },
         ownerId: {
-            type: 'string'
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         creatorUserId: {
             type: [
@@ -26211,6 +28713,23 @@ export const TaskScheduleSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         state: {
             $ref: '#/components/schemas/TaskScheduleState'
@@ -26343,6 +28862,7 @@ export const TaskScheduleSchema = {
         'creatorUserId',
         'creatorCoworkerId',
         'creatorSokoBotId',
+        'creator',
         'state',
         'rule',
         'ruleEffectiveFrom',
@@ -29006,6 +31526,15 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'boolean',
             description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
+        },
+        latestScheduledSocialPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
         }
     },
     required: [

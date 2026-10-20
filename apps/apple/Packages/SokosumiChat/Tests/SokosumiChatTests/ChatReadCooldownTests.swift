@@ -14,8 +14,8 @@ struct ChatReadCooldownTests {
       (200, testMessagesPageBody(messages: [], nextCursor: nil))
     ])
     let url = try #require(URL(string: "https://example.com"))
-    let roomClient = Client.connecting(to: url, transport: transport, middlewares: [middleware])
-    let threadClient = Client.connecting(to: url, transport: transport, middlewares: [middleware])
+    let roomClient = Client.core(baseURL: url, transport: transport, middlewares: [middleware])
+    let threadClient = Client.core(baseURL: url, transport: transport, middlewares: [middleware])
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 429, message: "Wait")) {
       try await ChatService().listMessages(client: roomClient, roomId: testRoomId, organizationSlug: nil)
     }
@@ -33,7 +33,7 @@ struct ChatReadCooldownTests {
       (200, #"{"data":[],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
     ])
     let url = try #require(URL(string: "https://example.com"))
-    let client = Client.connecting(to: url, transport: transport, middlewares: [middleware])
+    let client = Client.core(baseURL: url, transport: transport, middlewares: [middleware])
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 429, message: "Wait")) {
       try await ChatService().listMessages(client: client, roomId: testRoomId, organizationSlug: nil)
     }
@@ -52,7 +52,7 @@ struct ChatReadCooldownTests {
       (200, #"{"data":\#(invitation),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
     ])
     let url = try #require(URL(string: "https://example.com"))
-    let client = Client.connecting(to: url, transport: transport, middlewares: [middleware])
+    let client = Client.core(baseURL: url, transport: transport, middlewares: [middleware])
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 429, message: "Wait")) {
       try await ChatService().listMessages(client: client, roomId: testRoomId, organizationSlug: nil)
     }

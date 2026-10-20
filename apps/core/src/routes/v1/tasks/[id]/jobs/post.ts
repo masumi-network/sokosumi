@@ -71,6 +71,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
       },
+      creator: isSokoBotAuthContext(authContext)
+        ? { kind: "soko_bot", sokoBotId: authContext.sokoBotId }
+        : { kind: "coworker", coworkerId: authContext.coworkerId },
       agentInput: {
         agentId,
         inputData,

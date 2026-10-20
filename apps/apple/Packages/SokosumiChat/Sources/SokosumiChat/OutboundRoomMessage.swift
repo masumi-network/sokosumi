@@ -67,7 +67,7 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
 /// read until a reply is stored, and swapping the shell for that row does not change the displayed count.
 public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage]) -> Int {
   messages.count(where: { message in
-    message.parentMessageId != nil && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
+    message.parentMessageId != nil && !MessageKind(message).isLocal
   })
 }
 

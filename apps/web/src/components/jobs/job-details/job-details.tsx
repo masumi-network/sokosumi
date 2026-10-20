@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { useSession } from "@/lib/auth/auth.client";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries/jobs";
@@ -26,7 +27,11 @@ export default function JobDetails({
   });
 
   const channelName = session?.user?.id
-    ? makeAgentJobsChannelName(initialJob.agentId, session.user.id)
+    ? makeAgentJobsChannelName(
+        initialJob.agentId,
+        session.user.id,
+        getRealtimeChannelEnvironment(),
+      )
     : null;
 
   function handleStatusUpdate() {

@@ -232,6 +232,25 @@ describe("notifyLowBalanceAfterCharge", () => {
     ]);
   });
 
+  it("reads the Organization pool after a charge with no member (ADR 0057)", async () => {
+    getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
+
+    await notifyLowBalanceAfterCharge({
+      userId: null,
+      organizationId: "org-1",
+    });
+
+    expect(getBalanceMock).toHaveBeenCalledWith(
+      null,
+      "org-1",
+      expect.anything(),
+    );
+    expect(createNotificationMock.mock.calls.map((call) => call[0])).toEqual([
+      expect.objectContaining({ userId: "owner-1", referenceId: "org-1" }),
+      expect.objectContaining({ userId: "admin-1", referenceId: "org-1" }),
+    ]);
+  });
+
   it("still writes later recipients when one inbox send fails", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
     sendBillingNotificationEmailMock

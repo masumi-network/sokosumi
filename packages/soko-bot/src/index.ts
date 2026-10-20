@@ -24,6 +24,7 @@ export {
 export {
   composeSokoBotIntroduction,
   composeSokoBotVersionNotice,
+  type SokoBotPersona,
 } from "./persona.js";
 export {
   capabilitiesForClassification,
@@ -37,15 +38,20 @@ export {
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
   type TurnClassification,
+  unattendedHireOverCeilingRefusal,
+  unattendedSecondHireRefusal,
 } from "./policy.js";
 export {
   dueFollowUps,
   isSokoBotSilentAnswer,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  type SokoBotSystemSchedule,
+  sokoBotSystemSchedulePrompt,
   upcomingFollowUps,
 } from "./proactive.js";
 export {
@@ -111,6 +117,7 @@ export {
   sokoBotScheduleIdInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
+  sokoBotStartBackgroundRunInputSchema,
   sokoBotTaskIdInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema,

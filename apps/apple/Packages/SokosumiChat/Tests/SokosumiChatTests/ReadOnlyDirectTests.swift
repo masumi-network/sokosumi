@@ -111,8 +111,8 @@ struct ReadOnlyDirectTests {
   }
 
   @Test func onlyAThreadWithRepliesOpensInAReadOnlyDirect() {
-    #expect(!canOpenThread(message(replies: 0), in: direct()))
-    #expect(canOpenThread(message(replies: 2), in: direct()))
-    #expect(canOpenThread(message(replies: 0), in: direct(readOnly: false)))
+    #expect(!canOpenThread(message(replies: 0), takesNewMessages: false))
+    #expect(canOpenThread(message(replies: 2), takesNewMessages: false))
+    #expect(canOpenThread(message(replies: 0), takesNewMessages: true))
   }
 }

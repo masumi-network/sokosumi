@@ -189,6 +189,7 @@ describe("X statistics research routes", () => {
   it("rejects bot REST actors and human API keys for both external reads", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "bot",
       userId: "owner",
       workspaceId,

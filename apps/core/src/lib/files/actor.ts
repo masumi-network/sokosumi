@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { SokoBotScope } from "@/helpers/task-visibility";
 import type { UserContext } from "@/middleware/auth";
 
 /**
@@ -20,6 +21,11 @@ export interface FileActor {
   /** Active workspace organization, or null for the personal workspace. */
   organizationId: string | null;
   kind: FileActorKind;
+  /**
+   * A shared Soko Bot's scope. It replaces the member's own reach: public
+   * Tasks in the scope only, and no store private to the member.
+   */
+  sokoBotScope?: SokoBotScope | null;
 }
 
 /**
@@ -90,5 +96,15 @@ export function fileActorFingerprint(
     .update(actor.organizationId ?? "")
     .update("\0")
     .update(actor.kind)
+    .update(sokoBotScopeKey(actor))
     .digest("base64url");
+}
+
+/** The part of an actor's identity a shared Soko Bot's scope adds. */
+export function sokoBotScopeKey(actor: FileActor): string {
+  const scope = actor.sokoBotScope;
+  // Empty for every other actor, so their existing keys stay the same.
+  return scope
+    ? `\0${scope.sokoBotId}:${scope.workspaceId}:${scope.projectId ?? ""}`
+    : "";
 }

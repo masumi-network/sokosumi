@@ -635,6 +635,42 @@ describe("POST /tasks", () => {
       );
     },
   );
+  it.each(["project", "workspace"] as const)(
+    "refuses a direct %s Soko Bot key with 403 before any work",
+    async (scope) => {
+      const app = new OpenAPIHonoWithAuth();
+      app.onError(errorHandler);
+      app.use("*", async (c, next) => {
+        c.set("isAuthenticated", true);
+        c.set("authContext", {
+          actor: "sokoBot",
+          sokoBotId: "01960001-0001-7001-8001-000000000099",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          scope,
+          userId: null,
+          organizationId: "org_123",
+          projectId: scope === "project" ? "project_1" : null,
+        });
+        c.set("workspaceContext", null);
+        return await next();
+      });
+      mountPostTask(app);
+
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "From a key" }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        message: "A shared Soko Bot has no user context for this resource",
+      });
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+      expect(taskCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("keeps creation working and untagged when the receipt is invalid", async () => {
     const response = await createApp().request("http://localhost/", {
       method: "POST",
@@ -1068,6 +1104,7 @@ describe("POST /tasks", () => {
       "11111111-1111-7111-8111-111111111111",
       expect.anything(),
       { kind: "user", userId: "user_123" },
+      { visibility: "PUBLIC", projectId: null },
     );
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({

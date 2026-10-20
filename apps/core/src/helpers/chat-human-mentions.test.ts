@@ -87,6 +87,17 @@ describe("persistChatHumanMentions", () => {
     expect(mentioned).toEqual([ALICE_ID, BOB_ID]);
   });
 
+  it("leaves @all unexpanded when the caller turns it off", async () => {
+    const mentioned = await persistChatHumanMentions(tx, {
+      messageId: MESSAGE_ID,
+      roomId: ROOM_ID,
+      content: `@all stand-up in five, @${BOB_ID}`,
+      expandAll: false,
+    });
+
+    expect(mentioned).toEqual([BOB_ID]);
+  });
+
   it("writes nothing when the body names nobody in the room", async () => {
     const mentioned = await persistChatHumanMentions(tx, {
       messageId: MESSAGE_ID,

@@ -143,4 +143,25 @@ describe("chat project selection", () => {
     ).toBe(false);
     expect(start).toHaveBeenCalledTimes(calls);
   });
+
+  it("continues a shared bot's turn on that bot, not the caller's own", async () => {
+    const botId = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
+    const result = await selectChatProjectAction({
+      ...input,
+      source: { turnId: id, botId },
+    });
+    expect(result.ok).toBe(true);
+    expect(read).toHaveBeenCalledWith(id, botId);
+    expect(getTurn).toHaveBeenCalledWith(id, botId);
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ botId }));
+  });
+
+  it("refuses a bot id that is not one", async () => {
+    const result = await selectChatProjectAction({
+      ...input,
+      source: { turnId: id, botId: "me" },
+    });
+    expect(result.ok).toBe(false);
+    expect(start).not.toHaveBeenCalled();
+  });
 });
