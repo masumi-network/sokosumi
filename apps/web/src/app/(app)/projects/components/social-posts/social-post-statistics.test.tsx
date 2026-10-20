@@ -42,10 +42,15 @@ vi.mock("next-intl", async () => {
         now: new Date("2026-10-14T08:00:00Z"),
       }).relativeTime,
     }),
-    useTranslations: () =>
+    useTranslations: (
+      namespace:
+        | "App.Projects.SocialPosts.statistics"
+        | "App.Projects.SocialPosts.preview",
+    ) =>
       createTranslator({
         locale: "en",
-        messages: en.App.Projects.SocialPosts.statistics,
+        messages: en,
+        namespace,
       }),
   };
 });
@@ -751,6 +756,117 @@ describe("SocialPostStatistics account history", () => {
       ).toHaveLength(1);
     },
   );
+
+  it("hides X research on All accounts and other platforms", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: en.App.Projects.SocialPosts.statistics.research.title,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows X research for a selected active X account", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [
+          post,
+          {
+            ...post,
+            id: "post-2",
+            connectionId: secondAccount.id,
+            text: "Other account post",
+          },
+        ],
+      }),
+    });
+    renderStatistics(`?statisticsAccount=${account.id}`);
+    expect(
+      await screen.findByRole("heading", {
+        name: en.App.Projects.SocialPosts.statistics.research.title,
+      }),
+    ).toBeVisible();
+    const research = screen.getByTestId("social-statistics-research");
+    expect(
+      screen
+        .getByTestId("social-performance-overview")
+        .compareDocumentPosition(research),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      research.compareDocumentPosition(
+        screen.getByRole("heading", { name: "Performance over time" }),
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.getByText("More filters")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Posting consistency" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Last 30 days" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      within(research).getByLabelText(
+        en.App.Projects.SocialPosts.statistics.research.kind,
+      ),
+    );
+    fireEvent.click(
+      await screen.findByRole("option", {
+        name: en.App.Projects.SocialPosts.statistics.research.kinds.likers,
+      }),
+    );
+    fireEvent.click(
+      within(research).getByLabelText(
+        en.App.Projects.SocialPosts.statistics.research.post,
+      ),
+    );
+    expect(
+      await screen.findByRole("option", { name: post.text }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("option", { name: "Other account post" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps X research out of workspace-wide Performance", async () => {
+    renderStatistics(`?statisticsAccount=${account.id}`, {
+      workspaceId: "workspace-1",
+    });
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByTestId("social-statistics-research"),
+    ).not.toBeInTheDocument();
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides X research for a selected Facebook account", async () => {
+    renderStatistics(`?statisticsAccount=${secondAccount.id}`);
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: en.App.Projects.SocialPosts.statistics.research.title,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides X research when the selected X account must reconnect", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [{ ...account, status: "reauthorization_required" }],
+      }),
+    });
+    renderStatistics(`?statisticsAccount=${account.id}`);
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: en.App.Projects.SocialPosts.statistics.research.title,
+      }),
+    ).not.toBeInTheDocument();
+  });
 
   it("keeps provider icons on account options and none on All accounts", async () => {
     renderStatistics();

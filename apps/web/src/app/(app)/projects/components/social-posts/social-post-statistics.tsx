@@ -50,6 +50,7 @@ import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
 import { SocialPostMetrics } from "./social-post-metrics";
+import { SocialStatisticsResearch } from "./social-statistics-research";
 
 const ACCOUNT_METRIC_LABELS: Record<string, string> = {
   followers_count: "followers",
@@ -783,6 +784,18 @@ export function SocialPostStatistics(
             <SocialPerformanceOverview
               headline={headline}
               impressionBased={impressionBased}
+            />
+          ) : null}
+          {projectId &&
+          selectedAccount?.provider === "x" &&
+          selectedAccount.status === "active" ? (
+            <SocialStatisticsResearch
+              key={selectedAccount.id}
+              projectId={projectId}
+              accountId={selectedAccount.id}
+              posts={posts
+                .filter((post) => post.connectionId === selectedAccount.id)
+                .map((post) => ({ id: post.id, text: post.text }))}
             />
           ) : null}
           {validRange && headline?.daily.length ? (

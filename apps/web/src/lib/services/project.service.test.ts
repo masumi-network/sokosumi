@@ -15,6 +15,9 @@ const coreClientMock = {
   getProjectsByIdSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark: vi.fn(),
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery: vi.fn(),
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh: vi.fn(),
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
   getProjectsByIdSocialPostsByPostId: vi.fn(),
@@ -564,6 +567,148 @@ describe("project.service", () => {
         projectService.listSocialAccountStatistics("project-1"),
       ).rejects.toThrow("Denied");
     });
+
+    it("reads X audience, benchmark, and discovery through the selected account", async () => {
+      const { projectService } = await import("./project.service");
+      const author = {
+        id: "author-1",
+        name: "Ada",
+        username: "ada",
+        avatarUrl: "https://images.test/ada.jpg",
+        followersCount: 90,
+      };
+      const publicPost = {
+        id: "cached-post-1",
+        externalId: "123",
+        text: "Public launch post",
+        publishedAt: new Date("2026-10-01T12:00:00Z"),
+        url: "https://x.com/ada/status/123",
+        media: [
+          {
+            kind: "image",
+            url: "https://images.test/launch.jpg",
+            thumbnailUrl: null,
+          },
+        ],
+        metrics: {
+          views: 0,
+          impressions: null,
+          likes: 5,
+          comments: 2,
+          shares: 1,
+          saves: null,
+        },
+      };
+      const audience = {
+        contacts: [author],
+        posts: [{ author, post: publicPost }],
+        nextCursor: "next-audience",
+        coverage: "Latest mentions",
+      };
+      const benchmark = {
+        profile: author,
+        posts: [publicPost],
+        summary: { postCount: 1, views: 0, impressions: null, interactions: 8 },
+      };
+      const discovery = {
+        posts: audience.posts,
+        nextCursor: "next-discovery",
+        coverage: "Recent public posts",
+      };
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience.mockResolvedValue(
+        { data: audience },
+      );
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark.mockResolvedValue(
+        { data: benchmark },
+      );
+      coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery.mockResolvedValue(
+        { data: discovery },
+      );
+      expect(
+        await projectService.listSocialStatisticsAudience(
+          "project-1",
+          "connection-1",
+          {
+            kind: "likers",
+            postId: "cached-post-1",
+            cursor: "audience-cursor",
+            limit: 20,
+          },
+        ),
+      ).toBe(audience);
+      expect(
+        await projectService.getSocialStatisticsBenchmark(
+          "project-1",
+          "connection-1",
+          "launch",
+        ),
+      ).toBe(benchmark);
+      expect(
+        await projectService.listSocialStatisticsDiscovery(
+          "project-1",
+          "connection-1",
+          { topic: "launch", cursor: "discovery-cursor" },
+        ),
+      ).toBe(discovery);
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+      ).toHaveBeenCalledWith("project-1", "connection-1", {
+        kind: "likers",
+        postId: "cached-post-1",
+        cursor: "audience-cursor",
+        limit: 20,
+      });
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+      ).toHaveBeenCalledWith("project-1", "connection-1", "launch");
+      expect(
+        coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
+      ).toHaveBeenCalledWith("project-1", "connection-1", {
+        topic: "launch",
+        cursor: "discovery-cursor",
+      });
+    });
+
+    it.each(["audience", "benchmark", "discovery"] as const)(
+      "preserves Core authorization errors for X %s",
+      async (resource) => {
+        const { CoreApiRequestError } = await import(
+          "@/lib/clients/core.client"
+        );
+        const { projectService } = await import("./project.service");
+        const error = new CoreApiRequestError("Forbidden", { status: 403 });
+        const reads = {
+          audience: () =>
+            projectService.listSocialStatisticsAudience(
+              "project-1",
+              "connection-1",
+              { kind: "followers" },
+            ),
+          benchmark: () =>
+            projectService.getSocialStatisticsBenchmark(
+              "project-1",
+              "connection-1",
+              "ada",
+            ),
+          discovery: () =>
+            projectService.listSocialStatisticsDiscovery(
+              "project-1",
+              "connection-1",
+              { topic: "launch" },
+            ),
+        };
+        const clients = {
+          audience:
+            coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+          benchmark:
+            coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+          discovery:
+            coreClientMock.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
+        };
+        clients[resource].mockRejectedValue(error);
+        await expect(reads[resource]()).rejects.toBe(error);
+      },
+    );
 
     it("syncs first or continued account history pages through Core and propagates failures", async () => {
       const data = { account: {}, importedPostCount: 10 };

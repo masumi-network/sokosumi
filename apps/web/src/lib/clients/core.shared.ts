@@ -53,6 +53,8 @@ import type {
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData,
   GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
   GetProjectsByIdSocialConnectionsStatisticsData,
   GetProjectsByIdSocialPostsData,
@@ -272,6 +274,9 @@ import {
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+  getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery as coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
@@ -3372,6 +3377,62 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience(
+    id: string,
+    connectionId: string,
+    query?: GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Social audience",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark(
+    id: string,
+    connectionId: string,
+    username: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark({
+          client,
+          path: { id, connectionId },
+          query: { username },
+          cache: "no-store",
+        }),
+      "Failed to fetch Social benchmark",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery(
+    id: string,
+    connectionId: string,
+    query: NonNullable<
+      GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData["query"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery({
+          client,
+          path: { id, connectionId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch public Social posts",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh(
     id: string,
     connectionId: string,
@@ -5980,6 +6041,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
     getProjectsByIdSocialConnectionsStatistics,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark,
+    getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
     getProjectsByIdSocialPostsByPostId,

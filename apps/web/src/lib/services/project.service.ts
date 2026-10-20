@@ -5,6 +5,8 @@ import type {
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData,
+  GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
@@ -348,6 +350,50 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialStatisticsAudience(
+    projectId: string,
+    connectionId: string,
+    params?: GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData["query"],
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience(
+        projectId,
+        connectionId,
+        params,
+      )
+    ).data;
+  }
+
+  async function getSocialStatisticsBenchmark(
+    projectId: string,
+    connectionId: string,
+    username: string,
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmark(
+        projectId,
+        connectionId,
+        username,
+      )
+    ).data;
+  }
+
+  async function listSocialStatisticsDiscovery(
+    projectId: string,
+    connectionId: string,
+    params: NonNullable<
+      GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData["query"]
+    >,
+  ) {
+    return (
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscovery(
+        projectId,
+        connectionId,
+        params,
+      )
+    ).data;
+  }
+
   async function listSocialPostStatistics(
     projectId: string,
     params: {
@@ -609,6 +655,9 @@ export const projectService = (() => {
     listSocialPosts,
     listSocialPostStatistics,
     listSocialAccountStatistics,
+    listSocialStatisticsAudience,
+    getSocialStatisticsBenchmark,
+    listSocialStatisticsDiscovery,
     refreshSocialAccountStatistics,
     refreshSocialPostStatistics,
     getSocialPost,
