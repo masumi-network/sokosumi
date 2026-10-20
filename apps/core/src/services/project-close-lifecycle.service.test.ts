@@ -149,6 +149,7 @@ function recoverableProject(
 describe("project close lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socialPostUpdateManyMock.mockReset().mockResolvedValue({ count: 0 });
     lockCalendarScopeMock.mockResolvedValue(true);
     archiveProjectSokoBotsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
@@ -186,7 +187,13 @@ describe("project close lifecycle", () => {
 
     const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
     expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
-      where: { projectId: PROJECT_ID, status: "SCHEDULED" },
+      where: {
+        projectId: PROJECT_ID,
+        OR: [
+          { status: "SCHEDULED" },
+          { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+        ],
+      },
       data: {
         status: "CANCELED",
         canceledAt: created.cutoffAt,
@@ -218,6 +225,107 @@ describe("project close lifecycle", () => {
       cutoffAt: created.cutoffAt.toISOString(),
       projectRevision: 5,
     });
+  });
+
+  it("cancels scheduled and timed approval posts while preserving all other posts", async () => {
+    const future = new Date(CUTOFF.getTime() + 60_000);
+    const posts = [
+      { status: "SCHEDULED", scheduledAt: future, cancel: true },
+      { status: "SCHEDULED", scheduledAt: CUTOFF, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: future, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: CUTOFF, cancel: true },
+      { status: "NEEDS_APPROVAL", scheduledAt: null, cancel: false },
+      { status: "DRAFT", scheduledAt: null, cancel: false },
+      { status: "DRAFT", scheduledAt: future, cancel: false },
+      { status: "PUBLISHED", scheduledAt: CUTOFF, cancel: false },
+      { status: "PUBLISHING", scheduledAt: CUTOFF, cancel: false },
+      { status: "FAILED", scheduledAt: CUTOFF, cancel: false },
+      { status: "MISSED", scheduledAt: CUTOFF, cancel: false },
+      { status: "CANCELED", scheduledAt: CUTOFF, cancel: false },
+    ].map((post) => ({
+      ...post,
+      originalStatus: post.status,
+      projectId: PROJECT_ID,
+      revision: 2,
+      canceledAt: null as Date | null,
+    }));
+    posts.push({
+      status: "SCHEDULED",
+      originalStatus: "SCHEDULED",
+      scheduledAt: future,
+      cancel: false,
+      projectId: "another-project",
+      revision: 2,
+      canceledAt: null,
+    });
+    socialPostUpdateManyMock.mockImplementation(async ({ where, data }) => {
+      let count = 0;
+      for (const post of posts) {
+        if (
+          post.projectId !== where.projectId ||
+          !where.OR.some(
+            (condition: { status: string; scheduledAt?: { not: null } }) =>
+              post.status === condition.status &&
+              (!condition.scheduledAt || post.scheduledAt !== null),
+          )
+        )
+          continue;
+        post.status = data.status;
+        post.canceledAt = data.canceledAt;
+        post.revision += data.revision.increment;
+        count += 1;
+      }
+      return { count };
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+    }));
+
+    const result = await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 4,
+    });
+
+    for (const post of posts) {
+      expect(post.status).toBe(post.cancel ? "CANCELED" : post.originalStatus);
+      expect(post.revision).toBe(post.cancel ? 3 : 2);
+      expect(post.canceledAt).toEqual(
+        post.cancel ? new Date(result.cutoffAt) : null,
+      );
+    }
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not continue close when bulk cancellation fails", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    socialPostUpdateManyMock.mockRejectedValueOnce(
+      new Error("cancellation failed"),
+    );
+
+    await expect(
+      requestProjectClose(scope, {
+        operationId: CLOSE_ID,
+        expectedProjectRevision: 4,
+      }),
+    ).rejects.toThrow("cancellation failed");
+    expect(retireSocialConnectionsMock).not.toHaveBeenCalled();
+    expect(projectCloseOperationCreateMock).not.toHaveBeenCalled();
   });
 
   it("archives the Project's Soko Bots in the close and republishes their mentions after it", async () => {

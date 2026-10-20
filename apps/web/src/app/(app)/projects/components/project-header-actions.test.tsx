@@ -1,11 +1,19 @@
 import { render, screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
+import en from "@/messages/en.json";
 
 vi.mock("next-intl/server", () => ({
-  getTranslations: async (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
+  getTranslations:
+    async (namespace: string) => (key: string, values?: { count: number }) =>
+      key === "close.dialog.scheduledPostsWarning"
+        ? createTranslator({ locale: "en", messages: en.App.Projects.Detail })(
+            "close.dialog.scheduledPostsWarning",
+            values,
+          )
+        : `${namespace}.${key}`,
 }));
 
 vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
@@ -67,19 +75,23 @@ describe("ProjectHeaderActions", () => {
     expect(screen.getByTestId("menu")).toHaveAttribute("data-closed", "true");
   });
 
-  it("passes scheduled-post warning copy when any will be canceled", async () => {
-    render(
-      await ProjectHeaderActions({
-        projectId: "p1",
-        projectRevision: 3,
-        scheduledSocialPostCount: 3,
-      }),
-    );
+  it.each([
+    [1, "1 scheduled post will be canceled."],
+    [3, "3 scheduled posts will be canceled."],
+  ] as const)(
+    "passes a warning for %i scheduled posts",
+    async (count, warning) => {
+      render(
+        await ProjectHeaderActions({
+          projectId: "p1",
+          projectRevision: 3,
+          scheduledSocialPostCount: count,
+        }),
+      );
 
-    expect(screen.getByTestId("menu")).toHaveTextContent(
-      "App.Projects.Detail.close.dialog.scheduledPostsWarning",
-    );
-  });
+      expect(screen.getByTestId("menu")).toHaveTextContent(warning);
+    },
+  );
 
   it("treats a closed project as closed", async () => {
     render(

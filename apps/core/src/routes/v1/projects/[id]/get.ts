@@ -10,6 +10,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
+import { SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE } from "@/services/project-close-lifecycle.service";
 
 const paramsSchema = z.object({
   id: z
@@ -53,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           projectId: id,
           workspaceId: workspaceContext.workspaceId,
-          status: "SCHEDULED",
+          ...SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE,
         },
       }),
     ]);

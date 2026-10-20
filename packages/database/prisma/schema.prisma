@@ -882,7 +882,7 @@ model SocialPostPublishAttempt {
   actorUserId     String?
   startedAt       DateTime  @default(now())
   finishedAt      DateTime?
-  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked" | "project_closed"
   outcome         String?
   /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
   errorKind       String?

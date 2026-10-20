@@ -19164,7 +19164,7 @@ export const ProjectSchema = {
             type: 'integer',
             minimum: 0,
             default: 0,
-            description: 'Scheduled Social posts this Project still holds. Close cancels them.',
+            description: 'Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.',
             example: 0
         },
         closingAt: {
@@ -23243,6 +23243,7 @@ export const SocialPostLastAttemptSchema = {
                 'missed',
                 'connection_inactive',
                 'authorization_revoked',
+                'project_closed',
                 null
             ]
         },

@@ -132,6 +132,13 @@ function recoveryEventKey(operationId: string): string {
   return `project-close:recovery:${operationId}`;
 }
 
+export const SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE = {
+  OR: [
+    { status: "SCHEDULED" },
+    { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+  ],
+} satisfies Prisma.SocialPostWhereInput;
+
 /** Scheduled posts would still publish after connections retire. Drafts stay. */
 async function cancelScheduledSocialPostsForClose(
   tx: Prisma.TransactionClient,
@@ -139,7 +146,7 @@ async function cancelScheduledSocialPostsForClose(
   canceledAt: Date,
 ): Promise<void> {
   await tx.socialPost.updateMany({
-    where: { projectId, status: "SCHEDULED" },
+    where: { projectId, ...SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE },
     data: {
       status: "CANCELED",
       canceledAt,

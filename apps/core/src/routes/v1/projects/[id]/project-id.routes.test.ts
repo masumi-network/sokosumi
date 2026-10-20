@@ -195,7 +195,10 @@ describe("GET /projects/{id}", () => {
       where: {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
-        status: "SCHEDULED",
+        OR: [
+          { status: "SCHEDULED" },
+          { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+        ],
       },
     });
   });

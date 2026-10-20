@@ -5603,7 +5603,7 @@ export type Project = {
      */
     projectRevision?: number;
     /**
-     * Scheduled Social posts this Project still holds. Close cancels them.
+     * Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.
      */
     scheduledSocialPostCount?: number;
     /**
@@ -6767,7 +6767,7 @@ export type SocialPostStatistics = {
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
-    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | 'project_closed' | null;
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;

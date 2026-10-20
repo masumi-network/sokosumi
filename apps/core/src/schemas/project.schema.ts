@@ -207,7 +207,7 @@ export const projectSchema = z
       .default(0)
       .openapi({
         description:
-          "Scheduled Social posts this Project still holds. Close cancels them.",
+          "Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.",
         example: 0,
       }),
     closingAt: dateTimeSchema.nullable().default(null).openapi({
