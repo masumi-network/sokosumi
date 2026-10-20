@@ -175,7 +175,7 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks events TASK_I
 Task ids accept a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through `GET /v1/tasks/:id` before other calls.
 `tasks create` and `tasks update` take `--name`, `--description` or `--description-file`, `--priority`, `--project-id`, and one assignee: `--coworker-id` or `--assignee-user-id`. `tasks update --unassign` and `--clear-project` remove the assignee or project.
 `tasks link TASK_ID --relation RELATION --to OTHER_TASK_ID [--note TEXT]` links Tasks; `tasks links TASK_ID` lists them.
-`tasks unlink` removes a link and `tasks relink` replaces one by deleting it and creating the new link, because Core's link PATCH cannot reverse direction. `tasks archive TASK_ID` archives a Task.
+`tasks unlink` removes a link and `tasks relink` replaces one by deleting it and creating the new link, because Core's link PATCH cannot reverse direction. `tasks archive TASK_ID` archives a Task; Core then returns `404` for every read of it, so finish normal work with `COMPLETED` or `CANCELED` instead.
 `tasks list` follows Core's cursor pages, reading all of them unless `--limit` is set. `--sort updatedAt` and `--sort priority` require `--limit`. It filters by `--project-id`, `--assignee-user-id`, and `--sort createdAt|updatedAt|priority`.
 
 [VERIFIED: `src/cli/index.ts`]

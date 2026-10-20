@@ -172,13 +172,13 @@ sokosumi --preprod tasks list --organization-slug WORKSPACE_SLUG --project-id PR
 sokosumi --preprod tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
 ```
 
-- The returned `task.identifier` is the ticket name; use it in branches and PR descriptions.
+- The returned `task.identifier` is the ticket name; use it in branches and PR descriptions. Only a Task in a project gets one (the project's prefix plus a number); without `--project-id` it is `null`, so use the UUID.
 - `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
 - `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
 - `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
 - Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link.
 - `tasks list` reads every page unless `--limit` is set. `--sort updatedAt` or `--sort priority` always needs `--limit` (Core's cursor can skip or duplicate while the list drains). Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
-- `tasks archive` closes a duplicate or mistaken Task. The Task stays readable.
+- Finish a Task with `COMPLETED` or `CANCELED`; it stays readable. `tasks archive` removes a duplicate or mistaken Task: after it, `tasks get`, `tasks events`, and every other read of that Task return `404`, so read what you need first.
 - The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
 - Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 
