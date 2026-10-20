@@ -8415,7 +8415,14 @@
       "showLess": "Mostrar menos",
       "previousPosition": "Posición anterior",
       "newPosition": "Nueva posición",
-      "anyOption": "Cualquier opción"
+      "anyOption": "Cualquier opción",
+      "dnd": {
+        "instructions": "Para mover una fila o columna, arrastra su asa, o enfócala y pulsa las flechas.",
+        "pickedUp": "{item} seleccionado.",
+        "over": "{item} está sobre {target}.",
+        "dropped": "{item} se movió al lugar de {target}.",
+        "cancelled": "Se canceló mover {item}."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",

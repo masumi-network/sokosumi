@@ -8415,7 +8415,14 @@
       "showLess": "Weniger anzeigen",
       "previousPosition": "Vorherige Position",
       "newPosition": "Neue Position",
-      "anyOption": "Beliebige Option"
+      "anyOption": "Beliebige Option",
+      "dnd": {
+        "instructions": "Um eine Zeile oder Spalte zu verschieben, den Griff ziehen oder ihn fokussieren und die Pfeiltasten drücken.",
+        "pickedUp": "{item} aufgenommen.",
+        "over": "{item} ist über {target}.",
+        "dropped": "{item} an die Stelle von {target} verschoben.",
+        "cancelled": "Verschieben von {item} abgebrochen."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

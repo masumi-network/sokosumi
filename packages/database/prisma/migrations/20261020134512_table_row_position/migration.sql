@@ -1,7 +1,7 @@
 -- Manual row order. Existing rows keep their current order (by id); rows
 -- inserted later default to their insert time in epoch seconds, which sorts
 -- after every backfilled position.
-ALTER TABLE "table_row" ADD COLUMN "position" DOUBLE PRECISION NOT NULL DEFAULT EXTRACT(epoch FROM clock_timestamp());
+ALTER TABLE "table_row" ADD COLUMN "position" DOUBLE PRECISION NOT NULL DEFAULT 0;
 
 UPDATE "table_row" AS r
 SET "position" = ordered.n
@@ -10,6 +10,8 @@ FROM (
   FROM "table_row"
 ) AS ordered
 WHERE r."id" = ordered."id";
+
+ALTER TABLE "table_row" ALTER COLUMN "position" SET DEFAULT EXTRACT(epoch FROM clock_timestamp());
 
 DROP INDEX "table_row_tableId_archivedAt_id_idx";
 CREATE INDEX "table_row_tableId_archivedAt_position_id_idx" ON "table_row"("tableId", "archivedAt", "position", "id");

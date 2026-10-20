@@ -1091,3 +1091,22 @@ it("R8: a tag column filters by picking one of its options", () => {
     Object.assign(f.column, { type: "text", options: [] });
   }
 });
+
+it("R9: a move waits for the one in flight, and a failed move refreshes", async () => {
+  f.shown = [f.row, secondRow];
+  let fail: (error: unknown) => void = () => {};
+  f.batch.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
+  render(<TableEditor id={f.column.tableId} />);
+  const [first] = screen.getAllByRole("button", { name: "reorderRow" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
+  f.invalidate.mockClear();
+  fail({ error: "Conflict" });
+  await waitFor(() =>
+    expect(f.invalidate).toHaveBeenCalledWith({
+      queryKey: ["table-rows", f.column.tableId],
+    }),
+  );
+  expect(f.batch).toHaveBeenCalledTimes(1);
+});

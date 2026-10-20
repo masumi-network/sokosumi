@@ -57,9 +57,13 @@ describe("history text", () => {
       no: "No",
       position: "New position",
     };
-    expect(tableHistoryText({ value: { position: 1.5 } }, labels)).toBe(
+    expect(tableHistoryText({ value: { afterRowId: null } }, labels)).toBe(
       "New position",
     );
+    // An inserted row carries its position too; it is still a row.
+    expect(
+      tableHistoryText({ value: { values: {}, position: 3 } }, labels),
+    ).toBe("Row");
     expect(tableHistoryText({ value: { archived: true } }, labels)).toBe(
       "Archived",
     );

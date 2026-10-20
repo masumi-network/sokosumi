@@ -8415,7 +8415,14 @@
       "showLess": "Show less",
       "previousPosition": "Previous position",
       "newPosition": "New position",
-      "anyOption": "Any option"
+      "anyOption": "Any option",
+      "dnd": {
+        "instructions": "To move a row or column, drag its handle, or focus the handle and press the arrow keys.",
+        "pickedUp": "Picked up {item}.",
+        "over": "{item} is over {target}.",
+        "dropped": "{item} moved to the place of {target}.",
+        "cancelled": "Moving {item} was cancelled."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

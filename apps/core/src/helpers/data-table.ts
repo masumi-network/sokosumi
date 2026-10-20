@@ -688,6 +688,27 @@ async function renumberRowPositions(
   `);
 }
 
+/** The row directly before `rowId` in table order, or null when it is first. */
+async function predecessorOf(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+  rowId: string,
+): Promise<string | null> {
+  const [row] = await tx.$queryRaw<Array<{ id: string }>>(PrismaRaw.sql`
+    SELECT p."id"::text FROM "table_row" AS p, "table_row" AS r
+    WHERE r."id" = ${rowId}::uuid AND p."tableId" = r."tableId"
+      AND p."tableId" = ${tableId}::uuid
+      AND (p."position", p."id") < (r."position", r."id")
+    ORDER BY p."position" DESC, p."id" DESC LIMIT 1
+  `);
+  return row?.id ?? null;
+}
+
+function isRowMove(change: { after: unknown }): boolean {
+  const value = (change.after as { value?: unknown } | null)?.value;
+  return !!value && typeof value === "object" && "afterRowId" in value;
+}
+
 /** A position that places `rowId` directly after `afterRowId`, or first when null. */
 async function positionAfter(
   tx: Prisma.TransactionClient,
@@ -722,7 +743,14 @@ async function positionAfter(
     select: { position: true },
   });
   if (!lower) return upper ? upper.position - 1 : 0;
-  if (!upper) return lower.position + 1;
+  if (!upper) {
+    // Last: at least the current insert time, so a row inserted afterwards
+    // (whose position defaults to its insert time) still lands below it.
+    const [{ now }] = await tx.$queryRaw<Array<{ now: number }>>(
+      PrismaRaw.sql`SELECT EXTRACT(epoch FROM clock_timestamp())::double precision AS now`,
+    );
+    return Math.max(now, lower.position + 0.001);
+  }
   const middle = (lower.position + upper.position) / 2;
   if (lower.position < middle && middle < upper.position) return middle;
   // Equal neighbours or exhausted float precision: spread positions and retry.
@@ -829,19 +857,16 @@ export async function batchTableRows(
         validateTableValues(columns, values, evidence);
         let position: number | undefined;
         if (patch.afterRowId !== undefined) {
-          // Read afresh: an earlier move in this batch may have renumbered rows.
-          const { position: before } = await tx.tableRow.findUniqueOrThrow({
-            where: { id: previous.id },
-            select: { position: true },
-          });
+          // Audited as neighbours, not positions: a renumber rewrites positions.
+          const before = await predecessorOf(tx, id, previous.id);
           position = await positionAfter(tx, id, previous.id, patch.afterRowId);
           audit.push(
             changeData(
               scopedActor,
               id,
               batchId,
-              { position: before },
-              { position },
+              { afterRowId: before },
+              { afterRowId: patch.afterRowId },
               previous.id,
             ),
           );
@@ -1061,7 +1086,9 @@ export async function undoTableBatch(
       for (const row of currentRows) {
         const rowChanges = changes.filter((item) => item.rowId === row.id);
         const earliest = rowChanges[rowChanges.length - 1].sequence;
-        const later = await tx.tableChange.findFirst({
+        const undoesMove = rowChanges.some(isRowMove);
+        const laterChanges = await tx.tableChange.findMany({
+          select: { after: true },
           where: {
             tableId: id,
             rowId: row.id,
@@ -1083,14 +1110,15 @@ export async function undoTableBatch(
               : {}),
           },
         });
-        if (later)
+        // A later move changes no values, so it only blocks undoing a move.
+        if (laterChanges.some((change) => undoesMove || !isRowMove(change)))
           throw conflict(
             "A value in this batch changed later. Nothing was undone.",
           );
         const values = tableValuesSchema.parse(row.values);
         const evidence = tableEvidenceSchema.parse(row.evidence);
         let archivedAt = row.archivedAt;
-        let position = row.position;
+        let moveAfter: string | null | undefined;
         for (const item of rowChanges) {
           const before = item.before as { value: unknown };
           const after = item.after as { value: unknown };
@@ -1113,11 +1141,9 @@ export async function undoTableBatch(
             values[item.columnId] = previous.value;
             evidence[item.columnId] = previous.evidence;
           } else if (before.value === null) archivedAt = new Date();
-          else if (
-            typeof before.value === "object" &&
-            "position" in before.value
-          )
-            position = (before.value as { position: number }).position;
+          else if (isRowMove(item))
+            moveAfter = (before.value as { afterRowId: string | null })
+              .afterRowId;
           else
             archivedAt = (before.value as { archived: boolean }).archived
               ? new Date()
@@ -1144,7 +1170,10 @@ export async function undoTableBatch(
                 values,
                 evidence,
                 archivedAt,
-                position,
+                position:
+                  moveAfter === undefined
+                    ? undefined
+                    : await positionAfter(tx, id, row.id, moveAfter),
                 version: { increment: 1 },
               },
             }),

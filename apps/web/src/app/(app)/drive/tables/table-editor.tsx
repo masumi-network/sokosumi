@@ -1,5 +1,6 @@
 "use client";
 import {
+  type Announcements,
   type CollisionDetection,
   closestCenter,
   DndContext,
@@ -34,6 +35,7 @@ import { useQueryState } from "nuqs";
 import {
   type KeyboardEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -137,11 +139,17 @@ function Reorderable({
   const id = `${item.kind}:${item.id}`;
   const draggable = useDraggable({ id, data: item, disabled });
   const droppable = useDroppable({ id, data: item, disabled });
-  return children({
-    ref(node) {
-      draggable.setNodeRef(node);
-      droppable.setNodeRef(node);
+  const { setNodeRef: setDragRef } = draggable;
+  const { setNodeRef: setDropRef } = droppable;
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      setDragRef(node);
+      setDropRef(node);
     },
+    [setDragRef, setDropRef],
+  );
+  return children({
+    ref,
     listeners: draggable.listeners,
     isDragging: draggable.isDragging,
     isOver: droppable.isOver && !draggable.isDragging,
@@ -517,6 +525,36 @@ function TableWorkspace({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const [dragLabel, setDragLabel] = useState<string | null>(null);
+  const moveInFlight = useRef(false);
+  /**
+   * One move at a time: the next one needs the versions this one returns, so
+   * it waits for the refresh. A failed move refreshes, undoing its preview.
+   */
+  async function runMove(
+    slot: string,
+    preview: () => void,
+    send: () => Promise<unknown>,
+  ) {
+    if (moveInFlight.current || pending) return;
+    if (retryAction) {
+      setError(t("errors.unresolved"));
+      return;
+    }
+    moveInFlight.current = true;
+    preview();
+    try {
+      await run(async () => {
+        try {
+          await send();
+        } catch (error) {
+          await refresh();
+          throw error;
+        }
+      }, slot);
+    } finally {
+      moveInFlight.current = false;
+    }
+  }
   async function handleColumnMove(columnId: string, overId: string) {
     const ids = table.columns.map((column) => column.id);
     const order = moveIdToSlot(ids, columnId, overId);
@@ -524,21 +562,23 @@ function TableWorkspace({
     const next = order.flatMap(
       (id) => table.columns.find((column) => column.id === id) ?? [],
     );
-    cache.setQueriesData<DataTable>(
-      { queryKey: ["data-table", table.id] },
-      (previous) => previous && { ...previous, columns: next },
-    );
-    await run(
+    await runMove(
+      "reorder",
+      () =>
+        cache.setQueriesData<DataTable>(
+          { queryKey: ["data-table", table.id] },
+          (previous) => previous && { ...previous, columns: next },
+        ),
       () =>
         mutate("reorder", { version: table.version, columns: next }, (body) =>
           dataTableService.update(table.id, body),
         ),
-      "reorder",
     );
   }
+  /** Steps among the visible columns, so a hidden one never absorbs a move. */
   function handleColumnStep(columnId: string, step: -1 | 1) {
-    const index = table.columns.findIndex((column) => column.id === columnId);
-    const neighbour = table.columns[index + step];
+    const index = columns.findIndex((column) => column.id === columnId);
+    const neighbour = columns[index + step];
     if (neighbour) void handleColumnMove(columnId, neighbour.id);
   }
   async function handleRowMove(rowId: string, overId: string) {
@@ -551,24 +591,25 @@ function TableWorkspace({
     // The page cursor is the last row of the page before, so a row dropped
     // first on a later page lands right after it, not at the top of the table.
     const afterRowId = index > 0 ? order[index - 1] : (cursor ?? null);
-    cache.setQueryData<typeof rows.data>(
-      ["table-rows", table.id, definition, cursor, archivedRows],
-      (previous) =>
-        previous && {
-          ...previous,
-          rows: order.flatMap(
-            (id) => previous.rows.find((item) => item.id === id) ?? [],
-          ),
-        },
-    );
-    await run(
+    await runMove(
+      "move-row",
+      () =>
+        cache.setQueryData<typeof rows.data>(
+          ["table-rows", table.id, definition, cursor, archivedRows],
+          (previous) =>
+            previous && {
+              ...previous,
+              rows: order.flatMap(
+                (id) => previous.rows.find((item) => item.id === id) ?? [],
+              ),
+            },
+        ),
       () =>
         mutate(
           "move-row",
           { patch: [{ id: row.id, version: row.version, afterRowId }] },
           (body) => dataTableService.batch(table.id, body),
         ),
-      "move-row",
     );
   }
   function handleRowStep(rowId: string, step: -1 | 1) {
@@ -576,19 +617,40 @@ function TableWorkspace({
     const neighbour = page[page.findIndex((row) => row.id === rowId) + step];
     if (neighbour) void handleRowMove(rowId, neighbour.id);
   }
-  function handleDragStart({ active }: DragStartEvent) {
-    const item = active.data.current as ReorderItem | undefined;
+  /** What a person calls the item: a column name or the row's first value. */
+  function reorderLabel(data: unknown): string {
+    const item = data as ReorderItem | undefined;
     if (item?.kind === "column")
-      setDragLabel(
-        table.columns.find((column) => column.id === item.id)?.name ?? null,
+      return (
+        table.columns.find((column) => column.id === item.id)?.name ??
+        t("unknown")
       );
-    else if (item?.kind === "row") {
-      const row = displayedRows.find((row) => row.id === item.id);
-      const first = columns[0];
-      setDragLabel(
-        (row && first && tableValueText(row.values[first.id])) || t("row"),
-      );
-    }
+    const row = displayedRows.find((row) => row.id === item?.id);
+    const first = columns[0];
+    return (row && first && tableValueText(row.values[first.id])) || t("row");
+  }
+  const announcements: Announcements = {
+    onDragStart: ({ active }) =>
+      t("dnd.pickedUp", { item: reorderLabel(active.data.current) }),
+    onDragOver: ({ active, over }) =>
+      over
+        ? t("dnd.over", {
+            item: reorderLabel(active.data.current),
+            target: reorderLabel(over.data.current),
+          })
+        : undefined,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? t("dnd.dropped", {
+            item: reorderLabel(active.data.current),
+            target: reorderLabel(over.data.current),
+          })
+        : t("dnd.cancelled", { item: reorderLabel(active.data.current) }),
+    onDragCancel: ({ active }) =>
+      t("dnd.cancelled", { item: reorderLabel(active.data.current) }),
+  };
+  function handleDragStart({ active }: DragStartEvent) {
+    setDragLabel(reorderLabel(active.data.current));
   }
   function handleDragEnd({ active, over }: DragEndEvent) {
     setDragLabel(null);
@@ -836,6 +898,10 @@ function TableWorkspace({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDragLabel(null)}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: { draggable: t("dnd.instructions") },
+          }}
         >
           {/* Bounded to the viewport on both axes, so the horizontal scrollbar
           and the sticky header stay in reach on a tall table. */}
@@ -874,7 +940,7 @@ function TableWorkspace({
                   <Reorderable
                     key={column.id}
                     item={{ kind: "column", id: column.id }}
-                    disabled={!!table.archivedAt}
+                    disabled={!!table.archivedAt || pending}
                   >
                     {({ ref, listeners, isDragging, isOver }) => (
                       <TableHead
@@ -971,7 +1037,7 @@ function TableWorkspace({
                 <Reorderable
                   key={row.id}
                   item={{ kind: "row", id: row.id }}
-                  disabled={!canMoveRows}
+                  disabled={!canMoveRows || pending}
                 >
                   {({ ref, listeners, isDragging, isOver }) => (
                     <TableRowShell

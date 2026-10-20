@@ -348,7 +348,7 @@ export async function fetchDriveRecentsPage(input: {
     hasMore: boolean;
     nextCursor: string | null;
   }>;
-  /** Already filtered by the search query. */
+  /** Newest first and already filtered by the search query. */
   fetchTables?: DriveRecentsSource;
 }): Promise<DriveRecentsPageResult> {
   const searchQuery = input.searchQuery?.trim() ?? "";
@@ -442,13 +442,31 @@ export async function fetchDriveRecentsPage(input: {
         nextCursor: batch.nextCursor,
       };
     },
-    ...(input.fetchTables ? [input.fetchTables] : []),
   ];
   const sources: Array<{
     fetch: DriveRecentsSource;
     cursor?: string;
     hasMore: boolean;
+    newestFirst?: boolean;
   }> = fetchers.map((fetch) => ({ fetch, hasMore: true }));
+  if (input.fetchTables)
+    sources.push({
+      fetch: input.fetchTables,
+      hasMore: true,
+      newestFirst: true,
+    });
+
+  /** A newest-first batch that ends older than a full pool has nothing left to add. */
+  function exhaustsPool(items: DriveRecentsItem[]): boolean {
+    const oldestKept = pool[pool.length - 1];
+    const last = items[items.length - 1];
+    return (
+      pool.length >= poolCap &&
+      !!oldestKept &&
+      !!last &&
+      Date.parse(last.activityAt) < Date.parse(oldestKept.activityAt)
+    );
+  }
 
   while (sources.some((source) => source.hasMore)) {
     const batches = await Promise.all(
@@ -461,7 +479,10 @@ export async function fetchDriveRecentsPage(input: {
     batches.forEach((batch, index) => {
       if (!batch) return;
       addItemsToPool(batch.items);
-      sources[index].hasMore = batch.hasMore;
+      pool.sort(compareDriveRecentsItems);
+      sources[index].hasMore =
+        batch.hasMore &&
+        !(sources[index].newestFirst && exhaustsPool(batch.items));
       sources[index].cursor = batch.nextCursor ?? undefined;
     });
   }

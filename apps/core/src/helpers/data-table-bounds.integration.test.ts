@@ -392,11 +392,76 @@ describe.runIf(enabled)("table bounds and fences", () => {
     ).rejects.toThrow("changed later");
     const undoable = await move("b", null);
     expect(await order()).toEqual(["b", "d", "c", "a"]);
+    // Positions get rewritten by a renumber; undo re-places the row after its
+    // previous neighbour instead of restoring a stale position.
+    await prisma.tableRow.updateMany({
+      where: { tableId: table.id },
+      data: { position: 7 },
+    });
+    // Equal positions fall back to id order; a and b leave no room, so this
+    // move renumbers the table.
+    await move("c", "a");
+    expect(await order()).toEqual(["a", "c", "b", "d"]);
     await undoTableBatch(actor, table.id, {
       key: randomUUID(),
       batchId: undoable.batchId,
     });
-    expect(await order()).toEqual(["d", "b", "c", "a"]);
+    // b was after d before it moved to the top.
+    expect(await order()).toEqual(["a", "c", "d", "b"]);
+
+    // A later move changes no values, so it does not block undoing an edit.
+    const byNameNow = await rows();
+    const edit = await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          {
+            id: byNameNow.a.id,
+            version: byNameNow.a.version,
+            values: { [columnId]: "a2" },
+          },
+        ],
+      }),
+    );
+    const edited = (await rows()).a2;
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          {
+            id: edited.id,
+            version: edited.version,
+            afterRowId: byNameNow.d.id,
+          },
+        ],
+      }),
+    );
+    await undoTableBatch(actor, table.id, {
+      key: randomUUID(),
+      batchId: edit.batchId,
+    });
+    expect(await order()).toEqual(["c", "d", "a", "b"]);
+
+    // A row moved after one inserted just now (whose position is its insert
+    // time) still sits above the next insert.
+    async function insert(name: string) {
+      await batchTableRows(
+        actor,
+        table.id,
+        tableBatchSchema.parse({
+          key: randomUUID(),
+          insert: [{ values: { [columnId]: name } }],
+        }),
+      );
+    }
+    await insert("e");
+    await move("a", "e");
+    await insert("f");
+    expect(await order()).toEqual(["c", "d", "b", "e", "a", "f"]);
   });
 });
 

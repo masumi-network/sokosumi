@@ -148,10 +148,11 @@ export function tableHistoryText(
   if (input === null || input === undefined) return labels.unknown;
   if (typeof input === "object" && "value" in input)
     return tableHistoryText(input.value, labels);
-  if (typeof input === "object" && "position" in input) return labels.position;
   if (typeof input === "object" && "archived" in input)
     return input.archived ? labels.archived : labels.active;
   if (typeof input === "object" && "values" in input) return labels.row;
+  if (typeof input === "object" && "afterRowId" in input)
+    return labels.position;
   if (Array.isArray(input))
     return input.map((value) => tableHistoryText(value, labels)).join("; ");
   if (typeof input === "boolean") return input ? labels.yes : labels.no;
