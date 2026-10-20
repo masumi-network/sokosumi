@@ -16,6 +16,7 @@ const {
   roomFindFirstMock,
   roomUpdateManyMock,
   queryRawMock,
+  sokoBotFindUniqueMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
@@ -24,6 +25,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomUpdateManyMock: vi.fn(),
   queryRawMock: vi.fn(),
+  sokoBotFindUniqueMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -46,6 +48,7 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock, updateMany: roomUpdateManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
+  sokoBot: { findUnique: sokoBotFindUniqueMock },
   $queryRaw: queryRawMock,
 };
 
@@ -120,6 +123,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   roomUpdateManyMock.mockResolvedValue({ count: 1 });
+  sokoBotFindUniqueMock.mockResolvedValue(null);
   publishChatRoomsChangedMock.mockResolvedValue(undefined);
 });
 
@@ -170,6 +174,23 @@ describe("POST /chats/rooms/{id}/archive", () => {
       });
     },
   );
+
+  it("refuses to archive a shared Soko Bot's room, even for an owner", async () => {
+    roomFindFirstMock.mockResolvedValue(room());
+    memberFindUniqueMock.mockResolvedValue({ role: MemberRole.OWNER });
+    sokoBotFindUniqueMock.mockResolvedValue({ id: "shared-bot" });
+
+    const response = await archive();
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/Archive the Soko Bot instead/);
+    expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
+      where: { sharedRoomId: ROOM_ID },
+      select: { id: true },
+    });
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
+    expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
+  });
 
   it("rejects a plain member who is not elevated", async () => {
     roomFindFirstMock.mockResolvedValue(

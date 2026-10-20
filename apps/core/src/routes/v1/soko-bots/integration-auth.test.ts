@@ -22,13 +22,9 @@ vi.mock("@/services/soko-bot-integration-auth.service", () => ({
   completeSokoBotIntegrationAuth: completeMock,
 }));
 
-vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/services/soko-bot-integrations.service")
-    >();
-  return { ...actual, finalizeSokoBotIntegration: finalizeMock };
-});
+vi.mock("@/services/soko-bot-integration-connection.service", () => ({
+  finalizeSokoBotIntegration: finalizeMock,
+}));
 
 const USER_ID = "owner_1";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";

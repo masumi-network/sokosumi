@@ -11,7 +11,7 @@ import { x402AgentSchema } from "@/schemas/x402-agent.schema";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
-export const executionMetricsSchema = z
+const executionMetricsSchema = z
   .object({
     count: z
       .number()
@@ -25,9 +25,7 @@ export const executionMetricsSchema = z
     description: "Execution metrics",
   });
 
-export type ExecutionMetrics = z.infer<typeof executionMetricsSchema>;
-
-export const ratingMetricsSchema = z
+const ratingMetricsSchema = z
   .object({
     total: z
       .number()
@@ -44,7 +42,7 @@ export const ratingMetricsSchema = z
 
 export type RatingMetrics = z.infer<typeof ratingMetricsSchema>;
 
-export const metricsSchema = z
+const metricsSchema = z
   .object({
     executions: executionMetricsSchema,
     ratings: ratingMetricsSchema,
@@ -53,9 +51,7 @@ export const metricsSchema = z
     description: "Execution and rating metrics",
   });
 
-export type Metrics = z.infer<typeof metricsSchema>;
-
-export const authorSchema = z.object({
+const authorSchema = z.object({
   name: z.string().nullable().openapi({ example: "John Doe" }),
   image: z
     .string()
@@ -144,7 +140,7 @@ export const getAgentLegalFromAgent = (
     other: override?.legalOther ?? agent.legalOther,
   });
 };
-export const agentExampleOutputSchema = z
+const agentExampleOutputSchema = z
   .object({
     name: z.string().openapi({ example: "Generated summary" }),
     mimeType: z.string().openapi({ example: "image/png" }),
@@ -152,7 +148,7 @@ export const agentExampleOutputSchema = z
   })
   .openapi("AgentExampleOutput");
 
-export type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
+type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
 
 interface AgentExampleOutputSource {
   exampleOutput: Array<{
@@ -232,13 +228,11 @@ const agentBaseSchema = z.object({
 
 export const agentSummarySchema = agentBaseSchema.openapi("Agent");
 
-export const cardanoAgentListItemSchema = agentSummarySchema
+const cardanoAgentListItemSchema = agentSummarySchema
   .extend({
     kind: z.literal("cardano"),
   })
   .openapi("CardanoAgentListItem");
-
-export type CardanoAgentListItem = z.infer<typeof cardanoAgentListItemSchema>;
 
 // Nested: kind splits the rails, then x402AgentSchema splits on pricingType.
 // Flattening the three x402 variants into this union throws — they share
@@ -248,8 +242,6 @@ export const agentListItemSchema = z
   .openapi("AgentListItem");
 
 export const agentListSchema = z.array(agentListItemSchema);
-
-export type AgentListItem = z.infer<typeof agentListItemSchema>;
 
 export const agentDetailSchema = agentBaseSchema
   .extend({
@@ -269,7 +261,7 @@ export const agentDetailSchema = agentBaseSchema
   })
   .openapi("AgentDetail");
 
-export const ratingDistributionSchema = z
+const ratingDistributionSchema = z
   .object({
     "1": z.number().openapi({ example: 1 }),
     "2": z.number().openapi({ example: 2 }),
@@ -281,7 +273,7 @@ export const ratingDistributionSchema = z
 
 export type RatingDistribution = z.infer<typeof ratingDistributionSchema>;
 
-export const agentReviewAuthorSchema = z
+const agentReviewAuthorSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Jane Doe" }),
@@ -313,8 +305,6 @@ export const agentReviewsSchema = z
     }),
   })
   .openapi("AgentReviews");
-
-export type AgentReviews = z.infer<typeof agentReviewsSchema>;
 
 // Intentionally omits createdAt/updatedAt: this payload is nullable at the top
 // level (null when the caller has not rated the agent), and the generated
@@ -350,8 +340,6 @@ export const agentRatingRequestSchema = z
   })
   .openapi("AgentRatingRequest");
 
-export type AgentRatingRequest = z.infer<typeof agentRatingRequestSchema>;
-
 export const agentRatingEligibilitySchema = z
   .object({
     eligible: z.boolean().openapi({
@@ -361,7 +349,3 @@ export const agentRatingEligibilitySchema = z
     }),
   })
   .openapi("AgentRatingEligibility");
-
-export type AgentRatingEligibility = z.infer<
-  typeof agentRatingEligibilitySchema
->;

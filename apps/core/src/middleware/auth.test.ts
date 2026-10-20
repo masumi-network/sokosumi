@@ -9,10 +9,16 @@ import {
   authMiddleware,
   denialAuditActor,
   forbidAgentActor,
+  isPersonalSokoBotAuthContext,
+  isSharedSokoBotAuthContext,
+  type PersonalSokoBotAuthenticationContext,
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
   requireOwnerUserContext,
+  requirePersonalSokoBotAuthContext,
+  requireUserContext,
   resolveUserContext,
+  type SharedSokoBotAuthenticationContext,
 } from "./auth";
 
 const {
@@ -157,6 +163,7 @@ describe("authMiddleware", () => {
             archivedAt: true,
             deletedAt: true,
             userId: true,
+            projectId: true,
             workspaceId: true,
             user: {
               select: { role: true, banned: true, banExpires: true },
@@ -196,6 +203,7 @@ describe("authMiddleware", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "01960001-0001-7001-8001-000000000099",
         userId: "user_123",
         workspaceId: "01960001-0001-7001-8001-000000000010",
@@ -285,6 +293,7 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "01960001-0001-7001-8001-000000000099",
       userId: "user_ban_expired",
       workspaceId: "01960001-0001-7001-8001-000000000010",
@@ -355,11 +364,85 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "01960001-0001-7001-8001-000000000099",
       userId: "user_personal",
       workspaceId: "01960001-0001-7001-8001-000000000010",
       organizationId: null,
     });
+  });
+
+  it.each([
+    ["project", "01960001-0001-7001-8001-000000000077"],
+    ["workspace", null],
+  ] as const)(
+    "authenticates a shared %s Soko Bot key as its own principal",
+    async (scope, projectId) => {
+      coworkerApiKeyFindUniqueMock.mockResolvedValue({
+        coworkerId: null,
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        revokedAt: null,
+        expiresAt: null,
+        coworker: null,
+        sokoBot: {
+          archivedAt: null,
+          deletedAt: null,
+          userId: null,
+          projectId,
+          workspaceId: "01960001-0001-7001-8001-000000000010",
+          user: null,
+        },
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        headers: { authorization: "Bearer sokoBot_shared" },
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        actor: "sokoBot",
+        scope,
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        userId: null,
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        organizationId: "org_123",
+        projectId,
+      });
+      expect(workspaceFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: "01960001-0001-7001-8001-000000000010",
+          organizationId: { not: null },
+        },
+        select: { organizationId: true },
+      });
+    },
+  );
+
+  it("returns 401 for a shared Soko Bot key outside an Organization workspace", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: null,
+        projectId: null,
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        user: null,
+      },
+    });
+    workspaceFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer sokoBot_shared" },
+    });
+
+    expect(response.status).toBe(401);
   });
 
   it("does not treat an orchestrator_ token as a Soko Bot API key", async () => {
@@ -1475,6 +1558,7 @@ describe("denialAuditActor", () => {
     expect(
       denialAuditActor({
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "sokobot_123",
         userId: "user_123",
         workspaceId: "ws_123",
@@ -1558,6 +1642,7 @@ describe("resolveUserContext", () => {
     expect(
       resolveUserContext({
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "01960001-0001-7001-8001-000000000099",
         userId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -1578,5 +1663,88 @@ describe("resolveUserContext", () => {
         vendorId: TEST_VENDOR_ID,
       }),
     ).toBeNull();
+  });
+});
+
+const personalSokoBot: PersonalSokoBotAuthenticationContext = {
+  actor: "sokoBot",
+  scope: "personal",
+  sokoBotId: "01960001-0001-7001-8001-000000000099",
+  userId: "user_123",
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  organizationId: null,
+};
+
+const sharedSokoBot: SharedSokoBotAuthenticationContext = {
+  actor: "sokoBot",
+  scope: "project",
+  sokoBotId: "01960001-0001-7001-8001-000000000098",
+  userId: null,
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  organizationId: "org_1",
+  projectId: "01960001-0001-7001-8001-000000000077",
+};
+
+describe("Soko Bot scope guards", () => {
+  it("tells a personal bot from a shared one", () => {
+    expect(isPersonalSokoBotAuthContext(personalSokoBot)).toBe(true);
+    expect(isSharedSokoBotAuthContext(personalSokoBot)).toBe(false);
+    expect(isPersonalSokoBotAuthContext(sharedSokoBot)).toBe(false);
+    expect(isSharedSokoBotAuthContext(sharedSokoBot)).toBe(true);
+    expect(
+      isSharedSokoBotAuthContext({ ...sharedSokoBot, scope: "workspace" }),
+    ).toBe(true);
+  });
+
+  it("is false for every non-bot actor", () => {
+    const user = {
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user",
+    } as const;
+    const coworker = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+    } as const;
+    for (const authContext of [user, coworker]) {
+      expect(isPersonalSokoBotAuthContext(authContext)).toBe(false);
+      expect(isSharedSokoBotAuthContext(authContext)).toBe(false);
+    }
+  });
+
+  it("requirePersonalSokoBotAuthContext passes a personal bot and refuses a shared one", () => {
+    expect(requirePersonalSokoBotAuthContext(personalSokoBot)).toBe(
+      personalSokoBot,
+    );
+    expect(() => requirePersonalSokoBotAuthContext(sharedSokoBot)).toThrow(
+      expect.objectContaining({ status: 403 }),
+    );
+  });
+});
+
+describe("user context for a shared Soko Bot", () => {
+  it("requireUserContext answers 403", () => {
+    expect(() => requireUserContext(sharedSokoBot)).toThrow(
+      expect.objectContaining({
+        status: 403,
+        message: "A shared Soko Bot has no user context for this resource",
+      }),
+    );
+  });
+
+  it("resolveUserContext answers 403 rather than null", () => {
+    expect(() => resolveUserContext(sharedSokoBot)).toThrow(
+      expect.objectContaining({ status: 403 }),
+    );
+  });
+
+  it("requireUserContext still maps a personal bot to its owner", () => {
+    expect(requireUserContext(personalSokoBot)).toEqual({
+      source: "context",
+      userId: "user_123",
+      organizationId: null,
+    });
   });
 });

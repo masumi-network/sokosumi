@@ -45,7 +45,3 @@ export const organizationBillingPlanSchema = z
     }),
   })
   .openapi("OrganizationBillingPlan");
-
-export type OrganizationBillingPlanApi = z.infer<
-  typeof organizationBillingPlanSchema
->;

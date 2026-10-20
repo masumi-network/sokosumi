@@ -4,6 +4,8 @@ import {
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -12,12 +14,14 @@ import {
   publishSocialPostToProvider,
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
+import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { SOCIAL_BETA_USER_WHERE } from "@/helpers/social-beta-access";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
+  parseSocialPostMedia,
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
@@ -101,6 +105,7 @@ interface ClaimedPost {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   /** Raw `media` Json column; parsed strictly at publish time. */
   media: unknown;
   scheduledAt: Date | null;
@@ -404,6 +409,10 @@ async function attemptPublish(
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
     media = requireSocialPostMedia(post.media, post.id);
+    const mediaRequirement = socialPostMediaRequirementMessage(provider);
+    if (mediaRequirement && !socialPostMeetsMediaRequirement(provider, media)) {
+      throw new SocialPostMediaError("media_missing", mediaRequirement);
+    }
     const mediaValidation = validateSocialPostMedia(provider, media);
     if (!mediaValidation.ok) {
       throw new SocialPostMediaError(
@@ -492,6 +501,25 @@ async function attemptPublish(
     lastError: null,
     attemptCount,
   });
+  const firstComment = post.firstComment?.trim() ?? "";
+  if (settled && firstComment) {
+    try {
+      await publishSocialPostFirstComment({
+        provider,
+        connectedAccountId: connection.composioConnectedAccountId,
+        executorUserId: projectExecutorUserId(post.projectId),
+        externalAccountId: connection.externalAccountId,
+        externalId: published.externalId,
+        text: firstComment,
+        signal,
+      });
+    } catch {
+      console.warn("[social-post-publisher] First comment failed", {
+        postId: post.id,
+        provider,
+      });
+    }
+  }
   return settled ? "published" : "skipped";
 }
 
@@ -548,6 +576,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       projectId: candidate.projectId,
       provider: candidate.provider,
       text: candidate.text,
+      firstComment: candidate.firstComment,
       media: candidate.media,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
@@ -641,6 +670,16 @@ export async function publishSocialPostNow(
       throw conflict("Social connection is not active");
     }
   }
+  if (isSocialPostProvider(post.provider)) {
+    const media = parseSocialPostMedia(post.media, post.id);
+    const mediaRequirement = socialPostMediaRequirementMessage(post.provider);
+    if (
+      mediaRequirement &&
+      !socialPostMeetsMediaRequirement(post.provider, media)
+    ) {
+      throw badRequest(mediaRequirement);
+    }
+  }
 
   const now = new Date();
   const leaseToken = randomUUID();
@@ -667,6 +706,7 @@ export async function publishSocialPostNow(
       projectId: post.projectId,
       provider: post.provider,
       text: post.text,
+      firstComment: post.firstComment,
       media: post.media,
       scheduledAt: now,
       attemptCount: 0,

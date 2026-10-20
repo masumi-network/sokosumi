@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -12,14 +11,13 @@ let groupNameTable = "ChatGroupName"
 struct NameGroupSheet: ViewModifier {
   @Binding var presentation: RoomEditPresentation?
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
 
   func body(content: Content) -> some View {
     content
       .sheet(item: $presentation) { presentation in
         if let room = workspaces.rooms.first(where: { $0.id == presentation.roomId }), GroupNameDraft.canName(room) {
           NameGroupView(room: room) {
-            try await workspaces.nameGroup($0, roomId: room.id, context: presentation.id, auth: auth)
+            try await workspaces.nameGroup($0, roomId: room.id, context: presentation.id)
           }
         } else {
           // Left or gone while the sheet was open: never a blank modal.

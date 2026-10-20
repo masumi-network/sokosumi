@@ -113,7 +113,7 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
               columns={4}
               items={[
                 { label: t("botId"), value: bot.id, mono: true },
-                { label: t("owner"), value: bot.owner.email },
+                { label: t("owner"), value: bot.owner?.email ?? "—" },
                 { label: t("workspaceUser"), value: bot.userId, mono: true },
                 { label: t("createdAt"), value: dateTime(bot.createdAt) },
                 { label: t("updatedAt"), value: dateTime(bot.updatedAt) },

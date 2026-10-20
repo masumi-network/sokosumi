@@ -3,11 +3,11 @@ import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-export const coworkerWorkspaceAccessStatusSchema = z
+const coworkerWorkspaceAccessStatusSchema = z
   .enum(CoworkerWorkspaceAccessStatus)
   .openapi({ example: CoworkerWorkspaceAccessStatus.PENDING });
 
-export const coworkerWorkspaceAccessWorkspaceKindSchema = z
+const coworkerWorkspaceAccessWorkspaceKindSchema = z
   .enum(["user", "organization"])
   .openapi({ example: "organization" });
 

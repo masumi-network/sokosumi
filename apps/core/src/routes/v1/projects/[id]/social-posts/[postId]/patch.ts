@@ -16,7 +16,10 @@ import {
 } from "@/schemas/social-post.schema";
 import { updateSocialPost } from "@/services/social-posts.service";
 
-import { mapSocialPostServiceError } from "../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -64,16 +67,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         postId,
         organizationId: workspaceContext.organizationId,
         text: input.text,
+        firstComment: input.firstComment,
         media: input.media,
         socialConnectionId: input.socialConnectionId,
         revision: input.revision,
       });
       return ok(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

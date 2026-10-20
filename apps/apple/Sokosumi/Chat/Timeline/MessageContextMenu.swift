@@ -3,16 +3,8 @@
   import SokosumiChat
   import SwiftUI
 
-  /// One entry of a message's right-click menu. The row's menu and its accessibility actions read the same list.
-  enum MessageMenuAction: Hashable {
-    /// Copies the reader's text selection in this message.
-    case copySelection
-    /// A Soko Bot turn's thumbs (row 38b).
-    case useful, notUseful
-    case addReaction, edit, quote, reply
-    case pin, unpin, copyLink, sendToSelf
-    case delete
-
+  /// The app's words and symbols for each menu entry; `MessageActions` in SokosumiChat decides which show, in what order.
+  extension MessageMenuAction {
     var title: String {
       switch self {
       case .copySelection: String(localized: "Copy")
@@ -48,39 +40,14 @@
     }
   }
 
-  /// The actions a message row offers, filled from its callbacks.
-  struct MessageMenuAvailability: Equatable {
-    /// A Soko Bot turn's thumbs; the chosen one is checked.
-    var sokoBotFeedback: SokoBotFeedback?
-    var canReact = false
-    var canEdit = false
-    var canQuote = false
-    var canReply = false
-    /// Nil where messages cannot be pinned; otherwise whether this one is pinned.
-    var pinned: Bool?
-    var canCopyLink = false
-    var canSendToSelf = false
-    var canDelete = false
-
-    /// Web's hover pill order (a Soko Bot turn's thumbs, then React, Edit, Quote, Thread), then its ⋯ overflow
-    /// order (Pin, Copy link, Send to yourself), then Delete on its own: the Mac puts the destructive action
-    /// last. A text selection in the message puts Copy first, as in any Mac text menu.
-    func sections(hasSelection: Bool) -> [[MessageMenuAction]] {
-      let thumbs: [MessageMenuAction] = sokoBotFeedback == nil ? [] : [.useful, .notUseful]
-      let toolbar: [MessageMenuAction?] = [canReact ? .addReaction : nil, canEdit ? .edit : nil,
-                                           canQuote ? .quote : nil, canReply ? .reply : nil]
-      let overflow: [MessageMenuAction?] = [pinned.map { $0 ? .unpin : .pin },
-                                            canCopyLink ? .copyLink : nil, canSendToSelf ? .sendToSelf : nil]
-      return [hasSelection ? [.copySelection] : [], thumbs, toolbar.compactMap(\.self), overflow.compactMap(\.self),
-              canDelete ? [.delete] : []].filter { !$0.isEmpty }
-    }
-  }
-
   /// Opens the message's menu for a right-click or Control-click anywhere on the row, the body text included.
   /// Selectable SwiftUI `Text` is an AppKit view that answers a right-click with its own editing menu (Cut, Paste,
   /// Font, Spelling…), and SwiftUI's `.contextMenu` never sees that click. Every other event passes through.
   struct MessageContextMenuArea: NSViewRepresentable {
-    let availability: MessageMenuAvailability
+    let actions: MessageActions
+    let isPinned: Bool
+    /// A Soko Bot turn's thumbs; the chosen one is checked.
+    let sokoBotFeedback: SokoBotFeedback?
     /// Actions shown but disabled while their request runs.
     let busy: Set<MessageMenuAction>
     let perform: (MessageMenuAction) -> Void
@@ -90,14 +57,18 @@
     }
 
     func updateNSView(_ view: MessageContextMenuView, context _: Context) {
-      view.availability = availability
+      view.actions = actions
+      view.isPinned = isPinned
+      view.sokoBotFeedback = sokoBotFeedback
       view.busy = busy
       view.perform = perform
     }
   }
 
   final class MessageContextMenuView: NSView {
-    var availability = MessageMenuAvailability()
+    var actions = MessageActions()
+    var isPinned = false
+    var sokoBotFeedback: SokoBotFeedback?
     var busy: Set<MessageMenuAction> = []
     var perform: (MessageMenuAction) -> Void = { _ in }
     private var isLookingBeneath = false
@@ -112,7 +83,7 @@
 
     override func menu(for _: NSEvent) -> NSMenu? {
       let selection = selectedMessageText()
-      let sections = availability.sections(hasSelection: selection != nil)
+      let sections = actions.menuSections(hasSelection: selection != nil, isPinned: isPinned)
       guard !sections.isEmpty else { return nil }
       let menu = NSMenu()
       menu.autoenablesItems = false
@@ -148,7 +119,7 @@
       item.representedObject = action
       item.image = NSImage(systemSymbolName: action.systemImage, accessibilityDescription: nil)
       item.isEnabled = !busy.contains(action)
-      if let feedback = availability.sokoBotFeedback, action == .useful || action == .notUseful {
+      if let feedback = sokoBotFeedback, action == .useful || action == .notUseful {
         item.state = feedback.isChosen(useful: action == .useful) ? .on : .off
       }
       return item

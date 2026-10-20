@@ -50,7 +50,7 @@ struct ChatDisplayPreferencesTests {
 
   @Test func writeIsOptimisticSingleFlightAndShieldedFromAStaleRead() async throws {
     let gate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: true))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: gate)
     let preferences = ChatDisplayPreferences()
     let write = Task { try await preferences.setShowsRoomUnreadCount(true, client: client) }
     await gate.waitForRequest()
@@ -73,7 +73,7 @@ struct ChatDisplayPreferencesTests {
   @Test(arguments: [400, 401, 403, 404, 500])
   func failedWriteRollsBackAndRethrows(status: Int) async throws {
     let gate = GatedPreferencesTransport(status: status, body: errorBody)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: gate)
     let preferences = ChatDisplayPreferences()
     let write = Task { try await preferences.setShowsRoomUnreadCount(true, client: client) }
     await gate.waitForRequest()
@@ -87,8 +87,8 @@ struct ChatDisplayPreferencesTests {
   @Test func writeCompletionDropsARefreshThatStartedDuringTheWrite() async throws {
     let writeGate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: true))
     let readGate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: false))
-    let writeClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: writeGate)
-    let readClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: readGate)
+    let writeClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: writeGate)
+    let readClient = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: readGate)
     let preferences = ChatDisplayPreferences()
     let write = Task { try await preferences.setShowsRoomUnreadCount(true, client: writeClient) }
     await writeGate.waitForRequest()
@@ -104,7 +104,7 @@ struct ChatDisplayPreferencesTests {
 
   @Test func resetDropsALateWriteResult() async throws {
     let gate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: true))
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: gate)
     let preferences = ChatDisplayPreferences()
     let write = Task { try await preferences.setShowsRoomUnreadCount(true, client: client) }
     await gate.waitForRequest()

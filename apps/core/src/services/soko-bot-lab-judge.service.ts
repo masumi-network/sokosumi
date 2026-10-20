@@ -87,19 +87,26 @@ export function overallScore(verdict: SokoBotJudgeVerdict): number {
   return Math.max(1, Math.min(5, Math.round(capped)));
 }
 
+/**
+ * `userId` limits the read to that member's turns. Only the admin overview
+ * leaves it out; an empty id still filters (and matches nothing).
+ */
 async function loadTranscript(turnId: string, userId?: string) {
   const turn = await prisma.sokoBotTurn.findFirst({
-    where: { id: turnId, ...(userId ? { userId } : {}) },
+    where: {
+      id: turnId,
+      ...(userId === undefined ? {} : { requestedByUserId: userId }),
+    },
     select: {
       sokoBotId: true,
-      userId: true,
+      requestedByUserId: true,
       source: true,
       status: true,
       route: true,
       userMessage: true,
       finalAnswer: true,
       versionId: true,
-      sokoBot: { select: { name: true } },
+      sokoBot: { select: { name: true, userId: true } },
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -377,7 +384,8 @@ export async function judgeSokoBotLabTurn(input: {
     if (!input.evaluation) return;
     const data = {
       sokoBotId: turn.sokoBotId,
-      userId: turn.userId,
+      // The read above matched the turn's Requester to this member.
+      userId: input.userId,
       scenarioId: scenario.id,
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,

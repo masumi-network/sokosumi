@@ -22,20 +22,20 @@ export const enterpriseContractIdParamsSchema = z.object({
   }),
 });
 
-export const enterpriseContractStatusSchema = z
+const enterpriseContractStatusSchema = z
   .enum(enterpriseContractStatusValues)
   .openapi("EnterpriseContractStatus");
 
-export const enterpriseContractPeriodStatusSchema = z
+const enterpriseContractPeriodStatusSchema = z
   .enum(enterpriseContractPeriodStatusValues)
   .openapi("EnterpriseContractPeriodStatus");
 
-export const enterpriseContractPaymentReferenceSchema = z
+const enterpriseContractPaymentReferenceSchema = z
   .string()
   .min(1)
   .openapi({ description: "Non-empty payment reference" });
 
-export const enterpriseContractPeriodSchema = z
+const enterpriseContractPeriodSchema = z
   .object({
     id: z.uuid(),
     createdAt: dateTimeSchema,
@@ -88,10 +88,6 @@ export const enterpriseContractSchema = z
       }),
   })
   .openapi("EnterpriseContract");
-
-export type EnterpriseContractResponse = z.infer<
-  typeof enterpriseContractSchema
->;
 
 export const createEnterpriseContractRequestSchema = z
   .object({
@@ -153,7 +149,7 @@ export const activateEnterpriseContractRequestSchema = z
   })
   .openapi("ActivateEnterpriseContractRequest");
 
-export const enterpriseContractPreviewPeriodSchema = z
+const enterpriseContractPreviewPeriodSchema = z
   .object({
     periodStart: dateTimeSchema,
     periodEnd: dateTimeSchema,
@@ -178,7 +174,7 @@ export const enterpriseContractPreviewQuerySchema = z.object({
   }),
 });
 
-export const enterpriseContractActivationBlockerSchema = z
+const enterpriseContractActivationBlockerSchema = z
   .object({
     subscriptionId: z.string(),
     stripeSubscriptionId: z.string(),

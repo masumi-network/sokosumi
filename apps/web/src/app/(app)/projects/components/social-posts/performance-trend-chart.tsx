@@ -115,7 +115,10 @@ export function PerformanceTrendChart({
                 setMetric(value);
             }}
           >
-            <SelectTrigger id="performance-trend-metric">
+            <SelectTrigger
+              className="h-11 md:h-10 data-[size=default]:h-11 md:data-[size=default]:h-10"
+              id="performance-trend-metric"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

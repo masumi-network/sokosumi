@@ -25,7 +25,9 @@ import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
+  refreshProjectSocialAccountStatistics,
 } from "@/lib/actions/project/action";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
 
 const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
@@ -41,12 +43,15 @@ const MESSAGES: Record<string, string> = {
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
+  projectClosed: "This project is closed.",
   comingSoon: "Coming soon",
   connectComingSoon: "{provider} (coming soon)",
   empty: "No accounts yet.",
   emptyHint: "Connect one to post.",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
+  startOver: "Start over",
+  syncNow: "Sync now",
   replace: "Replace",
   disconnect: "Disconnect",
   "status.active": "Connected",
@@ -56,7 +61,7 @@ const MESSAGES: Record<string, string> = {
   unknownHandle: "Unknown account",
   "replaceDialog.title": "Replace {account}?",
   "replaceDialog.description":
-    "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+    "Drafts and scheduled posts move to the new account.",
   "replaceDialog.confirm": "Replace account",
   "disconnectDialog.title": "Disconnect {account}?",
   "disconnectDialog.description":
@@ -65,16 +70,16 @@ const MESSAGES: Record<string, string> = {
   cancel: "Cancel",
   "success.connected": "{account} connected.",
   "success.disconnected": "{account} disconnected.",
+  "success.syncStarted": "Sync started.",
   "warning.providerRevocationFailed":
-    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
   "errors.notConfigured":
     "This integration is not configured yet. Contact support to enable it.",
   "errors.inFlight": "Another account action is already in progress.",
   "errors.popupBlocked":
     "Your browser blocked the authorization window. Allow popups and try again.",
   "errors.timeout": "Authorization took too long. Try again.",
-  "errors.providerCallback":
-    "Authorization did not complete. Return to the Project’s Social page and try again.",
+  "errors.providerCallback": "Authorization did not complete. Try again.",
   "errors.legacyCallback":
     "This callback cannot verify your account. Contact support and try again.",
   "errors.verifier":
@@ -87,16 +92,22 @@ const MESSAGES: Record<string, string> = {
     "Reconnect the same account that is already linked to this project.",
   "errors.finalize": "We could not finish connecting this account. Try again.",
   "errors.facebookPage":
-    "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+    "Facebook needs an account that manages exactly one Page.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
+  "errors.sync": "Couldn't start sync.",
 };
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    (MESSAGES[key] ?? key).replace(
-      /\{(\w+)\}/g,
-      (_, name: string) => values?.[name] ?? name,
-    ),
+  useTranslations:
+    (namespace: string) => (key: string, values?: Record<string, string>) =>
+      (namespace === "App.Projects.SocialPosts"
+        ? ({
+            "reconnection.accounts": "Accounts needing attention",
+            "reconnection.title": "{account} needs reconnecting",
+            "reconnection.affected": "{count} posts affected",
+          }[key] ?? key)
+        : (MESSAGES[key] ?? key)
+      ).replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? name),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -115,6 +126,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   disconnectProjectSocialConnection: vi.fn(),
   finalizeProjectSocialConnection: vi.fn(),
   initiateProjectSocialConnection: vi.fn(),
+  refreshProjectSocialAccountStatistics: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/composio/action", () => ({
@@ -186,8 +198,6 @@ async function connectProvider(
 }
 
 describe("ProjectSocialAccounts", () => {
-  // The mocked messages stand in for the catalog; a key renamed there but not
-  // here would render as its raw path in the app while every test stays green.
   it("only uses message keys the catalog defines", () => {
     const catalog = messages.App.Projects.ProjectSocialAccounts;
     expect(catalog.connectAccount).toBe("Connect account");
@@ -261,8 +271,9 @@ describe("ProjectSocialAccounts", () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,
       error: {
-        code: "SERVICE_UNAVAILABLE",
-        message: "COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID is not configured",
+        code: "INTERNAL_SERVER_ERROR",
+        kind: "integration_not_configured",
+        message: "The service is currently unavailable.",
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
@@ -296,25 +307,30 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
-  it("shows TikTok as coming soon and does not start a connection", async () => {
-    const user = userEvent.setup();
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+  it.each([
+    ["tiktok", "TikTok"],
+    ["facebook", "Facebook"],
+  ])(
+    "shows %s as coming soon and does not start a connection",
+    async (_provider, name) => {
+      const user = userEvent.setup();
+      render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect account" }));
-    const tiktok = screen.getByRole("menuitem", {
-      name: "TikTok (coming soon)",
-    });
-    expect(tiktok).toHaveAttribute("aria-disabled", "true");
-    expect(tiktok).toHaveTextContent("Coming soon");
+      await user.click(screen.getByRole("button", { name: "Connect account" }));
+      const item = screen.getByRole("menuitem", {
+        name: `${name} (coming soon)`,
+      });
+      expect(item).toHaveAttribute("aria-disabled", "true");
+      expect(item).toHaveTextContent("Coming soon");
 
-    await user.click(tiktok);
-    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
-  });
+      await user.click(item);
+      expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["instagram", "Instagram"],
     ["linkedin", "LinkedIn"],
-    ["facebook", "Facebook"],
     ["youtube", "YouTube"],
   ])("starts a connection for %s", async (provider, name) => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
@@ -429,6 +445,70 @@ describe("ProjectSocialAccounts", () => {
     );
   });
 
+  it("keeps the platform logo when the account has no photo", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    const row = screen.getByTestId("project-social-connection-connection-1");
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-photo"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the account photo with a platform logo badge", async () => {
+    const restore = stubLoadedImage();
+    const photo =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23111'/></svg>";
+    try {
+      render(
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[buildConnection({ avatarUrl: photo })]}
+        />,
+      );
+      const row = screen.getByTestId("project-social-connection-connection-1");
+      await waitFor(() => {
+        expect(
+          within(row).getByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", photo);
+      });
+      expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+      expect(
+        within(row).getByTestId("social-post-account-logo-badge"),
+      ).toBeVisible();
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the platform logo when the account photo fails", async () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({ avatarUrl: "https://example.invalid/missing.png" }),
+        ]}
+      />,
+    );
+    const row = screen.getByTestId("project-social-connection-connection-1");
+    await waitFor(() => {
+      expect(
+        within(row).queryByTestId("social-post-account-photo"),
+      ).not.toBeInTheDocument();
+    });
+    expect(within(row).getByTestId("social-post-account-logo")).toBeVisible();
+    expect(
+      within(row).queryByTestId("social-post-account-logo-badge"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows connected and reauthorization-required X account lifecycle controls", async () => {
     const user = userEvent.setup();
     render(
@@ -458,11 +538,15 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(connectedRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(connectedRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
     await user.click(
       within(connectedRow).getByRole("button", {
         name: "Actions for @sokosumi",
       }),
     );
+    expect(screen.getByRole("menuitem", { name: "Sync now" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Replace" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
     await user.keyboard("{Escape}");
@@ -477,6 +561,18 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(reauthorizationRow).getByRole("button", { name: "Reconnect" }),
     ).toBeVisible();
+    await user.click(
+      within(reauthorizationRow).getByRole("button", {
+        name: "Actions for @needs-auth",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(
+      within(reauthorizationRow).queryByRole("button", { name: "Start over" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Connect account" }),
     ).toBeVisible();
@@ -486,8 +582,16 @@ describe("ProjectSocialAccounts", () => {
     );
     expect(within(pendingRow).getByText("Connection pending")).toBeVisible();
     expect(
+      within(pendingRow)
+        .getByText("Connection pending")
+        .closest(".text-semantic-warning-label"),
+    ).toBeTruthy();
+    expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    expect(
+      within(pendingRow).getByRole("button", { name: "Start over" }),
+    ).toBeVisible();
     await user.click(
       within(pendingRow).getByRole("button", {
         name: "Actions for @pending-auth",
@@ -496,7 +600,39 @@ describe("ProjectSocialAccounts", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Replace" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Sync now" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+  });
+
+  it("queues a background refresh from Sync now on a connected account", async () => {
+    const user = userEvent.setup();
+    vi.mocked(refreshProjectSocialAccountStatistics).mockResolvedValue({
+      ok: true,
+      value: {
+        account: buildConnection(),
+        importedPostCount: 0,
+      },
+    } as never);
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Sync now" }));
+    await waitFor(() =>
+      expect(refreshProjectSocialAccountStatistics).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        connectionId: "connection-1",
+      }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("Sync started.");
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("hides disconnected accounts that have no actions", () => {
@@ -522,6 +658,160 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("@old-account")).not.toBeInTheDocument();
     expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
+  });
+
+  it("disconnects a pending account and starts a new connection on Start over", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Unavailable" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            id: "connection-3",
+            externalHandle: "pending-auth",
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(disconnectProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        socialConnectionId: "connection-3",
+      });
+      expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        action: "connect",
+        provider: "x",
+      });
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalledWith("Account disconnected.");
+  });
+
+  it("does not start a new connection when Start over cannot disconnect", async () => {
+    const user = userEvent.setup();
+    vi.mocked(disconnectProjectSocialConnection).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "Disconnect failed" },
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "We could not disconnect this account. Try again.",
+      );
+    });
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("disables Start over on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            status: "pending",
+          }),
+        ]}
+      />,
+    );
+
+    const startOver = screen.getByRole("button", { name: "Start over" });
+    expect(startOver).toBeDisabled();
+    await user.click(startOver);
+    expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("disables the reconnect item on a closed project", async () => {
+    const user = userEvent.setup();
+    const connection = buildConnection({ status: "reauthorization_required" });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[connection]}
+        connectDisabled
+        reconnections={[{ connection, affectedPosts: [] }]}
+      />,
+    );
+    const reconnect = within(
+      screen.getByTestId(`social-reconnect-${connection.id}`),
+    ).getByRole("button", { name: "Reconnect" });
+    expect(reconnect).toBeDisabled();
+    await user.click(reconnect);
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("shows a reconnect item with the account avatar and starts the existing flow", async () => {
+    const user = userEvent.setup();
+    const restore = stubLoadedImage();
+    const connection = buildConnection({
+      status: "reauthorization_required",
+      avatarUrl: "https://example.com/photo.jpg",
+    });
+    const onReconnected = vi.fn();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[connection]}
+        reconnections={[{ connection, affectedPosts: [] }]}
+        onReconnected={onReconnected}
+      />,
+    );
+    const row = screen.getByTestId(`social-reconnect-${connection.id}`);
+    expect(within(row).getByText("@sokosumi needs reconnecting")).toBeVisible();
+    expect(within(row).queryByText(/posts affected/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(row).getByTestId("social-post-account-photo"),
+      ).toHaveAttribute("src", connection.avatarUrl),
+    );
+    expect(
+      within(row).getByTestId("social-post-account-logo-badge"),
+    ).toBeInTheDocument();
+    restore();
+    await user.click(within(row).getByRole("button", { name: "Reconnect" }));
+    expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      action: "reconnect",
+      socialConnectionId: connection.id,
+    });
+    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: "ca_known",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+    await waitFor(() =>
+      expect(onReconnected).toHaveBeenCalledWith(buildConnection()),
+    );
   });
 
   it.each([null, "ca_known"])(
@@ -798,7 +1088,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Authorization did not complete. Return to the Project’s Social page and try again.",
+        "Authorization did not complete. Try again.",
       );
     });
     expect(toastErrorMock).not.toHaveBeenCalledWith("provider-secret-detail");
@@ -815,7 +1105,7 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it("explains a Facebook account that manages zero or several Pages", async () => {
+  it("explains a Facebook reconnect that manages zero or several Pages", async () => {
     const user = userEvent.setup();
     vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
       ok: true,
@@ -826,14 +1116,25 @@ describe("ProjectSocialAccounts", () => {
       error: {
         code: "BAD_REQUEST",
         kind: "social_facebook_page_required",
-        // Copy Core is free to change; the kind is what the page matches.
         message: "Facebook identity rejected",
       },
     });
 
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            provider: "facebook",
+            displayName: "Sokosumi Page",
+            externalHandle: null,
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
 
-    await connectProvider(user, "Facebook");
+    await user.click(screen.getByRole("button", { name: "Reconnect" }));
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -850,7 +1151,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+        "Facebook needs an account that manages exactly one Page.",
       );
     });
   });
@@ -1008,14 +1309,14 @@ describe("ProjectSocialAccounts", () => {
 
     expect(
       await screen.findByText(
-        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
       ),
     ).toBeVisible();
     expect(toastWarningMock).toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
     expect(toastSuccessMock).not.toHaveBeenCalledWith(
-      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections.",
     );
   });
 
@@ -1036,7 +1337,7 @@ describe("ProjectSocialAccounts", () => {
     const replaceDialog = screen.getByRole("alertdialog");
     expect(replaceDialog).toHaveAccessibleName("Replace @sokosumi?");
     expect(replaceDialog).toHaveTextContent(
-      "All drafts and scheduled posts on this account will move to the new one. Add another account instead if you want to keep them here.",
+      "Drafts and scheduled posts move to the new account.",
     );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
@@ -1155,5 +1456,42 @@ describe("ProjectSocialAccounts", () => {
       );
       expect(refreshMock).toHaveBeenCalledOnce();
     });
+  });
+
+  it("blocks connect, reconnect, and replace on a closed project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        connectDisabled
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            externalHandle: "needs-auth",
+            status: "reauthorization_required",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("This project is closed.")).toBeVisible();
+    const connect = screen.getByRole("button", { name: "Connect account" });
+    expect(connect).toBeDisabled();
+    await user.click(connect);
+    expect(
+      screen.queryByRole("menuitem", { name: "Connect X account" }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for @sokosumi" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Replace" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 });

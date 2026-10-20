@@ -4,6 +4,8 @@ import {
   refreshSocialAccountStatisticsRequestSchema,
   socialAccountPostSchema,
   socialAccountStatisticsQuerySchema,
+  socialConnectionSuggestedTimesQuerySchema,
+  socialConnectionSuggestedTimesSchema,
   socialSyncReadModelSchema,
 } from "./social-account-statistics.schema";
 
@@ -85,6 +87,8 @@ describe("socialAccountPostSchema", () => {
     },
     additionalMetrics: [],
     fetchedAt: "2026-10-08T12:00:00.000Z",
+    strong: false,
+    canRecycle: true,
   };
 
   it("rejects a non-http post url", () => {
@@ -109,6 +113,41 @@ describe("refreshSocialAccountStatisticsRequestSchema", () => {
       refreshSocialAccountStatisticsRequestSchema.safeParse({
         continueHistory: true,
         force: true,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("socialConnectionSuggestedTimesQuerySchema", () => {
+  it("accepts an IANA timezone and rejects an unknown one", () => {
+    expect(
+      socialConnectionSuggestedTimesQuerySchema.safeParse({
+        timezone: "Europe/Zurich",
+      }).success,
+    ).toBe(true);
+    expect(
+      socialConnectionSuggestedTimesQuerySchema.safeParse({
+        timezone: "Mars/Olympus",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("socialConnectionSuggestedTimesSchema", () => {
+  it("accepts up to three hours of the day", () => {
+    expect(
+      socialConnectionSuggestedTimesSchema.safeParse({ hours: [8, 13, 18] })
+        .success,
+    ).toBe(true);
+    expect(
+      socialConnectionSuggestedTimesSchema.safeParse({ hours: [] }).success,
+    ).toBe(true);
+    expect(
+      socialConnectionSuggestedTimesSchema.safeParse({ hours: [24] }).success,
+    ).toBe(false);
+    expect(
+      socialConnectionSuggestedTimesSchema.safeParse({
+        hours: [1, 2, 3, 4],
       }).success,
     ).toBe(false);
   });

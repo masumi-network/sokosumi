@@ -9,7 +9,7 @@ import { isSafeRemoteUrl } from "@/helpers/safe-url";
  * text block (`input_text`). Stored Sokosumi UI messages use AI SDK `text` parts; both
  * shapes are documented here for API consumers.
  */
-export const responsesApiInputTextPartSchema = z
+const responsesApiInputTextPartSchema = z
   .object({
     type: z.literal("input_text"),
     text: z.string(),
@@ -38,13 +38,13 @@ export const chatUiReasoningPartSchema = z.object({
   text: z.string(),
 });
 
-export const chatUiTextPartSchema = z.object({
+const chatUiTextPartSchema = z.object({
   type: z.literal("text"),
   text: z.string(),
 });
 
 /** Assistant / Responses-style text block (same shape as `text`; accepted on ingress for compatibility). */
-export const chatUiOutputTextPartSchema = z.object({
+const chatUiOutputTextPartSchema = z.object({
   type: z.literal("output_text"),
   text: z.string(),
 });
@@ -75,12 +75,12 @@ export const chatMessageContentPartSchema = z.union([
   chatUiReasoningPartSchema,
 ]);
 
-export const chatUiThoughtTimingMetadataSchema = z.object({
+const chatUiThoughtTimingMetadataSchema = z.object({
   thoughtStartedAtMs: z.number(),
   thoughtEndedAtMs: z.number(),
 });
 
-export const chatUiMessageMetadataSchema = chatUiThoughtTimingMetadataSchema
+const chatUiMessageMetadataSchema = chatUiThoughtTimingMetadataSchema
   .partial()
   .extend({
     imageGeneration: z.boolean().optional(),
@@ -91,7 +91,7 @@ export const chatUiMessageMetadataSchema = chatUiThoughtTimingMetadataSchema
  * `/v1/chats/rooms/{id}/stream` (`data.messages`). Aligns with OpenAI-style
  * roles and text-shaped content parts.
  */
-export const chatUiMessageSchema = z
+const chatUiMessageSchema = z
   .object({
     id: z.string(),
     role: z.enum(["user", "assistant", "system"]),

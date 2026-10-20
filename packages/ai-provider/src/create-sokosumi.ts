@@ -4,7 +4,7 @@ import {
 } from "./sokosumi-language-model.js";
 import type { CreateSokosumiOptions } from "./types.js";
 
-export interface SokosumiProvider {
+interface SokosumiProvider {
   (modelId: string | null): SokosumiLanguageModel;
   languageModel: (modelId: string | null) => SokosumiLanguageModel;
 }

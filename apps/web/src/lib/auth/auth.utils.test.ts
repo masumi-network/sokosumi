@@ -18,6 +18,7 @@ import {
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
+  oauthRequestSignsUpOnWebsite,
   readAuthReturnUrl,
   sanitizeAuthRedirectPath,
   waitForAuthSession,
@@ -67,6 +68,35 @@ describe("oauthRequestAsksForNewAccount", () => {
 
   it("finds no request for a new account without a prompt", () => {
     expect(oauthRequestAsksForNewAccount("client_id=cmo")).toBe(false);
+  });
+});
+
+describe("oauthRequestSignsUpOnWebsite", () => {
+  it.each([
+    "https://app.sokosumi.com/auth/apple/callback",
+    "https://3877.web.sokosumi.localhost/auth/apple/callback",
+  ])("signs up on the website for the Apple app at %s", (redirectUri) => {
+    expect(
+      oauthRequestSignsUpOnWebsite(
+        `client_id=apple&redirect_uri=${encodeURIComponent(redirectUri)}`,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    "https://app.cmo.xyz/api/auth/oauth2/callback/sokosumi",
+    "https://example.com/auth/apple/callback/other",
+    "not a url",
+  ])("signs up in the request for %s", (redirectUri) => {
+    expect(
+      oauthRequestSignsUpOnWebsite(
+        `client_id=cmo&redirect_uri=${encodeURIComponent(redirectUri)}`,
+      ),
+    ).toBe(false);
+  });
+
+  it("signs up in the request without a redirect_uri", () => {
+    expect(oauthRequestSignsUpOnWebsite("client_id=cmo")).toBe(false);
   });
 });
 

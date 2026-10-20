@@ -10,7 +10,7 @@ export const MIN_ENTERPRISE_PERIOD_COUNT = 1;
 /** Pre-create enterprise period buckets this far before `periodStart`. */
 export const ENTERPRISE_CONTRACT_PRECREATE_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
 
-export interface EnterpriseContractPeriodDraft {
+interface EnterpriseContractPeriodDraft {
   centsToGrant: bigint;
   periodEnd: Date;
   periodStart: Date;

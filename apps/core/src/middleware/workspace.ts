@@ -11,7 +11,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isSokoBotAuthContext,
+  isPersonalSokoBotAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 
@@ -52,7 +52,7 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
     };
   }
 
-  if (isSokoBotAuthContext(authContext)) {
+  if (isPersonalSokoBotAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       organizationId: authContext.organizationId,

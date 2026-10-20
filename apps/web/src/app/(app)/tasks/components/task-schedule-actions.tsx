@@ -34,6 +34,11 @@ interface TaskScheduleActionsProps {
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   canCreatePrivate: boolean;
+  /**
+   * Delete of a schedule with no Owner. Organization owner or admin only;
+   * everyone else keeps pause, resume, end, and edit.
+   */
+  canDeleteUnowned?: boolean;
   onChanged?: () => void;
 }
 
@@ -53,6 +58,7 @@ export function TaskScheduleActions({
   coworkerOptions,
   projectOptions,
   canCreatePrivate,
+  canDeleteUnowned = false,
   onChanged,
 }: TaskScheduleActionsProps) {
   const t = useTranslations("App.Tasks.Schedules");
@@ -62,6 +68,7 @@ export function TaskScheduleActions({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
+  const canDelete = schedule.ownerId !== null || canDeleteUnowned;
 
   function refreshAfterChange() {
     if (onChanged) onChanged();
@@ -126,6 +133,10 @@ export function TaskScheduleActions({
     });
   }
 
+  if (isEnded && !canDelete) {
+    return null;
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isEnded ? null : (
@@ -180,15 +191,17 @@ export function TaskScheduleActions({
           </Button>
         </>
       )}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setConfirming("delete")}
-        disabled={isPending}
-      >
-        <Trash2 className="size-4" aria-hidden />
-        {tActions("delete")}
-      </Button>
+      {canDelete ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setConfirming("delete")}
+          disabled={isPending}
+        >
+          <Trash2 className="size-4" aria-hidden />
+          {tActions("delete")}
+        </Button>
+      ) : null}
 
       <AlertDialog
         open={confirming !== null}
