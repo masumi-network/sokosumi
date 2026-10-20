@@ -20,6 +20,8 @@ const projectServiceMock = {
   cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
   createSocialPost: vi.fn(),
+  queueSocialPost: vi.fn(),
+  replaceSocialQueueSlots: vi.fn(),
   duplicateSocialPost: vi.fn(),
   recycleSocialAccountPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
@@ -1038,6 +1040,67 @@ describe("project actions", () => {
         },
       });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("queues an existing draft", async () => {
+      projectServiceMock.createSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+      });
+      projectServiceMock.queueSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+        revision: 1,
+      });
+
+      const { queueProjectSocialPost } = await import("./action");
+
+      const queued = await queueProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 0,
+      });
+      expect(projectServiceMock.queueSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 0 },
+      );
+      expect(queued).toMatchObject({ ok: true, value: { revision: 1 } });
+    });
+
+    it("replaces posting-queue slots", async () => {
+      projectServiceMock.replaceSocialQueueSlots.mockResolvedValue({
+        timezone: "UTC",
+        slots: [
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ],
+      });
+
+      const { replaceProjectSocialQueueSlots } = await import("./action");
+      const result = await replaceProjectSocialQueueSlots({
+        projectId: "project-1",
+        timezone: "UTC",
+        slots: [
+          { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+        ],
+      });
+
+      expect(projectServiceMock.replaceSocialQueueSlots).toHaveBeenCalledWith(
+        "project-1",
+        {
+          timezone: "UTC",
+          slots: [
+            { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+          ],
+        },
+      );
+      expect(result).toMatchObject({ ok: true });
     });
 
     it("publishes a post now through the service and revalidates", async () => {

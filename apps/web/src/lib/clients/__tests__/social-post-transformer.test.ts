@@ -7,6 +7,7 @@ import {
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
   postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
@@ -62,6 +63,7 @@ const transformers = [
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdApproveResponseTransformer,
   postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
 ];
 
 describe("social post response transformers", () => {

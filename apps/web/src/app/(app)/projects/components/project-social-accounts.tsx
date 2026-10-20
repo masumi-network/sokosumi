@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProjectSocialConnection } from "@sokosumi/core-client";
+import type {
+  ProjectSocialConnection,
+  SocialQueueSlots,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Link2,
@@ -47,9 +50,11 @@ import {
   useComposioConnection,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import { ProjectSocialQueueSlots } from "./social-posts/project-social-queue-slots";
 import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
+  queueSlots?: SocialQueueSlots;
   connections: ProjectSocialConnection[];
   projectId: string;
   /** Closing or closed projects cannot add or replace accounts. */
@@ -138,6 +143,7 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  queueSlots,
   connectDisabled = false,
   reconnections,
   onReconnected,
@@ -741,6 +747,13 @@ export function ProjectSocialAccounts({
           />
         </div>
       )}
+
+      {queueSlots ? (
+        <ProjectSocialQueueSlots
+          projectId={projectId}
+          queueSlots={queueSlots}
+        />
+      ) : null}
 
       <AlertDialog
         open={pendingConfirmation !== null}

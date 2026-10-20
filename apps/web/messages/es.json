@@ -2583,7 +2583,9 @@
           "keepEditing": "Seguir editando",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
-          "tooLong": "La longitud del texto supera el límite."
+          "tooLong": "La longitud del texto supera el límite.",
+          "addToQueue": "Añadir a la cola",
+          "queueEmptyHint": "Añade horarios en Cuentas."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2612,7 +2614,8 @@
           "publishFailed": "Error al publicar: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
-          "duplicated": "Borrador creado."
+          "duplicated": "Borrador creado.",
+          "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}"
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2870,7 +2873,34 @@
           "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
           "later": "Más tarde"
         },
-        "moreActions": "Acciones de la publicación"
+        "moreActions": "Acciones de la publicación",
+        "queue": {
+          "title": "Cola de publicación",
+          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
+          "empty": "Aún no hay horarios de cola.",
+          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
+          "add": "Añadir horario",
+          "save": "Guardar cola",
+          "name": "Nombre",
+          "weekday": "Día",
+          "time": "Hora",
+          "timezone": "Zona horaria",
+          "remove": "Quitar {name}",
+          "toasts": {
+            "saved": "Cola guardada.",
+            "empty": "Cola vaciada.",
+            "failed": "No se pudieron guardar los horarios de la cola. Inténtalo de nuevo."
+          },
+          "weekdays": {
+            "0": "Domingo",
+            "1": "Lunes",
+            "2": "Martes",
+            "3": "Miércoles",
+            "4": "Jueves",
+            "5": "Viernes",
+            "6": "Sábado"
+          }
+        }
       },
       "Detail": {
         "back": "Volver a proyectos",

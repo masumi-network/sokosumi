@@ -100,7 +100,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
+  const [pages, connections, selectedPost, calendar, sokoBot, queueSlots] =
     await Promise.all([
       Promise.all(
         SECTION_ORDER.map((section) =>
@@ -118,6 +118,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         searchParams: Promise.resolve(withoutAgendaView(query)),
       }),
       sokoBotService.getMine().catch(() => null),
+      projectService.listSocialQueueSlots(project.id),
     ]);
   // Count every affected scheduled/failed post, including later list pages.
   const affectedPosts: SocialPost[] = [...pages[1].posts];
@@ -164,6 +165,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                queueSlots={queueSlots}
                 connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
@@ -189,6 +191,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 pages[index].nextCursor,
               ]),
             )}
+            queueSlots={queueSlots.slots}
             posts={posts}
             projectId={project.id}
             requestedPostId={query.postId}

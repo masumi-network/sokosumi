@@ -5,6 +5,7 @@ import type {
   ProjectSocialConnection,
   SocialPost,
   SocialPostMediaRef,
+  SocialQueueSlot,
 } from "@sokosumi/core-client";
 import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -19,6 +20,7 @@ import {
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -52,6 +54,7 @@ import {
 import {
   createProjectSocialPost,
   publishProjectSocialPost,
+  queueProjectSocialPost,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -105,6 +108,7 @@ export type SocialPostComposerMode =
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
+  queueSlots?: SocialQueueSlot[];
   connections: ProjectSocialConnection[];
   mode: SocialPostComposerMode;
   /** Takes the reader to where accounts are connected; absent, none is offered. */
@@ -117,7 +121,7 @@ interface SocialPostComposerDialogProps {
   projectId: string;
 }
 
-type PendingSubmit = "save" | "schedule" | "publish" | null;
+type PendingSubmit = "save" | "schedule" | "publish" | "queue" | null;
 
 function accountLabel(connection: ProjectSocialConnection): string {
   return (
@@ -155,6 +159,7 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
+  queueSlots = [],
   mode,
   onConnectAccount,
   onError,
@@ -420,6 +425,9 @@ export function SocialPostComposerDialog({
     scheduledAtValid &&
     !isBusy;
   const canSave = draftValid && !isBusy;
+  const hasQueueSlots = queueSlots.length > 0;
+  const canQueue =
+    hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
@@ -849,6 +857,81 @@ export function SocialPostComposerDialog({
         return;
       }
       toast.success(t("toasts.scheduled", { count: 1 }));
+      onSaved(result.value);
+      onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function handleQueue(): Promise<void> {
+    if (!canQueue) return;
+    setPending("queue");
+    try {
+      if (mode.kind === "create") {
+        const created = await createForEachAccount(
+          async (socialConnectionId) => {
+            const draft = await createProjectSocialPost({
+              projectId,
+              text: textFor(socialConnectionId).trim(),
+              ...(trimmedFirstComment
+                ? { firstComment: trimmedFirstComment }
+                : {}),
+              media,
+              socialConnectionId,
+            });
+            if (!draft.ok) return draft;
+            const result = await queueProjectSocialPost({
+              projectId,
+              postId: draft.value.id,
+              socialConnectionId,
+              revision: draft.value.revision,
+            });
+            // Keep the saved draft visible when scheduling fails.
+            if (!result.ok) onSaved(draft.value);
+            return result;
+          },
+        );
+        if (created === 0) return;
+        rememberCreateAccounts();
+        toast.success(t("toasts.queued", { count: created }));
+        onOpenChange(false);
+        return;
+      }
+
+      let revision = mode.post.revision;
+      const contentChanged =
+        trimmedText !== mode.post.text ||
+        trimmedFirstComment !== (mode.post.firstComment ?? "") ||
+        !sameSocialPostMedia(media, mode.post.media);
+      if (mode.kind === "edit" && contentChanged) {
+        const updated = await updateProjectSocialPost({
+          projectId,
+          postId: mode.post.id,
+          text: trimmedText,
+          firstComment: trimmedFirstComment,
+          media,
+          revision,
+        });
+        if (!updated.ok) {
+          onError(updated.error);
+          return;
+        }
+        revision = updated.value.revision;
+      }
+      const result = await queueProjectSocialPost({
+        projectId,
+        postId: mode.post.id,
+        socialConnectionId: connectionId,
+        revision,
+      });
+      if (!result.ok) {
+        onError(result.error);
+        return;
+      }
+      toast.success(t("toasts.queued", { count: 1 }));
       onSaved(result.value);
       onOpenChange(false);
     } catch (error) {
@@ -1437,8 +1520,37 @@ export function SocialPostComposerDialog({
               className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
               {footerMessage}
+              {!hasQueueSlots ? (
+                <p>
+                  <Link
+                    className="underline underline-offset-4"
+                    href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+                    onNavigate={(event) => {
+                      if (onConnectAccount) {
+                        event.preventDefault();
+                        onConnectAccount();
+                      } else {
+                        onOpenChange(false);
+                      }
+                    }}
+                  >
+                    {t("composer.queueEmptyHint")}
+                  </Link>
+                </p>
+              ) : null}
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canQueue}
+                loading={pending === "queue"}
+                onClick={() => {
+                  void handleQueue();
+                }}
+              >
+                {t("composer.addToQueue")}
+              </Button>
               {!isScheduleOnly && primaryAction !== "save" ? (
                 <>
                   <Tooltip>

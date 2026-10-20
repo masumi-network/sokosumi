@@ -30,6 +30,7 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
   publishProjectSocialPost,
+  queueProjectSocialPost,
   refreshProjectSocialPostStatistics,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
@@ -186,6 +187,9 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "composer.addToQueue": "Add to queue",
+  "composer.queueEmptyHint": "Add queue times in accounts.",
+  "toasts.queued": "Added to the queue.",
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
   "composer.tooLong": "Text length is over the limit.",
@@ -334,6 +338,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   createProjectSocialPost: vi.fn(),
   duplicateProjectSocialPost: vi.fn(),
   publishProjectSocialPost: vi.fn(),
+  queueProjectSocialPost: vi.fn(),
   refreshProjectSocialPostStatistics: vi.fn(),
   scheduleProjectSocialPost: vi.fn(),
   updateProjectSocialPost: vi.fn(),
@@ -3532,6 +3537,85 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).queryByTestId("social-post-first-comment"),
     ).not.toBeInTheDocument();
+  });
+
+  it("disables queueing without slots and links to accounts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Queued");
+    expect(
+      within(dialog).getByRole("button", { name: "Add to queue" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("link", {
+        name: "Add queue times in accounts.",
+      }),
+    ).toHaveAttribute("href", `/social?projectId=${PROJECT_ID}&tab=accounts`);
+    expect(queueProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("adds a new post to the next queue slot", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({
+        id: "post-queued",
+        text: "Queued",
+        status: "DRAFT",
+        revision: 1,
+      }),
+    });
+    vi.mocked(queueProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({ id: "post-queued", status: "SCHEDULED", revision: 2 }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+        queueSlots={[
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Queued");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to queue" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        text: "Queued",
+        media: [],
+        socialConnectionId: "connection-1",
+      });
+    });
+    expect(queueProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: "post-queued",
+      revision: 1,
+      socialConnectionId: "connection-1",
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Added to the queue.");
   });
 
   it("returns focus to the calendar trigger after closing a preview", async () => {

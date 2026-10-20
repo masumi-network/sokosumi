@@ -14,6 +14,7 @@ const coreClientMock = {
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
+  getProjectsByIdSocialQueueSlots: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh: vi.fn(),
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
@@ -32,6 +33,8 @@ const coreClientMock = {
   postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdQueue: vi.fn(),
+  putProjectsByIdSocialQueueSlots: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
@@ -800,6 +803,57 @@ describe("project.service", () => {
         delayDays: 7,
         timezone: "Europe/Berlin",
       });
+    });
+
+    it("lists, replaces, and queues through the posting-queue routes", async () => {
+      const slots = {
+        timezone: "UTC",
+        slots: [
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ],
+      };
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockResolvedValue({
+        data: slots,
+      });
+      coreClientMock.putProjectsByIdSocialQueueSlots.mockResolvedValue({
+        data: slots,
+      });
+      coreClientMock.postProjectsByIdSocialPostsByPostIdQueue.mockResolvedValue(
+        {
+          data: { ...post, status: "SCHEDULED" },
+        },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).resolves.toEqual(slots);
+      expect(
+        coreClientMock.getProjectsByIdSocialQueueSlots,
+      ).toHaveBeenCalledWith("project-1");
+
+      await expect(
+        projectService.replaceSocialQueueSlots("project-1", {
+          timezone: "UTC",
+          slots: [
+            { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+          ],
+        }),
+      ).resolves.toEqual(slots);
+
+      await expect(
+        projectService.queueSocialPost("project-1", "post-1", { revision: 0 }),
+      ).resolves.toMatchObject({ status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdQueue,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 0 });
     });
 
     it("publishes a post now with the observed revision", async () => {

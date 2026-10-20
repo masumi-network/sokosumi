@@ -19,6 +19,7 @@ const {
     getSocialPost: vi.fn(),
     listSocialConnections: vi.fn(),
     listSocialPosts: vi.fn(),
+    listSocialQueueSlots: vi.fn(),
   },
 }));
 
@@ -212,6 +213,10 @@ describe("SocialPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(true);
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
+    projectServiceMock.listSocialQueueSlots.mockResolvedValue({
+      timezone: null,
+      slots: [],
+    });
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
   });

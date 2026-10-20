@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +13,8 @@ const {
   socialPostFindManyMock,
   socialPostCountMock,
   socialPostUpdateManyMock,
+  queueSlotFindManyMock,
+  transactionMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
@@ -21,10 +24,14 @@ const {
   socialPostFindManyMock: vi.fn(),
   socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
+  queueSlotFindManyMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
+    projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
     project: { findFirst: projectFindFirstMock },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
@@ -165,6 +172,92 @@ describe("social posts service", () => {
     socialPostFindFirstMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  describe("queue uses the scheduling path", () => {
+    beforeEach(() => {
+      transactionMock.mockImplementation(
+        (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+          callback(prisma),
+      );
+      queueSlotFindManyMock.mockResolvedValue([
+        {
+          id: "slot-1",
+          name: "Morning",
+          weekday: 3,
+          minutesFromMidnight: 9 * 60,
+          timezone: "Europe/Zurich",
+        },
+      ]);
+      socialPostFindManyMock.mockResolvedValue([]);
+    });
+
+    const queueInput = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+    };
+
+    it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
+      "queues %s with scheduling's approval and timezone rules",
+      async (status) => {
+        socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+        const { queueSocialPost } = await import("./social-queue.service");
+        await queueSocialPost(queueInput);
+        expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+          where: { id: POST_ID, revision: 0 },
+          data: expect.objectContaining({
+            status:
+              status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+            scheduledAt: new Date("2026-09-16T07:00:00Z"),
+            timezone: "Europe/Zurich",
+            socialConnectionId: SOCIAL_CONNECTION_ID,
+            revision: { increment: 1 },
+          }),
+        });
+      },
+    );
+
+    it.each(["disconnected", "needs_reconnect"])(
+      "rejects an unhealthy %s connection",
+      async (status) => {
+        socialConnectionFindFirstMock.mockResolvedValue({
+          ...activeConnection,
+          status,
+        });
+        const { queueSocialPost } = await import("./social-queue.service");
+        await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+          status: 409,
+        });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rejects stale revisions", async () => {
+      const { queueSocialPost } = await import("./social-queue.service");
+      await expect(
+        queueSocialPost({ ...queueInput, revision: 42 }),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "social_post_revision_conflict" },
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("enforces the destination network's media requirements", async () => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider: "instagram",
+      });
+      const { queueSocialPost } = await import("./social-queue.service");
+      await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects a Project outside the current workspace", async () => {

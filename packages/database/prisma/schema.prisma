@@ -479,6 +479,7 @@ model Project {
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
+  socialQueueSlots        ProjectSocialQueueSlot[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
   adConnections     ProjectAdConnection[]
@@ -807,12 +808,12 @@ model SocialPost {
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
 
   /// Social provider key, e.g. "x".
-  provider String
-  text     String
+  provider     String
+  text         String
   /// Optional comment posted once after the post, on networks Composio supports.
   firstComment String?
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
-  media    Json   @default("[]")
+  media        Json    @default("[]")
 
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
@@ -868,6 +869,26 @@ model SocialPost {
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
   @@map("social_post")
+}
+
+/// One named weekly time a Project uses as a posting-queue slot.
+/// weekday 0–6 (Sunday=0) and minutesFromMidnight 0–1439 are CHECKed in SQL.
+model ProjectSocialQueueSlot {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name                String
+  weekday             Int
+  minutesFromMidnight Int
+  timezone            String
+
+  @@unique([projectId, weekday, minutesFromMidnight], map: "project_social_queue_slot_project_id_weekday_minutes_key")
+  @@index([projectId])
+  @@map("project_social_queue_slot")
 }
 
 model SocialPostPublishAttempt {
