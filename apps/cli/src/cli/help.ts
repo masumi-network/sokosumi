@@ -229,7 +229,7 @@ Organization Tasks:
     tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link.
     tasks relink TASK_ID --to OTHER_TASK_ID --relation REL replaces it (deletes, then creates; keeps the note).
   List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority.
-    tasks list fetches every page unless --limit N is set.
+    tasks list fetches every page unless --limit N is set. --sort updatedAt|priority requires --limit.
   Close: tasks archive TASK_ID
 
 Agent runtime tools on Preprod:

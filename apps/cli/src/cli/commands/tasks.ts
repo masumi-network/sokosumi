@@ -65,6 +65,16 @@ export interface TasksCommandContext extends CommandContext {
   options?: CommandOptions;
 }
 
+function taskRef(task: Record<string, unknown>): string {
+  return String(task.identifier || task.id || "unknown");
+}
+
+function taskAssignee(task: Record<string, unknown>): string {
+  return String(
+    task.coworkerName || task.coworkerId || task.assigneeUserId || "-",
+  );
+}
+
 function printTaskList(
   stdout: CommandContext["stdout"],
   tasks: readonly unknown[],
@@ -74,10 +84,10 @@ function printTaskList(
   for (const raw of tasks) {
     const task = record(raw);
     lines.push(
-      `${String(task.name || task.id || "Unnamed Task")} [${String(task.id || "unknown")}]`,
+      `${String(task.name || task.identifier || task.id || "Unnamed Task")} [${taskRef(task)}]`,
     );
     lines.push(
-      `  status: ${String(task.status || "unknown")} | coworker: ${String(task.coworkerName || task.coworkerId || "-")}`,
+      `  status: ${String(task.status || "unknown")} | assignee: ${taskAssignee(task)}`,
     );
     if (task.updatedAt)
       lines.push(`  updated: ${formatDate(task.updatedAt) || ""}`);
@@ -110,11 +120,11 @@ function printTask(
   const value = record(task);
   const events = Array.isArray(details.events) ? details.events : [];
   writeText(stdout, [
-    `Task ${String(value.id || "unknown")}`,
-    value.identifier ? `identifier: ${String(value.identifier)}` : undefined,
+    `Task ${taskRef(value)}`,
+    value.identifier && value.id ? `id: ${String(value.id)}` : undefined,
     `status: ${String(value.status || "unknown")}`,
     value.priority ? `priority: ${String(value.priority)}` : undefined,
-    `coworker: ${String(value.coworkerName || value.coworkerId || "-")}`,
+    `assignee: ${taskAssignee(value)}`,
     value.name ? `name: ${String(value.name)}` : undefined,
     value.description
       ? `description: ${truncate(value.description, 240)}`
@@ -277,6 +287,13 @@ export async function runTasksCommand({
   const command = subcommand || "list";
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
+    const sort = validateChoice(option(options, "sort"), SORTS, "--sort");
+    // Core warns that updatedAt/priority order moves rows mid-page; draining
+    // every page without a cap can skip or duplicate Tasks.
+    if (limit === undefined && (sort === "updatedAt" || sort === "priority"))
+      throw new Error(
+        `--sort ${sort} needs --limit because Core's cursor can skip or duplicate rows while the list drains`,
+      );
     const { tasks } = await fetchTasks(
       client,
       {
@@ -286,7 +303,7 @@ export async function runTasksCommand({
         coworkerId: optionString(options, "coworker-id"),
         assigneeUserId: optionString(options, "assignee-user-id"),
         projectId: optionString(options, "project-id"),
-        sort: validateChoice(option(options, "sort"), SORTS, "--sort"),
+        sort,
         take: limit,
       },
       signal,

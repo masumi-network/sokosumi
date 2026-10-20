@@ -74,7 +74,8 @@ function tasksPath(
   if (options.scope) params.set("scope", String(options.scope).trim());
   if (options.coworkerId)
     params.set("assigneeId", String(options.coworkerId).trim());
-  params.set("take", String(take));
+  // Core's cursorPaginationQuerySchema reads `limit`, not `take`.
+  params.set("limit", String(take));
   if (options.projectId) params.set("projectId", options.projectId.trim());
   if (options.assigneeUserId)
     params.set("assigneeUserId", options.assigneeUserId.trim());

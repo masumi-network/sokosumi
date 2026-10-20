@@ -101,7 +101,7 @@ test("tasks list sends search as server q and keeps server matches", async () =>
     json: true,
     options: { search: "review" },
   });
-  assert.equal(paths[0], "/v1/tasks?q=review&take=100");
+  assert.equal(paths[0], "/v1/tasks?q=review&limit=100");
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.tasks.length, 1);
   assert.equal(parsed.tasks[0].id, "task-1");
@@ -124,6 +124,27 @@ test("tasks list still applies client limit", async () => {
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.tasks.length, 1);
   assert.equal(parsed.tasks[0].id, "task-1");
+});
+
+test("tasks list text shows short id and person assignee", async () => {
+  const output: string[] = [];
+  await runTasksCommand({
+    client: clientWith({
+      data: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+          identifier: "SOK-12",
+          name: "Spec",
+          status: "READY",
+          assigneeUserId: "user-1",
+        },
+      ],
+    }),
+    stdout: { write: (value) => output.push(value) },
+  });
+  const text = output.join("");
+  assert.match(text, /Spec \[SOK-12\]/);
+  assert.match(text, /assignee: user-1/);
 });
 
 test("tasks get requires an id", async () => {
@@ -619,7 +640,7 @@ test("tasks list follows cursors until Core has no more pages", async () => {
   });
   assert.deepEqual(
     calls.map((call) => call.path),
-    ["/v1/tasks?take=100", "/v1/tasks?take=100&cursor=c1"],
+    ["/v1/tasks?limit=100", "/v1/tasks?limit=100&cursor=c1"],
   );
   assert.deepEqual(
     JSON.parse(output.join("")).tasks.map((task: { id: string }) => task.id),
@@ -644,7 +665,7 @@ test("tasks list --limit caps page size and stops at the limit", async () => {
   });
   assert.deepEqual(
     calls.map((call) => call.path),
-    ["/v1/tasks?take=100", "/v1/tasks?take=50&cursor=c1"],
+    ["/v1/tasks?limit=100", "/v1/tasks?limit=50&cursor=c1"],
   );
   assert.equal(JSON.parse(output.join("")).tasks.length, 150);
 });
@@ -660,11 +681,12 @@ test("tasks list filters by project, person, and sort", async () => {
       "assignee-user-id": "user-1",
       sort: "PRIORITY",
       status: "READY",
+      limit: "100",
     },
   });
   assert.equal(
     calls[0]?.path,
-    `/v1/tasks?take=100&projectId=${PEER_UUID}&assigneeUserId=user-1&sort=priority&status=READY`,
+    `/v1/tasks?limit=100&projectId=${PEER_UUID}&assigneeUserId=user-1&sort=priority&status=READY`,
   );
   await assert.rejects(
     () =>
@@ -674,6 +696,15 @@ test("tasks list filters by project, person, and sort", async () => {
         options: { sort: "name" },
       }),
     /--sort must be one of: createdAt, updatedAt, priority/,
+  );
+  await assert.rejects(
+    () =>
+      runTasksCommand({
+        client: clientWith({ data: [] }),
+        stdout: { write() {} },
+        options: { sort: "priority" },
+      }),
+    /--sort priority needs --limit/,
   );
 });
 

@@ -73,7 +73,7 @@ test("task services encode IDs and serialize all list filters", async () => {
       { method: "GET", path: "/v1/tasks/task%2F1" },
       {
         method: "GET",
-        path: "/v1/tasks?q=review&scope=workspace&assigneeId=cow%2F1&take=10&status=READY&status=DONE",
+        path: "/v1/tasks?q=review&scope=workspace&assigneeId=cow%2F1&limit=10&status=READY&status=DONE",
       },
       { method: "GET", path: "/v1/tasks/task%2F1/jobs" },
       { method: "GET", path: "/v1/tasks/task%2F1/events?limit=100" },
