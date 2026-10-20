@@ -2669,6 +2669,7 @@
           "offline": "You're offline.",
           "timeout": "Timed out.",
           "missing": "Couldn't open this post.",
+          "mediaUnavailable": "Media isn't included in imported history yet.",
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
@@ -2798,8 +2799,8 @@
           "historyNotFetched": "Account history has not been imported.",
           "historyLimited": "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
           "dateUnavailable": "Publication date unavailable",
-          "mediaPost": "Media post",
-          "openPost": "Open post on platform",
+          "noPostMetrics": "No metrics reported for this post yet.",
+          "openPost": "View post on platform",
           "accountMetrics": {
             "followers": "Followers",
             "following": "Following",
@@ -2842,7 +2843,13 @@
             "linkClicks": "Link clicks",
             "replies": "Replies",
             "reposts": "Reposts",
-            "dislikes": "Dislikes"
+            "dislikes": "Dislikes",
+            "quotes": "Quotes",
+            "totalWatchTime": "Total watch time",
+            "averageWatchTime": "Average watch time",
+            "skipRate": "Skip rate",
+            "facebookViews": "Facebook views",
+            "crosspostedViews": "Crossposted views"
           },
           "periods": {
             "lifetime": "Lifetime",
