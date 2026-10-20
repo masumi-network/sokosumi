@@ -69,6 +69,40 @@ function taskRef(task: Record<string, unknown>): string {
   return String(task.identifier || task.id || "unknown");
 }
 
+/** POSIX single-quote so a pasted restore command cannot expand `$`, backticks, or `$(...)`. */
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** Rebuild the failed `tasks link` with the same target and Workspace the relink used. */
+function restoreLinkCommand(
+  options: CommandOptions | undefined,
+  id: string,
+  relation: string,
+  peerId: string,
+  note: string | undefined,
+): string {
+  const parts = ["sokosumi"];
+  if (optionBoolean(options, "preprod")) parts.push("--preprod");
+  else {
+    const apiUrl = optionString(options, "api-url");
+    if (apiUrl !== undefined) parts.push("--api-url", shellSingleQuote(apiUrl));
+  }
+  parts.push(
+    "tasks",
+    "link",
+    id,
+    "--relation",
+    shellSingleQuote(relation),
+    "--to",
+    peerId,
+  );
+  const slug = optionString(options, "organization-slug");
+  if (slug !== undefined) parts.push("--organization-slug", slug);
+  if (note !== undefined) parts.push("--note", shellSingleQuote(note));
+  return parts.join(" ");
+}
+
 function taskAssignee(task: Record<string, unknown>): string {
   return String(
     task.coworkerName || task.coworkerId || task.assigneeUserId || "-",
@@ -534,9 +568,15 @@ export async function runTasksCommand({
     if (json) writeJson(stdout, { link });
     else printLinks(stdout, [link]);
   } catch (error) {
-    const restore = `sokosumi tasks link ${id} --relation ${String(existing.relation)} --to ${peerId}${oldNote ? ` --note ${JSON.stringify(oldNote)}` : ""}`;
+    const restore = restoreLinkCommand(
+      options,
+      id,
+      String(existing.relation),
+      peerId,
+      oldNote,
+    );
     throw new Error(
-      `Removed the ${String(existing.relation)} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. Restore it with: ${restore} (same --organization-slug)`,
+      `Removed the ${String(existing.relation)} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. Restore it with: ${restore}`,
     );
   }
 }

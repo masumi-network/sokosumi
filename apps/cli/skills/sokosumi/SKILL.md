@@ -157,17 +157,19 @@ sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --co
 
 [VERIFIED: `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/helpers/task-link.ts`; Web `restoreParentLinks` in `apps/web/src/lib/actions/task/action.ts`] A team can run its issue tracker on Tasks: one Task per ticket, a parent Task per feature, and status events as progress. Every `tasks` command accepts a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through Core before writing.
 
+Prefer `--preprod` for Task-tracking writes. Mainnet (production) Task create, update, link, unlink, relink, comment, and archive are production API writes: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval.
+
 ```bash
-sokosumi tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
-sokosumi tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
-sokosumi tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
-sokosumi tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
-sokosumi tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
-sokosumi tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
-sokosumi tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
-sokosumi tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
-sokosumi tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
-sokosumi tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
+sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
+sokosumi --preprod tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
+sokosumi --preprod tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
+sokosumi --preprod tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --preprod tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
+sokosumi --preprod tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
+sokosumi --preprod tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --preprod tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
+sokosumi --preprod tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
+sokosumi --preprod tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
 ```
 
 - The returned `task.identifier` is the ticket name; use it in branches and PR descriptions.
