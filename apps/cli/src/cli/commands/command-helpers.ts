@@ -77,20 +77,22 @@ export function parseInteger(
   return parsed;
 }
 
-export function validateStatus(
+/** Case-insensitive enum check; returns the matching allowed spelling. */
+export function validateChoice(
   value: CommandOption,
   allowed: readonly string[],
+  label: string,
 ): string | undefined {
   const text =
     value === undefined || typeof value === "boolean"
       ? undefined
-      : String(Array.isArray(value) ? value.at(-1) : value)
-          .trim()
-          .toUpperCase();
+      : String(Array.isArray(value) ? value.at(-1) : value).trim();
   if (!text) return undefined;
-  if (!allowed.includes(text))
-    throw new Error(`--status must be one of: ${allowed.join(", ")}`);
-  return text;
+  const match = allowed.find(
+    (entry) => entry.toUpperCase() === text.toUpperCase(),
+  );
+  if (!match) throw new Error(`${label} must be one of: ${allowed.join(", ")}`);
+  return match;
 }
 
 export function normalizeCapabilities(value: CommandOption): string[] {
