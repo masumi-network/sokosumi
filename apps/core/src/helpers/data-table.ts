@@ -415,10 +415,14 @@ export async function listDataTables(
 export async function mutateDataTable(
   actor: TableActor,
   id: string,
-  input: z.infer<typeof tableMutationSchema>,
+  input: z.infer<typeof tableMutationSchema> & {
+    /** Columns to delete, with their values; named, so a column left out of `columns` by mistake is never lost. */
+    removeColumnIds?: string[];
+  },
   complete?: TableOperationCompletion,
 ) {
   const body = tableMutationSchema.parse(input);
+  const removed = new Set(input.removeColumnIds ?? []);
   if (await scopeForTask(actor, id, prisma))
     throw forbidden("Selected-row tasks cannot change table metadata");
   if (
@@ -431,13 +435,22 @@ export async function mutateDataTable(
   return operation(
     actor,
     body.key,
-    { id, metadata: body },
+    removed.size
+      ? { id, metadata: body, removeColumnIds: input.removeColumnIds }
+      : { id, metadata: body },
     async (tx, batchId) => {
       if (await scopeForTask(actor, id, tx))
         throw forbidden("Selected-row tasks cannot change table metadata");
       const table = await requireDataTable(actor, id, tx);
       if (table.version !== body.version)
         throw conflict("Table schema changed. Reload before editing.");
+      if (removed.size) {
+        assertEditable(table);
+        if ([...removed].some((c) => !table.columns.some((x) => x.id === c)))
+          throw unprocessableEntity("Unknown column to remove");
+        if (body.columns?.some((column) => column.id && removed.has(column.id)))
+          throw unprocessableEntity("A removed column cannot also be kept");
+      }
       if (body.columns) {
         assertEditable(table);
         const columns = body.columns.map((column) => ({
@@ -450,11 +463,13 @@ export async function mutateDataTable(
         );
         if (
           table.columns.some(
-            (column) => !columns.some((next) => next.id === column.id),
+            (column) =>
+              !removed.has(column.id) &&
+              !columns.some((next) => next.id === column.id),
           )
         )
           throw unprocessableEntity(
-            "Columns cannot be removed; hide them in a view",
+            "List every column you keep; delete one only by naming it in removeColumnIds",
           );
         for (const [position, column] of columns.entries()) {
           const previous = table.columns.find((item) => item.id === column.id);
@@ -492,6 +507,7 @@ export async function mutateDataTable(
             });
         }
       }
+      if (removed.size) await removeColumns(tx, table, [...removed]);
       const updated = await tx.dataTable.update({
         where: { id },
         data: {
@@ -520,6 +536,54 @@ export async function mutateDataTable(
     },
     complete,
   );
+}
+
+/** Deletes columns with their values, and drops them from saved views. */
+async function removeColumns(
+  tx: Prisma.TransactionClient,
+  table: Awaited<ReturnType<typeof requireDataTable>>,
+  ids: string[],
+) {
+  const left = await tx.tableColumn.count({
+    where: { tableId: table.id, id: { notIn: ids } },
+  });
+  if (left < 1) throw unprocessableEntity("A table keeps at least one column");
+  // A Coworker filling these columns would fail on its next write.
+  const busy = await tx.tableTaskScope.findFirst({
+    where: {
+      tableId: table.id,
+      columnIds: { hasSome: ids },
+      task: {
+        status: { in: ["READY", "QUEUED", "RUNNING", "INPUT_REQUIRED"] },
+      },
+    },
+    select: { task: { select: { name: true } } },
+  });
+  if (busy)
+    throw conflict(
+      `"${busy.task.name}" is still filling this column; cancel it or wait before deleting the column`,
+    );
+  await tx.tableColumn.deleteMany({
+    where: { tableId: table.id, id: { in: ids } },
+  });
+  await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
+  const gone = new Set(ids);
+  for (const view of table.views) {
+    const definition = tableViewDefinitionSchema.parse(view.definition);
+    const next = {
+      filters: definition.filters.filter((f) => !gone.has(f.columnId)),
+      sort:
+        definition.sort && gone.has(definition.sort.columnId)
+          ? null
+          : definition.sort,
+      visibleColumnIds: definition.visibleColumnIds.filter((c) => !gone.has(c)),
+    };
+    if (canonical(next) !== canonical(definition))
+      await tx.tableView.update({
+        where: { id: view.id },
+        data: { definition: next, version: { increment: 1 } },
+      });
+  }
 }
 
 async function scopeForTask(
