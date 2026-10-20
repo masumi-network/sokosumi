@@ -112,6 +112,8 @@ test("Task Workspace selection preserves the selected target and applies to ever
       "user-1",
       "--sort",
       "priority",
+      "--limit",
+      "50",
     ],
     ["archive", "task-1"],
     ["link", "task-1", "--to", "task-1", "--relation", "blocks", "--note", "n"],
