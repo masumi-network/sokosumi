@@ -328,6 +328,46 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
       ),
     ).rejects.toThrow("populated column");
   });
+  it("removes only named columns, with their values, and keeps writes working", async () => {
+    const table = await createDataTable(actor, input());
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ values: { [nameId]: "Acme", [numberId]: 3 } }],
+      }),
+    );
+    await expect(
+      mutateDataTable(actor, table.id, {
+        ...tableMutationSchema.parse({
+          key: randomUUID(),
+          version: 1,
+          columns: [table.columns[0]],
+        }),
+      }),
+    ).rejects.toThrow("removeColumnIds");
+    const next = await mutateDataTable(actor, table.id, {
+      ...tableMutationSchema.parse({ key: randomUUID(), version: 1 }),
+      removeColumnIds: [numberId],
+    });
+    expect(next.columns.map((column) => column.id)).toEqual([nameId]);
+    const rows = await queryTableRows(actor, table.id, { limit: 10 });
+    expect(rows.rows[0]?.values).toEqual({ [nameId]: "Acme" });
+    const row = rows.rows[0];
+    if (!row) throw new Error("row missing");
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          { id: row.id, version: row.version, values: { [nameId]: "Beta" } },
+        ],
+      }),
+    );
+  });
+
   it("server-filters and sorts numeric JSON values with bounded keyset pagination", async () => {
     const table = await createDataTable(actor, input());
     await batchTableRows(

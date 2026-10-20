@@ -4795,7 +4795,13 @@ export class SokoBotRuntimeService {
         return mutateDataTable(
           scopedActor,
           tableId,
-          tableMutationSchema.parse(input.input),
+          {
+            ...tableMutationSchema.parse(input.input),
+            removeColumnIds:
+              SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(
+                input.input,
+              ).removeColumnIds,
+          },
           complete,
         );
       }
