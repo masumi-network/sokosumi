@@ -1,7 +1,7 @@
 export type TasksDensity = "normal" | "compact";
 
 export const TASKS_DENSITY_COOKIE_NAME = "tasks_density";
-export const TASKS_DENSITY_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const TASKS_DENSITY_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export function parseTasksDensity(
   value: string | null | undefined,

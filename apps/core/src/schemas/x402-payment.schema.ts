@@ -72,10 +72,6 @@ export const createTaskX402PaymentRequestSchema = z.object({
   }),
 });
 
-export type CreateTaskX402PaymentRequest = z.infer<
-  typeof createTaskX402PaymentRequestSchema
->;
-
 const taskX402PaymentHeaderSchema = z.object({
   x402Version: z.union([z.literal(1), z.literal(2)]),
   name: z.enum(["X-PAYMENT", "PAYMENT-SIGNATURE"]),

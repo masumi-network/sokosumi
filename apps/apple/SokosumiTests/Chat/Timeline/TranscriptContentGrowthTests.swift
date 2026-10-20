@@ -74,9 +74,9 @@
         let originalHeight = try #require(scroll.documentView?.frame.height)
         let index = readingHistory ? 40 : 49
         if thread {
-          state.thread.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
+          state.openRoom.thread.transcript.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         } else {
-          state.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
+          state.openRoom.room.timeline.messages[index].content += String(repeating: "\nMore loaded content", count: lines)
         }
         // Drive layout before yielding so deferred scroll corrections run before assertions.
         for _ in 0 ..< 25 {
@@ -95,17 +95,17 @@
 
       private func fixtureState(thread: Bool) -> WorkspaceState {
         let state = WorkspaceState()
-        state.timeline.reset(roomId: "growth")
-        state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-        state.timeline.messages = (0 ..< 50).map { index in
+        state.openRoom.room.timeline.reset(roomId: "growth")
+        state.openRoom.room.timeline.failInitialLoad(message: "", generation: state.openRoom.room.timeline.generation)
+        state.openRoom.room.timeline.messages = (0 ..< 50).map { index in
           var message = chatRoomMessage(from: .init(clientTurnId: "growth-\(index)", roomId: "growth", content: "Message \(index)", createdAt: Date(), sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
           message.id = "growth-\(index)"
           return message
         }
-        if thread, let parent = state.timeline.messages.first {
-          state.thread.open(parent)
-          state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
-          state.thread.timeline.messages = state.timeline.messages.map { message in
+        if thread, let parent = state.openRoom.room.timeline.messages.first {
+          state.openRoom.thread.open(parent)
+          state.openRoom.thread.transcript.timeline.failInitialLoad(message: "", generation: state.openRoom.thread.transcript.timeline.generation)
+          state.openRoom.thread.transcript.timeline.messages = state.openRoom.room.timeline.messages.map { message in
             var reply = message
             reply.id = "reply-\(message.id)"
             reply.parentMessageId = parent.id

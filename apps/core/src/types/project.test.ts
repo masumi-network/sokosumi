@@ -139,3 +139,22 @@ describe("resolveProjectReaderAccess", () => {
     });
   });
 });
+
+describe("resolveProjectReaderAccess for a shared Soko Bot", () => {
+  it("answers 403 until shared bot visibility exists", async () => {
+    await expect(
+      resolveProjectReaderAccess(
+        {
+          actor: "sokoBot",
+          scope: "project",
+          sokoBotId: "30000000-0000-4000-8000-000000000001",
+          userId: null,
+          workspaceId: WORKSPACE_ID,
+          organizationId: "org_1",
+          projectId: "40000000-0000-4000-8000-000000000001",
+        },
+        WORKSPACE_ID,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+});

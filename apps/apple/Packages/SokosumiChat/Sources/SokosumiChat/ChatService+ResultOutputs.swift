@@ -28,50 +28,30 @@ public extension ChatService {
 extension ChatService {
   private func driveFileContent(client: Client, id: String, query: Operations.GetDriveResourcesIdContent.Input.Query,
                                 organizationSlug: String?) async throws -> HTTPBody {
-    let response = try await client.getDriveResourcesIdContent(.init(
-      path: .init(id: id), query: query, headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case let .ok(value): return try value.body.any
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .serviceUnavailable(value): throw try rejected(status: 503, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call {
+      try await client.getDriveResourcesIdContent(.init(
+        path: .init(id: id), query: query, headers: .init(xOrganizationSlug: organizationSlug)
+      ))
+    }.ok.body.any
   }
 
   private func jobFileContent(client: Client, jobId: String, fileId: String, download: Bool, organizationSlug: String?) async throws -> HTTPBody {
-    let response = try await client.getJobsIdFilesFileIdContent(.init(
-      path: .init(id: jobId, fileId: fileId),
-      query: .init(download: download ? ._true : nil),
-      headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case let .ok(value): return try value.body.any
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .serviceUnavailable(value): throw try rejected(status: 503, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call {
+      try await client.getJobsIdFilesFileIdContent(.init(
+        path: .init(id: jobId, fileId: fileId),
+        query: .init(download: download ? ._true : nil),
+        headers: .init(xOrganizationSlug: organizationSlug)
+      ))
+    }.ok.body.any
   }
 
   private func studioAssetContent(client: Client, projectId: String, assetId: String, organizationSlug: String?) async throws -> HTTPBody {
-    let response = try await client.getProjectsIdImageStudioAssetsAssetIdContent(.init(
-      path: .init(id: projectId, assetId: assetId),
-      headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case let .ok(value): return try value.body.image_Ast_
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .serviceUnavailable(value): throw try rejected(status: 503, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
+    try await call {
+      try await client.getProjectsIdImageStudioAssetsAssetIdContent(.init(
+        path: .init(id: projectId, assetId: assetId),
+        headers: .init(xOrganizationSlug: organizationSlug)
+      ))
+    }.ok.body.image_Ast_
   }
 
   /// Streams the body into `<temporary>/ResultOutputs/<unique>/<fileName>`, so a large video never sits in memory.

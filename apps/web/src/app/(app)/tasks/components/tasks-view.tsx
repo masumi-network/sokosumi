@@ -66,6 +66,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -166,18 +167,21 @@ function TasksRealtimeListener({
   userId,
   onEvent,
 }: TasksRealtimeListenerProps) {
-  useChannel(makeUserTasksChannelName(userId), (message) => {
-    const parsedResult = taskEventDataSchema.safeParse(message.data);
-    if (parsedResult.success) {
-      onEvent(parsedResult.data);
-    } else {
-      console.error(
-        "Failed to parse TaskEventData from message",
-        message,
-        parsedResult.error,
-      );
-    }
-  });
+  useChannel(
+    makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
+    (message) => {
+      const parsedResult = taskEventDataSchema.safeParse(message.data);
+      if (parsedResult.success) {
+        onEvent(parsedResult.data);
+      } else {
+        console.error(
+          "Failed to parse TaskEventData from message",
+          message,
+          parsedResult.error,
+        );
+      }
+    },
+  );
 
   return null;
 }
@@ -1016,7 +1020,12 @@ export function TasksView({
     >
       {userId ? (
         <LazyAblyProvider>
-          <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
+          <ChannelProvider
+            channelName={makeUserTasksChannelName(
+              userId,
+              getRealtimeChannelEnvironment(),
+            )}
+          >
             <TasksRealtimeListener
               userId={userId}
               onEvent={handleEventUpdate}

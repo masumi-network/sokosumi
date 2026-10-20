@@ -71,6 +71,6 @@ export async function loadJobDetails({
     personalWorkspaceLabel:
       session.user.name?.trim() || session.user.email?.trim() || null,
     projectName: project?.name ?? null,
-    readOnly: job.ownerId !== session.user.id,
+    readOnly: job.ownerId !== null && job.ownerId !== session.user.id,
   };
 }

@@ -1,3 +1,7 @@
+import {
+  isSokoBotCapability,
+  isSokoBotSandboxCapability,
+} from "@sokosumi/soko-bot";
 import type { PresetRoute } from "./classifier";
 
 /**
@@ -89,4 +93,23 @@ export function systemScheduleRoute(
   return systemKey && Object.hasOwn(SYSTEM_TURN_ROUTES, systemKey)
     ? SYSTEM_TURN_ROUTES[systemKey as keyof typeof SYSTEM_TURN_ROUTES]
     : undefined;
+}
+
+/**
+ * A follow-up the bot wrote for itself runs with the tools of the turn that
+ * wrote it, not a route Jev guesses from its prompt: "continue the CRM table
+ * from March" must still be able to write rows. The writing turn had those
+ * tools already, so the schedule grants nothing new.
+ */
+export function inheritedScheduleRoute(
+  capabilityNames: readonly string[],
+): PresetRoute | undefined {
+  const capabilities = capabilityNames.filter(isSokoBotCapability);
+  if (!capabilities.length) return undefined;
+  return {
+    route: "DELEGATE_TASK",
+    reason: "Follow-up the bot set for itself, with that turn's tools.",
+    capabilities,
+    sandbox: capabilities.some(isSokoBotSandboxCapability),
+  };
 }

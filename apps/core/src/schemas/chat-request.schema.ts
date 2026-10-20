@@ -22,7 +22,7 @@ export const chatRequestMessageSchema = z.object({
 });
 
 /** POST /v1/chats/rooms/{id}/stream: messages[] or message + conversationId + trigger submit-message. */
-export const aiSdkChatRequestSchema = z
+const aiSdkChatRequestSchema = z
   .object({
     messages: z.array(chatRequestMessageSchema).optional(),
     message: chatRequestMessageSchema.optional(),

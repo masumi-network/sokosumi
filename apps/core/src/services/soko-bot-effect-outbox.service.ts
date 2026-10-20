@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
-
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
-
+import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+import { isOwnSharedRoom } from "@/helpers/soko-bot-notice-room";
+import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 
 const chatPayload = z.object({
   messageId: z.string(),
@@ -53,7 +57,13 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
   if (owned.count !== 1) return false;
   const effect = await prisma.sokoBotEffectOutbox.findUniqueOrThrow({
     where: { id },
-    include: { receipt: { include: { turn: true } } },
+    include: {
+      receipt: {
+        include: {
+          turn: { include: { sokoBot: { select: { userId: true } } } },
+        },
+      },
+    },
   });
   async function renewLease() {
     const renewed = await prisma.sokoBotEffectOutbox.updateMany({
@@ -103,25 +113,19 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
   }
   try {
     const turn = effect.receipt.turn;
+    const actingUserId = sokoBotActingUserId(turn);
     const workspace = await prisma.workspace.findFirst({
-      where: {
-        id: turn.workspaceId,
-        OR: [
-          { userId: turn.userId },
-          { organization: { members: { some: { userId: turn.userId } } } },
-        ],
-      },
+      where: sokoBotWorkspaceAccessWhere(actingUserId, turn.workspaceId),
       select: { id: true },
     });
-    const bot = await prisma.sokoBot.findFirst({
-      where: {
-        id: turn.sokoBotId,
-        userId: turn.userId,
+    const bot = await sokoBotForTurnMember(
+      {
+        sokoBotId: turn.sokoBotId,
+        actingUserId,
         workspaceId: turn.workspaceId,
-        archivedAt: null,
       },
-      select: { id: true },
-    });
+      "notArchived",
+    );
     if (!workspace || !bot || effect.receipt.status !== "COMPLETED")
       return suppress("AUTHORITY_REVOKED");
     if (effect.purpose === "TASK_EVENT") {
@@ -163,11 +167,13 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         await markTaskArchivedRead(event.task);
       }
       if (!(await renewLease())) return false;
-      await publishTaskEventData({
-        userId: event.task.ownerId,
-        taskId: event.taskId,
-        eventType: "task_event",
-      });
+      if (event.task.ownerId) {
+        await publishTaskEventData({
+          userId: event.task.ownerId,
+          taskId: event.taskId,
+          eventType: "task_event",
+        });
+      }
       if (!(await renewLease())) return false;
       if (event.status)
         await notifyTaskStatusEvent(
@@ -194,23 +200,17 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           data: { leaseUntil: new Date(Date.now() + 120_000) },
         });
         if (fence.count !== 1) return { message: null, reason: null };
-        const authority = await tx.sokoBot.findFirst({
-          where: {
-            id: turn.sokoBotId,
-            userId: turn.userId,
+        const authority = await sokoBotForTurnMember(
+          {
+            sokoBotId: turn.sokoBotId,
+            actingUserId,
             workspaceId: turn.workspaceId,
-            archivedAt: null,
           },
-          select: { id: true },
-        });
+          "notArchived",
+          tx,
+        );
         const workspace = await tx.workspace.findFirst({
-          where: {
-            id: turn.workspaceId,
-            OR: [
-              { userId: turn.userId },
-              { organization: { members: { some: { userId: turn.userId } } } },
-            ],
-          },
+          where: sokoBotWorkspaceAccessWhere(actingUserId, turn.workspaceId),
           select: { id: true },
         });
         if (!authority || !workspace)
@@ -224,6 +224,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             id: payload.messageId,
             roomId: payload.roomId,
             senderSokoBotId: turn.sokoBotId,
+            room: writableAssistantRoomWhere,
           },
           include: {
             senderSokoBot: { select: { name: true, archivedAt: true } },
@@ -246,8 +247,9 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           return { message: null, reason: "MESSAGE_UNAVAILABLE" };
         const room = message.room;
         const rosterMatches =
-          JSON.stringify(room.userMembers.map((m) => m.userId).sort()) ===
-            JSON.stringify(payload.userIds) &&
+          (isOwnSharedRoom(authority, room.id) ||
+            JSON.stringify(room.userMembers.map((m) => m.userId).sort()) ===
+              JSON.stringify(payload.userIds)) &&
           JSON.stringify(
             room.coworkerMembers.map((m) => m.coworkerId).sort(),
           ) === JSON.stringify(payload.coworkerIds) &&
@@ -264,6 +266,8 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             messageId: message.id,
             roomId: room.id,
             content: payload.content,
+            // A shared room holds the whole organization.
+            expandAll: isPersonalSokoBot(authority),
           });
           await tx.chatRoomMention.updateMany({
             where: { messageId: message.id, status: "staged" },

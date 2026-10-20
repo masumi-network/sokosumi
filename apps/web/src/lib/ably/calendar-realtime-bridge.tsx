@@ -11,8 +11,8 @@ import { useAbly } from "ably/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
-
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import {
   isExpectedAblyChannelLifecycleError,
@@ -101,10 +101,14 @@ function CalendarRealtimeSubscription({
     const calendarChannelName = makeWorkspaceCalendarChannelName(
       workspaceId,
       currentUserId,
+      getRealtimeChannelEnvironment(),
     );
     const calendarChannel = ably.channels.get(calendarChannelName);
     const controlChannel = ably.channels.get(
-      makeUserCalendarControlChannelName(currentUserId),
+      makeUserCalendarControlChannelName(
+        currentUserId,
+        getRealtimeChannelEnvironment(),
+      ),
     );
 
     function handleInvalidated(message: Ably.Message) {

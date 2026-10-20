@@ -128,6 +128,9 @@ Core after changing them. The **Web** project needs no new variables.
 | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | Per provider | Auth-config ID for LinkedIn. |
 | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Facebook. |
 | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | Per provider | Auth-config ID for YouTube. |
+| `COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Google Ads (Ads management). |
+| `COMPOSIO_METAADS_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Meta Ads (Ads management). |
+| `COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID` | No | Platform DataForSEO connected-account ID for Ads market lookups. |
 | `COMPOSIO_API_BASE_URL` | No | Leave unset to use Composio's default API. |
 | `CRON_SECRET` | Yes | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
 | `BLOB_READ_WRITE_TOKEN` | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public. |

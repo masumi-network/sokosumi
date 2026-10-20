@@ -18,7 +18,6 @@ export const noticeSchema = z
   .openapi("Notice");
 
 export type Notice = z.infer<typeof noticeSchema>;
-export type NoticeKind = z.infer<typeof noticeKindSchema>;
 
 export const pendingNoticesResponseSchema = z.object({
   pendingNotices: z.array(noticeSchema),

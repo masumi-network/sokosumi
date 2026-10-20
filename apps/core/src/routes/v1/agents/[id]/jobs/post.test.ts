@@ -86,6 +86,7 @@ describe("POST /agents/{id}/jobs", () => {
       completedAt: null,
       agentId: "agent_123",
       ownerId: "user_123",
+      creator: null,
       owner: {
         id: "user_123",
         name: "Ada Lovelace",
@@ -144,6 +145,7 @@ describe("POST /agents/{id}/jobs", () => {
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },
+        creator: { kind: "user", userId: "user_123" },
       }),
     );
   });

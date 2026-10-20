@@ -392,7 +392,7 @@ export function coverageOf(items: FileResourceDto[]): FileIndexCoverage {
  * subquery. Nothing here needs a snippet, and the window is at most
  * `RESULT_WINDOW_LIMIT` ids.
  */
-export async function loadWindowExtractionStates(input: {
+async function loadWindowExtractionStates(input: {
   workspaceId: string;
   actor: FileActor;
   resourceIds: string[];

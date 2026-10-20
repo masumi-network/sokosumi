@@ -247,6 +247,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 
 const sokoBotAuthContext: AuthVariables["authContext"] = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: SOKO_BOT_ID,
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000088",
@@ -277,6 +278,7 @@ function roomWithMembers(
         name: string | null;
         avatarImageUrl: string | null;
         avatarSeed: string | null;
+        sharedRoomId: string | null;
         userId: string;
         user: { name: string } | null;
       };
@@ -390,6 +392,7 @@ function createdMessage(
           name: "Nora",
           avatarImageUrl: null,
           avatarSeed: null,
+          sharedRoomId: null,
           userId: USER_ID,
           user: { name: "Patrick" },
         }
@@ -772,6 +775,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         messageId: MESSAGE_ID,
         roomId: ROOM_ID,
         content: `@${ALICE_ID} please check`,
+        expandAll: true,
       });
       expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
         messageId: MESSAGE_ID,
@@ -903,44 +907,88 @@ describe("POST /chats/rooms/{id}/messages", () => {
   });
 
   describe("soko bot actor", () => {
-    it("posts with the soko bot sender after membership authorization", async () => {
-      roomFindFirstMock.mockResolvedValue({
-        id: ROOM_ID,
-        name: "general",
-        kind: "channel",
-        organizationId: "org_1",
-      });
-      messageCreateMock.mockResolvedValue(
-        createdMessage({ senderSokoBotId: SOKO_BOT_ID }),
+    const sharedSokoBotAuthContext: AuthVariables["authContext"] = {
+      actor: "sokoBot",
+      scope: "workspace",
+      sokoBotId: SOKO_BOT_ID,
+      userId: null,
+      workspaceId: "01960001-0001-7001-8001-000000000088",
+      organizationId: "org_1",
+      projectId: null,
+    };
+
+    it("keeps a shared Soko Bot key to rooms it is a participant in", async () => {
+      roomFindFirstMock.mockResolvedValue(null);
+
+      const response = await createApp(sharedSokoBotAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: "hello" }),
+        },
       );
 
-      const app = createApp(sokoBotAuthContext);
-      const response = await app.request(`/${ROOM_ID}/messages`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: "hello" }),
-      });
-
-      expect(response.status).toBe(201);
-      expect((await response.json()).data.sender.type).toBe("sokoBot");
-      expect(messageCreateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            senderCoworkerId: null,
-            senderSokoBotId: SOKO_BOT_ID,
-          }),
-        }),
-      );
+      expect(response.status).toBe(404);
       expect(roomFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            sokoBotMembers: {
-              some: { sokoBotId: SOKO_BOT_ID },
-            },
+            sokoBotMembers: { some: { sokoBotId: SOKO_BOT_ID } },
           }),
         }),
       );
+      expect(messageCreateMock).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["personal", sokoBotAuthContext, true],
+      ["shared", sharedSokoBotAuthContext, false],
+    ])(
+      "posts with the %s soko bot sender after membership authorization",
+      async (_kind, auth, expandAll) => {
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "general",
+          kind: "channel",
+          organizationId: "org_1",
+        });
+        messageCreateMock.mockResolvedValue(
+          createdMessage({ senderSokoBotId: SOKO_BOT_ID }),
+        );
+
+        const app = createApp(auth);
+        const response = await app.request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: "hello" }),
+        });
+
+        expect(response.status).toBe(201);
+        expect((await response.json()).data.sender.type).toBe("sokoBot");
+        // Only a shared bot's "@all" stays unexpanded: its room is the org.
+        expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+          tx,
+          expect.objectContaining({ expandAll }),
+        );
+        expect(messageCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              senderCoworkerId: null,
+              senderSokoBotId: SOKO_BOT_ID,
+            }),
+          }),
+        );
+        expect(roomFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              sokoBotMembers: {
+                some: { sokoBotId: SOKO_BOT_ID },
+              },
+            }),
+          }),
+        );
+      },
+    );
   });
 
   describe("coworker-only directs", () => {
@@ -1036,6 +1084,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
                 name: "Soko Bot",
                 avatarImageUrl: null,
                 avatarSeed: "orb:user_123",
+                sharedRoomId: null,
                 userId: USER_ID,
                 user: { name: "Patrick" },
               },
@@ -1336,6 +1385,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
                 name: "Scout",
                 avatarImageUrl: null,
                 avatarSeed: null,
+                sharedRoomId: null,
                 userId: USER_ID,
                 user: { name: "Patrick" },
               },

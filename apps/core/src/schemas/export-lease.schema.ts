@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-export const exportLeaseTokenSchema = z.uuid();
+const exportLeaseTokenSchema = z.uuid();
 export const exportLeaseSchema = z
   .object({
     token: exportLeaseTokenSchema,

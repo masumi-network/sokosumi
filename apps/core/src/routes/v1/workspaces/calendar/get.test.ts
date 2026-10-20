@@ -256,6 +256,19 @@ describe("GET /workspaces/calendar", () => {
     vi.useRealTimers();
   });
 
+  it("returns a null taskOwnerId for a schedule without an Owner", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({ schedule: { ownerId: null } }),
+    ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(1);
+
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data).toEqual([expect.objectContaining({ taskOwnerId: null })]);
+  });
+
   it("returns an upcoming Task Schedule Run in range", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([createRun()]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(1);

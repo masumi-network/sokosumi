@@ -1,12 +1,12 @@
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -74,7 +74,7 @@ export async function publishInstagramPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("instagram");
-  const sessionId = await createSocialPostToolSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "instagram",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -84,7 +84,7 @@ export async function publishInstagramPost(
   });
   const carousel = context.media.length > 1;
   try {
-    const container = await executeSocialPostTool({
+    const container = await executeComposioTool({
       sessionId,
       toolSlug: carousel
         ? INSTAGRAM_CREATE_CAROUSEL_TOOL_SLUG
@@ -106,7 +106,7 @@ export async function publishInstagramPost(
       });
     }
     const published = await guardSocialCreateOutcome(label, () =>
-      executeSocialPostTool({
+      executeComposioTool({
         sessionId,
         toolSlug: INSTAGRAM_PUBLISH_TOOL_SLUG,
         arguments: {
@@ -132,7 +132,7 @@ export async function publishInstagramPost(
       toolSlug: INSTAGRAM_PUBLISH_TOOL_SLUG,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project Instagram publish session",
     );

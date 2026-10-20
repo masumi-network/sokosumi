@@ -62,7 +62,7 @@
         let away = held.washed.indices.filter { !held.washed[$0] }
         #expect(away.count > 200, "Rows away from the mark are in view: \(away.count) pixel rows")
         landing.clock?.move(to: JumpMark.hold + 0.1)
-        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() == 0 && (!thread || state.thread.jumpTarget == nil) }
+        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() == 0 && (!thread || state.openRoom.thread.transcript.jumpTarget == nil) }
         try await Task.sleep(for: .milliseconds(100))
         let after = try Self.capture(host, scroll: scroll)
         let gone = after.washed.allSatisfy { !$0 }
@@ -103,7 +103,7 @@
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) {
           // Through the 320 ms leave fade a frame at a time.
           landing.clock?.advance(by: 0.02)
-          return try Self.capture(host, scroll: scroll).washed.allSatisfy { !$0 } && (!thread || state.thread.jumpTarget == nil)
+          return try Self.capture(host, scroll: scroll).washed.allSatisfy { !$0 } && (!thread || state.openRoom.thread.transcript.jumpTarget == nil)
         }
         // The room's clock took the wheel 1 s in.
         let gone = landing.clock.map { Duration.seconds($0.elapsed - 1) } ?? wheeled.duration(to: ContinuousClock.now)

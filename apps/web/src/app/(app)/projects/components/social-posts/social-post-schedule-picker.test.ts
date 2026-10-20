@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   scheduleQuickPicks,
   scheduleSlotsOf,
+  scheduleSuggestedSlots,
   toScheduleValue,
 } from "./social-post-schedule-picker";
 
@@ -82,5 +83,23 @@ describe("scheduleQuickPicks", () => {
 
     expect(picks.nextMonday).toEqual(new Date(2026, 5, 22, 9, 0));
     expect(picks.tomorrowMorning).toEqual(new Date(2026, 5, 16, 9, 0));
+  });
+});
+
+describe("scheduleSuggestedSlots", () => {
+  it("keeps today's hour when it is still open", () => {
+    const earliest = new Date(2026, 5, 15, 10, 5);
+    expect(scheduleSuggestedSlots([14, 18], earliest)).toEqual([
+      new Date(2026, 5, 15, 14, 0),
+      new Date(2026, 5, 15, 18, 0),
+    ]);
+  });
+
+  it("moves a passed hour to tomorrow", () => {
+    const earliest = new Date(2026, 5, 15, 10, 5);
+    expect(scheduleSuggestedSlots([9, 14], earliest)).toEqual([
+      new Date(2026, 5, 16, 9, 0),
+      new Date(2026, 5, 15, 14, 0),
+    ]);
   });
 });

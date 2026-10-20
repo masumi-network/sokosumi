@@ -13,7 +13,7 @@ export interface OAuthCredentials {
   expiresAt?: string | null;
 }
 
-export interface UserApiKeyCredentials {
+interface UserApiKeyCredentials {
   apiKey: string;
   expiresAt?: string | null;
   target?: string;
@@ -26,7 +26,7 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
-export type RefreshTokenFn = (
+type RefreshTokenFn = (
   request: RefreshTokenRequest,
 ) => Promise<OAuthCredentials>;
 
@@ -40,7 +40,7 @@ export interface AuthEnvironment {
   readonly [key: string]: string | undefined;
 }
 
-export interface AuthManagerOptions {
+interface AuthManagerOptions {
   credentialStore?: CredentialStore<OAuthCredentials>;
   apiKeyStore?: CredentialStore<UserApiKeyCredentials>;
   refreshTokenFn?: RefreshTokenFn;

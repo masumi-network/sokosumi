@@ -160,10 +160,10 @@ export function SokoBotFleetTable({
                   </TableCell>
                   <TableCell>
                     <span className="block truncate">
-                      {item.owner.name ?? "—"}
+                      {item.owner?.name ?? "—"}
                     </span>
                     <span className="text-muted-foreground block truncate text-xs">
-                      {item.owner.email}
+                      {item.owner?.email}
                     </span>
                   </TableCell>
                   <TableCell>

@@ -1,14 +1,14 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import { tiktokPublishedVideoId } from "@/clients/social-post-providers/tiktok-video-id";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -65,7 +65,11 @@ export async function publishTikTokVideo(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("tiktok");
-  const sessionId = await createSocialPostToolSession({
+  const video = context.media.find((ref) => ref.kind === "video");
+  if (!video?.fileUrl) {
+    throw new ComposioToolError({ message: "TikTok requires a video" });
+  }
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -73,9 +77,8 @@ export async function publishTikTokVideo(
     context: "create Project TikTok publish session",
     signal: context.signal,
   });
-  const video = context.media.find((ref) => ref.kind === "video");
   try {
-    const creator = await executeSocialPostTool({
+    const creator = await executeComposioTool({
       sessionId,
       toolSlug: TIKTOK_QUERY_CREATOR_TOOL_SLUG,
       arguments: {},
@@ -91,11 +94,11 @@ export async function publishTikTokVideo(
     const privacyLevel = pickTikTokPrivacyLevel(options);
 
     const published = await guardSocialCreateOutcome(label, () =>
-      executeSocialPostTool({
+      executeComposioTool({
         sessionId,
         toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
         arguments: {
-          video_url: video?.fileUrl,
+          video_url: video.fileUrl,
           caption: context.text,
           privacy_level: privacyLevel,
         },
@@ -114,7 +117,7 @@ export async function publishTikTokVideo(
     try {
       for (;;) {
         context.signal?.throwIfAborted();
-        const status = await executeSocialPostTool({
+        const status = await executeComposioTool({
           sessionId,
           toolSlug: TIKTOK_STATUS_TOOL_SLUG,
           arguments: { publish_id: publishId },
@@ -154,7 +157,7 @@ export async function publishTikTokVideo(
       throw new ComposioPublishOutcomeUnknownError(label);
     }
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project TikTok publish session",
     );

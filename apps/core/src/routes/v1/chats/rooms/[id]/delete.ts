@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { assertNotSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -97,6 +98,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "Only an organization owner or admin can permanently delete this room.",
         );
       }
+
+      await assertNotSharedSokoBotRoom(existing.id, "delete", tx);
 
       const deleted = await tx.chatRoom.deleteMany({
         where: { id: existing.id, archivedAt: { not: null } },
