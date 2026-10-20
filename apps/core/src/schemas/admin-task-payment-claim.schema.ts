@@ -32,7 +32,7 @@ export const reviewedTaskPaymentClaimActionBodySchema = z
   })
   .openapi("ReviewedTaskPaymentClaimActionBody");
 
-export const adminTaskPaymentClaimSchema = z
+const adminTaskPaymentClaimSchema = z
   .object({
     id: z.string(),
     createdAt: dateTimeSchema,

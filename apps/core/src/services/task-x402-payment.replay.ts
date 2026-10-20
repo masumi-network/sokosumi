@@ -188,13 +188,15 @@ export type ChargePhaseOutcome =
   | {
       kind: "out_of_credits";
       attemptedCredits: number;
-      taskOwnerId: string;
+      /** Who the live update and the notification reach; null for nobody. */
+      taskOwnerId: string | null;
       taskEventId: string;
     }
   | {
       kind: "sign";
       paymentId: string;
-      taskOwnerId: string;
+      /** Who the live update and the notification reach; null for nobody. */
+      taskOwnerId: string | null;
       /** Set when this request created (and charged) the record just now. */
       chargedNow: boolean;
       /**
@@ -353,7 +355,7 @@ async function lockVerifiedTaskX402PaymentForReplay(
 export async function resolveExistingPayment(
   existing: StoredTaskX402Payment,
   input: X402ReplayInput,
-  taskOwnerId: string,
+  taskOwnerId: string | null,
   tx: Prisma.TransactionClient,
 ): Promise<ChargePhaseOutcome> {
   if (

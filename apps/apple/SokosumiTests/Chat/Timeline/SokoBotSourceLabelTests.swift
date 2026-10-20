@@ -30,7 +30,7 @@
           deletedAt: deleted ? createdAt : nil,
           editedAt: nil,
           sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant",
-                                                               image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online))),
+                                                               image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", scope: .personal, presence: .online))),
           mentions: [],
           reactions: [],
           threadReplyCount: 0,
@@ -43,7 +43,7 @@
       }
 
       private static func row(_ message: Components.Schemas.ChatRoomMessage, continuation: Bool = false) -> MessageRowView {
-        MessageRowView(message: message, isContinuation: continuation, outbound: nil, onRetry: nil, onRemove: nil, horizontalInset: 12)
+        MessageRowView(message: message, row: transcriptRow(message, previous: continuation ? message : nil), outbound: nil, horizontalInset: 12)
       }
 
       /// The rows in a key window over its background, as the transcript draws them.

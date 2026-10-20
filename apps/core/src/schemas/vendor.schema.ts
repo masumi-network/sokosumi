@@ -20,7 +20,7 @@ const vendorLogosSchema = z
   })
   .openapi("VendorLogos");
 
-export const vendorLogosInputSchema = z
+const vendorLogosInputSchema = z
   .object({
     light: vendorLogoInputSchema.optional(),
     dark: vendorLogoInputSchema.optional(),
@@ -75,7 +75,7 @@ export const patchVendorRequestSchema = z
   })
   .openapi("PatchVendorRequest");
 
-export const vendorMemberRoleSchema = z
+const vendorMemberRoleSchema = z
   .enum(["admin", "developer"])
   .openapi("VendorMemberRole");
 
@@ -94,7 +94,7 @@ export const vendorMemberSchema = z
   })
   .openapi("VendorMember");
 
-export const vendorMemberInviteStatusSchema = z
+const vendorMemberInviteStatusSchema = z
   .enum(["PENDING", "ACCEPTED", "DECLINED", "REVOKED", "EXPIRED"])
   .openapi("VendorMemberInviteStatus");
 

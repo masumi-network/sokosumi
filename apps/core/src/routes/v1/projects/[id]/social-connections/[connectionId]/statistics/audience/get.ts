@@ -1,14 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import { requireSocialPostActor } from "@/helpers/social-post-access";
-import prisma from "@/lib/db/prisma";
+import { requireSocialResearchScope } from "@/helpers/social-post-access";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSocialConnectionParamsSchema } from "@/schemas/project-social-connection.schema";
 import {
   socialPerformanceAudienceQuerySchema,
@@ -44,10 +41,12 @@ const route = withCoworkerContextHeaderParameters(
 );
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   app.openapi(route, async (c) => {
-    const actor = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(actor.userId, prisma);
-    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, connectionId } = c.req.valid("param");
+    const { workspaceId } = await requireSocialResearchScope(
+      c.var.authContext,
+      projectId,
+      c.var.workspaceContext,
+    );
     try {
       return ok(
         c,

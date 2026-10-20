@@ -49,12 +49,17 @@ function taskNotificationPayload(task: {
  *
  * The owner, plus the member it is assigned to when that is somebody else.
  * The owner comes first and once, because the two are the same person on
- * every task nobody delegated.
+ * every task nobody delegated. Work without an Owner (ADR 0057) has the
+ * assignee alone. Task participants hold only their
+ * added row, which `markParticipantAddedRead` clears.
  */
 function taskReaderIds(task: {
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }): string[] {
+  if (!task.ownerId) {
+    return task.assigneeUserId ? [task.assigneeUserId] : [];
+  }
   if (!task.assigneeUserId || task.assigneeUserId === task.ownerId) {
     return [task.ownerId];
   }
@@ -70,8 +75,8 @@ function taskReaderIds(task: {
  */
 export async function dispatchTaskNotification(
   task: {
+    ownerId: string | null;
     id: string;
-    ownerId: string;
     assigneeUserId: string | null;
     name: string | null;
     assignee: { name: string } | null;
@@ -165,13 +170,20 @@ export async function dispatchTaskNotification(
       await markParticipantAddedRead(task.id);
     }
 
+    // Work without an Owner tells nobody beyond its assignee and Task
+    // participants, who hear through their own rows.
+    const ownerId = task.ownerId;
+    if (!ownerId) {
+      return;
+    }
+
     // The owner set this status themselves, so there is nothing to tell them.
-    if (actorUserId === task.ownerId) {
+    if (actorUserId === ownerId) {
       return;
     }
 
     await createNotification({
-      userId: task.ownerId,
+      userId: ownerId,
       kind: NotificationKind.TASK,
       referenceId: task.id,
       eventId,
@@ -473,7 +485,7 @@ export async function markTaskAssignedRead(
  */
 export async function markTaskArchivedRead(task: {
   id: string;
-  ownerId: string;
+  ownerId: string | null;
   assigneeUserId: string | null;
 }): Promise<void> {
   for (const readerId of taskReaderIds(task)) {

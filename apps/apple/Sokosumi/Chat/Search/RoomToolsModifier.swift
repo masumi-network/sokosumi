@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
@@ -17,7 +16,6 @@ import SwiftUI
     let roomId: String
     let jump: (String) async throws -> MessageNavigationResult
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
     @StateObject private var search = RoomSearch()
     @State private var destination: RoomToolsInspectorDestination?
@@ -36,7 +34,7 @@ import SwiftUI
     }
 
     private var scope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
+      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.openRoom.room.timeline.generation)]
     }
 
     private var request: [String] {
@@ -60,33 +58,33 @@ import SwiftUI
           inspectorContent
             .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
         }
-        .task(id: scope + [String(destination == .threads), workspaces.thread.parent?.id ?? ""]) {
-          guard destination == .threads, workspaces.thread.parent == nil else { return }
-          await workspaces.updateThreadOverview(.load, roomId: roomId, auth: auth)
+        .task(id: scope + [String(destination == .threads), workspaces.openRoom.thread.parent?.id ?? ""]) {
+          guard destination == .threads, workspaces.openRoom.thread.parent == nil else { return }
+          await workspaces.updateThreadOverview(.load, roomId: roomId)
         }
-        .task(id: scope + [String(workspaces.threadAttentionRevision), String(destination == .threads), workspaces.thread.parent?.id ?? ""]) {
+        .task(id: scope + [String(workspaces.openRoom.threadAttentionRevision), String(destination == .threads), workspaces.openRoom.thread.parent?.id ?? ""]) {
           do { try await Task.sleep(for: Self.threadsCountDebounce) } catch { return }
-          await workspaces.updateThreadOverview(.count, roomId: roomId, auth: auth)
+          await workspaces.updateThreadOverview(.count, roomId: roomId)
         }
         .task(id: scope + [String(destination == .threads)]) {
-          await workspaces.refreshChatDisplayPreferences(auth: auth)
+          await workspaces.refreshChatDisplayPreferences()
         }
         // The sidebar's "N more unread threads" (row 24g2): the room's thread overview takes the inspector.
         // A task, so it runs after a room switch has reset the destination.
-        .task(id: workspaces.threadOverviewRequest) {
-          guard let request = workspaces.threadOverviewRequest, request.roomId == roomId else { return }
+        .task(id: workspaces.openRoom.threadOverviewRequest) {
+          guard let request = workspaces.openRoom.threadOverviewRequest, request.roomId == roomId else { return }
           if destination == .search {
             cancelJump()
           }
           destination = .threads
-          workspaces.consumeThreadOverviewRequest(request.requestId)
+          workspaces.openRoom.consumeThreadOverviewRequest(request.requestId)
         }
         .task(id: request) {
           jumpError = nil
           guard destination == .search else { search.reset()
             return
           }
-          await workspaces.searchMessages(query, roomId: roomId, search: search, auth: auth)
+          await workspaces.openRoom.searchMessages(query, roomId: roomId, search: search)
         }
         .onChange(of: scope) { _, _ in
           cancelJump()
@@ -105,8 +103,8 @@ import SwiftUI
             RoomDetailsView(room: room, close: { destination = nil })
           }
         case .threads:
-          RoomThreadOverviewView(overview: workspaces.threadOverview, open: {
-            workspaces.openThread($0, auth: auth)
+          RoomThreadOverviewView(overview: workspaces.openRoom.threadOverview, open: {
+            workspaces.openRoom.openThread($0)
           }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
           retry: { updateThreads(.load) }, close: { destination = nil })
         case .search:
@@ -115,7 +113,7 @@ import SwiftUI
                                 select: select, retry: { retry += 1 }, close: closeSearch)
         case .pins:
           if let room {
-            PinnedMessagesView(pins: workspaces.pins, room: room, jump: jump, close: { destination = nil })
+            PinnedMessagesView(pins: workspaces.openRoom.pins, room: room, jump: jump, close: { destination = nil })
           }
         }
       }
@@ -126,14 +124,14 @@ import SwiftUI
         get: {
           roomToolsInspectorPresented(
             destination: destination,
-            threadParentId: workspaces.thread.parent?.id
+            threadParentId: workspaces.openRoom.thread.parent?.id
           )
         },
         set: {
           if !$0 {
             destination = roomToolsInspectorDestinationAfterDismiss(
               destination,
-              threadParentId: workspaces.thread.parent?.id
+              threadParentId: workspaces.openRoom.thread.parent?.id
             )
             cancelJump()
           }
@@ -162,9 +160,9 @@ import SwiftUI
         } label: {
           HStack(spacing: 4) {
             Image(systemName: "bubble.left.and.bubble.right")
-            if workspaces.threadOverview.unreadCount > 0 {
+            if workspaces.openRoom.threadOverview.unreadCount > 0 {
               if workspaces.chatDisplay.showsRoomUnreadCount {
-                Text(roomCountLabel(workspaces.threadOverview.unreadCount))
+                Text(roomCountLabel(workspaces.openRoom.threadOverview.unreadCount))
                   .font(.caption).monospacedDigit()
               } else {
                 Circle().fill(Color.accentColor).frame(width: 6, height: 6)
@@ -173,8 +171,8 @@ import SwiftUI
           }
         }
         .help("Threads")
-        .accessibilityLabel(roomThreadsAccessibilityLabel(unreadCount: workspaces.threadOverview.unreadCount))
-        .accessibilityValue(destination == .threads && workspaces.thread.parent == nil ? "Expanded" : "Collapsed")
+        .accessibilityLabel(roomThreadsAccessibilityLabel(unreadCount: workspaces.openRoom.threadOverview.unreadCount))
+        .accessibilityValue(destination == .threads && workspaces.openRoom.thread.parent == nil ? "Expanded" : "Collapsed")
       }
       if let room, RoomRoster.isAvailable(in: room) {
         ToolbarItem {
@@ -195,7 +193,7 @@ import SwiftUI
     }
 
     private func updateThreads(_ action: WorkspaceState.ThreadOverviewAction) {
-      Task { await workspaces.updateThreadOverview(action, roomId: roomId, auth: auth) }
+      Task { await workspaces.updateThreadOverview(action, roomId: roomId) }
     }
 
     private func cancelJump() {
@@ -255,7 +253,7 @@ import SwiftUI
         }
         do {
           let result = if hit.parentMessageId != nil {
-            try await workspaces.openMessageReply(hit, auth: auth)
+            try await workspaces.openRoom.openMessageReply(hit)
           } else {
             try await jump(hit.id)
           }
@@ -266,7 +264,7 @@ import SwiftUI
               destination = nil
             }
           case .unavailable:
-            jumpError = "This message is no longer available."
+            jumpError = messageUnavailableText
           case .superseded:
             break
           }

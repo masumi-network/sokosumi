@@ -1,12 +1,10 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 import SokosumiWorkspace
 import SwiftUI
 
 struct PinnedMessagesView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
-  @EnvironmentObject private var auth: AuthState
   @ObservedObject var pins: PinnedMessages
   let room: Components.Schemas.ChatRoom
   let jump: (String) async throws -> MessageNavigationResult
@@ -28,7 +26,7 @@ struct PinnedMessagesView: View {
       Divider()
       ScrollView {
         LazyVStack(spacing: 12) {
-          if pins.isLoading {
+          if pins.isLoadingFirstPage {
             ProgressView("Loading pinned messages…").padding(.vertical, 16)
           }
           if let error = actionError ?? pins.errorMessage {
@@ -43,11 +41,11 @@ struct PinnedMessagesView: View {
           ForEach(pins.items, id: \.messageId) { item in
             PinnedMessageCard(item: item, room: room, channels: workspaces.composerChannels,
                               isJumping: jumpingId == item.messageId,
-                              isUpdating: workspaces.isUpdatingPin(item.messageId),
+                              isUpdating: workspaces.openRoom.isUpdatingPin(item.messageId),
                               jump: { performJump(item.messageId) },
                               unpin: { Task {
                                 do {
-                                  try await workspaces.setPinned(false, messageId: item.messageId, auth: auth)
+                                  try await workspaces.setPinned(false, messageId: item.messageId)
                                 } catch { actionError = friendlyMessage(for: error) }
                               } })
                               .disabled(jumpingId != nil)
@@ -68,7 +66,7 @@ struct PinnedMessagesView: View {
   private func load(older: Bool = false) async {
     actionError = nil
     do {
-      try await workspaces.loadPins(auth: auth, older: older)
+      try await workspaces.openRoom.loadPins(older: older)
     } catch {
       if !Task.isCancelled {
         actionError = friendlyMessage(for: error)
@@ -86,7 +84,7 @@ struct PinnedMessagesView: View {
         case .opened:
           close()
         case .unavailable:
-          actionError = "This message is no longer available."
+          actionError = messageUnavailableText
         case .superseded:
           break
         }

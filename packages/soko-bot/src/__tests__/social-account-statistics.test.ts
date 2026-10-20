@@ -69,6 +69,6 @@ describe("account-wide Social statistics", () => {
     expect(composeSystemPrompt(prior)).not.toContain(
       "# Social account performance",
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v24");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
   });
 });

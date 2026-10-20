@@ -17,5 +17,8 @@ export const APPLE_APP_SITE_ASSOCIATION_PATH =
  * `/auth/apple/callback` on this host, which no other app can claim.
  */
 export const APPLE_APP_SITE_ASSOCIATION = {
-  webcredentials: { apps: ["GVWN7HXYJB.com.sokosumi.app"] },
+  // `.dev` is the Debug build, kept apart from the installed app.
+  webcredentials: {
+    apps: ["GVWN7HXYJB.com.sokosumi.app", "GVWN7HXYJB.com.sokosumi.app.dev"],
+  },
 };

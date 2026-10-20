@@ -3,13 +3,13 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession, record } from "@/clients/composio.client";
+import { deleteComposioToolSession, record } from "@/clients/composio.client";
 import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
 import { tiktokPublishedVideoId } from "@/clients/social-post-providers/tiktok-video-id";
 import {
   ComposioToolError,
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
@@ -99,7 +99,7 @@ export async function fetchSocialPostStatistics(
   const unavailable = `${label} statistics are unavailable. Check the connection permissions or try again later.`;
   let sessionId: string | undefined;
   try {
-    const activeSessionId = await createSocialPostToolSession({
+    const activeSessionId = await createComposioToolSession({
       toolkitSlug: context.provider === "x" ? "twitter" : context.provider,
       connectedAccountId: context.connectedAccountId,
       executorUserId: context.executorUserId,
@@ -109,7 +109,7 @@ export async function fetchSocialPostStatistics(
     });
     sessionId = activeSessionId;
     const read = (toolSlug: string, args: Record<string, unknown>) =>
-      executeSocialPostTool({
+      executeComposioTool({
         sessionId: activeSessionId,
         toolSlug,
         arguments: args,
@@ -236,7 +236,7 @@ export async function fetchSocialPostStatistics(
     throw new SocialPostStatisticsUnavailableError(unavailable);
   } finally {
     if (sessionId) {
-      await deleteProjectSocialSession(
+      await deleteComposioToolSession(
         sessionId,
         `delete Project ${label} statistics session`,
       );

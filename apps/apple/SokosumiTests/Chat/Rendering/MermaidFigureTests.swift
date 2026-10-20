@@ -126,8 +126,8 @@
         #expect(enlarge.isEnabled)
       }
 
-      /// Web's `line-clamp-[16]` counts line boxes: of a drawn figure only the source summary is one (the caption is a
-      /// flex row, the preview an overflow box), so the whole figure stays and fifteen lines of text follow it.
+      /// The sixteen-line clamp counts line boxes: of a drawn figure only the source summary is one (the caption is a
+      /// row, the preview an overflow box), so the whole figure stays and fifteen lines of text follow it.
       @Test func theFigureCountsAsWebsLineBoxesTowardTheClamp() async throws {
         let figure = "```mermaid\n\(Self.accepted)\n```"
         let text = (1 ... 30).map { "Line \($0) of a very long chat message." }.joined(separator: "\n")

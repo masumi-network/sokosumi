@@ -21,8 +21,9 @@ struct ChannelEditingTests {
         .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .afk, access: .member)
       ],
       formerUserMembers: [], coworkerMembers: [.init(id: "agent", name: "Agent", slug: "agent", caption: nil, image: nil, presence: .online)],
-      sokoBotMembers: [.init(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", presence: .offline),
-                       .init(id: "peer-bot", name: "Peer's assistant", caption: nil, ownerUserId: "peer", presence: .online)]
+      sokoBotMembers: [.init(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", scope: .personal, presence: .offline),
+                       .init(id: "peer-bot", name: "Peer's assistant", caption: nil, ownerUserId: "peer", scope: .personal, presence: .online),
+                       .init(id: "team-bot", name: "Team assistant", caption: nil, ownerUserId: nil, scope: .workspace, presence: .online)]
     )
   }
 
@@ -36,13 +37,15 @@ struct ChannelEditingTests {
   }
 
   /// SOK-1258: Guests and Coworkers for any host member, host members for owners/admins only, a Soko Bot for its
-  /// owner only, never yourself; guests and matched channels remove nobody.
+  /// owner only, never yourself; guests and matched channels remove nobody. A shared Soko Bot has no owner, so it is
+  /// nobody's to remove here (SOK-1356, until Apple manages shared Soko Bots).
   @Test func removalMatrixMatchesCore() {
     let channel = room()
     let member = ChannelEditPermissions(room: channel, isOwnerOrAdmin: false)
     let admin = ChannelEditPermissions(room: channel, isOwnerOrAdmin: true)
     func removable(_ permissions: ChannelEditPermissions) -> [DirectRecipient] {
-      [.human("me"), .human("guest"), .human("peer"), .human("absent"), .coworker("agent"), .coworker("absent"), .sokoBot("bot"), .sokoBot("peer-bot")]
+      [.human("me"), .human("guest"), .human("peer"), .human("absent"), .coworker("agent"), .coworker("absent"), .sokoBot("bot"), .sokoBot("peer-bot"),
+       .sokoBot("team-bot")]
         .filter { permissions.canRemove($0, in: channel, currentUserId: "me") }
     }
     #expect(removable(member) == [.human("guest"), .coworker("agent"), .sokoBot("bot")])
@@ -53,6 +56,17 @@ struct ChannelEditingTests {
       #expect(!permissions.canRemove(.coworker("agent"), in: blocked, currentUserId: "me"))
       #expect(!permissions.canRemove(.sokoBot("bot"), in: blocked, currentUserId: "me"))
     }
+  }
+
+  /// SOK-1356: Core sends a shared Soko Bot with a null `ownerUserId` and its scope.
+  @Test func decodesSharedSokoBotWithoutOwner() throws {
+    let json = #"{"id":"team-bot","name":"Team assistant","caption":"Workspace assistant","image":null,"avatarSeed":"orb:team-bot","ownerUserId":null,"scope":"project","presence":"online"}"#
+    let bot = try JSONDecoder().decode(Components.Schemas.ChatRoomSokoBotParticipant.self, from: Data(json.utf8))
+    #expect(bot.ownerUserId == nil)
+    #expect(bot.scope == .project)
+    var channel = room()
+    channel.sokoBotMembers = [bot]
+    #expect(!ChannelEditPermissions(room: channel, isOwnerOrAdmin: true).canRemove(.sokoBot("team-bot"), in: channel, currentUserId: "me"))
   }
 
   @Test func draftSeedsSettingsFromRoom() {

@@ -11,12 +11,17 @@ describe("GET /.well-known/apple-app-site-association", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
   });
 
-  it("associates the Sokosumi Apple app for web credentials only", async () => {
+  it("associates the Sokosumi Apple app and its Debug build for web credentials only", async () => {
     // `webcredentials` is the service type the system asks for when an
     // `ASWebAuthenticationSession` uses an HTTPS callback. No `applinks`: the
     // app handles no universal links.
     expect(await GET().json()).toEqual({
-      webcredentials: { apps: ["GVWN7HXYJB.com.sokosumi.app"] },
+      webcredentials: {
+        apps: [
+          "GVWN7HXYJB.com.sokosumi.app",
+          "GVWN7HXYJB.com.sokosumi.app.dev",
+        ],
+      },
     });
   });
 });

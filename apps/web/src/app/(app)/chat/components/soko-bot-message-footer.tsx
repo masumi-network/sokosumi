@@ -1,9 +1,16 @@
 "use client";
 
 import {
+  type ChatResultPreview,
+  type ChatRoomMessage,
+  type ChatRoomMessageSender,
+  ChatRoomSokoBotScope,
+} from "@sokosumi/core-client";
+import {
   ArrowUpRight,
   CalendarClock,
   Clock,
+  Hourglass,
   ListChecks,
   Mail,
   ShieldCheck,
@@ -16,7 +23,8 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { sendSokoBotTurnFeedbackAction } from "@/lib/actions/soko-bot/action";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { useSession } from "@/lib/auth/auth.client";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 interface SokoBotMessageMetadata {
@@ -27,6 +35,7 @@ interface SokoBotMessageMetadata {
   source?: string;
   schedule_name?: string;
   schedule_key?: string | null;
+  background_run_title?: string;
 }
 
 function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
@@ -52,6 +61,10 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
         : undefined,
     schedule_key:
       typeof record.schedule_key === "string" ? record.schedule_key : null,
+    background_run_title:
+      typeof record.background_run_title === "string"
+        ? record.background_run_title
+        : undefined,
   };
 }
 
@@ -60,11 +73,14 @@ type SourceLabel =
   | { kind: "standup" }
   | { kind: "weeklyWrap" }
   | { kind: "scheduled"; name: string }
+  | { kind: "background"; name: string }
   | { kind: "taskUpdate" };
 
 /** Where a message the bot sent on its own came from; null for replies. */
 export function sokoBotSourceLabel(metadata: unknown): SourceLabel | null {
   const info = readSokoBotMetadata(metadata);
+  if (info?.background_run_title)
+    return { kind: "background", name: info.background_run_title };
   switch (info?.source) {
     case "INGEST":
       return { kind: "inbox" };
@@ -86,6 +102,7 @@ const SOURCE_ICONS = {
   standup: CalendarClock,
   weeklyWrap: CalendarClock,
   scheduled: Clock,
+  background: Hourglass,
   taskUpdate: ListChecks,
 } as const;
 
@@ -98,10 +115,22 @@ export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
   return (
     <div className="text-muted-foreground mb-1 inline-flex items-center gap-1.5 text-xs">
       <Icon aria-hidden className="size-3" />
-      {label.kind === "scheduled"
-        ? t("scheduled", { name: label.name })
+      {label.kind === "scheduled" || label.kind === "background"
+        ? t(label.kind, { name: label.name })
         : t(label.kind)}
     </div>
+  );
+}
+
+/** Core stores a rating only for the viewer's own personal bot. */
+export function canRateSokoBotMessage(
+  sender: ChatRoomMessageSender,
+  viewerId: string | undefined,
+): boolean {
+  return (
+    sender.type === "sokoBot" &&
+    viewerId !== undefined &&
+    sender.sokoBot.ownerUserId === viewerId
   );
 }
 
@@ -112,17 +141,19 @@ export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
  * the chosen thumb stays filled and both are disabled.
  */
 export function SokoBotFeedbackButtons({
-  metadata,
+  message,
   buttonClassName,
 }: {
-  metadata: unknown;
+  message: Pick<ChatRoomMessage, "metadata" | "sender">;
   buttonClassName: string;
 }) {
   const t = useTranslations("App.Chat.SokoBot");
+  const { data: session } = useSession();
   const [sent, setSent] = useState<boolean | null>(null);
   const [isPending, startTransition] = useTransition();
-  const info = readSokoBotMetadata(metadata);
-  if (!info) return null;
+  const info = readSokoBotMetadata(message.metadata);
+  if (!info || !canRateSokoBotMessage(message.sender, session?.user.id))
+    return null;
   const turnId = info.turn_id;
   function send(useful: boolean) {
     startTransition(async () => {
@@ -159,6 +190,25 @@ export function SokoBotFeedbackButtons({
   );
 }
 
+/** The id of a project or workspace bot that sent a message, else null. */
+export function sharedSokoBotId(sender: ChatRoomMessageSender): string | null {
+  // Explicit, so a missing scope (an older Core) reads as personal.
+  return sender.type === "sokoBot" &&
+    (sender.sokoBot.scope === ChatRoomSokoBotScope.PROJECT ||
+      sender.sokoBot.scope === ChatRoomSokoBotScope.WORKSPACE)
+    ? sender.sokoBot.id
+    : null;
+}
+
+/** Tasks a result preview already shows, so the footer skips them. */
+export function previewedTaskIds(results: ChatResultPreview[]): string[] {
+  return results.flatMap((result) =>
+    result.state === "available" && result.kind === "task" && result.task
+      ? [result.task.id]
+      : [],
+  );
+}
+
 /** True when `SokoBotMessageFooter` has approvals or Tasks to show. */
 export function hasSokoBotMessageFooter(metadata: unknown): boolean {
   const info = readSokoBotMetadata(metadata);
@@ -176,9 +226,12 @@ export function hasSokoBotMessageFooter(metadata: unknown): boolean {
 export function SokoBotMessageFooter({
   metadata,
   previewedTaskIds = [],
+  sharedBotId = null,
 }: {
   metadata: unknown;
   previewedTaskIds?: string[];
+  /** A shared bot's approvals live on its own console. */
+  sharedBotId?: string | null;
 }) {
   const t = useTranslations("App.Chat.SokoBot");
   const info = readSokoBotMetadata(metadata);
@@ -196,7 +249,7 @@ export function SokoBotMessageFooter({
     <div className="mt-2 flex flex-wrap gap-2">
       {pending > 0 ? (
         <Link
-          href={`${SOKO_BOT_ROUTE}?turn=${encodeURIComponent(info.turn_id)}`}
+          href={`${sokoBotConsoleRoute(sharedBotId)}?turn=${encodeURIComponent(info.turn_id)}`}
           className={`${chip} border-primary-tertiary text-foreground`}
         >
           <ShieldCheck aria-hidden className="text-primary size-3.5" />

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { updateSokoBotProactiveAction } from "@/lib/actions/soko-bot/action";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 function timeZones(): string[] {
   try {
@@ -45,6 +46,7 @@ export function ProactiveSettings({
   const pauseId = useId();
   const limitId = useId();
   const tzId = useId();
+  const botId = useSokoBotTargetId();
   const [paused, setPaused] = useState(initial.paused);
   const [limit, setLimit] = useState(initial.dailyLimit);
   const [timezone, setTimezone] = useState(initial.timezone);
@@ -57,7 +59,7 @@ export function ProactiveSettings({
     timezone?: string;
   }) {
     startTransition(async () => {
-      const result = await updateSokoBotProactiveAction({ input });
+      const result = await updateSokoBotProactiveAction({ input, botId });
       if (!result.ok) {
         toast.error(result.error.message ?? t("error"));
         setPaused(initial.paused);

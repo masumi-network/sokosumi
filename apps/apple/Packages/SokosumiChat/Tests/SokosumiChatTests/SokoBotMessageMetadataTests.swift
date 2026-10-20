@@ -4,7 +4,7 @@ import OpenAPIRuntime
 @testable import SokosumiChat
 import Testing
 
-private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
+private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","scope":"personal","presence":"online"}}"#
 private let coworkerSender = #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
 private let webBaseURL = URL(string: "https://app.example.com") ?? URL(fileURLWithPath: "/")
 
@@ -244,9 +244,9 @@ struct SokoBotChainMetadataTests {
     let transport = TestTransport([(200, testMessagesPageBody(messages: [reply("shell", thinking), reply("failed", failed)], nextCursor: nil))])
     let session = ThreadSession()
     #expect(session.open(root))
-    _ = try await session.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.timeline.generation)
+    _ = try await session.transcript.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.transcript.timeline.generation)
     // Same timestamp, so the page orders them by id.
-    #expect(session.displayedReplies.map(\.id) == ["failed", "shell"])
+    #expect(session.transcript.displayedMessages.map(\.id) == ["failed", "shell"])
   }
 }
 
@@ -276,7 +276,7 @@ struct SokoBotChainMetadataTests {
     switch error {
     case .unauthorized:
       #expect(status == 401)
-    case let .unprocessable(statusCode, message):
+    case let .unprocessable(statusCode, message, _):
       #expect(statusCode == status)
       #expect(message == "Turn not found")
     default:

@@ -51,6 +51,12 @@ getRestClientMock.mockImplementation(() => ({
   },
 }));
 
+// A preview case changes the shared env; every test starts from production.
+beforeEach(() => {
+  envMock.VERCEL_ENV = "production";
+  envMock.VERCEL_GIT_COMMIT_REF = "main";
+});
+
 describe("calendar invalidation publishing", () => {
   beforeEach(() => {
     publishMock.mockClear();
@@ -441,6 +447,23 @@ describe("publishChatRoomMessageEvent", () => {
     });
   });
 
+  it("publishes a preview room message to the scoped room channel", async () => {
+    envMock.VERCEL_ENV = "preview";
+    envMock.VERCEL_GIT_COMMIT_REF = "fix/x";
+
+    await publishChatRoomMessageEvent({
+      eventType: "reaction",
+      messageId: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      patch: { reactions: [] },
+    });
+
+    expect(getMock).toHaveBeenLastCalledWith(
+      "chat_rooms:preview:mainnet:branch_fix%2Fx:room_660e8400-e29b-41d4-a716-446655440000",
+    );
+  });
+
   it("publishes an id envelope when the full create exceeds Ably maxMessageSize", async () => {
     publishMock.mockClear();
     const message = {
@@ -580,6 +603,24 @@ describe("publishChatRoomsChanged", () => {
         },
       ],
     });
+  });
+
+  it("scopes every user in a batched chat-control publish", async () => {
+    envMock.VERCEL_ENV = "preview";
+    envMock.VERCEL_GIT_COMMIT_REF = "fix/x";
+
+    await publishChatRoomsChanged({
+      userIds: ["u1", "u2", "u1"],
+      collections: ["active"],
+      roomId: "room",
+    });
+
+    expect(
+      batchPublishMock.mock.calls.flatMap(([spec]) => spec.channels),
+    ).toEqual([
+      "chat_control:preview:mainnet:branch_fix%2Fx:user_u1",
+      "chat_control:preview:mainnet:branch_fix%2Fx:user_u2",
+    ]);
   });
 
   it("splits audiences at Ably's 100-channel limit", async () => {

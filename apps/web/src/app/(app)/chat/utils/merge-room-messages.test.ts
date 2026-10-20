@@ -81,6 +81,8 @@ function sokoBotMessage(
         image: null,
         avatarSeed: "seed-1",
         ownerUserId: "user-1",
+        scope: "personal",
+        sharedRoomId: null,
         presence: "online",
       },
     },

@@ -70,7 +70,7 @@ struct DirectStreamSessionTests {
       }
       return nil
     }), length: .unknown, iterationBehavior: .single)
-    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ResumeTransport(body: body))
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: ResumeTransport(body: body))
     session.resume(client: client, organizationSlug: nil, settled: { true }, failed: { _ in })
     await session.task?.value
     // Closing without events is a truncated stream; successful reconciliation removes its shell.
@@ -238,7 +238,7 @@ struct DirectStreamSessionTests {
   @Test func onlyCoworkerOneToOneDirectsUseStream() {
     var candidate = room()
     #expect(DirectStreamSession.supports(candidate))
-    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", presence: .online)]
+    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", scope: .personal, presence: .online)]
     #expect(!DirectStreamSession.supports(candidate))
     candidate.sokoBotMembers = []
     candidate.kind = .channel

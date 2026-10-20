@@ -35,7 +35,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const auth = requireUserAuthContext(c.var.authContext);
     const { useful } = c.req.valid("json");
     const updated = await prisma.sokoBotTurn.updateMany({
-      where: { id: c.req.valid("param").id, userId: auth.userId },
+      where: {
+        id: c.req.valid("param").id,
+        requestedByUserId: auth.userId,
+        sokoBot: { userId: auth.userId },
+      },
       data: { ownerFeedback: useful ? 1 : -1, ownerFeedbackAt: new Date() },
     });
     if (updated.count === 0) throw notFound("Turn not found");

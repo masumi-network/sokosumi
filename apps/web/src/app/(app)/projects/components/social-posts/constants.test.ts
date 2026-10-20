@@ -5,7 +5,7 @@ import { SECTION_ORDER, SECTION_STATUSES, SOCIAL_TABS } from "./constants";
 describe("Social list tabs", () => {
   it("keeps drafts and Needs attention as the only post lists", () => {
     expect(SECTION_ORDER).toEqual(["drafts", "attention"]);
-    expect(SECTION_STATUSES.drafts).toEqual(["DRAFT"]);
+    expect(SECTION_STATUSES.drafts).toEqual(["DRAFT", "PUBLISHING"]);
     expect(SECTION_STATUSES.attention).toEqual(["FAILED", "MISSED"]);
   });
 

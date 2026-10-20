@@ -12,26 +12,15 @@ import {
   isJobStatusSettled,
 } from "@sokosumi/database/helpers";
 import { getJobDetailsAgentOverrideFields } from "@/helpers/agent";
-import {
-  organizationSummaryFromLoadedRelation,
-  userSummaryFromLoadedRelation,
-} from "@/helpers/loaded-relation-summaries";
+import { organizationSummaryFromLoadedRelation } from "@/helpers/loaded-relation-summaries";
+import { mapOwnerSummary, mapWorkCreator } from "@/helpers/work-creator";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
-
-function mapJobOwnerSummary(
-  job:
-    | JobWithSummaryRelations
-    | JobWithListSummaryRelations
-    | JobWithSokosumiStatus,
-) {
-  return userSummaryFromLoadedRelation(`Job ${job.id}`, job.ownerId, job.owner);
-}
 
 export function flattenJob(
   job: JobWithSummaryRelations | JobWithListSummaryRelations,
 ) {
   const completedAt = getCompletedAt(job);
-  const owner = mapJobOwnerSummary(job);
+  const owner = mapOwnerSummary(`Job ${job.id}`, job);
 
   return {
     id: job.id,
@@ -40,6 +29,7 @@ export function flattenJob(
     agentId: job.agentId,
     ownerId: job.ownerId,
     owner,
+    creator: mapWorkCreator(`Job ${job.id}`, job),
     // Deprecated aliases — keep until clients migrate.
     userId: job.ownerId,
     user: owner,
@@ -72,7 +62,7 @@ export function flattenJob(
 }
 
 export function serializeJobDetails(job: JobWithSokosumiStatus) {
-  const owner = mapJobOwnerSummary(job);
+  const owner = mapOwnerSummary(`Job ${job.id}`, job);
 
   return {
     id: job.id,
@@ -82,6 +72,7 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     agentId: job.agentId,
     ownerId: job.ownerId,
     owner,
+    creator: mapWorkCreator(`Job ${job.id}`, job),
     // Deprecated aliases — keep until clients migrate.
     userId: job.ownerId,
     user: owner,

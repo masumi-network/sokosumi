@@ -8,6 +8,7 @@ import type {
 } from "ai";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import type { ClassifierContextSummary } from "./classifier";
 
 const MAX_CALLS = 10;
@@ -46,7 +47,8 @@ const callSchema = z.object({
 });
 const callsSchema = z.array(callSchema).max(MAX_CALLS);
 interface EvaluationActor {
-  userId: string;
+  /** Null for a shared bot acting on its own, which evaluation never binds. */
+  userId: string | null;
   sokoBotId: string;
   clientTurnId: string;
   source: string | null;
@@ -440,8 +442,12 @@ export async function withEvaluationTurn<T>(turnId: string, run: () => T) {
   const { default: prisma } = await import("@/lib/db/prisma");
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
+    include: { sokoBot: { select: { userId: true } } },
   });
-  return withEvaluationActor(turn, run);
+  return withEvaluationActor(
+    { ...turn, userId: sokoBotActingUserId(turn) },
+    run,
+  );
 }
 
 export async function evaluationEvidence(

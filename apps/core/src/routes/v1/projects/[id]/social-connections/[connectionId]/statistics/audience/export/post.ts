@@ -2,13 +2,13 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 import { badRequest, payloadTooLarge } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import {
+  socialAccountStatisticsCsv,
+  socialAccountStatisticsXlsx,
+} from "@/helpers/social-account-statistics-export";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireSocialPostActor } from "@/helpers/social-post-access";
-import {
-  socialStatisticsAudienceExportSheets,
-  socialStatisticsCsv,
-  socialStatisticsXlsx,
-} from "@/helpers/social-statistics-audience-export";
+import { socialStatisticsAudienceExportSheets } from "@/helpers/social-statistics-audience-export";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -27,6 +27,12 @@ const pageSchema = socialPerformanceAudienceResponseSchema.extend({
 const bodySchema = z
   .object({
     format: z.enum(["csv", "xlsx"]),
+    includeProfileDetails: z
+      .boolean()
+      .default(false)
+      .describe(
+        "Include contact bios and locations. Bios and locations are left out by default.",
+      ),
     pages: z.array(pageSchema).min(1).max(20),
   })
   .strict()
@@ -65,7 +71,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/social-connections/{connectionId}/statistics/audience/export",
     tags: ["Projects"],
     description:
-      "Export up to 20 already loaded X audience sample pages after checking the selected account and cached own-post scope. Values are submitted client samples, not a new provider fetch or a complete audience report. CSV includes contact rows and page coverage; XLSX adds coverage and incoming public post evidence. Does not persist audience contacts or refetch provider data.",
+      "Export up to 20 already loaded X audience sample pages (100 contacts and 100 incoming posts per page, 2 MiB JSON maximum) after checking the selected account and cached own-post scope. Values are submitted client samples, not a new provider fetch or a complete audience report. CSV includes contact rows and page metadata; XLSX adds coverage, incoming public post evidence and definitions. Bios and locations are left out by default; includeProfileDetails explicitly opts in for contacts. Does not persist audience contacts or refetch provider data.",
     request: {
       params: projectSocialConnectionParamsSchema,
       body: {
@@ -113,10 +119,10 @@ export default function mount(
     await requireSocialBetaAccess(actor.userId, prisma);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, connectionId } = c.req.valid("param");
-    const { format, pages } = c.req.valid("json");
+    const { format, pages, includeProfileDetails } = c.req.valid("json");
     try {
       const selectedPostId = pages[0].postId;
-      await scopedXConnection(
+      const { account } = await scopedXConnection(
         { projectId, workspaceId, connectionId },
         selectedPostId ?? undefined,
       );
@@ -131,11 +137,17 @@ export default function mount(
         throw badRequest(
           "Incoming post evidence must belong to the selected X account sample",
         );
-      const sheets = socialStatisticsAudienceExportSheets(connectionId, pages);
+      const sheets = socialStatisticsAudienceExportSheets({
+        connectionId,
+        accountName:
+          account.displayName ?? account.externalHandle ?? account.provider,
+        pages,
+        includeProfileDetails,
+      });
       const body =
         format === "csv"
-          ? socialStatisticsCsv(sheets[0].rows)
-          : new Uint8Array(await socialStatisticsXlsx(sheets)).buffer;
+          ? socialAccountStatisticsCsv(sheets[0].rows)
+          : new Uint8Array(await socialAccountStatisticsXlsx(sheets)).buffer;
       return c.body(body, 200, {
         "content-type":
           format === "csv"

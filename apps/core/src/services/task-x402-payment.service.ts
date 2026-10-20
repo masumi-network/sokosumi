@@ -18,7 +18,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
 import {
   applyGuardedTaskStatusUpdate,
@@ -334,11 +334,7 @@ async function runX402ChargePhase(
 
       // The charge draws from the same task pool as every other task charge,
       // through the exact machinery the task-events masumiPayment branch uses.
-      await requireAssignedOrganizationSeat(
-        task.ownerId,
-        task.organizationId,
-        tx,
-      );
+      await requireOwnerSeat(task.ownerId, task.organizationId, tx);
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: task.ownerId,
         organizationId: task.organizationId,
@@ -477,25 +473,27 @@ async function runX402ChargePhase(
 
 function schedulePostCommitFanout(
   taskId: string,
-  taskOwnerId: string,
+  taskOwnerId: string | null,
   outOfCreditsEventId?: string,
 ): void {
-  waitUntil(
-    (async () => {
-      try {
-        await publishTaskEventData({
-          userId: taskOwnerId,
-          taskId,
-          eventType: "task_event",
-        });
-      } catch (error) {
-        Sentry.captureException(error, {
-          tags: { error_type: "publish_task_event" },
-          extra: { taskId, userId: taskOwnerId },
-        });
-      }
-    })(),
-  );
+  if (taskOwnerId) {
+    waitUntil(
+      (async () => {
+        try {
+          await publishTaskEventData({
+            userId: taskOwnerId,
+            taskId,
+            eventType: "task_event",
+          });
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: { error_type: "publish_task_event" },
+            extra: { taskId, userId: taskOwnerId },
+          });
+        }
+      })(),
+    );
+  }
   if (outOfCreditsEventId) {
     waitUntil(
       notifyTaskStatusEvent(taskId, outOfCreditsEventId, "OUT_OF_CREDITS"),

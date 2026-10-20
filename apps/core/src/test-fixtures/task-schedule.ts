@@ -61,13 +61,19 @@ export const COWORKER_AUTH: AuthenticationContext = {
 
 export const SOKO_BOT_AUTH: AuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: SOKO_BOT_ID,
   userId: OWNER_ID,
   organizationId: ORG_ID,
   workspaceId: ORG_WORKSPACE_ID,
 };
 
-type StoredTask = Partial<Task> & { id: string; events: Partial<TaskEvent>[] };
+type StoredTask = Partial<Task> & {
+  id: string;
+  events: Partial<TaskEvent>[];
+  /** Task participants the release added. */
+  participants?: { userId: string }[];
+};
 
 interface StoredProject {
   workspaceId: string;
@@ -340,12 +346,54 @@ function applyData(row: TaskSchedule, data: Data): TaskSchedule {
   return next as unknown as TaskSchedule;
 }
 
+function person(id: string | null) {
+  return id ? { id, name: `Person ${id}`, image: null } : null;
+}
+
+/** The Creator relations a schedule response maps. */
+function creatorRelations(row: TaskSchedule) {
+  const coworker = row.creatorCoworkerId
+    ? taskScheduleTestDb.coworkers.get(row.creatorCoworkerId)
+    : undefined;
+  const sokoBot = row.creatorSokoBotId
+    ? taskScheduleTestDb.sokoBots.get(row.creatorSokoBotId)
+    : undefined;
+  return {
+    creatorUser: person(row.creatorUserId),
+    creatorCoworker:
+      row.creatorCoworkerId && coworker
+        ? {
+            id: row.creatorCoworkerId,
+            name: "Coworker",
+            image: null,
+            slug: "coworker",
+            vendorId: coworker.vendorId,
+          }
+        : null,
+    creatorSokoBot:
+      row.creatorSokoBotId && sokoBot
+        ? {
+            id: row.creatorSokoBotId,
+            name: "Soko Bot",
+            avatarSeed: null,
+            avatarImageUrl: null,
+            userId: sokoBot.userId,
+            user: person(sokoBot.userId),
+          }
+        : null,
+  };
+}
+
 function withInclude(row: TaskSchedule, include?: Record<string, unknown>) {
-  if (!include?.assignee) return row;
+  if (!include) return row;
   const assignee = row.assigneeId
     ? (taskScheduleTestDb.coworkers.get(row.assigneeId) ?? null)
     : null;
-  return { ...row, assignee };
+  return {
+    ...row,
+    ...(include.assignee ? { assignee } : {}),
+    ...(include.creatorUser ? creatorRelations(row) : {}),
+  };
 }
 
 function sortSchedules(rows: TaskSchedule[]): TaskSchedule[] {
@@ -611,10 +659,12 @@ export const taskScheduleTestPrisma = {
     findUnique: vi.fn(
       async ({
         where: { workspaceId_operationId: key },
+        select,
       }: {
         where: {
           workspaceId_operationId: { workspaceId: string; operationId: string };
         };
+        select?: { schedule?: { include?: Record<string, unknown> } };
       }) => {
         const row = taskScheduleTestDb.createOperations.find(
           (operation) =>
@@ -628,7 +678,7 @@ export const taskScheduleTestPrisma = {
                 taskScheduleTestDb.schedules.find(
                   (schedule) => schedule.id === row.scheduleId,
                 ) as TaskSchedule,
-                { assignee: true },
+                select?.schedule?.include,
               ),
             }
           : null;
@@ -659,14 +709,18 @@ export const taskScheduleTestPrisma = {
   task: {
     create: vi.fn(
       async ({
-        data: { events, ...data },
+        data: { events, participants, ...data },
       }: {
-        data: Partial<Task> & { events?: { create: Partial<TaskEvent>[] } };
+        data: Partial<Task> & {
+          events?: { create: Partial<TaskEvent>[] };
+          participants?: { create: { userId: string } };
+        };
       }) => {
         const row: StoredTask = {
           id: randomUUID(),
           ...data,
           events: events?.create ?? [],
+          ...(participants ? { participants: [participants.create] } : {}),
         };
         taskScheduleTestDb.tasks.push(row);
         return row;

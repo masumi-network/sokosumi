@@ -45,10 +45,4 @@ export const chatRoomInvitationSchema = z
   })
   .openapi("ChatRoomInvitation");
 
-export type ChatRoomInvitationStatus = z.infer<
-  typeof chatRoomInvitationStatusSchema
->;
-export type CreateChatRoomInvitationRequest = z.infer<
-  typeof createChatRoomInvitationRequestSchema
->;
 export type ChatRoomInvitation = z.infer<typeof chatRoomInvitationSchema>;
