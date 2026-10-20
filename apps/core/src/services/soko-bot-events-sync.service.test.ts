@@ -103,6 +103,7 @@ function taskDelegation(
         comment: string;
         createdAt: Date;
         userId?: string;
+        sokoBotId?: string;
       }[],
     },
     job: null,
@@ -329,6 +330,26 @@ describe("SokoBotEventsSyncService", () => {
         turn: { ...turn, parentTurnId: "chat_turn", status: "RUNNING" },
       },
     ]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not wake the bot for a status change it made itself", async () => {
+    const delegation = taskDelegation("a", "DRAFT", "COMPLETED");
+    delegation.task.events = [
+      {
+        id: "event-1",
+        comment: "Closed at the owner's request",
+        createdAt: new Date(),
+        sokoBotId: turn.sokoBotId,
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
     const result = await new SokoBotEventsSyncService().syncDelegatedWork(
       input,
     );
