@@ -20742,6 +20742,453 @@ export const RefreshSocialAccountStatisticsRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SocialPerformanceAudienceResponseSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'followers',
+                'mentions',
+                'likers',
+                'reposters'
+            ]
+        },
+        postId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformanceContact'
+            }
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePublicPost'
+            },
+            maxItems: 100,
+            default: []
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        samplePostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        oldestPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        newestPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'kind',
+        'contacts',
+        'nextCursor',
+        'observedAt',
+        'samplePostCount',
+        'oldestPostAt',
+        'newestPostAt',
+        'coverage'
+    ]
+} as const;
+
+export const SocialPerformanceContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        username: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        location: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        followersCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        interactions: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        replies: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        quotes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        mentions: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        likes: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            default: null
+        },
+        reposts: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            default: null
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'username',
+        'description',
+        'location',
+        'avatarUrl',
+        'followersCount',
+        'interactions',
+        'replies',
+        'quotes',
+        'mentions'
+    ]
+} as const;
+
+export const SocialPerformancePublicPostSchema = {
+    type: 'object',
+    properties: {
+        author: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPerformanceContact'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        post: {
+            $ref: '#/components/schemas/SocialStatisticsResearchPost'
+        },
+        interactionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'reply',
+                'quote',
+                'mention',
+                null
+            ],
+            default: null
+        }
+    },
+    required: [
+        'author',
+        'post'
+    ]
+} as const;
+
+export const SocialStatisticsResearchPostSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SocialAccountPost'
+        },
+        {
+            type: 'object',
+            properties: {
+                contentType: {
+                    type: 'string',
+                    enum: [
+                        'text',
+                        'image',
+                        'video',
+                        'carousel',
+                        'link',
+                        'unknown'
+                    ],
+                    default: 'unknown'
+                },
+                postKind: {
+                    type: 'string',
+                    enum: [
+                        'post',
+                        'reply',
+                        'quote',
+                        'repost',
+                        'unknown'
+                    ],
+                    default: 'post'
+                },
+                media: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'image',
+                                    'video',
+                                    'gif'
+                                ]
+                            },
+                            url: {
+                                type: 'string',
+                                format: 'uri'
+                            },
+                            thumbnailUrl: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'url',
+                            'thumbnailUrl'
+                        ]
+                    },
+                    maxItems: 20,
+                    default: []
+                }
+            }
+        }
+    ]
+} as const;
+
+export const SocialPerformanceBenchmarkResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                },
+                username: {
+                    type: 'string'
+                },
+                avatarUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                },
+                followersCount: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'username',
+                'avatarUrl',
+                'followersCount'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        summary: {
+            type: 'object',
+            properties: {
+                postCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                views: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                impressions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                interactions: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'postCount',
+                'views',
+                'impressions',
+                'interactions'
+            ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialStatisticsResearchPost'
+            }
+        },
+        meanImpressionsToFollowers: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'profile',
+        'observedAt',
+        'summary',
+        'posts',
+        'meanImpressionsToFollowers',
+        'coverage'
+    ]
+} as const;
+
+export const SocialPerformanceDiscoveryResponseSchema = {
+    type: 'object',
+    properties: {
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPerformancePublicPost'
+            },
+            maxItems: 100
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedFrom: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedUntil: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        samplePostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        matchedPostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        missingCounterPostCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        coverage: {
+            type: 'string'
+        }
+    },
+    required: [
+        'posts',
+        'nextCursor',
+        'observedAt',
+        'publishedFrom',
+        'publishedUntil',
+        'samplePostCount',
+        'matchedPostCount',
+        'missingCounterPostCount',
+        'coverage'
+    ]
+} as const;
+
 export const SocialConnectionSuggestedTimesSchema = {
     type: 'object',
     properties: {

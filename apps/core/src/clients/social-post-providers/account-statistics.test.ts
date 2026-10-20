@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchSocialAccountStatisticsPage,
+  parseXAccountPosts,
+  readNativeStatistics,
   type SocialAccountStatisticsContext,
 } from "@/clients/social-post-providers/account-statistics";
 
@@ -987,4 +989,121 @@ describe("connected account statistics", () => {
     expect(result.historyError).toBeNull();
     expect(result.metricWarning).toContain("details");
   });
+});
+
+describe("X research native reads", () => {
+  it("classifies public X posts in memory without storing private click counters", () => {
+    const [post, privatePost] = parseXAccountPosts(
+      {
+        data: [
+          {
+            id: "789",
+            author_id: "456",
+            text: "See https://example.com",
+            created_at: "2026-10-01T12:00:00Z",
+            attachments: { media_keys: ["image-1"] },
+            public_metrics: {
+              impression_count: 20,
+              like_count: 2,
+              reply_count: 1,
+              repost_count: 0,
+              quote_count: 1,
+            },
+            referenced_posts: [{ type: "quoted", id: "1" }],
+          },
+          {
+            id: "790",
+            author_id: "456",
+            non_public_metrics: {
+              impression_count: 900,
+              url_link_clicks: 50,
+              user_profile_clicks: 20,
+            },
+            organic_metrics: { impression_count: 800, like_count: 10 },
+            promoted_metrics: { impression_count: 700 },
+          },
+        ],
+        includes: {
+          media: [
+            {
+              media_key: "image-1",
+              type: "photo",
+              url: "https://pbs.twimg.com/image.png",
+            },
+          ],
+        },
+      },
+      "456",
+    );
+    expect(post).toMatchObject({
+      externalId: "789",
+      contentType: "image",
+      postKind: "quote",
+      metrics: { impressions: 20, likes: 2 },
+      additionalMetrics: [{ key: "quote_count", value: 1 }],
+    });
+    expect(privatePost.metrics).toEqual({
+      views: null,
+      impressions: null,
+      likes: null,
+      comments: null,
+      shares: null,
+      saves: null,
+    });
+    expect(privatePost.additionalMetrics.map((value) => value.key)).toEqual([
+      "quote_count",
+    ]);
+  });
+
+  it("rejects caller-chosen X endpoints before the proxy runs", async () => {
+    const { fetchMock } = stub(() => ({}));
+    await expect(
+      readNativeStatistics(input, "https://evil.test/steal", [
+        { name: "q", value: "1", type: "query" },
+      ]),
+    ).rejects.toThrow("Unsupported native statistics endpoint");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([
+    "users/123/followers",
+    "users/123/mentions",
+    "tweets/789/liking_users",
+    "tweets/789/retweeted_by",
+    "users/by/username/reader",
+    "users/456/tweets",
+    "tweets/search/recent",
+  ])("pins native research GET %s to the selected connection", async (path) => {
+    const { requests } = stub(() => ({ status: 200, data: { data: [] } }));
+    const endpoint = `https://api.x.com/2/${path}`;
+    const parameters = [
+      { name: "user.fields", value: "public_metrics", type: "query" },
+    ];
+    await expect(
+      readNativeStatistics(input, endpoint, parameters),
+    ).resolves.toEqual({ data: [] });
+    expect(requests).toEqual([
+      {
+        connected_account_id: input.connectedAccountId,
+        endpoint,
+        method: "GET",
+        parameters,
+      },
+    ]);
+  });
+  it.each([401, 403, 429, 503])(
+    "rejects native research HTTP %i without retrying another host",
+    async (status) => {
+      const { requests } = stub(
+        () => new Response("access_token=secret", { status }),
+      );
+      await expect(
+        readNativeStatistics(
+          input,
+          "https://api.x.com/2/tweets/search/recent",
+          [],
+        ),
+      ).rejects.toThrow();
+      expect(requests).toHaveLength(1);
+    },
+  );
 });

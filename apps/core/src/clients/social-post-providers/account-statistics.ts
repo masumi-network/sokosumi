@@ -237,6 +237,195 @@ function xShareCount(count: Record<string, unknown> | null): number | null {
     count?.organic_repost_count ?? count?.repost_count ?? count?.retweet_count,
   );
 }
+
+export type XAccountResearchContentType =
+  | "text"
+  | "image"
+  | "video"
+  | "carousel"
+  | "link"
+  | "unknown";
+export type XAccountResearchPostKind =
+  | "post"
+  | "reply"
+  | "quote"
+  | "repost"
+  | "unknown";
+export interface XAccountResearchMedia {
+  kind: "image" | "video" | "gif";
+  url: string;
+  thumbnailUrl: string | null;
+}
+export interface XAccountResearchPost {
+  externalId: string;
+  text: string;
+  publishedAt: string | null;
+  url: string | null;
+  metrics: SocialPostMetrics;
+  additionalMetrics: SocialAccountMetric[];
+  contentType: XAccountResearchContentType;
+  postKind: XAccountResearchPostKind;
+  media: XAccountResearchMedia[];
+}
+
+function previewMedia(
+  kind: XAccountResearchMedia["kind"],
+  source: unknown,
+  thumbnail: unknown = null,
+): XAccountResearchMedia[] {
+  const mediaUrl = url(source) ?? url(thumbnail);
+  return mediaUrl
+    ? [{ kind, url: mediaUrl, thumbnailUrl: url(thumbnail) }]
+    : [];
+}
+
+function xMedia(
+  item: Record<string, unknown>,
+  data: Record<string, unknown>,
+): XAccountResearchMedia[] {
+  const keys = record(item.attachments)?.media_keys;
+  if (!Array.isArray(keys)) return [];
+  const expanded = objects(record(data.includes)?.media);
+  return keys
+    .flatMap((key) => {
+      const media = expanded.find((candidate) => candidate.media_key === key);
+      if (!media) return [];
+      const kind =
+        media.type === "video"
+          ? "video"
+          : media.type === "animated_gif"
+            ? "gif"
+            : "image";
+      const variant = objects(media.variants)
+        .filter((candidate) => candidate.content_type === "video/mp4")
+        .sort(
+          (left, right) =>
+            (counter(right.bit_rate) ?? 0) - (counter(left.bit_rate) ?? 0),
+        )[0];
+      return previewMedia(
+        kind,
+        variant?.url ?? media.url,
+        media.preview_image_url,
+      );
+    })
+    .slice(0, 20);
+}
+
+function xPostKind(
+  item: Record<string, unknown>,
+  accountId: string,
+): XAccountResearchPostKind {
+  const references = objects(item.referenced_tweets ?? item.referenced_posts);
+  if (
+    references.some(
+      (reference) =>
+        reference.type === "retweeted" || reference.type === "reposted",
+    )
+  )
+    return "repost";
+  if (references.some((reference) => reference.type === "replied_to"))
+    return item.in_reply_to_user_id === accountId ? "post" : "reply";
+  if (references.some((reference) => reference.type === "quoted"))
+    return "quote";
+  return "post";
+}
+
+function classifyXAccountPost(
+  entry: AccountPost,
+  media: XAccountResearchMedia[],
+  mediaKeys: unknown,
+  expandedMedia: Record<string, unknown>[],
+): XAccountResearchContentType {
+  if (Array.isArray(mediaKeys) && mediaKeys.length > 1) return "carousel";
+  const singleMedia = Array.isArray(mediaKeys)
+    ? expandedMedia.find((value) => value.media_key === mediaKeys[0])
+    : undefined;
+  if (singleMedia?.type === "photo") return "image";
+  if (singleMedia?.type === "video" || singleMedia?.type === "animated_gif")
+    return "video";
+  if (Array.isArray(mediaKeys) && mediaKeys.length) return "unknown";
+  if (media.length > 1) return "carousel";
+  if (media.some((item) => item.kind === "video" || item.kind === "gif"))
+    return "video";
+  if (media.length) return "image";
+  return /https?:\/\/\S+/i.test(entry.text) ? "link" : "text";
+}
+
+/** Live X research parses public posts in memory. Cached statistics stay on AccountPost. */
+export function parseXAccountPosts(
+  data: Record<string, unknown>,
+  accountId: string,
+): XAccountResearchPost[] {
+  const posts: XAccountResearchPost[] = [];
+  for (const item of requiredList(data, "data")) {
+    if (item.author_id !== undefined && item.author_id !== accountId) continue;
+    const entry = post(
+      item,
+      record(item.note_post)?.text ??
+        record(item.note_tweet)?.text ??
+        item.text,
+      date(item.created_at),
+      `https://x.com/i/status/${string(item.id) ?? ""}`,
+    );
+    if (!entry) continue;
+    const media = xMedia(item, data);
+    const mediaKeys = record(item.attachments)?.media_keys;
+    const expandedMedia = objects(record(data.includes)?.media);
+    const count = record(item.public_metrics);
+    entry.metrics = {
+      ...metrics(),
+      impressions: counter(count?.impression_count),
+      likes: counter(count?.like_count),
+      comments: counter(count?.reply_count),
+      shares: xShareCount(count),
+      saves: counter(count?.bookmark_count),
+    };
+    entry.additionalMetrics = counts(count, ["quote_count"]);
+    if (Array.isArray(mediaKeys)) {
+      const videoViews = expandedMedia
+        .filter(
+          (mediaItem) =>
+            mediaKeys.includes(mediaItem.media_key) &&
+            mediaItem.type === "video",
+        )
+        .map((mediaItem) =>
+          counter(record(mediaItem.public_metrics)?.view_count),
+        );
+      if (videoViews.length === 1) entry.metrics.views = videoViews[0];
+    }
+    posts.push({
+      ...entry,
+      postKind: xPostKind(item, accountId),
+      media,
+      contentType: classifyXAccountPost(entry, media, mediaKeys, expandedMedia),
+    });
+  }
+  return posts;
+}
+
+const X_NATIVE_STATISTICS_ENDPOINT =
+  /^https:\/\/api\.x\.com\/2\/(?:tweets(?:\/(?:[0-9]{1,19}\/(?:liking_users|retweeted_by)|search\/recent))?|users\/(?:[0-9]{1,19}\/(?:tweets|mentions|followers)|by\/username\/[A-Za-z0-9_]{1,15}))$/;
+
+/** Fixed X research GETs through the existing Composio proxy. Caller URLs never reach the proxy. */
+export async function readNativeStatistics(
+  context: SocialAccountStatisticsContext,
+  endpoint: string,
+  parameters: { name: string; value: string; type: string }[],
+): Promise<Record<string, unknown>> {
+  if (
+    context.provider !== "x" ||
+    !X_NATIVE_STATISTICS_ENDPOINT.test(endpoint) ||
+    parameters.some((value) => value.type !== "query")
+  )
+    throw new TypeError("Unsupported native statistics endpoint or parameter");
+  return readNativeJson(
+    context,
+    endpoint,
+    parameters,
+    endpoint.replace("https://api.x.com/", "https://api.twitter.com/"),
+  );
+}
+
 function insights(data: Record<string, unknown> | null): SocialAccountMetric[] {
   const result: SocialAccountMetric[] = [];
   for (const item of requiredList(data, "data")) {

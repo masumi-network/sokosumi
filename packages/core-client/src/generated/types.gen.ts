@@ -5988,6 +5988,83 @@ export type RefreshSocialAccountStatisticsRequest = {
     continueHistory?: boolean;
 };
 
+export type SocialPerformanceAudienceResponse = {
+    kind: 'followers' | 'mentions' | 'likers' | 'reposters';
+    postId?: string | null;
+    contacts: Array<SocialPerformanceContact>;
+    posts?: Array<SocialPerformancePublicPost>;
+    nextCursor: string | null;
+    observedAt: Date;
+    samplePostCount: number;
+    oldestPostAt: Date | null;
+    newestPostAt: Date | null;
+    coverage: string;
+};
+
+export type SocialPerformanceContact = {
+    id: string;
+    name: string;
+    username: string;
+    description: string | null;
+    location: string | null;
+    avatarUrl: string | null;
+    followersCount: number | null;
+    interactions: number | null;
+    replies: number | null;
+    quotes: number | null;
+    mentions: number | null;
+    likes?: number | null;
+    reposts?: number | null;
+};
+
+export type SocialPerformancePublicPost = {
+    author: SocialPerformanceContact | null;
+    post: SocialStatisticsResearchPost;
+    interactionType?: 'reply' | 'quote' | 'mention' | null;
+};
+
+export type SocialStatisticsResearchPost = SocialAccountPost & {
+    contentType?: 'text' | 'image' | 'video' | 'carousel' | 'link' | 'unknown';
+    postKind?: 'post' | 'reply' | 'quote' | 'repost' | 'unknown';
+    media?: Array<{
+        kind: 'image' | 'video' | 'gif';
+        url: string;
+        thumbnailUrl: string | null;
+    }>;
+};
+
+export type SocialPerformanceBenchmarkResponse = {
+    profile: {
+        id: string;
+        name: string;
+        username: string;
+        avatarUrl: string | null;
+        followersCount: number | null;
+    };
+    observedAt: Date;
+    summary: {
+        postCount: number;
+        views: number | null;
+        impressions: number | null;
+        interactions: number | null;
+    };
+    posts: Array<SocialStatisticsResearchPost>;
+    meanImpressionsToFollowers: number | null;
+    coverage: string;
+};
+
+export type SocialPerformanceDiscoveryResponse = {
+    posts: Array<SocialPerformancePublicPost>;
+    nextCursor: string | null;
+    observedAt: Date;
+    publishedFrom: Date;
+    publishedUntil: Date;
+    samplePostCount: number;
+    matchedPostCount: number;
+    missingCounterPostCount: number;
+    coverage: string;
+};
+
 export type SocialConnectionSuggestedTimes = {
     hours: Array<number>;
 };
@@ -42831,6 +42908,434 @@ export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResp
 };
 
 export type PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponse = PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+        kind?: 'followers' | 'mentions' | 'likers' | 'reposters';
+        postId?: string;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/audience';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponses = {
+    /**
+     * X audience sample
+     */
+    200: {
+        data: SocialPerformanceAudienceResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponse = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query: {
+        username: string;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/benchmark';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkResponses = {
+    /**
+     * X public benchmark
+     */
+    200: {
+        data: SocialPerformanceBenchmarkResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkResponse = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: {
+        topic?: string;
+        username?: string;
+        language?: string;
+        format?: 'any' | 'text' | 'image' | 'video' | 'carousel' | 'link';
+        publishedFrom?: Date;
+        publishedUntil?: Date;
+        cursor?: string;
+        limit?: number;
+        sort?: 'recency' | 'likes' | 'impressions';
+        minLikes?: number | null;
+        minComments?: number | null;
+        minShares?: number | null;
+        minImpressions?: number | null;
+        minFollowers?: number | null;
+        maxFollowers?: number | null;
+    };
+    url: '/projects/{id}/social-connections/{connectionId}/statistics/discovery';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryResponses = {
+    /**
+     * Recent public X discovery sample
+     */
+    200: {
+        data: SocialPerformanceDiscoveryResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryResponse = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryResponses];
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData = {
     body?: never;
