@@ -71,6 +71,7 @@ const PROPER_WORDS = new Set([
   "Linear",
   "Markdown",
   "Word",
+  "Excel",
   "Office",
   "Drive",
   "Social",

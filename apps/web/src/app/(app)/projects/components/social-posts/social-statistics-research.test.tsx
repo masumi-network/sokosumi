@@ -1,4 +1,5 @@
 import type {
+  SocialPerformanceAudienceResponse,
   SocialPerformanceContact,
   SocialStatisticsResearchPost,
 } from "@sokosumi/core-client";
@@ -85,6 +86,24 @@ function samplePosts(count: number, prefix = "Post") {
   );
 }
 
+function sampleAudiencePage(
+  overrides: Partial<SocialPerformanceAudienceResponse> = {},
+): SocialPerformanceAudienceResponse {
+  return {
+    kind: "mentions",
+    postId: null,
+    contacts: [contact],
+    posts: [],
+    nextCursor: null,
+    observedAt: new Date("2020-10-02T12:00:00Z"),
+    samplePostCount: 20,
+    oldestPostAt: new Date("2020-10-01T12:00:00Z"),
+    newestPostAt: new Date("2020-10-02T12:00:00Z"),
+    coverage: "Latest 20 mentions",
+    ...overrides,
+  };
+}
+
 function renderResearch() {
   return render(
     <TestQueryProvider>
@@ -102,9 +121,250 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("SocialStatisticsResearch", () => {
+  it.each(["csv", "xlsx"] as const)(
+    "exports only the already loaded pages as %s in Core's shape",
+    async (exportFormat) => {
+      const publicPost = {
+        author: contact,
+        interactionType: "reply" as const,
+        post: samplePost({
+          strong: false,
+          canRecycle: false,
+          contentType: "image",
+          postKind: "reply",
+          additionalMetrics: [
+            { key: "quote_count", value: 1, period: "lifetime", unit: null },
+          ],
+          media: [
+            {
+              kind: "image",
+              url: "https://images.test/launch.jpg",
+              thumbnailUrl: null,
+            },
+          ],
+        }),
+      };
+      const firstPage = sampleAudiencePage({
+        posts: [publicPost],
+        nextCursor: "next-page",
+      });
+      const secondPage = sampleAudiencePage({
+        contacts: [],
+        posts: Array.from({ length: 8 }, (_, index) => ({
+          author: null,
+          post: samplePost({
+            id: `22222222-2222-4222-8222-${String(index).padStart(12, "0")}`,
+            text: `Next mention ${index + 1}`,
+          }),
+        })),
+      });
+      let finishExport = (_response: Response) => {};
+      const exportResponse = new Promise<Response>((resolve) => {
+        finishExport = resolve;
+      });
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              ...firstPage,
+              providerMetadata: "page-only",
+              contacts: [{ ...contact, providerMetadata: "contact-only" }],
+              posts: [
+                {
+                  ...publicPost,
+                  providerMetadata: "evidence-only",
+                  author: { ...contact, providerMetadata: "author-only" },
+                  post: {
+                    ...publicPost.post,
+                    providerMetadata: "post-only",
+                    metrics: { ...publicPost.post.metrics, providerOnly: 99 },
+                    additionalMetrics: [
+                      {
+                        ...publicPost.post.additionalMetrics[0],
+                        providerMetadata: "metric-only",
+                      },
+                    ],
+                    media: [
+                      {
+                        ...publicPost.post.media?.[0],
+                        providerMetadata: "media-only",
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(new Response(JSON.stringify(secondPage)))
+        .mockReturnValueOnce(exportResponse);
+      const createObjectURL = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:audience");
+      const revokeObjectURL = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => {});
+      let filename = "";
+      const click = vi
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(function (this: HTMLAnchorElement) {
+          filename = this.download;
+        });
+      renderResearch();
+      for (const name of [copy.exportCsv, copy.exportXlsx]) {
+        expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: copy.load }));
+      const csv = await screen.findByRole("button", { name: copy.exportCsv });
+      const excel = screen.getByRole("button", { name: copy.exportXlsx });
+      const showMore = screen.getByRole("button", { name: copy.showMore });
+      for (const button of [csv, excel]) {
+        expect(button).toHaveClass(
+          "h-11",
+          "md:h-8",
+          "border-input",
+          "bg-background",
+        );
+        expect(button.parentElement).toBe(showMore.parentElement);
+      }
+      fireEvent.click(showMore);
+      await screen.findByText("Next mention 6");
+      expect(screen.queryByText("Next mention 7")).not.toBeInTheDocument();
+      expect(screen.queryByText("Next mention 8")).not.toBeInTheDocument();
+      fireEvent.click(exportFormat === "csv" ? csv : excel);
+      expect(exportFormat === "csv" ? excel : csv).toBeDisabled();
+      expect(exportFormat === "csv" ? csv : excel).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(exportFormat === "csv" ? csv : excel).toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const [url, options] = fetchMock.mock.calls[2];
+      expect(url).toBe(
+        "/api/projects/project-1/social-statistics/account-1/audience/export",
+      );
+      expect(options.method).toBe("POST");
+      expect(options.headers).toEqual({ "content-type": "application/json" });
+      expect(JSON.parse(options.body)).toEqual(
+        JSON.parse(
+          JSON.stringify({
+            format: exportFormat,
+            pages: [firstPage, secondPage],
+          }),
+        ),
+      );
+      finishExport(
+        new Response("export-file", {
+          headers: {
+            "content-disposition": `attachment; filename="loaded-audience.${exportFormat}"`,
+          },
+        }),
+      );
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      expect(filename).toBe(`loaded-audience.${exportFormat}`);
+      expect(createObjectURL).toHaveBeenCalledOnce();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:audience");
+      expect(csv).toBeEnabled();
+      expect(excel).toBeEnabled();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it.each(["followers", "likers", "reposters"] as const)(
+    "exports %s without incoming post evidence",
+    async (kind) => {
+      const needsPost = kind !== "followers";
+      const page = sampleAudiencePage({
+        kind,
+        postId: needsPost ? postId : null,
+        coverage: "Loaded people",
+        nextCursor: "more-people",
+      });
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              ...page,
+              posts: [{ author: contact, post: samplePost() }],
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(new Response("Export failed", { status: 502 }));
+      renderResearch();
+      fireEvent.click(screen.getByLabelText(copy.kind));
+      fireEvent.click(
+        await screen.findByRole("option", { name: copy.kinds[kind] }),
+      );
+      if (needsPost) {
+        fireEvent.click(screen.getByLabelText(copy.post));
+        fireEvent.click(
+          await screen.findByRole("option", {
+            name: "Published outside Sokosumi",
+          }),
+        );
+      }
+      fireEvent.click(screen.getByRole("button", { name: copy.load }));
+      const csv = await screen.findByRole("button", { name: copy.exportCsv });
+      expect(csv.parentElement).toBe(
+        screen.getByRole("button", { name: copy.loadMore }).parentElement,
+      );
+      fireEvent.click(csv);
+      await screen.findByRole("alert");
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(
+        JSON.parse(JSON.stringify({ format: "csv", pages: [page] })),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(["http", "network"])(
+    "shows an inline export failure after a %s error and allows retry",
+    async (failure) => {
+      fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify(sampleAudiencePage())),
+      );
+      if (failure === "http") {
+        fetchMock.mockResolvedValueOnce(
+          new Response("Forbidden", { status: 403 }),
+        );
+      } else {
+        fetchMock.mockRejectedValueOnce(new Error("Network unavailable"));
+      }
+      fetchMock.mockResolvedValueOnce(new Response("export-file"));
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:audience");
+      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+      const click = vi
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(() => {});
+      renderResearch();
+      fireEvent.click(screen.getByRole("button", { name: copy.load }));
+      const csv = await screen.findByRole("button", { name: copy.exportCsv });
+      fireEvent.click(csv);
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        copy.exportFailed,
+      );
+      expect(csv).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: copy.exportXlsx }),
+      ).toBeEnabled();
+      expect(screen.getByText("Ada")).toBeVisible();
+      fireEvent.click(csv);
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
   it("does not fetch until Load and then reads mentions from the selected account", async () => {
     fetchMock
       .mockResolvedValueOnce({

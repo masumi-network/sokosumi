@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  SocialPerformanceAudienceExportRequest,
   SocialPerformanceAudienceResponse,
   SocialPerformanceBenchmarkResponse,
   SocialPerformanceContact,
@@ -10,7 +11,7 @@ import type {
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Search, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { PreviewAvatar } from "./social-post-preview-parts";
@@ -43,6 +45,84 @@ interface ResearchPostProps {
 }
 
 const POSTS_PER_BATCH = 6;
+
+function audienceExportContact(
+  contact: SocialPerformanceContact,
+): SocialPerformanceContact {
+  return {
+    id: contact.id,
+    name: contact.name,
+    username: contact.username,
+    description: contact.description,
+    location: contact.location,
+    avatarUrl: contact.avatarUrl,
+    followersCount: contact.followersCount,
+    interactions: contact.interactions,
+    replies: contact.replies,
+    quotes: contact.quotes,
+    mentions: contact.mentions,
+    likes: contact.likes,
+    reposts: contact.reposts,
+  };
+}
+
+function audienceExportPage(
+  page: SocialPerformanceAudienceResponse,
+): SocialPerformanceAudienceResponse {
+  return {
+    kind: page.kind,
+    postId: page.postId ?? null,
+    contacts: page.contacts.map(audienceExportContact),
+    posts:
+      page.kind === "mentions"
+        ? (page.posts ?? []).map(({ author, post, interactionType }) => ({
+            author: author ? audienceExportContact(author) : null,
+            interactionType,
+            post: {
+              id: post.id,
+              connectionId: post.connectionId,
+              provider: post.provider,
+              externalId: post.externalId,
+              text: post.text,
+              publishedAt: post.publishedAt,
+              url: post.url,
+              metrics: {
+                views: post.metrics.views,
+                impressions: post.metrics.impressions,
+                likes: post.metrics.likes,
+                comments: post.metrics.comments,
+                shares: post.metrics.shares,
+                saves: post.metrics.saves,
+              },
+              additionalMetrics: post.additionalMetrics.map(
+                ({ key, value, period, unit }) => ({
+                  key,
+                  value,
+                  period,
+                  unit,
+                }),
+              ),
+              fetchedAt: post.fetchedAt,
+              strong: post.strong,
+              canRecycle: post.canRecycle,
+              contentType: post.contentType,
+              postKind: post.postKind,
+              media: post.media?.map(({ kind, url, thumbnailUrl }) => ({
+                kind,
+                url,
+                thumbnailUrl,
+              })),
+            },
+          }))
+        : [],
+    nextCursor: page.nextCursor,
+    observedAt: page.observedAt,
+    samplePostCount: page.samplePostCount,
+    oldestPostAt: page.oldestPostAt,
+    newestPostAt: page.newestPostAt,
+    coverage: page.coverage,
+  };
+}
 
 function ResearchQuerySkeleton({ label }: { label: string }) {
   return (
@@ -178,11 +258,13 @@ function ResearchPostGrid({
   hasNextPage = false,
   isFetchingNextPage = false,
   onLoadMore,
+  actions,
 }: {
   posts: ResearchPostProps[];
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   onLoadMore?: () => Promise<unknown>;
+  actions?: ReactNode;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const [visibleCount, setVisibleCount] = useState(POSTS_PER_BATCH);
@@ -193,7 +275,7 @@ function ResearchPostGrid({
     setVisibleCount(shownCount + POSTS_PER_BATCH);
   }
 
-  if (posts.length === 0 && !hasNextPage) return null;
+  if (posts.length === 0 && !hasNextPage && !actions) return null;
 
   return (
     <div className="space-y-4">
@@ -204,17 +286,22 @@ function ResearchPostGrid({
           ))}
         </ul>
       ) : null}
-      {shownCount < posts.length || hasNextPage ? (
-        <Button
-          type="button"
-          size="sm"
-          className="h-11 md:h-8"
-          variant="outline"
-          loading={isFetchingNextPage}
-          onClick={() => void handleShowMore()}
-        >
-          {t("research.showMore")}
-        </Button>
+      {shownCount < posts.length || hasNextPage || actions ? (
+        <div className="flex flex-wrap gap-2">
+          {shownCount < posts.length || hasNextPage ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-11 md:h-8"
+              variant="outline"
+              loading={isFetchingNextPage}
+              onClick={() => void handleShowMore()}
+            >
+              {t("research.showMore")}
+            </Button>
+          ) : null}
+          {actions}
+        </div>
       ) : null}
     </div>
   );
@@ -251,6 +338,10 @@ export function SocialStatisticsResearch({
   const [audienceEnabled, setAudienceEnabled] = useState(false);
   const [benchmarkHandle, setBenchmarkHandle] = useState("");
   const [discoveryTopic, setDiscoveryTopic] = useState("");
+  const [exporting, setExporting] = useState<
+    SocialPerformanceAudienceExportRequest["format"] | null
+  >(null);
+  const [exportError, setExportError] = useState(false);
   const needsPost = kind === "likers" || kind === "reposters";
   const audience = useInfiniteQuery({
     queryKey: [
@@ -338,6 +429,43 @@ export function SocialStatisticsResearch({
       researchPostInteractions(right) - researchPostInteractions(left),
   );
 
+  async function handleExport(
+    exportFormat: SocialPerformanceAudienceExportRequest["format"],
+  ) {
+    if (!audiencePages.length || exporting || audience.isFetching) return;
+    setExportError(false);
+    setExporting(exportFormat);
+    try {
+      const body: SocialPerformanceAudienceExportRequest = {
+        format: exportFormat,
+        pages: audiencePages.map(audienceExportPage),
+      };
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/social-statistics/${encodeURIComponent(accountId)}/audience/export`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!response.ok) throw new Error(t("research.exportFailed"));
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        parseContentDispositionFilename(
+          response.headers.get("content-disposition"),
+        ) ?? `audience.${exportFormat}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <section
       className="space-y-4"
@@ -371,6 +499,7 @@ export function SocialStatisticsResearch({
                 onValueChange={(value) => {
                   setKind(value as Kind);
                   setAudienceEnabled(false);
+                  setExportError(false);
                 }}
               >
                 <SelectTrigger
@@ -398,6 +527,7 @@ export function SocialStatisticsResearch({
                   onValueChange={(value) => {
                     setPostId(value);
                     setAudienceEnabled(false);
+                    setExportError(false);
                   }}
                 >
                   <SelectTrigger
@@ -485,25 +615,58 @@ export function SocialStatisticsResearch({
               ))}
             </ul>
           ) : null}
+          {exportError ? (
+            <p role="alert" className="text-sm">
+              {t("research.exportFailed")}
+            </p>
+          ) : null}
           <ResearchPostGrid
             key={`${kind}:${postId}`}
             posts={mentionPosts}
             hasNextPage={kind === "mentions" && audience.hasNextPage}
             isFetchingNextPage={audience.isFetchingNextPage}
             onLoadMore={() => audience.fetchNextPage()}
+            actions={
+              audiencePages.length ? (
+                <>
+                  {kind !== "mentions" && audience.hasNextPage ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-11 md:h-8"
+                      variant="outline"
+                      loading={audience.isFetchingNextPage}
+                      onClick={() => void audience.fetchNextPage()}
+                    >
+                      {t("research.loadMore")}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    variant="outline"
+                    disabled={Boolean(exporting) || audience.isFetching}
+                    loading={exporting === "csv"}
+                    onClick={() => void handleExport("csv")}
+                  >
+                    {t("research.exportCsv")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 md:h-8"
+                    variant="outline"
+                    disabled={Boolean(exporting) || audience.isFetching}
+                    loading={exporting === "xlsx"}
+                    onClick={() => void handleExport("xlsx")}
+                  >
+                    {t("research.exportXlsx")}
+                  </Button>
+                </>
+              ) : null
+            }
           />
-          {kind !== "mentions" && audience.hasNextPage ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-11 md:h-8"
-              variant="outline"
-              loading={audience.isFetchingNextPage}
-              onClick={() => void audience.fetchNextPage()}
-            >
-              {t("research.loadMore")}
-            </Button>
-          ) : null}
         </TabsContent>
         <TabsContent value="benchmark" className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
