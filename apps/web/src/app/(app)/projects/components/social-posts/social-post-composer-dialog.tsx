@@ -7,11 +7,14 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaValidationReason,
+  socialPostFirstCommentLimit,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -166,6 +169,7 @@ export function SocialPostComposerDialog({
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
+  const firstCommentId = useId();
   const isMobile = useIsMobile();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
@@ -216,6 +220,7 @@ export function SocialPostComposerDialog({
     byConnectionId: {},
     lastSharedEditId: null,
   });
+  const [firstComment, setFirstComment] = useState(post?.firstComment ?? "");
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
     mode.kind === "create"
       ? [...(mode.media ?? [])]
@@ -373,11 +378,31 @@ export function SocialPostComposerDialog({
     (account) =>
       account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
   );
+  const trimmedFirstComment = firstComment.trim();
+  const commentProviders = (
+    selectedConnections.length > 0
+      ? selectedConnections.map((connection) => connection.provider)
+      : providers
+  ).filter(socialPostSupportsFirstComment);
+  const showFirstComment = commentProviders.length > 0;
+  const firstCommentLimit = commentProviders.reduce(
+    (strictest, candidate) =>
+      Math.min(
+        strictest,
+        socialPostFirstCommentLimit(candidate) ?? SOCIAL_POST_FIRST_COMMENT_MAX,
+      ),
+    SOCIAL_POST_FIRST_COMMENT_MAX,
+  );
+  const overFirstComment =
+    showFirstComment && firstComment.length > firstCommentLimit;
   const mediaValid = providers.every(
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
-  const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
-  const draftValid = isScheduleOnly || (draftIssue === null && !overLimit);
+  const textValid =
+    isScheduleOnly ||
+    (composerIssue === null && !overLimit && !overFirstComment);
+  const draftValid =
+    isScheduleOnly || (draftIssue === null && !overLimit && !overFirstComment);
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -612,6 +637,7 @@ export function SocialPostComposerDialog({
         const created = await createProjectSocialPost({
           projectId,
           text: textFor(connection.id).trim(),
+          ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           socialConnectionId: connection.id,
         });
@@ -727,6 +753,7 @@ export function SocialPostComposerDialog({
           projectId,
           postId: mode.post.id,
           text: trimmedText,
+          firstComment: trimmedFirstComment,
           media,
           socialConnectionId: connectionId || null,
           revision: mode.post.revision,
@@ -745,6 +772,7 @@ export function SocialPostComposerDialog({
         createProjectSocialPost({
           projectId,
           text: textFor(socialConnectionId).trim(),
+          ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           socialConnectionId,
         }),
@@ -771,6 +799,9 @@ export function SocialPostComposerDialog({
           createProjectSocialPost({
             projectId,
             text: textFor(socialConnectionId).trim(),
+            ...(trimmedFirstComment
+              ? { firstComment: trimmedFirstComment }
+              : {}),
             media,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
@@ -787,12 +818,14 @@ export function SocialPostComposerDialog({
       let revision = mode.post.revision;
       const contentChanged =
         trimmedText !== mode.post.text ||
+        trimmedFirstComment !== (mode.post.firstComment ?? "") ||
         !sameSocialPostMedia(media, mode.post.media);
       if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
           postId: mode.post.id,
           text: trimmedText,
+          firstComment: trimmedFirstComment,
           media,
           revision,
         });
@@ -854,11 +887,13 @@ export function SocialPostComposerDialog({
     accountTexts.some((account) => account.text.trim() !== "");
   const isDirty =
     mode.kind === "create"
-      ? copy.shared.trim() !== "" ||
+      ? firstComment.trim() !== "" ||
+        copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
         scheduledAt !== ""
-      : displayedText !== initial.text ||
+      : firstComment !== (post?.firstComment ?? "") ||
+        displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||
         scheduledAt !== initial.scheduledAt ||
         (connectionIds[0] ?? "") !== initial.connectionId;
@@ -877,6 +912,13 @@ export function SocialPostComposerDialog({
     </p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
+  ) : overFirstComment ? (
+    <p
+      className="text-destructive"
+      data-testid="social-post-first-comment-too-long"
+    >
+      {t("composer.firstCommentTooLong")}
+    </p>
   ) : null;
   const requirementHintLines = requirementHints.map(
     ({ provider: neededBy, issue }) => ({
@@ -1213,6 +1255,43 @@ export function SocialPostComposerDialog({
                         );
                       })}
                     </ul>
+                  ) : null}
+                  {showFirstComment ? (
+                    <div className="space-y-2">
+                      <label
+                        className="text-sm font-medium"
+                        htmlFor={firstCommentId}
+                      >
+                        {t("composer.firstComment")}
+                      </label>
+                      <textarea
+                        id={firstCommentId}
+                        aria-invalid={overFirstComment || undefined}
+                        className="placeholder:text-muted-foreground field-sizing-content min-h-16 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                        data-testid="social-post-first-comment"
+                        disabled={isBusy}
+                        onChange={(event) =>
+                          setFirstComment(event.target.value)
+                        }
+                        placeholder={t("composer.firstCommentPlaceholder")}
+                        value={firstComment}
+                      />
+                      <p
+                        aria-live="polite"
+                        className={cn(
+                          "text-end text-xs tabular-nums",
+                          overFirstComment
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                        data-testid="social-post-first-comment-count"
+                      >
+                        {t("composer.characters", {
+                          count: firstComment.length,
+                          limit: firstCommentLimit,
+                        })}
+                      </p>
+                    </div>
                   ) : null}
                 </div>
               )}

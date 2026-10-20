@@ -5,7 +5,6 @@ import {
   criteriaForConfirmedSokoBotAction,
   evaluateSokoBotOutcome,
   invalidateSokoBotIntentOutcomes,
-  readSokoBotTaskOutcome,
   sokoBotOutcomeSummary,
 } from "./soko-bot-outcome.service";
 
@@ -23,6 +22,11 @@ const dbMock = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: dbMock }));
 
+const OWNER_BOT = {
+  userId: "owner-one",
+  workspaceId: "workspace-one",
+  projectId: null,
+};
 const receipt = {
   id: "receipt-one",
   capability: "create_schedule",
@@ -91,201 +95,6 @@ describe("deterministic outcome summary", () => {
       );
     },
   );
-});
-
-describe("scoped task outcome reads", () => {
-  const input = {
-    turnId: "turn-current",
-    sokoBotId: "bot-one",
-    workspaceId: "workspace-one",
-    userId: "owner-one",
-    intentId: "intent-one",
-    intentRevision: 2,
-    audience: "OWNER" as const,
-    taskId: "task-one",
-  };
-  const taskTime = new Date("2026-09-26T12:00:00Z");
-  const assessmentTime = new Date("2026-09-26T13:00:00Z");
-  const intent = {
-    id: "intent-one",
-    sokoBotId: "bot-one",
-    workspaceId: "workspace-one",
-    requesterId: "owner-one",
-    roomId: "room-one",
-    revision: 2,
-    state: "IN_PROGRESS",
-    targetIds: ["task-one"],
-    acceptanceCriteria: criteria,
-  };
-  const currentTurn = {
-    intent,
-    contextSnapshot: { packet: { trigger: { askedBy: { kind: "OWNER" } } } },
-    chatMention: { message: { roomId: "room-one" } },
-  };
-  const outcome = {
-    state: "FULFILLED",
-    criteriaResults: [
-      { id: "schedule-configured", satisfied: true, evidenceId: "receipt-one" },
-    ],
-    evidenceIds: ["receipt-one"],
-    remainingSteps: [],
-    blockerKind: null,
-    evidenceRevision: "revision-one",
-    assessedAt: assessmentTime,
-  };
-  beforeEach(() => {
-    vi.resetAllMocks();
-    dbMock.sokoBotTurn.findFirst.mockResolvedValue(currentTurn);
-    dbMock.task.findFirst.mockResolvedValue({
-      updatedAt: taskTime,
-      events: [{ id: "event-one", createdAt: taskTime, updatedAt: taskTime }],
-    });
-    dbMock.sokoBotIntentOutcome.findFirst.mockResolvedValue(outcome);
-    dbMock.sokoBotToolCall.findMany.mockResolvedValue([
-      {
-        targetId: "task-one",
-        effectEventId: "event-one",
-        committedAt: taskTime,
-      },
-    ]);
-  });
-
-  it("returns acceptance criteria, blockers, evidence revision and remaining steps within exact authorization scope", async () => {
-    expect(await readSokoBotTaskOutcome(prisma, input)).toEqual({
-      ...outcome,
-      assessedAt: assessmentTime.toISOString(),
-      acceptanceCriteria: criteria,
-    });
-    expect(dbMock.sokoBotTurn.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: "turn-current",
-          sokoBotId: "bot-one",
-          workspaceId: "workspace-one",
-          requestedByUserId: "owner-one",
-          intentId: "intent-one",
-          intentRevision: 2,
-          chainDepth: 0,
-          OR: [{ askedByUserId: null }, { askedByUserId: "owner-one" }],
-        },
-      }),
-    );
-    expect(dbMock.sokoBotIntentOutcome.findFirst).toHaveBeenCalledWith({
-      where: { intentId: "intent-one", intentRevision: 2 },
-      orderBy: [{ assessedAt: "desc" }, { id: "desc" }],
-    });
-    expect(dbMock.task.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: "task-one",
-          workspaceId: "workspace-one",
-          archivedAt: null,
-          OR: [
-            { visibility: "PUBLIC" },
-            { visibility: "PRIVATE", ownerId: "owner-one" },
-          ],
-        },
-      }),
-    );
-  });
-
-  it.each(["TEAMMATE", "ASSISTANT", undefined] as const)(
-    "does not load owner assessments for audience %s",
-    async (audience) => {
-      expect(
-        await readSokoBotTaskOutcome(prisma, { ...input, audience }),
-      ).toMatchObject({
-        state: "UNKNOWN",
-        acceptanceCriteria: [],
-        criteriaResults: [],
-        evidenceRevision: null,
-      });
-      expect(dbMock.sokoBotTurn.findFirst).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([
-    { sokoBotId: "other-bot" },
-    { workspaceId: "other-workspace" },
-    { requesterId: "teammate" },
-    { revision: 3 },
-    { roomId: "other-room" },
-    { targetIds: ["other-task"] },
-  ])("does not expose criteria for mismatched intent %j", async (change) => {
-    dbMock.sokoBotTurn.findFirst.mockResolvedValueOnce({
-      ...currentTurn,
-      intent: { ...intent, ...change },
-    });
-    expect(await readSokoBotTaskOutcome(prisma, input)).toMatchObject({
-      state: "UNKNOWN",
-      acceptanceCriteria: [],
-      evidenceIds: [],
-    });
-    expect(dbMock.sokoBotIntentOutcome.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("rechecks persisted audience and refuses stale caller assertions", async () => {
-    dbMock.sokoBotTurn.findFirst.mockResolvedValueOnce({
-      ...currentTurn,
-      contextSnapshot: {
-        packet: { trigger: { askedBy: { kind: "TEAMMATE" } } },
-      },
-    });
-    expect((await readSokoBotTaskOutcome(prisma, input)).state).toBe("UNKNOWN");
-    expect(dbMock.task.findFirst).not.toHaveBeenCalled();
-  });
-
-  it.each(["2026-09-26T12:30:00Z", "2026-09-26T14:00:00Z"])(
-    "rejects newer task evidence even when assessment ran afterward: %s",
-    async (at) => {
-      dbMock.task.findFirst.mockResolvedValueOnce({
-        updatedAt: new Date(at),
-        events: [
-          {
-            id: "contradictory-event",
-            createdAt: new Date(at),
-            updatedAt: new Date(at),
-          },
-        ],
-      });
-      expect(await readSokoBotTaskOutcome(prisma, input)).toMatchObject({
-        state: "UNKNOWN",
-        blockerKind: "EVIDENCE_CHANGED",
-        criteriaResults: [],
-        evidenceIds: [],
-        evidenceRevision: null,
-        remainingSteps: ["schedule-configured"],
-      });
-    },
-  );
-
-  it("does not report fulfillment when committed proof disappeared", async () => {
-    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
-    expect((await readSokoBotTaskOutcome(prisma, input)).state).toBe("UNKNOWN");
-  });
-
-  it("returns a current partial assessment without promoting it from task completion", async () => {
-    dbMock.sokoBotIntentOutcome.findFirst.mockResolvedValueOnce({
-      ...outcome,
-      state: "PARTIAL",
-      blockerKind: "OUTCOME_SCOPE_REQUIRES_REVIEW",
-      remainingSteps: ["research-scope"],
-    });
-    expect(await readSokoBotTaskOutcome(prisma, input)).toMatchObject({
-      state: "PARTIAL",
-      blockerKind: "OUTCOME_SCOPE_REQUIRES_REVIEW",
-      remainingSteps: ["research-scope"],
-      evidenceRevision: "revision-one",
-    });
-  });
-
-  it("returns no assessment for inaccessible tasks or an absent current turn", async () => {
-    dbMock.task.findFirst.mockResolvedValueOnce(null);
-    expect((await readSokoBotTaskOutcome(prisma, input)).state).toBe("UNKNOWN");
-    expect(dbMock.sokoBotIntentOutcome.findFirst).not.toHaveBeenCalled();
-    dbMock.sokoBotTurn.findFirst.mockResolvedValueOnce(null);
-    expect((await readSokoBotTaskOutcome(prisma, input)).state).toBe("UNKNOWN");
-  });
 });
 
 describe("evidence-backed intent fulfillment", () => {
@@ -384,6 +193,7 @@ describe("evidence-backed intent fulfillment", () => {
 
   it("scopes receipt evidence to the intent revision, bot and workspace", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       intentRevision: 2,
@@ -420,6 +230,7 @@ describe("evidence-backed intent fulfillment", () => {
 
   it("fulfills a MANAGE_WORK request from the action it committed", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
@@ -480,6 +291,7 @@ describe("evidence-backed intent fulfillment", () => {
 
   it("does not fulfill a MANAGE_WORK request with no committed action", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
@@ -528,6 +340,7 @@ describe("evidence-backed intent fulfillment", () => {
 
   it("does not take a preparatory action as proof when the requested one failed", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
@@ -587,6 +400,7 @@ describe("evidence-backed intent fulfillment", () => {
 
   it("keeps delegated task creation waiting for independent verification", async () => {
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
@@ -641,6 +455,7 @@ describe("evidence-backed intent fulfillment", () => {
   it("requires a replacement action after the outcome was invalidated", async () => {
     const invalidatedAt = new Date("2026-09-28T12:30:00Z");
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       requestedByUserId: "owner-one",
       route: "MANAGE_WORK",
@@ -742,6 +557,7 @@ describe("evidence-backed intent fulfillment", () => {
     "resolves reminders only while the fulfilled action remains the current task event: %s",
     async (current) => {
       dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+        sokoBot: OWNER_BOT,
         id: "turn-one",
         intentRevision: 2,
         requestedByUserId: "owner-one",
@@ -802,6 +618,46 @@ describe("evidence-backed intent fulfillment", () => {
     },
   );
 
+  it("inspects a shared bot's tasks through its scope even under an OWNER packet", async () => {
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      intentRevision: 2,
+      userId: "member-one",
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      sokoBot: {
+        userId: null,
+        workspaceId: "workspace-one",
+        projectId: "project-one",
+      },
+      contextSnapshot: { packet: { trigger: { askedBy: { kind: "OWNER" } } } },
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        acceptanceCriteria: [
+          { kind: "OUTCOME", id: "research", description: "Research done" },
+        ],
+        targetIds: ["task-one"],
+      },
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    dbMock.task.findMany.mockResolvedValueOnce([]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    expect(dbMock.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: { in: ["task-one"] },
+          workspaceId: "workspace-one",
+          archivedAt: null,
+          visibility: "PUBLIC",
+          projectId: "project-one",
+        },
+      }),
+    );
+  });
+
   it("inspects only visible scoped tasks and never treats readable output as verified scope", async () => {
     const outcomeCriteria = [
       {
@@ -811,6 +667,7 @@ describe("evidence-backed intent fulfillment", () => {
       },
     ];
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      sokoBot: OWNER_BOT,
       id: "turn-one",
       intentRevision: 2,
       requestedByUserId: "owner-one",

@@ -10,6 +10,9 @@ function clientWith(response: unknown): CoreHttpClient {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => response as T,
   };
 }
@@ -42,6 +45,9 @@ test("jobs input submits JSON and emits the submitted input", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };
@@ -154,6 +160,9 @@ test("jobs get text surfaces the newest Core event result", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
 
@@ -198,6 +207,9 @@ test("jobs get text falls back to event status when result is missing", async ()
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
 
@@ -224,6 +236,9 @@ test("jobs get --details maps events, files, links, and input request", async ()
     post: async <T>() => ({ data: null }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };
@@ -256,6 +271,9 @@ test("jobs get --details still emits the job when a detail fetch fails", async (
     post: async <T>() => ({ data: null }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };

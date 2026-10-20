@@ -13,6 +13,7 @@ const POST: SocialPost = {
   projectId: "project-1",
   provider: "x",
   text: "Launch day is here. The clip is ready.",
+  firstComment: null,
   media: [],
   status: "FAILED",
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
@@ -50,6 +51,8 @@ const POST: SocialPost = {
   canCancel: false,
   canPublishNow: true,
   canDuplicate: true,
+  canApprove: false,
+  canReject: false,
   connectionNeedsReconnect: false,
 };
 

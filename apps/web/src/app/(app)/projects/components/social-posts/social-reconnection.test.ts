@@ -21,6 +21,7 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: "project-1",
     provider: "x",
     text: "Hello",
+    firstComment: null,
     media: [],
     status: "FAILED",
     socialConnection: connection,
@@ -45,6 +46,8 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     canCancel: true,
     canPublishNow: true,
     canDuplicate: true,
+    canApprove: false,
+    canReject: false,
     connectionNeedsReconnect: false,
     ...overrides,
   };

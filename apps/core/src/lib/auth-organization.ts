@@ -24,6 +24,7 @@ import {
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
+import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
 
 async function ensureWorkspaceForCreatedOrganization(organization: {
   id: string;
@@ -164,6 +165,10 @@ export function createAuthOrganizationPlugin() {
             statusMessages: [],
           }),
           deliverOrganizationCalendarInvalidationsNow(organization.id, user.id),
+          disconnectLeaverSokoBotIntegrationsBestEffort(
+            user.id,
+            organization.id,
+          ),
         ]);
       },
       beforeDeleteOrganization: async ({ organization, user }) => {

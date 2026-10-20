@@ -2479,6 +2479,7 @@
         },
         "status": {
           "DRAFT": "Entwurf",
+          "NEEDS_APPROVAL": "Freigabe nötig",
           "SCHEDULED": "Geplant",
           "PUBLISHING": "Wird veröffentlicht",
           "PUBLISHED": "Veröffentlicht",
@@ -2498,6 +2499,9 @@
           "rescheduleTitle": "Beitrag neu planen",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
+          "firstComment": "Erster Kommentar",
+          "firstCommentPlaceholder": "Hashtags oder ein Aufruf",
+          "firstCommentTooLong": "Der erste Kommentar ist zu lang.",
           "textForAccount": "Text für dieses Konto",
           "characters": "{count} / {limit}",
           "media": {
@@ -2665,6 +2669,7 @@
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
+          "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2794,8 +2799,8 @@
           "historyNotFetched": "Der Kontoverlauf wurde noch nicht importiert.",
           "historyLimited": "Der Verlauf ist unvollständig oder durch die Plattform eingeschränkt. Prüfe die Kontoberechtigungen und synchronisiere erneut.",
           "dateUnavailable": "Veröffentlichungsdatum nicht verfügbar",
-          "mediaPost": "Medienbeitrag",
-          "openPost": "Beitrag auf der Plattform öffnen",
+          "noPostMetrics": "Für diesen Beitrag wurden noch keine Kennzahlen gemeldet.",
+          "openPost": "Beitrag auf der Plattform ansehen",
           "accountMetrics": {
             "followers": "Follower",
             "following": "Gefolgte Konten",
@@ -2838,7 +2843,13 @@
             "linkClicks": "Linkklicks",
             "replies": "Antworten",
             "reposts": "Erneut geteilte Beiträge",
-            "dislikes": "Negative Bewertungen"
+            "dislikes": "Negative Bewertungen",
+            "quotes": "Zitate",
+            "totalWatchTime": "Gesamte Wiedergabezeit",
+            "averageWatchTime": "Durchschnittliche Wiedergabezeit",
+            "skipRate": "Überspringrate",
+            "facebookViews": "Facebook-Aufrufe",
+            "crosspostedViews": "Aufrufe durch Crossposting"
           },
           "periods": {
             "lifetime": "Gesamter Zeitraum",
@@ -3018,10 +3029,14 @@
           "overview": "Übersicht",
           "design": "Design",
           "memory": "Gedächtnis",
-          "ariaLabel": "Projektbereiche"
+          "ariaLabel": "Projektbereiche",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots für dieses Projekt"
         }
       }
     },
@@ -4788,7 +4803,8 @@
             "delete": "Soko Bot löschen",
             "deleted": "Soko Bot gelöscht.",
             "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
-            "error": "Dieser Soko Bot konnte nicht gelöscht werden."
+            "error": "Dieser Soko Bot konnte nicht gelöscht werden.",
+            "confirmLabelShared": "Dieser Bot ist geteilt und hat keinen Besitzer. Zur Bestätigung seine ID eingeben ({id})"
           },
           "chat": {
             "readOnly": "Nur lesen",
@@ -7827,7 +7843,12 @@
         "deleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden gelöscht. Erstellte Aufgaben bleiben auf deinem Board. Du kannst sofort einen neuen Assistenten anlegen.",
         "deleteConfirmLabel": "Zur Bestätigung {name} eingeben",
         "deleteError": "Dein Soko Bot konnte nicht gelöscht werden.",
-        "deleted": "Soko Bot gelöscht."
+        "deleted": "Soko Bot gelöscht.",
+        "sharedArchiveDescription": "Stoppt alle Turns und Zeitpläne für alle. Ein Owner oder Admin kann ihn wieder aktivieren; der Verlauf bleibt erhalten.",
+        "sharedArchiveConfirmTitle": "Diesen geteilten Bot archivieren?",
+        "sharedArchiveConfirmDescription": "Er stoppt für alle: Laufende Turns werden abgebrochen und Zeitpläne gestoppt. Der Verlauf bleibt erhalten.",
+        "sharedDeleteConfirmTitle": "Diesen geteilten Bot löschen?",
+        "sharedDeleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden für alle gelöscht. Erstellte Aufgaben bleiben, wo sie sind."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8108,7 +8129,53 @@
       "chatWith": "Mit {name} chatten",
       "yourAssistantTitle": "Dein Assistent",
       "teamTitle": "Die Assistenten deines Teams",
-      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält.",
+      "Shared": {
+        "title": "Geteilte Bots",
+        "count": "{count, plural, one {# Bot} other {# Bots}}",
+        "empty": "Noch keine geteilten Bots. Ein geteilter Bot arbeitet für ein Projekt oder den ganzen Workspace, und alle sprechen in einem Raum mit ihm.",
+        "scopeWorkspace": "Arbeitet für den ganzen Workspace",
+        "scopeProject": "Arbeitet für ein Projekt",
+        "scopeProjectNamed": "Arbeitet für {project}",
+        "archived": "Archiviert",
+        "fallbackName": "Geteilter Assistent",
+        "openBot": "Einstellungen für {name}",
+        "Create": {
+          "trigger": "Neuer Soko Bot",
+          "title": "Soko Bot erstellen",
+          "description": "Wähle, für wen er arbeitet. Alle Mitglieder teilen einen Projekt- oder Workspace-Bot und sehen seinen Chatverlauf, sein Gedächtnis und seine Einstellungen.",
+          "nameLabel": "Name",
+          "scopeLabel": "Arbeitet für",
+          "scopes": {
+            "personal": {
+              "label": "Nur dich",
+              "hint": "Dein eigener Assistent. Niemand sonst kann ihn verwalten."
+            },
+            "project": {
+              "label": "Ein Projekt",
+              "hint": "Sieht die öffentlichen Tasks des Projekts. Alle sprechen in seinem Raum mit ihm."
+            },
+            "workspace": {
+              "label": "Den ganzen Workspace",
+              "hint": "Sieht jeden öffentlichen Task und jedes Projekt. Alle sprechen in seinem Raum mit ihm."
+            }
+          },
+          "projectLabel": "Projekt",
+          "projectPlaceholder": "Projekt wählen",
+          "cancel": "Abbrechen",
+          "submit": "Erstellen",
+          "error": "Der Soko Bot konnte nicht erstellt werden.",
+          "created": "Soko Bot erstellt."
+        },
+        "Archived": {
+          "title": "{name} ist archiviert",
+          "description": "Ein archivierter Bot liest nichts mehr, führt keine Zeitpläne aus und antwortet nicht mehr in seinem Raum. Sein Verlauf bleibt erhalten.",
+          "back": "Zurück zu Soko Bots",
+          "reactivate": "Reaktivieren",
+          "reactivated": "Soko Bot reaktiviert.",
+          "reactivateError": "Der Soko Bot konnte nicht reaktiviert werden."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {

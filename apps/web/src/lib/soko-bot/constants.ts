@@ -1,6 +1,13 @@
 export const SOKO_BOT_ROUTE = "/personal-assistant";
 /** Team overview: everyone in the workspace and their Soko Bots. */
 export const SOKO_BOTS_ROUTE = "/soko-bots";
+
+/** The console of the caller's own bot, or of the shared bot `botId`. */
+export function sokoBotConsoleRoute(botId?: string | null): string {
+  return botId
+    ? `${SOKO_BOTS_ROUTE}/${encodeURIComponent(botId)}`
+    : SOKO_BOT_ROUTE;
+}
 export const ADMIN_SOKO_BOTS_ROUTE = "/admin/soko-bots";
 export const ADMIN_SOKO_BOT_VERSIONS_ROUTE = `${ADMIN_SOKO_BOTS_ROUTE}/versions`;
 

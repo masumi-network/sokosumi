@@ -90,7 +90,10 @@ export async function resolveProjectReaderAccess(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<ProjectReaderAccess> {
-  if (authContext.actor === "user" || authContext.actor === "sokoBot") {
+  if (
+    authContext.actor === "user" ||
+    (authContext.actor === "sokoBot" && authContext.scope === "personal")
+  ) {
     return {
       prismaWhere: humanProjectReaderVisibility(authContext.userId),
       sqlWhere: humanProjectReaderSqlVisibility(authContext.userId),

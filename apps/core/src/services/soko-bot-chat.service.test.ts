@@ -8,6 +8,7 @@ const {
   messageCreate,
   messageFindFirst,
   roomFindFirst,
+  memberFindUnique,
   sokoBotFindFirst,
   roomUpdate,
   publish,
@@ -23,6 +24,7 @@ const {
   messageCreate: vi.fn(),
   messageFindFirst: vi.fn(),
   roomFindFirst: vi.fn(),
+  memberFindUnique: vi.fn(),
   sokoBotFindFirst: vi.fn(),
   roomUpdate: vi.fn(),
   publish: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomUserMember: {
       findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
+      findUnique: memberFindUnique,
     },
     sokoBot: { findFirst: sokoBotFindFirst },
     sokoBotTurn: { findUnique: turnFindUnique },
@@ -340,6 +343,40 @@ describe("introduceSokoBot", () => {
     });
   });
 
+  it("greets the owner of a personal bot by name", async () => {
+    sokoBotFindFirst.mockResolvedValue({
+      id: "bot-a",
+      name: "Eve",
+      userId: "owner",
+      user: { name: "Ada Lovelace" },
+    });
+    await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(messageCreate.mock.calls[0]?.[0]?.data?.content).toContain(
+      "Hi Ada! I'm **Eve**, your personal assistant",
+    );
+  });
+
+  it("names no owner when the bot is shared", async () => {
+    sokoBotFindFirst.mockResolvedValue({
+      id: "bot-a",
+      name: "Eve",
+      userId: null,
+      user: null,
+    });
+    await introduceSokoBot({
+      userId: "member",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    const content = messageCreate.mock.calls[0]?.[0]?.data?.content;
+    expect(content).toContain("a shared assistant for this team");
+    expect(content).not.toContain("your personal assistant");
+  });
+
   it("does not invalidate when the bot already introduced itself", async () => {
     messageFindFirst.mockResolvedValue({ id: "msg-existing" });
     const result = await introduceSokoBot({
@@ -438,6 +475,83 @@ describe("postSokoBotOwnerNotice", () => {
     ).resolves.toBeNull();
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
     expect(messageUpsert).not.toHaveBeenCalled();
+  });
+
+  it("posts a personal notice without a mention", async () => {
+    await postSokoBotOwnerNotice({
+      sokoBotId: "bot-a",
+      content: "x",
+      key: "k",
+      mentionUserId: "someone",
+    });
+    expect(messageUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "x" }),
+      }),
+    );
+    expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+  });
+
+  describe("for a shared bot", () => {
+    beforeEach(() => {
+      persistChatHumanMentionsMock.mockClear();
+      emitChatHumanMentionNotificationsMock.mockClear();
+      sokoBotFindFirst.mockResolvedValue({
+        id: "bot-a",
+        userId: null,
+        workspaceId: "ws-a",
+        sharedRoomId: "room-shared",
+        workspace: { organizationId: "org-a" },
+      });
+      roomFindFirst.mockResolvedValue({ id: "room-shared" });
+      memberFindUnique.mockResolvedValue({ userId: "member" });
+    });
+
+    it("posts in its shared room and mentions the member", async () => {
+      const result = await postSokoBotOwnerNotice({
+        sokoBotId: "bot-a",
+        content: "Your Task failed.",
+        key: "k",
+        mentionUserId: "member",
+      });
+      expect(result).toEqual({ messageId: "notice-1" });
+      expect(messageUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            roomId: "room-shared",
+            content: "@member Your Task failed.",
+          }),
+        }),
+      );
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          messageId: "notice-1",
+          roomId: "room-shared",
+          content: "@member Your Task failed.",
+        },
+      );
+      expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+        messageId: "notice-1",
+        mentionedUserIds: ["member"],
+      });
+      expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+    });
+
+    it("posts nothing when its shared room is gone", async () => {
+      roomFindFirst.mockResolvedValue(null);
+      await expect(
+        postSokoBotOwnerNotice({
+          sokoBotId: "bot-a",
+          content: "x",
+          key: "k",
+          mentionUserId: "member",
+        }),
+      ).resolves.toBeNull();
+      expect(messageUpsert).not.toHaveBeenCalled();
+      expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+    });
   });
 });
 

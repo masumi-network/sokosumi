@@ -25,7 +25,7 @@ private func room(
     topic: nil, discoverability: nil, createdByUserId: viewer, createdAt: .distantPast, updatedAt: .distantPast,
     unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members,
     formerUserMembers: [], coworkerMembers: [.init(id: "agent", name: "Agent", slug: "agent", caption: nil, image: nil, presence: .online)],
-    sokoBotMembers: [.init(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", presence: .offline)]
+    sokoBotMembers: [.init(id: "bot", name: "Assistant", caption: nil, ownerUserId: "me", scope: .personal, presence: .offline)]
   )
 }
 

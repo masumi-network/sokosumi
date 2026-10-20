@@ -1,5 +1,7 @@
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import {
   SYSTEM_TURN_ROUTES,
@@ -63,21 +65,12 @@ export async function runSokoBotLabIngest(input: {
   workspaceId: string;
   beat: SokoBotLabBeat;
 }): Promise<{ turnId: string }> {
-  const bot = await prisma.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      archivedAt: null,
-    },
-    select: {
-      id: true,
-      userId: true,
-      workspaceId: true,
-      ingestTimezone: true,
-      followWholeBoard: true,
-    },
-  });
+  const bot = await memberSokoBot(input.userId, input.workspaceId, ME_SOKO_BOT);
   if (!bot) throw new SokoBotLabIngestError("Soko Bot not found");
+  // A beat is built around the owner's own accounts and Tasks.
+  if (!isPersonalSokoBot(bot))
+    throw new SokoBotLabIngestError("Lab beats run only for a personal bot");
+  const ownerUserId = bot.userId;
 
   // Before the packet: the reads below are up to four sequential Composio
   // calls, and discovering afterwards that the bot was already working means
@@ -112,7 +105,7 @@ export async function runSokoBotLabIngest(input: {
           await buildSystemBeatMessage({
             bot: {
               id: bot.id,
-              userId: bot.userId,
+              userId: ownerUserId,
               workspaceId: bot.workspaceId,
               ingestTimezone: bot.ingestTimezone,
               followWholeBoard: bot.followWholeBoard,

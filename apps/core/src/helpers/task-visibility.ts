@@ -1,5 +1,7 @@
 import { type Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { internalServerError } from "@/helpers/error";
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 
 export type SokoBotPacketAudience = "OWNER" | "TEAMMATE" | "ASSISTANT";
 
@@ -45,12 +47,13 @@ export function buildHumanJobParentVisibilityWhere(
 
 export function isPrivateTaskVisibleToHuman(
   task: { visibility: TaskVisibility; ownerId: string | null },
-  userId: string,
+  /** Null for nobody: a shared Soko Bot acting on its own (ADR 0057). */
+  userId: string | null,
 ): boolean {
   if (task.visibility !== TaskVisibility.PRIVATE) {
     return true;
   }
-  return task.ownerId === userId;
+  return userId !== null && task.ownerId === userId;
 }
 
 /**
@@ -124,6 +127,146 @@ export function buildSokoBotAudienceJobParentTaskWhere(
       },
     ],
   };
+}
+
+/**
+ * What a shared Soko Bot may read. Its workspace is always pinned: nothing in
+ * the schema ties a bot's Project to the bot's workspace.
+ */
+export interface SokoBotScope {
+  sokoBotId: string;
+  workspaceId: string;
+  /** Set for a project bot; null for a workspace bot. */
+  projectId: string | null;
+}
+
+interface SokoBotScopeColumns {
+  id: string;
+  userId: string | null;
+  workspaceId: string;
+  projectId?: string | null;
+}
+
+function scopeColumnsOf(bot: SokoBotScopeColumns): SokoBotScope {
+  // A row selected without the column must not widen a project bot to its
+  // whole workspace.
+  if (bot.projectId === undefined)
+    throw internalServerError("A shared Soko Bot's scope needs its projectId");
+  return {
+    sokoBotId: bot.id,
+    workspaceId: bot.workspaceId,
+    projectId: bot.projectId,
+  };
+}
+
+/** The scope of a shared bot, or null for a personal bot. */
+export function sokoBotSharedScopeOf(
+  bot: SokoBotScopeColumns,
+): SokoBotScope | null {
+  return isPersonalSokoBot(bot) ? null : scopeColumnsOf(bot);
+}
+
+/** What a bot sees on its own: a personal bot its owner's Tasks, a shared bot its scope. */
+export function buildSokoBotTaskWhere(
+  bot: SokoBotScopeColumns,
+): Prisma.TaskWhereInput {
+  return isPersonalSokoBot(bot)
+    ? buildSokoBotOwnerTaskVisibilityWhere(bot.userId)
+    : buildSokoBotScopeTaskWhere(scopeColumnsOf(bot));
+}
+
+/**
+ * A shared bot sees PUBLIC Tasks only: a project bot those of its Project, a
+ * workspace bot every one in its workspace. Never a member's private Task.
+ */
+export function buildSokoBotScopeTaskWhere(
+  scope: SokoBotScope,
+): Prisma.TaskWhereInput {
+  return {
+    workspaceId: scope.workspaceId,
+    visibility: TaskVisibility.PUBLIC,
+    ...(scope.projectId === null ? {} : { projectId: scope.projectId }),
+  };
+}
+
+/** A shared bot's Jobs: its own hires, plus Jobs on a Task it can see. */
+export function buildSokoBotScopeJobWhere(
+  scope: SokoBotScope,
+): Prisma.JobWhereInput {
+  return {
+    workspaceId: scope.workspaceId,
+    OR: [
+      {
+        sokoBotDelegations: { some: { turn: { sokoBotId: scope.sokoBotId } } },
+      },
+      { task: { is: buildSokoBotScopeTaskWhere(scope) } },
+    ],
+  };
+}
+
+/**
+ * Who reads through a Soko Bot turn: a personal bot's owner, or a shared
+ * bot's scope. `userId` is the person the turn acts for; a shared bot acting
+ * on its own has none (ADR 0057), and reads by scope either way.
+ */
+export type SokoBotTurnReader =
+  | {
+      userId: string;
+      audience: SokoBotPacketAudience | undefined;
+      sharedScope: null;
+    }
+  | {
+      userId: string | null;
+      audience: SokoBotPacketAudience | undefined;
+      sharedScope: SokoBotScope;
+    };
+
+/**
+ * The audience a shared bot answers. It has no owner, so it answers as
+ * TEAMMATE unless another assistant asks: an OWNER, missing or malformed
+ * audience never opens an owner path.
+ */
+export function sharedSokoBotAudience(
+  audience: SokoBotPacketAudience | undefined,
+): "TEAMMATE" | "ASSISTANT" {
+  return audience === "ASSISTANT" ? "ASSISTANT" : "TEAMMATE";
+}
+
+/** A turn reader. A shared bot has no owner, so it never reads as OWNER. */
+export function sokoBotTurnReader(
+  userId: string | null,
+  audience: SokoBotPacketAudience | undefined,
+  sharedScope: SokoBotScope | null,
+): SokoBotTurnReader {
+  if (sharedScope !== null)
+    return { userId, audience: sharedSokoBotAudience(audience), sharedScope };
+  if (userId === null)
+    throw new Error("A personal Soko Bot turn always acts for its owner");
+  return { userId, audience, sharedScope };
+}
+
+/** A shared bot reads its scope; a personal bot reads by audience. */
+export function buildSokoBotReaderTaskWhere(
+  reader: SokoBotTurnReader,
+): Prisma.TaskWhereInput {
+  return reader.sharedScope
+    ? buildSokoBotScopeTaskWhere(reader.sharedScope)
+    : buildSokoBotAudienceTaskVisibilityWhere(reader.userId, reader.audience);
+}
+
+/** A shared bot reads its scope; a personal bot reads its owner's Jobs. */
+export function buildSokoBotReaderJobWhere(
+  reader: SokoBotTurnReader,
+): Prisma.JobWhereInput {
+  return reader.sharedScope
+    ? buildSokoBotScopeJobWhere(reader.sharedScope)
+    : {
+        ownerId: reader.userId,
+        ...buildSokoBotAudienceJobParentTaskWhere(
+          reader.userId,
+          reader.audience,
+        ),
+      };
 }
 
 /**

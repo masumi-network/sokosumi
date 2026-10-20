@@ -5,6 +5,8 @@ struct WrappingRow: Layout {
   var spacing: CGFloat = 8
   var alignment: VerticalAlignment = .center
   var constrainsWidth = false
+  /// Web's `justify-center`: each row is centered in the width it was given.
+  var centersRows = false
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
     let rows = arrange(limit: proposal.width ?? .infinity, subviews: subviews)
@@ -17,7 +19,7 @@ struct WrappingRow: Layout {
     var top = bounds.minY
     // Wrap against the width actually granted, not the proposal, so an unspecified placement still wraps.
     for row in arrange(limit: bounds.width, subviews: subviews) {
-      var leading = bounds.minX
+      var leading = bounds.minX + (centersRows ? max(0, bounds.width - row.width) / 2 : 0)
       for index in row.indices {
         let proposed = proposal(for: bounds.width)
         let size = subviews[index].sizeThatFits(proposed)

@@ -211,14 +211,14 @@ describe("Social posts in the calendar", () => {
       scheduledAt: { gte: query.from, lt: query.to },
     });
   });
-  it("bounds agenda posts to SCHEDULED/PUBLISHING instead of fetching history", async () => {
+  it("bounds agenda posts to NEEDS_APPROVAL/SCHEDULED/PUBLISHING instead of fetching history", async () => {
     await readWorkspaceCalendar(workspaceId, "user", {
       ...query,
       agendaOnly: true,
     });
     expect(mocks.posts.mock.lastCall?.[0].where).toEqual({
       workspaceId,
-      status: { in: ["SCHEDULED", "PUBLISHING"] },
+      status: { in: ["NEEDS_APPROVAL", "SCHEDULED", "PUBLISHING"] },
       scheduledAt: { gte: query.from, lt: query.to },
     });
   });

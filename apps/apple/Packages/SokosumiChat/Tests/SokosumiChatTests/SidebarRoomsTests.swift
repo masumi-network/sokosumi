@@ -33,7 +33,7 @@ private func makeSokoBot(
   name: String,
   image: String? = nil
 ) -> Components.Schemas.ChatRoomSokoBotParticipant {
-  .init(id: id, name: name, caption: nil, image: image, avatarSeed: nil, ownerUserId: "owner", presence: .online)
+  .init(id: id, name: name, caption: nil, image: image, avatarSeed: nil, ownerUserId: "owner", scope: .personal, presence: .online)
 }
 
 private func makeRoom(

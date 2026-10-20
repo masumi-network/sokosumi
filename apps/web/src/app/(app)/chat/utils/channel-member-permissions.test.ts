@@ -9,6 +9,7 @@ import {
 } from "./channel-member-permissions";
 
 const ME = "user-me";
+const SHARED_BOT_ROOM_ID = "room-bot-shared";
 
 function user(
   id: string,
@@ -63,6 +64,8 @@ function room(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: ME,
+        scope: "personal",
+        sharedRoomId: null,
         presence: "online",
       },
       {
@@ -72,6 +75,19 @@ function room(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: "user-host",
+        scope: "personal",
+        sharedRoomId: null,
+        presence: "online",
+      },
+      {
+        id: "bot-shared",
+        name: "Shared",
+        caption: "Workspace assistant",
+        image: null,
+        avatarSeed: null,
+        ownerUserId: null,
+        scope: "workspace",
+        sharedRoomId: SHARED_BOT_ROOM_ID,
         presence: "online",
       },
     ],
@@ -183,7 +199,30 @@ describe("canRemoveChannelMember", () => {
     expect(canRemoveChannelMember(room(), human(ME), admin)).toBe(false);
   });
 
-  it("lets only its owner remove a Soko Bot", () => {
+  it("never offers to remove a shared Soko Bot from its own room", () => {
+    expect(
+      canRemoveChannelMember(
+        room({ id: SHARED_BOT_ROOM_ID }),
+        sokoBot("bot-shared"),
+        admin,
+      ),
+    ).toBe(false);
+  });
+
+  it("lets any host member remove a shared Soko Bot", () => {
+    expect(canRemoveChannelMember(room(), sokoBot("bot-shared"), member)).toBe(
+      true,
+    );
+    expect(
+      canRemoveChannelMember(
+        room({ myAccess: "guest" }),
+        sokoBot("bot-shared"),
+        admin,
+      ),
+    ).toBe(false);
+  });
+
+  it("lets only its owner remove a personal Soko Bot", () => {
     expect(canRemoveChannelMember(room(), sokoBot("bot-mine"), member)).toBe(
       true,
     );

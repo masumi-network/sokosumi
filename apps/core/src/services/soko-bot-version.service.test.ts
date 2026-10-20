@@ -225,3 +225,12 @@ it("blocks an existing incompatible pin with owner guidance without rewriting it
   expect(createMock).not.toHaveBeenCalled();
   expect((await resolveRunnableSokoBotVersion("v16")).id).toBe("v16");
 });
+
+it("names who fixes a pin: the owner, or a shared bot's admins", async () => {
+  await expect(resolveRunnableSokoBotVersion("v1")).rejects.toThrow(
+    "Ask the owner to choose",
+  );
+  await expect(resolveRunnableSokoBotVersion("v1", true)).rejects.toThrow(
+    "Ask an organization owner or admin to choose",
+  );
+});

@@ -42,7 +42,7 @@
           ],
           formerUserMembers: [],
           coworkerMembers: [.init(id: "cow_1", name: "Elena", slug: "elena", caption: nil, image: nil, presence: .online)],
-          sokoBotMembers: [.init(id: "bot_1", name: "Assistant", caption: "My assistant", ownerUserId: "user_grace", presence: .online)]
+          sokoBotMembers: [.init(id: "bot_1", name: "Assistant", caption: "My assistant", ownerUserId: "user_grace", scope: .personal, presence: .online)]
         )
       }
 

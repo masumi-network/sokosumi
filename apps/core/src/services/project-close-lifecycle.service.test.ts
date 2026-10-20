@@ -37,6 +37,19 @@ vi.mock("@/services/project-social-connections.service", () => ({
   retireProjectSocialConnectionsForClose: retireSocialConnectionsMock,
 }));
 
+const { archiveProjectSokoBotsMock, publishMentionStatusesMock } = vi.hoisted(
+  () => ({
+    archiveProjectSokoBotsMock: vi.fn(),
+    publishMentionStatusesMock: vi.fn(),
+  }),
+);
+vi.mock("@/services/project-soko-bots-close.service", () => ({
+  archiveProjectSokoBotsForClose: archiveProjectSokoBotsMock,
+}));
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  publishChatRoomMentionStatuses: publishMentionStatusesMock,
+}));
+
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
 }));
@@ -132,6 +145,8 @@ describe("project close lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lockCalendarScopeMock.mockResolvedValue(true);
+    archiveProjectSokoBotsMock.mockResolvedValue([]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     taskScheduleRunCountMock.mockResolvedValue(0);
     projectCloseOperationFindUniqueMock.mockResolvedValue(null);
     prismaMock.taskScheduleRun.count = taskScheduleRunCountMock;
@@ -187,6 +202,69 @@ describe("project close lifecycle", () => {
       cutoffAt: created.cutoffAt.toISOString(),
       projectRevision: 5,
     });
+  });
+
+  it("archives the Project's Soko Bots in the close and republishes their mentions after it", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+      state: ProjectCloseOperationState.CLOSING,
+      attempts: 0,
+      failureSummary: null,
+    }));
+    archiveProjectSokoBotsMock.mockResolvedValue(["mention-message-1"]);
+    let committed = false;
+    serializableTransactionMock.mockImplementation(async (callback) => {
+      const result = await callback(transactionClient());
+      committed = true;
+      return result;
+    });
+    publishMentionStatusesMock.mockImplementation(async () => {
+      expect(committed).toBe(true);
+    });
+
+    await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 4,
+    });
+
+    expect(archiveProjectSokoBotsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+    );
+    expect(archiveProjectSokoBotsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      projectCloseOperationCreateMock.mock.invocationCallOrder[0],
+    );
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith([
+      "mention-message-1",
+    ]);
+  });
+
+  it("archives nothing when a close is replayed", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 8,
+      closingAt: CUTOFF,
+      closedAt: null,
+      closeOperation: operation,
+    });
+
+    await requestProjectClose(scope, {
+      operationId: CLOSE_ID,
+      expectedProjectRevision: 8,
+      reason: "Campaign completed",
+    });
+
+    expect(archiveProjectSokoBotsMock).not.toHaveBeenCalled();
+    expect(publishMentionStatusesMock).not.toHaveBeenCalled();
   });
 
   it("counts the owed Runs of Active Task Schedules and names the failure", async () => {

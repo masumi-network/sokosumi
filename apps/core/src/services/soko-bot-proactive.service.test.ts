@@ -59,7 +59,7 @@ describe("followUpsBlock", () => {
   const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";
   const OPEN = "01a0efbb-778c-7669-86b6-d50d81e74288";
   const KEANUS = "01a08162-3b3b-7099-825a-8a9b987034dc";
-  const owner = { id: "bot-1", userId: "andreas" };
+  const owner = { id: "bot-1", userId: "andreas", workspaceId: "ws-1" };
   const task = (id: string, extra: Record<string, unknown>) => ({
     id,
     name: "A task",
@@ -347,5 +347,66 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({ ownerId: "andreas" }),
       }),
     );
+  });
+
+  it("raises an unchanged failure once, not every day", async () => {
+    const now = new Date("2026-10-19T17:00:00Z");
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "t1",
+        name: "YC import",
+        status: "FAILED",
+        assigneeId: "hannah",
+        assigneeSokoBotId: null,
+        assignee: { name: "Hannah" },
+        assigneeSokoBot: null,
+        events: [
+          {
+            id: "e1",
+            createdAt: new Date("2026-10-15T12:00:00Z"),
+            status: "FAILED",
+            sokoBotId: null,
+          },
+        ],
+      },
+    ]);
+    nudgeFindManyMock.mockResolvedValue([{ key: "failed:t1:e1" }]);
+    const items = await findAttentionItems({
+      id: "bot-1",
+      userId: "faizan",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now,
+    });
+    expect(items).toEqual([]);
+    expect(nudgeFindManyMock.mock.calls.at(-1)?.[0].where.OR).toContainEqual({
+      lastDeliveredAt: { not: null },
+    });
+  });
+
+  it("chases every shared bot delegation inside its scope", async () => {
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([]);
+    await findAttentionItems({
+      id: "bot-1",
+      userId: null,
+      projectId: "project-1",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now: new Date("2026-10-01T08:00:00Z"),
+    });
+    expect(delegationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ turn: { sokoBotId: "bot-1" } }),
+      }),
+    );
+    const where = taskFindManyMock.mock.calls[0]?.[0].where;
+    expect(where).toMatchObject({
+      workspaceId: "ws",
+      visibility: "PUBLIC",
+      projectId: "project-1",
+    });
+    expect(where).not.toHaveProperty("ownerId");
   });
 });

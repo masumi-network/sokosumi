@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
 const STATE_ENDPOINT = "/api/personal-assistant/state";
@@ -33,8 +34,15 @@ function activitySignature(activity: Activity): string {
  * enough to notice a turn while it is still running; the full state loads the
  * bot plus twenty turns with their events and decisions, and is fetched only
  * when the probe says something moved, or while a turn is in flight.
+ *
+ * `botId` watches a shared bot; without it, the caller's own.
  */
-export function useSokoBotState(initial: SokoBotChatState) {
+export function useSokoBotState(
+  initial: SokoBotChatState,
+  botId?: string | null,
+) {
+  const stateEndpoint = withBotIdParam(STATE_ENDPOINT, botId);
+  const activityEndpoint = withBotIdParam(ACTIVITY_ENDPOINT, botId);
   const [state, setState] = useState(initial);
   const refreshing = useRef(false);
   const queued = useRef(false);
@@ -69,7 +77,7 @@ export function useSokoBotState(initial: SokoBotChatState) {
         const controller = new AbortController();
         const deadline = setTimeout(() => controller.abort(), STATE_TIMEOUT_MS);
         try {
-          const response = await fetch(STATE_ENDPOINT, {
+          const response = await fetch(stateEndpoint, {
             credentials: "same-origin",
             cache: "no-store",
             signal: controller.signal,
@@ -88,7 +96,7 @@ export function useSokoBotState(initial: SokoBotChatState) {
     } finally {
       refreshing.current = false;
     }
-  }, []);
+  }, [stateEndpoint]);
 
   useEffect(() => {
     let stopped = false;
@@ -108,7 +116,7 @@ export function useSokoBotState(initial: SokoBotChatState) {
       const controller = new AbortController();
       const deadline = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
       try {
-        const response = await fetch(ACTIVITY_ENDPOINT, {
+        const response = await fetch(activityEndpoint, {
           credentials: "same-origin",
           cache: "no-store",
           signal: controller.signal,
@@ -155,7 +163,7 @@ export function useSokoBotState(initial: SokoBotChatState) {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [refresh]);
+  }, [refresh, activityEndpoint]);
 
   return { state, refresh };
 }

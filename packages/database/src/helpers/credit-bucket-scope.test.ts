@@ -9,6 +9,7 @@ import {
 import {
   buildCreditBucketScopeSql,
   buildEnterprisePoolScopeSql,
+  buildOrganizationPoolScopeSql,
   type CreditBucketScopeContext,
   hasAssignedOrganizationSeat,
   resolveCreditBucketScopeContext,
@@ -457,4 +458,67 @@ describe("buildCreditBucketScopeSql", () => {
     assert.ok(!sqlText.includes("user-1"));
     assert.ok(!sqlText.includes("member:user-1:%"));
   });
+});
+
+describe("buildOrganizationPoolScopeSql", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const plans = {
+    consumableEnterprise: {
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: true,
+      purchasedSeats: 5,
+      contractId: "contract-1",
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: null,
+    },
+    postTermEnterprise: {
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 5,
+      contractId: "contract-1",
+      endsAt: new Date("2026-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: null,
+    },
+    paidSelfServe: {
+      mode: "self_serve",
+      plan: "starter",
+      purchasedSeats: 3,
+      subscriptionId: "sub-starter",
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      periodEnd: new Date("2026-09-01T00:00:00.000Z"),
+    },
+  } as const;
+
+  it.each([
+    ["consumableEnterprise", "enterprise"],
+    ["postTermEnterprise", "shared"],
+    ["paidSelfServe", "shared"],
+  ] as const)(
+    "reads the %s pool a seated member sees (%s) without a member lookup",
+    async (plan, seatedAccess) => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue(plans[plan]);
+
+      const sql = await buildOrganizationPoolScopeSql("org-1", {} as never);
+      const seated = buildCreditBucketScopeSql(
+        organizationContext(seatedAccess),
+      );
+
+      assert.deepEqual(sql.strings, seated.strings);
+      assert.deepEqual(sql.values, seated.values);
+      assert.ok(!JSON.stringify(sql).includes("user-1"));
+      assert.equal(getMemberMock.mock.calls.length, 0);
+    },
+  );
 });

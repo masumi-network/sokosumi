@@ -142,6 +142,7 @@ const MESSAGES: Record<string, string> = {
   "empty.more": "More posts are available.",
   "emptyHint.drafts": "Save a draft to finish later.",
   "status.DRAFT": "Draft",
+  "status.NEEDS_APPROVAL": "Needs approval",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
   "status.PUBLISHED": "Published",
@@ -159,6 +160,9 @@ const MESSAGES: Record<string, string> = {
     "Write the text, pick the account, and choose when it goes out.",
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
+  "composer.firstComment": "First comment",
+  "composer.firstCommentPlaceholder": "Hashtags or a call to action",
+  "composer.firstCommentTooLong": "First comment is too long.",
   "composer.textForAccount": "Text for this account",
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
@@ -421,6 +425,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: PROJECT_ID,
     provider: "x",
     text: "Draft text",
+    firstComment: null,
     media: [],
     status: "DRAFT",
     scheduledAt: null,
@@ -444,6 +449,8 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     canSchedule: true,
     canCancel: false,
     canPublishNow: true,
+    canApprove: false,
+    canReject: false,
     canDuplicate: false,
     connectionNeedsReconnect: false,
     ...overrides,
@@ -2283,40 +2290,45 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("asks before discarding an unsaved new post", async () => {
-    const user = userEvent.setup();
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[]}
-        projectId={PROJECT_ID}
-      />,
-    );
+  it.each(["Text", "First comment"])(
+    "asks before discarding an unsaved new post's %s",
+    async (fieldLabel) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
 
-    await user.click(screen.getByRole("button", { name: "New post" }));
-    const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText("Text"), "Unsaved");
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText(fieldLabel), "Unsaved");
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
-    const alert = screen.getByRole("alertdialog");
-    expect(within(alert).getByText("Discard changes?")).toBeVisible();
-    expect(within(alert).getByText("Your changes will be lost.")).toBeVisible();
-    expect(dialog).toBeVisible();
+      const alert = screen.getByRole("alertdialog");
+      expect(within(alert).getByText("Discard changes?")).toBeVisible();
+      expect(
+        within(alert).getByText("Your changes will be lost."),
+      ).toBeVisible();
+      expect(dialog).toBeVisible();
 
-    await user.click(
-      within(alert).getByRole("button", { name: "Keep editing" }),
-    );
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Text")).toHaveValue("Unsaved");
+      await user.click(
+        within(alert).getByRole("button", { name: "Keep editing" }),
+      );
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(within(dialog).getByLabelText(fieldLabel)).toHaveValue("Unsaved");
 
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Discard",
-      }),
-    );
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Discard",
+        }),
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
 
   it("closes after a successful save without asking", async () => {
     const user = userEvent.setup();
@@ -2342,35 +2354,38 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("asks before discarding an edited post", async () => {
-    const user = userEvent.setup();
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[buildPost()]}
-        projectId={PROJECT_ID}
-      />,
-    );
+  it.each(["Text", "First comment"])(
+    "asks before discarding an edited post's %s",
+    async (fieldLabel) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[buildPost()]}
+          projectId={PROJECT_ID}
+        />,
+      );
 
-    await openTab(user, "Drafts");
-    await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+      await openTab(user, "Drafts");
+      await openRowMenu(user, "post-draft");
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
 
-    const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      const dialog = screen.getByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await openRowMenu(user, "post-draft");
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    const editor = screen.getByRole("dialog");
-    fireEvent.change(within(editor).getByLabelText("Text"), {
-      target: { value: "Changed draft" },
-    });
-    await user.click(within(editor).getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("alertdialog")).toBeVisible();
-    expect(editor).toBeVisible();
-  });
+      await openRowMenu(user, "post-draft");
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+      const editor = screen.getByRole("dialog");
+      fireEvent.change(within(editor).getByLabelText(fieldLabel), {
+        target: { value: "Changed draft" },
+      });
+      await user.click(within(editor).getByRole("button", { name: "Cancel" }));
+      expect(screen.getByRole("alertdialog")).toBeVisible();
+      expect(editor).toBeVisible();
+    },
+  );
 
   it("shows where the post goes at the top of the composer", async () => {
     const user = userEvent.setup();
@@ -2698,7 +2713,7 @@ describe("ProjectSocialPosts", () => {
     ).toHaveTextContent("Text for this account");
   });
 
-  it("saves different text for each picked account", async () => {
+  it("saves different text and the first comment for each picked account", async () => {
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost)
       .mockResolvedValueOnce({
@@ -2744,6 +2759,9 @@ describe("ProjectSocialPosts", () => {
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "Longer for LinkedIn" },
     });
+    fireEvent.change(within(dialog).getByLabelText("First comment"), {
+      target: { value: " #launch " },
+    });
     expect(within(dialog).getByTestId("social-post-preview")).toHaveTextContent(
       "Longer for LinkedIn",
     );
@@ -2765,6 +2783,7 @@ describe("ProjectSocialPosts", () => {
       expect.objectContaining({
         projectId: PROJECT_ID,
         text: "Short for X",
+        firstComment: "#launch",
         socialConnectionId: "connection-1",
       }),
     );
@@ -2773,6 +2792,7 @@ describe("ProjectSocialPosts", () => {
       expect.objectContaining({
         projectId: PROJECT_ID,
         text: "Longer for LinkedIn",
+        firstComment: "#launch",
         socialConnectionId: "connection-2",
       }),
     );
@@ -3420,6 +3440,100 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("saves a first comment with the draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.type(
+      within(dialog).getByTestId("social-post-first-comment"),
+      "#launch",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        text: "Fresh",
+        firstComment: "#launch",
+        media: [],
+        socialConnectionId: "connection-1",
+      });
+    });
+  });
+
+  it("caps the first comment by the strictest selected network", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Preview as LinkedIn @sokosumi-co",
+      }),
+    );
+    fireEvent.change(within(dialog).getByTestId("social-post-first-comment"), {
+      target: { value: "x".repeat(281) },
+    });
+
+    expect(
+      within(dialog).getByTestId("social-post-first-comment-count"),
+    ).toHaveTextContent("281 / 280");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+  });
+
+  it("hides first comment when only TikTok is selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({
+            id: "connection-tiktok",
+            provider: "tiktok",
+            externalHandle: "sokosumi",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByTestId("social-post-first-comment"),
+    ).not.toBeInTheDocument();
+  });
+
   it("returns focus to the calendar trigger after closing a preview", async () => {
     const user = userEvent.setup();
     render(
@@ -3996,6 +4110,7 @@ describe("ProjectSocialPosts", () => {
         projectId: PROJECT_ID,
         postId: "post-draft",
         text: "Edited",
+        firstComment: "",
         media: [],
         socialConnectionId: "connection-1",
         revision: 4,

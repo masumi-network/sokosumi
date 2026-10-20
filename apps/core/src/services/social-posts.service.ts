@@ -1,6 +1,7 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -8,6 +9,7 @@ import {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
@@ -38,15 +40,21 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
 
-const EDITABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "FAILED",
   "MISSED",
 ];
 const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "FAILED",
   "MISSED",
@@ -65,6 +73,7 @@ const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
 /** Statuses where a stale connection blocks the next publish. */
 const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
 ];
 
@@ -119,6 +128,7 @@ export interface SocialPostSummary {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   media: SocialPostMediaRef[];
   status: SocialPostStatus;
   scheduledAt: Date | null;
@@ -150,6 +160,8 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canApprove: boolean;
+  canReject: boolean;
   canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
@@ -185,6 +197,7 @@ export interface CreateSocialPostInput
   coworkerId?: string;
   sokoBotId?: string;
   text: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
   scheduledAt?: Date;
@@ -198,6 +211,7 @@ export interface UpdateSocialPostInput
   coworkerId?: string;
   postId: string;
   text?: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -216,6 +230,18 @@ export interface ScheduleSocialPostInput extends ProjectScope {
 export interface CancelSocialPostInput extends ProjectScope {
   userId: string;
   coworkerId?: string;
+  postId: string;
+  revision: number;
+}
+
+export interface ApproveSocialPostInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+}
+
+export interface RejectSocialPostInput extends ProjectScope {
+  userId: string;
   postId: string;
   revision: number;
 }
@@ -261,6 +287,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
+    firstComment: record.firstComment,
     media,
     status: record.status,
     scheduledAt: record.scheduledAt,
@@ -291,6 +318,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
     canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
+    canApprove: record.status === "NEEDS_APPROVAL",
+    canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -341,6 +370,25 @@ function requireProvider(provider: string): SocialPostProvider {
 }
 
 /** Text rules differ per provider: some require text, others accept media only. */
+function requireFirstCommentWithinLimit(
+  value: string | null | undefined,
+  provider: string,
+): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed.length === 0) return null;
+  const scopedProvider = requireProvider(provider);
+  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
+  if (trimmed.length > cap) {
+    throw badRequest(
+      limit === null
+        ? `First comment must be at most ${cap} characters`
+        : `First comment must be at most ${cap} characters for ${provider}`,
+    );
+  }
+  return trimmed;
+}
+
 function requireTextWithinLimit(
   text: string,
   provider: string,
@@ -625,10 +673,15 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment,
+    provider,
+  );
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
+  const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
 
   const post = await tx.socialPost.create({
     data: {
@@ -637,8 +690,9 @@ export async function createSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
+      firstComment,
       media: mediaJson(media),
-      status: scheduled ? "SCHEDULED" : "DRAFT",
+      status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
       creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
@@ -659,7 +713,9 @@ export async function updateSocialPost(
   await requireScopedProject(input, tx);
   const post = await requireScopedPost(input, tx);
   if (!EDITABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be edited");
+    throw conflict(
+      "Only a draft, scheduled, or needs-approval post can be edited",
+    );
   }
   requireRevision(post, input.revision);
 
@@ -742,6 +798,13 @@ export async function updateSocialPost(
     }
   }
 
+  if (input.firstComment !== undefined || providerChanged) {
+    data.firstComment = requireFirstCommentWithinLimit(
+      input.firstComment !== undefined ? input.firstComment : post.firstComment,
+      provider,
+    );
+  }
+
   return mapSocialPost(
     await writeWithRevision(input, input.revision, data, tx),
   );
@@ -771,6 +834,7 @@ export async function scheduleSocialPost(
     throw badRequest(mediaValidationMessage(provider, validation.reason));
   }
   requireTextWithinLimit(post.text, provider, media.length > 0);
+  requireFirstCommentWithinLimit(post.firstComment, provider);
   requireMediaRequirement(provider, media);
 
   return mapSocialPost(
@@ -778,7 +842,8 @@ export async function scheduleSocialPost(
       input,
       input.revision,
       {
-        status: "SCHEDULED",
+        status:
+          post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
         scheduledAt: input.scheduledAt,
         timezone: input.timezone ?? post.timezone,
         socialConnectionId: connection.id,
@@ -805,8 +870,72 @@ export async function cancelSocialPost(
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
     throw conflict(
-      "Only a draft, scheduled, failed, or missed post can be canceled",
+      "Only a draft, scheduled, needs-approval, failed, or missed post can be canceled",
     );
+  }
+  requireRevision(post, input.revision);
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "CANCELED",
+        canceledAt: new Date(),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function approveSocialPost(
+  input: ApproveSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be approved");
+  }
+  requireRevision(post, input.revision);
+  const due = post.scheduledAt;
+  const schedule =
+    due != null &&
+    due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+  if (schedule) {
+    await requireActiveProjectConnection(
+      input.projectId,
+      post.socialConnectionId,
+      tx,
+    );
+  }
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: schedule ? "SCHEDULED" : "DRAFT",
+        ...(schedule
+          ? {
+              scheduledByUserId: input.userId,
+              scheduledByCoworkerId: null,
+            }
+          : {}),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function rejectSocialPost(
+  input: RejectSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be rejected");
   }
   requireRevision(post, input.revision);
 
@@ -856,6 +985,7 @@ export async function duplicateSocialPost(
       socialConnectionId,
       provider,
       text,
+      firstComment: source.firstComment,
       media: mediaJson(media),
       status: "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,

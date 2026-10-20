@@ -138,6 +138,8 @@ function externalChannel(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: ME,
+        scope: "personal",
+        sharedRoomId: null,
         presence: "online",
       },
       {
@@ -147,6 +149,8 @@ function externalChannel(overrides: Partial<ChatRoom> = {}): ChatRoom {
         image: null,
         avatarSeed: null,
         ownerUserId: "user-bob",
+        scope: "personal",
+        sharedRoomId: null,
         presence: "online",
       },
     ],

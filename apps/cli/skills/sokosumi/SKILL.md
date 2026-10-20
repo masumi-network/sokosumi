@@ -1,6 +1,6 @@
 ---
 name: sokosumi
-description: "Use when connecting existing agents to a private Sokosumi Workspace, setting up Coworkers, or working with Tasks and Jobs through the CLI."
+description: "Use when connecting existing agents to a private Sokosumi Workspace, setting up Coworkers, tracking work as Tasks (tickets, specs, status, links), or running Tasks and Jobs through the CLI."
 metadata:
   internal: false
 compatibility: "Portable repo skill. The required artifact is SKILL.md."
@@ -151,7 +151,36 @@ sokosumi --preprod tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 ```
 
-Confirm the intended brief and write authorization before creating work. Keep one watcher and report each event once. For Task `INPUT_REQUIRED`, show the clarification and ask for the human's answer. Submit that answer once with `tasks comment`; do not change status. If a linked Job has `inputRequest`, use the Job flow below instead.
+`--coworker-id` assigns the Task to a Coworker. Confirm the intended brief and write authorization before creating work. Keep one watcher and report each event once. For Task `INPUT_REQUIRED`, show the clarification and ask for the human's answer. Submit that answer once with `tasks comment`; do not change status. If a linked Job has `inputRequest`, use the Job flow below instead.
+
+## Track work as Tasks
+
+[VERIFIED: `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/helpers/task-link.ts`; Web `restoreParentLinks` in `apps/web/src/lib/actions/task/action.ts`] A team can run its issue tracker on Tasks: one Task per ticket, a parent Task per feature, and status events as progress. Every `tasks` command accepts a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through Core before writing.
+
+Prefer `--preprod` for Task-tracking writes. Mainnet (production) Task create, update, link, unlink, relink, comment, and archive are production API writes: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval.
+
+```bash
+sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
+sokosumi --preprod tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
+sokosumi --preprod tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
+sokosumi --preprod tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --preprod tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
+sokosumi --preprod tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
+sokosumi --preprod tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --preprod tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
+sokosumi --preprod tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
+sokosumi --preprod tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
+```
+
+- The returned `task.identifier` is the ticket name; use it in branches and PR descriptions. Only a Task in a project gets one (the project's prefix plus a number); without `--project-id` it is `null`, so use the UUID.
+- `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
+- `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
+- `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
+- Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link.
+- `tasks list` reads every page unless `--limit` is set. `--sort updatedAt` or `--sort priority` always needs `--limit` (Core's cursor can skip or duplicate while the list drains). Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
+- Finish a Task with `COMPLETED` or `CANCELED`; it stays readable. `tasks archive` removes a duplicate or mistaken Task: after it, `tasks get`, `tasks events`, `tasks jobs`, and `tasks links` on that Task return `404`, so read what you need first. Core still lists it, with title, description, status, and archive time, in `GET /v1/history?types=task&status=archived`; the CLI has no command for that.
+- The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
+- Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 
 ## Developer onboarding when requested
 
