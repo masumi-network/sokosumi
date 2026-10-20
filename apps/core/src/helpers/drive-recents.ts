@@ -6,7 +6,7 @@ import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-cata
 import { badRequest } from "@/helpers/error";
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 
-const RECENTS_CURSOR_VERSION = 3;
+const RECENTS_CURSOR_VERSION = 4;
 
 interface RecentsCursorPayload {
   v: typeof RECENTS_CURSOR_VERSION;
@@ -33,6 +33,9 @@ export interface DriveRecentsPageResult {
 function recentsItemId(item: DriveRecentsItem): string {
   if (item.kind === "drive-file") {
     return item.pathname;
+  }
+  if (item.kind === "table") {
+    return item.tableId;
   }
   return item.taskFileId;
 }
@@ -174,27 +177,35 @@ export function encodeDriveRecentsCursor(input: {
 function lastItemFromCursorPayload(
   payload: RecentsCursorPayload,
 ): DriveRecentsItem {
-  return payload.kind === "drive-file"
-    ? {
-        kind: "drive-file",
-        name: "",
-        fileUrl: "https://example.com/placeholder",
-        pathname: payload.id,
-        size: 0,
-        activityAt: payload.activityAt,
-      }
-    : {
-        kind: "task-output",
-        name: "",
-        fileUrl: "https://example.com/placeholder",
-        size: null,
-        activityAt: payload.activityAt,
-        taskFileId: payload.id,
-        taskId: "",
-        taskName: "",
-        projectId: null,
-        projectName: null,
-      };
+  if (payload.kind === "drive-file")
+    return {
+      kind: "drive-file",
+      name: "",
+      fileUrl: "https://example.com/placeholder",
+      pathname: payload.id,
+      size: 0,
+      activityAt: payload.activityAt,
+    };
+  if (payload.kind === "table")
+    return {
+      kind: "table",
+      tableId: payload.id,
+      name: "",
+      activityAt: payload.activityAt,
+      projectId: null,
+    };
+  return {
+    kind: "task-output",
+    name: "",
+    fileUrl: "https://example.com/placeholder",
+    size: null,
+    activityAt: payload.activityAt,
+    taskFileId: payload.id,
+    taskId: "",
+    taskName: "",
+    projectId: null,
+    projectName: null,
+  };
 }
 
 export function decodeDriveRecentsCursor(
@@ -280,16 +291,23 @@ function mapTaskOutputRowToRecentsItem(
   };
 }
 
+export interface DriveRecentsBatch {
+  items: DriveRecentsItem[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+type DriveRecentsSource = (options: {
+  cursor?: string;
+  take: number;
+}) => Promise<DriveRecentsBatch>;
+
 async function fetchDriveBlobRecentsBatch(input: {
   prefix: string;
   token: string;
   cursor?: string | null;
   take: number;
-}): Promise<{
-  items: DriveRecentsItem[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}> {
+}): Promise<DriveRecentsBatch> {
   const page = await list({
     prefix: input.prefix,
     token: input.token,
@@ -313,8 +331,9 @@ async function fetchDriveBlobRecentsBatch(input: {
 }
 
 /**
- * Always exhaust pathname-ordered blob pages into a newest-first pool of
- * size `limit + 1`. The signed cursor stores only the page boundary.
+ * Always exhaust every source (pathname-ordered blob pages, task outputs and,
+ * when given, tables) into a newest-first pool of size `limit + 1`. The signed
+ * cursor stores only the page boundary.
  */
 export async function fetchDriveRecentsPage(input: {
   prefix: string;
@@ -329,6 +348,8 @@ export async function fetchDriveRecentsPage(input: {
     hasMore: boolean;
     nextCursor: string | null;
   }>;
+  /** Already filtered by the search query. */
+  fetchTables?: DriveRecentsSource;
 }): Promise<DriveRecentsPageResult> {
   const searchQuery = input.searchQuery?.trim() ?? "";
   const cursorBinding: DriveRecentsCursorBinding = {
@@ -351,10 +372,6 @@ export async function fetchDriveRecentsPage(input: {
   const poolCap = input.limit + 1;
   const pool: DriveRecentsItem[] = [];
   const poolItemIds = new Set<string>();
-  let driveBlobCursor: string | null = null;
-  let taskFileCursor: string | null = null;
-  let driveHasMore = true;
-  let taskHasMore = true;
 
   function shouldIncludeItem(item: DriveRecentsItem): boolean {
     if (
@@ -409,49 +426,44 @@ export async function fetchDriveRecentsPage(input: {
     trimPoolToNewest();
   }
 
-  while (driveHasMore || taskHasMore) {
-    type DriveBlobRecentsBatch = Awaited<
-      ReturnType<typeof fetchDriveBlobRecentsBatch>
-    >;
-    type TaskOutputRecentsBatch = Awaited<
-      ReturnType<typeof input.fetchTaskOutputs>
-    >;
+  const fetchers: DriveRecentsSource[] = [
+    ({ cursor, take }) =>
+      fetchDriveBlobRecentsBatch({
+        prefix: input.prefix,
+        token: input.token,
+        cursor,
+        take,
+      }),
+    async (options) => {
+      const batch = await input.fetchTaskOutputs(options);
+      return {
+        items: batch.rows.map(mapTaskOutputRowToRecentsItem),
+        hasMore: batch.hasMore,
+        nextCursor: batch.nextCursor,
+      };
+    },
+    ...(input.fetchTables ? [input.fetchTables] : []),
+  ];
+  const sources: Array<{
+    fetch: DriveRecentsSource;
+    cursor?: string;
+    hasMore: boolean;
+  }> = fetchers.map((fetch) => ({ fetch, hasMore: true }));
 
-    const [driveBatch, taskBatch]: [
-      DriveBlobRecentsBatch,
-      TaskOutputRecentsBatch,
-    ] = await Promise.all([
-      driveHasMore
-        ? fetchDriveBlobRecentsBatch({
-            prefix: input.prefix,
-            token: input.token,
-            cursor: driveBlobCursor,
-            take: batchSize,
-          })
-        : Promise.resolve({
-            items: [] as DriveRecentsItem[],
-            hasMore: false,
-            nextCursor: null,
-          }),
-      taskHasMore
-        ? input.fetchTaskOutputs({
-            cursor: taskFileCursor ?? undefined,
-            take: batchSize,
-          })
-        : Promise.resolve({
-            rows: [] as DriveTaskOutputRecentsRow[],
-            hasMore: false,
-            nextCursor: null,
-          }),
-    ]);
-
-    addItemsToPool(driveBatch.items);
-    addItemsToPool(taskBatch.rows.map(mapTaskOutputRowToRecentsItem));
-
-    driveHasMore = driveBatch.hasMore;
-    driveBlobCursor = driveBatch.nextCursor;
-    taskHasMore = taskBatch.hasMore;
-    taskFileCursor = taskBatch.nextCursor;
+  while (sources.some((source) => source.hasMore)) {
+    const batches = await Promise.all(
+      sources.map((source) =>
+        source.hasMore
+          ? source.fetch({ cursor: source.cursor, take: batchSize })
+          : null,
+      ),
+    );
+    batches.forEach((batch, index) => {
+      if (!batch) return;
+      addItemsToPool(batch.items);
+      sources[index].hasMore = batch.hasMore;
+      sources[index].cursor = batch.nextCursor ?? undefined;
+    });
   }
 
   pool.sort(compareDriveRecentsItems);

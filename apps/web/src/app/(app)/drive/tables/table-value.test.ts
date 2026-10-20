@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTableInput, tableError } from "./table-value";
+import { parseTableInput, tableError, tableHistoryText } from "./table-value";
 
 describe("typed grid input", () => {
   it("keeps unknown separate from false and zero", () => {
@@ -44,4 +44,24 @@ it("localizes typed validation and Core error categories", () => {
       translate,
     ),
   ).toBe("localized:errors.invalid");
+});
+
+describe("history text", () => {
+  it("names a row move instead of printing its raw position", () => {
+    const labels = {
+      archived: "Archived",
+      active: "Active",
+      row: "Row",
+      unknown: "Unknown",
+      yes: "Yes",
+      no: "No",
+      position: "New position",
+    };
+    expect(tableHistoryText({ value: { position: 1.5 } }, labels)).toBe(
+      "New position",
+    );
+    expect(tableHistoryText({ value: { archived: true } }, labels)).toBe(
+      "Archived",
+    );
+  });
 });

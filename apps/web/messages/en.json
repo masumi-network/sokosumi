@@ -7685,7 +7685,8 @@
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
-      }
+      },
+      "tableKind": "Table"
     },
     "SokoBot": {
       "Metadata": {
@@ -8407,7 +8408,14 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns."
-      }
+      },
+      "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
+      "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "previousPosition": "Previous position",
+      "newPosition": "New position",
+      "anyOption": "Any option"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

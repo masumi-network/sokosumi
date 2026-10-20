@@ -19,6 +19,7 @@ const {
   prismaTaskFileFindFirstMock,
   prismaMemberFindUniqueMock,
   listMock,
+  listDataTablesMock,
 } = vi.hoisted(() => ({
   workspaceRepositoryMock: {
     resolveWorkspaceForContext: vi.fn(),
@@ -27,6 +28,17 @@ const {
   prismaTaskFileFindFirstMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
   listMock: vi.fn(),
+  listDataTablesMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/data-table", () => ({
+  resolveTableActor: vi.fn(async (_auth: unknown, workspaceId: string) => ({
+    workspaceId,
+    userId: "user_123",
+    actorId: "user_123",
+    actorKind: "user",
+  })),
+  listDataTables: listDataTablesMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
@@ -131,6 +143,11 @@ describe("GET /v1/drive/recents", () => {
     });
     prismaTaskFileFindFirstMock.mockResolvedValue(null);
     prismaTaskFileFindManyMock.mockResolvedValue([]);
+    listDataTablesMock.mockResolvedValue({
+      total: 0,
+      items: [],
+      nextCursor: null,
+    });
     listMock.mockResolvedValue({
       blobs: [
         {
@@ -171,6 +188,39 @@ describe("GET /v1/drive/recents", () => {
     expect(body.data[0].kind).toBe("task-output");
     expect(body.data[1].kind).toBe("drive-file");
     expect(body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("includes recently changed tables, filtered by the search", async () => {
+    listDataTablesMock.mockResolvedValue({
+      total: 1,
+      items: [
+        {
+          id: "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f",
+          title: "Report leads",
+          projectId: null,
+          updatedAt: "2026-08-22T12:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+    });
+
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&limit=20&q=report");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data[0]).toEqual({
+      kind: "table",
+      tableId: "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f",
+      name: "Report leads",
+      activityAt: "2026-08-22T12:00:00.000Z",
+      projectId: null,
+    });
+    expect(body.data[1].kind).toBe("drive-file");
+    expect(listDataTablesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "ws_personal" }),
+      expect.objectContaining({ search: "report" }),
+    );
   });
 
   it("returns nextCursor when more items remain", async () => {

@@ -7685,7 +7685,8 @@
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
-      }
+      },
+      "tableKind": "Tabelle"
     },
     "SokoBot": {
       "Metadata": {
@@ -8407,7 +8408,14 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
-      }
+      },
+      "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
+      "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previousPosition": "Vorherige Position",
+      "newPosition": "Neue Position",
+      "anyOption": "Beliebige Option"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

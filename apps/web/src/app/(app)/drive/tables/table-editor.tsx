@@ -1,4 +1,18 @@
 "use client";
+import {
+  type CollisionDetection,
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  type DraggableSyntheticListeners,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import type {
   DataTable,
   TableColumn,
@@ -7,11 +21,24 @@ import type {
 } from "@sokosumi/core-client";
 import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MoreHorizontal, Plus, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  GripVertical,
+  MoreHorizontal,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +75,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
+import { moveIdToSlot } from "@/lib/utils/move-id";
 import { TableCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { createTableMutations, isTableRejection } from "./table-mutations";
@@ -72,6 +100,130 @@ import {
  */
 const EDITOR_TOOLBAR_CONTROL = "h-10 md:h-8";
 const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
+
+/** The primitive drops a checkbox cell's trailing padding; this grid needs room. */
+const SELECT_CELL = "ps-3 [&:has([role=checkbox])]:pr-4";
+
+interface ReorderItem {
+  kind: "column" | "row";
+  id: string;
+}
+
+/** A row drag only lands on rows, a column drag only on columns. */
+const sameKindCollision: CollisionDetection = (args) =>
+  closestCenter({
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (container) =>
+        container.data.current?.kind === args.active.data.current?.kind,
+    ),
+  });
+
+/** A drag source and drop slot in one element; the drag starts on its handle. */
+function Reorderable({
+  item,
+  disabled,
+  children,
+}: {
+  item: ReorderItem;
+  disabled: boolean;
+  children: (state: {
+    ref: (node: HTMLElement | null) => void;
+    listeners: DraggableSyntheticListeners;
+    isDragging: boolean;
+    isOver: boolean;
+  }) => ReactNode;
+}) {
+  const id = `${item.kind}:${item.id}`;
+  const draggable = useDraggable({ id, data: item, disabled });
+  const droppable = useDroppable({ id, data: item, disabled });
+  return children({
+    ref(node) {
+      draggable.setNodeRef(node);
+      droppable.setNodeRef(node);
+    },
+    listeners: draggable.listeners,
+    isDragging: draggable.isDragging,
+    isOver: droppable.isOver && !draggable.isDragging,
+  });
+}
+
+/** Drag by pointer; the arrow keys along `axis` are the keyboard path. */
+function ReorderHandle({
+  label,
+  listeners,
+  axis,
+  onMove,
+}: {
+  label: string;
+  listeners: DraggableSyntheticListeners;
+  axis: "x" | "y";
+  onMove: (step: -1 | 1) => void;
+}) {
+  function handleKeyDown(event: KeyboardEvent) {
+    const step =
+      event.key === (axis === "x" ? "ArrowLeft" : "ArrowUp")
+        ? -1
+        : event.key === (axis === "x" ? "ArrowRight" : "ArrowDown")
+          ? 1
+          : 0;
+    if (!step) return;
+    event.preventDefault();
+    onMove(step);
+  }
+  return (
+    <button
+      type="button"
+      {...listeners}
+      onKeyDown={handleKeyDown}
+      aria-label={label}
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md outline-none focus-visible:ring-2 active:cursor-grabbing"
+    >
+      <GripVertical aria-hidden className="size-4" />
+    </button>
+  );
+}
+
+/** Two lines, with a toggle only when the text is longer than that. */
+function TableDescription({ text }: { text: string }) {
+  const t = useTranslations("App.Tables");
+  const id = useId();
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || expanded) return;
+    const measure = () =>
+      setOverflows(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [expanded, text]);
+  return (
+    <div className="mt-1 max-w-2xl text-sm">
+      <p
+        ref={ref}
+        id={id}
+        className={cn("text-muted-foreground", !expanded && "line-clamp-2")}
+      >
+        {text}
+      </p>
+      {(overflows || expanded) && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={id}
+          onClick={() => setExpanded(!expanded)}
+          className="text-foreground hover:text-muted-foreground focus-visible:ring-ring mt-1 rounded-sm font-medium transition-colors outline-none focus-visible:ring-2"
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function TableEditor({ id }: { id: string }) {
   const t = useTranslations("App.Tables");
@@ -290,6 +442,9 @@ function TableWorkspace({
     );
     await refresh();
   }
+  const filterColumn = table.columns.find(
+    (column) => column.id === definition.filters?.[0]?.columnId,
+  );
   function filterDefinition(text: string): TableView["definition"] {
     const filter = definition.filters?.[0];
     if (!filter) return definition;
@@ -352,11 +507,27 @@ function TableWorkspace({
     link.click();
     URL.revokeObjectURL(url);
   }
-  async function handleReorder(index: number, direction: number) {
-    const next = [...table.columns];
-    const destination = index + direction;
-    if (destination < 0 || destination >= next.length) return;
-    [next[index], next[destination]] = [next[destination], next[index]];
+  // A sort or filter defines the order; archived rows have none to change.
+  const canMoveRows =
+    !definition.sort &&
+    !definition.filters?.length &&
+    !archivedRows &&
+    !table.archivedAt;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+  const [dragLabel, setDragLabel] = useState<string | null>(null);
+  async function handleColumnMove(columnId: string, overId: string) {
+    const ids = table.columns.map((column) => column.id);
+    const order = moveIdToSlot(ids, columnId, overId);
+    if (order === ids) return;
+    const next = order.flatMap(
+      (id) => table.columns.find((column) => column.id === id) ?? [],
+    );
+    cache.setQueriesData<DataTable>(
+      { queryKey: ["data-table", table.id] },
+      (previous) => previous && { ...previous, columns: next },
+    );
     await run(
       () =>
         mutate("reorder", { version: table.version, columns: next }, (body) =>
@@ -364,6 +535,68 @@ function TableWorkspace({
         ),
       "reorder",
     );
+  }
+  function handleColumnStep(columnId: string, step: -1 | 1) {
+    const index = table.columns.findIndex((column) => column.id === columnId);
+    const neighbour = table.columns[index + step];
+    if (neighbour) void handleColumnMove(columnId, neighbour.id);
+  }
+  async function handleRowMove(rowId: string, overId: string) {
+    const page = rows.data?.rows ?? [];
+    const row = page.find((item) => item.id === rowId);
+    const ids = page.map((item) => item.id);
+    const order = moveIdToSlot(ids, rowId, overId);
+    if (!row || order === ids) return;
+    const index = order.indexOf(rowId);
+    // The page cursor is the last row of the page before, so a row dropped
+    // first on a later page lands right after it, not at the top of the table.
+    const afterRowId = index > 0 ? order[index - 1] : (cursor ?? null);
+    cache.setQueryData<typeof rows.data>(
+      ["table-rows", table.id, definition, cursor, archivedRows],
+      (previous) =>
+        previous && {
+          ...previous,
+          rows: order.flatMap(
+            (id) => previous.rows.find((item) => item.id === id) ?? [],
+          ),
+        },
+    );
+    await run(
+      () =>
+        mutate(
+          "move-row",
+          { patch: [{ id: row.id, version: row.version, afterRowId }] },
+          (body) => dataTableService.batch(table.id, body),
+        ),
+      "move-row",
+    );
+  }
+  function handleRowStep(rowId: string, step: -1 | 1) {
+    const page = rows.data?.rows ?? [];
+    const neighbour = page[page.findIndex((row) => row.id === rowId) + step];
+    if (neighbour) void handleRowMove(rowId, neighbour.id);
+  }
+  function handleDragStart({ active }: DragStartEvent) {
+    const item = active.data.current as ReorderItem | undefined;
+    if (item?.kind === "column")
+      setDragLabel(
+        table.columns.find((column) => column.id === item.id)?.name ?? null,
+      );
+    else if (item?.kind === "row") {
+      const row = displayedRows.find((row) => row.id === item.id);
+      const first = columns[0];
+      setDragLabel(
+        (row && first && tableValueText(row.values[first.id])) || t("row"),
+      );
+    }
+  }
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    setDragLabel(null);
+    const from = active.data.current as ReorderItem | undefined;
+    const to = over?.data.current as ReorderItem | undefined;
+    if (!from || !to || from.kind !== to.kind || from.id === to.id) return;
+    if (from.kind === "column") void handleColumnMove(from.id, to.id);
+    else void handleRowMove(from.id, to.id);
   }
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -392,11 +625,7 @@ function TableWorkspace({
               <Badge variant="secondary">{t("archivedRowsBadge")}</Badge>
             )}
           </div>
-          {table.description && (
-            <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
-              {table.description}
-            </p>
-          )}
+          {table.description && <TableDescription text={table.description} />}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -601,173 +830,251 @@ function TableWorkspace({
         </Alert>
       )}
       <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
-        <Table className="border-collapse">
-          <caption className="sr-only">{table.title}</caption>
-          <TableHeader>
-            <TableRowShell className="hover:bg-transparent">
-              <TableHead className="w-12 px-3">
-                <Checkbox
-                  aria-label={t("selectAll")}
-                  checked={
-                    !rows.data?.rows.length || !selected.length
-                      ? false
-                      : selected.length === rows.data.rows.length
-                        ? true
-                        : "indeterminate"
-                  }
-                  onCheckedChange={(checked) =>
-                    setSelected(
-                      checked
-                        ? (rows.data?.rows.map((row) => row.id) ?? [])
-                        : [],
-                    )
-                  }
-                />
-              </TableHead>
-              {columns.map((column) => (
-                <TableHead
-                  scope="col"
-                  className="min-w-48 border-s px-3"
-                  key={column.id}
-                >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={sameKindCollision}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setDragLabel(null)}
+        >
+          {/* Bounded to the viewport on both axes, so the horizontal scrollbar
+          and the sticky header stay in reach on a tall table. */}
+          <Table
+            className="border-collapse"
+            containerClassName="max-h-[80dvh] overscroll-x-contain"
+          >
+            <caption className="sr-only">{table.title}</caption>
+            <TableHeader className="bg-card-background sticky top-0 z-10">
+              <TableRowShell className="hover:bg-transparent">
+                <TableHead className={cn("w-px", SELECT_CELL)}>
                   <div className="flex items-center gap-1">
-                    <span className="truncate" title={column.description}>
-                      {column.name}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hit-area size-7 shrink-0"
-                          aria-label={t("columnMenu", { column: column.name })}
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => setColumn(column)}>
-                          {t("editColumn")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            void handleReorder(
-                              table.columns.findIndex(
-                                (item) => item.id === column.id,
-                              ),
-                              -1,
-                            )
-                          }
-                        >
-                          {t("moveLeft")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            void handleReorder(
-                              table.columns.findIndex(
-                                (item) => item.id === column.id,
-                              ),
-                              1,
-                            )
-                          }
-                        >
-                          {t("moveRight")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleDefinition({
-                              ...definition,
-                              sort: { columnId: column.id, direction: "asc" },
-                            })
-                          }
-                        >
-                          {t("sortAscending")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleDefinition({
-                              ...definition,
-                              sort: { columnId: column.id, direction: "desc" },
-                            })
-                          }
-                        >
-                          {t("sortDescending")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canMoveRows && (
+                      <span aria-hidden className="size-7 shrink-0" />
+                    )}
+                    <Checkbox
+                      aria-label={t("selectAll")}
+                      checked={
+                        !rows.data?.rows.length || !selected.length
+                          ? false
+                          : selected.length === rows.data.rows.length
+                            ? true
+                            : "indeterminate"
+                      }
+                      onCheckedChange={(checked) =>
+                        setSelected(
+                          checked
+                            ? (rows.data?.rows.map((row) => row.id) ?? [])
+                            : [],
+                        )
+                      }
+                    />
                   </div>
                 </TableHead>
-              ))}
-            </TableRowShell>
-          </TableHeader>
-          <TableBody>
-            {displayedRows.map((row) => (
-              <TableRowShell
-                key={row.id}
-                className="hover:bg-card-background-hover"
-                data-state={selected.includes(row.id) ? "selected" : undefined}
-              >
-                {/* Top-aligned with the first control in the row: a
-                `long_text` column makes rows uneven, and a centred checkbox
-                floats in the middle of a tall band. */}
-                <TableCellShell className="w-12 px-3 pt-4 align-top">
-                  <Checkbox
-                    aria-label={t("selectRow")}
-                    checked={selected.includes(row.id)}
-                    onCheckedChange={(checked) =>
-                      setSelected(
-                        checked
-                          ? [...selected, row.id]
-                          : selected.filter((id) => id !== row.id),
-                      )
-                    }
-                  />
-                </TableCellShell>
                 {columns.map((column) => (
-                  <TableCellShell
+                  <Reorderable
                     key={column.id}
-                    // The shared cell is `whitespace-nowrap align-middle`,
-                    // which is right for a read-only grid and wrong for this
-                    // one: a cell error is prose, and it painted 283px past
-                    // the cell and over the next column. Rows are also uneven
-                    // once a `long_text` column exists, so controls line up on
-                    // the row's top edge rather than floating mid-band.
-                    className="border-s p-1 align-top whitespace-normal"
+                    item={{ kind: "column", id: column.id }}
+                    disabled={!!table.archivedAt}
                   >
-                    <TableCell
-                      column={column}
-                      row={row}
-                      onEditingChange={(editing) =>
-                        setEditingRows((previous) => {
-                          const next = { ...previous };
-                          const columns = new Set(next[row.id]?.columns ?? []);
-                          if (editing) columns.add(column.id);
-                          else columns.delete(column.id);
-                          if (columns.size)
-                            next[row.id] = {
-                              row: next[row.id]?.row ?? row,
-                              columns: [...columns],
-                            };
-                          else delete next[row.id];
-                          return next;
-                        })
-                      }
-                      disabled={!!table.archivedAt || !!row.archivedAt}
-                      onSave={(version, value) =>
-                        handleCell(row, column, version, value)
-                      }
-                      onHistory={() => {
-                        setHistoryCursor(undefined);
-                        setHistoryCell({ rowId: row.id, columnId: column.id });
-                        setDialog("history");
-                      }}
-                    />
-                  </TableCellShell>
+                    {({ ref, listeners, isDragging, isOver }) => (
+                      <TableHead
+                        ref={ref}
+                        scope="col"
+                        className={cn(
+                          "min-w-48 border-s px-3",
+                          isDragging && "opacity-50",
+                          isOver && "bg-muted",
+                        )}
+                      >
+                        <div className="flex items-center gap-1">
+                          {!table.archivedAt && (
+                            <ReorderHandle
+                              label={t("reorderColumn", {
+                                column: column.name,
+                              })}
+                              listeners={listeners}
+                              axis="x"
+                              onMove={(step) =>
+                                handleColumnStep(column.id, step)
+                              }
+                            />
+                          )}
+                          <span className="truncate" title={column.description}>
+                            {column.name}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hit-area ms-auto size-7 shrink-0"
+                                aria-label={t("columnMenu", {
+                                  column: column.name,
+                                })}
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem
+                                onClick={() => setColumn(column)}
+                              >
+                                {t("editColumn")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleColumnStep(column.id, -1)}
+                              >
+                                {t("moveLeft")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleColumnStep(column.id, 1)}
+                              >
+                                {t("moveRight")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDefinition({
+                                    ...definition,
+                                    sort: {
+                                      columnId: column.id,
+                                      direction: "asc",
+                                    },
+                                  })
+                                }
+                              >
+                                {t("sortAscending")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDefinition({
+                                    ...definition,
+                                    sort: {
+                                      columnId: column.id,
+                                      direction: "desc",
+                                    },
+                                  })
+                                }
+                              >
+                                {t("sortDescending")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableHead>
+                    )}
+                  </Reorderable>
                 ))}
               </TableRowShell>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {displayedRows.map((row) => (
+                <Reorderable
+                  key={row.id}
+                  item={{ kind: "row", id: row.id }}
+                  disabled={!canMoveRows}
+                >
+                  {({ ref, listeners, isDragging, isOver }) => (
+                    <TableRowShell
+                      ref={ref}
+                      className={cn(
+                        "hover:bg-card-background-hover",
+                        isDragging && "opacity-50",
+                        isOver && "bg-muted",
+                      )}
+                      data-state={
+                        selected.includes(row.id) ? "selected" : undefined
+                      }
+                    >
+                      {/* Top-aligned with the first control in the row: a
+                      `long_text` column makes rows uneven, and a centred
+                      checkbox floats in the middle of a tall band. The `h-10`
+                      matches that control's height. */}
+                      <TableCellShell
+                        className={cn("w-px py-1 align-top", SELECT_CELL)}
+                      >
+                        <div className="flex h-10 items-center gap-1">
+                          {canMoveRows && (
+                            <ReorderHandle
+                              label={t("reorderRow")}
+                              listeners={listeners}
+                              axis="y"
+                              onMove={(step) => handleRowStep(row.id, step)}
+                            />
+                          )}
+                          <Checkbox
+                            aria-label={t("selectRow")}
+                            checked={selected.includes(row.id)}
+                            onCheckedChange={(checked) =>
+                              setSelected(
+                                checked
+                                  ? [...selected, row.id]
+                                  : selected.filter((id) => id !== row.id),
+                              )
+                            }
+                          />
+                        </div>
+                      </TableCellShell>
+                      {columns.map((column) => (
+                        <TableCellShell
+                          key={column.id}
+                          // The shared cell is `whitespace-nowrap align-middle`,
+                          // which is right for a read-only grid and wrong for
+                          // this one: a cell error is prose, and it painted
+                          // 283px past the cell and over the next column. Rows
+                          // are also uneven once a `long_text` column exists,
+                          // so controls line up on the row's top edge rather
+                          // than floating mid-band.
+                          className="border-s p-1 align-top whitespace-normal"
+                        >
+                          <TableCell
+                            column={column}
+                            row={row}
+                            onEditingChange={(editing) =>
+                              setEditingRows((previous) => {
+                                const next = { ...previous };
+                                const columns = new Set(
+                                  next[row.id]?.columns ?? [],
+                                );
+                                if (editing) columns.add(column.id);
+                                else columns.delete(column.id);
+                                if (columns.size)
+                                  next[row.id] = {
+                                    row: next[row.id]?.row ?? row,
+                                    columns: [...columns],
+                                  };
+                                else delete next[row.id];
+                                return next;
+                              })
+                            }
+                            disabled={!!table.archivedAt || !!row.archivedAt}
+                            onSave={(version, value) =>
+                              handleCell(row, column, version, value)
+                            }
+                            onHistory={() => {
+                              setHistoryCursor(undefined);
+                              setHistoryCell({
+                                rowId: row.id,
+                                columnId: column.id,
+                              });
+                              setDialog("history");
+                            }}
+                          />
+                        </TableCellShell>
+                      ))}
+                    </TableRowShell>
+                  )}
+                </Reorderable>
+              ))}
+            </TableBody>
+          </Table>
+          <DragOverlay dropAnimation={null}>
+            {dragLabel !== null && (
+              <div className="bg-background max-w-64 cursor-grabbing truncate rounded-md border px-3 py-1.5 text-sm shadow-md">
+                {dragLabel}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
         {rows.isPending ? (
           <p role="status" className="p-6 text-sm">
             {t("loading")}
@@ -909,7 +1216,8 @@ function TableWorkspace({
                     "bg-background h-10 rounded-md border px-3",
                   )}
                   value={definition.filters?.[0]?.columnId ?? ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setFilterDraft("");
                     handleDefinition({
                       ...definition,
                       filters: event.target.value
@@ -921,8 +1229,8 @@ function TableWorkspace({
                             },
                           ]
                         : [],
-                    })
-                  }
+                    });
+                  }}
                 >
                   <option value="">{t("noFilter")}</option>
                   {table.columns.map((column) => (
@@ -958,16 +1266,40 @@ function TableWorkspace({
                       <option value="equals">{t("equals")}</option>
                       <option value="empty">{t("isEmpty")}</option>
                     </select>
-                    <Input
-                      aria-label={t("filterValue")}
-                      value={filterDraft}
-                      onChange={(event) => setFilterDraft(event.target.value)}
-                      onBlur={() => handleFilterValue(filterDraft)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter")
-                          handleFilterValue(filterDraft);
-                      }}
-                    />
+                    {filterColumn?.type === "single_select" ||
+                    filterColumn?.type === "multiple_select" ? (
+                      // Options are a closed set, so pick one rather than type
+                      // text that may match nothing.
+                      <select
+                        aria-label={t("filterValue")}
+                        className={withEditableTextSize(
+                          "bg-background h-10 rounded-md border px-3",
+                        )}
+                        value={filterDraft}
+                        onChange={(event) => {
+                          setFilterDraft(event.target.value);
+                          handleFilterValue(event.target.value);
+                        }}
+                      >
+                        <option value="">{t("anyOption")}</option>
+                        {filterColumn.options?.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        aria-label={t("filterValue")}
+                        value={filterDraft}
+                        onChange={(event) => setFilterDraft(event.target.value)}
+                        onBlur={() => handleFilterValue(filterDraft)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter")
+                            handleFilterValue(filterDraft);
+                        }}
+                      />
+                    )}
                   </>
                 )}
               </div>
@@ -1057,6 +1389,7 @@ function TableWorkspace({
                         unknown: t("unknown"),
                         yes: t("yes"),
                         no: t("no"),
+                        position: t("previousPosition"),
                       })}
                     </dd>
                     <dt className="text-muted-foreground">{t("after")}</dt>
@@ -1068,6 +1401,7 @@ function TableWorkspace({
                         unknown: t("unknown"),
                         yes: t("yes"),
                         no: t("no"),
+                        position: t("newPosition"),
                       })}
                     </dd>
                   </dl>

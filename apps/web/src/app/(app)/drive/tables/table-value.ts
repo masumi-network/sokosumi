@@ -142,11 +142,13 @@ export function tableHistoryText(
     unknown: string;
     yes: string;
     no: string;
+    position: string;
   },
 ): string {
   if (input === null || input === undefined) return labels.unknown;
   if (typeof input === "object" && "value" in input)
     return tableHistoryText(input.value, labels);
+  if (typeof input === "object" && "position" in input) return labels.position;
   if (typeof input === "object" && "archived" in input)
     return input.archived ? labels.archived : labels.active;
   if (typeof input === "object" && "values" in input) return labels.row;

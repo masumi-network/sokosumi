@@ -75,7 +75,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: { session: { activeOrganizationId: null } } }),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: f.invalidate }),
+  keepPreviousData: vi.fn(),
+  useQueryClient: () => ({
+    invalidateQueries: f.invalidate,
+    setQueryData: vi.fn(),
+    setQueriesData: vi.fn(),
+  }),
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     isPending: false,
     error: null,
@@ -989,4 +994,100 @@ it("R1: the list owns no archived toggle of its own", () => {
   expect(screen.queryByRole("button", { name: /archiv/i })).toBeNull();
   expect(screen.queryByText("showArchived")).toBeNull();
   expect(screen.queryByText("showActive")).toBeNull();
+});
+
+const secondRow = {
+  ...f.row,
+  id: "00000000-0000-4000-8000-000000000006",
+  values: { [f.column.id]: "Second" },
+};
+
+it("R7: the row handle moves a row by keyboard, after its new neighbour", async () => {
+  f.shown = [f.row, secondRow];
+  f.batch.mockResolvedValue({ batchId: "batch", rows: [] });
+  render(<TableEditor id={f.column.tableId} />);
+  const [first, second] = screen.getAllByRole("button", { name: "reorderRow" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  await waitFor(() =>
+    expect(f.batch).toHaveBeenCalledWith(
+      f.column.tableId,
+      expect.objectContaining({
+        patch: [{ id: f.row.id, version: 1, afterRowId: secondRow.id }],
+      }),
+    ),
+  );
+  fireEvent.keyDown(second, { key: "ArrowUp" });
+  await waitFor(() =>
+    expect(f.batch).toHaveBeenLastCalledWith(
+      f.column.tableId,
+      expect.objectContaining({
+        patch: [{ id: secondRow.id, version: 1, afterRowId: null }],
+      }),
+    ),
+  );
+});
+
+it("R7: a sort defines the order, so rows lose their drag handles", async () => {
+  f.shown = [f.row, secondRow];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getAllByRole("button", { name: "reorderRow" })).toHaveLength(2);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "columnMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "sortAscending" }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryAllByRole("button", { name: "reorderRow" }),
+    ).toHaveLength(0),
+  );
+});
+
+it("R7: the column handle moves a column by keyboard", async () => {
+  const second = { ...f.column, id: f.score.id, name: "Second", position: 1 };
+  f.columns = [f.column, second];
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.keyDown(
+    screen.getAllByRole("button", { name: "reorderColumn" })[0],
+    { key: "ArrowRight" },
+  );
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  expect(
+    f.update.mock.calls[0][1].columns.map(
+      (column: { id: string }) => column.id,
+    ),
+  ).toEqual([second.id, f.column.id]);
+});
+
+it("R7: the selection cell keeps room after its checkbox", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const cell = container.querySelector("tbody td");
+  expect(cell?.className).toContain("[&:has([role=checkbox])]:pr-4");
+  expect(cell?.className).not.toContain("[&:has([role=checkbox])]:pr-0");
+});
+
+it("R8: a tag column filters by picking one of its options", () => {
+  Object.assign(f.column, {
+    type: "multiple_select",
+    options: ["lead", "customer"],
+  });
+  try {
+    render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("button", { name: "configureView" }));
+    fireEvent.change(screen.getByLabelText("filter"), {
+      target: { value: f.column.id },
+    });
+    const value = screen.getByLabelText("filterValue");
+    expect(value.tagName).toBe("SELECT");
+    expect(
+      [...(value as HTMLSelectElement).options].map((option) => option.value),
+    ).toEqual(["", "lead", "customer"]);
+    fireEvent.change(value, { target: { value: "lead" } });
+    expect(value).toHaveValue("lead");
+  } finally {
+    Object.assign(f.column, { type: "text", options: [] });
+  }
 });

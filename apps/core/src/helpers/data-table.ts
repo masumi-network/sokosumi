@@ -24,6 +24,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   dataTableSchema,
+  dataTableSummarySchema,
   tableBatchResultSchema,
   tableColumnSchema,
   tableRowSchema,
@@ -374,6 +375,7 @@ export async function createDataTable(
   );
 }
 
+/** Most recently changed first; the cursor is the last table ID of a page. */
 export async function listDataTables(
   actor: TableActor,
   options: {
@@ -381,33 +383,51 @@ export async function listDataTables(
     limit?: number;
     archived?: boolean;
     projectId?: string;
+    search?: string;
   } = {},
 ) {
   const scope = await scopeForTask(actor, null, prisma);
   const limit = Math.min(options.limit ?? 50, 100);
-  const tables = await prisma.dataTable.findMany({
-    where: {
-      workspaceId: actor.workspaceId,
-      ...(scope ? { id: scope.tableId } : {}),
-      archivedAt: options.archived ? { not: null } : null,
-      ...(options.cursor ? { AND: [{ id: { gt: options.cursor } }] } : {}),
-      ...(options.projectId ? { projectId: options.projectId } : {}),
-    },
-    orderBy: { id: "asc" },
-    take: limit + 1,
-    include: tableInclude,
-  });
-  const total = await prisma.dataTable.count({
-    where: {
-      workspaceId: actor.workspaceId,
-      ...(scope ? { id: scope.tableId } : {}),
-      archivedAt: options.archived ? { not: null } : null,
-      ...(options.projectId ? { projectId: options.projectId } : {}),
-    },
-  });
+  const search = options.search?.trim();
+  const where: Prisma.DataTableWhereInput = {
+    workspaceId: actor.workspaceId,
+    ...(scope ? { id: scope.tableId } : {}),
+    archivedAt: options.archived ? { not: null } : null,
+    ...(options.projectId ? { projectId: options.projectId } : {}),
+    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
+  };
+  const cursor = options.cursor
+    ? await prisma.dataTable.findFirst({
+        where: { id: options.cursor, workspaceId: actor.workspaceId },
+        select: { id: true, updatedAt: true },
+      })
+    : null;
+  if (options.cursor && !cursor)
+    throw unprocessableEntity("Invalid table cursor");
+  const [tables, total] = await Promise.all([
+    prisma.dataTable.findMany({
+      where: cursor
+        ? {
+            ...where,
+            OR: [
+              { updatedAt: { lt: cursor.updatedAt } },
+              { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
+            ],
+          }
+        : where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      include: { _count: { select: { columns: true } } },
+    }),
+    prisma.dataTable.count({ where }),
+  ]);
   return {
     total,
-    items: tables.slice(0, limit).map((table) => dataTableSchema.parse(table)),
+    items: tables
+      .slice(0, limit)
+      .map(({ _count, ...table }) =>
+        dataTableSummarySchema.parse({ ...table, columnCount: _count.columns }),
+      ),
     nextCursor: tables.length > limit ? tables[limit - 1].id : null,
   };
 }
@@ -653,6 +673,64 @@ async function scopeForTask(
   return scope;
 }
 
+/** Renumbers a table's rows 1..n in their current order. */
+async function renumberRowPositions(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+) {
+  await tx.$executeRaw(PrismaRaw.sql`
+    UPDATE "table_row" AS r SET "position" = ordered.n
+    FROM (
+      SELECT "id", row_number() OVER (ORDER BY "position", "id") AS n
+      FROM "table_row" WHERE "tableId" = ${tableId}::uuid
+    ) AS ordered
+    WHERE r."id" = ordered."id"
+  `);
+}
+
+/** A position that places `rowId` directly after `afterRowId`, or first when null. */
+async function positionAfter(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+  rowId: string,
+  afterRowId: string | null,
+  renumbered = false,
+): Promise<number> {
+  if (afterRowId === rowId)
+    throw unprocessableEntity("A row cannot move after itself");
+  const lower = afterRowId
+    ? await tx.tableRow.findFirst({
+        where: { id: afterRowId, tableId },
+        select: { id: true, position: true },
+      })
+    : null;
+  if (afterRowId && !lower) throw notFound("Row not found");
+  const upper = await tx.tableRow.findFirst({
+    where: {
+      tableId,
+      id: { not: rowId },
+      ...(lower
+        ? {
+            OR: [
+              { position: { gt: lower.position } },
+              { position: lower.position, id: { gt: lower.id } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ position: "asc" }, { id: "asc" }],
+    select: { position: true },
+  });
+  if (!lower) return upper ? upper.position - 1 : 0;
+  if (!upper) return lower.position + 1;
+  const middle = (lower.position + upper.position) / 2;
+  if (lower.position < middle && middle < upper.position) return middle;
+  // Equal neighbours or exhausted float precision: spread positions and retry.
+  if (renumbered) throw conflict("Row order could not be updated. Retry.");
+  await renumberRowPositions(tx, tableId);
+  return positionAfter(tx, tableId, rowId, afterRowId, true);
+}
+
 export async function batchTableRows(
   actor: TableActor,
   id: string,
@@ -710,6 +788,7 @@ export async function batchTableRows(
           scope &&
           (!scope.rowIds.includes(patch.id) ||
             patch.archived !== undefined ||
+            patch.afterRowId !== undefined ||
             Object.keys(patch.values).some(
               (columnId) => !scope.columnIds.includes(columnId),
             ))
@@ -748,11 +827,31 @@ export async function batchTableRows(
           evidence[columnId] = patch.evidence[columnId] ?? [];
         }
         validateTableValues(columns, values, evidence);
+        let position: number | undefined;
+        if (patch.afterRowId !== undefined) {
+          // Read afresh: an earlier move in this batch may have renumbered rows.
+          const { position: before } = await tx.tableRow.findUniqueOrThrow({
+            where: { id: previous.id },
+            select: { position: true },
+          });
+          position = await positionAfter(tx, id, previous.id, patch.afterRowId);
+          audit.push(
+            changeData(
+              scopedActor,
+              id,
+              batchId,
+              { position: before },
+              { position },
+              previous.id,
+            ),
+          );
+        }
         const updated = await tx.tableRow.update({
           where: { id: previous.id },
           data: {
             values,
             evidence,
+            position,
             version: { increment: 1 },
             archivedAt:
               patch.archived === undefined
@@ -822,7 +921,19 @@ export async function queryTableRows(
       terms.push(
         PrismaRaw.sql`r.values -> ${filter.columnId} = ${JSON.stringify(filter.value ?? null)}::jsonb`,
       );
-    else
+    else if (
+      table.columns.find((column) => column.id === filter.columnId)?.type ===
+      "multiple_select"
+    ) {
+      // A tag matches a whole option, never a substring of the array's JSON.
+      const tags = (
+        Array.isArray(filter.value) ? filter.value : [filter.value]
+      ).filter((tag) => typeof tag === "string" && tag !== "");
+      if (tags.length)
+        terms.push(
+          PrismaRaw.sql`r.values -> ${filter.columnId} @> ${JSON.stringify(tags)}::jsonb`,
+        );
+    } else
       terms.push(
         PrismaRaw.sql`strpos(lower(r.values ->> ${filter.columnId}), lower(${String(filter.value ?? "")})) > 0`,
       );
@@ -832,13 +943,13 @@ export async function queryTableRows(
   );
   const sort = query.sort
     ? PrismaRaw.sql`COALESCE(r.values -> ${query.sort.columnId}, 'null'::jsonb)`
-    : PrismaRaw.sql`r.id`;
+    : PrismaRaw.sql`r.position`;
   const direction =
     query.sort?.direction === "desc" ? PrismaRaw.sql`DESC` : PrismaRaw.sql`ASC`;
   if (query.cursor) {
     const cursor = await prisma.tableRow.findFirst({
       where: { id: query.cursor, tableId: id },
-      select: { id: true, values: true },
+      select: { id: true, values: true, position: true },
     });
     if (!cursor || (scope && !scope.rowIds.includes(cursor.id)))
       throw unprocessableEntity("Invalid row cursor");
@@ -846,7 +957,7 @@ export async function queryTableRows(
       query.sort?.direction === "desc" ? PrismaRaw.sql`<` : PrismaRaw.sql`>`;
     const cursorValue = query.sort
       ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
-      : PrismaRaw.sql`${cursor.id}::uuid`;
+      : PrismaRaw.sql`${cursor.position}::double precision`;
     terms.push(
       PrismaRaw.sql`(${sort}, r.id) ${operator} (${cursorValue}, ${cursor.id}::uuid)`,
     );
@@ -979,6 +1090,7 @@ export async function undoTableBatch(
         const values = tableValuesSchema.parse(row.values);
         const evidence = tableEvidenceSchema.parse(row.evidence);
         let archivedAt = row.archivedAt;
+        let position = row.position;
         for (const item of rowChanges) {
           const before = item.before as { value: unknown };
           const after = item.after as { value: unknown };
@@ -1001,6 +1113,11 @@ export async function undoTableBatch(
             values[item.columnId] = previous.value;
             evidence[item.columnId] = previous.evidence;
           } else if (before.value === null) archivedAt = new Date();
+          else if (
+            typeof before.value === "object" &&
+            "position" in before.value
+          )
+            position = (before.value as { position: number }).position;
           else
             archivedAt = (before.value as { archived: boolean }).archived
               ? new Date()
@@ -1023,7 +1140,13 @@ export async function undoTableBatch(
           tableRowSchema.parse(
             await tx.tableRow.update({
               where: { id: row.id },
-              data: { values, evidence, archivedAt, version: { increment: 1 } },
+              data: {
+                values,
+                evidence,
+                archivedAt,
+                position,
+                version: { increment: 1 },
+              },
             }),
           ),
         );
@@ -1031,6 +1154,10 @@ export async function undoTableBatch(
       if (currentRows.length !== rowIds.length)
         throw conflict("Row is no longer available");
       await persistChanges(tx, audit);
+      await tx.dataTable.update({
+        where: { id },
+        data: { updatedAt: new Date() },
+      });
       return { tableId: id, result: { batchId, rows } };
     },
   );

@@ -88,6 +88,8 @@ export const tableBatchSchema = z
           values: tableValuesSchema.default({}),
           evidence: tableEvidenceSchema.default({}),
           archived: z.boolean().optional(),
+          /** Moves the row directly after this row; null moves it to the top. */
+          afterRowId: z.uuid().nullable().optional(),
         }),
       )
       .max(100)

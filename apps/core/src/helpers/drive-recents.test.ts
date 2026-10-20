@@ -289,6 +289,71 @@ describe("fetchDriveRecentsPage", () => {
     ]);
   });
 
+  it("mixes recently changed tables in and pages past a table cursor", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/drive.pdf",
+          pathname: "drive/users/u/drive.pdf",
+          size: 100,
+          uploadedAt: new Date("2026-08-19T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+    });
+    const fetchTaskOutputs = vi.fn(async () => ({
+      rows: [taskRow("tf_old", "2026-08-17T12:00:00.000Z")],
+      hasMore: false,
+      nextCursor: null,
+    }));
+    const table = (tableId: string, activityAt: string): DriveRecentsItem => ({
+      kind: "table",
+      tableId,
+      name: `Table ${tableId}`,
+      activityAt,
+      projectId: null,
+    });
+    const fetchTables = vi.fn(async ({ cursor }: { cursor?: string }) =>
+      cursor
+        ? {
+            items: [table("t_older", "2026-08-18T12:00:00.000Z")],
+            hasMore: false,
+            nextCursor: null,
+          }
+        : {
+            items: [table("t_new", "2026-08-21T12:00:00.000Z")],
+            hasMore: true,
+            nextCursor: "t_new",
+          },
+    );
+    const input = {
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 2,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+      fetchTables,
+    };
+
+    const first = await fetchDriveRecentsPage(input);
+    expect(first.items.map(recentsItemKey)).toEqual([
+      "table:t_new",
+      "drive-file:drive.pdf",
+    ]);
+    expect(fetchTables).toHaveBeenCalledWith({ cursor: "t_new", take: 20 });
+
+    const second = await fetchDriveRecentsPage({
+      ...input,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(second.items.map(recentsItemKey)).toEqual([
+      "table:t_older",
+      "task-output:tf_old",
+    ]);
+    expect(second.nextCursor).toBeNull();
+  });
+
   it("filters drive filenames in-memory while preserving recency order", async () => {
     listMock.mockResolvedValue({
       blobs: [
@@ -620,6 +685,9 @@ describe("fetchDriveRecentsPage", () => {
 function recentsItemKey(item: DriveRecentsItem): string {
   if (item.kind === "drive-file") {
     return `drive-file:${item.name}`;
+  }
+  if (item.kind === "table") {
+    return `table:${item.tableId}`;
   }
   return `task-output:${item.taskFileId}`;
 }

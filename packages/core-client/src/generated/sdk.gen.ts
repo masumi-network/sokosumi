@@ -1763,7 +1763,7 @@ export const patchDriveFoldersRename = <ThrowOnError extends boolean = false>(op
 /**
  * List recent Drive files and task/agent outputs for the active workspace.
  * Returns a flat, activity-sorted file list (newest first) with cursor pagination.
- * Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.
+ * Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.
  */
 export const getDriveRecents = <ThrowOnError extends boolean = false>(options: Options<GetDriveRecentsData, ThrowOnError>): RequestResult<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError> => (options.client ?? client).get<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError>({
     responseTransformer: getDriveRecentsResponseTransformer,

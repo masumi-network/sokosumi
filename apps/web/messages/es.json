@@ -7685,7 +7685,8 @@
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
-      }
+      },
+      "tableKind": "Tabla"
     },
     "SokoBot": {
       "Metadata": {
@@ -8407,7 +8408,14 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
-      }
+      },
+      "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
+      "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
+      "showMore": "Mostrar más",
+      "showLess": "Mostrar menos",
+      "previousPosition": "Posición anterior",
+      "newPosition": "Nueva posición",
+      "anyOption": "Cualquier opción"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
