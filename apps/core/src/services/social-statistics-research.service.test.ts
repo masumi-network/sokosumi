@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ComposioApiError } from "@/clients/composio.client";
 
 const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
+  project: vi.fn(),
+  connections: vi.fn(),
   connection: vi.fn(),
   post: vi.fn(),
   read: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    projectSocialConnection: { findFirst: mocks.connection },
+    project: { findFirst: mocks.project },
+    projectSocialConnection: {
+      findFirst: mocks.connection,
+      findMany: mocks.connections,
+    },
     socialAccountPost: { findFirst: mocks.post },
   },
 }));
@@ -317,6 +324,29 @@ describe("scoped X audience and public benchmarking", () => {
       ]),
     );
   });
+  it("keeps public post evidence when its author expansion is unavailable", async () => {
+    mocks.read.mockResolvedValue({
+      data: [
+        {
+          id: "789",
+          author_id: "456",
+          text: "Public post",
+          created_at: "2026-10-07T12:00:00Z",
+        },
+      ],
+      meta: { result_count: 1 },
+    });
+    for (const result of [
+      await readSocialPerformanceAudience(scope),
+      await readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ]) {
+      expect(result.posts).toHaveLength(1);
+      expect(result.posts[0]).toMatchObject({
+        author: null,
+        post: { externalId: "789" },
+      });
+    }
+  });
   it("reports empty discovery samples and safe provider failures", async () => {
     mocks.read.mockResolvedValue({ meta: { result_count: 0 } });
     expect(
@@ -458,6 +488,28 @@ describe("scoped X audience and public benchmarking", () => {
     expect(mocks.connection).not.toHaveBeenCalled();
     expect(mocks.read).not.toHaveBeenCalled();
   });
+  it("uses the shared project visibility check for every research read before loading connections", async () => {
+    const { listProjectSocialConnections } = await vi.importActual<
+      typeof import("@/services/project-social-connections.service")
+    >("@/services/project-social-connections.service");
+    mocks.accounts.mockImplementation(listProjectSocialConnections);
+    mocks.project.mockResolvedValue(null);
+    for (const read of [
+      () => readSocialPerformanceAudience(scope),
+      () => readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
+      () => readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ]) {
+      await expect(read()).rejects.toMatchObject({ status: 404 });
+    }
+    expect(mocks.project).toHaveBeenCalledTimes(3);
+    expect(mocks.project).toHaveBeenCalledWith({
+      where: { id: scope.projectId, workspaceId: scope.workspaceId },
+      select: { id: true, closingAt: true, closedAt: true },
+    });
+    expect(mocks.connections).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
 
   it.each([
     { accounts: [], raw: connection },
@@ -590,9 +642,27 @@ describe("scoped X audience and public benchmarking", () => {
   });
 
   it("maps provider failure and malformed cursors to a safe unavailable response", async () => {
-    mocks.read.mockRejectedValue(new Error("access_token=secret"));
+    mocks.read.mockRejectedValue(
+      new ComposioApiError(429, {}, "access_token=secret"),
+    );
     await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
       status: 503,
+      message:
+        "X audience data is unavailable. Check connection scopes, API access and rate limits, then try again.",
+    });
+    await expect(
+      readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message:
+        "X public benchmark is unavailable. Confirm the handle is public, then check connection permissions, API access and rate limits.",
+    });
+    await expect(
+      readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message:
+        "X recent discovery is unavailable. Check connection scopes, search API access and rate limits, then try again.",
     });
     mocks.read.mockResolvedValue({
       data: [],

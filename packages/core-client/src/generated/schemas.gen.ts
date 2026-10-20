@@ -20925,15 +20925,12 @@ export const SocialPerformancePublicPostSchema = {
     type: 'object',
     properties: {
         author: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/SocialPerformanceContact'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ]
+                    type: 'null'
                 }
             ]
         },

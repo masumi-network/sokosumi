@@ -6018,9 +6018,7 @@ export type SocialPerformanceContact = {
 };
 
 export type SocialPerformancePublicPost = {
-    author: SocialPerformanceContact & ({
-        [key: string]: unknown;
-    } | null);
+    author: SocialPerformanceContact | null;
     post: SocialStatisticsResearchPost;
     interactionType?: 'reply' | 'quote' | 'mention' | null;
 };

@@ -186,7 +186,7 @@ describe("X statistics research routes", () => {
       expect.anything(),
     );
   });
-  it("rejects bot REST actors and human API keys for both external reads", async () => {
+  it("rejects personal and project bot REST actors and human API keys before beta or provider reads", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
       scope: "personal",
@@ -195,8 +195,18 @@ describe("X statistics research routes", () => {
       workspaceId,
       organizationId: null,
     };
+    const projectBot: AuthenticationContext = {
+      actor: "sokoBot",
+      scope: "project",
+      sokoBotId: "project-bot",
+      userId: null,
+      workspaceId,
+      organizationId: "organization",
+      projectId,
+    };
     for (const actor of [
       bot,
+      projectBot,
       { ...auth, authenticationMethod: "api_key" } as const,
     ]) {
       for (const suffix of [
@@ -208,6 +218,7 @@ describe("X statistics research routes", () => {
           (await createApp(actor).request(`${url}/${suffix}`)).status,
         ).toBe(403);
     }
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(mocks.audience).not.toHaveBeenCalled();
     expect(mocks.benchmark).not.toHaveBeenCalled();
     expect(mocks.discovery).not.toHaveBeenCalled();

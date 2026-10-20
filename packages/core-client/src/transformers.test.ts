@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { SocialPerformancePublicPostSchema } from "./generated/schemas.gen.js";
 import {
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
   getProjectsByIdAdsMarketAdsResponseTransformer,
@@ -8,6 +9,15 @@ import {
 } from "./generated/transformers.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
+
+it("research posts allow a null author in the generated API contract", () => {
+  expect(SocialPerformancePublicPostSchema.properties.author).toEqual({
+    anyOf: [
+      { $ref: "#/components/schemas/SocialPerformanceContact" },
+      { type: "null" },
+    ],
+  });
+});
 
 describe("generated response transformers keep nullable objects null-safe", () => {
   it("finalize ad connection: connection null (account reaches no ad accounts)", async () => {
