@@ -2821,25 +2821,25 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      const cancel =
-        input.status === "CANCELED" && task.status !== TaskStatus.CANCELED;
-      // Cancelling stops the work for good, so it is the owner's call and
-      // only on the owner's own Tasks; commenting stays open to any visible one.
-      // A turn for nobody has no owner, so it cancels nothing.
+      const close =
+        (input.status === "CANCELED" || input.status === "COMPLETED") &&
+        task.status !== input.status
+          ? TaskStatus[input.status]
+          : null;
+      // Cancelling or completing ends the work for good, so it is the owner's
+      // call and only on the owner's own Tasks, as in the app's status picker;
+      // commenting stays open to any visible one. A turn for nobody has no
+      // owner, so it closes nothing.
       const { actingUserId } = authorized.turn;
-      if (cancel && (actingUserId === null || task.ownerId !== actingUserId))
+      if (close && (actingUserId === null || task.ownerId !== actingUserId))
         throw new SokoBotRuntimeValidationError(
-          "Only the owner's own Tasks can be canceled; comment instead",
+          "Only the owner's own Tasks can be canceled or completed; comment instead",
         );
       const changeStatus =
         input.status === "READY" &&
         task.status !== TaskStatus.READY &&
         task.status !== TaskStatus.RUNNING;
-      const nextStatus = changeStatus
-        ? TaskStatus.READY
-        : cancel
-          ? TaskStatus.CANCELED
-          : null;
+      const nextStatus = changeStatus ? TaskStatus.READY : close;
       if (changeStatus) {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(

@@ -349,6 +349,42 @@ describe("findAttentionItems ownership", () => {
     );
   });
 
+  it("raises an unchanged failure once, not every day", async () => {
+    const now = new Date("2026-10-19T17:00:00Z");
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "t1",
+        name: "YC import",
+        status: "FAILED",
+        assigneeId: "hannah",
+        assigneeSokoBotId: null,
+        assignee: { name: "Hannah" },
+        assigneeSokoBot: null,
+        events: [
+          {
+            id: "e1",
+            createdAt: new Date("2026-10-15T12:00:00Z"),
+            status: "FAILED",
+            sokoBotId: null,
+          },
+        ],
+      },
+    ]);
+    nudgeFindManyMock.mockResolvedValue([{ key: "failed:t1:e1" }]);
+    const items = await findAttentionItems({
+      id: "bot-1",
+      userId: "faizan",
+      workspaceId: "ws",
+      followWholeBoard: false,
+      now,
+    });
+    expect(items).toEqual([]);
+    expect(nudgeFindManyMock.mock.calls.at(-1)?.[0].where.OR).toContainEqual({
+      lastDeliveredAt: { not: null },
+    });
+  });
+
   it("chases every shared bot delegation inside its scope", async () => {
     delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
     taskFindManyMock.mockResolvedValue([]);

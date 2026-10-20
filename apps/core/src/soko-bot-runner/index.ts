@@ -40,7 +40,9 @@ import {
   MAX_IDLE_ROUNDS,
   MAX_KEEP_GOING_ROUNDS,
   MIN_ROUND_TIME_MS,
+  REPORT_RESERVE_MS,
   reportText,
+  TIME_UP_PROMPT,
 } from "./rounds";
 
 interface TurnStart {
@@ -310,13 +312,15 @@ async function main(): Promise<void> {
     let text = "";
     let finishReason = "";
     let idleRounds = 0;
+    const reportAt = deadline - REPORT_RESERVE_MS;
+    const timeUp = () => Boolean(start.background) && Date.now() >= reportAt;
     for (let round = 0; ; round++) {
       const result = await generateText({
         model: gateway(start.model),
         system: start.system,
         messages: compactHistory(messages) ?? messages,
         tools,
-        stopWhen: stepCountIs(stepsLeft),
+        stopWhen: [stepCountIs(stepsLeft), timeUp],
         prepareStep: ({ messages: current }) => {
           const compacted = compactHistory(current);
           return compacted ? { messages: compacted } : {};
@@ -351,13 +355,33 @@ async function main(): Promise<void> {
         idleRounds < MAX_IDLE_ROUNDS &&
         round < MAX_KEEP_GOING_ROUNDS &&
         stepsLeft > 0 &&
-        deadline - Date.now() > MIN_ROUND_TIME_MS;
+        reportAt - Date.now() > MIN_ROUND_TIME_MS;
+      messages = [...messages, ...result.response.messages];
       if (!keepGoing) break;
-      messages = [
-        ...messages,
-        ...result.response.messages,
-        { role: "user", content: KEEP_GOING_PROMPT },
-      ];
+      messages.push({ role: "user", content: KEEP_GOING_PROMPT });
+    }
+    if (
+      start.background &&
+      !isFinalReport(text) &&
+      idleRounds < MAX_IDLE_ROUNDS
+    ) {
+      const result = await generateText({
+        model: gateway(start.model),
+        system: start.system,
+        messages: [
+          ...(compactHistory(messages) ?? messages),
+          { role: "user", content: TIME_UP_PROMPT },
+        ],
+        tools,
+        toolChoice: "none",
+        abortSignal: AbortSignal.any([
+          stopped.signal,
+          AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
+        ]),
+        maxRetries: 1,
+      });
+      text = result.text || text;
+      finishReason = result.finishReason;
     }
     await callCore("/complete", {
       text: start.background ? reportText(text) : text,
