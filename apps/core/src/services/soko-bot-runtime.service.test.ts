@@ -976,6 +976,38 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(JSON.stringify(where)).not.toContain(SCOPE.userId);
     });
 
+    it("reads the Task a garbled id was copied from", async () => {
+      const garbled = "01a11a19-b028-76ff-ac2e-7facc56a2e6a";
+      const real = "01a11a19-b028-76ff-ac2e-7facc56b861e";
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(SCOPE.userId));
+      toolCallFindUniqueMock.mockResolvedValue({
+        id: "01960001-0001-7001-8001-000000000011",
+        status: "PENDING",
+        capability: "get_task_status",
+        inputHash: createHash("sha256")
+          .update(JSON.stringify({ taskId: garbled }))
+          .digest("hex"),
+        updatedAt: new Date(0),
+      });
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      taskFindFirstMock.mockResolvedValue(null);
+      taskFindManyMock.mockResolvedValueOnce([{ id: real }]);
+
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_garbled_task",
+        input: { taskId: garbled },
+      });
+
+      expect(taskFindManyMock.mock.calls[0]?.[0]?.where).toMatchObject({
+        id: { startsWith: "01a11a19-b028-76ff-ac2e" },
+      });
+      expect(taskFindFirstMock.mock.calls.at(-1)?.[0]?.where).toMatchObject({
+        id: real,
+      });
+    });
+
     it("introduces a shared bot in its system prompt with no owner", async () => {
       turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
       contextSnapshotFindFirstMock.mockResolvedValue({
