@@ -275,15 +275,41 @@ import {
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
   sokoBotId: string,
+  ownerUserId?: string | null,
 ): {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 } {
+  if (ownerUserId) {
+    if (coworkerId)
+      throw new SokoBotRuntimeValidationError(
+        "Give coworkerId or assignToOwner, not both",
+      );
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: ownerUserId,
+    };
+  }
   if (coworkerId == null) return {};
   if (coworkerId === sokoBotId) {
     return { assigneeId: null, assigneeSokoBotId: sokoBotId };
   }
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
+}
+
+/** A shared bot works for nobody, so it has no owner to assign. */
+function ownerAssignee(
+  assignToOwner: true | undefined,
+  actingUserId: string | null,
+): string | null {
+  if (!assignToOwner) return null;
+  if (!actingUserId)
+    throw new SokoBotRuntimeValidationError(
+      "A shared assistant has no owner to assign; pick a Coworker",
+    );
+  return actingUserId;
 }
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
@@ -3169,7 +3195,11 @@ export class SokoBotRuntimeService {
           projectId: input.projectId,
           name: input.name,
           description: input.description,
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status: input.status,
           channel: Channel.SOKOSUMI,
           effectEventId,
@@ -3547,7 +3577,11 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "assignment",
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status,
           channel: Channel.SOKOSUMI,
           effectEventId,
