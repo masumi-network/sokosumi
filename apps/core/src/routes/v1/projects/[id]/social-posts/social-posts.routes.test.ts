@@ -652,9 +652,9 @@ describe("Project social post routes", () => {
         finishedAt: new Date("2026-09-15T11:00:00.000Z"),
       },
       revision: 2,
-      canEdit: false,
+      canEdit: true,
       canSchedule: true,
-      canCancel: false,
+      canCancel: true,
       canPublishNow: true,
       canApprove: false,
       canReject: false,
@@ -669,6 +669,8 @@ describe("Project social post routes", () => {
     expect(await response.json()).toMatchObject({
       data: {
         status: "FAILED",
+        canEdit: true,
+        canCancel: true,
         lastAttempt: {
           outcome: "authorization_revoked",
           finishedAt: "2026-09-15T11:00:00.000Z",
@@ -710,6 +712,57 @@ describe("Project social post routes", () => {
     expect(response.status).toBe(422);
     expect(updateSocialPostMock).not.toHaveBeenCalled();
   });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "saves edits to a %s post without scheduling it",
+    async (status) => {
+      updateSocialPostMock.mockResolvedValue({
+        ...scheduledPost,
+        status,
+        text: "Fixed copy",
+        lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
+        revision: 6,
+        canEdit: true,
+        canDuplicate: true,
+      });
+
+      const response = await createApp().request(
+        `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+        json("PATCH", {
+          text: "Fixed copy",
+          media: [],
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          revision: 5,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: {
+          status,
+          text: "Fixed copy",
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          revision: 6,
+          canEdit: true,
+          canDuplicate: true,
+        },
+      });
+      expect(updateSocialPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: POST_ID,
+          text: "Fixed copy",
+          media: [],
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          revision: 5,
+        }),
+      );
+      expect(scheduleSocialPostMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("schedules a post", async () => {
     const response = await createApp().request(

@@ -77,6 +77,8 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 
 const socialPostInclude = {

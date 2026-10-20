@@ -244,8 +244,9 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState(() => {
     if (!post?.scheduledAt) return "";
     if (
+      (post.status === "FAILED" || post.status === "MISSED") &&
       post.scheduledAt.getTime() <=
-      Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
     ) {
       return "";
     }
@@ -286,7 +287,7 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    scheduledAt,
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 
@@ -762,7 +763,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
-          socialConnectionId: connectionId || null,
+          socialConnectionId: connectionIds[0] ?? null,
           revision: mode.post.revision,
         });
         if (!result.ok) {
