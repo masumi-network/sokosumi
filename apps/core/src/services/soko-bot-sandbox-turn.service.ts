@@ -436,13 +436,18 @@ export async function proxySandboxModelCall(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
+  const reasoning = reasoningSummaryOptions(payload.providerOptions);
+  const gateway = isGatewaySearchCall(payload)
+    ? withoutZeroRetention(policy.providerOptions.gateway)
+    : policy.providerOptions.gateway;
   payload.providerOptions = {
     // The runner may only ask for a reasoning summary; routing, region and
     // retention stay Core's.
-    ...reasoningSummaryOptions(payload.providerOptions),
-    gateway: isGatewaySearchCall(payload)
-      ? withoutZeroRetention(policy.providerOptions.gateway)
-      : policy.providerOptions.gateway,
+    ...reasoning,
+    // Every step of a turn resends the same system prompt, tools and history
+    // prefix. Without a cache key a six-hour run read only 48% from cache.
+    openai: { ...reasoning.openai, promptCacheKey: claims.turnId },
+    gateway: { ...gateway, caching: "auto" },
   };
 
   const log = logFor(claims);
