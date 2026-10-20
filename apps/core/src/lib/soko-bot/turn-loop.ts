@@ -319,7 +319,7 @@ async function isTainted(turnId: string): Promise<boolean> {
  * The owner typed this turn, or started this background run from one: the
  * work and its spending are theirs, so a page read on the way may not end it.
  */
-async function isOwnerDirected(turnId: string): Promise<boolean> {
+export async function isOwnerDirected(turnId: string): Promise<boolean> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
     select: {

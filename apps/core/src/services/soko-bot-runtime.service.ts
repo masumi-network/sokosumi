@@ -4011,8 +4011,14 @@ export class SokoBotRuntimeService {
               };
             } else {
               const body = tableMutationSchema.parse(input.input);
+              const { removeColumnIds } =
+                SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(
+                  input.input,
+                );
               key = body.key;
-              request = { id: tableId, metadata: body };
+              request = removeColumnIds?.length
+                ? { id: tableId, metadata: body, removeColumnIds }
+                : { id: tableId, metadata: body };
             }
           }
           const operation = await readTableOperation(actor, key, request);
@@ -4792,16 +4798,21 @@ export class SokoBotRuntimeService {
             tableBatchSchema.parse(input.input),
             complete,
           );
+        const { removeColumnIds } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(input.input);
+        // Deleting columns deletes their data: only on the owner's word.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          removeColumnIds?.length &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Columns are only deleted when the owner asks in chat; ask them first",
+          );
         return mutateDataTable(
           scopedActor,
           tableId,
-          {
-            ...tableMutationSchema.parse(input.input),
-            removeColumnIds:
-              SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(
-                input.input,
-              ).removeColumnIds,
-          },
+          { ...tableMutationSchema.parse(input.input), removeColumnIds },
           complete,
         );
       }

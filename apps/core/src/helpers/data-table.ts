@@ -435,7 +435,9 @@ export async function mutateDataTable(
   return operation(
     actor,
     body.key,
-    { id, metadata: body },
+    removed.size
+      ? { id, metadata: body, removeColumnIds: input.removeColumnIds }
+      : { id, metadata: body },
     async (tx, batchId) => {
       if (await scopeForTask(actor, id, tx))
         throw forbidden("Selected-row tasks cannot change table metadata");
@@ -542,8 +544,25 @@ async function removeColumns(
   table: Awaited<ReturnType<typeof requireDataTable>>,
   ids: string[],
 ) {
-  if (table.columns.length - ids.length < 1)
-    throw unprocessableEntity("A table keeps at least one column");
+  const left = await tx.tableColumn.count({
+    where: { tableId: table.id, id: { notIn: ids } },
+  });
+  if (left < 1) throw unprocessableEntity("A table keeps at least one column");
+  // A Coworker filling these columns would fail on its next write.
+  const busy = await tx.tableTaskScope.findFirst({
+    where: {
+      tableId: table.id,
+      columnIds: { hasSome: ids },
+      task: {
+        status: { in: ["READY", "QUEUED", "RUNNING", "INPUT_REQUIRED"] },
+      },
+    },
+    select: { task: { select: { name: true } } },
+  });
+  if (busy)
+    throw conflict(
+      `"${busy.task.name}" is still filling this column; cancel it or wait before deleting the column`,
+    );
   await tx.tableColumn.deleteMany({
     where: { tableId: table.id, id: { in: ids } },
   });
