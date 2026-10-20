@@ -1,22 +1,22 @@
 import { DYNAMIC_TYPE_DEFAULT_ROOT_PX } from "@/lib/utils/dynamic-type";
 
 export const EMOJI_PICKER_MAX_HEIGHT_CAP_PX = 360;
-export const EMOJI_PICKER_VIEWPORT_MARGIN_PX = 16;
+const EMOJI_PICKER_VIEWPORT_MARGIN_PX = 16;
 
 /**
  * Matches `min-h-[7.5rem]` on the emoji scroll region.
  * Scales with Dynamic Type root rem.
  */
-export const EMOJI_PICKER_MIN_GRID_HEIGHT_REM = 7.5;
+const EMOJI_PICKER_MIN_GRID_HEIGHT_REM = 7.5;
 
 /**
  * Nav (`size-8` + `py-1`) + search (`h-8` + `p-2`) in rem.
  * Borders are fixed px — see {@link EMOJI_PICKER_CHROME_BORDER_PX}.
  */
-export const EMOJI_PICKER_CHROME_ESTIMATE_REM = 5.5;
+const EMOJI_PICKER_CHROME_ESTIMATE_REM = 5.5;
 
 /** `border-b` on nav + search rows (1px each). */
-export const EMOJI_PICKER_CHROME_BORDER_PX = 2;
+const EMOJI_PICKER_CHROME_BORDER_PX = 2;
 
 export interface ResolveEmojiPickerMaxHeightPxInput {
   visualViewportHeightPx: number;
@@ -26,7 +26,7 @@ export interface ResolveEmojiPickerMaxHeightPxInput {
   viewportMarginPx?: number;
 }
 
-export function remToPx(
+function remToPx(
   rem: number,
   rootFontSizePx: number = DYNAMIC_TYPE_DEFAULT_ROOT_PX,
 ): number {

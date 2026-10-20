@@ -3,7 +3,7 @@
  * subscription checkout. Distinct from the credits flow's `session_id` so a
  * subscription return never opens the credits success modal.
  */
-export const SUBSCRIPTION_CHECKOUT_SESSION_PARAM = "checkout_session_id";
+const SUBSCRIPTION_CHECKOUT_SESSION_PARAM = "checkout_session_id";
 
 const STRIPE_CHECKOUT_SESSION_ID_PLACEHOLDER = "{CHECKOUT_SESSION_ID}";
 

@@ -42,7 +42,7 @@
           deletedAt: nil,
           editedAt: nil,
           sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant",
-                                                               image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online))),
+                                                               image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", scope: .personal, presence: .online))),
           mentions: [],
           reactions: [],
           threadReplyCount: 0,
@@ -62,10 +62,14 @@
       /// The row as the room passes it, in a window: Reply and Quote, plus the thumbs when the turn has them.
       private static func host(_ message: Components.Schemas.ChatRoomMessage, feedback: SokoBotFeedback?, ratings: SokoBotRatings,
                                dark: Bool = false) async throws -> (NSHostingView<AnyView>, NSWindow) {
-        let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                                 onReply: {}, onQuote: {},
+        let row = MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
+                                 perform: { action in
+                                   if case let .rate(useful) = action {
+                                     ratings.values.append(useful)
+                                   }
+                                   return nil
+                                 },
                                  sokoBotFeedback: feedback,
-                                 onSokoBotFeedback: { ratings.values.append($0) },
                                  horizontalInset: 12)
         let host = NSHostingView(rootView: AnyView(row
             .padding(.top, top)

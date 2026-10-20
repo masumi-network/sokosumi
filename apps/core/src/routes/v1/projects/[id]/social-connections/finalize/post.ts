@@ -74,7 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         connectionId: connection.id,
         trigger: "connect",
-      });
+      }).catch(() => undefined);
       return created(c, projectSocialConnectionSchema.parse(connection));
     } catch (error) {
       return mapProjectSocialConnectionServiceError(error);

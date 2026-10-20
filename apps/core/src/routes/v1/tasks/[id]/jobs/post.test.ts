@@ -68,6 +68,7 @@ describe("POST /tasks/{id}/jobs", () => {
       completedAt: null,
       agentId: "agent_123",
       ownerId: "user_123",
+      creator: null,
       owner: {
         id: "user_123",
         name: "Ada Lovelace",
@@ -150,6 +151,40 @@ describe("POST /tasks/{id}/jobs", () => {
         taskContext: {
           taskId: "tsk_123",
         },
+        creator: { kind: "coworker", coworkerId: "cow_123" },
+      }),
+    );
+  });
+
+  it("makes a Job without an Owner for a Task without an Owner", async () => {
+    requireTaskAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: null,
+      creatorUserId: null,
+      organizationId: "org_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+    });
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+    });
+
+    expect(response.status).toBe(201);
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: {
+          ownerId: null,
+          organizationId: "org_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "coworker", coworkerId: "cow_123" },
       }),
     );
   });
@@ -188,6 +223,7 @@ describe("POST /tasks/{id}/jobs", () => {
   it("creates a job for the assigned soko bot", async () => {
     const app = createApp({
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "22222222-2222-7222-8222-222222222222",
       userId: "user_123",
       workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -204,9 +240,18 @@ describe("POST /tasks/{id}/jobs", () => {
     expect(requireTaskAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "22222222-2222-7222-8222-222222222222",
       }),
       "tsk_123",
+    );
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creator: {
+          kind: "soko_bot",
+          sokoBotId: "22222222-2222-7222-8222-222222222222",
+        },
+      }),
     );
   });
 

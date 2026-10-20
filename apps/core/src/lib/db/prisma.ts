@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
@@ -36,5 +37,8 @@ const prisma = globalForPrisma.prisma ?? createCorePrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+/** The client or an open transaction: what a helper that only reads or writes takes. */
+export type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export default prisma;

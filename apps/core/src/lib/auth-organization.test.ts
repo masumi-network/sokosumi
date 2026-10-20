@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
   return {
     captureException: vi.fn(),
     deliverCalendarInvalidations: vi.fn(),
+    disconnectLeaverIntegrations: vi.fn(),
     ensureFreeSubscription: vi.fn(),
     guardOrganizationCreate: vi.fn((organization) => organization),
     listExitRoomIds: vi.fn(),
@@ -69,6 +70,10 @@ vi.mock("@/helpers/stripe-customer-delete", () => ({
   deleteStripeCustomerBestEffort: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: mocks.prisma }));
+vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
+  disconnectLeaverSokoBotIntegrationsBestEffort:
+    mocks.disconnectLeaverIntegrations,
+}));
 
 const organization = {
   id: "org-1",
@@ -253,6 +258,10 @@ it("hands Ably room ids through the member object around remove", async () => {
   expect(mocks.deliverCalendarInvalidations).toHaveBeenCalledWith(
     "org-1",
     "user-1",
+  );
+  expect(mocks.disconnectLeaverIntegrations).toHaveBeenCalledWith(
+    "user-1",
+    "org-1",
   );
 });
 

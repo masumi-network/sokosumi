@@ -30,6 +30,9 @@ const {
 }));
 
 const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("@/services/turn-action-result-previews.service", () => ({
+  prepareTurnActionResultPreviews: vi.fn(),
+}));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
@@ -110,7 +113,7 @@ function activeTurn(overrides: Record<string, unknown> = {}) {
   return {
     id: TURN_ID,
     sokoBotId: "01960001-0001-7001-8001-000000000001",
-    userId: "user_1",
+    requestedByUserId: "user_1",
     workspaceId: "01960001-0001-7001-8001-000000000002",
     eveSessionId: "eve_session_1",
     eveTurnId: "eve_turn_1",

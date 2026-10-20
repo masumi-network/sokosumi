@@ -32,7 +32,7 @@ const patchTaskLinkRequestExample = {
   note: "Moved under the onboarding epic",
 } as const;
 
-export const taskLinkPeerTaskSchema = z
+const taskLinkPeerTaskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_b" }),
     name: z.string().openapi({ example: "Review onboarding copy" }),
@@ -46,16 +46,14 @@ export const taskLinkPeerTaskSchema = z
   })
   .openapi("TaskLinkPeerTask");
 
-export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
-
-export const taskLinkRelationSchema = z
+const taskLinkRelationSchema = z
   .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("TaskLinkRelation");
 
 export type TaskLinkRelationResponse = z.infer<typeof taskLinkRelationSchema>;
 
 /** Relations users may create or patch. */
-export const userWritableTaskLinkRelationSchema = z
+const userWritableTaskLinkRelationSchema = z
   .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("UserWritableTaskLinkRelation");
 

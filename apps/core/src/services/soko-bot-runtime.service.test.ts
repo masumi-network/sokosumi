@@ -47,7 +47,12 @@ const {
   toolCallUpdateManyMock,
   toolCallUpdateMock,
   transactionTaskFindFirstMock,
+  transactionTaskCountMock,
+  transactionJobCountMock,
+  coworkerFindManyMock,
+  integrationListMock,
   transactionBotFindUniqueOrThrowMock,
+  transactionBotFindUniqueMock,
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
   transactionMemoryRevisionFindUniqueMock,
@@ -80,6 +85,7 @@ const {
   chatMessageCountMock,
   chatMessageFindFirstMock,
   memberFindManyMock,
+  memberFindFirstMock,
   toolCallCountMock,
   createOrGetDirectRoomMock,
   mentionFindManyMock,
@@ -138,6 +144,7 @@ const {
     assetFindFirst: vi.fn(),
   },
   files: {
+    taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
@@ -157,7 +164,12 @@ const {
   toolCallUpdateManyMock: vi.fn(),
   toolCallUpdateMock: vi.fn(),
   transactionTaskFindFirstMock: vi.fn(),
+  transactionTaskCountMock: vi.fn(),
+  transactionJobCountMock: vi.fn(),
+  coworkerFindManyMock: vi.fn(),
+  integrationListMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
+  transactionBotFindUniqueMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
@@ -190,6 +202,7 @@ const {
   chatMessageCountMock: vi.fn(),
   chatMessageFindFirstMock: vi.fn(),
   memberFindManyMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   toolCallCountMock: vi.fn(),
   createOrGetDirectRoomMock: vi.fn(),
   mentionFindManyMock: vi.fn(),
@@ -329,6 +342,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: { findUnique: files.resourceFindUnique },
+    taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
@@ -366,6 +380,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: decisionFindFirstMock,
       update: decisionUpdateMock,
       updateMany: decisionUpdateManyMock,
+      findUniqueOrThrow: vi.fn(async () => ({ status: "REJECTED" })),
     },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
@@ -380,6 +395,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: toolCallUpdateManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
+    coworker: { findMany: coworkerFindManyMock },
     task: {
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
@@ -397,8 +413,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
     },
-    member: { findMany: memberFindManyMock },
+    member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
+}));
+vi.mock("@/services/soko-bot-integration-list.service", () => ({
+  listSokoBotIntegrationsForBot: integrationListMock,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
@@ -407,6 +426,7 @@ vi.mock("@/lib/db/transaction", () => ({
         $queryRaw: transactionTurnLockMock,
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
+          findUnique: transactionBotFindUniqueMock,
           findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
           update: transactionBotUpdateMock,
           updateMany: transactionBotUpdateManyMock,
@@ -439,10 +459,12 @@ vi.mock("@/lib/db/transaction", () => ({
           updateMany: transactionTurnUpdateManyMock,
         },
         task: {
+          count: transactionTaskCountMock,
           create: transactionTaskCreateMock,
           findFirst: transactionTaskFindFirstMock,
           update: transactionTaskUpdateMock,
         },
+        job: { count: transactionJobCountMock },
         taskEvent: {
           findMany: transactionTaskEventFindManyMock,
           create: transactionTaskEventCreateMock,
@@ -554,7 +576,10 @@ import {
   SokoBotRuntimeConflictError,
   SokoBotRuntimeService,
   SokoBotRuntimeValidationError,
+  sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
+import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
   userId: "user_1",
@@ -564,6 +589,35 @@ const SCOPE = {
   turnId: "01960001-0001-7001-8001-000000000003",
 };
 const DECISION_ID = "01960001-0001-7001-8001-000000000005";
+
+/** How every runtime site asks for the turn's bot: by id, as the turn's member. */
+const TURN_BOT_WHERE = {
+  id: SCOPE.sokoBotId,
+  workspaceId: SCOPE.workspaceId,
+  deletedAt: null,
+  workspace: {
+    id: SCOPE.workspaceId,
+    OR: [
+      { userId: SCOPE.userId },
+      { organization: { members: { some: { userId: SCOPE.userId } } } },
+    ],
+  },
+};
+
+/** The turn's bot as the resolver reads it: the turn member's personal bot. */
+function botRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    projectId: null,
+    archivedAt: null,
+    adminPausedAt: null,
+    status: "RUNNING",
+    workspace: { organizationId: "org_1" },
+    ...overrides,
+  };
+}
 
 function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -583,7 +637,7 @@ function hireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
     id: DECISION_ID,
     sokoBotId: SCOPE.sokoBotId,
     turnId: SCOPE.turnId,
-    userId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     toolName: "hire_agent",
     proposal: {
@@ -596,6 +650,7 @@ function hireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
     },
     status,
     expiresAt: new Date(Date.now() + 60_000),
+    sokoBot: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
     turn: {
       capabilityNames: ["hire_agent"],
       eveSessionId: SCOPE.sessionId,
@@ -688,6 +743,7 @@ describe("SokoBotRuntimeService authorization", () => {
     botUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionTurnUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionBotUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotFindFirstMock.mockResolvedValue(botRow());
     transactionTurnFindFirstMock.mockResolvedValue({
       id: SCOPE.turnId,
       eveSessionId: null,
@@ -717,7 +773,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Show the task",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["preview_result"],
         contextSnapshot: {
@@ -729,6 +785,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -786,7 +843,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Remember that I prefer short updates",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["update_memory", "get_task_status"],
         contextSnapshot: {
@@ -795,6 +852,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -812,7 +870,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -821,6 +879,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -838,6 +897,131 @@ describe("SokoBotRuntimeService authorization", () => {
     ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
   });
 
+  describe("audience of a bot with no owner", () => {
+    function ownerPacketTurn(botUserId: string | null) {
+      return {
+        userMessage: "Check the tasks",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: ["get_task_status", "create_task"],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: {
+            trigger: { askedBy: { kind: "OWNER" } },
+            memory: { version: 1 },
+          },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        createdAt: new Date(),
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: {
+          archivedAt: null,
+          status: "RUNNING",
+          userId: botUserId,
+          workspaceId: SCOPE.workspaceId,
+          projectId: null,
+        },
+      };
+    }
+
+    it("keeps the OWNER audience for a personal bot", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(SCOPE.userId));
+      const authorized = await new SokoBotRuntimeService().authorize({
+        ...SCOPE,
+        capability: "create_task",
+      });
+      expect(authorized.askedByKind).toBe("OWNER");
+    });
+
+    it("reads a shared bot's OWNER packet as TEAMMATE", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      const authorized = await new SokoBotRuntimeService().authorize({
+        ...SCOPE,
+        capability: "create_task",
+      });
+      expect(authorized.askedByKind).toBe("TEAMMATE");
+    });
+
+    it("never shows the asking member's private Tasks through a shared bot", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      toolCallFindUniqueMock.mockResolvedValue({
+        id: "01960001-0001-7001-8001-000000000010",
+        status: "PENDING",
+        capability: "get_task_status",
+        inputHash: createHash("sha256")
+          .update(JSON.stringify({ taskId: "task_1" }))
+          .digest("hex"),
+        updatedAt: new Date(0),
+      });
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      taskFindFirstMock.mockResolvedValue(null);
+
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_shared_task",
+        input: { taskId: "task_1" },
+      });
+
+      const where = taskFindFirstMock.mock.calls[0]?.[0]?.where;
+      expect(where).toMatchObject({
+        id: "task_1",
+        archivedAt: null,
+        visibility: "PUBLIC",
+      });
+      expect(JSON.stringify(where)).not.toContain(SCOPE.userId);
+    });
+
+    it("introduces a shared bot in its system prompt with no owner", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(null));
+      contextSnapshotFindFirstMock.mockResolvedValue({
+        packet: {},
+        hash: "hash",
+        schemaVersion: 1,
+        generatedAt: new Date(),
+      });
+      botFindUniqueMock.mockResolvedValue({
+        name: "Scout",
+        userId: null,
+        user: null,
+      });
+      const context = await new SokoBotRuntimeService().getContext({
+        ...SCOPE,
+      });
+      const persona = context.version.systemPrompt.split("\n\n")[0];
+      expect(persona).toContain(
+        "Your name is Scout. You are a shared team assistant",
+      );
+      expect(persona).not.toContain("personal assistant");
+      expect(persona).not.toContain("your owner");
+    });
+
+    it("introduces a personal bot as its owner's assistant", async () => {
+      turnFindUniqueMock.mockResolvedValue(ownerPacketTurn(SCOPE.userId));
+      contextSnapshotFindFirstMock.mockResolvedValue({
+        packet: {},
+        hash: "hash",
+        schemaVersion: 1,
+        generatedAt: new Date(),
+      });
+      botFindUniqueMock.mockResolvedValue({
+        name: "Jarvis",
+        userId: SCOPE.userId,
+        user: { name: "Ana Lima" },
+      });
+      const context = await new SokoBotRuntimeService().getContext({
+        ...SCOPE,
+      });
+      expect(context.version.systemPrompt).toContain(
+        "Your name is Jarvis. You are Ana's personal assistant",
+      );
+    });
+  });
+
   it("carries the turn's version and source into the action context", async () => {
     // Dropping these silently made every turn resolve the default version and
     // meant self-started turns could not be told apart from owner turns.
@@ -845,7 +1029,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -856,6 +1040,7 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       versionId: "inbox-tuned",
       source: "SCHEDULE",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -879,7 +1064,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -888,6 +1073,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -909,7 +1095,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -918,6 +1104,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -962,7 +1149,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -971,6 +1158,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1006,13 +1194,11 @@ describe("SokoBotRuntimeService authorization", () => {
         data: { eveSessionId: SCOPE.sessionId },
       }),
     );
+    expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
+    );
     expect(transactionBotUpdateManyMock).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        id: SCOPE.sokoBotId,
-        adminPausedAt: null,
-        archivedAt: null,
-        status: { not: "PAUSED" },
-      }),
+      where: { id: SCOPE.sokoBotId },
       data: { eveSessionId: SCOPE.sessionId },
     });
     expect(turnUpdateManyMock).not.toHaveBeenCalled();
@@ -1026,7 +1212,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1035,6 +1221,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1073,7 +1260,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1082,6 +1269,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1114,7 +1302,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1123,6 +1311,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: null,
       status: "STARTING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1172,7 +1361,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -1181,6 +1370,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1259,7 +1449,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1268,6 +1458,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1330,6 +1521,7 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         turn: { ...SCOPE, id: SCOPE.turnId },
         askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
       } as never,
       "task_1",
     );
@@ -1337,9 +1529,68 @@ describe("SokoBotRuntimeService authorization", () => {
       by: "another_bot",
       byName: "Lili, Albina's assistant",
     });
+
+    // A shared assistant has no owner to be named with.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      events: [
+        {
+          id: "event-2",
+          status: null,
+          comment: "Budget looks fine.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: null,
+          sokoBotId: "shared-bot",
+          sokoBot: { name: "Scout", userId: null, user: null },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const sharedRead = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(sharedRead?.events[0]).toMatchObject({
+      by: "another_bot",
+      byName: "Scout, a shared team assistant",
+    });
     expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+  });
+
+  it("opens archive history only on work the person it acts for owns", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    await new SokoBotRuntimeService()["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [{ archivedAt: null }, { ownerId: SCOPE.userId }],
+            },
+          ],
+        }),
       }),
     );
   });
@@ -1349,7 +1600,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1361,6 +1612,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1407,7 +1659,7 @@ describe("SokoBotRuntimeService authorization", () => {
         userMessage: "Check the tasks",
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         capabilityNames: ["get_task_status"],
         contextSnapshot: {
@@ -1419,6 +1671,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
         eveSessionId: SCOPE.sessionId,
         status: "RUNNING",
+        createdAt: new Date(),
         deadlineAt: new Date(Date.now() + 60_000),
         leaseExpiresAt: new Date(Date.now() + 60_000),
         sokoBot: {
@@ -1539,7 +1792,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Which launch tasks are stuck?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1548,6 +1801,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1642,7 +1896,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "What is stuck?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1651,6 +1905,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1699,7 +1954,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "What is open?",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["list_tasks"],
       contextSnapshot: {
@@ -1711,6 +1966,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -1743,7 +1999,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the jobs",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_job_status"],
       contextSnapshot: {
@@ -1755,6 +2011,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1786,12 +2043,9 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.objectContaining({
         where: {
           AND: [
+            { id: "job_1", workspaceId: SCOPE.workspaceId },
             {
-              id: "job_1",
               ownerId: SCOPE.userId,
-              workspaceId: SCOPE.workspaceId,
-            },
-            {
               OR: [
                 { taskId: null },
                 { task: { is: { visibility: "PUBLIC" } } },
@@ -1808,7 +2062,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1817,6 +2071,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1850,7 +2105,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1861,6 +2116,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1884,11 +2140,24 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 
+  it("gives a turn tool calls in proportion to how long it may run", () => {
+    const createdAt = new Date("2026-10-14T12:00:00.000Z");
+    const after = (minutes: number) =>
+      new Date(createdAt.getTime() + minutes * 60_000);
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(15) })).toBe(64);
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(60) })).toBe(
+      256,
+    );
+    expect(sokoBotToolCallLimit({ createdAt, deadlineAt: after(360) })).toBe(
+      1_536,
+    );
+  });
+
   it("returns raw tool result but persists bounded redacted evidence", async () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1899,6 +2168,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1946,7 +2216,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_task_status"],
       contextSnapshot: {
@@ -1957,6 +2227,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check task",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -1984,12 +2255,75 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(detail).toBe("[Sensitive value removed]");
   });
 
+  it.each([
+    [
+      "create_schedule",
+      "createSokoBotSchedule",
+      {
+        name: "Check-in",
+        timezone: "UTC",
+        cronExpression: "0 9 * * 1",
+        prompt: "How is it going?",
+      },
+    ],
+    [
+      "update_schedule",
+      "updateSokoBotSchedule",
+      { scheduleId: "01960001-0001-7001-8001-0000000000cc", prompt: "New" },
+    ],
+  ] as const)(
+    "runs %s on the turn's own bot, member and workspace",
+    async (capability, call, input) => {
+      turnFindUniqueMock.mockResolvedValue({
+        userMessage: "Check in",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        requestedByUserId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: [capability],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: { memory: { version: 1 } },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        createdAt: new Date(),
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING" },
+      });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      const spy = vi.spyOn(scheduleService, call).mockResolvedValue({
+        id: "01960001-0001-7001-8001-0000000000cc",
+        name: "Check-in",
+      } as never);
+      try {
+        await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: `call_${capability}`,
+          input,
+        });
+        expect(spy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+            sokoBotId: SCOPE.sokoBotId,
+          }),
+          expect.anything(),
+        );
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
   it("creates Task through shared domain operation with Soko Bot attribution", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -1998,6 +2332,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2055,7 +2390,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["create_task"],
       contextSnapshot: {
@@ -2064,6 +2399,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2101,7 +2437,7 @@ describe("SokoBotRuntimeService authorization", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["assign_task"],
       contextSnapshot: {
@@ -2112,6 +2448,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Assign it",
       classification: { confidence: 0.3 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2157,11 +2494,243 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  describe("a shared bot's writes", () => {
+    const PROJECT_ID = "01960001-0001-7001-8001-0000000000a1";
+    const OTHER_PROJECT = "01960001-0001-7001-8001-0000000000a2";
+    const PROJECT_BOT = {
+      id: SCOPE.sokoBotId,
+      userId: null,
+      workspaceId: SCOPE.workspaceId,
+      projectId: PROJECT_ID,
+    };
+    const sharedTurn = (
+      capability: string,
+      sokoBot: object,
+      requestedByUserId: string | null = SCOPE.userId,
+    ) => {
+      turnFindUniqueMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        requestedByUserId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: [capability],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: { memory: { version: 1 } },
+        },
+        eveSessionId: SCOPE.sessionId,
+        userMessage: "Do it",
+        classification: { confidence: 0.3 },
+        status: "RUNNING",
+        createdAt: new Date(),
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING", ...sokoBot },
+      });
+      transactionTurnFindFirstMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        eveSessionId: null,
+        sokoBot,
+      });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        ownerId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: SCOPE.sokoBotId,
+      });
+    };
+    const assign = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "assign_task",
+        toolCallId: "call_assign_scope",
+        input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+      });
+
+    it("refuses a Task outside its scope, as if missing", async () => {
+      sharedTurn("assign_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(0);
+      await expect(assign()).rejects.toThrow("Task not found");
+      expect(transactionTaskCountMock).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            { id: { in: ["task_1"] } },
+            {
+              workspaceId: SCOPE.workspaceId,
+              visibility: "PUBLIC",
+              projectId: PROJECT_ID,
+            },
+          ],
+        },
+      });
+      expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("changes a public Task in its Project", async () => {
+      sharedTurn("assign_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(1);
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+    });
+
+    it("changes a public Task in its Project for nobody, through its scope", async () => {
+      sharedTurn("assign_task", PROJECT_BOT, null);
+      transactionTaskCountMock.mockResolvedValue(1);
+      transactionBotFindUniqueMock.mockResolvedValue(PROJECT_BOT);
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+      expect(transactionTaskFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: "task_1",
+          archivedAt: null,
+          workspaceId: SCOPE.workspaceId,
+          visibility: "PUBLIC",
+          projectId: PROJECT_ID,
+        },
+      });
+    });
+
+    it("leaves a personal bot's writes unscoped", async () => {
+      sharedTurn("assign_task", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      await expect(assign()).resolves.toMatchObject({ id: "task_1" });
+      expect(transactionTaskCountMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses its own status change on a Task outside its scope", async () => {
+      sharedTurn("update_assigned_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(0);
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "update_assigned_task",
+          toolCallId: "call_status_scope",
+          input: { taskId: "task_1", status: "RUNNING", comment: "On it" },
+        }),
+      ).rejects.toThrow("Task not found");
+    });
+
+    it.each([
+      [
+        "a Task outside its scope",
+        { taskId: "task_1", name: "B" },
+        0,
+        "Task not found",
+      ],
+      [
+        "a move into another Project",
+        { taskId: "task_1", projectId: OTHER_PROJECT },
+        1,
+        "works only in its own Project",
+      ],
+    ])("refuses to update %s", async (_label, input, visible, message) => {
+      sharedTurn("update_task", PROJECT_BOT);
+      transactionTaskCountMock.mockResolvedValue(visible);
+      await expect(
+        new SokoBotRuntimeService()["applyTaskMutation"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          input,
+          "call_update_scope",
+          { ...input, archive: false } as never,
+          "update_task",
+          false,
+        ),
+      ).rejects.toThrow(message);
+      expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to create a Task outside its Project", async () => {
+      sharedTurn("create_task", PROJECT_BOT);
+      await expect(
+        new SokoBotRuntimeService()["createTask"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          { name: "Loose", status: "DRAFT" },
+          "call_create_loose",
+        ),
+      ).rejects.toThrow("works only in its own Project");
+      expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to propose a Task in another Project", async () => {
+      sharedTurn("create_task", PROJECT_BOT);
+      await expect(
+        new SokoBotRuntimeService()["createDecision"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          "create_task",
+          { name: "Elsewhere", status: "DRAFT", projectId: OTHER_PROJECT },
+          "call_create_scope",
+        ),
+      ).rejects.toThrow("works only in its own Project");
+      expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses to propose input for a Job outside its scope", async () => {
+      sharedTurn("provide_job_input", PROJECT_BOT);
+      transactionJobCountMock.mockResolvedValue(0);
+      await expect(
+        new SokoBotRuntimeService()["createDecision"](
+          { turn: { ...SCOPE, id: SCOPE.turnId } } as never,
+          "provide_job_input",
+          { jobId: "job_1", eventId: "event_1", inputData: {} },
+          "call_input_scope",
+        ),
+      ).rejects.toThrow("Job not found");
+      expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a shared bot", PROJECT_BOT],
+      [
+        "a personal bot",
+        { ...PROJECT_BOT, userId: SCOPE.userId, projectId: null },
+      ],
+    ])(
+      "lists the turn's own bot's integrations for %s",
+      async (_label, bot) => {
+        sharedTurn("list_integrations", bot);
+        integrationListMock.mockResolvedValue({
+          configured: true,
+          integrations: [
+            { provider: "gmail", status: "ACTIVE" },
+            { provider: "slack", status: "DISCONNECTED" },
+          ],
+        });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_integrations",
+            toolCallId: "call_integrations",
+            input: {},
+          }),
+        ).resolves.toEqual([{ provider: "gmail", status: "ACTIVE" }]);
+        expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
+      },
+    );
+
+    it("finds Coworkers without the member's own assignments", async () => {
+      sharedTurn("find_coworkers", PROJECT_BOT);
+      coworkerFindManyMock.mockResolvedValue([]);
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_coworkers",
+        toolCallId: "call_find_scope",
+        input: {},
+      });
+      expect(
+        JSON.stringify(coworkerFindManyMock.mock.calls[0]?.[0]),
+      ).not.toContain("assignments");
+    });
+  });
+
   it("clears a Task's assignee when asked to unassign it", async () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2172,6 +2741,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Actually make it unassigned",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2236,8 +2806,14 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
-          userId: SCOPE.userId,
+          actingUserId: SCOPE.userId,
+          requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
+        },
+        reader: {
+          userId: SCOPE.userId,
+          audience: undefined,
+          sharedScope: null,
         },
       } as never,
       {
@@ -2269,6 +2845,43 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("does not cancel a Task without an Owner for a turn that acts for nobody", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      ownerId: null,
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            actingUserId: null,
+            requestedByUserId: null,
+            workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: null,
+            audience: undefined,
+            sharedScope: {
+              sokoBotId: SCOPE.sokoBotId,
+              workspaceId: SCOPE.workspaceId,
+              projectId: null,
+            },
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_nobody",
+      ),
+    ).rejects.toThrow("Only the owner's own Tasks can be canceled");
+    expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("does not cancel a Task someone else owns", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -2285,8 +2898,14 @@ describe("SokoBotRuntimeService authorization", () => {
           turn: {
             id: SCOPE.turnId,
             sokoBotId: SCOPE.sokoBotId,
-            userId: SCOPE.userId,
+            actingUserId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
             workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: SCOPE.userId,
+            audience: undefined,
+            sharedScope: null,
           },
         } as never,
         { taskId: "task_1", comment: "Stop", status: "CANCELED" },
@@ -2294,6 +2913,74 @@ describe("SokoBotRuntimeService authorization", () => {
       ),
     ).rejects.toThrow(/owner's own Tasks/);
     expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("cancelling follows the Owner (ADR 0057)", () => {
+    function cancel() {
+      return new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            actingUserId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: SCOPE.userId,
+            audience: undefined,
+            sharedScope: null,
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_owner",
+      );
+    }
+
+    function storedTask(columns: ReturnType<typeof publicWorkMadeBy>) {
+      return {
+        id: "task_1",
+        name: "Launch",
+        status: TaskStatus.READY,
+        assigneeId: "coworker_1",
+        assigneeSokoBotId: null,
+        ...columns,
+      };
+    }
+
+    it.each(WORK_MAKERS)(
+      "cancels a Task made by a %s for the person it acts for",
+      async (maker) => {
+        transactionTaskFindFirstMock.mockResolvedValue(
+          storedTask(publicWorkMadeBy(maker, SCOPE.userId)),
+        );
+
+        await expect(cancel()).resolves.toMatchObject({
+          status: TaskStatus.CANCELED,
+        });
+      },
+    );
+
+    it.each(WORK_MAKERS)(
+      "does not cancel a Task made by a %s that someone else owns",
+      async (maker) => {
+        transactionTaskFindFirstMock.mockResolvedValue(
+          storedTask(publicWorkMadeBy(maker, "someone-else")),
+        );
+
+        await expect(cancel()).rejects.toThrow(/owner's own Tasks/);
+        expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not cancel a Task without an Owner", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue(
+        storedTask(publicWorkMadeBy("sokoBot", null)),
+      );
+
+      await expect(cancel()).rejects.toThrow(/owner's own Tasks/);
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   it("resumes its own assigned Task and fans out the soko bot event", async () => {
@@ -2311,8 +2998,14 @@ describe("SokoBotRuntimeService authorization", () => {
         turn: {
           id: SCOPE.turnId,
           sokoBotId: SCOPE.sokoBotId,
-          userId: SCOPE.userId,
+          actingUserId: SCOPE.userId,
+          requestedByUserId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
+        },
+        reader: {
+          userId: SCOPE.userId,
+          audience: undefined,
+          sharedScope: null,
         },
       } as never,
       { taskId: "task_1", comment: "Inputs received", status: "READY" },
@@ -2346,7 +3039,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2355,6 +3048,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2390,7 +3084,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Assign it",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2400,6 +3094,7 @@ describe("SokoBotRuntimeService authorization", () => {
       eveSessionId: SCOPE.sessionId,
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -2427,7 +3122,7 @@ describe("SokoBotRuntimeService authorization", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_task"],
       contextSnapshot: {
@@ -2436,6 +3131,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2472,7 +3168,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["update_memory"],
       contextSnapshot: {
@@ -2481,6 +3177,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
@@ -2603,7 +3300,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
     decisionFindFirstMock.mockResolvedValue(hireDecision());
     decisionUpdateManyMock.mockResolvedValue({ count: 1 });
-    botFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    botFindFirstMock.mockResolvedValue(botRow());
     workspaceFindFirstMock.mockResolvedValue({
       id: SCOPE.workspaceId,
       organizationId: null,
@@ -2617,7 +3314,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
     delegationUpdateManyMock.mockResolvedValue({ count: 1 });
     localJobDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
     transactionDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
-    transactionBotFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    transactionBotFindFirstMock.mockResolvedValue(botRow());
     createAgentClientMock.mockReturnValue({
       provideJobInput: provideJobInputMock,
     });
@@ -2781,9 +3478,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       sellerStartMock.mock.invocationCallOrder[0] ?? 0,
     );
     expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ status: { not: "PAUSED" } }),
-      }),
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
     );
     expect(localJobDelegationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3425,13 +4120,391 @@ describe("SokoBotRuntimeService hire decisions", () => {
       }),
     );
   });
+
+  describe("who may reach the turn's bot", () => {
+    const resolve = () =>
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      );
+
+    it("asks every decision site for the bot as the decision's member", async () => {
+      await expect(resolve()).resolves.toMatchObject({ status: "ACCEPTED" });
+      const calls = [
+        ...botFindFirstMock.mock.calls,
+        ...transactionBotFindFirstMock.mock.calls,
+      ];
+      expect(calls).toHaveLength(3);
+      for (const [args] of calls) {
+        expect(args).toMatchObject({ where: TURN_BOT_WHERE });
+      }
+    });
+
+    it("accepts a shared bot's decision for its member", async () => {
+      botFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      await expect(resolve()).resolves.toMatchObject({ status: "ACCEPTED" });
+      expect(createAgentJobForUserMock).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["another user's personal bot", botRow({ userId: "someone-else" })],
+      ["a bot the member no longer reaches", null],
+      [
+        "a shared bot outside an Organization workspace",
+        botRow({ userId: null, workspace: { organizationId: null } }),
+      ],
+      ["a paused bot", botRow({ status: "PAUSED" })],
+    ])("refuses %s before the decision runs", async (_label, bot) => {
+      botFindFirstMock.mockResolvedValue(bot);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["another user's personal bot", botRow({ userId: "someone-else" })],
+      ["a shared bot whose member left", null],
+    ])("refuses %s at the seller fence", async (_label, bot) => {
+      transactionBotFindFirstMock.mockResolvedValueOnce(bot);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses at the approved mutation check when the member lost the bot", async () => {
+      transactionBotFindFirstMock
+        .mockResolvedValueOnce(botRow({ userId: null }))
+        .mockResolvedValueOnce(null);
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("asks the job input fence as the decision's member", async () => {
+      decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+      jobEventFindFirstMock.mockResolvedValue({
+        id: "event_1",
+        input: null,
+        inputSchema: { input_data: [] },
+        job: {
+          id: "job_1",
+          agentJobId: "seller-job-1",
+          agentBlockchainIdentifier: null,
+          agentApiBaseUrl: null,
+          agent: {
+            id: "agent_1",
+            name: "Agent",
+            blockchainIdentifier: "seller-agent-1",
+            apiBaseUrl: "https://agent.example.com",
+            metadataOverride: null,
+          },
+        },
+      });
+      transactionBotFindFirstMock
+        .mockResolvedValueOnce(botRow())
+        .mockResolvedValueOnce(botRow({ userId: "someone-else" }));
+      await expect(resolve()).rejects.toThrow(
+        "Soko Bot is paused or unavailable",
+      );
+      expect(provideJobInputMock).not.toHaveBeenCalled();
+      expect(transactionBotFindFirstMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: TURN_BOT_WHERE }),
+      );
+    });
+  });
+  describe("who may answer a shared bot's decision", () => {
+    const ROLES: Record<string, string> = {
+      [SCOPE.userId]: "member",
+      other_member: "member",
+      admin_1: "admin",
+      owner_1: "owner",
+    };
+    const sharedDecision = (source: string) => ({
+      ...hireDecision(),
+      sokoBot: { userId: null, workspaceId: SCOPE.workspaceId },
+      turn: { ...hireDecision().turn, source, chainDepth: 0 },
+    });
+    const resolveAs = (userId: string) =>
+      new SokoBotRuntimeService().resolveDecision(userId, DECISION_ID, true);
+
+    beforeEach(() => {
+      botFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+      memberFindFirstMock.mockImplementation(
+        async (args: { where: { userId: string } }) => {
+          const role = ROLES[args.where.userId];
+          return role ? { role } : null;
+        },
+      );
+    });
+
+    it.each([
+      ["the asking member", SCOPE.userId],
+      ["an admin", "admin_1"],
+      ["an owner", "owner_1"],
+    ])(
+      "lets %s accept a chat decision, run for the asking member",
+      async (_label, resolver) => {
+        decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+        await expect(resolveAs(resolver)).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+        expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            owner: expect.objectContaining({ ownerId: SCOPE.userId }),
+          }),
+        );
+        expect(decisionUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ resolvedByUserId: resolver }),
+          }),
+        );
+        expect(decisionUpdateMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "ACCEPTED",
+              resolvedByUserId: resolver,
+            }),
+          }),
+        );
+      },
+    );
+
+    const FAILED_HIRE = { jobId: null, outcome: "failed", error: null };
+    it.each([
+      ["a recovered job", { jobId: "job_1" }, { jobId: "job_1" }],
+      ["a job found on the second look", FAILED_HIRE, { jobId: "job_1" }],
+      ["a retried hire", FAILED_HIRE, FAILED_HIRE],
+    ])(
+      "keeps the member who claimed a decision when an admin resumes it with %s",
+      async (_label, firstLook, secondLook) => {
+        decisionFindFirstMock.mockResolvedValue({
+          ...sharedDecision("CHAT"),
+          status: "PROCESSING",
+          resolvedByUserId: SCOPE.userId,
+        });
+        delegationFindUniqueMock
+          .mockResolvedValueOnce(firstLook)
+          .mockResolvedValue(secondLook);
+        await expect(resolveAs("admin_1")).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+        expect(decisionUpdateMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ resolvedByUserId: SCOPE.userId }),
+          }),
+        );
+      },
+    );
+
+    it("records an admin who rejects a member's decision", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      decisionUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+      await expect(
+        new SokoBotRuntimeService().resolveDecision(
+          "admin_1",
+          DECISION_ID,
+          false,
+        ),
+      ).resolves.toMatchObject({ status: "REJECTED" });
+      expect(decisionUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: DECISION_ID, status: "PENDING" },
+        data: expect.objectContaining({
+          status: "REJECTED",
+          resolvedByUserId: "admin_1",
+        }),
+      });
+    });
+
+    it("refuses another member a chat decision", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      await expect(resolveAs("other_member")).rejects.toThrow(
+        "Only the member who asked",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+      expect(decisionUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("hides a shared decision from a non-member", async () => {
+      decisionFindFirstMock.mockResolvedValue(sharedDecision("CHAT"));
+      await expect(resolveAs("outsider")).rejects.toThrow(
+        "Pending decision not found",
+      );
+      expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["SCHEDULE", "EVENT", "INGEST", "ADMIN_RETRY"])(
+      "keeps a self-started %s decision for an owner or admin",
+      async (source) => {
+        decisionFindFirstMock.mockResolvedValue(sharedDecision(source));
+        await expect(resolveAs(SCOPE.userId)).rejects.toThrow("started itself");
+        expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+        await expect(resolveAs("admin_1")).resolves.toMatchObject({
+          status: "ACCEPTED",
+        });
+      },
+    );
+
+    it("lets an organization admin answer a personal decision (ADR 0057)", async () => {
+      decisionFindFirstMock.mockResolvedValue(hireDecision());
+      await expect(resolveAs("admin_1")).resolves.toMatchObject({
+        status: "ACCEPTED",
+      });
+    });
+
+    it("hides a personal decision from a member who did not ask", async () => {
+      decisionFindFirstMock.mockResolvedValue(hireDecision());
+      await expect(resolveAs("other_member")).rejects.toThrow(
+        "Pending decision not found",
+      );
+    });
+  });
+});
+
+describe("SokoBotRuntimeService turn session attachment by member", () => {
+  function pendingTurn() {
+    return {
+      userMessage: "Check the tasks",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: null,
+      status: "STARTING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { adminPausedAt: null, archivedAt: null, status: "RUNNING" },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(pendingTurn());
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: null,
+    });
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org_1",
+    });
+    transactionTurnUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  const attach = () =>
+    new SokoBotRuntimeService().authorize({
+      ...SCOPE,
+      capability: "get_task_status",
+    });
+
+  it("attaches a shared bot's turn for its member", async () => {
+    transactionBotFindFirstMock.mockResolvedValue(botRow({ userId: null }));
+    await expect(attach()).resolves.toMatchObject({
+      turn: { eveSessionId: SCOPE.sessionId, actingUserId: SCOPE.userId },
+    });
+    expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: TURN_BOT_WHERE }),
+    );
+  });
+
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["a shared bot whose member left", null],
+    ["an administrator-paused bot", botRow({ adminPausedAt: new Date() })],
+  ])("refuses %s without binding the session", async (_label, bot) => {
+    transactionBotFindFirstMock.mockResolvedValue(bot);
+    await expect(attach()).rejects.toThrow(
+      "Soko Bot runtime session attachment became stale",
+    );
+    expect(transactionBotUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SokoBotRuntimeService table actor", () => {
+  const authorized = {
+    turn: {
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      actingUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+    askedByKind: "OWNER",
+  };
+
+  async function tableActorAuth(bot: unknown) {
+    const { resolveTableActor } = await import("@/helpers/data-table");
+    vi.mocked(resolveTableActor).mockReset();
+    vi.mocked(resolveTableActor).mockResolvedValue({
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      actorId: SCOPE.sokoBotId,
+      actorKind: "sokoBot",
+    });
+    botFindUniqueMock.mockResolvedValue(bot);
+    const service = new SokoBotRuntimeService();
+    await service["tableActor"](authorized as never, {});
+    return vi.mocked(resolveTableActor).mock.calls[0]?.[0];
+  }
+
+  it("acts as the owner for a personal bot", async () => {
+    expect(
+      await tableActorAuth({
+        userId: SCOPE.userId,
+        projectId: null,
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).toMatchObject({ scope: "personal", userId: SCOPE.userId });
+  });
+
+  it("acts as the shared bot itself, never as the member", async () => {
+    expect(
+      await tableActorAuth({
+        userId: null,
+        projectId: "project_1",
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).toEqual({
+      actor: "sokoBot",
+      scope: "project",
+      sokoBotId: SCOPE.sokoBotId,
+      userId: null,
+      workspaceId: SCOPE.workspaceId,
+      organizationId: "org_1",
+      projectId: "project_1",
+    });
+  });
+
+  it("refuses a bot that does not fit the turn", async () => {
+    await expect(
+      tableActorAuth({
+        userId: "someone-else",
+        projectId: null,
+        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+      }),
+    ).rejects.toThrow("Soko Bot is unavailable");
+  });
 });
 
 describe("SokoBotRuntimeService chat reading", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    actingUserId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
   };
@@ -3682,7 +4755,8 @@ describe("post_chat chain depth", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    actingUserId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
   };
@@ -3987,7 +5061,8 @@ describe("open_direct_chat", () => {
   const SCOPE_TURN = {
     id: SCOPE.turnId,
     sokoBotId: SCOPE.sokoBotId,
-    userId: SCOPE.userId,
+    actingUserId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
     workspaceId: SCOPE.workspaceId,
     eveSessionId: SCOPE.sessionId,
     source: "CHAT",
@@ -4061,8 +5136,35 @@ describe("open_direct_chat", () => {
           },
         }),
     );
-    return { turn: SCOPE_TURN } as never;
+    return { turn: SCOPE_TURN, reader: { sharedScope: null } } as never;
   }
+
+  it.each(["project", "workspace"] as const)(
+    "never opens a direct for a shared %s bot",
+    async (scope) => {
+      arm();
+      const authorized = {
+        turn: SCOPE_TURN,
+        reader: {
+          sharedScope: {
+            sokoBotId: SCOPE.sokoBotId,
+            workspaceId: SCOPE.workspaceId,
+            projectId: scope === "project" ? "project_1" : null,
+          },
+        },
+      } as never;
+
+      await expect(
+        new SokoBotRuntimeService()["openDirectChat"](authorized, {
+          person: "Nina",
+          message: "Hi",
+          toolCallId: "call_1",
+        }),
+      ).rejects.toThrow(/shared Soko Bot has no direct chats/);
+      expect(memberFindManyMock).not.toHaveBeenCalled();
+      expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("opens a direct with a colleague in the same organization", async () => {
     const authorized = arm();
@@ -4401,7 +5503,7 @@ describe("get_agent_input_schema", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["get_agent_input_schema"],
       contextSnapshot: {
@@ -4412,6 +5514,7 @@ describe("get_agent_input_schema", () => {
       userMessage: "What does this agent need?",
       classification: { confidence: 1 },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -4515,7 +5618,8 @@ describe("external effect receipt finalization", () => {
       turn: {
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
-        userId: SCOPE.userId,
+        actingUserId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
       },
     });
@@ -4798,6 +5902,7 @@ describe("Soko Bot project social tools", () => {
     projectId,
     provider: "x",
     text: "Launch",
+    firstComment: null,
     media: [],
     status: "DRAFT",
     scheduledAt: null,
@@ -4828,6 +5933,9 @@ describe("Soko Bot project social tools", () => {
     canSchedule: true,
     canCancel: true,
     canPublishNow: true,
+    canApprove: false,
+    canReject: false,
+    canDuplicate: false,
     connectionNeedsReconnect: false,
   };
   const tx = {
@@ -4919,6 +6027,7 @@ describe("Soko Bot project social tools", () => {
     );
     turnFindUniqueMock.mockResolvedValue({
       ...SCOPE,
+      requestedByUserId: SCOPE.userId,
       id: SCOPE.turnId,
       eveSessionId: SCOPE.sessionId,
       source: "CHAT",
@@ -4932,6 +6041,7 @@ describe("Soko Bot project social tools", () => {
         },
       },
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
@@ -5491,7 +6601,12 @@ describe("Soko Bot project social tools", () => {
 
 describe("Drive file tools", () => {
   const authorized = {
-    turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+    turn: {
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+    },
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
@@ -5525,7 +6640,12 @@ describe("Drive file tools", () => {
     expect(files.search).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "personal-workspace",
-        actor: { userId: SCOPE.userId, organizationId: null, kind: "soko_bot" },
+        actor: {
+          userId: SCOPE.userId,
+          organizationId: null,
+          kind: "soko_bot",
+          sokoBotScope: null,
+        },
         query: "launch",
         sortBy: "relevance",
       }),
@@ -5546,6 +6666,106 @@ describe("Drive file tools", () => {
         },
       ],
     });
+  });
+
+  it("attaches a page the bot built to a Coworker's Task as plain text", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "page",
+        displayName: "index.html",
+        mimeType: "text/html",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/index.html",
+      },
+    ]);
+    files.download.mockResolvedValueOnce(
+      new TextEncoder().encode("<h1>Hi</h1>"),
+    );
+    files.put.mockResolvedValueOnce({
+      url: "https://blob/tasks/task-1/index.html",
+    });
+    const result = await service["attachDriveFiles"](
+      {
+        ...authorized,
+        turn: { ...authorized.turn, sokoBotId: SCOPE.sokoBotId },
+      } as never,
+      "task-1",
+      ["page", "missing"],
+    );
+    expect(files.put).toHaveBeenCalledWith(
+      expect.stringContaining("task-1"),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "text/plain" }),
+    );
+    expect(files.taskFileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          taskId: "task-1",
+          name: "index.html",
+          mimeType: "text/plain",
+          uploadedBySokoBotId: SCOPE.sokoBotId,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      attached: [{ fileId: "page", name: "index.html" }],
+      skipped: [
+        { fileId: "missing", reason: "not found; use an id from list_files" },
+      ],
+    });
+  });
+
+  it("puts an attached file's text into the brief a Coworker reads", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "brief",
+        displayName: "brief.md",
+        mimeType: "text/markdown",
+        contentRevision: 1,
+        extractionState: "SUCCEEDED",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "- Article 50 applies" }]);
+    await expect(
+      service["withInlineFiles"](authorized as never, "Review this.", [
+        "brief",
+      ]),
+    ).resolves.toBe("Review this.\n\n--- brief.md ---\n- Article 50 applies");
+  });
+
+  it("reads files as a shared bot's scope, not as the member", async () => {
+    const sharedScope = {
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      projectId: "project-1",
+    };
+    const shared = {
+      ...authorized,
+      reader: { userId: SCOPE.userId, audience: "TEAMMATE", sharedScope },
+    };
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org-1",
+    });
+    files.search.mockResolvedValue({ items: [] });
+    files.loadLive.mockResolvedValueOnce([]);
+    await service["listFiles"](shared as never, {});
+    await expect(
+      service["readFile"](shared as never, { fileId: "file-1" }),
+    ).rejects.toThrow("File not found");
+    const actor = {
+      userId: SCOPE.userId,
+      organizationId: "org-1",
+      kind: "soko_bot",
+      sokoBotScope: sharedScope,
+    };
+    expect(files.search).toHaveBeenCalledWith(
+      expect.objectContaining({ actor }),
+    );
+    expect(files.loadLive).toHaveBeenCalledWith(
+      expect.objectContaining({ actor }),
+    );
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {
@@ -5774,10 +6994,12 @@ describe("Drive file tools", () => {
     const url = `https://abc.public.blob.vercel-storage.com/users/${SCOPE.userId}/chats/${roomId}/1-sign-in-x7Yq.png`;
     const chatAuthorized = {
       turn: {
-        userId: SCOPE.userId,
+        actingUserId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
         workspaceId: SCOPE.workspaceId,
         sokoBotId: SCOPE.sokoBotId,
       },
+      reader: authorized.reader,
     };
     const bytes = new Uint8Array([137, 80, 78, 71]);
 
@@ -5932,14 +7154,28 @@ describe("Drive file tools", () => {
 describe("Content Studio image tools", () => {
   const ownerChat = {
     askedByKind: "OWNER",
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
     turn: {
       id: SCOPE.turnId,
-      userId: SCOPE.userId,
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       source: "CHAT",
       chainDepth: 0,
     },
   };
+  const projectBotChat = (projectId: string | null) => ({
+    ...ownerChat,
+    reader: {
+      userId: SCOPE.userId,
+      audience: "TEAMMATE",
+      sharedScope: {
+        sokoBotId: SCOPE.sokoBotId,
+        workspaceId: SCOPE.workspaceId,
+        projectId,
+      },
+    },
+  });
   const service = new SokoBotRuntimeService();
   const generate = (authorized: unknown, input: unknown, callId: string) =>
     service["generateImage"](authorized as never, input, callId);
@@ -5952,6 +7188,32 @@ describe("Content Studio image tools", () => {
     images.credits.mockReturnValue(4);
     images.access.mockResolvedValue({ organizationId: null });
     toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("refuses a project bot an image in another Project", async () => {
+    await expect(
+      generate(projectBotChat("project-2"), request, "call-p"),
+    ).rejects.toThrow("works only in its own Project");
+    await expect(
+      service["getImage"](projectBotChat("project-2") as never, {
+        projectId: "project-1",
+        jobId: "job-1",
+      }),
+    ).rejects.toThrow("works only in its own Project");
+    expect(images.access).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["its own Project", "project-1"],
+    ["any Project, as a workspace bot", null],
+  ])("lets a shared bot make an image in %s", async (_label, projectId) => {
+    await expect(
+      service["checkImageRequest"](
+        projectBotChat(projectId) as never,
+        request,
+        "call-q",
+      ),
+    ).resolves.toMatchObject({ credits: 4 });
   });
 
   it("stops a turn after four images, counting only ones not refused", async () => {
@@ -6301,7 +7563,8 @@ describe("create_task on an event turn", () => {
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       workspaceId: SCOPE.workspaceId,
-      userId: SCOPE.userId,
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       source: "EVENT",
     },
   };
@@ -6368,12 +7631,13 @@ describe("find_agents", () => {
       userMessage: "find an agent",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       capabilityNames: ["find_agents"],
       contextSnapshot: { id: "snapshot", packet: { memory: { version: 1 } } },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
+      createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
@@ -6454,6 +7718,27 @@ describe("archive_task without approval cards", () => {
     expect(createDecision).not.toHaveBeenCalled();
   });
 
+  it("refuses archiving for a turn that acts for nobody", async () => {
+    const service = new SokoBotRuntimeService();
+    const apply = vi.spyOn(
+      service as unknown as {
+        applyTaskMutation: (...args: unknown[]) => Promise<unknown>;
+      },
+      "applyTaskMutation",
+    );
+    await expect(
+      service["mutateTask"](
+        {
+          turn: { id: "turn_1", actingUserId: null, workspaceId: "w" },
+        } as never,
+        { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).rejects.toThrow("needs an Organization owner or admin");
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it("says why a Task the owner may not change can't be archived", async () => {
     const service = new SokoBotRuntimeService();
     vi.spyOn(
@@ -6473,7 +7758,8 @@ describe("archive_task without approval cards", () => {
         {
           turn: {
             id: "turn_1",
-            userId: "u",
+            actingUserId: "u",
+            requestedByUserId: "u",
             workspaceId: "w",
             sokoBotId: "bot",
             source: "CHAT",

@@ -20,7 +20,7 @@
         #expect(fixture.editing.source == nil)
       }
 
-      /// The fixture has no signed-in client, so `saveMessageEdit` stops at `resolveClient` and no PATCH is
+      /// The fixture has no signed-in client, so `openRoom.saveEdit` stops at the session's `access` hook and no PATCH is
       /// observable here; `WorkspaceStateTests.savedEditUpdatesRoomParentOrThreadReply` covers that side.
       @Test func returnOnAChangedDraftNeitherCancelsNorAddsALine() async throws {
         let fixture = try await MessageEditComposerFixture.make()

@@ -96,13 +96,14 @@ import Testing
     #expect(post.visibleMedia.count == 4)
   }
 
-  @Test func withoutTimeOrSummaryThePreviewUsesTheRecordingAndTheTitle() async throws {
+  @Test func withoutTimeOrSummaryThePreviewReadsNowAndUsesTheTitle() async throws {
     let card = try #require(await Self.cards([Self.bareJSON], ids: [Self.bareId]).first)
     let post = try #require(card.social)
     #expect(post.provider == .linkedin)
     #expect(post.handle == nil && post.displayName == nil && post.avatarURL == nil)
     #expect(post.text == "Hello")
-    #expect(post.timestamp == Date(timeIntervalSince1970: 1_791_382_080))
+    // Web (#6026): no publish time is a draft or a post going out now, never the time the result was recorded.
+    #expect(post.timestamp == nil)
     #expect(post.media.isEmpty)
     #expect(post.name(fallback: "Your account") == "Your account")
     #expect(post.atHandle == nil)

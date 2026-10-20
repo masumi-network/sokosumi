@@ -23,7 +23,7 @@ export const sokoBotSummarySchema = z
     avatarImageUrl: z.string().nullable().openapi({
       example: "https://blob.example/mascot.png",
     }),
-    owner: userSummarySchema,
+    owner: z.union([userSummarySchema, z.null()]),
   })
   .openapi("SokoBotSummary");
 
@@ -286,7 +286,11 @@ export const sokoBotTurnSchema = z
 export const sokoBotSchema = z
   .object({
     id: z.string().uuid(),
-    userId: z.string(),
+    /** Null for a project or workspace bot, which has no owner. */
+    userId: z.string().nullable(),
+    projectId: z.string().uuid().nullable().optional(),
+    /** Whether the viewer may archive, delete or reset this bot. */
+    viewerCanManage: z.boolean().optional(),
     name: z.string().nullable(),
     avatarSeed: z.string().nullable(),
     personalityTone: z.number().int().nullable(),
@@ -331,27 +335,6 @@ export const sokoBotActivitySchema = z
     lastTurnAt: dateTimeSchema.nullable(),
   })
   .openapi("SokoBotActivity");
-
-export const sokoBotStateSchema = z
-  .object({
-    // hey-api supports a named-schema union with null, but Swift codegen drops it.
-    // Inline the nullable object to keep the named SokoBot schema non-nullable.
-    sokoBot: z.object(sokoBotSchema.shape).nullable(),
-  })
-  .openapi("SokoBotState");
-
-export const createSokoBotRequestSchema = z
-  .object({
-    name: z.string().trim().min(1).max(80),
-    avatarSeed: z.string().max(200).nullable().optional(),
-    /** Mascot from the avatar pool to claim for this bot. */
-    avatarId: z.string().uuid().nullable().optional(),
-    personalityTone: z.number().int().min(0).max(100).nullable().optional(),
-    personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
-    personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
-  })
-  .strict()
-  .openapi("CreateSokoBotRequest");
 
 export const startSokoBotTurnRequestSchema = z
   .object({
@@ -430,7 +413,7 @@ export const adminSokoBotListItemSchema = z
     turnCount: z.number().int().nonnegative(),
     pendingDecisionCount: z.number().int().nonnegative(),
     scheduleCount: z.number().int().nonnegative(),
-    owner: adminSokoBotOwnerSchema,
+    owner: z.union([adminSokoBotOwnerSchema, z.null()]),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -531,7 +514,7 @@ export const adminSokoBotDetailSchema = sokoBotSchema
     runtimeDeployment: z.string().nullable(),
     lastSandboxId: z.string().nullable(),
     archivedAt: dateTimeSchema.nullable(),
-    owner: adminSokoBotOwnerSchema,
+    owner: z.union([adminSokoBotOwnerSchema, z.null()]),
     turns: z.array(adminSokoBotTurnSchema),
     memoryRevisions: z.array(sokoBotMemorySchema),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema),
@@ -1076,6 +1059,8 @@ export const sokoBotDeletionResultSchema = z
       uploadedTaskFiles: z.number().int().nonnegative(),
       /** Task Schedules it created; the creator FK restricts a hard delete. */
       taskSchedules: z.number().int().nonnegative(),
+      /** Jobs it hired; the creator FK restricts a hard delete. */
+      jobs: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

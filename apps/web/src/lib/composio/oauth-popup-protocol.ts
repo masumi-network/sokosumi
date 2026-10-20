@@ -1,3 +1,4 @@
+import { SOKO_BOT_ID_PARAM } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
 /**
@@ -10,6 +11,23 @@ import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
  * of COOP, which is the reliable path for third-party OAuth.
  */
 export const COMPOSIO_OAUTH_NONCE_STORAGE_KEY = "sokosumi:composio:nonce";
+
+/**
+ * The shared bot a same-tab connection is for. Composio returns to the fixed
+ * callback page, not to our return URL, so the tab keeps the id for it.
+ */
+export const COMPOSIO_BOT_ID_STORAGE_KEY = "sokosumi:composio:bot-id";
+
+/** Remember (or forget) the shared bot before the tab leaves for Composio. */
+export function rememberComposioBotId(botId?: string | null): void {
+  try {
+    if (botId)
+      window.sessionStorage.setItem(COMPOSIO_BOT_ID_STORAGE_KEY, botId);
+    else window.sessionStorage.removeItem(COMPOSIO_BOT_ID_STORAGE_KEY);
+  } catch {
+    // No storage: the verifier then settles the caller's own bot.
+  }
+}
 
 export const COMPOSIO_OAUTH_BROADCAST_CHANNEL = "sokosumi:composio:oauth";
 export const COMPOSIO_OAUTH_POPUP_NAME_PREFIX =
@@ -118,6 +136,7 @@ export function buildComposioCallbackInlineScript(): string {
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
   const ackType = COMPOSIO_OAUTH_ACK_TYPE;
   const botVerifierPath = `${SOKO_BOT_ROUTE}/integrations/verify`;
+  const botIdKey = COMPOSIO_BOT_ID_STORAGE_KEY;
 
   return `(function(){
 try{
@@ -131,7 +150,12 @@ window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
 if(!nonce&&popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0)nonce=popupName.slice(${JSON.stringify(popupNamePrefix)}.length);
 var sessionUri=p.get("session_uri")||p.get("sessionUri");
 if(!nonce){
-if(sessionUri)window.location.replace(${JSON.stringify(botVerifierPath)}+"?session_uri="+encodeURIComponent(sessionUri));
+var botId="";
+try{
+botId=window.sessionStorage.getItem(${JSON.stringify(botIdKey)})||"";
+window.sessionStorage.removeItem(${JSON.stringify(botIdKey)});
+}catch(e){}
+if(sessionUri)window.location.replace(${JSON.stringify(botVerifierPath)}+"?session_uri="+encodeURIComponent(sessionUri)+(botId?"&${SOKO_BOT_ID_PARAM}="+encodeURIComponent(botId):""));
 return;
 }
 var rawStatus=(p.get("status")||"").toLowerCase();

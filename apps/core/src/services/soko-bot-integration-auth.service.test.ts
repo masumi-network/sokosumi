@@ -9,17 +9,10 @@ vi.mock("@/config/env", () => ({
   }),
 }));
 
-vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/services/soko-bot-integrations.service")
-    >();
-  return {
-    ...actual,
-    requireBot: (userId: string, workspaceId: string) =>
-      requireBot(userId, workspaceId),
-  };
-});
+vi.mock("@/services/soko-bot-integration-connection.service", () => ({
+  requireBot: (userId: string, workspaceId: string) =>
+    requireBot(userId, workspaceId),
+}));
 
 import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 

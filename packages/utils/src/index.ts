@@ -1,6 +1,7 @@
 export {
   CALENDAR_ACCESS_REVOKED_EVENT_NAME,
   CALENDAR_INVALIDATED_EVENT_NAME,
+  makeAgentJobsCapabilityResourceName,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
@@ -10,9 +11,9 @@ export {
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   makeWorkspaceCalendarChannelName,
-  type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
+  type RealtimeChannelEnvironment,
 } from "./ably-channel.js";
 export {
   AUTH_CAPTCHA_ACTION,
@@ -376,6 +377,8 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
@@ -387,10 +390,15 @@ export {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
+  splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";

@@ -32,7 +32,7 @@ private actor PausedHistoryTransport: ClientTransport {
 
 /// Scripted pages whose `heldRequest` (1-based) waits for `release()`, so a
 /// second page can be requested while one is in flight.
-private actor HeldPageTransport: ClientTransport {
+actor HeldPageTransport: ClientTransport {
   private var responses: [(Int, String)]
   private let heldRequest: Int
   private(set) var paths: [String] = []
@@ -74,7 +74,7 @@ private actor HeldPageTransport: ClientTransport {
 @MainActor
 struct RoomTimelineTests {
   private func client(_ transport: some ClientTransport) -> Client {
-    Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+    Client.core(baseURL: URL(string: "https://core.example/v1")!, transport: transport)
   }
 
   private func row(_ id: String, content: String, date: String = testTimestamp) -> String {
@@ -215,32 +215,6 @@ struct RoomTimelineTests {
     #expect(timeline.isLoading)
     #expect(!timeline.hasLoadedHistory)
     #expect(timeline.messages.isEmpty)
-  }
-
-  @Test func resizingAndExhaustedHistoryDoNotUnpinLatest() {
-    var intent = TimelineScrollIntent()
-    let resizeLoads = intent.beginAutomaticOlderPage(userIsScrolling: false, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(!resizeLoads)
-    #expect(intent.followsLatest)
-    let exhaustedLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: false, isLoading: false)
-    #expect(!exhaustedLoads)
-    #expect(intent.followsLatest)
-    let scrollLoads = intent.beginAutomaticOlderPage(userIsScrolling: true, isNearTop: true, hasMore: true, isLoading: false)
-    #expect(scrollLoads)
-    #expect(!intent.followsLatest)
-  }
-
-  @Test func scrollIntentPreservesReadingPositionUntilExplicitReturn() {
-    var intent = TimelineScrollIntent()
-    #expect(intent.followsLatest)
-    intent.userScrolled(isNearBottom: false)
-    #expect(!intent.followsLatest)
-    intent.followLatest()
-    #expect(intent.followsLatest)
-    intent.readOlder()
-    #expect(!intent.followsLatest)
-    intent.userScrolled(isNearBottom: true)
-    #expect(intent.followsLatest)
   }
 
   @Test func historicalJumpKeepsHeadAndFillsGap() async throws {

@@ -75,6 +75,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "start_background_run",
+  "list_background_runs",
+  "stop_background_run",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -130,7 +133,26 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  // A brief is a prompt for a turn with this one's tools; a page must not write it.
+  "start_background_run",
 ] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * The tainted tools that stay refused even on work the owner asked for: they
+ * reach people or systems beyond the owner's own workspace. The rest — briefing
+ * a Coworker, hiring, saving to Files — is what a chained job the owner set
+ * out ("research, build the site, have it reviewed") is made of.
+ */
+export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
+  "run_integration_tool",
+  "post_chat",
+  "open_direct_chat",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
@@ -159,6 +181,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_social_account_statistics",
   "refresh_social_account_statistics",
   "get_social_post",
+  "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
   // schema stays on the hire route: fetching it calls the seller's server.
@@ -172,6 +195,12 @@ const SOCIAL_WRITE_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+] as const satisfies readonly SokoBotCapability[];
+
+/** Long work the bot hands to itself in the background. */
+const BACKGROUND_RUN_CAPABILITIES = [
+  "start_background_run",
+  "stop_background_run",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */
@@ -238,6 +267,25 @@ export function exceedsUnattendedHireBudget(params: {
   return unattended && params.maxCredits > params.ceiling;
 }
 
+/** Who an unattended turn tells the bot to ask: a shared bot has no owner. */
+function unattendedAsk(shared: boolean): string {
+  return shared ? "the team in your shared room" : "the owner";
+}
+
+/** Why a second hire in a turn nobody asked for was refused. */
+export function unattendedSecondHireRefusal(shared: boolean): string {
+  return `A turn nobody asked for may hire once. Report what you found and ask ${unattendedAsk(shared)} before hiring again.`;
+}
+
+/** Why a hire over the unattended ceiling was refused. */
+export function unattendedHireOverCeilingRefusal(
+  shared: boolean,
+  ceiling: number,
+  maxCredits: number,
+): string {
+  return `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${maxCredits}. ${shared ? `Ask ${unattendedAsk(true)} instead.` : "Ask the owner in their chat instead."}`;
+}
+
 /** Reads plus the sandbox: what every owner turn starts from. */
 const OWNER_BASE_CAPABILITIES = [
   ...DIRECT_READ_CAPABILITIES,
@@ -249,6 +297,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -263,6 +312,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   HIRE_AGENT: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -272,6 +322,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   MANAGE_WORK: [
     ...OWNER_BASE_CAPABILITIES,
+    ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,

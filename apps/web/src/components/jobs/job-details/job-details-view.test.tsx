@@ -119,6 +119,7 @@ function createJob(overrides?: Partial<Job>): Job {
 
   return {
     id: "job-1",
+    creator: null,
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: null,
@@ -386,6 +387,82 @@ describe("JobDetailsView", () => {
     expect(moveButton.parentElement).toHaveAttribute(
       "data-slot",
       "tooltip-trigger",
+    );
+  });
+
+  it("hides move on a job without an owner from a plain member and keeps rename", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: { id: "agent-1", credits: 100 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView
+        job={createJob({
+          ownerId: null,
+          owner: null,
+          workspace: {
+            id: "workspace-1",
+            organizationId: "org-1",
+            organization: null,
+          },
+        })}
+        organizations={[
+          {
+            organizationId: "org-1",
+            role: "member",
+            organization: { id: "org-2", name: "Other Org" },
+          } as never,
+        ]}
+        hasPersonalWorkspace
+        personalWorkspaceLabel="Ada Lovelace"
+        readOnly={false}
+        showAgentHeader
+      />,
+    );
+
+    expect(screen.queryByLabelText("moveToWorkspace")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("edit")).toBeInTheDocument();
+  });
+
+  it("lets an organization admin move a job without an owner, not into a personal workspace", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: { id: "agent-1", credits: 100 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView
+        job={createJob({
+          ownerId: null,
+          owner: null,
+          workspace: {
+            id: "workspace-1",
+            organizationId: "org-1",
+            organization: null,
+          },
+        })}
+        organizations={[
+          {
+            organizationId: "org-1",
+            role: "admin",
+            organization: { id: "org-2", name: "Other Org" },
+          } as never,
+        ]}
+        hasPersonalWorkspace
+        personalWorkspaceLabel="Ada Lovelace"
+        readOnly={false}
+        showAgentHeader
+      />,
+    );
+
+    expect(screen.getByLabelText("moveToWorkspace")).toBeInTheDocument();
+    expect(moveJobDialogMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ hasPersonalWorkspace: false }),
     );
   });
 });

@@ -5,7 +5,7 @@ import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { finalizeSokoBotIntegrationResponseSchema } from "@/schemas/soko-bot.schema";
-import { finalizeSokoBotIntegration } from "@/services/soko-bot-integrations.service";
+import { finalizeSokoBotIntegration } from "@/services/soko-bot-integration-connection.service";
 import {
   mapIntegrationError,
   providerParamSchema,

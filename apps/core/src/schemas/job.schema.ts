@@ -12,7 +12,13 @@ import {
   sokosumiJobStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
-import { userSummarySchema } from "@/schemas/user.schema";
+import {
+  deprecatedWorkUserIdSchema,
+  deprecatedWorkUserSchema,
+  workCreatorField,
+  workOwnerIdSchema,
+  workOwnerSchema,
+} from "@/schemas/work-creator.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
@@ -30,7 +36,7 @@ export const jobInputSchema = z
   })
   .openapi("Job Input");
 
-export const jobEventSchema = z
+const jobEventSchema = z
   .object({
     id: z.string().openapi({ example: "event_123" }),
     createdAt: dateTimeSchema,
@@ -55,22 +61,13 @@ export const jobSummarySchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
     /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
+    userId: deprecatedWorkUserIdSchema,
     /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()
@@ -116,7 +113,7 @@ export const jobSummarySchema = z
 
 export const jobSummariesSchema = z.array(jobSummarySchema);
 
-export const jobDetailsAgentSchema = z.object({
+const jobDetailsAgentSchema = z.object({
   id: z.string().openapi({ example: "agent_123" }),
   name: z.string().openapi({ example: "Research Agent" }),
   overrideName: z.string().nullish().openapi({ example: "My Research Agent" }),
@@ -166,7 +163,7 @@ export const jobDetailsAgentSchema = z.object({
     .openapi({ example: "https://example.com/custom-support" }),
 });
 
-export const jobDetailsEventInputSchema = z.object({
+const jobDetailsEventInputSchema = z.object({
   id: z.string().openapi({ example: "input_123" }),
   input: z.string().openapi({
     example: '{"prompt":"How many planets are in the solar system?"}',
@@ -175,7 +172,7 @@ export const jobDetailsEventInputSchema = z.object({
   signature: z.string().nullish().openapi({ example: "signature_123" }),
 });
 
-export const jobDetailsEventSchema = z.object({
+const jobDetailsEventSchema = z.object({
   id: z.string().openapi({ example: "event_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
@@ -196,22 +193,13 @@ export const jobSchema = z
     updatedAt: dateTimeSchema,
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Job owner. Always a user.",
-    }),
-    owner: userSummarySchema,
+    ownerId: workOwnerIdSchema,
+    owner: workOwnerSchema,
+    ...workCreatorField,
     /** @deprecated Use `ownerId`. */
-    userId: z.string().openapi({
-      example: "user_123",
-      deprecated: true,
-      description: "Deprecated. Use ownerId instead.",
-    }),
+    userId: deprecatedWorkUserIdSchema,
     /** @deprecated Use `owner`. */
-    user: userSummarySchema.openapi({
-      deprecated: true,
-      description: "Deprecated. Use owner instead.",
-    }),
+    user: deprecatedWorkUserSchema,
     organizationId: z
       .string()
       .nullish()

@@ -14,7 +14,11 @@ export type OrganizationCreditPoolAccess = "none" | "shared" | "enterprise";
 
 export interface OrganizationCreditBucketScopeContext {
   workspace: "organization";
-  userId: string;
+  /**
+   * The member charged. Null charges the Organization pool with no member,
+   * for work without an Owner (ADR 0057); no Seat applies.
+   */
+  userId: string | null;
   organizationId: string;
   poolAccess: OrganizationCreditPoolAccess;
 }
@@ -24,12 +28,15 @@ export type CreditBucketScopeContext =
   | OrganizationCreditBucketScopeContext;
 
 export async function resolveCreditBucketScopeContext(
-  userId: string,
+  userId: string | null,
   organizationId: string | null,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
 ): Promise<CreditBucketScopeContext> {
   if (!organizationId) {
+    if (userId === null) {
+      throw new Error("A personal credit balance needs a user");
+    }
     return {
       workspace: "personal",
       userId,
@@ -41,11 +48,19 @@ export async function resolveCreditBucketScopeContext(
     tx,
     now,
   );
-  const isConsumableEnterprise =
-    billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable;
+  const isConsumableEnterprise = isConsumableEnterprisePlan(billingPlan);
   const requiresAssignedSeat =
     billingPlan.mode === "enterprise_contract" ||
     (billingPlan.mode === "self_serve" && billingPlan.plan !== "free");
+
+  if (userId === null) {
+    return {
+      workspace: "organization",
+      userId,
+      organizationId,
+      poolAccess: isConsumableEnterprise ? "enterprise" : "shared",
+    };
+  }
 
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
     userId,
@@ -69,6 +84,33 @@ export async function resolveCreditBucketScopeContext(
     organizationId,
     poolAccess,
   };
+}
+
+function isConsumableEnterprisePlan(
+  billingPlan: Awaited<ReturnType<typeof resolveOrganizationBillingPlan>>,
+): boolean {
+  return billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable;
+}
+
+/**
+ * The pool a seated member of the Organization draws from, read without any
+ * member. Only for questions about the pool itself (is it empty?), never to
+ * authorize spend: spend stays gated by `resolveCreditBucketScopeContext`.
+ */
+export async function buildOrganizationPoolScopeSql(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+  now: Date = new Date(),
+): Promise<Prisma.Sql> {
+  const billingPlan = await resolveOrganizationBillingPlan(
+    organizationId,
+    tx,
+    now,
+  );
+  return organizationPoolSql(
+    organizationId,
+    isConsumableEnterprisePlan(billingPlan),
+  );
 }
 
 export async function hasAssignedOrganizationSeat(
@@ -134,9 +176,19 @@ export function buildCreditBucketScopeSql(
     return unsatisfiableOrganizationScopeSql(context.organizationId);
   }
 
+  return organizationPoolSql(
+    context.organizationId,
+    context.poolAccess === "enterprise",
+  );
+}
+
+function organizationPoolSql(
+  organizationId: string,
+  includeEnterprise: boolean,
+): Prisma.Sql {
   return Prisma.sql`
-    cb."organizationId" = ${context.organizationId}
-    AND ${buildOrganizationSharedScopeSql(context.poolAccess === "enterprise")}
+    cb."organizationId" = ${organizationId}
+    AND ${buildOrganizationSharedScopeSql(includeEnterprise)}
   `;
 }
 

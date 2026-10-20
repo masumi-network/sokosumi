@@ -47,7 +47,7 @@ public struct ResultSocialPost: Equatable, Sendable {
   }
 
   /// Web's grid shows at most four pictures (`PreviewMediaGrid`).
-  public static let visibleMediaLimit = 4
+  private static let visibleMediaLimit = 4
   /// LinkedIn folds after three lines or 210 characters, Instagram after two lines or 125.
   public static let linkedInFold = (maxChars: 210, maxLines: 3)
   public static let instagramFold = (maxChars: 125, maxLines: 2)
@@ -59,11 +59,12 @@ public struct ResultSocialPost: Equatable, Sendable {
   public let avatarURL: String?
   /// Web: `result.summary ?? result.title`.
   public let text: String
-  /// Web: when it was published, else when it is scheduled, else when the result was recorded.
-  public let timestamp: Date
+  /// Web: when it was published, else when it is scheduled; nil reads as "now" (a draft or a post going out now,
+  /// web #6026), never the time the result was recorded.
+  public let timestamp: Date?
   public let media: [Media]
 
-  init(provider: Provider, handle: String?, displayName: String?, avatarURL: String?, text: String, timestamp: Date, media: [Media]) {
+  init(provider: Provider, handle: String?, displayName: String?, avatarURL: String?, text: String, timestamp: Date?, media: [Media]) {
     self.provider = provider
     self.handle = handle
     self.displayName = displayName
@@ -83,7 +84,7 @@ public struct ResultSocialPost: Equatable, Sendable {
     avatarURL = social.account?.avatarUrl.flatMap { $0.isEmpty ? nil : $0 }
     // `??` keeps an empty summary, as web's does.
     text = result.summary ?? result.title
-    timestamp = social.timestamp ?? result.capturedAt
+    timestamp = social.timestamp
     media = (result.outputs ?? []).enumerated().compactMap { index, output in
       guard let previewHref = output.previewHref, !previewHref.isEmpty, let type = output.contentType,
             let kind = Self.mediaKind(type) else { return nil }

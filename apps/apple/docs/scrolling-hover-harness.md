@@ -278,10 +278,10 @@ import SwiftUI
     defer { ProcessInfo.processInfo.endActivity(activity) }
     URLProtocol.registerClass(ScrollMediaProtocol.self)
     let count = Int(env["HITCH_COUNT"] ?? "600") ?? 600
-    let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
-    state.timeline.reset(roomId: "fixture")
-    state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-    state.timeline.messages = Self.fixture(count)
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    state.room.timeline.reset(roomId: "fixture")
+    state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+    state.room.timeline.messages = Self.fixture(count)
     let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
       .environmentObject(state).environmentObject(AuthState(store: InMemoryTokenStore())))
     let window = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 1100, height: 800), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -370,10 +370,10 @@ import SwiftUI
 
   init() {
     URLProtocol.registerClass(ScrollMediaProtocol.self)
-    state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
-    state.timeline.reset(roomId: "fixture")
-    state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-    state.timeline.messages = (0 ..< 80).map { index in
+    state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    state.room.timeline.reset(roomId: "fixture")
+    state.room.timeline.failInitialLoad(message: "", generation: state.room.timeline.generation)
+    state.room.timeline.messages = (0 ..< 80).map { index in
       var content = "Message \(index). We should definitely do it for all, but we are currently not there yet with CLI / Skills."
       if index % 4 == 1 {
         content += "\n\n![Screenshot 2026-10-01 at 03.07.21.png](https://scroll-fixture.invalid/shot-\(index).png)"
@@ -749,7 +749,7 @@ struct MinimalList: View {
     let passes = Int(env["HITCH_BENCH"] ?? "40") ?? 40
     let messages = Self.fixture(rows)
     let documents = messages.map { MessageMarkdown($0.content, diagrams: true) }
-    let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
     let auth = AuthState(store: InMemoryTokenStore())
     let window = NSWindow(contentRect: NSRect(x: 200, y: 100, width: 1100, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
     window.level = .floating
@@ -802,16 +802,16 @@ struct MinimalList: View {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [PagedCoreProtocol.self]
     let client = Client.connecting(to: URL(string: "https://paging-fixture.invalid/v1")!, session: URLSession(configuration: configuration))
-    let state = WorkspaceState(clientProvider: { _ in client })
-    state.timeline.reset(roomId: "fixture")
-    _ = try? await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    let state = WorkspaceState(auth: AuthState(store: InMemoryTokenStore()), clientProvider: { _ in client })
+    state.room.timeline.reset(roomId: "fixture")
+    _ = try? await state.room.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.room.timeline.generation)
     let touchEvery = Double(env["HITCH_TOUCH_MS"] ?? "0") ?? 0
-    guard state.timeline.messages.count == min(count, Int(env["HITCH_INITIAL"] ?? "100") ?? 100), state.transcriptHasMore || touchEvery > 0 else {
-      print("{\"error\":\"initial page: \(state.timeline.messages.count) messages, hasMore \(state.transcriptHasMore)\"}")
+    guard state.room.timeline.messages.count == min(count, Int(env["HITCH_INITIAL"] ?? "100") ?? 100), state.room.timeline.hasMore || touchEvery > 0 else {
+      print("{\"error\":\"initial page: \(state.room.timeline.messages.count) messages, hasMore \(state.room.timeline.hasMore)\"}")
       return
     }
     let minimal = MinimalRows()
-    minimal.rows = state.timeline.messages.map { .init(id: $0.id, text: $0.content) }
+    minimal.rows = state.room.timeline.messages.map { .init(id: $0.id, text: $0.content) }
     let host: NSView = env["HITCH_MINIMAL"] == "1" ? NSHostingView(rootView: MinimalList(model: minimal))
       : NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
         .environmentObject(state).environmentObject(AuthState(store: InMemoryTokenStore())))
@@ -842,10 +842,10 @@ struct MinimalList: View {
       try? await Task.sleep(for: .seconds(1))
     }
     let started = ProcessInfo.processInfo.systemUptime
-    observation = state.timeline.$messages.dropFirst().sink { [weak self] messages in
+    observation = state.room.timeline.$messages.dropFirst().sink { [weak self] messages in
       self?.inserts.append((ProcessInfo.processInfo.systemUptime, messages.count))
     }
-    beginObservation = state.timeline.$isLoadingOlder.removeDuplicates().dropFirst().filter { $0 }.sink { [weak self] _ in
+    beginObservation = state.room.timeline.$isLoadingOlder.removeDuplicates().dropFirst().filter { $0 }.sink { [weak self] _ in
       self?.begins.append(ProcessInfo.processInfo.systemUptime)
     }
     HitchProbe.prepares = []
@@ -862,8 +862,8 @@ struct MinimalList: View {
         flag.toggle()
         if env["HITCH_APPEND"] == "1" {
           // Thirty newer messages below the reader, as a page landing where they are not reading.
-          let base = state.timeline.messages.count
-          state.timeline.messages += Self.fixture(base + 30).suffix(30).map { message in
+          let base = state.room.timeline.messages.count
+          state.room.timeline.messages += Self.fixture(base + 30).suffix(30).map { message in
             var newer = message
             newer.id = "append-\(message.id)"
             return newer
@@ -889,14 +889,14 @@ struct MinimalList: View {
           // Thirty older messages above the reader, wherever the reader is.
           let older = Self.fixture(30).map { message in
             var prior = message
-            prior.id = "prepend-\(state.timeline.messages.count)-\(message.id)"
+            prior.id = "prepend-\(state.room.timeline.messages.count)-\(message.id)"
             prior.createdAt = message.createdAt.addingTimeInterval(-10_000_000)
             return prior
           }
-          state.timeline.messages.insert(contentsOf: older, at: 0)
+          state.room.timeline.messages.insert(contentsOf: older, at: 0)
           continue
         }
-        state.timeline.messages[0].reactions = flag ? [.init(emoji: "👀", count: 1, reactedByCurrentUser: false, reactors: [.init(id: "u8", name: "Eyes")])] : []
+        state.room.timeline.messages[0].reactions = flag ? [.init(emoji: "👀", count: 1, reactedByCurrentUser: false, reactors: [.init(id: "u8", name: "Eyes")])] : []
       }
     } : nil
     let flicks = Int(env["HITCH_FLICKS"] ?? "6") ?? 6
@@ -944,7 +944,7 @@ struct MinimalList: View {
     }
     let sorted = gaps.map(\.ms).sorted()
     let result: [String: Any] = [
-      "count": count, "elapsed_s": elapsed, "messages_end": state.timeline.messages.count,
+      "count": count, "elapsed_s": elapsed, "messages_end": state.room.timeline.messages.count,
       "requests": PagedCoreProtocol.requests.withLock { $0 }, "row_bodies": HitchProbe.rowBodies,
       "frames": sorted.count, "p50_ms": sorted.isEmpty ? 0 : sorted[sorted.count / 2],
       "p95_ms": sorted.isEmpty ? 0 : sorted[sorted.count * 95 / 100], "max_ms": sorted.last ?? 0,

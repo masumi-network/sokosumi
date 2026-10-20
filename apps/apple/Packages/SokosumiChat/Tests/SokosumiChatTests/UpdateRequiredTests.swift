@@ -9,7 +9,7 @@ import Testing
 struct UpdateRequiredTests {
   @Test func outdatedBuildOpensTheUpdateScreen() async throws {
     let state = WorkspaceSession()
-    await #expect(throws: ClientError.self) { try await state.load(client: client()) }
+    await #expect(throws: CoreUpdateRequired()) { try await state.load(client: client()) }
     #expect(state.phase == .updateRequired)
   }
 
@@ -23,15 +23,14 @@ struct UpdateRequiredTests {
   }
 
   @Test func theRoleProbeDoesNotHideAnUpdate() async throws {
-    let error = await #expect(throws: ClientError.self) {
+    await #expect(throws: CoreUpdateRequired()) {
       try await ChatService().organizationOwnerOrAdminIfReadable(client: client(), organizationId: "org_1")
     }
-    #expect(try updateRequired(in: #require(error)) == CoreUpdateRequired())
   }
 
   private func client() throws -> Client {
-    try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
+    try Client.core(
+      baseURL: #require(URL(string: "https://core.example/v1")),
       transport: OutdatedTransport(),
       middlewares: [ClientBuildMiddleware(build: "2")]
     )

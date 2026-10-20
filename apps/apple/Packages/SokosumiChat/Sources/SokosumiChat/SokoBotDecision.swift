@@ -97,22 +97,16 @@ public extension ChatService {
   /// caller's decisions. Decisions are the owner's, so the operation carries no workspace header. Returns the status
   /// Core settled on.
   func resolveSokoBotDecision(client: Client, decisionId: String, resolution: SokoBotDecision.Resolution) async throws -> SokoBotDecision.Status {
-    let response = try await client.resolveMySokoBotDecision(.init(
-      path: .init(decisionId: decisionId),
-      body: .json(.init(resolution: resolution == .accept ? .accept : .reject))
-    ))
-    switch response {
-    case let .ok(value):
-      let status = try value.body.json.data.status.rawValue
-      guard let settled = SokoBotDecision.Status(rawValue: status) else {
-        throw ChatServiceError.unexpectedResponse("Unknown decision status \(status)")
-      }
-      return settled
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .conflict(value): throw try rejected(status: 409, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
+    let value = try await call {
+      try await client.resolveMySokoBotDecision(.init(
+        path: .init(decisionId: decisionId),
+        body: .json(.init(resolution: resolution == .accept ? .accept : .reject))
+      ))
+    }.ok
+    let status = try value.body.json.data.status.rawValue
+    guard let settled = SokoBotDecision.Status(rawValue: status) else {
+      throw ChatServiceError.unexpectedResponse("Unknown decision status \(status)")
     }
+    return settled
   }
 }

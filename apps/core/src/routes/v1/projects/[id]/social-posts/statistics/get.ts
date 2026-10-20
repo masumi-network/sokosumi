@@ -18,7 +18,10 @@ import {
   socialPostStatisticsSummarySchema,
 } from "@/schemas/social-post-statistics.schema";
 import { listSocialPostStatistics } from "@/services/social-post-statistics.service";
-import { mapSocialPostServiceError } from "../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "../route-helpers.js";
 
 const responseSchema = z
   .object({
@@ -69,10 +72,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         responseSchema.parse({
           ...result,
-          posts: result.posts.map((post) => ({
-            ...post,
-            canPublishNow: post.canPublishNow && !actor.coworkerId,
-          })),
+          posts: result.posts.map((post) =>
+            presentSocialPost(post, actor.coworkerId),
+          ),
         }),
       );
     } catch (error) {

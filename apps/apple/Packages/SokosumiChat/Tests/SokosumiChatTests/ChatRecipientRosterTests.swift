@@ -110,7 +110,7 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(member))
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let roster = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     #expect(roster.recipients.targets.map(\.id) == [.human("me")])
     #expect(roster.isOwnerOrAdmin == (role != "member"))
@@ -129,7 +129,7 @@ struct ChatRecipientRosterTests {
       "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(membership)),
       "post/chats/rooms/{id}/members": (200, roomEnvelope(room))
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let model = ChannelMemberAddition(room: room)
     await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team").recipients }
     #expect(model.membersLoadFailed)
@@ -157,7 +157,7 @@ struct ChatRecipientRosterTests {
       "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
       "getMySokoBot": (503, "{}")
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let model = ChannelMemberAddition(room: editableRoomFixture())
     await model.load { try await ChatService().chatRecipients(client: client, organizationId: "org", organizationSlug: "team") }
     #expect(model.roster == nil)
@@ -177,7 +177,7 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (status, body)
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let model = ChannelCreation()
     model.draft.setSlug("team")
     await model.checkSlug { _ in true }
@@ -209,7 +209,7 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (401, errorEnvelope("Unauthorized", message: "Session expired"))
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
       _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     }
@@ -223,8 +223,8 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (401, body)
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
-    await #expect(throws: ChatServiceError.unauthorized("Log in required.")) {
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
+    await #expect(throws: ChatServiceError.unauthorized("Core rejected the request.")) {
       _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     }
   }
@@ -238,7 +238,7 @@ struct ChatRecipientRosterTests {
       "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
       "getMySokoBot": (503, "{}")
     ], roleFailure: failure)
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     #expect(!Task.isCancelled)
     await #expect(throws: CancellationError.self) {
       _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
@@ -252,7 +252,7 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (0, "")
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let task = Task {
       withUnsafeCurrentTask { $0?.cancel() }
       return try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
@@ -271,7 +271,7 @@ struct ChatRecipientRosterTests {
       "get/organizations/{id}/members": (200, rosterEnvelope("[" + [memberFixture(id: "me", name: "Me"), memberFixture(id: "peer", name: "")].joined(separator: ",") + "]")),
       "getMySokoBot": (200, rosterEnvelope(#"{"sokoBot":\#(assistantFixture)}"#))
     ])
-    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport)
     let roster = try await ChatService().directRecipients(
       client: client, yourself: .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: "https://example.com/ada.png"),
       organizationId: "org", organizationSlug: "team"
@@ -297,7 +297,7 @@ struct ChatRecipientRosterTests {
         "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
       ])
       let roster = try await ChatService().directRecipients(
-        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
+        client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
         yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
       )
       // Message yourself needs no organization and no member list (web `create-direct-dialog.tsx`:53-64).
@@ -322,7 +322,7 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
     ])
     let roster = try await ChatService().directRecipients(
-      client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
+      client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
       yourself: .messageYourself(userId: "me", name: "Ada", imageURL: "https://example.com/ada.png"),
       organizationId: "org", organizationSlug: "acme"
     )
@@ -341,7 +341,7 @@ struct ChatRecipientRosterTests {
   func aRecipientFailureStillOffersMessageYourself(organization: String?) async throws {
     let transport = RosterTransport(["get/coworkers": (503, #"{"message":"Try again"}"#)])
     let roster = try await ChatService().directRecipients(
-      client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
+      client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: transport),
       yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
     )
     #expect(roster.targets == [.messageYourself(userId: "me", name: "Ada", imageURL: nil)])
@@ -355,14 +355,14 @@ struct ChatRecipientRosterTests {
     let unavailable = RosterTransport(["get/coworkers": (503, #"{"message":"Try again"}"#)])
     await #expect(throws: ChatServiceError.self) {
       try await ChatService().directRecipients(
-        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: unavailable),
+        client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: unavailable),
         yourself: nil, organizationId: nil, organizationSlug: nil
       )
     }
     let expired = RosterTransport(["get/coworkers": (401, errorEnvelope("Unauthorized", message: "Session expired"))])
     await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
       try await ChatService().directRecipients(
-        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: expired),
+        client: Client.core(baseURL: #require(URL(string: "https://example.com")), transport: expired),
         yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: nil, organizationSlug: nil
       )
     }

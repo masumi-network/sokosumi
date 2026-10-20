@@ -9,9 +9,11 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import { firstQueryString } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import { userService } from "@/lib/services/user.service";
 
 import {
   parseSchedulesViewMode,
@@ -37,11 +39,13 @@ export async function SchedulesPageContent({
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const requestedProjectId = firstQueryString(params.projectId) ?? null;
   const state = parseTaskScheduleStateFilter(params.scheduleState);
-  const [projectOptions, assigneeOptions, canCreate] = await Promise.all([
-    getProjectFilterOptions(requestedProjectId),
-    loadTaskScheduleAssigneeOptions(activeOrganizationId),
-    organizationSeatService.hasAssignedSeat(activeOrganizationId),
-  ]);
+  const [projectOptions, assigneeOptions, canCreate, members] =
+    await Promise.all([
+      getProjectFilterOptions(requestedProjectId),
+      loadTaskScheduleAssigneeOptions(activeOrganizationId),
+      organizationSeatService.hasAssignedSeat(activeOrganizationId),
+      userService.getMyMembersWithOrganizations(),
+    ]);
   const projectId = projectOptions.some(
     (project) => project.id === requestedProjectId,
   )
@@ -68,6 +72,10 @@ export async function SchedulesPageContent({
         selectedState={state}
         canCreate={canCreate}
         canCreatePrivate={activeOrganizationId !== null}
+        canDeleteUnowned={viewerIsOrganizationOwnerOrAdmin(
+          activeOrganizationId,
+          members,
+        )}
       />
     </div>
   );

@@ -87,13 +87,13 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
-  socialMenuEnabled: boolean;
+  socialBetaEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
-  socialMenuEnabled,
+  socialBetaEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -115,7 +115,7 @@ export default function Sidebar({
           </Suspense>
           <PersonalAssistantNav />
           <SidebarSeparator className="-mt-px" />
-          <MenuItems socialMenuEnabled={socialMenuEnabled} />
+          <MenuItems socialBetaEnabled={socialBetaEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>

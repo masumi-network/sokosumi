@@ -145,6 +145,7 @@ describe("applyOrganizationExitChatRevocation", () => {
             id: true,
             kind: true,
             archivedAt: true,
+            sharedSokoBot: { select: { id: true } },
           },
         },
       },
@@ -264,6 +265,33 @@ describe("applyOrganizationExitChatRevocation", () => {
       data: { archivedAt: expect.any(Date), updatedAt: expect.any(Date) },
     });
     expect(chatRoomDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a shared Soko Bot's room open when its last human leaves", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-bot",
+        room: {
+          id: "room-bot",
+          kind: "channel",
+          archivedAt: null,
+          sharedSokoBot: { id: "shared-bot" },
+        },
+      },
+    ]);
+    groupByMock.mockResolvedValue([]);
+
+    await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["room-bot"] } },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 
   it("does not revoke invites when other humans remain in the room", async () => {

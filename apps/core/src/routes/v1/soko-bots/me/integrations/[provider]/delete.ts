@@ -4,7 +4,7 @@ import { ok } from "@/helpers/response";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { disconnectSokoBotIntegration } from "@/services/soko-bot-integrations.service";
+import { disconnectSokoBotIntegration } from "@/services/soko-bot-integration-connection.service";
 import { mapIntegrationError, providerParamSchema } from "../../../helpers.js";
 
 const disconnectIntegrationRoute = createRoute({

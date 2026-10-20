@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
 
 /** Reopen the preferences panel from anywhere (e.g. a footer link). */
-export const OPEN_CONSENT_EVENT = "sokosumi:open-consent";
+const OPEN_CONSENT_EVENT = "sokosumi:open-consent";
 
 export function openConsentPreferences() {
   window.dispatchEvent(new Event(OPEN_CONSENT_EVENT));

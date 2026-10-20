@@ -54,7 +54,7 @@ import {
 /** Rows read per table. A table can dwarf any document. */
 export const TABLE_INDEX_MAX_ROWS = 2_000;
 /** Characters kept per table, matching the document extraction budget. */
-export const TABLE_INDEX_MAX_CHARS = 1_000_000;
+const TABLE_INDEX_MAX_CHARS = 1_000_000;
 /**
  * One page of the authorized row query.
  *

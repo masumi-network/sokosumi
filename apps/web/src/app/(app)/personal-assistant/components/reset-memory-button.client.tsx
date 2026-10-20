@@ -18,10 +18,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { resetSokoBotMemoryAction } from "@/lib/actions/soko-bot/action";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 export function ResetMemoryButton() {
   const t = useTranslations("App.SokoBot.Memory");
   const router = useRouter();
+  const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -43,7 +45,7 @@ export function ResetMemoryButton() {
           <AlertDialogAction
             onClick={() =>
               startTransition(async () => {
-                const result = await resetSokoBotMemoryAction({});
+                const result = await resetSokoBotMemoryAction({ botId });
                 if (!result.ok) {
                   toast.error(result.error.message ?? t("resetError"));
                   return;

@@ -96,8 +96,21 @@ function effect(overrides = {}) {
     },
     receipt: {
       status: "COMPLETED",
-      turn: { workspaceId: "workspace", userId: "owner", sokoBotId: "bot" },
+      turn: {
+        workspaceId: "workspace",
+        requestedByUserId: "owner",
+        sokoBotId: "bot",
+      },
     },
+    ...overrides,
+  };
+}
+function botRow(overrides = {}) {
+  return {
+    id: "bot",
+    userId: "owner",
+    archivedAt: null,
+    workspace: { organizationId: "org" },
     ...overrides,
   };
 }
@@ -126,7 +139,7 @@ beforeEach(() => {
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.find.mockResolvedValue(effect());
   mocks.workspace.mockResolvedValue({ id: "workspace" });
-  mocks.bot.mockResolvedValue({ id: "bot" });
+  mocks.bot.mockResolvedValue(botRow());
   mocks.message.mockResolvedValue(message());
   mocks.mentions.mockResolvedValue([]);
 });
@@ -184,6 +197,51 @@ describe("committed effect outbox", () => {
       });
     },
   );
+  it("asks for the turn's bot as the turn's member at both checks", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.bot).toHaveBeenCalledTimes(2);
+    for (const [args] of mocks.bot.mock.calls) {
+      expect(args.where).toEqual({
+        id: "bot",
+        workspaceId: "workspace",
+        deletedAt: null,
+        workspace: {
+          id: "workspace",
+          OR: [
+            { userId: "owner" },
+            { organization: { members: { some: { userId: "owner" } } } },
+          ],
+        },
+      });
+    }
+  });
+  it("publishes a shared bot's effect for its member", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null }));
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+  });
+  it.each([
+    ["another user's personal bot", botRow({ userId: "someone-else" })],
+    ["an archived bot", botRow({ archivedAt: new Date() })],
+    [
+      "a shared bot outside an Organization workspace",
+      botRow({ userId: null, workspace: { organizationId: null } }),
+    ],
+  ])("suppresses the effect for %s", async (_label, bot) => {
+    mocks.bot.mockResolvedValue(bot);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.publish).not.toHaveBeenCalled();
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reason: "AUTHORITY_REVOKED",
+    });
+  });
+  it("revokes a shared bot's effect between the two checks", async () => {
+    mocks.bot
+      .mockResolvedValueOnce(botRow({ userId: null }))
+      .mockResolvedValueOnce(null);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.publish).not.toHaveBeenCalled();
+  });
   it("suppresses changed audience rather than redirecting", async () => {
     const current = message();
     current.room.userMembers.push({ userId: "new-reader" });
@@ -194,6 +252,47 @@ describe("committed effect outbox", () => {
     expect(mocks.emitHumanMentions).not.toHaveBeenCalled();
     expect(mocks.update.mock.calls.at(-1)?.[0].data.reason).toBe(
       "AUDIENCE_CHANGED",
+    );
+  });
+  it("publishes into a shared bot's own room after members changed, without @all", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    const current = message();
+    current.room.userMembers.push({ userId: "new-reader" });
+    mocks.message.mockResolvedValue(current);
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.publish).toHaveBeenCalled();
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: false }),
+    );
+  });
+  it("keeps the audience check for a shared bot in another room", async () => {
+    mocks.bot.mockResolvedValue(
+      botRow({ userId: null, sharedRoomId: "other-room" }),
+    );
+    const current = message();
+    current.room.userMembers.push({ userId: "new-reader" });
+    mocks.message.mockResolvedValue(current);
+    expect(await deliverSokoBotEffect("effect")).toBe(false);
+    expect(mocks.update.mock.calls.at(-1)?.[0].data.reason).toBe(
+      "AUDIENCE_CHANGED",
+    );
+  });
+  it("finds the message only in a room that still takes assistant posts", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.message.mock.calls[0]?.[0]?.where.room).toEqual({
+      archivedAt: null,
+      OR: [
+        { sharedSokoBot: { is: null } },
+        { sharedSokoBot: { is: { archivedAt: null, deletedAt: null } } },
+      ],
+    });
+  });
+  it("keeps @all for a personal bot's message", async () => {
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.persistHumanMentions).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ expandAll: true }),
     );
   });
   it.each(["publish", "notify", "invalidate", "emitHumanMentions"] as const)(
@@ -274,6 +373,32 @@ describe("committed effect outbox", () => {
       "COMPLETED",
       null,
       { throwOnError: true },
+    );
+  });
+
+  /** The live update reaches the Task's Owner; a Task without one has nobody. */
+  it.each([
+    ["its Owner", "asker"],
+    ["nobody when it has no Owner", null],
+  ])("publishes a Soko Bot Task event to %s", async (_who, ownerId) => {
+    mocks.taskPublish.mockClear();
+    mocks.find.mockResolvedValue(
+      effect({
+        purpose: "TASK_EVENT",
+        payload: { taskId: "task", eventId: "event" },
+      }),
+    );
+    mocks.event.mockResolvedValue({
+      id: "event",
+      taskId: "task",
+      status: null,
+      task: { ownerId, creatorUserId: null },
+    });
+
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+
+    expect(mocks.taskPublish.mock.calls.map(([input]) => input.userId)).toEqual(
+      ownerId ? [ownerId] : [],
     );
   });
 });

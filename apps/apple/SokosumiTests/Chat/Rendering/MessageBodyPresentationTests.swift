@@ -113,7 +113,7 @@
       /// The real `MessageMarkdownView`, as the row hosts it, at a fixed width with an inset all round.
       private static func fixture(source: String, dark: Bool) throws -> BodyFixture {
         let session = URLSession(configuration: .ephemeral)
-        let client = try Client.connecting(to: #require(URL(string: "https://body-fixture.invalid/v1")), session: session)
+        let client = try Client.core(baseURL: #require(URL(string: "https://body-fixture.invalid/v1")), session: session)
         let workspaces = WorkspaceState(clientProvider: { _ in client })
         let content = MessageMarkdownView(source: source)
           .environmentObject(workspaces)
