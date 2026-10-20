@@ -444,10 +444,9 @@ export async function proxySandboxModelCall(
     // The runner may only ask for a reasoning summary; routing, region and
     // retention stay Core's.
     ...reasoning,
-    // Every step of a turn resends the same system prompt, tools and history
-    // prefix. Without a cache key a six-hour run read only 48% from cache.
-    openai: { ...reasoning.openai, promptCacheKey: claims.turnId },
-    gateway: { ...gateway, caching: "auto" },
+    // No promptCacheKey or Gateway caching: "auto". Tried on the Personal
+    // CRM run, the cache share fell from 43% to 26% and a step cost 3x.
+    gateway,
   };
 
   const log = logFor(claims);
