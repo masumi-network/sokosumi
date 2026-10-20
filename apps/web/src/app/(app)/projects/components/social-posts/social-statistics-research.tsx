@@ -34,6 +34,16 @@ interface CachedPost {
   text: string | null;
 }
 
+interface ResearchPostProps {
+  post: SocialStatisticsResearchPost;
+  author: Pick<
+    SocialPerformanceContact,
+    "name" | "username" | "avatarUrl"
+  > | null;
+}
+
+const POSTS_PER_BATCH = 6;
+
 function ResearchQuerySkeleton({ label }: { label: string }) {
   return (
     <div
@@ -95,19 +105,17 @@ function ResearchProfile({
   );
 }
 
-function ResearchPost({
-  post,
-  author,
-}: {
-  post: SocialStatisticsResearchPost;
-  author: Pick<
-    SocialPerformanceContact,
-    "name" | "username" | "avatarUrl"
-  > | null;
-}) {
+function ResearchPost({ post, author }: ResearchPostProps) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const postUrl =
+    post.url ?? `https://x.com/i/status/${encodeURIComponent(post.externalId)}`;
+
+  function handleSeeMore() {
+    window.open(postUrl, "_blank", "noopener,noreferrer");
+  }
+
   return (
-    <li className="min-w-0 space-y-3 rounded-lg border p-4">
+    <li className="flex h-full min-w-0 flex-col gap-2">
       <SocialPostPreview
         provider="x"
         compact
@@ -118,37 +126,103 @@ function ResearchPost({
           avatarUrl: author?.avatarUrl ?? null,
         }}
         text={post.text}
-        media={(post.media ?? []).map((media) => ({
-          kind: media.kind,
-          fileUrl: media.url,
-          pathname: media.url,
-          name: "",
-          size: 0,
-          mimeType: "",
-        }))}
+        media={(post.media ?? []).map((media) => {
+          const posterUrl = media.kind === "video" ? media.thumbnailUrl : null;
+          return {
+            kind: posterUrl ? "image" : media.kind,
+            fileUrl: posterUrl ?? media.url,
+            pathname: media.url,
+            name: t(
+              media.kind === "video" && !posterUrl
+                ? "research.postVideo"
+                : "research.postImage",
+            ),
+            size: 0,
+            mimeType: "",
+          };
+        })}
+        onSeeMore={handleSeeMore}
         timestamp={post.publishedAt ? new Date(post.publishedAt) : null}
       />
-      <SocialPostMetrics
-        compact
-        statistics={{
-          metrics: post.metrics,
-          fetchedAt: post.fetchedAt,
-          refreshAttemptedAt: null,
-          error: null,
-        }}
-      />
-      <a
-        className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 md:min-h-8"
-        href={
-          post.url ??
-          `https://x.com/i/status/${encodeURIComponent(post.externalId)}`
-        }
-        target="_blank"
-        rel="noreferrer noopener"
-      >
-        {t("research.openOnX")}
-      </a>
+      <div className="mt-auto space-y-2">
+        <SocialPostMetrics
+          compact
+          statistics={{
+            metrics: post.metrics,
+            fetchedAt: post.fetchedAt,
+            refreshAttemptedAt: null,
+            error: null,
+          }}
+        />
+        <a
+          className="inline-flex h-11 items-center text-sm underline underline-offset-4 md:h-8"
+          href={postUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {t("research.openOnX")}
+        </a>
+      </div>
     </li>
+  );
+}
+
+function ResearchPostGrid({
+  posts,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
+}: {
+  posts: ResearchPostProps[];
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => Promise<unknown>;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const [visibleCount, setVisibleCount] = useState(POSTS_PER_BATCH);
+  const shownCount = Math.min(visibleCount, posts.length);
+
+  async function handleShowMore() {
+    if (shownCount === posts.length && hasNextPage) await onLoadMore?.();
+    setVisibleCount(shownCount + POSTS_PER_BATCH);
+  }
+
+  if (posts.length === 0 && !hasNextPage) return null;
+
+  return (
+    <div className="space-y-4">
+      {posts.length ? (
+        <ul className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {posts.slice(0, visibleCount).map((item) => (
+            <ResearchPost key={item.post.id} {...item} />
+          ))}
+        </ul>
+      ) : null}
+      {shownCount < posts.length || hasNextPage ? (
+        <Button
+          type="button"
+          size="sm"
+          className="h-11 md:h-8"
+          variant="outline"
+          loading={isFetchingNextPage}
+          onClick={() => void handleShowMore()}
+        >
+          {t("research.showMore")}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function researchPostInteractions(post: SocialStatisticsResearchPost) {
+  const quotes = post.additionalMetrics.find((metric) =>
+    ["quote_count", "quotes"].includes(metric.key),
+  )?.value;
+  return (
+    (post.metrics.likes ?? 0) +
+    (post.metrics.comments ?? 0) +
+    (post.metrics.shares ?? 0) +
+    (quotes ?? 0)
   );
 }
 
@@ -252,6 +326,11 @@ export function SocialStatisticsResearch({
   const mentionPosts = audiencePages.flatMap((page) => page.posts ?? []);
   const discoveryPosts =
     discovery.data?.pages.flatMap((page) => page.posts) ?? [];
+  const benchmarkPosts = [...(benchmark.data?.posts ?? [])].sort(
+    (left, right) =>
+      (right.metrics.impressions ?? -1) - (left.metrics.impressions ?? -1) ||
+      researchPostInteractions(right) - researchPostInteractions(left),
+  );
 
   return (
     <section
@@ -400,18 +479,14 @@ export function SocialStatisticsResearch({
               ))}
             </ul>
           ) : null}
-          {mentionPosts.length ? (
-            <ul className="space-y-3">
-              {mentionPosts.map((item) => (
-                <ResearchPost
-                  key={item.post.id}
-                  post={item.post}
-                  author={item.author}
-                />
-              ))}
-            </ul>
-          ) : null}
-          {audience.hasNextPage ? (
+          <ResearchPostGrid
+            key={`${kind}:${postId}`}
+            posts={mentionPosts}
+            hasNextPage={kind === "mentions" && audience.hasNextPage}
+            isFetchingNextPage={audience.isFetchingNextPage}
+            onLoadMore={() => audience.fetchNextPage()}
+          />
+          {kind !== "mentions" && audience.hasNextPage ? (
             <Button
               type="button"
               size="sm"
@@ -464,7 +539,7 @@ export function SocialStatisticsResearch({
               <p className="text-muted-foreground text-sm">
                 {benchmark.data.coverage}
               </p>
-              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-4 xl:grid-cols-4 xl:gap-6">
                 {(
                   [
                     ["posts", benchmark.data.summary.postCount],
@@ -473,14 +548,29 @@ export function SocialStatisticsResearch({
                     ["interactions", benchmark.data.summary.interactions],
                   ] as const
                 ).map(([key, value]) => (
-                  <div key={key} className="space-y-1">
-                    <dt className="text-muted-foreground">
+                  <div key={key} className="flex min-w-0 flex-col">
+                    <dt className="text-muted-foreground mb-1 text-sm">
                       {t(`research.${key}`)}
                     </dt>
-                    <dd className="font-medium tabular-nums">
+                    <dd
+                      className="text-2xl font-semibold tracking-tight whitespace-nowrap tabular-nums sm:text-4xl"
+                      title={
+                        value == null
+                          ? t("research.unavailable")
+                          : format.number(value)
+                      }
+                    >
                       {value == null
-                        ? t("research.unavailable")
-                        : format.number(value)}
+                        ? "—"
+                        : format.number(
+                            value,
+                            Math.abs(value) >= 10000
+                              ? {
+                                  notation: "compact",
+                                  maximumFractionDigits: 1,
+                                }
+                              : { maximumFractionDigits: 2 },
+                          )}
                     </dd>
                   </div>
                 ))}
@@ -488,15 +578,18 @@ export function SocialStatisticsResearch({
               {benchmark.data.posts.length === 0 ? (
                 <EmptyState description={t("research.empty")} icon={Search} />
               ) : null}
-              <ul className="space-y-3">
-                {benchmark.data.posts.map((post) => (
-                  <ResearchPost
-                    key={post.id}
-                    post={post}
-                    author={benchmark.data.profile}
-                  />
-                ))}
-              </ul>
+              {benchmarkPosts.length ? (
+                <h4 className="text-sm font-semibold">
+                  {t("research.topPosts")}
+                </h4>
+              ) : null}
+              <ResearchPostGrid
+                key={benchmarkHandle}
+                posts={benchmarkPosts.map((post) => ({
+                  post,
+                  author: benchmark.data?.profile ?? null,
+                }))}
+              />
             </div>
           ) : null}
         </TabsContent>
@@ -545,27 +638,13 @@ export function SocialStatisticsResearch({
           discoveryPosts.length === 0 ? (
             <EmptyState description={t("research.empty")} icon={Search} />
           ) : null}
-          <ul className="space-y-3">
-            {discoveryPosts.map((item) => (
-              <ResearchPost
-                key={item.post.id}
-                post={item.post}
-                author={item.author}
-              />
-            ))}
-          </ul>
-          {discovery.hasNextPage ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-11 md:h-8"
-              variant="outline"
-              loading={discovery.isFetchingNextPage}
-              onClick={() => void discovery.fetchNextPage()}
-            >
-              {t("research.loadMore")}
-            </Button>
-          ) : null}
+          <ResearchPostGrid
+            key={discoveryTopic}
+            posts={discoveryPosts}
+            hasNextPage={discovery.hasNextPage}
+            isFetchingNextPage={discovery.isFetchingNextPage}
+            onLoadMore={() => discovery.fetchNextPage()}
+          />
         </TabsContent>
       </Tabs>
     </section>

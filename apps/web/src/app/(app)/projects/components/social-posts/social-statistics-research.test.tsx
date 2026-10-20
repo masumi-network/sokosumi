@@ -79,6 +79,12 @@ function samplePost(
   };
 }
 
+function samplePosts(count: number, prefix = "Post") {
+  return Array.from({ length: count }, (_, index) =>
+    samplePost({ id: `${prefix}-${index}`, text: `${prefix} ${index + 1}` }),
+  );
+}
+
 function renderResearch() {
   return render(
     <TestQueryProvider>
@@ -112,8 +118,14 @@ describe("SocialStatisticsResearch", () => {
                 media: [
                   {
                     kind: "image",
-                    url: "https://images.test/launch.jpg",
+                    url: "https://pbs.twimg.com/media/launch.jpg?format=jpg&name=small",
                     thumbnailUrl: null,
+                  },
+                  {
+                    kind: "video",
+                    url: "https://video.twimg.com/launch.mp4",
+                    thumbnailUrl:
+                      "https://pbs.twimg.com/ext_tw_video_thumb/launch.jpg",
                   },
                 ],
               }),
@@ -154,13 +166,33 @@ describe("SocialStatisticsResearch", () => {
     expect(preview).toHaveAttribute("data-compact", "true");
     expect(preview).toHaveTextContent("Bob");
     expect(preview).toHaveTextContent("@bob · Oct 1");
-    expect(preview.querySelector("img")).toHaveAttribute(
+    const images = within(preview).getAllByRole("img", {
+      name: copy.postImage,
+    });
+    expect(images[0]).toBeVisible();
+    expect(images[0]).toHaveAttribute(
       "src",
-      "https://images.test/launch.jpg",
+      "https://pbs.twimg.com/media/launch.jpg?format=jpg&name=small",
     );
+    expect(images[1]).toBeVisible();
+    expect(images[1]).toHaveAttribute(
+      "src",
+      "https://pbs.twimg.com/ext_tw_video_thumb/launch.jpg",
+    );
+    expect(preview.querySelector("video")).toBeNull();
     const card = preview.closest("li");
     expect(card).not.toBeNull();
     if (!card) throw new Error("Missing preview card");
+    expect(card).toHaveClass("flex", "h-full", "min-w-0", "flex-col", "gap-2");
+    expect(card).not.toHaveClass("border");
+    expect(card).not.toHaveClass("p-4");
+    expect(preview.parentElement).toBe(card);
+    expect(card.parentElement).toHaveClass(
+      "grid",
+      "gap-4",
+      "sm:grid-cols-2",
+      "xl:grid-cols-3",
+    );
     expect(
       within(card).getByText("Views").nextElementSibling,
     ).toHaveTextContent("0");
@@ -172,6 +204,9 @@ describe("SocialStatisticsResearch", () => {
     expect(
       within(card).getByRole("link", { name: copy.openOnX }),
     ).toHaveAttribute("href", "https://x.com/bob/status/123");
+    expect(preview).not.toContainElement(
+      within(card).getByRole("link", { name: copy.openOnX }),
+    );
     expect(screen.getByText("1,200 followers")).toBeVisible();
     expect(screen.getByText("@ada")).toBeVisible();
     expect(screen.getByText(copy.replies).nextElementSibling).toHaveTextContent(
@@ -182,7 +217,7 @@ describe("SocialStatisticsResearch", () => {
       "/api/projects/project-1/social-statistics/account-1/audience",
     );
     expect(url.searchParams.get("kind")).toBe("mentions");
-    fireEvent.click(screen.getByRole("button", { name: copy.loadMore }));
+    fireEvent.click(screen.getByRole("button", { name: copy.showMore }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(
       new URL(fetchMock.mock.calls[1][0], "https://web.test").searchParams.get(
@@ -195,9 +230,252 @@ describe("SocialStatisticsResearch", () => {
       screen.getAllByRole("link", { name: copy.openOnX })[1],
     ).toHaveAttribute("href", "https://x.com/i/status/456");
     expect(
-      screen.queryByRole("button", { name: copy.loadMore }),
+      screen.queryByRole("button", { name: copy.showMore }),
     ).not.toBeInTheDocument();
   });
+
+  it.each([
+    { tab: copy.audience, label: null },
+    { tab: copy.compare, label: copy.handle },
+    { tab: copy.discover, label: copy.topic },
+  ])(
+    "shows six $tab posts in the Drafts grid, then six more",
+    async ({ tab, label }) => {
+      const posts = samplePosts(100);
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          profile: contact,
+          summary: {
+            postCount: 100,
+            views: null,
+            impressions: 4000,
+            interactions: 800,
+          },
+          contacts: [],
+          posts:
+            tab === copy.compare
+              ? posts
+              : posts.map((post) => ({ author: contact, post })),
+          nextCursor: null,
+        }),
+      });
+      const user = userEvent.setup();
+      renderResearch();
+      await user.click(screen.getByRole("tab", { name: tab }));
+      if (label) await user.type(screen.getByLabelText(label), "launch");
+      await user.click(screen.getByRole("button", { name: copy.load }));
+      await screen.findByText("Post 1");
+      expect(screen.getAllByTestId("social-post-preview")).toHaveLength(6);
+      expect(screen.queryByText("Post 7")).not.toBeInTheDocument();
+      expect(screen.getByRole("list")).toHaveClass(
+        "grid",
+        "gap-4",
+        "sm:grid-cols-2",
+        "xl:grid-cols-3",
+      );
+      for (const item of screen.getAllByRole("listitem")) {
+        expect(item).toHaveClass(
+          "flex",
+          "h-full",
+          "min-w-0",
+          "flex-col",
+          "gap-2",
+        );
+        expect(item).not.toHaveClass("border");
+        expect(item).not.toHaveClass("p-4");
+      }
+      const showMore = screen.getByRole("button", { name: copy.showMore });
+      expect(showMore).toHaveClass("h-11", "md:h-8");
+      await user.click(showMore);
+      expect(screen.getAllByTestId("social-post-preview")).toHaveLength(12);
+      expect(screen.getByText("Post 12")).toBeVisible();
+      expect(screen.queryByText("Post 13")).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    { tab: copy.audience, label: null },
+    { tab: copy.discover, label: copy.topic },
+  ])(
+    "shows all loaded $tab posts before fetching another page",
+    async ({ tab, label }) => {
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            contacts: [],
+            posts: samplePosts(14).map((post) => ({ author: contact, post })),
+            nextCursor: "next-page",
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            contacts: [],
+            posts: samplePosts(8, "Next post").map((post) => ({
+              author: contact,
+              post,
+            })),
+            nextCursor: null,
+          }),
+        });
+      const user = userEvent.setup();
+      renderResearch();
+      await user.click(screen.getByRole("tab", { name: tab }));
+      if (label) await user.type(screen.getByLabelText(label), "launch");
+      await user.click(screen.getByRole("button", { name: copy.load }));
+      await screen.findByText("Post 1");
+      expect(screen.getAllByTestId("social-post-preview")).toHaveLength(6);
+      for (const count of [12, 14]) {
+        await user.click(screen.getByRole("button", { name: copy.showMore }));
+        expect(screen.getAllByTestId("social-post-preview")).toHaveLength(
+          count,
+        );
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      }
+      await user.click(screen.getByRole("button", { name: copy.showMore }));
+      await screen.findByText("Next post 6");
+      expect(screen.getAllByTestId("social-post-preview")).toHaveLength(20);
+      expect(screen.queryByText("Next post 7")).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(
+        new URL(
+          fetchMock.mock.calls[1][0],
+          "https://web.test",
+        ).searchParams.get("cursor"),
+      ).toBe("next-page");
+      await user.click(screen.getByRole("button", { name: copy.showMore }));
+      expect(screen.getAllByTestId("social-post-preview")).toHaveLength(22);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(
+        screen.queryByRole("button", { name: copy.showMore }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("orders top posts by impressions, then interactions including quotes", async () => {
+    const posts = (
+      [
+        ["Unknown impressions", null, 1000, 0],
+        ["Fewer interactions", 100, 1, 0],
+        ["Zero impressions", 0, 1, 0],
+        ["More interactions", 100, 4, 0],
+        ["Lower impressions", 50, 100, 0],
+        ["Highest impressions", 200, 0, 0],
+        ["More quotes", 100, 1, 4],
+      ] as const
+    ).map(([text, impressions, likes, quotes]) =>
+      samplePost({
+        id: text,
+        text,
+        metrics: {
+          views: null,
+          impressions,
+          likes,
+          comments: 0,
+          shares: 0,
+          saves: null,
+        },
+        additionalMetrics: [
+          {
+            key: "quote_count",
+            value: quotes,
+            period: "lifetime",
+            unit: null,
+          },
+        ],
+      }),
+    );
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        profile: contact,
+        summary: {
+          postCount: 7,
+          views: null,
+          impressions: 125000,
+          interactions: 1111,
+        },
+        posts,
+      }),
+    });
+    const user = userEvent.setup();
+    renderResearch();
+    await user.click(screen.getByRole("tab", { name: copy.compare }));
+    await user.type(screen.getByLabelText(copy.handle), "launch");
+    await user.click(screen.getByRole("button", { name: copy.load }));
+    expect(
+      await screen.findByRole("heading", { name: copy.topPosts }),
+    ).toBeVisible();
+    expect(
+      screen
+        .getAllByTestId("social-post-preview")
+        .map(
+          (preview) =>
+            posts.find((post) => within(preview).queryByText(post.text))?.text,
+        ),
+    ).toEqual([
+      "Highest impressions",
+      "More quotes",
+      "More interactions",
+      "Fewer interactions",
+      "Lower impressions",
+      "Zero impressions",
+    ]);
+    const summary = screen.getByText(copy.posts).closest("dl");
+    if (!summary) throw new Error("Missing benchmark summary");
+    expect(within(summary).getAllByRole("term")).toHaveLength(4);
+    for (const label of within(summary).getAllByRole("term")) {
+      expect(label).toHaveClass("text-sm", "text-muted-foreground");
+    }
+    for (const value of within(summary).getAllByRole("definition")) {
+      expect(value).toHaveClass("text-2xl", "sm:text-4xl", "tabular-nums");
+    }
+    expect(within(summary).getByTitle("125,000")).toHaveTextContent("125K");
+    expect(within(summary).getByTitle(copy.unavailable)).toHaveTextContent("—");
+    expect(within(summary).queryByRole("img")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: copy.showMore }));
+    expect(screen.getAllByTestId("social-post-preview")).toHaveLength(7);
+    expect(
+      screen.getAllByTestId("social-post-preview").at(-1),
+    ).toHaveTextContent("Unknown impressions");
+  });
+
+  it.each(["https://x.com/bob/status/123", null])(
+    "opens folded post text on X using its URL %s",
+    async (url) => {
+      const open = vi.fn();
+      vi.stubGlobal("open", open);
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          contacts: [],
+          posts: [
+            {
+              author: contact,
+              post: samplePost({ text: "Long public post. ".repeat(30), url }),
+            },
+          ],
+          nextCursor: null,
+        }),
+      });
+      const user = userEvent.setup();
+      renderResearch();
+      await user.click(screen.getByRole("button", { name: copy.load }));
+      await user.click(
+        await screen.findByRole("button", {
+          name: en.App.Projects.SocialPosts.preview.x.more,
+        }),
+      );
+      expect(open).toHaveBeenCalledWith(
+        url ?? "https://x.com/i/status/123",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    },
+  );
 
   it.each(["likers", "reposters"] as const)(
     "requires a cached post for %s and keeps people as a compact list",
@@ -221,13 +499,17 @@ describe("SocialStatisticsResearch", () => {
         json: async () => ({
           contacts: [contact],
           posts: [],
-          nextCursor: null,
+          nextCursor: "people-next",
         }),
       });
       fireEvent.click(screen.getByRole("button", { name: copy.load }));
       expect(await screen.findByText("@ada")).toBeVisible();
       expect(
         screen.queryByTestId("social-post-preview"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: copy.loadMore })).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: copy.showMore }),
       ).not.toBeInTheDocument();
       expect(screen.getByText("Likes").nextElementSibling).toHaveTextContent(
         "0",
@@ -331,10 +613,10 @@ describe("SocialStatisticsResearch", () => {
     await user.type(screen.getByLabelText(copy.topic), " launch ");
     await user.click(screen.getByRole("button", { name: copy.load }));
     expect(await screen.findByTestId("social-post-preview")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: copy.loadMore }));
+    await user.click(screen.getByRole("button", { name: copy.showMore }));
     expect(await screen.findByRole("alert")).toHaveTextContent(copy.loadFailed);
     expect(screen.getByText("Mentioning launch")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: copy.loadMore }));
+    await user.click(screen.getByRole("button", { name: copy.showMore }));
     expect(await screen.findByText("Next topic match")).toBeVisible();
     expect(screen.getAllByTestId("social-post-preview")).toHaveLength(2);
     for (const [input, options] of fetchMock.mock.calls.slice(1)) {
