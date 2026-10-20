@@ -249,7 +249,15 @@ describe("scoped X audience and public benchmarking", () => {
       topic: "launch",
     });
     expect(first.publishedFrom).toBe("2026-10-01T13:00:00.000Z");
-    expect(first.publishedUntil).toBe("2026-10-08T12:00:00.000Z");
+    // X rejects an end_time within 10 seconds of the request, so the default ends 30 seconds ago.
+    expect(first.publishedUntil).toBe("2026-10-08T11:59:30.000Z");
+    expect(mocks.read).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://api.x.com/2/tweets/search/recent",
+      expect.arrayContaining([
+        { name: "end_time", value: "2026-10-08T11:59:30.000Z", type: "query" },
+      ]),
+    );
     vi.setSystemTime(new Date("2026-10-08T12:10:00Z"));
     const query = {
       ...scope,
