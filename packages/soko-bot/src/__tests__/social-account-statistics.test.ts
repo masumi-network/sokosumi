@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   composeSystemPrompt,
+  DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -64,8 +65,10 @@ describe("account-wide Social statistics", () => {
     expect(prompt).toContain("metric period");
     expect(prompt).toContain("do not stop history pagination");
     expect(prompt).not.toContain("# Chat result previews");
+    expect(prompt).not.toContain("# Social performance insights");
     expect(composeSystemPrompt(prior)).not.toContain(
       "# Social account performance",
     );
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
   });
 });

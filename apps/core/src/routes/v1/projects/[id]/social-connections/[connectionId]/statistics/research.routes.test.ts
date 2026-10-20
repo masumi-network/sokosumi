@@ -14,8 +14,15 @@ const mocks = vi.hoisted(() => ({
   beta: vi.fn(),
   delegation: vi.fn(),
   capability: vi.fn(),
+  project: vi.fn(),
+  member: vi.fn(),
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: { findFirst: mocks.project },
+    member: { findFirst: mocks.member },
+  },
+}));
 vi.mock("@/services/social-statistics-research.service", () => ({
   readSocialPerformanceAudience: mocks.audience,
   readSocialPerformanceBenchmark: mocks.benchmark,
@@ -55,6 +62,8 @@ function createApp(actor = auth) {
       userId: "owner",
       organizationId: null,
     });
+    if (actor.actor === "sokoBot" && actor.scope !== "personal")
+      c.set("workspaceContext", null);
     await next();
   });
   mountAudience(app);
@@ -70,6 +79,11 @@ beforeEach(() => {
   mocks.audience.mockResolvedValue({ contacts: [], nextCursor: null });
   mocks.benchmark.mockResolvedValue({ posts: [] });
   mocks.discovery.mockResolvedValue({ posts: [] });
+  mocks.project.mockResolvedValue({
+    id: projectId,
+    workspaceId,
+    workspace: { userId: "owner", organizationId: null },
+  });
 });
 
 describe("X statistics research routes", () => {
@@ -186,8 +200,12 @@ describe("X statistics research routes", () => {
       expect.anything(),
     );
   });
-  it("rejects personal and project bot REST actors and human API keys before beta or provider reads", async () => {
-    const bot: AuthenticationContext = {
+  describe.each([
+    ["audience", "audience"],
+    ["benchmark?username=public_reader", "benchmark"],
+    ["discovery?topic=launch", "discovery"],
+  ] as const)("%s bot access", (suffix, read) => {
+    const personalBot: AuthenticationContext = {
       actor: "sokoBot",
       scope: "personal",
       sokoBotId: "bot",
@@ -204,25 +222,92 @@ describe("X statistics research routes", () => {
       organizationId: "organization",
       projectId,
     };
-    for (const actor of [
-      bot,
-      projectBot,
-      { ...auth, authenticationMethod: "api_key" } as const,
-    ]) {
+    it("allows a personal bot in an accessible Project", async () => {
+      expect(
+        (await createApp(personalBot).request(`${url}/${suffix}`)).status,
+      ).toBe(200);
+      expect(mocks[read]).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId, workspaceId, connectionId }),
+      );
+      expect(mocks.project).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: projectId, workspaceId } }),
+      );
+      expect(mocks.beta).toHaveBeenCalledWith("owner", expect.anything());
+    });
+
+    it("rejects a Project the personal bot's owner cannot access before research", async () => {
+      mocks.project.mockResolvedValue({
+        id: projectId,
+        workspaceId,
+        workspace: { userId: "another-owner", organizationId: null },
+      });
+      expect(
+        (await createApp(personalBot).request(`${url}/${suffix}`)).status,
+      ).toBe(404);
+      expect(mocks[read]).not.toHaveBeenCalled();
+    });
+
+    it("allows a project bot's own Project without a user workspace context", async () => {
+      expect(
+        (await createApp(projectBot).request(`${url}/${suffix}`)).status,
+      ).toBe(200);
+      expect(mocks[read]).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId, workspaceId, connectionId }),
+      );
+      expect(mocks.project).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+          workspaceId,
+          workspace: {
+            organizationId: "organization",
+            organization: { slug: "utxo" },
+          },
+        },
+        select: { id: true },
+      });
+      expect(mocks.beta).not.toHaveBeenCalled();
+    });
+
+    it("rejects another Project before research or credential lookup", async () => {
+      const otherProjectUrl = url.replace(projectId, postId);
+      expect(
+        (await createApp(projectBot).request(`${otherProjectUrl}/${suffix}`))
+          .status,
+      ).toBe(403);
+      expect(mocks.project).not.toHaveBeenCalled();
+      expect(mocks[read]).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unavailable or non-beta project bot scope before research", async () => {
+      mocks.project.mockResolvedValue(null);
+      expect(
+        (await createApp(projectBot).request(`${url}/${suffix}`)).status,
+      ).toBe(404);
+      expect(mocks[read]).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each(["api_key", "oauth"] as const)(
+    "rejects human %s credentials before beta or provider reads",
+    async (authenticationMethod) => {
       for (const suffix of [
         "audience",
         "benchmark?username=public_reader",
         "discovery?topic=launch",
       ])
         expect(
-          (await createApp(actor).request(`${url}/${suffix}`)).status,
+          (
+            await createApp({ ...auth, authenticationMethod }).request(
+              `${url}/${suffix}`,
+            )
+          ).status,
         ).toBe(403);
-    }
-    expect(mocks.beta).not.toHaveBeenCalled();
-    expect(mocks.audience).not.toHaveBeenCalled();
-    expect(mocks.benchmark).not.toHaveBeenCalled();
-    expect(mocks.discovery).not.toHaveBeenCalled();
-  });
+      expect(mocks.beta).not.toHaveBeenCalled();
+      expect(mocks.audience).not.toHaveBeenCalled();
+      expect(mocks.benchmark).not.toHaveBeenCalled();
+      expect(mocks.discovery).not.toHaveBeenCalled();
+    },
+  );
   it("preserves scoped not-found and explicit provider-unavailable status", async () => {
     mocks.audience.mockRejectedValue(
       notFound("Project social connection not found"),

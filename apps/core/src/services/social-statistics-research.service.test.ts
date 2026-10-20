@@ -1,5 +1,11 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+import mountAudience from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/audience/get";
+import mountBenchmark from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/benchmark/get";
+import mountDiscovery from "@/routes/v1/projects/[id]/social-connections/[connectionId]/statistics/discovery/get";
 
 const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -8,6 +14,10 @@ const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   post: vi.fn(),
   read: vi.fn(),
+  beta: vi.fn(),
+}));
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: mocks.beta,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -83,6 +93,93 @@ beforeEach(() => {
   });
 });
 afterEach(() => vi.useRealTimers());
+
+describe.each([
+  "audience?kind=followers",
+  "benchmark?username=reader",
+  "discovery?topic=launch",
+])("%s bot access before X", (suffix) => {
+  const personalBot: AuthenticationContext = {
+    actor: "sokoBot",
+    scope: "personal",
+    sokoBotId: "personal-bot",
+    userId: "owner",
+    workspaceId: scope.workspaceId,
+    organizationId: null,
+  };
+  const projectBot: AuthenticationContext = {
+    actor: "sokoBot",
+    scope: "project",
+    sokoBotId: "project-bot",
+    userId: null,
+    workspaceId: scope.workspaceId,
+    organizationId: "organization",
+    projectId: scope.projectId,
+  };
+  const url = `http://localhost/${scope.projectId}/social-connections/${scope.connectionId}/statistics/${suffix}`;
+
+  function createApp(actor: AuthenticationContext) {
+    const app = new OpenAPIHono<EnvVariables>({
+      defaultHook: defaultValidationHook,
+    });
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", actor);
+      c.set("workspaceContext", null);
+      await next();
+    });
+    mountAudience(app);
+    mountBenchmark(app);
+    mountDiscovery(app);
+    return app;
+  }
+
+  beforeEach(() => {
+    mocks.project.mockResolvedValue({
+      id: scope.projectId,
+      workspaceId: scope.workspaceId,
+      workspace: { userId: "owner", organizationId: null },
+    });
+    mocks.beta.mockResolvedValue(undefined);
+    mocks.read.mockImplementation(async (_context, endpoint: string) => ({
+      data: endpoint.includes("/by/username/") ? user : [],
+    }));
+  });
+
+  it.each([personalBot, projectBot])(
+    "allows $scope bot research through X",
+    async (actor) => {
+      expect((await createApp(actor).request(url)).status).toBe(200);
+      expect(mocks.read).toHaveBeenCalled();
+    },
+  );
+
+  it("never calls X when the personal owner's Project access fails", async () => {
+    mocks.project.mockResolvedValue({
+      id: scope.projectId,
+      workspaceId: scope.workspaceId,
+      workspace: { userId: "another-owner", organizationId: null },
+    });
+    expect((await createApp(personalBot).request(url)).status).toBe(404);
+    expect(mocks.accounts).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+
+  it("never calls X when a project bot requests another Project", async () => {
+    expect(
+      (
+        await createApp(projectBot).request(
+          url.replace(scope.projectId, postId),
+        )
+      ).status,
+    ).toBe(403);
+    expect(mocks.project).not.toHaveBeenCalled();
+    expect(mocks.accounts).not.toHaveBeenCalled();
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+});
 
 describe("scoped X audience and public benchmarking", () => {
   it.each([

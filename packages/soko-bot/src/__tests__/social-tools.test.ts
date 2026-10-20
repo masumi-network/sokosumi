@@ -36,6 +36,10 @@ const reads = [
   "refresh_social_post_statistics",
   "list_social_account_statistics",
   "refresh_social_account_statistics",
+  "list_social_performance",
+  "read_social_performance_audience",
+  "read_social_performance_benchmark",
+  "read_social_performance_discovery",
   "get_social_post",
 ] as const;
 const writes = [
@@ -52,6 +56,21 @@ const inputs = {
   list_social_post_statistics: { projectId },
   refresh_social_post_statistics: { projectId, postId },
   list_social_account_statistics: { projectId },
+  list_social_performance: { projectId },
+  read_social_performance_audience: {
+    projectId,
+    connectionId: socialConnectionId,
+  },
+  read_social_performance_benchmark: {
+    projectId,
+    connectionId: socialConnectionId,
+    username: "launch",
+  },
+  read_social_performance_discovery: {
+    projectId,
+    connectionId: socialConnectionId,
+    topic: "launch",
+  },
   refresh_social_account_statistics: {
     projectId,
     connectionId: socialConnectionId,
@@ -188,7 +207,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v25");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
   });
 
   it("describes every provider's publishing rules", () => {

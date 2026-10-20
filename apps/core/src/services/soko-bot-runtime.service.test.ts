@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -237,6 +238,9 @@ const social = vi.hoisted(() => ({
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
   refreshAccountStatistics: vi.fn(),
+  audience: vi.fn(),
+  benchmark: vi.fn(),
+  discovery: vi.fn(),
   refreshStatistics: vi.fn(),
   list: vi.fn(),
   get: vi.fn(),
@@ -248,6 +252,7 @@ const social = vi.hoisted(() => ({
   beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
+  project: vi.fn(),
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
@@ -259,6 +264,11 @@ vi.mock("@/services/social-post-statistics.service", () => ({
 vi.mock("@/services/social-account-statistics.service", () => ({
   listSocialAccountStatistics: social.listAccountStatistics,
   refreshSocialAccountStatistics: social.refreshAccountStatistics,
+}));
+vi.mock("@/services/social-statistics-research.service", () => ({
+  readSocialPerformanceAudience: social.audience,
+  readSocialPerformanceBenchmark: social.benchmark,
+  readSocialPerformanceDiscovery: social.discovery,
 }));
 vi.mock("@/services/social-posts.service", () => ({
   listSocialPosts: social.list,
@@ -346,6 +356,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
+    project: { findFirst: social.project },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -5890,6 +5901,10 @@ describe("Soko Bot project social tools", () => {
     "refresh_social_post_statistics",
     "list_social_account_statistics",
     "refresh_social_account_statistics",
+    "list_social_performance",
+    "read_social_performance_audience",
+    "read_social_performance_benchmark",
+    "read_social_performance_discovery",
     "get_social_post",
     "create_social_post",
     "update_social_post",
@@ -5963,6 +5978,13 @@ describe("Soko Bot project social tools", () => {
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
     social.beta.mockResolvedValue(undefined);
     social.seat.mockResolvedValue(undefined);
+    social.project.mockResolvedValue({ id: projectId });
+    images.access.mockReset().mockResolvedValue({ projectId });
+    botFindUniqueMock.mockResolvedValue({
+      userId: SCOPE.userId,
+      projectId: null,
+      workspace: { id: SCOPE.workspaceId, organizationId: "organization-one" },
+    });
     social.listAccounts.mockResolvedValue([
       {
         id: accountId,
@@ -5989,6 +6011,22 @@ describe("Soko Bot project social tools", () => {
     social.refreshAccountStatistics.mockResolvedValue({
       account: { id: accountId, statistics: null, postCount: 0 },
       importedPostCount: 2,
+    });
+    social.audience.mockResolvedValue({
+      kind: "mentions",
+      contacts: [],
+      posts: [],
+      nextCursor: null,
+      samplePostCount: 0,
+    });
+    social.benchmark.mockResolvedValue({
+      profile: { username: "launch" },
+      posts: [],
+    });
+    social.discovery.mockResolvedValue({
+      posts: [],
+      nextCursor: null,
+      samplePostCount: 0,
     });
     social.list.mockResolvedValue({
       posts: [post],
@@ -6044,7 +6082,14 @@ describe("Soko Bot project social tools", () => {
       createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+      sokoBot: {
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        projectId: null,
+        archivedAt: null,
+        adminPausedAt: null,
+        status: "RUNNING",
+      },
     });
   });
 
@@ -6134,6 +6179,215 @@ describe("Soko Bot project social tools", () => {
     });
     expect(social.publish).not.toHaveBeenCalled();
     expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("aliases list_social_performance onto the same account statistics read", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_performance",
+      toolCallId: "performance-alias",
+      input: {
+        projectId,
+        connectionId: accountId,
+        publishedFrom: "2026-10-01T00:00:00Z",
+        limit: 5,
+      },
+    });
+    expect(social.listAccountStatistics).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      workspaceId: SCOPE.workspaceId,
+      publishedFrom: new Date("2026-10-01T00:00:00Z"),
+      publishedUntil: undefined,
+      limit: 5,
+    });
+    expect(social.audience).not.toHaveBeenCalled();
+  });
+
+  it("reads X audience, benchmark, and discovery through the authorized workspace", async () => {
+    const service = new SokoBotRuntimeService();
+    await service.executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_audience",
+      toolCallId: "audience",
+      input: { projectId, connectionId: accountId, kind: "followers" },
+    });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_benchmark",
+      toolCallId: "benchmark",
+      input: { projectId, connectionId: accountId, username: "competitor" },
+    });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "read_social_performance_discovery",
+      toolCallId: "discovery",
+      input: { projectId, connectionId: accountId, topic: "launch" },
+    });
+    expect(social.audience).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      kind: "followers",
+      workspaceId: SCOPE.workspaceId,
+      limit: 20,
+    });
+    expect(social.benchmark).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      username: "competitor",
+      workspaceId: SCOPE.workspaceId,
+    });
+    expect(social.discovery).toHaveBeenCalledWith({
+      projectId,
+      connectionId: accountId,
+      topic: "launch",
+      format: "any",
+      sort: "recency",
+      workspaceId: SCOPE.workspaceId,
+      limit: 20,
+    });
+  });
+
+  describe.each([
+    [
+      "read_social_performance_audience",
+      { kind: "followers" },
+      social.audience,
+    ],
+    [
+      "read_social_performance_benchmark",
+      { username: "launch" },
+      social.benchmark,
+    ],
+    [
+      "read_social_performance_discovery",
+      { topic: "launch" },
+      social.discovery,
+    ],
+  ] as const)("%s project access", (capability, filters, read) => {
+    function execute(targetProjectId = projectId) {
+      return new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability,
+        toolCallId: "scoped-research",
+        input: {
+          projectId: targetProjectId,
+          connectionId: accountId,
+          ...filters,
+        },
+      });
+    }
+
+    async function sharedBot(requestedByUserId: string | null = null) {
+      const turn = await turnFindUniqueMock();
+      turnFindUniqueMock.mockResolvedValue({
+        ...turn,
+        requestedByUserId,
+        sokoBot: { ...turn.sokoBot, userId: null, projectId },
+      });
+      botFindUniqueMock.mockResolvedValue({
+        userId: null,
+        projectId,
+        workspace: {
+          id: SCOPE.workspaceId,
+          organizationId: "organization-one",
+        },
+      });
+    }
+
+    it("allows a personal bot in a Project its owner can open", async () => {
+      await execute();
+      expect(images.access).toHaveBeenCalledWith(
+        { projectId, workspaceId: SCOPE.workspaceId, userId: SCOPE.userId },
+        expect.anything(),
+      );
+      expect(read).toHaveBeenCalledOnce();
+      expect(social.publish).not.toHaveBeenCalled();
+    });
+
+    it("rejects a personal bot outside its owner's Projects before research", async () => {
+      images.access.mockRejectedValue(new HTTPException(404));
+      await expect(execute()).rejects.toMatchObject({ status: 404 });
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it.each([null, SCOPE.userId])(
+      "allows a project bot in its own Project with requester %s",
+      async (requester) => {
+        await sharedBot(requester);
+        await execute();
+        expect(read).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId,
+            workspaceId: SCOPE.workspaceId,
+          }),
+        );
+        expect(images.access).not.toHaveBeenCalled();
+        expect(social.publish).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rejects a project bot's other Project before research", async () => {
+      await sharedBot();
+      await expect(
+        execute("01960001-0001-7001-8001-000000000099"),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(social.project).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it("rechecks Project scope before replaying a research read", async () => {
+      await sharedBot();
+      const input = {
+        projectId: "01960001-0001-7001-8001-000000000099",
+        connectionId: accountId,
+        ...filters,
+      };
+      toolCallFindUniqueMock.mockResolvedValue({
+        inputHash: createHash("sha256")
+          .update(canonicalJson(input))
+          .digest("hex"),
+        capability,
+        status: "COMPLETED",
+        result: {},
+      });
+      await expect(execute(input.projectId)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(read).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each([
+    "list_social_performance",
+    "read_social_performance_audience",
+    "read_social_performance_benchmark",
+    "read_social_performance_discovery",
+  ] as const)("rejects %s after access revocation", async (capability) => {
+    social.beta.mockRejectedValue(new Error("Access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability,
+        toolCallId: "research-denied",
+        input: {
+          projectId,
+          ...(capability === "list_social_performance"
+            ? {}
+            : { connectionId: accountId }),
+          ...(capability === "read_social_performance_benchmark"
+            ? { username: "launch" }
+            : {}),
+          ...(capability === "read_social_performance_discovery"
+            ? { topic: "launch" }
+            : {}),
+        },
+      }),
+    ).rejects.toThrow("Access revoked");
+    expect(social.listAccountStatistics).not.toHaveBeenCalled();
+    expect(social.audience).not.toHaveBeenCalled();
+    expect(social.benchmark).not.toHaveBeenCalled();
+    expect(social.discovery).not.toHaveBeenCalled();
   });
 
   it("reads account-wide statistics with authorized filters and publication dates", async () => {

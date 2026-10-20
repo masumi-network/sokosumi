@@ -97,6 +97,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
+import { requireSocialResearchScope } from "@/helpers/social-post-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -243,6 +244,11 @@ import {
   scheduleSocialPost,
   updateSocialPost,
 } from "@/services/social-posts.service";
+import {
+  readSocialPerformanceAudience,
+  readSocialPerformanceBenchmark,
+  readSocialPerformanceDiscovery,
+} from "@/services/social-statistics-research.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
@@ -3962,6 +3968,10 @@ export class SokoBotRuntimeService {
           input.capability === "list_social_posts" ||
           input.capability === "list_social_post_statistics" ||
           input.capability === "list_social_account_statistics" ||
+          input.capability === "list_social_performance" ||
+          input.capability === "read_social_performance_audience" ||
+          input.capability === "read_social_performance_benchmark" ||
+          input.capability === "read_social_performance_discovery" ||
           input.capability === "get_social_post"
         ) {
           const result = await this.executeAuthorizedTool(input);
@@ -4301,12 +4311,32 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  private async requireSocialResearchAccess(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    if (
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRuntimeAuthorizationError(
+        "Social research is unavailable on assistant-to-assistant turns",
+      );
+    if (!authorized.reader.sharedScope)
+      await this.requireSocialAccess(authorized);
+    const actor = await loadSokoBotTurnAuthContext(authorized.turn);
+    if (!actor)
+      throw new SokoBotRuntimeAuthorizationError(
+        "Soko Bot is no longer available",
+      );
+    return requireSocialResearchScope(actor, projectId, null);
+  }
+
   private async executeSocialTool(
     input: ExecuteSokoBotToolInput,
     authorized: AuthorizedSokoBotRuntime,
   ) {
     const { workspaceId } = authorized.turn;
-    const userId = actingMemberOf(authorized);
     switch (input.capability) {
       case "list_project_social_accounts": {
         const params =
@@ -4359,10 +4389,15 @@ export class SokoBotRuntimeService {
           );
         await this.requireSocialAccess(authorized);
         return socialPostSchema.parse(
-          await refreshSocialPostStatistics({ ...params, workspaceId, userId }),
+          await refreshSocialPostStatistics({
+            ...params,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+          }),
         );
       }
-      case "list_social_account_statistics": {
+      case "list_social_account_statistics":
+      case "list_social_performance": {
         const params =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_account_statistics.parse(
             input.input,
@@ -4379,6 +4414,39 @@ export class SokoBotRuntimeService {
             : undefined,
         });
       }
+      case "read_social_performance_audience": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_audience.parse(
+            input.input,
+          );
+        await this.requireSocialResearchAccess(authorized, params.projectId);
+        return readSocialPerformanceAudience({
+          ...params,
+          workspaceId,
+        });
+      }
+      case "read_social_performance_benchmark": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_benchmark.parse(
+            input.input,
+          );
+        await this.requireSocialResearchAccess(authorized, params.projectId);
+        return readSocialPerformanceBenchmark({
+          ...params,
+          workspaceId,
+        });
+      }
+      case "read_social_performance_discovery": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_performance_discovery.parse(
+            input.input,
+          );
+        await this.requireSocialResearchAccess(authorized, params.projectId);
+        return readSocialPerformanceDiscovery({
+          ...params,
+          workspaceId,
+        });
+      }
       case "refresh_social_account_statistics": {
         const params =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.refresh_social_account_statistics.parse(
@@ -4388,7 +4456,7 @@ export class SokoBotRuntimeService {
         return refreshSocialAccountStatistics({
           ...params,
           workspaceId,
-          userId,
+          userId: actingMemberOf(authorized),
         });
       }
       case "get_social_post": {
@@ -4408,7 +4476,11 @@ export class SokoBotRuntimeService {
         // The external-effect reservation fences retries before the provider call.
         // The publisher owns revision checks, claiming, and delivery reconciliation.
         return socialPostSchema.parse(
-          await publishSocialPostNow({ ...params, workspaceId, userId }),
+          await publishSocialPostNow({
+            ...params,
+            workspaceId,
+            userId: actingMemberOf(authorized),
+          }),
         );
       }
       case "create_social_post":
@@ -4436,7 +4508,7 @@ export class SokoBotRuntimeService {
           const workspace = await this.requireSocialAccess(authorized, tx);
           const scope = {
             workspaceId,
-            userId,
+            userId: actingMemberOf(authorized),
             organizationId: workspace.organizationId,
           };
           const post = await (async () => {
@@ -4521,6 +4593,10 @@ export class SokoBotRuntimeService {
       case "refresh_social_post_statistics":
       case "list_social_account_statistics":
       case "refresh_social_account_statistics":
+      case "list_social_performance":
+      case "read_social_performance_audience":
+      case "read_social_performance_benchmark":
+      case "read_social_performance_discovery":
       case "get_social_post":
       case "create_social_post":
       case "update_social_post":
