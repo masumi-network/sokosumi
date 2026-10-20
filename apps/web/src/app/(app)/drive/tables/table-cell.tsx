@@ -1,6 +1,6 @@
 "use client";
 import type { TableColumn, TableRow } from "@sokosumi/core-client";
-import { History } from "lucide-react";
+import { History, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ interface Props {
   onSave: (version: number, value: TableRow["values"][string]) => Promise<void>;
   onHistory: () => void;
   onEditingChange?: (editing: boolean) => void;
+  /** Filters the grid by one tag of a `multiple_select` cell. */
+  onTagClick?: (tag: string) => void;
 }
 export function TableCell({
   column,
@@ -26,9 +28,11 @@ export function TableCell({
   onSave,
   onHistory,
   onEditingChange,
+  onTagClick,
 }: Props) {
   const t = useTranslations("App.Tables");
   const [editing, setEditing] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
@@ -65,6 +69,8 @@ export function TableCell({
       setPending(false);
     }
   }
+  const value = row.values[column.id];
+  const tags = Array.isArray(value) ? value : [];
   const props = {
     "aria-label": column.name,
     "aria-invalid": !!error,
@@ -80,7 +86,10 @@ export function TableCell({
       setDraft(event.target.value);
       onEditingChange?.(event.target.value !== initial.current);
     },
-    onBlur: () => void handleSave(),
+    onBlur: () => {
+      setEditorOpen(false);
+      void handleSave();
+    },
     onKeyDown: (event: React.KeyboardEvent) => {
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape" && !uncertain) {
@@ -125,15 +134,53 @@ export function TableCell({
               ))
             )}
           </select>
+        ) : column.type === "multiple_select" &&
+          tags.length > 0 &&
+          onTagClick &&
+          !editing &&
+          !editorOpen &&
+          !error ? (
+          // Tags read as chips; a chip filters the grid by that tag, and the
+          // pencil opens the text editor.
+          <div className="flex min-h-10 min-w-0 flex-1 flex-wrap items-center gap-1 px-2 py-1">
+            {tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => onTagClick(tag)}
+                aria-label={t("filterByTag", { tag })}
+                className="bg-secondary text-secondary-foreground hover:bg-muted focus-visible:ring-ring max-w-full truncate rounded-full px-2 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+              >
+                {tag}
+              </button>
+            ))}
+            {!disabled && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-muted-foreground hit-area size-7 shrink-0 opacity-0 transition-opacity group-focus-within/cell:opacity-100 group-hover/cell:opacity-100 focus-visible:opacity-100"
+                aria-label={t("editCell", { column: column.name })}
+                onClick={() => setEditorOpen(true)}
+              >
+                <Pencil aria-hidden className="size-3.5" />
+              </Button>
+            )}
+          </div>
         ) : column.type === "long_text" ? (
           <Textarea
             {...props}
-            className={cn(props.className, "max-h-40 min-w-0 flex-1")}
+            // Three lines at rest so one long note does not stretch the row;
+            // focus shows the whole value, scrolling within the taller cap.
+            className={cn(
+              props.className,
+              "max-h-[calc(3lh+1rem)] min-w-0 flex-1 overflow-hidden focus:max-h-40 focus:overflow-y-auto",
+            )}
             rows={1}
           />
         ) : (
           <Input
             {...props}
+            autoFocus={editorOpen}
             type={
               column.type === "date"
                 ? "date"

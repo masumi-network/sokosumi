@@ -8422,7 +8422,15 @@
         "over": "{item} ist über {target}.",
         "dropped": "{item} an die Stelle von {target} verschoben.",
         "cancelled": "Verschieben von {item} abgebrochen."
-      }
+      },
+      "filterByTag": "Nach {tag} filtern",
+      "editCell": "{column} bearbeiten",
+      "quickFilter": "{count, plural, =0 {Nach {column} filtern} one {Nach {column} filtern, # Option ausgewählt} other {Nach {column} filtern, # Optionen ausgewählt}}",
+      "matchAllOptions": "Zeilen mit allen ausgewählten Optionen",
+      "clearFilter": "Zurücksetzen",
+      "clearFilters": "Filter zurücksetzen",
+      "removeFilter": "Filter entfernen: {column}",
+      "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

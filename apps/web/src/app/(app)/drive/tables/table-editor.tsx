@@ -25,9 +25,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   GripVertical,
+  ListFilter,
   MoreHorizontal,
   Plus,
   Sparkles,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -59,6 +61,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -472,6 +475,51 @@ function TableWorkspace({
       setError(tableError(error, t));
     }
   }
+  const optionColumns = table.columns.filter(
+    (column) =>
+      column.type === "single_select" || column.type === "multiple_select",
+  );
+  const filters = definition.filters ?? [];
+  /** Options a quick filter has picked for this column. */
+  function pickedOptions(columnId: string): string[] {
+    const value = filters.find(
+      (filter) => filter.columnId === columnId && filter.operator !== "empty",
+    )?.value;
+    if (Array.isArray(value)) return value;
+    return typeof value === "string" && value ? [value] : [];
+  }
+  /** One filter per column, applied to the unsaved view like the dialog's. */
+  function setPickedOptions(column: TableColumn, options: string[]) {
+    const others = filters.filter((filter) => filter.columnId !== column.id);
+    const own: NonNullable<TableView["definition"]["filters"]> = !options.length
+      ? []
+      : column.type === "multiple_select"
+        ? [{ columnId: column.id, operator: "contains", value: options }]
+        : [{ columnId: column.id, operator: "equals", value: options[0] }];
+    setFilterDraft("");
+    handleDefinition({ ...definition, filters: [...others, ...own] });
+  }
+  function toggleOption(column: TableColumn, option: string) {
+    const picked = pickedOptions(column.id);
+    setPickedOptions(
+      column,
+      picked.includes(option)
+        ? picked.filter((item) => item !== option)
+        : column.type === "multiple_select"
+          ? [...picked, option]
+          : [option],
+    );
+  }
+  function handleTagClick(column: TableColumn, tag: string) {
+    if (!pickedOptions(column.id).includes(tag)) toggleOption(column, tag);
+  }
+  function filterText(filter: (typeof filters)[number]): string {
+    return filter.operator === "empty"
+      ? t("isEmpty")
+      : Array.isArray(filter.value)
+        ? filter.value.join(", ")
+        : tableValueText(filter.value ?? null);
+  }
   function handleDefinition(next: TableView["definition"]) {
     // Edited rows stay pinned; view changes must not hide their cells.
     if (
@@ -781,6 +829,60 @@ function TableWorkspace({
         >
           {t("configureView")}
         </Button>
+        {optionColumns.map((column) => {
+          const picked = pickedOptions(column.id);
+          return (
+            <DropdownMenu key={column.id}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={picked.length ? "secondary" : "outline"}
+                  className={EDITOR_TOOLBAR_CONTROL}
+                  aria-label={t("quickFilter", {
+                    column: column.name,
+                    count: picked.length,
+                  })}
+                >
+                  <ListFilter aria-hidden className="size-4" />
+                  <span className="max-w-32 truncate">{column.name}</span>
+                  {picked.length > 0 && (
+                    <Badge variant="outline" className="px-1.5">
+                      {picked.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-80">
+                {column.type === "multiple_select" && (
+                  <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+                    {t("matchAllOptions")}
+                  </DropdownMenuLabel>
+                )}
+                {column.options?.map((option) => (
+                  <DropdownMenuCheckboxItem
+                    key={option}
+                    checked={picked.includes(option)}
+                    // Stays open, so several tags can be picked in a row.
+                    onSelect={(event) => event.preventDefault()}
+                    onCheckedChange={() => toggleOption(column, option)}
+                  >
+                    {option}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {picked.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setPickedOptions(column, [])}
+                    >
+                      {t("clearFilter")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })}
         <Button
           size="sm"
           className={EDITOR_TOOLBAR_CONTROL}
@@ -858,6 +960,55 @@ function TableWorkspace({
           </div>
         )}
       </div>
+      {/* An active filter is a state, not a hidden setting: it names what
+      narrows the grid, how many rows match and how to undo it. */}
+      {filters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span role="status" className="text-muted-foreground">
+            {t("matchingRows", { count: rows.data?.total ?? 0 })}
+          </span>
+          {filters.map((filter) => {
+            const column = table.columns.find(
+              (column) => column.id === filter.columnId,
+            );
+            const name = column?.name ?? t("unknown");
+            return (
+              <span
+                key={filter.columnId}
+                className="bg-secondary text-secondary-foreground inline-flex max-w-full items-center gap-1 rounded-full py-0.5 ps-2.5 pe-1 text-xs font-medium"
+              >
+                <span className="truncate">
+                  {name}: {filterText(filter)}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("removeFilter", { column: name })}
+                  onClick={() => {
+                    setFilterDraft("");
+                    handleDefinition({
+                      ...definition,
+                      filters: filters.filter((item) => item !== filter),
+                    });
+                  }}
+                  className="hover:bg-muted focus-visible:ring-ring hit-area flex size-5 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2"
+                >
+                  <X aria-hidden className="size-3" />
+                </button>
+              </span>
+            );
+          })}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setFilterDraft("");
+              handleDefinition({ ...definition, filters: [] });
+            }}
+          >
+            {t("clearFilters")}
+          </Button>
+        </div>
+      )}
       {error && (
         <Alert variant="destructive">
           <AlertDescription className="flex flex-wrap items-center gap-2">
@@ -1116,6 +1267,7 @@ function TableWorkspace({
                             onSave={(version, value) =>
                               handleCell(row, column, version, value)
                             }
+                            onTagClick={(tag) => handleTagClick(column, tag)}
                             onHistory={() => {
                               setHistoryCursor(undefined);
                               setHistoryCell({

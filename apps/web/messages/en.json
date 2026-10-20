@@ -8422,7 +8422,15 @@
         "over": "{item} is over {target}.",
         "dropped": "{item} moved to the place of {target}.",
         "cancelled": "Moving {item} was cancelled."
-      }
+      },
+      "filterByTag": "Filter by {tag}",
+      "editCell": "Edit {column}",
+      "quickFilter": "{count, plural, =0 {Filter by {column}} one {Filter by {column}, # option selected} other {Filter by {column}, # options selected}}",
+      "matchAllOptions": "Rows with every selected option",
+      "clearFilter": "Clear",
+      "clearFilters": "Clear filters",
+      "removeFilter": "Remove filter: {column}",
+      "matchingRows": "{count, plural, one {# row matches} other {# rows match}}"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

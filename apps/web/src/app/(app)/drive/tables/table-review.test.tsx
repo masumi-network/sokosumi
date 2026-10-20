@@ -1,4 +1,4 @@
-import type { TableColumn, TableView } from "@sokosumi/core-client";
+import type { TableColumn, TableRow, TableView } from "@sokosumi/core-client";
 import {
   cleanup,
   fireEvent,
@@ -40,7 +40,7 @@ const f = vi.hoisted(() => {
     tableVersion: 1,
     tableArchived: null as Date | null,
     row,
-    shown: [row],
+    shown: [row] as TableRow[],
     enrich: vi.fn(),
     batch: vi.fn(),
     create: vi.fn(),
@@ -50,6 +50,7 @@ const f = vi.hoisted(() => {
     invalidate: vi.fn(async () => {}),
     push: vi.fn(),
     views: [] as TableView[],
+    rowsKey: [] as unknown[],
     score: {
       id: "00000000-0000-4000-8000-000000000005",
       tableId: "00000000-0000-4000-8000-000000000002",
@@ -81,36 +82,39 @@ vi.mock("@tanstack/react-query", () => ({
     setQueryData: vi.fn(),
     setQueriesData: vi.fn(),
   }),
-  useQuery: ({ queryKey }: { queryKey: string[] }) => ({
-    isPending: false,
-    error: null,
-    refetch: vi.fn(),
-    data:
-      queryKey[0] === "data-table"
-        ? {
-            id: f.column.tableId,
-            workspaceId: "ws",
-            title: "Fixture table",
-            description: "",
-            version: f.tableVersion,
-            columns: f.columns,
-            views: f.views,
-            archivedAt: f.tableArchived,
-          }
-        : queryKey[0] === "table-rows"
-          ? { rows: f.shown, nextCursor: null }
-          : queryKey[0] === "table-agent-options"
-            ? {
-                bot: {
-                  id: "00000000-0000-4000-8000-000000000004",
-                  name: "Bot",
-                },
-                coworkers: [],
-              }
-            : queryKey[0] === "table-project-options"
-              ? []
-              : { items: [] },
-  }),
+  useQuery: ({ queryKey }: { queryKey: string[] }) => {
+    if (queryKey[0] === "table-rows") f.rowsKey = queryKey;
+    return {
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+      data:
+        queryKey[0] === "data-table"
+          ? {
+              id: f.column.tableId,
+              workspaceId: "ws",
+              title: "Fixture table",
+              description: "",
+              version: f.tableVersion,
+              columns: f.columns,
+              views: f.views,
+              archivedAt: f.tableArchived,
+            }
+          : queryKey[0] === "table-rows"
+            ? { rows: f.shown, nextCursor: null }
+            : queryKey[0] === "table-agent-options"
+              ? {
+                  bot: {
+                    id: "00000000-0000-4000-8000-000000000004",
+                    name: "Bot",
+                  },
+                  coworkers: [],
+                }
+              : queryKey[0] === "table-project-options"
+                ? []
+                : { items: [] },
+    };
+  },
 }));
 vi.mock("@/lib/services/data-table.client", () => ({
   dataTableService: {
@@ -1109,4 +1113,54 @@ it("R9: a move waits for the one in flight, and a failed move refreshes", async 
     }),
   );
   expect(f.batch).toHaveBeenCalledTimes(1);
+});
+
+const tags = {
+  ...f.column,
+  id: "00000000-0000-4000-8000-000000000007",
+  name: "Tags",
+  type: "multiple_select" as const,
+  options: ["lead", "customer"],
+  position: 1,
+};
+function rowsFilters() {
+  return (f.rowsKey[2] as TableView["definition"]).filters;
+}
+
+it("R10: a quick filter picks tags without opening view settings, and clears", async () => {
+  f.columns = [f.column, tags];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "quickFilter" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitemcheckbox", { name: "lead" }),
+  );
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "customer" }));
+  await waitFor(() =>
+    expect(rowsFilters()).toEqual([
+      { columnId: tags.id, operator: "contains", value: ["lead", "customer"] },
+    ]),
+  );
+  expect(screen.getByText("matchingRows")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "clearFilters" }));
+  await waitFor(() => expect(rowsFilters()).toEqual([]));
+  expect(screen.queryByText("matchingRows")).toBeNull();
+});
+
+it("R10: tags render as chips, and a chip filters the grid by that tag", async () => {
+  f.columns = [f.column, tags];
+  f.shown = [{ ...f.row, values: { ...f.row.values, [tags.id]: ["lead"] } }];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "filterByTag" }));
+  await waitFor(() =>
+    expect(rowsFilters()).toEqual([
+      { columnId: tags.id, operator: "contains", value: ["lead"] },
+    ]),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "removeFilter" }));
+  await waitFor(() => expect(rowsFilters()).toEqual([]));
+  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
+  expect(screen.getByRole("textbox", { name: "Tags" })).toHaveValue("lead");
 });
