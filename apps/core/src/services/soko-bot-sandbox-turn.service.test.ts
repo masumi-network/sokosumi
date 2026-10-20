@@ -181,16 +181,8 @@ describe("sandbox turn service", () => {
     expect(sentHeaders.get("authorization")).toBe("Bearer gateway-key");
     expect(sentHeaders.get("ai-o11y-sneaky")).toBeNull();
     const sent = JSON.parse(String(init.body));
-    // Core's provider options replace the runner's entirely; the cache key
-    // keeps a turn's steps on one prompt cache.
-    expect(Object.keys(sent.providerOptions).sort()).toEqual([
-      "gateway",
-      "openai",
-    ]);
-    expect(sent.providerOptions.openai).toEqual({
-      promptCacheKey: claims.turnId,
-    });
-    expect(sent.providerOptions.gateway.caching).toBe("auto");
+    // Core's provider options replace the runner's entirely.
+    expect(Object.keys(sent.providerOptions)).toEqual(["gateway"]);
     expect(sent.providerOptions.gateway.only).not.toContain("openai");
     expect(sent.providerOptions.gateway.inferenceRegion).toBeDefined();
     expect(events().map((event) => event.type)).toEqual([
@@ -225,10 +217,7 @@ describe("sandbox turn service", () => {
     });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sent = JSON.parse(String(init.body));
-    expect(sent.providerOptions.openai).toEqual({
-      reasoningSummary: "auto",
-      promptCacheKey: claims.turnId,
-    });
+    expect(sent.providerOptions.openai).toEqual({ reasoningSummary: "auto" });
     expect(sent.providerOptions.google).toEqual({
       thinkingConfig: { includeThoughts: true },
     });
@@ -351,13 +340,8 @@ describe("sandbox turn service", () => {
     );
     expect(searchBody.providerOptions.gateway).toEqual({
       disallowPromptTraining: true,
-      caching: "auto",
     });
-    const both = {
-      zeroDataRetention: true,
-      disallowPromptTraining: true,
-      caching: "auto",
-    };
+    const both = { zeroDataRetention: true, disallowPromptTraining: true };
     expect(turnBody.providerOptions.gateway).toEqual(both);
     expect(disguisedBody.providerOptions.gateway).toEqual(both);
   });
