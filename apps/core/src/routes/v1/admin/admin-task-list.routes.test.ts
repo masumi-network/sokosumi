@@ -137,6 +137,16 @@ describe("GET /v1/admin/tasks", () => {
     );
   });
 
+  it("returns a null owner for a Task without an Owner", async () => {
+    taskFindManyMock.mockResolvedValue([makeTask({ owner: null })]);
+
+    const res = await createApp(mountListAdminTasks).request("/");
+
+    expect(res.status).toBe(200);
+    const [item] = (await res.json()).data;
+    expect(item.owner).toBeNull();
+  });
+
   it("returns null organization for personal tasks", async () => {
     taskFindManyMock.mockResolvedValue([makeTask({ organization: null })]);
 

@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import {
@@ -71,7 +71,7 @@ function resolveTaskAssigneeDisplay(
       image: claimed,
       avatarSeed: claimed
         ? null
-        : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
+        : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
     };
   }
 

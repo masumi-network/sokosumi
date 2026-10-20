@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
+import { integrationTarget } from "../integration-target";
 
 export const instant = false;
 
@@ -22,12 +23,15 @@ export default async function IntegrationVerifyPage({
   const params = await searchParams;
   const sessionUri =
     typeof params.session_uri === "string" ? params.session_uri : null;
+  const target = integrationTarget(params);
   let outcome = "error";
-  if (sessionUri) {
+  if (sessionUri && target.valid) {
     outcome = await sokoBotService
-      .completeIntegrationAuth(sessionUri)
+      .completeIntegrationAuth(sessionUri, target.botId)
       .then((result) => result.status.toLowerCase())
       .catch(() => "error");
   }
-  redirect(`${SOKO_BOT_ROUTE}?integration=${encodeURIComponent(outcome)}`);
+  redirect(
+    `${sokoBotConsoleRoute(target.botId)}?integration=${encodeURIComponent(outcome)}`,
+  );
 }

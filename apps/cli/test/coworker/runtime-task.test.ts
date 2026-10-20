@@ -31,6 +31,9 @@ function fixture(responses: unknown[]) {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: (path, body, signal) =>
       call({ method: "PATCH", path, body, signal }),
   };

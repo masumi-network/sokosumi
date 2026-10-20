@@ -36,6 +36,7 @@ function task(
 
 const sokoBotActor: AuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: "bot_1",
   userId: "user_1",
   workspaceId: "ws_1",

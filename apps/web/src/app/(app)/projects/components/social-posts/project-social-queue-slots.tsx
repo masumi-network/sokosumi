@@ -79,7 +79,7 @@ function nextDraft(existing: readonly DraftSlot[]): DraftSlot {
     const time = "09:00";
     if (!taken.has(`${weekday}:${time}`)) {
       return {
-        key: `new-${weekday}-${time}-${existing.length}`,
+        key: crypto.randomUUID(),
         name: "",
         weekday,
         time,
@@ -87,7 +87,7 @@ function nextDraft(existing: readonly DraftSlot[]): DraftSlot {
     }
   }
   return {
-    key: `new-${existing.length}`,
+    key: crypto.randomUUID(),
     name: "",
     weekday: 1,
     time: "09:00",
@@ -139,7 +139,7 @@ export function ProjectSocialQueueSlots({
         slots: next,
       });
       if (!result.ok) {
-        toast.error(result.error.message);
+        toast.error(result.error.message ?? t("toasts.failed"));
         return;
       }
       setSlots(result.value.slots.map(toDraft));
@@ -149,14 +149,21 @@ export function ProjectSocialQueueSlots({
       );
       router.refresh();
     } catch (error) {
-      toast.error(toActionRejectionError(error).message);
+      toast.error(toActionRejectionError(error).message ?? t("toasts.failed"));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="flex flex-col gap-4" data-testid="social-queue-slots">
+    <form
+      className="flex flex-col gap-4"
+      data-testid="social-queue-slots"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSave();
+      }}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">{t("title")}</h3>
@@ -167,7 +174,7 @@ export function ProjectSocialQueueSlots({
           variant="outline"
           size="sm"
           className="h-11 shrink-0 md:h-8"
-          disabled={slots.length >= MAX_SLOTS}
+          disabled={saving || slots.length >= MAX_SLOTS}
           onClick={() =>
             setSlots((current) => [...current, nextDraft(current)])
           }
@@ -179,8 +186,11 @@ export function ProjectSocialQueueSlots({
 
       <div className="grid max-w-md gap-2">
         <Label htmlFor="social-queue-timezone">{t("timezone")}</Label>
-        <Select value={timezone} onValueChange={setTimezone}>
-          <SelectTrigger id="social-queue-timezone" className="h-11 md:h-8">
+        <Select disabled={saving} value={timezone} onValueChange={setTimezone}>
+          <SelectTrigger
+            id="social-queue-timezone"
+            className="h-11 md:h-8 data-[size=default]:h-11 md:data-[size=default]:h-8"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -208,6 +218,8 @@ export function ProjectSocialQueueSlots({
                 </Label>
                 <Input
                   id={`social-queue-name-${slot.key}`}
+                  className="h-11 md:h-8"
+                  disabled={saving}
                   maxLength={40}
                   value={slot.name}
                   placeholder={`${weekdayLabel(slot.weekday)} ${slot.time}`}
@@ -226,6 +238,7 @@ export function ProjectSocialQueueSlots({
                   {t("weekday")}
                 </Label>
                 <Select
+                  disabled={saving}
                   value={String(slot.weekday)}
                   onValueChange={(value) => {
                     setSlots((current) =>
@@ -239,7 +252,7 @@ export function ProjectSocialQueueSlots({
                 >
                   <SelectTrigger
                     id={`social-queue-day-${slot.key}`}
-                    className="h-11 md:h-8"
+                    className="h-11 md:h-8 data-[size=default]:h-11 md:data-[size=default]:h-8"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -258,6 +271,9 @@ export function ProjectSocialQueueSlots({
                 </Label>
                 <Input
                   id={`social-queue-time-${slot.key}`}
+                  className="h-11 md:h-8"
+                  disabled={saving}
+                  required
                   type="time"
                   value={slot.time}
                   onChange={(event) => {
@@ -274,7 +290,8 @@ export function ProjectSocialQueueSlots({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-11 md:h-8"
+                className="size-11 md:size-8"
+                disabled={saving}
                 aria-label={t("remove", {
                   name:
                     slot.name || `${weekdayLabel(slot.weekday)} ${slot.time}`,
@@ -294,17 +311,14 @@ export function ProjectSocialQueueSlots({
 
       <div>
         <Button
-          type="button"
+          type="submit"
           size="sm"
           className="h-11 md:h-8"
           loading={saving}
-          onClick={() => {
-            void handleSave();
-          }}
         >
           {t("save")}
         </Button>
       </div>
-    </section>
+    </form>
   );
 }

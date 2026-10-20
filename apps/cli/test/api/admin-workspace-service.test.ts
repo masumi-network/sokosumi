@@ -42,6 +42,7 @@ function fixtureClient(
         request({ method: "PUT", path, body, signal }),
       patch: (path, body, signal) =>
         request({ method: "PATCH", path, body, signal }),
+      delete: (path, signal) => request({ method: "DELETE", path, signal }),
     },
   };
 }

@@ -17,7 +17,7 @@
 
       private func loaded(role: ArchivedFixtureTransport.Role) async throws -> ArchivedChannels {
         let model = ArchivedChannels()
-        let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: ArchivedFixtureTransport(role: role, names: Self.names))
+        let client = try Client.core(baseURL: #require(URL(string: "https://example.com")), transport: ArchivedFixtureTransport(role: role, names: Self.names))
         await model.load { try await ChatService().archivedChannels(client: client, organizationId: "org", organizationSlug: "team") }
         return model
       }

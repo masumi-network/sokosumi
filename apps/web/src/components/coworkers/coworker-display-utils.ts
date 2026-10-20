@@ -13,7 +13,7 @@ export function toImageDisplayValue(image: string | null | undefined): string {
   return resolveIpfsOrHttpUrl(image);
 }
 
-export function normalizeOptionalText(value: string): string | null {
+function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }

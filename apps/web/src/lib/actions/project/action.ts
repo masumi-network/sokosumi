@@ -13,8 +13,10 @@ import type {
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  isValidTimezone,
   normalizeWebsiteUrl,
   projectIdentifierSchema,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
 } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -102,18 +104,19 @@ interface DisconnectProjectSocialConnectionParameters
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   text: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
   scheduledAt?: string | null;
   timezone?: string | null;
-  queue?: boolean;
 }
 
 interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   text?: string;
+  firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -151,6 +154,19 @@ interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   postId: string;
   revision: number;
+}
+
+interface DuplicateProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+}
+
+interface RecycleProjectSocialAccountPostParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string | null;
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
@@ -623,25 +639,23 @@ const createProjectSocialPostSchema = z
   .object({
     projectId: trimmedId,
     text: z.string(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     scheduledAt: isoTimestamp.nullish(),
     timezone: optionalTimezone,
-    queue: z.boolean().optional(),
   })
   .refine(
     (value) => value.text.trim().length > 0 || (value.media?.length ?? 0) > 0,
     { message: "Text or media is required" },
-  )
-  .refine((value) => !(value.queue && value.scheduledAt), {
-    message: "Choose the queue or a time, not both",
-  });
+  );
 
 const updateProjectSocialPostSchema = z
   .object({
     projectId: trimmedId,
     postId: trimmedId,
     text: z.string().optional(),
+    firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
     revision: revisionSchema,
@@ -700,6 +714,25 @@ const cancelProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const duplicateProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+});
+
+const recycleProjectSocialAccountPostSchema = z
+  .object({
+    projectId: trimmedId,
+    accountPostId: trimmedId,
+    delayDays: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional(),
+    timezone: optionalTimezone,
+  })
+  .refine(
+    (value) =>
+      value.delayDays === undefined ||
+      (value.timezone != null && isValidTimezone(value.timezone)),
+    { message: "timezone is required when scheduling" },
+  );
+
 const publishProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -724,20 +757,20 @@ export const createProjectSocialPost = withSession<
   async ({
     projectId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     scheduledAt,
     timezone,
-    queue,
   }) => {
     const parsed = createProjectSocialPostSchema.safeParse({
       projectId,
       text,
+      firstComment,
       media,
       socialConnectionId,
       scheduledAt,
       timezone,
-      queue,
     });
     if (!parsed.success) {
       return badSocialPostInput(parsed);
@@ -748,17 +781,17 @@ export const createProjectSocialPost = withSession<
         parsed.data.projectId,
         {
           text: parsed.data.text,
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
           ...(parsed.data.media ? { media: parsed.data.media } : {}),
           ...(parsed.data.socialConnectionId
             ? { socialConnectionId: parsed.data.socialConnectionId }
             : {}),
-          ...(parsed.data.queue ? { queue: true } : {}),
-          ...(!parsed.data.queue && parsed.data.scheduledAt
+          ...(parsed.data.scheduledAt
             ? { scheduledAt: new Date(parsed.data.scheduledAt) }
             : {}),
-          ...(!parsed.data.queue && parsed.data.timezone
-            ? { timezone: parsed.data.timezone }
-            : {}),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
         },
       );
       revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
@@ -772,40 +805,54 @@ export const createProjectSocialPost = withSession<
 export const updateProjectSocialPost = withSession<
   UpdateProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, text, media, socialConnectionId, revision }) => {
-  const parsed = updateProjectSocialPostSchema.safeParse({
+>(
+  async ({
     projectId,
     postId,
     text,
+    firstComment,
     media,
     socialConnectionId,
     revision,
-  });
-  if (!parsed.success) {
-    return badSocialPostInput(parsed);
-  }
+  }) => {
+    const parsed = updateProjectSocialPostSchema.safeParse({
+      projectId,
+      postId,
+      text,
+      firstComment,
+      media,
+      socialConnectionId,
+      revision,
+    });
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
 
-  try {
-    const post = await projectService.updateSocialPost(
-      parsed.data.projectId,
-      parsed.data.postId,
-      {
-        ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
-        ...(parsed.data.media !== undefined
-          ? { media: parsed.data.media }
-          : {}),
-        ...(parsed.data.socialConnectionId !== undefined
-          ? { socialConnectionId: parsed.data.socialConnectionId }
-          : {}),
-        revision: parsed.data.revision,
-      },
-    );
-    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
-    return toActionResult(ok(post));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    try {
+      const post = await projectService.updateSocialPost(
+        parsed.data.projectId,
+        parsed.data.postId,
+        {
+          ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
+          ...(parsed.data.firstComment !== undefined
+            ? { firstComment: parsed.data.firstComment }
+            : {}),
+          ...(parsed.data.media !== undefined
+            ? { media: parsed.data.media }
+            : {}),
+          ...(parsed.data.socialConnectionId !== undefined
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          revision: parsed.data.revision,
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const scheduleProjectSocialPost = withSession<
   ScheduleProjectSocialPostParameters,
@@ -938,6 +985,60 @@ export const cancelProjectSocialPost = withSession<
       parsed.data.projectId,
       parsed.data.postId,
       { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const duplicateProjectSocialPost = withSession<
+  DuplicateProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId }) => {
+  const parsed = duplicateProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.duplicateSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const recycleProjectSocialAccountPost = withSession<
+  RecycleProjectSocialAccountPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, accountPostId, delayDays, timezone }) => {
+  const parsed = recycleProjectSocialAccountPostSchema.safeParse({
+    projectId,
+    accountPostId,
+    delayDays,
+    timezone,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.recycleSocialAccountPost(
+      parsed.data.projectId,
+      parsed.data.accountPostId,
+      {
+        ...(parsed.data.delayDays ? { delayDays: parsed.data.delayDays } : {}),
+        ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+      },
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));

@@ -71,9 +71,12 @@ describe("PerformanceTrendChart", () => {
     expect(
       screen.getByRole("heading", { name: "Performance over time" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("combobox", { name: "Chart metric" }),
-    ).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Chart metric" })).toHaveClass(
+      "h-11",
+      "md:h-10",
+      "data-[size=default]:h-11",
+      "md:data-[size=default]:h-10",
+    );
     expect(screen.getByRole("figure", { name: "Interactions" })).toBeVisible();
   });
 });

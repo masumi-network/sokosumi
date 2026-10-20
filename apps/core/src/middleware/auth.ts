@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node";
 import {
   CORE_API_ERROR_KINDS,
   hasAdminRole as checkAdminRole,
@@ -19,9 +18,9 @@ import {
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import { attachAuthToLogger } from "@/lib/evlog";
 
 import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
+import { syncAuthObservers } from "./auth-observability";
 
 const DEFAULT_USER_ROLE = "user";
 
@@ -56,13 +55,35 @@ export interface CoworkerAuthenticationContext {
   context?: WorkspaceActorRequestContext;
 }
 
-export interface SokoBotAuthenticationContext {
+interface SokoBotAuthenticationContextBase {
   actor: "sokoBot";
   sokoBotId: string;
-  userId: string;
   workspaceId: string;
+}
+
+/** A personal bot acts as its owner, so it carries the owner's user id. */
+export interface PersonalSokoBotAuthenticationContext
+  extends SokoBotAuthenticationContextBase {
+  scope: "personal";
+  userId: string;
   organizationId: string | null;
 }
+
+/**
+ * A project or workspace bot is its own principal: no user, always an
+ * Organization workspace. `projectId` is set only for project scope.
+ */
+export interface SharedSokoBotAuthenticationContext
+  extends SokoBotAuthenticationContextBase {
+  scope: "project" | "workspace";
+  userId: null;
+  organizationId: string;
+  projectId: string | null;
+}
+
+export type SokoBotAuthenticationContext =
+  | PersonalSokoBotAuthenticationContext
+  | SharedSokoBotAuthenticationContext;
 
 export type AuthenticationContext =
   | UserAuthenticationContext
@@ -78,103 +99,10 @@ export type AuthEnv = {
   Variables: AuthVariables;
 };
 
-function syncSentryUser(context: AuthVariables) {
-  const scope = Sentry.getCurrentScope();
-
-  if (!context.isAuthenticated) {
-    scope.setUser(null);
-    return;
-  }
-
-  if (context.authContext.actor === "user") {
-    const user = context.authContext;
-    scope.setUser({
-      id: user.userId,
-      organizationId: user.organizationId || undefined,
-    });
-    if (user.impersonatedBy) {
-      scope.setContext("impersonation", {
-        by: user.impersonatedBy,
-        target: user.userId,
-      });
-    }
-    return;
-  }
-
-  if (isSokoBotAuthContext(context.authContext)) {
-    const sokoBot = context.authContext;
-    scope.setUser({
-      id: `sokoBot:${sokoBot.sokoBotId}`,
-      sokoBotId: sokoBot.sokoBotId,
-    });
-    scope.setContext("sokoBotContext", {
-      userId: sokoBot.userId,
-      organizationId: sokoBot.organizationId,
-      workspaceId: sokoBot.workspaceId,
-    });
-    return;
-  }
-
-  const coworker = context.authContext;
-  scope.setUser({
-    id: `coworker:${coworker.coworkerId}`,
-    coworkerId: coworker.coworkerId,
-  });
-  if (coworker.context) {
-    scope.setContext("coworkerContext", {
-      userId: coworker.context.userId,
-      organizationId: coworker.context.organizationId,
-    });
-  }
-}
-
-function syncRequestLogger(context: AuthVariables) {
-  if (!context.isAuthenticated) {
-    attachAuthToLogger({ actor: "anonymous" });
-    return;
-  }
-
-  const { authContext } = context;
-
-  if (isUserAuthContext(authContext)) {
-    attachAuthToLogger({
-      actor: "user",
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
-      impersonatedBy: authContext.impersonatedBy,
-    });
-    return;
-  }
-
-  if (isCoworkerAuthContext(authContext)) {
-    attachAuthToLogger({
-      actor: "coworker",
-      coworkerId: authContext.coworkerId,
-      contextUserId: authContext.context?.userId,
-      contextOrganizationId: authContext.context?.organizationId,
-    });
-    return;
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    attachAuthToLogger({
-      actor: "sokoBot",
-      sokoBotId: authContext.sokoBotId,
-      contextUserId: authContext.userId,
-      contextOrganizationId: authContext.organizationId,
-    });
-    return;
-  }
-
-  const _exhaustive: never = authContext;
-  void _exhaustive;
-}
-
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
-  syncSentryUser(context);
-  syncRequestLogger(context);
+  syncAuthObservers(context);
 }
 
 export function isUserAuthContext(
@@ -193,6 +121,34 @@ export function isSokoBotAuthContext(
   authContext: AuthenticationContext,
 ): authContext is SokoBotAuthenticationContext {
   return authContext.actor === "sokoBot";
+}
+
+export function isPersonalSokoBotAuthContext(
+  authContext: AuthenticationContext,
+): authContext is PersonalSokoBotAuthenticationContext {
+  return isSokoBotAuthContext(authContext) && authContext.scope === "personal";
+}
+
+export function isSharedSokoBotAuthContext(
+  authContext: AuthenticationContext,
+): authContext is SharedSokoBotAuthenticationContext {
+  return isSokoBotAuthContext(authContext) && authContext.scope !== "personal";
+}
+
+const SHARED_SOKO_BOT_NO_USER_MESSAGE =
+  "A shared Soko Bot has no user context for this resource";
+
+/**
+ * Narrows a Soko Bot context to a personal one, or answers 403 for a shared
+ * bot on a path that has no shared branch.
+ */
+export function requirePersonalSokoBotAuthContext(
+  authContext: SokoBotAuthenticationContext,
+): PersonalSokoBotAuthenticationContext {
+  if (authContext.scope !== "personal") {
+    throw forbidden(SHARED_SOKO_BOT_NO_USER_MESSAGE);
+  }
+  return authContext;
 }
 
 /**
@@ -247,7 +203,7 @@ export function isAgentAuthContext(
  * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
  * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
  * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
- * | {@link resolveUserContext} | Session, Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat, Social beta) must follow the effective user. |
+ * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat, Social beta) must follow the effective user. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
  * `X-Context-*` headers. Policy lives in these helpers — not per-handler
@@ -272,6 +228,9 @@ export type UserContext =
  * when coworkers must not run the handler at all. Keep this helper for task/job
  * paths that intentionally allow unbound coworker context (delegated create /
  * grant gates live in access-control).
+ *
+ * A shared Soko Bot has no user, so it gets 403 here and from every helper
+ * built on this one.
  */
 export function requireUserContext(
   authContext: AuthenticationContext,
@@ -281,10 +240,11 @@ export function requireUserContext(
   }
 
   if (isSokoBotAuthContext(authContext)) {
+    const sokoBot = requirePersonalSokoBotAuthContext(authContext);
     return {
       source: "context",
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
+      userId: sokoBot.userId,
+      organizationId: sokoBot.organizationId,
     };
   }
 

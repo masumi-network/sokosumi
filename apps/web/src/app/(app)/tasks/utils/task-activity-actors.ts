@@ -4,7 +4,7 @@ import {
   TaskEventStatus,
 } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 
 import { getCoworkerImage } from "./coworker-image";
 
@@ -34,11 +34,12 @@ type SokoBotActorSummary = {
   name: string | null;
   avatarSeed?: string | null;
   avatarImageUrl?: string | null;
+  /** Null for a shared bot: it has no owner. */
   owner: {
     id: string;
     name: string;
     image?: string | null;
-  };
+  } | null;
 };
 
 /**
@@ -76,7 +77,7 @@ export function getEventActorInfo(
   userById?: Record<string, TaskActivityActorInfo>,
   coworkerById?: Record<string, TaskActivityActorInfo>,
   sokoBotById?: Record<string, TaskActivityActorInfo>,
-  taskOwnerId?: string,
+  taskOwnerId?: string | null,
 ): TaskActivityActorInfo | undefined {
   const actor = resolveEventActorInfo(
     event,
@@ -178,24 +179,28 @@ export function buildTaskActivityActors(
     }
   }
 
-  switch (task.creator.type) {
+  // A person who deleted their account leaves no Creator.
+  const creator = task.creator;
+  switch (creator?.type) {
+    case undefined:
+      break;
     case "user":
-      if (task.creator.id !== task.owner.id) {
-        addUserActor(userById, task.creator.user);
+      if (creator.id !== task.owner?.id) {
+        addUserActor(userById, creator.user);
       }
       break;
     case "coworker":
-      if (task.creator.coworker) {
-        addCoworkerActor(coworkerById, task.creator.coworker);
+      if (creator.coworker) {
+        addCoworkerActor(coworkerById, creator.coworker);
       }
       break;
     case "sokoBot":
-      if (task.creator.sokoBot) {
-        addSokoBotActor(sokoBotById, task.creator.sokoBot);
+      if (creator.sokoBot) {
+        addSokoBotActor(sokoBotById, creator.sokoBot);
       }
       break;
     default: {
-      const _exhaustive: never = task.creator;
+      const _exhaustive: never = creator;
       void _exhaustive;
     }
   }
@@ -257,8 +262,8 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     // here than the one the owner sees everywhere else.
     avatarSeed: sokoBot.avatarImageUrl
       ? null
-      : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
-    ownerName: sokoBot.owner.name,
+      : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
+    ownerName: sokoBot.owner?.name,
   };
 }
 
@@ -268,8 +273,10 @@ function addUserActor(
     id: string;
     name: string;
     image?: string | null;
-  },
+  } | null,
 ) {
+  // A Task without an Owner names nobody here.
+  if (!user) return;
   userById[user.id] = {
     name: user.name,
     image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,

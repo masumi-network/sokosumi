@@ -17,8 +17,10 @@ export const loadSocialCalendarPreview = withSession(
     const connections = await projectService.listSocialConnections(projectId);
     const post = await projectService.getSocialPost(projectId, postId);
     if (!post) throw new Error("Social post not found");
+    const queueSlots = await projectService.listSocialQueueSlots(projectId);
     return {
       post,
+      queueSlots: queueSlots.slots,
       connections: connections.filter(
         (connection) => connection.status === "active",
       ),

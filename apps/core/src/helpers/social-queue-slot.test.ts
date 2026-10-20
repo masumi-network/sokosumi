@@ -27,6 +27,58 @@ describe("socialQueueSlotOccurrence", () => {
 });
 
 describe("nextSocialQueueSlotAt", () => {
+  it("skips past times and the exact minimum lead boundary", () => {
+    const from = new Date("2026-09-15T10:00:00.000Z");
+    expect(
+      nextSocialQueueSlotAt(
+        [slot(2, 9 * 60), slot(2, 10 * 60 + 1)],
+        [],
+        from,
+      )?.toISOString(),
+    ).toBe("2026-09-22T09:00:00.000Z");
+  });
+
+  it("does not shift a nonexistent DST wall time into another slot", () => {
+    expect(
+      nextSocialQueueSlotAt(
+        [slot(0, 2 * 60 + 30, "Europe/Zurich")],
+        [],
+        new Date("2026-03-28T12:00:00Z"),
+      )?.toISOString(),
+    ).toBe("2026-04-05T00:30:00.000Z");
+  });
+
+  it("uses the winter offset after the DST fallback", () => {
+    expect(
+      nextSocialQueueSlotAt(
+        [slot(0, 9 * 60, "Europe/Zurich")],
+        [],
+        new Date("2026-10-24T12:00:00Z"),
+      )?.toISOString(),
+    ).toBe("2026-10-25T08:00:00.000Z");
+  });
+
+  it("treats all posts in a slot's minute as occupying it", () => {
+    expect(
+      nextSocialQueueSlotAt(
+        [slot(2, 11 * 60)],
+        [new Date("2026-09-15T11:00:30Z")],
+        new Date("2026-09-15T10:00:00Z"),
+      )?.toISOString(),
+    ).toBe("2026-09-22T11:00:00.000Z");
+  });
+
+  it("stops after the configured lookahead", () => {
+    expect(
+      nextSocialQueueSlotAt(
+        [slot(2, 11 * 60)],
+        [new Date("2026-09-15T11:00:00Z")],
+        new Date("2026-09-15T10:00:00Z"),
+        60_000,
+        1,
+      ),
+    ).toBeNull();
+  });
   it("returns null when there are no slots", () => {
     expect(
       nextSocialQueueSlotAt([], [], new Date("2026-09-15T10:00:00.000Z")),

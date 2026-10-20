@@ -7,6 +7,7 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { capabilityGrants } from "./ably-capability-map";
 import {
@@ -69,7 +70,10 @@ export function useRoomTyping(
 
     const activeRoomId = roomId;
     const activeSelfUserId = selfUserId;
-    const channelName = makeChatTypingChannelName(activeRoomId);
+    const channelName = makeChatTypingChannelName(
+      activeRoomId,
+      getRealtimeChannelEnvironment(),
+    );
 
     let cancelled = false;
     let channel: Ably.RealtimeChannel | null = null;

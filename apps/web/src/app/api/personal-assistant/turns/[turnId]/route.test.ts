@@ -18,10 +18,13 @@ vi.mock("@/lib/soko-bot/chat-state", () => ({
 
 import { GET } from "./route";
 
-function request() {
-  return GET(new Request("https://web.test/api/personal-assistant/turns/t1"), {
-    params: Promise.resolve({ turnId: "t1" }),
-  });
+const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
+
+function request(query = "") {
+  return GET(
+    new Request(`https://web.test/api/personal-assistant/turns/t1${query}`),
+    { params: Promise.resolve({ turnId: "t1" }) },
+  );
 }
 
 describe("GET /api/personal-assistant/turns/[turnId]", () => {
@@ -50,6 +53,23 @@ describe("GET /api/personal-assistant/turns/[turnId]", () => {
       error: "Turn unavailable",
       reason: "invalid_json",
     });
+    expect(getTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the turn of the shared bot named by botId", async () => {
+    getSessionResultMock.mockResolvedValue(ok({ user: { id: "u1" } }));
+    getTurnMock.mockResolvedValue({ id: "t1" });
+
+    const response = await request(`?botId=${BOT_ID}`);
+
+    expect(response.status).toBe(200);
+    expect(getTurnMock).toHaveBeenCalledWith("t1", BOT_ID);
+  });
+
+  it("returns 400 for a bot id that is not a uuid", async () => {
+    const response = await request("?botId=nope");
+
+    expect(response.status).toBe(400);
     expect(getTurnMock).not.toHaveBeenCalled();
   });
 });

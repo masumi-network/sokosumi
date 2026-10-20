@@ -33,13 +33,6 @@
       )
     }
 
-    @Test func shellsAreDetectedFromTheGeneratedDTO() throws {
-      let thinking = try shell(id: "thinking", metadata: ["streaming": true, "mention_id": "mention_1", "thought_timing_ms": ["start": 1_788_868_800_000]])
-      #expect(MentionThoughtShell(message: thinking) == .thinking(startedAt: Date(timeIntervalSince1970: 1_788_868_800)))
-      let failed = try shell(id: "failed", metadata: ["mention_id": "mention_1", "mention_failed": true, "in_reply_to_message_id": "source"])
-      #expect(MentionThoughtShell(message: failed) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
-    }
-
     @Test(arguments: [false, true])
     func thinkingAndFailedShellsFitTheTranscript(dark: Bool) async throws {
       let beats = [["type": "reasoning", "text": "Reading the last three release notes"], ["type": "reasoning", "text": "Comparing the registration counts for the last 30 days against the previous period, one row per organization"]]
@@ -47,10 +40,10 @@
       let beating = try shell(id: "beating", metadata: ["streaming": true, "mention_id": "mention_2", "reasoning": beats, "thought_timing_ms": ["start": 1_788_868_800_000]])
       let failed = try shell(id: "failed", metadata: ["mention_id": "mention_3", "mention_failed": true, "in_reply_to_message_id": "source"])
       let content = VStack(alignment: .leading, spacing: 12) {
-        MessageRowView(message: thinking, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: beating, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
-        MessageRowView(message: failed, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onRetryMention: {})
-        MessageRowView(message: failed, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onQuote: {}, onToggleReaction: { _ in false })
+        MessageRowView(message: thinking, row: transcriptRow(thinking), outbound: nil)
+        MessageRowView(message: beating, row: transcriptRow(beating), outbound: nil)
+        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, perform: { _ in nil }, canRetryMention: true)
+        MessageRowView(message: failed, row: transcriptRow(failed), outbound: nil, perform: { _ in nil })
       }
       .padding(20)
       .frame(width: 520, alignment: .leading)

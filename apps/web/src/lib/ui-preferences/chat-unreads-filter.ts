@@ -1,5 +1,5 @@
 export const CHAT_UNREADS_FILTER_COOKIE_NAME = "chat_unreads_filter";
-export const CHAT_UNREADS_FILTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const CHAT_UNREADS_FILTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /**
  * Set on `<html>` before paint while the reader left the Unreads filter on and

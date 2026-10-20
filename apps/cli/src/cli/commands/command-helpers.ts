@@ -12,33 +12,30 @@ export interface CommandContext {
   signal?: AbortSignal;
 }
 
-export type CommandOption = string | string[] | boolean | undefined;
+type CommandOption = string | string[] | boolean | undefined;
 export type CommandOptions = Record<string, CommandOption>;
 
 export function option(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): CommandOption {
-  for (const name of names) {
-    if (options?.[name] !== undefined) return options[name];
-  }
-  return undefined;
+  return options?.[name];
 }
 
 export function optionString(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): string | undefined {
-  const value = option(options, ...names);
+  const value = option(options, name);
   if (value === undefined || typeof value === "boolean") return undefined;
   return Array.isArray(value) ? value[value.length - 1] : value;
 }
 
 export function optionBoolean(
   options: CommandOptions | undefined,
-  ...names: string[]
+  name: string,
 ): boolean {
-  const value = option(options, ...names);
+  const value = option(options, name);
   return value === true || value === "true";
 }
 
@@ -80,20 +77,22 @@ export function parseInteger(
   return parsed;
 }
 
-export function validateStatus(
+/** Case-insensitive enum check; returns the matching allowed spelling. */
+export function validateChoice(
   value: CommandOption,
   allowed: readonly string[],
+  label: string,
 ): string | undefined {
   const text =
     value === undefined || typeof value === "boolean"
       ? undefined
-      : String(Array.isArray(value) ? value.at(-1) : value)
-          .trim()
-          .toUpperCase();
+      : String(Array.isArray(value) ? value.at(-1) : value).trim();
   if (!text) return undefined;
-  if (!allowed.includes(text))
-    throw new Error(`--status must be one of: ${allowed.join(", ")}`);
-  return text;
+  const match = allowed.find(
+    (entry) => entry.toUpperCase() === text.toUpperCase(),
+  );
+  if (!match) throw new Error(`${label} must be one of: ${allowed.join(", ")}`);
+  return match;
 }
 
 export function normalizeCapabilities(value: CommandOption): string[] {
@@ -113,7 +112,7 @@ export function normalizeCapabilities(value: CommandOption): string[] {
   return [...new Set(capabilities)];
 }
 
-export function normalizeSearch(value: CommandOption): string {
+function normalizeSearch(value: CommandOption): string {
   if (value === undefined || typeof value === "boolean") return "";
   return String(Array.isArray(value) ? value.at(-1) : value)
     .trim()

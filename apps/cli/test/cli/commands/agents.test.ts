@@ -39,6 +39,9 @@ test("filters agents by searchable fields and applies a limit", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -59,6 +62,9 @@ test("agents list emits a stable JSON collection", async () => {
     post: async <T>() => ({ data: null }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };
@@ -103,6 +109,9 @@ test("agents list text omits phantom status for Core list DTOs", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -129,6 +138,9 @@ test("agents hire fetches the input schema and posts a job", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };
@@ -158,6 +170,9 @@ test("agents hire requires an agent id and input", async () => {
     post: async <T>() => ({ data: {} }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -194,6 +209,9 @@ test("agents hire forwards max-credits and name to the job request", async () =>
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -221,6 +239,9 @@ test("agents hire reads input from a file", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: null }) as T,
   };

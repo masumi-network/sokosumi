@@ -46,7 +46,14 @@ export type ValueOptionName =
   | "timeout-ms"
   | "result-file"
   | "email"
-  | "slug";
+  | "slug"
+  | "description-file"
+  | "project-id"
+  | "assignee-user-id"
+  | "to"
+  | "relation"
+  | "note"
+  | "sort";
 
 type CliOptionValue = string | string[];
 
@@ -93,10 +100,19 @@ export interface CliOptions {
   "organization-id"?: string;
   "organization-slug"?: string;
   slug?: string;
+  "description-file"?: string;
+  "project-id"?: string;
+  "assignee-user-id"?: string;
+  to?: string;
+  relation?: string;
+  note?: string;
+  sort?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
   details?: boolean;
+  unassign?: boolean;
+  "clear-project"?: boolean;
 }
 
 export const GLOBAL_VALUE_OPTIONS = [
@@ -203,6 +219,18 @@ Organization Tasks:
   Personal setup: coworkers register/connect --personal; workspaces list --personal checks existence without creating.
   Personal Tasks: tasks create --personal --coworker-id ID --description TEXT --status READY
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+  Task ids accept a UUID or a short identifier such as SOK-12.
+  Create or update: --name TEXT, --description TEXT or --description-file FILE, --priority URGENT|HIGH|MEDIUM|LOW|NONE,
+    --project-id ID, and one assignee: --coworker-id ID or --assignee-user-id ID.
+  tasks update also takes --unassign and --clear-project to remove the assignee or project.
+  Status and progress: tasks comment TASK_ID --status STATUS --comment TEXT
+  Links: tasks link TASK_ID --to OTHER_TASK_ID --relation related|blocks|blocked_by|parent|child|duplicate [--note TEXT]
+    The relation describes TASK_ID: --relation child --to EPIC makes TASK_ID a sub-task of EPIC.
+    tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link.
+    tasks relink TASK_ID --to OTHER_TASK_ID --relation REL replaces it (deletes, then creates; keeps the note).
+  List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority.
+    tasks list fetches every page unless --limit N is set. --sort updatedAt|priority requires --limit.
+  Close: tasks archive TASK_ID
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

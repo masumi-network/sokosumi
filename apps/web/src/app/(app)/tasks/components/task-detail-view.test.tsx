@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listTaskActivityFeedMock = vi.fn();
 const taskActivitySectionMock = vi.fn();
+const taskDetailActionsMock = vi.fn();
+const viewer = vi.hoisted(() => ({
+  id: "user_admin",
+  hasAssignedSeat: false,
+}));
 
 class FakeCoreApiRequestError extends Error {
   constructor(
@@ -28,7 +33,7 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: async () => ({
     session: { activeOrganizationId: null },
-    user: { id: "user_admin", name: "Admin", email: "admin@example.com" },
+    user: { id: viewer.id, name: "Admin", email: "admin@example.com" },
   }),
 }));
 
@@ -48,7 +53,9 @@ vi.mock("@/lib/services/design-md.service", () => ({
   designMdService: { resolveEffectiveDesignMd: async () => null },
 }));
 vi.mock("@/lib/services/organization-seat.service", () => ({
-  organizationSeatService: { hasAssignedSeat: async () => false },
+  organizationSeatService: {
+    hasAssignedSeat: async () => viewer.hasAssignedSeat,
+  },
 }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: async () => null },
@@ -82,7 +89,10 @@ vi.mock("@/app/tasks/components/task-description", () => ({
   TaskDescription: () => null,
 }));
 vi.mock("@/app/tasks/components/task-detail-actions", () => ({
-  TaskDetailActions: () => null,
+  TaskDetailActions: (props: unknown) => {
+    taskDetailActionsMock(props);
+    return null;
+  },
 }));
 vi.mock("@/app/tasks/components/task-detail-header", () => ({
   TaskDetailHeader: ({ actions }: { actions: ReactElement }) => actions,
@@ -134,7 +144,10 @@ function event(id: string, comment: string | null, minute: number): TaskEvent {
   } as unknown as TaskEvent;
 }
 
-function createTask(events: TaskEvent[]): Task {
+function createTask(
+  events: TaskEvent[],
+  overrides: Record<string, unknown> = {},
+): Task {
   return {
     id: "task_1",
     name: "Facebook Page Analysis",
@@ -162,6 +175,7 @@ function createTask(events: TaskEvent[]): Task {
     createdAt: new Date("2026-10-05T09:00:00Z"),
     updatedAt: new Date("2026-10-05T09:00:00Z"),
     workspace: { id: "ws_owner", organizationId: "org_owner" },
+    ...overrides,
   } as unknown as Task;
 }
 
@@ -181,6 +195,8 @@ async function renderErrors(element: ReactElement): Promise<unknown[]> {
 describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    viewer.id = "user_admin";
+    viewer.hasAssignedSeat = false;
     // Core scopes GET /tasks/{id}/events to the caller's active workspace; a
     // platform admin outside the owner's workspace gets "Task not found".
     listTaskActivityFeedMock.mockRejectedValue(
@@ -230,5 +246,84 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
         latestCommentId: "evt_c11",
       }),
     );
+  });
+});
+
+describe("TaskDetailView (rights follow the Owner)", () => {
+  const personalWorkspace = { id: "ws_personal", organizationId: null };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    viewer.id = "user_viewer";
+    viewer.hasAssignedSeat = true;
+    listTaskActivityFeedMock.mockResolvedValue({
+      events: [],
+      pagination: { commentCount: 0, latestCommentId: null },
+    });
+  });
+
+  async function renderFor(task: Task) {
+    expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
+    return {
+      actions: taskDetailActionsMock.mock.lastCall?.[0],
+      activity: taskActivitySectionMock.mock.lastCall?.[0],
+    };
+  }
+
+  it("gives the Owner of a personal task its controls", async () => {
+    const { actions, activity } = await renderFor(
+      createTask([], {
+        ownerId: "user_viewer",
+        owner: { id: "user_viewer", name: "Viewer", image: null },
+        workspace: personalWorkspace,
+      }),
+    );
+
+    expect(actions).toMatchObject({ isTaskOwner: true, canCancel: true });
+    expect(activity.canComment).toBe(true);
+  });
+
+  it("gives another member of the organization workspace no 'mine' controls but still lets them comment and cancel", async () => {
+    const { actions, activity } = await renderFor(createTask([]));
+
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: true });
+    expect(activity.canComment).toBe(true);
+  });
+
+  it("gives a viewer who does not own a personal task no controls", async () => {
+    const { actions, activity } = await renderFor(
+      createTask([], { workspace: personalWorkspace }),
+    );
+
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
+    expect(activity.canComment).toBe(false);
+  });
+
+  it("shows a public Task whose Owner deleted their account", async () => {
+    const { actions, activity } = await renderFor(
+      createTask([], {
+        ownerId: null,
+        owner: null,
+        userId: null,
+        user: null,
+        creator: null,
+      }),
+    );
+
+    expect(actions).toMatchObject({ isTaskOwner: false });
+    expect(activity.canComment).toBe(true);
+  });
+
+  it("gives nobody a personal-workspace right on a Task without an Owner", async () => {
+    const { actions, activity } = await renderFor(
+      createTask([], {
+        ownerId: null,
+        owner: null,
+        workspace: personalWorkspace,
+      }),
+    );
+
+    expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
+    expect(activity.canComment).toBe(false);
   });
 });

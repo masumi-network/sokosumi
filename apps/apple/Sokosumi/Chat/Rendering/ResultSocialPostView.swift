@@ -229,7 +229,7 @@ private struct InstagramPostPreview: View {
         if !post.text.isEmpty {
           caption(name: name)
         }
-        Text(verbatim: post.timestamp.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).month(.wide).day()))
+        Text(verbatim: SocialPostWords.longDay(post.timestamp, locale: locale, timeZone: timeZone))
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -558,9 +558,20 @@ private enum SocialPostWords {
                                               comment: "A social post preview's author when the connected account has no name."))
   }
 
-  /// Web `{ month: "short", day: "numeric" }`: "Oct 7".
-  static func shortDay(_ date: Date, locale: Locale, timeZone: TimeZone) -> String {
-    date.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).month(.abbreviated).day())
+  /// Web `{ month: "short", day: "numeric" }`: "Oct 7"; no publish time reads "now".
+  static func shortDay(_ date: Date?, locale: Locale, timeZone: TimeZone) -> String {
+    date?.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).month(.abbreviated).day()) ?? now(locale)
+  }
+
+  /// Web `{ month: "long", day: "numeric" }`: "October 7"; no publish time reads "now".
+  static func longDay(_ date: Date?, locale: Locale, timeZone: TimeZone) -> String {
+    date?.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).month(.wide).day()) ?? now(locale)
+  }
+
+  /// Web `preview.now`: a draft or a post going out now has no publish time yet.
+  static func now(_ locale: Locale) -> String {
+    String(localized: LocalizedStringResource("now", table: chatSocialPostsTable, locale: locale,
+                                              comment: "A social post preview's time when the post has no publish time yet."))
   }
 
   /// Web's `--social-*-link` tokens.

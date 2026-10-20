@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createSokoBotScheduleAction } from "@/lib/actions/soko-bot/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 const DEFAULT_CRON = "0 9 * * 1-5";
 
 /** Minimal create form: name, cron, timezone, prompt. Collapsed until opened. */
 export function ScheduleForm() {
+  const botId = useSokoBotTargetId();
   const t = useTranslations("App.SokoBot.Schedules.Form");
   const router = useRouter();
   const ids = {
@@ -51,6 +53,7 @@ export function ScheduleForm() {
     event.preventDefault();
     startTransition(async () => {
       const result = await createSokoBotScheduleAction({
+        botId,
         input: {
           name: name.trim(),
           cronExpression: cronExpression.trim(),

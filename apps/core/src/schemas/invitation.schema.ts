@@ -10,7 +10,7 @@ import {
  * Raw pending-invitation fields, mirroring the `Invitation` model. Used by the
  * owner/admin organization-invitations list endpoint.
  */
-export const pendingInvitationSchema = z
+const pendingInvitationSchema = z
   .object({
     id: z.string().openapi({ example: "inv_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
@@ -69,7 +69,7 @@ const userPendingOrganizationPreviewSchema = z.object({
  * A pending organization invitation addressed to the current user's email.
  * Used by the workspace-gate queue. Chat guest invitations are not included.
  */
-export const userPendingOrganizationInvitationSchema = z
+const userPendingOrganizationInvitationSchema = z
   .object({
     id: z.string().openapi({ example: "inv_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),

@@ -7,7 +7,7 @@ public struct JumpMark: Equatable, Sendable {
   /// Web `ROOM_MESSAGE_HIGHLIGHT_MS`: the longest a landed row stays marked.
   public static let hold: TimeInterval = 4.5
   /// Web `ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS`: the fade once a reader scroll ends the hold early.
-  public static let leave: TimeInterval = 0.32
+  private static let leave: TimeInterval = 0.32
   /// Web `ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE` and `…_FULL_STRENGTH_SHARE`: the mark opens over the first
   /// tenth of the hold, stays at full strength until 76 % of it, then fades out over the rest.
   static let openShare = 0.1
@@ -19,7 +19,7 @@ public struct JumpMark: Equatable, Sendable {
     case full
     /// The hold's own fade over its last 24 %.
     case closing(progress: Double)
-    /// The fade a reader scroll started, over `JumpMark.leave`.
+    /// The fade a reader scroll started, over `leave`.
     case leaving(progress: Double)
     case ended
   }

@@ -325,6 +325,7 @@
       "design-md": "Diseño",
       "memory": "Memoria",
       "social": "Programación social",
+      "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
@@ -1239,10 +1240,19 @@
             "message": "¿Aún no tienes cuenta?",
             "link": "Registrarse"
           },
+          "RegisterOnWebsite": {
+            "message": "¿Aún no tienes cuenta? Las cuentas se crean en el sitio web, no en la app.",
+            "link": "Crear una en el sitio web"
+          },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
             "description": "Comprueba que no tenga errores o crea una ahora.",
             "createAccount": "Crear cuenta"
+          },
+          "NoAccountOnWebsite": {
+            "title": "No hay ninguna cuenta con este email",
+            "description": "Comprueba que no tenga errores o crea una cuenta en el sitio web y luego inicia sesión aquí.",
+            "createAccount": "Crear cuenta en el sitio web"
           },
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
@@ -1623,6 +1633,7 @@
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
+          "background": "Trabajo en segundo plano: {name}",
           "taskUpdate": "Actualización de tarea"
         }
       }
@@ -2369,8 +2380,11 @@
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar cuenta",
+        "projectClosed": "Este proyecto está cerrado.",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
+        "startOver": "Empezar de nuevo",
+        "syncNow": "Sincronizar ahora",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
         "unknownHandle": "Cuenta desconocida",
@@ -2382,7 +2396,7 @@
         },
         "replaceDialog": {
           "title": "¿Reemplazar {account}?",
-          "description": "Todos los borradores y las publicaciones programadas de esta cuenta pasarán a la nueva. Si quieres conservarlas aquí, añade otra cuenta en lugar de reemplazarla.",
+          "description": "Los borradores y las publicaciones programadas pasan a la cuenta nueva.",
           "confirm": "Reemplazar cuenta"
         },
         "disconnectDialog": {
@@ -2393,17 +2407,18 @@
         "cancel": "Cancelar",
         "success": {
           "connected": "{account} conectada.",
-          "disconnected": "{account} desconectada."
+          "disconnected": "{account} desconectada.",
+          "syncStarted": "Sincronización iniciada."
         },
         "warning": {
-          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
+          "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Publicar en Facebook requiere una cuenta que gestione exactamente una página. Usa una cuenta con una sola página gestionable.",
+          "facebookPage": "Facebook necesita una cuenta que gestione exactamente una página.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
-          "providerCallback": "La autorización no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
+          "providerCallback": "La autorización no se completó. Inténtalo de nuevo.",
           "legacyCallback": "Esta respuesta no permite verificar tu cuenta. Contacta con soporte e inténtalo de nuevo.",
           "verifier": "No pudimos verificar tu cuenta. Inicia la conexión de nuevo.",
           "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
@@ -2411,7 +2426,8 @@
           "reconnectMismatch": "Vuelve a conectar la misma cuenta que ya está vinculada a este proyecto.",
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
-          "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla."
+          "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla.",
+          "sync": "No se pudo iniciar la sincronización."
         },
         "comingSoon": "Próximamente",
         "connectComingSoon": "{provider} (próximamente)",
@@ -2420,10 +2436,14 @@
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
+        "loadMoreError": "No se pudieron cargar más.",
+        "loadMoreOffline": "Estás sin conexión.",
+        "loadMoreTimeout": "Se agotó el tiempo.",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
-        "moreActions": "Acciones de la publicación",
+        "moreActionsNamed": "Acciones de la publicación para {handle}",
+        "thisDraft": "este borrador",
         "noAccount": "Sin cuenta",
         "outcomes": {
           "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla.",
@@ -2447,14 +2467,19 @@
           "accounts": "Cuentas",
           "statistics": "Rendimiento"
         },
+        "filters": {
+          "platform": "Plataforma"
+        },
         "empty": {
-          "drafts": "Aún no hay borradores."
+          "drafts": "Aún no hay borradores.",
+          "more": "Hay más publicaciones."
         },
         "emptyHint": {
-          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
+          "drafts": "Guarda un borrador para más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
+          "NEEDS_APPROVAL": "Pendiente de aprobación",
           "SCHEDULED": "Programada",
           "PUBLISHING": "Publicando",
           "PUBLISHED": "Publicada",
@@ -2474,9 +2499,14 @@
           "rescheduleTitle": "Reprogramar publicación",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
+          "firstComment": "Primer comentario",
+          "firstCommentPlaceholder": "Hashtags o una llamada a la acción",
+          "firstCommentTooLong": "El primer comentario es demasiado largo.",
+          "textForAccount": "Texto de esta cuenta",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Añadir desde Drive",
+            "drop": "Suelta archivos para adjuntar",
             "upload": "Subir",
             "remove": "Quitar {name}",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
@@ -2523,7 +2553,9 @@
             "dateSelected": "Fecha: {date}",
             "timeSelected": "Hora: {time}",
             "times": "Horas",
-            "now": "Ahora"
+            "now": "Ahora",
+            "suggestedTimes": "Horas sugeridas",
+            "suggested": "Mejor {time}"
           },
           "timezone": {
             "yours": "Tu zona horaria: {zone}",
@@ -2545,58 +2577,45 @@
           "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
           "connectAccount": "Conectar cuenta",
           "dismiss": "Cancelar",
+          "discardTitle": "¿Descartar cambios?",
+          "discardDescription": "Se perderán tus cambios.",
+          "discard": "Descartar",
+          "keepEditing": "Seguir editando",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
           "tooLong": "La longitud del texto supera el límite.",
           "addToQueue": "Añadir a la cola",
-          "addToQueueNeedSlots": "Añade primero un horario de cola en Cuentas."
+          "queueEmptyHint": "Añade horarios en Cuentas."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
           "description": "La publicación no se publicará. Esta acción no se puede deshacer.",
           "confirm": "Cancelar publicación"
         },
+        "dismissDialog": {
+          "title": "¿Descartar esta publicación?",
+          "description": "Sale de Requiere atención.",
+          "confirm": "Descartar"
+        },
         "toasts": {
           "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
           "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
+          "dismissed": "Publicación descartada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "offline": "Estás sin conexión. Inténtalo de nuevo.",
           "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
+          "missingPost": "No se pudo abrir esta publicación.",
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
           "publishFailed": "Error al publicar: {error}",
+          "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
+          "duplicated": "Borrador creado.",
           "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}"
-        },
-        "queue": {
-          "title": "Cola de publicación",
-          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
-          "empty": "Aún no hay horarios de cola.",
-          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
-          "add": "Añadir horario",
-          "save": "Guardar cola",
-          "name": "Nombre",
-          "weekday": "Día",
-          "time": "Hora",
-          "timezone": "Zona horaria",
-          "remove": "Quitar {name}",
-          "toasts": {
-            "saved": "Cola guardada.",
-            "empty": "Cola vaciada."
-          },
-          "weekdays": {
-            "0": "Domingo",
-            "1": "Lunes",
-            "2": "Martes",
-            "3": "Miércoles",
-            "4": "Jueves",
-            "5": "Viernes",
-            "6": "Sábado"
-          }
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2606,10 +2625,12 @@
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
         "actions": {
           "publishNow": "Publicar ahora",
-          "retry": "Reintentar"
+          "retry": "Reintentar",
+          "dismiss": "Descartar",
+          "duplicate": "Duplicar como borrador"
         },
         "publishDialog": {
-          "title": "¿Publicar esta publicación ahora?",
+          "title": "¿Publicar ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         },
@@ -2618,10 +2639,21 @@
           "description": "La publicación saldrá ahora.",
           "confirm": "Reintentar"
         },
+        "bulkRetry": {
+          "selectPost": "Seleccionar esta publicación",
+          "selectAll": "Seleccionar todas las publicaciones que se pueden reintentar",
+          "selected": "{count} seleccionadas",
+          "retrySelected": "Reintentar selección",
+          "title": "¿Reintentar estas publicaciones ahora?",
+          "description": "Cada publicación seleccionada saldrá de inmediato. Después verás cuáles se publicaron y cuáles siguen necesitando atención.",
+          "confirm": "Reintentar selección",
+          "resultsTitle": "Resultado",
+          "published": "Publicada"
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
-          "action": "Conectar X, YouTube, LinkedIn…"
+          "action": "Conectar cuenta"
         },
         "reconnectPrompt": {
           "title": "Vuelve a conectar para publicar",
@@ -2633,8 +2665,9 @@
           "now": "ahora",
           "accountFallback": "Tu cuenta",
           "open": "Vista previa",
+          "openNamed": "Vista previa de {handle}",
           "accounts": "Cuenta de vista previa",
-          "as": "Vista previa como {handle}",
+          "as": "Vista previa como {provider} {handle}",
           "dialogTitle": "Vista previa de la publicación",
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
@@ -2649,7 +2682,9 @@
           },
           "instagram": {
             "more": "más",
-            "mediaRequired": "Instagram necesita una imagen o un video."
+            "mediaRequired": "Instagram necesita una imagen o un video.",
+            "slide": "{current} de {total}",
+            "slideIndex": "{current}/{total}"
           },
           "facebook": {
             "like": "Me gusta",
@@ -2665,6 +2700,9 @@
           "tiktok": {
             "more": "más",
             "videoRequired": "TikTok necesita un video."
+          },
+          "x": {
+            "more": "Mostrar más"
           }
         },
         "statistics": {
@@ -2683,9 +2721,11 @@
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
+          "loadMoreError": "No se pudieron cargar más.",
           "unavailable": "No disponible",
           "notFetched": "Todavía no se han obtenido estadísticas.",
-          "updatedAt": "Actualizadas el {date}",
+          "updatedAt": "Actualizado {date}",
+          "updating": "Actualizando…",
           "metrics": {
             "views": "Visualizaciones",
             "impressions": "Impresiones",
@@ -2719,11 +2759,27 @@
             "dayEngagementUnavailable": "{date}: interacciones no disponibles",
             "dayOutside": "{date}: fuera del historial recopilado",
             "legendNone": "Ninguna",
-            "legendMore": "Más"
+            "legendMore": "Más",
+            "moreActions": "Más acciones",
+            "exportCsv": "Exportar CSV",
+            "exportXlsx": "Exportar hoja de cálculo",
+            "legendUnknown": "Desconocido"
           },
           "accountsTitle": "Cuentas conectadas",
           "postsTitle": "Publicaciones de las cuentas",
-          "postsHint": "Historial de solo lectura importado de las plataformas conectadas. Los filtros de publicaciones no cambian el resumen de cuentas.",
+          "postsHint": "Importado de las plataformas conectadas. Vuelve a publicar una publicación destacada.",
+          "recycle": {
+            "action": "Volver a publicar",
+            "strong": "Destacada",
+            "title": "¿Volver a publicar?",
+            "description": "Copia el texto en un nuevo borrador. Nada se publica solo.",
+            "saveDraft": "Guardar como borrador",
+            "inDays": "En {days} días",
+            "drafted": "Borrador creado.",
+            "scheduled": "Programada de nuevo.",
+            "failed": "No se pudo volver a publicar.",
+            "cancel": "Cancelar"
+          },
           "account": "Cuenta",
           "allAccounts": "Todas las cuentas",
           "syncAll": "Sincronizar todas las cuentas",
@@ -2807,6 +2863,42 @@
             "seconds": "segundos",
             "minutes": "minutos",
             "hours": "horas"
+          }
+        },
+        "reconnection": {
+          "accounts": "Cuentas que requieren atención",
+          "title": "{account} necesita reconectarse",
+          "affected": "{count, plural, one {# publicación afectada} other {# publicaciones afectadas}}",
+          "retryTitle": "¿Reintentar las publicaciones fallidas?",
+          "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
+          "later": "Más tarde"
+        },
+        "moreActions": "Acciones de la publicación",
+        "queue": {
+          "title": "Cola de publicación",
+          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
+          "empty": "Aún no hay horarios de cola.",
+          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
+          "add": "Añadir horario",
+          "save": "Guardar cola",
+          "name": "Nombre",
+          "weekday": "Día",
+          "time": "Hora",
+          "timezone": "Zona horaria",
+          "remove": "Quitar {name}",
+          "toasts": {
+            "saved": "Cola guardada.",
+            "empty": "Cola vaciada.",
+            "failed": "No se pudieron guardar los horarios de la cola. Inténtalo de nuevo."
+          },
+          "weekdays": {
+            "0": "Domingo",
+            "1": "Lunes",
+            "2": "Martes",
+            "3": "Miércoles",
+            "4": "Jueves",
+            "5": "Viernes",
+            "6": "Sábado"
           }
         }
       },
@@ -2960,10 +3052,14 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "ariaLabel": "Secciones del proyecto"
+          "ariaLabel": "Secciones del proyecto",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots de este proyecto"
         }
       }
     },
@@ -2976,6 +3072,8 @@
       "generate": "Generar",
       "refine": "Refinar",
       "regenerate": "Nueva variante",
+      "schedule": "Programar esta imagen",
+      "scheduleFailed": "No se pudo adjuntar esta imagen",
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
@@ -3050,7 +3148,6 @@
       "modelCount": "{count, plural, one {# modelo} other {# modelos}}",
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
       "pickTitle": "Elige un proyecto",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
       "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
@@ -3100,7 +3197,579 @@
         "megapixels": "megapíxel",
         "processedMegapixels": "megapíxel procesado"
       },
-      "creditsCheckedOn": "Precio comprobado el {date}"
+      "creditsCheckedOn": "Precio comprobado el {date}",
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
+    },
+    "Ads": {
+      "title": "Anuncios",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los anuncios pertenecen a un proyecto: sus cuentas publicitarias y campañas se gestionan allí. Elige un proyecto para abrir sus anuncios.",
+      "pickAction": "Elegir proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "tabsLabel": "Secciones de anuncios",
+      "loading": "Cargando anuncios…",
+      "updated": "Actualizado {time}",
+      "loadError": {
+        "unavailableDescription": "Todavía no está configurado para Sokosumi.",
+        "failedDescription": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
+      "tabs": {
+        "campaigns": "Campañas",
+        "market": "Mercado",
+        "accounts": "Cuentas"
+      },
+      "campaigns": {
+        "emptyTitle": "Conecta una cuenta publicitaria para ver las campañas",
+        "emptyBody": "Las campañas de Google Ads y Meta Ads aparecerán aquí cuando conectes una cuenta.",
+        "emptyAction": "Ir a cuentas",
+        "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
+        "noCampaignsBody": "Crea una con «Nueva campaña». Empieza en pausa.",
+        "account": "Cuenta publicitaria",
+        "rangeLabel": "Período",
+        "range": {
+          "7d": "7 días",
+          "30d": "30 días"
+        },
+        "tableLabel": "Campañas",
+        "columns": {
+          "name": "Campaña",
+          "status": "Estado",
+          "dailyBudget": "Presupuesto diario",
+          "spend": "Gasto",
+          "impressions": "Impresiones",
+          "clicks": "Clics",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversiones",
+          "actions": "Acciones"
+        },
+        "status": {
+          "ACTIVE": "Activa",
+          "PAUSED": "En pausa",
+          "ENDED": "Finalizada",
+          "OTHER": "Otro"
+        },
+        "actions": {
+          "label": "Acciones para {name}",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "budget": "Cambiar presupuesto diario"
+        },
+        "cancel": "Cancelar",
+        "pauseDialog": {
+          "title": "¿Pausar {name}?",
+          "description": "Dejará de gastar hasta que la reanudes.",
+          "confirm": "Pausar"
+        },
+        "resumeDialog": {
+          "title": "¿Reanudar {name}?",
+          "description": "Volverá a gastar, hasta su presupuesto diario.",
+          "confirm": "Reanudar"
+        },
+        "budget": {
+          "label": "Presupuesto diario ({currency})",
+          "required": "Introduce un presupuesto diario mayor que 0.",
+          "wholeNumber": "Usa un número entero para {currency}.",
+          "precision": "Usa como máximo {digits} decimales para {currency}.",
+          "managedElsewhere": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí."
+        },
+        "budgetDialog": {
+          "title": "Cambiar presupuesto diario",
+          "description": "{name} gasta como máximo esta cantidad al día.",
+          "save": "Guardar presupuesto",
+          "change": "El presupuesto diario cambia de {old} a {new}.",
+          "notSet": "sin definir"
+        },
+        "success": {
+          "updated": "Campaña actualizada correctamente"
+        },
+        "errors": {
+          "update": "No se pudo actualizar la campaña",
+          "notActive": {
+            "title": "Vuelve a conectar esta cuenta en Cuentas",
+            "description": "La conexión con esta cuenta publicitaria ya no está activa.",
+            "action": "Ir a cuentas"
+          },
+          "unavailable": {
+            "title": "{provider} aún no está disponible"
+          },
+          "failed": {
+            "title": "No se pudieron cargar las campañas"
+          }
+        },
+        "new": "Nueva campaña",
+        "budgetPerDay": "{budget}/día"
+      },
+      "newCampaign": {
+        "title": "Nueva campaña",
+        "inAccount": "Cuenta de {provider} {name}",
+        "note": {
+          "google_ads": "Las campañas se crean en pausa. Reanúdala aquí cuando esté lista.",
+          "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
+        },
+        "sections": {
+          "type": "Tipo de campaña",
+          "basics": "Datos básicos",
+          "targeting": "Segmentación",
+          "ad": "Anuncio"
+        },
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display"
+        },
+        "typeHelp": {
+          "SEARCH": "Anuncios de texto en los resultados de búsqueda de Google.",
+          "DISPLAY": "Anuncios con imágenes en sitios web y aplicaciones de la Red de Display de Google."
+        },
+        "name": "Nombre",
+        "objective": "Objetivo",
+        "objectivePlaceholder": "Selecciona un objetivo",
+        "objectives": {
+          "OUTCOME_TRAFFIC": "Tráfico",
+          "OUTCOME_AWARENESS": "Notoriedad",
+          "OUTCOME_ENGAGEMENT": "Interacción",
+          "OUTCOME_LEADS": "Clientes potenciales",
+          "OUTCOME_SALES": "Ventas"
+        },
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de finalización",
+        "datesHelp": "Opcional. Se usa la zona horaria de la cuenta publicitaria.",
+        "targeting": {
+          "locations": {
+            "label": "Ubicaciones",
+            "help": "Dónde pueden mostrarse tus anuncios. Hasta {max}.",
+            "full": "Límite de ubicaciones alcanzado ({max}).",
+            "placeholder": "Busca un país, región o ciudad",
+            "search": "Buscar ubicaciones",
+            "loading": "Buscando…",
+            "idle": "Escribe para encontrar un lugar.",
+            "empty": "No se encontraron ubicaciones.",
+            "error": "No se pudieron buscar las ubicaciones.",
+            "all": "Todos los países",
+            "remove": "Quitar {name}"
+          },
+          "languages": {
+            "label": "Idiomas",
+            "help": "Muestra los anuncios a personas que usan estos idiomas.",
+            "placeholder": "Elige idiomas",
+            "search": "Buscar idiomas",
+            "empty": "No se encontraron idiomas.",
+            "unavailable": "No se pudieron cargar los idiomas. La campaña se dirigirá a todos los idiomas.",
+            "all": "Todos los idiomas",
+            "remove": "Quitar {name}"
+          }
+        },
+        "keywords": {
+          "label": "Palabras clave",
+          "help": "Una palabra clave por línea. Usa \"comillas\" para concordancia de frase y [corchetes] para concordancia exacta.",
+          "placeholder": "zapatillas running\n\"zapatillas trail running\"\n[comprar zapatillas running]",
+          "count": "{count, plural, one {# palabra clave} other {# palabras clave}}",
+          "addFromMarket": "Añadir desde Mercado",
+          "marketNone": "No hay palabras clave nuevas del Mercado para añadir",
+          "marketFailed": "No se pudieron cargar las palabras clave del Mercado",
+          "errors": {
+            "required": "Añade al menos una palabra clave.",
+            "tooMany": "Usa como máximo {max} palabras clave.",
+            "syntax": "Línea {line}: revisa las comillas y los corchetes.",
+            "tooLong": "Línea {line}: usa como máximo {max} caracteres.",
+            "tooManyWords": "Línea {line}: usa como máximo {max} palabras."
+          }
+        },
+        "ad": {
+          "finalUrl": "URL final",
+          "finalUrlHelp": "La página a la que llegan las personas al hacer clic en tu anuncio.",
+          "finalUrlPlaceholder": "https://example.com/zapatillas",
+          "businessName": "Nombre de la empresa",
+          "longHeadline": "Título largo",
+          "displayPath": "Ruta visible",
+          "displayPathHelp": "Opcional. Dos rutas cortas que se muestran después de tu dominio en el anuncio.",
+          "path1": "Ruta 1",
+          "path2": "Ruta 2",
+          "pathPreview": "Se muestra como {url}",
+          "headlines": {
+            "label": "Títulos",
+            "help": "De {min} a {max} títulos de hasta {length} caracteres. Google los combina para encontrar lo que funciona.",
+            "item": "Título {number}",
+            "add": "Añadir título",
+            "remove": "Quitar el título {number}"
+          },
+          "descriptions": {
+            "label": "Descripciones",
+            "help": "De {min} a {max} descripciones de hasta {length} caracteres.",
+            "item": "Descripción {number}",
+            "add": "Añadir descripción",
+            "remove": "Quitar la descripción {number}"
+          },
+          "sitelinks": {
+            "title": "Enlaces de sitio (opcional)",
+            "summary": "{count, plural, one {# enlace de sitio} other {# enlaces de sitio}}",
+            "help": "Enlaces adicionales bajo tu anuncio. Hasta {max}. Rellena las dos líneas de descripción o ninguna.",
+            "item": "Enlace de sitio {number}",
+            "text": "Texto del enlace",
+            "finalUrl": "URL",
+            "description1": "Línea de descripción 1",
+            "description2": "Línea de descripción 2",
+            "add": "Añadir enlace de sitio",
+            "remove": "Quitar enlace de sitio {number}"
+          },
+          "callouts": {
+            "title": "Textos destacados (opcional)",
+            "summary": "{count, plural, one {# texto destacado} other {# textos destacados}}",
+            "label": "Textos destacados",
+            "help": "Destacados breves como «Envío gratis». Hasta {max}, de hasta {length} caracteres cada uno.",
+            "item": "Texto destacado {number}",
+            "add": "Añadir texto destacado",
+            "remove": "Quitar texto destacado {number}"
+          },
+          "images": {
+            "label": "Imágenes",
+            "help": "JPEG, PNG o GIF, de hasta {maxMb} MB cada una. Las imágenes horizontales son 1,91:1 (de al menos {landscape} px) y las cuadradas 1:1 (de al menos {square} px). Hasta {maxImages} en total.",
+            "counts": "Horizontales {landscape} · Cuadradas {square} · {total} de {max} imágenes",
+            "missing": {
+              "both": "Añade al menos una imagen horizontal y una cuadrada.",
+              "landscape": "Añade al menos una imagen horizontal.",
+              "square": "Añade al menos una imagen cuadrada."
+            },
+            "logoLabel": "Logotipo",
+            "logoHelp": "Opcional. Imágenes cuadradas, 1:1, de al menos {logo} px. Hasta {maxLogos}.",
+            "logoCounts": "{count} de {max} logotipos",
+            "roles": {
+              "LANDSCAPE": "Horizontal",
+              "SQUARE": "Cuadrada",
+              "LOGO": "Logotipo"
+            },
+            "slots": {
+              "images": {
+                "files": "Archivos de imagen"
+              },
+              "logo": {
+                "files": "Archivos de logotipo"
+              }
+            },
+            "upload": "Subir",
+            "choose": "Elegir de Drive",
+            "remove": "Quitar {name}",
+            "uploadFailed": "No se pudo subir la imagen",
+            "uploadDuplicate": "Ya hay un archivo con este nombre en tu Drive. Elígelo desde Drive.",
+            "errors": {
+              "unreadable": "{name}: no se pudo leer esta imagen.",
+              "type": "{name}: usa una imagen JPEG, PNG o GIF.",
+              "tooLarge": "{name}: usa una imagen de como máximo {maxMb} MB.",
+              "duplicate": "{name} ya está añadida.",
+              "full": "Usa como máximo {maxImages} imágenes horizontales y cuadradas.",
+              "fullLogo": "Usa como máximo {maxLogos} logotipos.",
+              "ratio": "{name}: usa una imagen horizontal (1,91:1, de al menos {landscape} px) o cuadrada (1:1, de al menos {square} px).",
+              "landscapeTooSmall": "{name}: las imágenes horizontales necesitan al menos {landscape} px.",
+              "squareTooSmall": "{name}: las imágenes cuadradas necesitan al menos {square} px.",
+              "logoRatio": "{name}: los logotipos deben ser cuadrados (1:1).",
+              "logoTooSmall": "{name}: los logotipos necesitan al menos {logo} px.",
+              "repeated": "Usa cada archivo de imagen una sola vez."
+            },
+            "kept": "Imagen actual ({role})"
+          }
+        },
+        "submit": "Crear campaña",
+        "uploadingImages": "Subiendo imágenes…",
+        "success": "Campaña creada (en pausa)",
+        "errors": {
+          "nameRequired": "Introduce un nombre.",
+          "nameTooLong": "Usa como máximo {max} caracteres.",
+          "objectiveRequired": "Elige un objetivo.",
+          "finalUrl": "Introduce una dirección completa que empiece por http:// o https://.",
+          "headlineRequired": "Introduce un título o quita este.",
+          "headlineTooLong": "Usa como máximo {max} caracteres.",
+          "headlineDuplicate": "Cada título debe ser distinto.",
+          "descriptionRequired": "Introduce una descripción o quita esta.",
+          "descriptionTooLong": "Usa como máximo {max} caracteres.",
+          "tooLong": "Usa como máximo {max} caracteres.",
+          "pathNeedsFirst": "Rellena primero la ruta 1.",
+          "endBeforeStart": "La fecha de finalización no puede ser anterior a la de inicio.",
+          "sitelinkTextRequired": "Introduce el texto del enlace o quita este enlace de sitio.",
+          "sitelinkDescriptionsPair": "Rellena las dos líneas de descripción o ninguna.",
+          "sitelinkDuplicate": "Cada enlace de sitio debe ser distinto.",
+          "calloutDuplicate": "Cada texto destacado debe ser distinto.",
+          "businessNameRequired": "Introduce el nombre de la empresa.",
+          "longHeadlineRequired": "Introduce un título largo.",
+          "failed": "No se pudo crear la campaña"
+        },
+        "steps": {
+          "type": "Tipo de campaña",
+          "basics": "Datos básicos",
+          "targeting": "Segmentación",
+          "keywords": "Palabras clave",
+          "ad": "Anuncio",
+          "review": "Revisión"
+        },
+        "wizard": {
+          "stepsLabel": "Pasos",
+          "stepOf": "Paso {current} de {total}: {step}",
+          "backTo": "Volver a {step}",
+          "goTo": "Ir a {step}",
+          "back": "Atrás",
+          "next": "Siguiente"
+        },
+        "typeTitle": "¿Dónde quieres que aparezcan tus anuncios?",
+        "typeIntro": "Elige una. No se puede cambiar una vez creada la campaña.",
+        "needs": {
+          "title": "Necesitarás",
+          "keywords": "Palabras clave que la gente busca",
+          "searchTexts": "De {minHeadlines} a {maxHeadlines} títulos y de {minDescriptions} a {maxDescriptions} descripciones",
+          "displayTexts": "Hasta {maxHeadlines} títulos, un título largo y hasta {maxDescriptions} descripciones",
+          "businessName": "El nombre de tu empresa",
+          "images": "Una imagen horizontal y una cuadrada",
+          "finalUrl": "La página a la que llega la gente"
+        },
+        "preview": {
+          "title": "Vista previa",
+          "searchLabel": "Vista previa del anuncio de búsqueda",
+          "displayLabel": "Vista previa del anuncio de display",
+          "sponsored": "Patrocinado",
+          "note": "Google combina tus textos e imágenes para encontrar lo que funciona, así que el anuncio real puede verse diferente.",
+          "another": "Mostrar otra combinación",
+          "noImage": "Aún no hay imagen",
+          "open": "Abrir"
+        },
+        "review": {
+          "title": "Resumen",
+          "dailyBudget": "Presupuesto diario",
+          "edit": "Editar",
+          "editLabel": "Editar {section}",
+          "schedule": {
+            "label": "Calendario",
+            "range": "Del {start} al {end}",
+            "from": "Desde el {start}",
+            "until": "Hasta el {end}",
+            "none": "Sin fecha de inicio ni de fin"
+          }
+        },
+        "setupFailed": {
+          "title": "No se pudo cargar el formulario de la campaña",
+          "body": "Comprueba tu conexión y vuelve a intentarlo.",
+          "retry": "Reintentar"
+        }
+      },
+      "campaignDetails": {
+        "back": "Volver a las campañas",
+        "title": "Campaña",
+        "types": {
+          "SEARCH": "Búsqueda",
+          "DISPLAY": "Display"
+        },
+        "perDay": "{amount} al día",
+        "noEndDate": "Sin fecha de finalización",
+        "sections": {
+          "performance": "Rendimiento",
+          "settings": "Ajustes",
+          "targeting": "Segmentación",
+          "keywords": "Palabras clave",
+          "ad": "Anuncio",
+          "sitelinks": "Enlaces de sitio",
+          "callouts": "Textos destacados"
+        },
+        "performance": {
+          "chartMetric": "Métrica del gráfico",
+          "chartLabel": "{metric} por día",
+          "empty": "Sin actividad en este período",
+          "tableCaption": "Rendimiento diario",
+          "date": "Fecha",
+          "chartHint": "Usa las flechas izquierda y derecha para moverte entre los días."
+        },
+        "settings": {
+          "bidding": "Puja",
+          "networks": "Redes"
+        },
+        "bidding": {
+          "TARGET_SPEND": "Maximizar clics",
+          "MANUAL_CPC": "CPC manual",
+          "ENHANCED_CPC": "CPC mejorado",
+          "MANUAL_CPM": "CPM manual",
+          "TARGET_CPM": "CPM objetivo",
+          "MAXIMIZE_CONVERSIONS": "Maximizar conversiones",
+          "MAXIMIZE_CONVERSION_VALUE": "Maximizar el valor de conversión",
+          "TARGET_CPA": "CPA objetivo",
+          "TARGET_ROAS": "ROAS objetivo",
+          "TARGET_IMPRESSION_SHARE": "Porcentaje de impresiones objetivo"
+        },
+        "matchTypes": {
+          "BROAD": "Concordancia amplia",
+          "PHRASE": "Concordancia de frase",
+          "EXACT": "Concordancia exacta"
+        },
+        "approval": {
+          "APPROVED": "Aprobado",
+          "APPROVED_LIMITED": "Aprobado (limitado)",
+          "DISAPPROVED": "Rechazado",
+          "PENDING_REVIEW": "Revisión pendiente",
+          "UNDER_REVIEW": "En revisión",
+          "AREA_OF_INTEREST_ONLY": "Solo se muestra en algunas zonas"
+        },
+        "ad": {
+          "displayUrl": "URL visible",
+          "review": {
+            "REVIEW_IN_PROGRESS": "Revisión en curso",
+            "UNDER_APPEAL": "En apelación",
+            "REVIEWED": "Revisado",
+            "ELIGIBLE_MAY_SERVE": "Apto para publicarse"
+          },
+          "strength": "Eficacia del anuncio: {strength}",
+          "strengths": {
+            "PENDING": "Pendiente",
+            "NO_ADS": "Sin anuncios",
+            "POOR": "Baja",
+            "AVERAGE": "Media",
+            "GOOD": "Buena",
+            "EXCELLENT": "Excelente"
+          },
+          "imageAlt": "Imagen {number} ({role})"
+        },
+        "notEditable": {
+          "TYPE": "Sokosumi no crea este tipo de campaña; gestiónala en Google Ads.",
+          "AD_GROUPS": "Esta campaña tiene varios grupos de anuncios; gestiónalos en Google Ads.",
+          "AD_TYPE": "Esta campaña no tiene un único anuncio adaptable; gestiona sus anuncios en Google Ads."
+        },
+        "errors": {
+          "failed": "No se pudo cargar esta campaña"
+        },
+        "networks": {
+          "SEARCH": "Búsqueda de Google",
+          "DISPLAY": "Red de Display"
+        },
+        "edit": "Editar"
+      },
+      "editCampaign": {
+        "title": "Editar campaña",
+        "submit": "Guardar cambios",
+        "reviewNote": "Al guardar, el anuncio vuelve a revisión de Google.",
+        "startDateLocked": "La fecha de inicio no se puede cambiar una vez iniciada la campaña.",
+        "success": "Campaña actualizada",
+        "errors": {
+          "conflict": "Esta campaña no se puede editar aquí.",
+          "failed": "No se pudieron guardar los cambios"
+        }
+      },
+      "market": {
+        "setupTitle": "Configura tu mercado",
+        "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publican tus competidores de búsqueda.",
+        "edit": "Editar mercado",
+        "editBody": "Las palabras clave y los anuncios en tendencia siguen estas palabras clave, este país y este idioma.",
+        "form": {
+          "keywords": "Palabras clave",
+          "keywordsHint": "Pulsa Intro o coma para añadir una. Hasta {max}.",
+          "keywordsPlaceholder": "Por ejemplo, zapatillas de correr",
+          "keywordsFull": "Límite de palabras clave alcanzado",
+          "removeKeyword": "Quitar {keyword}",
+          "country": "País",
+          "countryPlaceholder": "Elige un país",
+          "language": "Idioma",
+          "languagePlaceholder": "Elige un idioma",
+          "submit": "Guardar mercado",
+          "cancel": "Cancelar",
+          "success": "Mercado guardado correctamente",
+          "errors": {
+            "keywordsRequired": "Añade al menos una palabra clave.",
+            "keywordsTooMany": "Usa hasta {max} palabras clave.",
+            "countryRequired": "Elige un país.",
+            "languageRequired": "Elige un idioma.",
+            "failed": "No se pudo guardar el mercado"
+          }
+        },
+        "keywords": {
+          "title": "Palabras clave en tendencia",
+          "columns": {
+            "keyword": "Palabra clave",
+            "searches": "Búsquedas al mes",
+            "trend": "12 meses",
+            "competition": "Competencia",
+            "bidRange": "Puja de primera página"
+          },
+          "competition": {
+            "LOW": "Baja",
+            "MEDIUM": "Media",
+            "HIGH": "Alta"
+          },
+          "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
+          "searchesPerMonth": "{count} búsquedas al mes",
+          "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
+          "emptyBody": "Prueba con otras palabras clave u otro país."
+        },
+        "ads": {
+          "title": "Anuncios de tus competidores de búsqueda",
+          "previewAlt": "Anuncio de {advertiser}",
+          "textAd": "Anuncio de texto",
+          "noPreview": "Sin vista previa",
+          "format": {
+            "text": "Texto",
+            "image": "Imagen",
+            "video": "Vídeo",
+            "other": "Otro"
+          },
+          "lastShown": "Visto por última vez {time}",
+          "viewAd": "Ver anuncio",
+          "emptyTitle": "No se encontraron anuncios de la competencia",
+          "emptyBody": "Los anuncios de los sitios que salen en las búsquedas de tus palabras clave se mostrarán aquí cuando se publiquen.",
+          "gatheringTitle": "Recopilando anuncios de tus competidores de búsqueda",
+          "gatheringBody": "Esto tarda unos minutos. Puedes salir de esta página.",
+          "refreshing": "Actualizando…",
+          "failedTitle": "No se pudieron recopilar los anuncios de la competencia",
+          "failedBody": "Lo intentaremos de nuevo en el plazo de una hora.",
+          "failedNotice": "No se pudo actualizar, lo intentaremos de nuevo en el plazo de una hora"
+        },
+        "errors": {
+          "unavailable": "Los datos de mercado aún no están disponibles",
+          "failed": {
+            "profile": "No se pudo cargar tu mercado",
+            "keywords": "No se pudieron cargar las palabras clave",
+            "ads": "No se pudieron cargar los anuncios"
+          }
+        }
+      },
+      "accounts": {
+        "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
+        "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto.",
+        "connect": "Conectar {provider}",
+        "comingSoon": "Próximamente",
+        "unavailable": "{provider} aún no está disponible",
+        "noAccountsFound": "No se encontraron cuentas publicitarias para este inicio de sesión",
+        "sectionLabel": "Cuentas publicitarias",
+        "listLabel": "Cuentas publicitarias conectadas",
+        "disconnect": "Desconectar",
+        "disconnectLabel": "Desconectar {name}",
+        "cancel": "Cancelar",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "¿Desconectar {name}?",
+          "description": "Sus campañas dejarán de aparecer aquí. Si es la última cuenta de ese inicio de sesión, Sokosumi también desconecta el inicio de sesión. Puedes volver a conectarla en cualquier momento.",
+          "confirm": "Desconectar"
+        },
+        "picker": {
+          "title": "Elige cuentas publicitarias",
+          "description": "Selecciona las cuentas de {provider} que se gestionarán en este proyecto.",
+          "listLabel": "Cuentas publicitarias disponibles",
+          "confirm": "Conectar selección"
+        },
+        "success": {
+          "connected": "Cuentas publicitarias conectadas correctamente",
+          "disconnected": "Cuenta publicitaria desconectada correctamente"
+        },
+        "errors": {
+          "connect": "No se pudo conectar {provider}",
+          "attach": "No se pudieron conectar las cuentas publicitarias",
+          "disconnect": "No se pudo desconectar la cuenta publicitaria",
+          "discard": "No se pudo descartar la conexión",
+          "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
+          "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
+          "inFlight": "Ya hay una conexión en curso."
+        }
+      },
+      "error": {
+        "title": "No se pudieron cargar los anuncios",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      }
     },
     "Social": {
       "title": "Programación social",
@@ -3120,17 +3789,22 @@
         "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conecta tus cuentas de redes sociales",
-        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
+        "title": "Elige un proyecto",
+        "body": "Luego conecta cuentas."
+      },
+      "attentionNeedProject": {
+        "title": "Requiere atención",
+        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
       },
       "draftsNeedProject": {
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…",
+      "loading": "Cargando…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales"
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
       },
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
@@ -3180,7 +3854,8 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Programación social"
+          "social": "Programación social",
+          "ads": "Anuncios"
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -4142,7 +4817,8 @@
             "delete": "Eliminar Soko Bot",
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
-            "error": "No se pudo eliminar este Soko Bot."
+            "error": "No se pudo eliminar este Soko Bot.",
+            "confirmLabelShared": "Este bot es compartido y no tiene propietario. Escribe su ID ({id}) para confirmar"
           },
           "chat": {
             "readOnly": "Solo lectura",
@@ -5006,12 +5682,14 @@
         }
       },
       "SocialAccounts": {
-        "connected": "está conectado",
-        "notConnected": "no está conectado",
+        "title": "Inicio de sesión",
+        "description": "Usa estas cuentas para iniciar sesión.",
+        "connected": "{provider} está conectado",
+        "notConnected": "{provider} no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
-        "loadError": "No pudimos cargar tus cuentas conectadas en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
@@ -5026,7 +5704,7 @@
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
-        "loadError": "No pudimos cargar los detalles de tu cuenta vinculada en este momento.",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar"
       },
       "Notifications": {
@@ -7179,7 +7857,12 @@
         "deleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran. Las tareas que creó permanecen en tu tablero. Puedes crear un asistente nuevo enseguida.",
         "deleteConfirmLabel": "Escribe {name} para confirmar",
         "deleteError": "No se pudo eliminar tu Soko Bot.",
-        "deleted": "Soko Bot eliminado."
+        "deleted": "Soko Bot eliminado.",
+        "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
+        "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -7460,7 +8143,53 @@
       "chatWith": "Chatear con {name}",
       "yourAssistantTitle": "Tu asistente",
       "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat."
+      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "Shared": {
+        "title": "Bots compartidos",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
+        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
+        "scopeProject": "Trabaja para un proyecto",
+        "scopeProjectNamed": "Trabaja para {project}",
+        "archived": "Archivado",
+        "fallbackName": "Asistente compartido",
+        "openBot": "Ajustes de {name}",
+        "Create": {
+          "trigger": "Nuevo Soko Bot",
+          "title": "Crear un Soko Bot",
+          "description": "Elige para quién trabaja. Todos los miembros comparten un bot de proyecto o de espacio de trabajo y pueden leer su historial de chat, su memoria y sus ajustes.",
+          "nameLabel": "Nombre",
+          "scopeLabel": "Trabaja para",
+          "scopes": {
+            "personal": {
+              "label": "Solo tú",
+              "hint": "Tu propio asistente. Nadie más puede gestionarlo."
+            },
+            "project": {
+              "label": "Un proyecto",
+              "hint": "Ve las Tasks públicas del proyecto. Todos hablan con él en su sala."
+            },
+            "workspace": {
+              "label": "Todo el espacio de trabajo",
+              "hint": "Ve todas las Tasks y todos los proyectos públicos. Todos hablan con él en su sala."
+            }
+          },
+          "projectLabel": "Proyecto",
+          "projectPlaceholder": "Elige un proyecto",
+          "cancel": "Cancelar",
+          "submit": "Crear",
+          "error": "No se pudo crear el Soko Bot.",
+          "created": "Soko Bot creado."
+        },
+        "Archived": {
+          "title": "{name} está archivado",
+          "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
+          "back": "Volver a Soko Bots",
+          "reactivate": "Reactivar",
+          "reactivated": "Soko Bot reactivado.",
+          "reactivateError": "No se pudo reactivar el Soko Bot."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -7551,7 +8280,8 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
-        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}"
+        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}",
+        "platform": "Plataforma"
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

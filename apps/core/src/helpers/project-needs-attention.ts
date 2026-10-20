@@ -20,7 +20,7 @@ import {
 } from "@/types/project";
 
 /** Lower is more urgent. Exclude is not a tier — those rows never enter the list. */
-export const NeedsAttentionTier = {
+const NeedsAttentionTier = {
   mustAct: 0,
   failed: 1,
   inFlight: 2,

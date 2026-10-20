@@ -30,10 +30,12 @@ const coreClientMock = {
   postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
+  postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
   postProjectsByIdSocialPostsByPostIdQueue: vi.fn(),
-  postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdSocialQueueSlots: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
   postProjectsByIdJobs: vi.fn(),
@@ -765,6 +767,42 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdCancel,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 2 });
+    });
+
+    it("duplicates a post through the generated client", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdDuplicate.mockResolvedValue(
+        { data: { ...post, id: "post-copy", status: "DRAFT" } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.duplicateSocialPost("project-1", "post-1"),
+      ).resolves.toMatchObject({ id: "post-copy", status: "DRAFT" });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdDuplicate,
+      ).toHaveBeenCalledWith("project-1", "post-1");
+    });
+
+    it("recycles a Performance post through the generated client", async () => {
+      coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle.mockResolvedValue(
+        { data: { ...post, id: "post-recycle", status: "SCHEDULED" } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.recycleSocialAccountPost("project-1", "account-post-1", {
+          delayDays: 7,
+          timezone: "Europe/Berlin",
+        }),
+      ).resolves.toMatchObject({ id: "post-recycle", status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+      ).toHaveBeenCalledWith("project-1", "account-post-1", {
+        delayDays: 7,
+        timezone: "Europe/Berlin",
+      });
     });
 
     it("lists, replaces, and queues through the posting-queue routes", async () => {

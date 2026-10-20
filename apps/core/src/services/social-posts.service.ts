@@ -1,8 +1,7 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  isVercelBlobPublicHost,
-  SOCIAL_POST_MEDIA_REQUIREMENTS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
@@ -10,13 +9,15 @@ import {
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostFirstCommentLimit,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
-import { assertDriveStoreMatchesWorkspace } from "@/helpers/drive-file-access";
-import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
   conflict,
@@ -39,23 +40,40 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
 
-const EDITABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
   "FAILED",
   "MISSED",
 ];
-const CANCELABLE_STATUSES: readonly SocialPostStatus[] = ["DRAFT", "SCHEDULED"];
+const CANCELABLE_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
   "FAILED",
   "MISSED",
 ];
+const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
+  "PUBLISHED",
+  "FAILED",
+  "MISSED",
+];
 /** Statuses where a stale connection blocks the next publish. */
 const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
+  "NEEDS_APPROVAL",
   "SCHEDULED",
 ];
 
@@ -110,6 +128,7 @@ export interface SocialPostSummary {
   projectId: string;
   provider: string;
   text: string;
+  firstComment: string | null;
   media: SocialPostMediaRef[];
   status: SocialPostStatus;
   scheduledAt: Date | null;
@@ -141,6 +160,9 @@ export interface SocialPostSummary {
   canSchedule: boolean;
   canCancel: boolean;
   canPublishNow: boolean;
+  canApprove: boolean;
+  canReject: boolean;
+  canDuplicate: boolean;
   /** The linked connection exists but is no longer active, so the post cannot go out. */
   connectionNeedsReconnect: boolean;
 }
@@ -175,6 +197,7 @@ export interface CreateSocialPostInput
   coworkerId?: string;
   sokoBotId?: string;
   text: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
   scheduledAt?: Date;
@@ -188,6 +211,7 @@ export interface UpdateSocialPostInput
   coworkerId?: string;
   postId: string;
   text?: string;
+  firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
   revision: number;
@@ -210,6 +234,36 @@ export interface CancelSocialPostInput extends ProjectScope {
   revision: number;
 }
 
+export interface ApproveSocialPostInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+}
+
+export interface RejectSocialPostInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+}
+
+export interface DuplicateSocialPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  postId: string;
+}
+
+export interface RecycleSocialAccountPostInput
+  extends ProjectScope,
+    WorkspaceOwnerScope {
+  userId: string;
+  coworkerId?: string;
+  accountPostId: string;
+  delayDays?: 7 | 14 | 30;
+  timezone?: string;
+}
+
 function mapCreator(record: SocialPostRecord): SocialPostCreator {
   if (record.creatorUser) {
     return { kind: "user", ...record.creatorUser };
@@ -224,12 +278,17 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
 }
 
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
+  const media = parseSocialPostMedia(record.media, record.id);
+  const provider = isSocialPostProvider(record.provider)
+    ? record.provider
+    : null;
   return {
     id: record.id,
     projectId: record.projectId,
     provider: record.provider,
     text: record.text,
-    media: parseSocialPostMedia(record.media, record.id),
+    firstComment: record.firstComment,
+    media,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -254,7 +313,13 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canEdit: EDITABLE_STATUSES.includes(record.status),
     canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
     canCancel: CANCELABLE_STATUSES.includes(record.status),
-    canPublishNow: PUBLISH_NOW_STATUSES.includes(record.status),
+    canPublishNow:
+      PUBLISH_NOW_STATUSES.includes(record.status) &&
+      provider !== null &&
+      socialPostMeetsMediaRequirement(provider, media),
+    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
+    canApprove: record.status === "NEEDS_APPROVAL",
+    canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
@@ -305,6 +370,25 @@ function requireProvider(provider: string): SocialPostProvider {
 }
 
 /** Text rules differ per provider: some require text, others accept media only. */
+function requireFirstCommentWithinLimit(
+  value: string | null | undefined,
+  provider: string,
+): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed.length === 0) return null;
+  const scopedProvider = requireProvider(provider);
+  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
+  if (trimmed.length > cap) {
+    throw badRequest(
+      limit === null
+        ? `First comment must be at most ${cap} characters`
+        : `First comment must be at most ${cap} characters for ${provider}`,
+    );
+  }
+  return trimmed;
+}
+
 function requireTextWithinLimit(
   text: string,
   provider: string,
@@ -328,22 +412,14 @@ function requireTextWithinLimit(
   return trimmed;
 }
 
-/** Some providers refuse a post without media, or without exactly one video. */
+/** Publish and schedule refuse a post without the media the network needs. */
 function requireMediaRequirement(
   provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
 ): void {
-  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
-  if (requirement === "none") return;
-  const label = socialPostProviderLabel(provider);
-  if (requirement === "any") {
-    if (media.length === 0) {
-      throw badRequest(`${label} requires at least one image or video`);
-    }
-    return;
-  }
-  if (media.length !== 1 || media[0]?.kind !== "video") {
-    throw badRequest(`${label} requires a video`);
+  const message = socialPostMediaRequirementMessage(provider);
+  if (message && !socialPostMeetsMediaRequirement(provider, media)) {
+    throw badRequest(message);
   }
 }
 
@@ -375,25 +451,6 @@ function mediaValidationMessage(
   }
 }
 
-function requireDriveFileUrl(ref: SocialPostMediaRef): string {
-  let url: URL;
-  let decodedPathname: string;
-  try {
-    url = new URL(ref.fileUrl);
-    decodedPathname = decodeURIComponent(url.pathname);
-  } catch {
-    throw badRequest(`Media file "${ref.name}" has an invalid URL`);
-  }
-  if (
-    url.protocol !== "https:" ||
-    !isVercelBlobPublicHost(url.hostname) ||
-    decodedPathname !== `/${ref.pathname}`
-  ) {
-    throw badRequest(`Media file "${ref.name}" is not a Drive file`);
-  }
-  return url.toString();
-}
-
 /**
  * Pins every ref to a Drive file in the active workspace store, checks its
  * declared type, and applies the provider's media rules. Returns the refs as
@@ -404,12 +461,7 @@ function normalizeSocialPostMedia(
 ): SocialPostMediaRef[] {
   const provider = requireProvider(input.provider);
   const media = input.media.map((ref): SocialPostMediaRef => {
-    const { scope, ownerId } = parseDriveFilePathname(
-      ref.pathname,
-      input.userId,
-    );
-    assertDriveStoreMatchesWorkspace(input, scope, ownerId);
-    const fileUrl = requireDriveFileUrl(ref);
+    const fileUrl = requireWorkspaceDriveFileUrl(input, ref);
     const mimeType = ref.mimeType.trim().toLowerCase();
     if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
       throw badRequest(
@@ -540,6 +592,11 @@ export async function listSocialPosts(
   const upcoming = input.statuses?.every(
     (status) => status === "SCHEDULED" || status === "PUBLISHING",
   );
+  const attention =
+    Boolean(input.statuses?.length) &&
+    input.statuses?.every(
+      (status) => status === "FAILED" || status === "MISSED",
+    );
   const [rows, count] = await Promise.all([
     prisma.socialPost.findMany({
       where,
@@ -548,7 +605,13 @@ export async function listSocialPosts(
         ? [{ scheduledAt: "asc" }, { id: "asc" }]
         : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
           ? [{ publishedAt: "desc" }, { id: "desc" }]
-          : [{ updatedAt: "desc" }, { id: "desc" }],
+          : attention
+            ? [
+                { lastAttemptAt: { sort: "desc", nulls: "last" } },
+                { scheduledAt: { sort: "desc", nulls: "last" } },
+                { id: "desc" },
+              ]
+            : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),
@@ -610,8 +673,15 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
-  requireMediaRequirement(requireProvider(provider), media);
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment,
+    provider,
+  );
   const scheduled = input.scheduledAt !== undefined;
+  if (scheduled) {
+    requireMediaRequirement(requireProvider(provider), media);
+  }
+  const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
 
   const post = await tx.socialPost.create({
     data: {
@@ -620,8 +690,9 @@ export async function createSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
+      firstComment,
       media: mediaJson(media),
-      status: scheduled ? "SCHEDULED" : "DRAFT",
+      status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
       creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
@@ -642,7 +713,9 @@ export async function updateSocialPost(
   await requireScopedProject(input, tx);
   const post = await requireScopedPost(input, tx);
   if (!EDITABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be edited");
+    throw conflict(
+      "Only a draft, scheduled, or needs-approval post can be edited",
+    );
   }
   requireRevision(post, input.revision);
 
@@ -651,6 +724,13 @@ export async function updateSocialPost(
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          // Past-due + attemptCount 0 is marked MISSED. Keep the slot due now.
+          ...(post.scheduledAt && post.scheduledAt.getTime() < Date.now()
+            ? { scheduledAt: new Date() }
+            : {}),
         }
       : {};
   const currentProvider = requireProvider(post.provider);
@@ -713,7 +793,16 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    requireMediaRequirement(provider, media);
+    if (post.status === "SCHEDULED") {
+      requireMediaRequirement(provider, media);
+    }
+  }
+
+  if (input.firstComment !== undefined || providerChanged) {
+    data.firstComment = requireFirstCommentWithinLimit(
+      input.firstComment !== undefined ? input.firstComment : post.firstComment,
+      provider,
+    );
   }
 
   return mapSocialPost(
@@ -745,6 +834,7 @@ export async function scheduleSocialPost(
     throw badRequest(mediaValidationMessage(provider, validation.reason));
   }
   requireTextWithinLimit(post.text, provider, media.length > 0);
+  requireFirstCommentWithinLimit(post.firstComment, provider);
   requireMediaRequirement(provider, media);
 
   return mapSocialPost(
@@ -752,7 +842,8 @@ export async function scheduleSocialPost(
       input,
       input.revision,
       {
-        status: "SCHEDULED",
+        status:
+          post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
         scheduledAt: input.scheduledAt,
         timezone: input.timezone ?? post.timezone,
         socialConnectionId: connection.id,
@@ -778,7 +869,9 @@ export async function cancelSocialPost(
     return mapSocialPost(post);
   }
   if (!CANCELABLE_STATUSES.includes(post.status)) {
-    throw conflict("Only a draft or scheduled post can be canceled");
+    throw conflict(
+      "Only a draft, scheduled, needs-approval, failed, or missed post can be canceled",
+    );
   }
   requireRevision(post, input.revision);
 
@@ -792,5 +885,183 @@ export async function cancelSocialPost(
       },
       tx,
     ),
+  );
+}
+
+export async function approveSocialPost(
+  input: ApproveSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be approved");
+  }
+  requireRevision(post, input.revision);
+  const due = post.scheduledAt;
+  const schedule =
+    due != null &&
+    due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+  if (schedule) {
+    await requireActiveProjectConnection(
+      input.projectId,
+      post.socialConnectionId,
+      tx,
+    );
+  }
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: schedule ? "SCHEDULED" : "DRAFT",
+        ...(schedule
+          ? {
+              scheduledByUserId: input.userId,
+              scheduledByCoworkerId: null,
+            }
+          : {}),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function rejectSocialPost(
+  input: RejectSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
+  if (post.status !== "NEEDS_APPROVAL") {
+    throw conflict("Only a post that needs approval can be rejected");
+  }
+  requireRevision(post, input.revision);
+
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "CANCELED",
+        canceledAt: new Date(),
+      },
+      tx,
+    ),
+  );
+}
+
+export async function duplicateSocialPost(
+  input: DuplicateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const source = await requireScopedPost(input, tx);
+  if (!DUPLICATABLE_STATUSES.includes(source.status)) {
+    throw conflict(
+      "Only a published, failed, or missed post can be duplicated",
+    );
+  }
+
+  const provider = requireProvider(source.provider);
+  const media = normalizeSocialPostMedia({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    provider,
+    media: parseSocialPostMedia(source.media, source.id),
+  });
+  const text = requireTextWithinLimit(source.text, provider, media.length > 0);
+  requireMediaRequirement(provider, media);
+  const socialConnectionId =
+    source.socialConnection && source.socialConnection.status !== "disconnected"
+      ? source.socialConnection.id
+      : null;
+
+  const post = await tx.socialPost.create({
+    data: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      socialConnectionId,
+      provider,
+      text,
+      firstComment: source.firstComment,
+      media: mediaJson(media),
+      status: "DRAFT",
+      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorCoworkerId: input.coworkerId ?? null,
+    },
+    include: socialPostInclude,
+  });
+  return mapSocialPost(post);
+}
+
+const DAY_MS = 86_400_000;
+
+export async function recycleSocialAccountPost(
+  input: RecycleSocialAccountPostInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  await requireScopedProject(input, tx);
+  const accountPost = await tx.socialAccountPost.findFirst({
+    where: {
+      id: input.accountPostId,
+      connection: {
+        projectId: input.projectId,
+        project: { workspaceId: input.workspaceId },
+      },
+    },
+    include: {
+      connection: { select: { id: true, status: true, provider: true } },
+    },
+  });
+  if (!accountPost) {
+    throw notFound("Performance post not found");
+  }
+
+  const match = await tx.socialPost.findFirst({
+    where: {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      publishedExternalId: accountPost.externalId,
+      status: { in: [...DUPLICATABLE_STATUSES] },
+    },
+    select: { id: true },
+  });
+
+  let post: SocialPostSummary;
+  if (match) {
+    post = await duplicateSocialPost({ ...input, postId: match.id }, tx);
+  } else if (!accountPost.text.trim()) {
+    throw badRequest("This post has no text to reshare");
+  } else {
+    post = await createSocialPost(
+      {
+        ...input,
+        text: accountPost.text,
+        socialConnectionId: accountPost.connection.id,
+      },
+      tx,
+    );
+  }
+
+  if (!input.delayDays) return post;
+  if (!input.timezone) {
+    throw badRequest("timezone is required when scheduling");
+  }
+  return scheduleSocialPost(
+    {
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      coworkerId: input.coworkerId,
+      postId: post.id,
+      scheduledAt: new Date(Date.now() + input.delayDays * DAY_MS),
+      timezone: input.timezone,
+      socialConnectionId:
+        post.socialConnection?.id ?? accountPost.connection.id,
+      revision: post.revision,
+    },
+    tx,
   );
 }

@@ -1,5 +1,5 @@
 import type { SocialQueueSlots } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +27,7 @@ const MESSAGES: Record<string, string> = {
   remove: "Remove {name}",
   "toasts.saved": "Queue saved.",
   "toasts.empty": "Queue cleared.",
+  "toasts.failed": "Could not save queue times. Try again.",
   "weekdays.0": "Sunday",
   "weekdays.1": "Monday",
   "weekdays.2": "Tuesday",
@@ -105,5 +106,96 @@ describe("ProjectSocialQueueSlots", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Queue saved.");
+  });
+
+  it("clears the last slot", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialQueueSlots
+        projectId="project-1"
+        queueSlots={{
+          timezone: "UTC",
+          slots: [
+            {
+              id: "slot-1",
+              name: "Morning",
+              weekday: 1,
+              minutesFromMidnight: 540,
+              timezone: "UTC",
+            },
+          ],
+        }}
+      />,
+    );
+    replaceProjectSocialQueueSlots.mockResolvedValue({
+      ok: true,
+      value: EMPTY,
+    });
+    await user.click(screen.getByRole("button", { name: "Remove Morning" }));
+    await user.click(screen.getByRole("button", { name: "Save queue" }));
+    await waitFor(() =>
+      expect(replaceProjectSocialQueueSlots).toHaveBeenCalledWith({
+        projectId: "project-1",
+        timezone: "UTC",
+        slots: [],
+      }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("Queue cleared.");
+  });
+
+  it("keeps edits when saving fails", async () => {
+    const user = userEvent.setup();
+    replaceProjectSocialQueueSlots.mockResolvedValue({
+      ok: false,
+      error: { message: "Save failed. Try again." },
+    });
+    render(
+      <ProjectSocialQueueSlots projectId="project-1" queueSlots={EMPTY} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Add time" }));
+    await user.type(screen.getByLabelText("Name"), "Morning");
+    await user.click(screen.getByRole("button", { name: "Save queue" }));
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Save failed. Try again."),
+    );
+    expect(screen.getByLabelText("Name")).toHaveValue("Morning");
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps new rows independent after editing, removing, and adding times", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialQueueSlots projectId="project-1" queueSlots={EMPTY} />,
+    );
+    const add = screen.getByRole("button", { name: "Add time" });
+    await user.click(add);
+    fireEvent.change(screen.getByLabelText("Time"), {
+      target: { value: "10:00" },
+    });
+    await user.click(add);
+    await user.click(
+      screen.getByRole("button", { name: "Remove Monday 10:00" }),
+    );
+    fireEvent.change(screen.getByLabelText("Time"), {
+      target: { value: "10:00" },
+    });
+    await user.click(add);
+    await user.type(screen.getAllByLabelText("Name")[0], "Morning");
+    expect(screen.getAllByLabelText("Name")[0]).toHaveValue("Morning");
+    expect(screen.getAllByLabelText("Name")[1]).toHaveValue("");
+  });
+
+  it("shows a recovery message for a rejected action", async () => {
+    const user = userEvent.setup();
+    replaceProjectSocialQueueSlots.mockRejectedValue(new Error("Network lost"));
+    render(
+      <ProjectSocialQueueSlots projectId="project-1" queueSlots={EMPTY} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Save queue" }));
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Could not save queue times. Try again.",
+      ),
+    );
   });
 });

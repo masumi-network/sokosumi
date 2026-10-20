@@ -725,7 +725,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         }));
       const turn = await prisma.sokoBotTurn.create({
         data: {
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           sokoBotId: bot.id,
           source: "CHAT",

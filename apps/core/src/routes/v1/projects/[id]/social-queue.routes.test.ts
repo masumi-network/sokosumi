@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden, unauthorized } from "@/helpers/error";
+import { conflict, forbidden, unauthorized } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -83,6 +83,7 @@ const queuedPost = {
   projectId: PROJECT_ID,
   provider: "x",
   text: "Hello world",
+  firstComment: null,
   media: [],
   status: "SCHEDULED",
   scheduledAt: new Date(SCHEDULED_AT),
@@ -90,6 +91,7 @@ const queuedPost = {
   socialConnection: null,
   creator: { kind: "user", id: USER_ID, name: "Ada Lovelace" },
   scheduledByUserId: USER_ID,
+  scheduledByCoworkerId: null,
   canceledAt: null,
   publishedAt: null,
   publishedExternalId: null,
@@ -106,6 +108,9 @@ const queuedPost = {
   canSchedule: true,
   canCancel: true,
   canPublishNow: true,
+  canApprove: false,
+  canReject: false,
+  canDuplicate: false,
   connectionNeedsReconnect: false,
 };
 
@@ -234,5 +239,72 @@ describe("Project social queue routes", () => {
 
     expect(response.status).toBe(401);
     expect(listSocialQueueSlotsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps pending approval and hides human-only actions from coworkers", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({ userId: USER_ID });
+    queueSocialPostMock.mockResolvedValue({
+      ...queuedPost,
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canReject: true,
+    });
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow-1",
+      vendorId: "vendor-1",
+      context: { userId: USER_ID, organizationId: null },
+    }).request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/queue`,
+      json("POST", { revision: 0 }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        status: "NEEDS_APPROVAL",
+        canPublishNow: false,
+        canApprove: false,
+        canReject: false,
+      },
+    });
+    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
+      "cow-1",
+      "tasks",
+      expect.anything(),
+    );
+  });
+
+  it("returns a retryable concurrency conflict", async () => {
+    queueSocialPostMock.mockRejectedValue(
+      conflict("The queue was modified, reload and retry", {
+        kind: "concurrency_conflict",
+      }),
+    );
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/queue`,
+      json("POST", { revision: 0 }),
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it.each([{ revision: -1 }, { revision: 0, socialConnectionId: "invalid" }])(
+    "validates queue input %j",
+    async (body) => {
+      const response = await createApp().request(
+        `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/queue`,
+        json("POST", body),
+      );
+      expect(response.status).toBe(422);
+      expect(queueSocialPostMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates the queue timezone", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-queue-slots`,
+      json("PUT", { timezone: "Invalid/Timezone", slots: [] }),
+    );
+    expect(response.status).toBe(422);
+    expect(replaceSocialQueueSlotsMock).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,7 @@ public final class SkillSearch: ObservableObject {
   }
 
   /// Web `SEARCH_DEBOUNCE_MS`.
-  public static let debounce = Duration.milliseconds(200)
+  private static let debounce = Duration.milliseconds(200)
 
   @Published public private(set) var results: [Item] = []
   @Published private var isLoading = false

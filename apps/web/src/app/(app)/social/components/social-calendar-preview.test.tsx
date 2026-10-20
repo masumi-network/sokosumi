@@ -20,16 +20,19 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     projectId,
     selectedPostId,
     previewOnly,
+    queueSlots,
   }: {
     projectId: string;
     selectedPostId: string;
     previewOnly: boolean;
+    queueSlots?: unknown[];
   }) => (
     <div
       role="dialog"
       data-project={projectId}
       data-post={selectedPostId}
       data-preview-only={String(previewOnly)}
+      data-queue-slots={queueSlots?.length ?? 0}
     />
   ),
 }));
@@ -64,6 +67,7 @@ describe("Social calendar previews", () => {
     load.mockResolvedValue({
       post: { id: "scheduled-post", projectId: "post-project" },
       connections: [],
+      queueSlots: [{ id: "slot-1" }],
     });
     render(
       <NuqsTestingAdapter
@@ -94,6 +98,7 @@ describe("Social calendar previews", () => {
       projectId: "post-project",
       postId: "scheduled-post",
     });
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-queue-slots", "1");
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
   it("restores calendar focus when loading is canceled", async () => {
@@ -111,6 +116,9 @@ describe("Social calendar previews", () => {
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
     expect(
       screen.getByTestId("social-calendar-preview-skeleton"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("social-calendar-preview-platform-mark"),
     ).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(trigger).toHaveFocus());

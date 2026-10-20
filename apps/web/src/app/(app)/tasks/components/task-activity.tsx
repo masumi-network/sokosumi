@@ -87,7 +87,7 @@ interface TaskActivityProps {
   actionUpdatedStatusLabel: string;
   actionCreatedTaskLabel: string;
   /** Names the creation event when it has no actor (system, schedule). */
-  taskOwnerId?: string;
+  taskOwnerId?: string | null;
   events: TaskEvent[];
   /** Total comment events on the Task (Core meta); drives grouping. */
   commentCount?: number;

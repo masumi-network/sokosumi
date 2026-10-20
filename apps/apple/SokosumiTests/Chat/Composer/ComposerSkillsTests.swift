@@ -196,7 +196,7 @@
         var message = chatRoomMessage(from: .init(clientTurnId: "sent", roomId: "room", content: "Grill this plan.",
                                                   skills: [Self.skill(1, description: "A relentless interview.")], createdAt: Self.created, sender: Self.viewer))
         message.id = "sent"
-        let (window, host) = Self.window(MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil),
+        let (window, host) = Self.window(MessageRowView(message: message, row: transcriptRow(message), outbound: nil),
                                          size: NSSize(width: 520, height: 140))
         defer { window.orderOut(nil) }
         _ = try await Self.waitForText("Skill: skill-1", in: host)
@@ -244,7 +244,7 @@
               .overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary) }
               .padding(12), size: NSSize(width: 560, height: 280), dark: dark, until: "pdf"),
             Self.draw(VStack(alignment: .leading, spacing: 12) {
-              MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
+              MessageRowView(message: message, row: transcriptRow(message), outbound: nil)
               MessageSkillPreview(skill: Self.skill(1, description: "A relentless interview to sharpen a plan."))
                 .background(.background, in: .rect(cornerRadius: 10))
                 .overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary) }

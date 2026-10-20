@@ -56,6 +56,9 @@ function zonedWallToUtc(
   let result = new Date(utcGuess - offset);
   offset = getTimezoneOffsetMs(result, timeZone);
   result = new Date(utcGuess - offset);
+  // A wall time skipped by the spring DST change has no queue occurrence.
+  if (result.getTime() + getTimezoneOffsetMs(result, timeZone) !== utcGuess)
+    return null;
   return Number.isNaN(result.getTime()) ? null : result;
 }
 
@@ -141,7 +144,7 @@ export function nextSocialQueueSlotAt(
   const taken = new Set(occupied.map(minuteKey));
   const earliest = from.getTime() + minLeadMs;
   let soonest: Date | null = null;
-  for (let week = 0; week <= maxWeeks; week += 1) {
+  for (let week = 0; week < maxWeeks; week += 1) {
     for (const slot of slots) {
       const at = socialQueueSlotOccurrence(slot, from, week);
       if (!at || at.getTime() <= earliest) continue;

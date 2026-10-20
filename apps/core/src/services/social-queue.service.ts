@@ -4,12 +4,18 @@ import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { nextSocialQueueSlotAt } from "@/helpers/social-queue-slot";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  getSocialPost,
   type SocialPostSummary,
   scheduleSocialPost,
 } from "@/services/social-posts.service";
 
-const QUEUE_OCCUPIED_STATUSES = ["SCHEDULED", "PUBLISHING"] as const;
+const QUEUE_OCCUPIED_STATUSES = [
+  "SCHEDULED",
+  "NEEDS_APPROVAL",
+  "PUBLISHING",
+] as const;
 const QUEUE_LOOKAHEAD_MS = 12 * 7 * 24 * 60 * 60 * 1000;
 
 export interface SocialQueueSlotSummary {
@@ -39,7 +45,9 @@ export interface ReplaceSocialQueueSlotsInput extends ProjectScope {
   }>;
 }
 
-export interface ResolveNextSocialQueueSlotInput extends ProjectScope {}
+export interface ResolveNextSocialQueueSlotInput extends ProjectScope {
+  socialConnectionId: string;
+}
 
 export interface QueueSocialPostInput extends ProjectScope {
   userId: string;
@@ -95,24 +103,25 @@ export async function listSocialQueueSlots(
 
 export async function replaceSocialQueueSlots(
   input: ReplaceSocialQueueSlotsInput,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialQueueSlotsSummary> {
-  await requireScopedProject(input, tx);
-  await tx.projectSocialQueueSlot.deleteMany({
-    where: { projectId: input.projectId },
-  });
-  if (input.slots.length > 0) {
-    await tx.projectSocialQueueSlot.createMany({
-      data: input.slots.map((slot) => ({
-        projectId: input.projectId,
-        name: slot.name,
-        weekday: slot.weekday,
-        minutesFromMidnight: slot.minutesFromMidnight,
-        timezone: input.timezone,
-      })),
+  return serializableTransaction(async (tx) => {
+    await requireScopedProject(input, tx);
+    await tx.projectSocialQueueSlot.deleteMany({
+      where: { projectId: input.projectId },
     });
-  }
-  return listSocialQueueSlots(input, tx);
+    if (input.slots.length > 0) {
+      await tx.projectSocialQueueSlot.createMany({
+        data: input.slots.map((slot) => ({
+          projectId: input.projectId,
+          name: slot.name,
+          weekday: slot.weekday,
+          minutesFromMidnight: slot.minutesFromMidnight,
+          timezone: input.timezone,
+        })),
+      });
+    }
+    return listSocialQueueSlots(input, tx);
+  }, "Queue times were modified, reload and retry");
 }
 
 export async function resolveNextSocialQueueSlot(
@@ -127,6 +136,7 @@ export async function resolveNextSocialQueueSlot(
   const occupied = await tx.socialPost.findMany({
     where: {
       projectId: input.projectId,
+      socialConnectionId: input.socialConnectionId,
       status: { in: [...QUEUE_OCCUPIED_STATUSES] },
       scheduledAt: {
         gte: from,
@@ -149,15 +159,25 @@ export async function resolveNextSocialQueueSlot(
 
 export async function queueSocialPost(
   input: QueueSocialPostInput,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  const next = await resolveNextSocialQueueSlot(input, tx);
-  return scheduleSocialPost(
-    {
-      ...input,
-      scheduledAt: next.scheduledAt,
-      timezone: next.timezone,
-    },
-    tx,
-  );
+  return serializableTransaction(async (tx) => {
+    const post = await getSocialPost(input, tx);
+    const socialConnectionId =
+      input.socialConnectionId ?? post.socialConnection?.id;
+    if (!socialConnectionId) {
+      throw badRequest("A social connection is required to schedule a post");
+    }
+    const next = await resolveNextSocialQueueSlot(
+      { ...input, socialConnectionId },
+      tx,
+    );
+    return scheduleSocialPost(
+      {
+        ...input,
+        scheduledAt: next.scheduledAt,
+        timezone: next.timezone,
+      },
+      tx,
+    );
+  }, "The queue was modified, reload and retry");
 }

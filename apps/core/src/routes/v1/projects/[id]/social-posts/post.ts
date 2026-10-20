@@ -15,16 +15,18 @@ import {
   socialPostSchema,
 } from "@/schemas/social-post.schema";
 import { createSocialPost } from "@/services/social-posts.service";
-import { resolveNextSocialQueueSlot } from "@/services/social-queue.service";
 
-import { mapSocialPostServiceError } from "./route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "./route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/social-posts",
     description:
-      "Draft a Social post for a Project, schedule it when scheduledAt is given, or put it in the next free queue slot when queue is true. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostProjectParamsSchema,
@@ -57,12 +59,6 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const input = c.req.valid("json");
 
     try {
-      const queued = input.queue
-        ? await resolveNextSocialQueueSlot({
-            projectId,
-            workspaceId: workspaceContext.workspaceId,
-          })
-        : null;
       const post = await createSocialPost({
         projectId,
         workspaceId: workspaceContext.workspaceId,
@@ -70,21 +66,17 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         coworkerId: userContext.coworkerId,
         organizationId: workspaceContext.organizationId,
         text: input.text,
+        firstComment: input.firstComment,
         media: input.media,
         socialConnectionId: input.socialConnectionId,
-        scheduledAt: queued
-          ? queued.scheduledAt
-          : input.scheduledAt
-            ? new Date(input.scheduledAt)
-            : undefined,
-        timezone: queued?.timezone ?? input.timezone,
+        scheduledAt: input.scheduledAt
+          ? new Date(input.scheduledAt)
+          : undefined,
+        timezone: input.timezone,
       });
       return created(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

@@ -17,8 +17,8 @@
 
     var body: some View {
       let receipts = RoomReadReceipts(room: room, currentUserId: "user_ben", liveReads: marks.roomId == room.id ? marks.marks : [:])
-      MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, horizontalInset: 12,
-                     newestEndsInAttachment: MessageMarkdown.endsWithAttachmentRun(message.content),
+      MessageRowView(message: message, row: transcriptRow(message, isNewest: true), outbound: nil,
+                     horizontalInset: 12,
                      seenBy: receipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: message.id))
     }
   }
@@ -180,8 +180,8 @@
         let hosted = Self.newestRow(Self.message(text))
         defer { hosted.window.orderOut(nil) }
         let before = try await Self.settled(hosted, pictures: false)
-        let plain = Self.host(MessageRowView(message: Self.message(text), isContinuation: false, outbound: nil, onRetry: nil,
-                                             onRemove: nil, horizontalInset: 12),
+        let plainMessage = Self.message(text)
+        let plain = Self.host(MessageRowView(message: plainMessage, row: transcriptRow(plainMessage), outbound: nil, horizontalInset: 12),
                               marks: RoomReadMarks(), dark: false)
         defer { plain.window.orderOut(nil) }
         let plainBitmap = try await Self.settled(plain, pictures: false)
@@ -203,7 +203,7 @@
         let message = Self.message(Self.pictureSource, reacted: true)
         let newest = Self.newestRow(message)
         defer { newest.window.orderOut(nil) }
-        let plain = Self.host(MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+        let plain = Self.host(MessageRowView(message: message, row: transcriptRow(message), outbound: nil,
                                              horizontalInset: 12),
                               marks: RoomReadMarks(), dark: false)
         defer { plain.window.orderOut(nil) }

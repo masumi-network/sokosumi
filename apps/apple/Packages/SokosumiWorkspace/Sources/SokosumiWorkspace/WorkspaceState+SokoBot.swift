@@ -1,5 +1,4 @@
 import CoreAPI
-import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
@@ -19,23 +18,19 @@ public extension WorkspaceState {
   /// while the request is in flight, or after a rating stuck, sends nothing.
   /// Web ignores a rejected rating (the thumbs simply return); a 401 signs out
   /// like every other chat request. Rethrows so a row could still tell.
-  func sendSokoBotFeedback(turnId: String, useful: Bool, auth: AuthState) async throws {
+  func sendSokoBotFeedback(turnId: String, useful: Bool) async throws {
     guard !turnId.isEmpty, sokoBotFeedback[turnId] == nil, !pendingSokoBotFeedback.contains(turnId) else { return }
-    guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Log in to rate replies.")
-    }
     let context = compositionContext
     pendingSokoBotFeedback.insert(turnId)
     defer { pendingSokoBotFeedback.remove(turnId) }
     do {
-      let stored = try await ChatService().sendSokoBotTurnFeedback(client: client, turnId: turnId, useful: useful)
+      let stored = try await request(signIn: "Log in to rate replies.") { service, client, _ in
+        try await service.sendSokoBotTurnFeedback(client: client, turnId: turnId, useful: useful)
+      }
       guard context == compositionContext, !Task.isCancelled else { return }
       sokoBotFeedback[turnId] = stored
     } catch {
       guard context == compositionContext, !Task.isCancelled else { return }
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
       throw error
     }
   }
