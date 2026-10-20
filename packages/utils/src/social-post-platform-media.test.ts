@@ -55,6 +55,23 @@ describe("validateSocialPostMedia platform limits", () => {
     });
   });
 
+  it("rejects mixed Instagram carousels in either order", () => {
+    const video = ref({
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      kind: "video",
+    });
+    for (const media of [
+      [jpeg, video],
+      [video, jpeg],
+    ]) {
+      expect(validateSocialPostMedia("instagram", media)).toEqual({
+        ok: false,
+        reason: "mixed_media",
+      });
+    }
+  });
+
   it("accepts webp on Facebook and X, not LinkedIn", () => {
     expect(validateSocialPostMedia("facebook", [webp])).toEqual({ ok: true });
     expect(validateSocialPostMedia("x", [webp])).toEqual({ ok: true });

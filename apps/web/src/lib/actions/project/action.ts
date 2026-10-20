@@ -11,6 +11,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
+import { ProjectSocialProvider } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isValidTimezone,
@@ -104,6 +105,7 @@ interface DisconnectProjectSocialConnectionParameters
 interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
   projectId: string;
   text: string;
+  provider?: ProjectSocialConnection["provider"];
   firstComment?: string | null;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string | null;
@@ -621,6 +623,7 @@ const createProjectSocialPostSchema = z
   .object({
     projectId: trimmedId,
     text: z.string(),
+    provider: z.enum(ProjectSocialProvider).optional(),
     firstComment: z.string().max(SOCIAL_POST_FIRST_COMMENT_MAX).optional(),
     media: socialPostMediaSchema.optional(),
     socialConnectionId: optionalConnectionId,
@@ -708,6 +711,7 @@ export const createProjectSocialPost = withSession<
   async ({
     projectId,
     text,
+    provider,
     firstComment,
     media,
     socialConnectionId,
@@ -717,6 +721,7 @@ export const createProjectSocialPost = withSession<
     const parsed = createProjectSocialPostSchema.safeParse({
       projectId,
       text,
+      provider,
       firstComment,
       media,
       socialConnectionId,
@@ -732,6 +737,7 @@ export const createProjectSocialPost = withSession<
         parsed.data.projectId,
         {
           text: parsed.data.text,
+          ...(parsed.data.provider ? { provider: parsed.data.provider } : {}),
           ...(parsed.data.firstComment !== undefined
             ? { firstComment: parsed.data.firstComment }
             : {}),

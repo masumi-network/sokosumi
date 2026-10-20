@@ -197,6 +197,7 @@ export interface CreateSocialPostInput
   coworkerId?: string;
   sokoBotId?: string;
   text: string;
+  provider?: SocialPostProvider;
   firstComment?: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
@@ -440,8 +441,12 @@ function mediaValidationMessage(
       return `${label} allows at most ${SOCIAL_POST_MEDIA_RULES[provider].maxImages} images per post`;
     case "too_many_gifs":
       return `${label} allows one GIF per post`;
-    case "too_many_videos":
-      return `${label} allows one video per post`;
+    case "too_many_videos": {
+      const max = SOCIAL_POST_MEDIA_RULES[provider].maxVideos;
+      return max === 1
+        ? `${label} allows one video per post`
+        : `${label} allows at most ${max} videos per post`;
+    }
     case "mixed_media":
       return `${label} does not allow a post that mixes images, a GIF, or a video`;
     case "unsupported_type":
@@ -665,7 +670,9 @@ export async function createSocialPost(
     );
   }
 
-  const provider = connection?.provider ?? "x";
+  const provider = requireProvider(
+    connection?.provider ?? input.provider ?? "x",
+  );
   const media = normalizeSocialPostMedia({
     userId: input.userId,
     organizationId: input.organizationId,

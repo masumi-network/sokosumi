@@ -176,9 +176,10 @@ const MESSAGES: Record<string, string> = {
     "A file with this name already exists in the Drive. Rename it and try again.",
   "composer.media.uploadFailed": "The upload failed. Try again.",
   "composer.media.errors.too_many_images":
-    "X allows at most 4 images per post.",
+    "{provider} allows at most {max} images per post.",
   "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
-  "composer.media.errors.too_many_videos": "X allows one video per post.",
+  "composer.media.errors.too_many_videos":
+    "{provider} allows at most {max} videos per post.",
   "composer.media.errors.mixed_media":
     "Use images, one GIF, or one video — not a mix.",
   "composer.media.errors.unsupported_type":
@@ -3861,6 +3862,91 @@ describe("ProjectSocialPosts", () => {
     });
     expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
   });
+
+  it.each(
+    [2, 10]
+      .flatMap((count) => [
+        { count, kind: "image", extension: "jpg", mimeType: "image/jpeg" },
+        { count, kind: "video", extension: "mp4", mimeType: "video/mp4" },
+      ])
+      .flatMap((scenario) => [
+        { ...scenario, connected: true },
+        { ...scenario, connected: false },
+      ]),
+  )(
+    "uploads and saves $count Instagram $kind files (account selected: $connected)",
+    async ({ count, kind, extension, mimeType, connected }) => {
+      uploadDriveFileMock.mockImplementation(async (file: File) => ({
+        pathname: `drive/users/user_1/${file.name}`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/${file.name}`,
+      }));
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ provider: "instagram" })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      if (!connected) {
+        await user.click(
+          within(dialog).getByRole("button", { name: "Instagram @sokosumi" }),
+        );
+      }
+      const input =
+        dialog.querySelector<HTMLInputElement>('input[type="file"]');
+      expect(input).not.toBeNull();
+      if (!input) return;
+      const files = Array.from(
+        { length: count },
+        (_, index) =>
+          new File(["media"], `slide-${index}.${extension}`, {
+            type: mimeType,
+          }),
+      );
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files } });
+      });
+      expect(uploadDriveFileMock).toHaveBeenCalledTimes(count);
+      expect(toastErrorMock).not.toHaveBeenCalled();
+      if (count === 10) {
+        await act(async () => {
+          fireEvent.change(input, {
+            target: {
+              files: [
+                new File(["extra"], `extra.${extension}`, { type: mimeType }),
+              ],
+            },
+          });
+        });
+        expect(uploadDriveFileMock).toHaveBeenCalledTimes(10);
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          `Instagram allows at most 10 ${kind === "image" ? "images" : "videos"} per post.`,
+        );
+      }
+      await user.click(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      );
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "",
+          socialConnectionId: connected ? "connection-1" : null,
+          ...(!connected ? { provider: "instagram" } : {}),
+          media: files.map((file) => ({
+            name: file.name,
+            pathname: `drive/users/user_1/${file.name}`,
+            fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/${file.name}`,
+            mimeType,
+            kind,
+            size: file.size,
+          })),
+        }),
+      );
+    },
+  );
 
   it("uploads every chosen file in one pick", async () => {
     uploadDriveFileMock

@@ -182,6 +182,183 @@ describe("social posts service", () => {
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
 
+  it.each([JPEG_REF, VIDEO_REF])(
+    "saves an unassigned ten-$kind Instagram draft with its explicit provider",
+    async (ref) => {
+      const media = Array.from({ length: 10 }, () => ref);
+      const { createSocialPost } = await loadService();
+      await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        provider: "instagram",
+        text: "",
+        media,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider: "instagram",
+            media,
+            socialConnectionId: null,
+            status: "DRAFT",
+          }),
+        }),
+      );
+    },
+  );
+
+  it("uses the connected account's limits ahead of a draft provider hint", async () => {
+    const { createSocialPost } = await loadService();
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        provider: "instagram",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        text: "Carousel",
+        media: Array.from({ length: 10 }, () => JPEG_REF),
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "X allows at most 4 images per post",
+    });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([JPEG_REF, VIDEO_REF])(
+    "keeps a ten-$kind Instagram agent carousel held for approval, then schedules it intact",
+    async (ref) => {
+      const media = Array.from({ length: 10 }, () => ref);
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider: "instagram",
+      });
+      const pending = {
+        ...scheduledPost,
+        provider: "instagram",
+        status: "NEEDS_APPROVAL",
+        media,
+        creatorUserId: null,
+        creatorCoworkerId: "cow_123",
+      };
+      socialPostCreateMock.mockResolvedValue(pending);
+      const { createSocialPost, approveSocialPost } = await loadService();
+
+      const created = await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId: "cow_123",
+        text: "Carousel",
+        media,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media, status: "NEEDS_APPROVAL" }),
+        }),
+      );
+      expect(created).toMatchObject({
+        media,
+        canApprove: true,
+        canPublishNow: false,
+      });
+
+      socialPostFindFirstMock.mockResolvedValueOnce(pending).mockResolvedValue({
+        ...pending,
+        status: "SCHEDULED",
+        revision: 2,
+      });
+      const approved = await approveSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+      });
+      expect(approved).toMatchObject({
+        media,
+        status: "SCHEDULED",
+        canPublishNow: true,
+      });
+    },
+  );
+
+  it.each([JPEG_REF, VIDEO_REF])(
+    "updates and duplicates ten-$kind Instagram carousels intact",
+    async (ref) => {
+      const media = Array.from({ length: 10 }, () => ref);
+      const post = { ...scheduledPost, provider: "instagram", media };
+      socialPostFindFirstMock.mockResolvedValue(post);
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider: "instagram",
+      });
+      const { updateSocialPost, duplicateSocialPost } = await loadService();
+      const scope = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+      };
+
+      await updateSocialPost({ ...scope, media, text: "Edited", revision: 1 });
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media, text: "Edited" }),
+        }),
+      );
+      socialPostFindFirstMock.mockResolvedValue({ ...post, status: "FAILED" });
+      await duplicateSocialPost(scope);
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            media,
+            provider: "instagram",
+            status: "DRAFT",
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each([
+    { ref: JPEG_REF, kind: "images" },
+    { ref: VIDEO_REF, kind: "videos" },
+  ])(
+    "rejects an eleventh Instagram $kind with the correct limit",
+    async ({ ref, kind }) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider: "instagram",
+      });
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Carousel",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          media: Array.from({ length: 11 }, () => ref),
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: `Instagram allows at most 10 ${kind} per post`,
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("lists a bounded page with derived capability flags", async () => {
     const { listSocialPosts } = await loadService();
 

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ComposioApiError } from "@/clients/composio.client";
 import { publishInstagramPost } from "@/clients/social-post-providers/instagram";
-import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import {
+  ComposioPublishOutcomeUnknownError,
+  ComposioToolError,
+} from "@/clients/social-post-providers/tools";
 
 const { getEnvMock, logSetMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
@@ -152,92 +156,180 @@ describe("publishInstagramPost", () => {
     });
   });
 
-  it("creates a carousel container for two images and publishes it", async () => {
-    const second = {
-      ...IMAGE_REF,
-      pathname: "drive/users/user_1/photo-2.jpg",
-      fileUrl:
-        "https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-2.jpg",
-      name: "photo-2.jpg",
-    };
-    const fetchMock = stubSession((call) =>
-      call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
-        ? toolResponse({ id: "carousel_1" })
-        : toolResponse({ id: "media_80" }),
-    );
+  it.each([2, 10])(
+    "publishes a carousel of %i images in order",
+    async (count) => {
+      const media = Array.from({ length: count }, (_, index) => ({
+        ...IMAGE_REF,
+        pathname: `drive/users/user_1/photo-${index}.jpg`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-${index}.jpg`,
+        name: `photo-${index}.jpg`,
+      }));
+      const fetchMock = stubSession((call) =>
+        call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
+          ? toolResponse({ id: "carousel_1" })
+          : toolResponse({ id: "media_80" }),
+      );
 
-    await expect(
-      publishInstagramPost({ ...context, media: [IMAGE_REF, second] }),
-    ).resolves.toEqual({
-      externalId: "media_80",
-      publishedUrl: null,
-      toolSlug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
-    });
-    expect(executeCalls(fetchMock)).toEqual([
-      {
+      await expect(
+        publishInstagramPost({ ...context, media }),
+      ).resolves.toEqual({
+        externalId: "media_80",
+        publishedUrl: null,
+        toolSlug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+      });
+      expect(executeCalls(fetchMock)).toEqual([
+        {
+          tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
+          arguments: {
+            ig_user_id: "17841400000000000",
+            caption: "Hello Instagram",
+            child_image_urls: media.map((ref) => ref.fileUrl),
+          },
+        },
+        {
+          tool_slug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+          arguments: {
+            ig_user_id: "17841400000000000",
+            creation_id: "carousel_1",
+            max_wait_seconds: 180,
+          },
+        },
+      ]);
+      expect(
+        JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+      ).toMatchObject({
+        connected_accounts: { instagram: [context.connectedAccountId] },
+        tools: {
+          instagram: {
+            enable: [
+              "INSTAGRAM_POST_IG_USER_MEDIA",
+              "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
+              "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+            ],
+          },
+        },
+      });
+    },
+  );
+
+  it.each([2, 10])(
+    "publishes a carousel of %i videos in order",
+    async (count) => {
+      const media = Array.from({ length: count }, (_, index) => ({
+        ...VIDEO_REF,
+        pathname: `drive/users/user_1/clip-${index}.mp4`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/clip-${index}.mp4`,
+        name: `clip-${index}.mp4`,
+      }));
+      const fetchMock = stubSession((call) =>
+        call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
+          ? toolResponse({ creation_id: "carousel_2" })
+          : toolResponse({ id: "media_81" }),
+      );
+
+      await publishInstagramPost({
+        ...context,
+        text: "",
+        media,
+      });
+
+      expect(executeCalls(fetchMock)[0]).toEqual({
         tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
         arguments: {
           ig_user_id: "17841400000000000",
-          caption: "Hello Instagram",
-          child_image_urls: [IMAGE_REF.fileUrl, second.fileUrl],
+          child_video_urls: media.map((ref) => ref.fileUrl),
         },
-      },
-      {
+      });
+      expect(executeCalls(fetchMock)[1]).toMatchObject({
         tool_slug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
-        arguments: {
-          ig_user_id: "17841400000000000",
-          creation_id: "carousel_1",
-          max_wait_seconds: 180,
-        },
-      },
-    ]);
-  });
+        arguments: { creation_id: "carousel_2" },
+      });
+    },
+  );
 
-  it("creates a carousel container for two videos", async () => {
-    const second = {
-      ...VIDEO_REF,
-      pathname: "drive/users/user_1/clip-2.mp4",
-      fileUrl:
-        "https://store.public.blob.vercel-storage.com/drive/users/user_1/clip-2.mp4",
-      name: "clip-2.mp4",
-    };
-    const fetchMock = stubSession((call) =>
-      call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
-        ? toolResponse({ creation_id: "carousel_2" })
-        : toolResponse({ id: "media_81" }),
-    );
+  it.each([1, 2])(
+    "raises a tool error when a %i-item container is refused",
+    async (count) => {
+      const fetchMock = stubSession(() =>
+        Response.json({
+          data: null,
+          error: { message: "Invalid image aspect ratio", status: 400 },
+          successful: false,
+        }),
+      );
 
-    await publishInstagramPost({
-      ...context,
-      text: "",
-      media: [VIDEO_REF, second],
-    });
+      await expect(
+        publishInstagramPost({
+          ...context,
+          media: Array(count).fill(IMAGE_REF),
+        }),
+      ).rejects.toMatchObject({
+        constructor: ComposioToolError,
+        message: "Instagram refused the media",
+        providerMessage: "Invalid image aspect ratio",
+        providerStatus: 400,
+      });
+      expect(executeCalls(fetchMock)).toHaveLength(1);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
 
-    expect(executeCalls(fetchMock)[0]).toEqual({
-      tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
-      arguments: {
-        ig_user_id: "17841400000000000",
-        child_video_urls: [VIDEO_REF.fileUrl, second.fileUrl],
-      },
-    });
-  });
+  it.each([1, 2])(
+    "never publishes a %i-item container without an id",
+    async (count) => {
+      const fetchMock = stubSession(() => toolResponse({}));
 
-  it("raises a tool error when the container is refused", async () => {
-    stubSession(() =>
-      Response.json({
-        data: null,
-        error: { message: "Invalid image aspect ratio", status: 400 },
-        successful: false,
-      }),
-    );
+      await expect(
+        publishInstagramPost({
+          ...context,
+          media: Array(count).fill(IMAGE_REF),
+        }),
+      ).rejects.toMatchObject({
+        message: "Instagram container creation returned no id",
+      });
+      expect(executeCalls(fetchMock)).toHaveLength(1);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
 
-    await expect(
-      publishInstagramPost({ ...context, media: [IMAGE_REF] }),
-    ).rejects.toMatchObject({
-      constructor: ComposioToolError,
-      message: "Instagram refused the media",
-      providerMessage: "Invalid image aspect ratio",
-      providerStatus: 400,
-    });
-  });
+  it.each([1, 2])(
+    "keeps a %i-item container transport failure safe to retry",
+    async (count) => {
+      const fetchMock = stubSession(() => Response.json({}, { status: 503 }));
+
+      await expect(
+        publishInstagramPost({
+          ...context,
+          media: Array(count).fill(IMAGE_REF),
+        }),
+      ).rejects.toBeInstanceOf(ComposioApiError);
+      expect(executeCalls(fetchMock)).toHaveLength(1);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
+
+  it.each([1, 2])(
+    "guards an unknown publish outcome for %i items against retries",
+    async (count) => {
+      const fetchMock = stubSession((call) =>
+        call.tool_slug === "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH"
+          ? Response.json({
+              data: null,
+              error: { message: "Processing timed out", status: 504 },
+              successful: false,
+            })
+          : toolResponse({ id: "container_1" }),
+      );
+
+      await expect(
+        publishInstagramPost({
+          ...context,
+          media: Array(count).fill(IMAGE_REF),
+        }),
+      ).rejects.toBeInstanceOf(ComposioPublishOutcomeUnknownError);
+      expect(executeCalls(fetchMock)).toHaveLength(2);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
 });

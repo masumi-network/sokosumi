@@ -44,6 +44,26 @@ describe("createSocialPostRequestSchema", () => {
     ).toBe(false);
   });
 
+  it("accepts a full ten-file carousel", () => {
+    const files = Array.from({ length: 10 }, () => media);
+    expect(
+      createSocialPostRequestSchema.parse({
+        text: "",
+        media: files,
+        provider: "instagram",
+      }).media,
+    ).toEqual(files);
+  });
+
+  it("rejects an unknown draft provider", () => {
+    expect(
+      createSocialPostRequestSchema.safeParse({
+        text: "Hello",
+        provider: "unknown",
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects text over the Facebook ceiling", () => {
     expect(
       createSocialPostRequestSchema.safeParse({

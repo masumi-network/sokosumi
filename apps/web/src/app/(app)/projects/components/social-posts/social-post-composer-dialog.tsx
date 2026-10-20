@@ -460,7 +460,10 @@ export function SocialPostComposerDialog({
   ): string {
     return t(`composer.media.errors.${reason}`, {
       provider: socialPostProviderLabel(rejectedBy),
-      max: SOCIAL_POST_MEDIA_RULES[rejectedBy].maxImages,
+      max:
+        reason === "too_many_videos"
+          ? SOCIAL_POST_MEDIA_RULES[rejectedBy].maxVideos
+          : SOCIAL_POST_MEDIA_RULES[rejectedBy].maxImages,
     });
   }
 
@@ -775,6 +778,7 @@ export function SocialPostComposerDialog({
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           socialConnectionId,
+          ...(!socialConnectionId ? { provider } : {}),
         }),
       );
       if (created === 0) return;

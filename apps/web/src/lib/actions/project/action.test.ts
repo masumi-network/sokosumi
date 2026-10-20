@@ -478,6 +478,50 @@ describe("project actions", () => {
     expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(expect.any(Error));
   });
 
+  it.each(["image", "video"] as const)(
+    "preserves ten carousel %s refs through create and update actions",
+    async (kind) => {
+      const media = Array.from({ length: 10 }, (_, index) => ({
+        pathname: `drive/users/user_1/slide-${index}`,
+        fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/slide-${index}`,
+        name: `slide-${index}`,
+        size: 3,
+        mimeType: kind === "image" ? "image/jpeg" : "video/mp4",
+        kind,
+      }));
+      projectServiceMock.createSocialPost.mockResolvedValue({ id: "post-1" });
+      projectServiceMock.updateSocialPost.mockResolvedValue({ id: "post-1" });
+      const { createProjectSocialPost, updateProjectSocialPost } = await import(
+        "./action"
+      );
+      const input = {
+        projectId: "project-1",
+        socialConnectionId: "instagram-account",
+        provider: "instagram" as const,
+        text: "",
+        media,
+      };
+
+      expect(await createProjectSocialPost(input)).toMatchObject({ ok: true });
+      expect(
+        await updateProjectSocialPost({
+          ...input,
+          postId: "post-1",
+          revision: 1,
+        }),
+      ).toMatchObject({ ok: true });
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        expect.objectContaining({ media, provider: "instagram" }),
+      );
+      expect(projectServiceMock.updateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        expect.objectContaining({ media, revision: 1 }),
+      );
+    },
+  );
+
   it("rejects a new connection without a provider", async () => {
     const { initiateProjectSocialConnection } = await import("./action");
     const result = await initiateProjectSocialConnection({

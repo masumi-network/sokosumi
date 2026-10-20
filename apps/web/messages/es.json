@@ -2516,7 +2516,7 @@
             "errors": {
               "too_many_images": "{provider} permite como máximo {max} imágenes por publicación.",
               "too_many_gifs": "{provider} permite un GIF por publicación.",
-              "too_many_videos": "{provider} permite un vídeo por publicación.",
+              "too_many_videos": "{provider} permite {max, plural, one {un vídeo} other {como máximo # vídeos}} por publicación.",
               "mixed_media": "{provider} no permite mezclar imágenes, un GIF o un vídeo.",
               "unsupported_type": "{provider} no acepta este tipo de archivo.",
               "too_large": "Un archivo es demasiado grande para {provider}."

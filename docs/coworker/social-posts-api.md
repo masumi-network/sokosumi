@@ -10,6 +10,8 @@ Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Org
 4. Copy a published, failed, or missed post into a new draft with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
 5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
+A draft without `socialConnectionId` can set `provider` to preserve that network's text and media limits. It defaults to X when omitted. A selected connection always decides the provider; scheduling still requires a connection.
+
 Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
 
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
@@ -61,7 +63,7 @@ Each provider publishes through its own Composio tool sequence; the post's provi
 | TikTok | ≤2200 | 1 video, required | Privacy level is chosen at publish time and recorded on the attempt; unaudited apps post `SELF_ONLY`. |
 | YouTube | description ≤5000, title derived from the text | 1 video, required | Publishes public with an empty tag list and a default category. |
 
-Kinds never mix: a post carries images or one GIF or one video. Each provider's Composio auth config needs its publishing scope before a post can go out: LinkedIn `w_member_social`; Facebook `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; Instagram `instagram_business_content_publish`; TikTok `video.publish`; YouTube `https://www.googleapis.com/auth/youtube.upload`. Until then the connection works for identity and publishing fails with a clear permission error.
+Kinds never mix: a post carries only images, only videos, or one GIF, within the provider's limits. Each provider's Composio auth config needs its publishing scope before a post can go out: LinkedIn `w_member_social`; Facebook `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; Instagram `instagram_business_content_publish`; TikTok `video.publish`; YouTube `https://www.googleapis.com/auth/youtube.upload`. Until then the connection works for identity and publishing fails with a clear permission error.
 
 ## Deployment
 

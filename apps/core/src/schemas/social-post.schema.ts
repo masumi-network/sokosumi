@@ -197,6 +197,10 @@ function hasTextOrMedia(value: {
 export const createSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema,
+    provider: socialPostProviderSchema.optional().openapi({
+      description:
+        "Provider for a draft without an account. Defaults to X; a selected connection takes precedence.",
+    }),
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),
