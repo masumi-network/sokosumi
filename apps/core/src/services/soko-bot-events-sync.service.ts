@@ -172,7 +172,12 @@ export class SokoBotEventsSyncService {
               events: {
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 take: 1,
-                select: { id: true, comment: true, createdAt: true },
+                select: {
+                  id: true,
+                  comment: true,
+                  createdAt: true,
+                  sokoBotId: true,
+                },
               },
             },
           },
@@ -237,6 +242,9 @@ export class SokoBotEventsSyncService {
             note: delegation.task.events[0]?.comment ?? null,
             eventId: delegation.task.events[0]?.id ?? null,
             eventAt: delegation.task.events[0]?.createdAt,
+            byThisBot:
+              delegation.task.events[0]?.sokoBotId ===
+              delegation.turn.sokoBotId,
           }
         : delegation.job
           ? {
@@ -246,6 +254,7 @@ export class SokoBotEventsSyncService {
               note: null,
               eventId: delegation.job.events[0]?.id ?? null,
               eventAt: delegation.job.events[0]?.createdAt,
+              byThisBot: false,
             }
           : null;
       if (
@@ -326,6 +335,7 @@ export class SokoBotEventsSyncService {
                 createdAt: true,
                 status: true,
                 comment: true,
+                sokoBotId: true,
               },
             })
           : (
@@ -335,10 +345,13 @@ export class SokoBotEventsSyncService {
                 take: MAX_CHANGES_PER_TURN,
                 select: { id: true, createdAt: true, status: true },
               })
-            ).map((event) => ({ ...event, comment: null }));
+            ).map((event) => ({ ...event, comment: null, sokoBotId: null }));
+        // The bot's own status change is not news to it: Joseph completed a
+        // Task for its owner, then woke to report that the Task was completed.
         const actionable = events.filter(
           (event) =>
             event.status &&
+            event.sokoBotId !== delegation.turn.sokoBotId &&
             (delegation.task ? TASK_WAKE_STATUSES : JOB_WAKE_STATUSES).has(
               event.status,
             ),
@@ -380,6 +393,7 @@ export class SokoBotEventsSyncService {
       if (
         (delegation.lastSeenStatus === null &&
           (current.status === "COMPLETED" || current.status === "CANCELED")) ||
+        current.byThisBot ||
         !wake
       ) {
         work.baselines.push({
