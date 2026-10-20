@@ -434,6 +434,10 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
   input: unknown;
 }
 
+/** Fields that name a Task by id in tool input. */
+const TASK_ID_FIELDS = ["taskId", "peerTaskId"] as const;
+const TASK_ID_PREFIX = 23;
+
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
@@ -2656,7 +2660,10 @@ export class SokoBotRuntimeService {
           assigneeSokoBotId: true,
         },
       });
-      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (!task)
+        throw new SokoBotRuntimeValidationError(
+          "Task not found; copy its id exactly from list_tasks or get_task_status",
+        );
       if (task.assigneeSokoBotId !== authorized.turn.sokoBotId) {
         throw new SokoBotRuntimeValidationError(
           "You are not the assignee of this Task; use reply_to_task to comment",
@@ -2788,7 +2795,10 @@ export class SokoBotRuntimeService {
           assigneeSokoBotId: true,
         },
       });
-      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (!task)
+        throw new SokoBotRuntimeValidationError(
+          "Task not found; copy its id exactly from list_tasks or get_task_status",
+        );
       if (!input.status && !options?.publicationId) {
         const events = await tx.taskEvent.findMany({
           where: {
@@ -4510,10 +4520,49 @@ export class SokoBotRuntimeService {
     }
   }
 
-  private async executeAuthorizedTool(
-    input: ExecuteSokoBotToolInput,
+  /**
+   * Cheaper models garble the tail of a long id they copy: Joseph read the
+   * right Task, then sent four reply_to_task calls with `…7facc56a2e6a` for
+   * `…7facc56b861e`. A uuid v7's first 23 characters are its millisecond and
+   * random bits, so one visible Task matching them is the Task meant.
+   */
+  private async resolveTaskIds(
+    authorized: AuthorizedSokoBotRuntime,
+    value: unknown,
   ): Promise<unknown> {
-    const authorized = await this.authorize(input);
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return value;
+    const input = { ...(value as Record<string, unknown>) };
+    const visible = {
+      workspaceId: authorized.turn.workspaceId,
+      ...buildSokoBotReaderTaskWhere(authorized.reader),
+    };
+    for (const field of TASK_ID_FIELDS) {
+      const id = input[field];
+      if (typeof id !== "string" || id.length < TASK_ID_PREFIX) continue;
+      const exact = await prisma.task.findFirst({
+        where: { ...visible, id },
+        select: { id: true },
+      });
+      if (exact) continue;
+      const matches = await prisma.task.findMany({
+        where: { ...visible, id: { startsWith: id.slice(0, TASK_ID_PREFIX) } },
+        select: { id: true },
+        take: 2,
+      });
+      if (matches.length === 1 && matches[0]) input[field] = matches[0].id;
+    }
+    return input;
+  }
+
+  private async executeAuthorizedTool(
+    raw: ExecuteSokoBotToolInput,
+  ): Promise<unknown> {
+    const authorized = await this.authorize(raw);
+    const input = {
+      ...raw,
+      input: await this.resolveTaskIds(authorized, raw.input),
+    };
     switch (input.capability) {
       case "list_project_social_accounts":
       case "list_social_posts":
