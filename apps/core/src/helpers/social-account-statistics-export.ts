@@ -2,8 +2,8 @@ import JSZip from "jszip";
 import { csvField, csvLabel } from "@/helpers/transaction-history-csv";
 import type { SocialAccountPost } from "@/schemas/social-account-statistics.schema";
 
-type Cell = string | number | null;
-interface ExportSheet {
+export type Cell = string | number | null;
+export interface ExportSheet {
   name: string;
   rows: Cell[][];
 }

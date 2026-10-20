@@ -21027,6 +21027,53 @@ export const SocialStatisticsResearchPostSchema = {
     ]
 } as const;
 
+export const SocialPerformanceAudienceExportRequestSchema = {
+    type: 'object',
+    properties: {
+        format: {
+            type: 'string',
+            enum: [
+                'csv',
+                'xlsx'
+            ]
+        },
+        includeProfileDetails: {
+            type: 'boolean',
+            default: false,
+            description: 'Include contact bios and locations. Bios and locations are left out by default.'
+        },
+        pages: {
+            type: 'array',
+            items: {
+                allOf: [
+                    {
+                        $ref: '#/components/schemas/SocialPerformanceAudienceResponse'
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            contacts: {
+                                type: 'array',
+                                items: {
+                                    $ref: '#/components/schemas/SocialPerformanceContact'
+                                },
+                                maxItems: 100
+                            }
+                        }
+                    }
+                ]
+            },
+            minItems: 1,
+            maxItems: 20
+        }
+    },
+    required: [
+        'format',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SocialPerformanceBenchmarkResponseSchema = {
     type: 'object',
     properties: {

@@ -36,6 +36,7 @@ import {
   readSocialPerformanceAudience,
   readSocialPerformanceBenchmark,
   readSocialPerformanceDiscovery,
+  scopedXConnection,
 } from "./social-statistics-research.service";
 
 const scope = {
@@ -503,13 +504,14 @@ describe("scoped X audience and public benchmarking", () => {
     mocks.accounts.mockImplementation(listProjectSocialConnections);
     mocks.project.mockResolvedValue(null);
     for (const read of [
+      () => scopedXConnection(scope),
       () => readSocialPerformanceAudience(scope),
       () => readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
       () => readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
     ]) {
       await expect(read()).rejects.toMatchObject({ status: 404 });
     }
-    expect(mocks.project).toHaveBeenCalledTimes(3);
+    expect(mocks.project).toHaveBeenCalledTimes(4);
     expect(mocks.project).toHaveBeenCalledWith({
       where: { id: scope.projectId, workspaceId: scope.workspaceId },
       select: { id: true, closingAt: true, closedAt: true },
