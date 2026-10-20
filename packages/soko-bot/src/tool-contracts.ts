@@ -133,10 +133,10 @@ export const sokoBotReplyToTaskInputSchema = z
     comment: z.string().trim().min(1).max(20_000),
     /**
      * READY resumes a task that is waiting (INPUT_REQUIRED/FAILED/…); CANCELED
-     * stops one of the owner's Tasks, with the comment as the reason. Omit to
-     * just comment.
+     * stops one of the owner's Tasks and COMPLETED marks one done, with the
+     * comment as the reason. Omit to just comment.
      */
-    status: z.enum(["READY", "CANCELED"]).optional(),
+    status: z.enum(["READY", "CANCELED", "COMPLETED"]).optional(),
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
   })
@@ -729,7 +729,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_tasks:
     "List the owner's Tasks on the board. Filter by state (open, finished, all), exact status (one or several, e.g. INPUT_REQUIRED and FAILED for what is stuck; it replaces state), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first; `total` and `byStatus` count every match, not just the page shown. Use get_task_status for one Task in full.",
   reply_to_task:
-    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks, the comment saying why; without status it only comments. fileIds attaches Files to the Task and adds their text to the comment, for a Coworker who needs them.",
+    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks and with COMPLETED marks one done (when the owner says it is done or asks you to close it), the comment saying why; without status it only comments. fileIds attaches Files to the Task and adds their text to the comment, for a Coworker who needs them.",
   update_assigned_task:
     "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
   link_tasks:
