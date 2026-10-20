@@ -127,13 +127,19 @@ function ResearchPost({ post, author }: ResearchPostProps) {
         }}
         text={post.text}
         media={(post.media ?? []).map((media) => {
-          const posterUrl = media.kind === "video" ? media.thumbnailUrl : null;
+          // X serves GIFs as MP4 files: show the poster when there is one,
+          // otherwise play the file as a muted video.
+          const posterUrl = media.kind === "image" ? null : media.thumbnailUrl;
           return {
-            kind: posterUrl ? "image" : media.kind,
+            kind: posterUrl
+              ? "image"
+              : media.kind === "gif"
+                ? "video"
+                : media.kind,
             fileUrl: posterUrl ?? media.url,
             pathname: media.url,
             name: t(
-              media.kind === "video" && !posterUrl
+              media.kind !== "image" && !posterUrl
                 ? "research.postVideo"
                 : "research.postImage",
             ),
