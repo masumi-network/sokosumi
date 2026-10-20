@@ -590,6 +590,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   update_table_columns: tableMutationSchema.extend({
     tableId: z.uuid(),
     taskId: z.string().max(200).optional(),
+    removeColumnIds: z.array(z.uuid()).min(1).max(100).optional(),
   }),
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
@@ -705,7 +706,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   write_table_rows:
     "Atomically insert or patch 1–100 rows. Patches require the last read row version; on conflict reload and preserve human edits. Supply source URL evidence per column where available, never invent sources. Reuse the key for retries. For selected-row tasks pass taskId; only selected row IDs and output column IDs are writable. Editing data never authorizes outreach or sending.",
   update_table_columns:
-    "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. Include taskId for task-driven work. Follow-up requests reuse the same table.",
+    "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. To delete columns and their values, name them in removeColumnIds (columns then lists the ones you keep, or is omitted). Include taskId for task-driven work. Follow-up requests reuse the same table.",
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:
