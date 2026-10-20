@@ -3183,7 +3183,7 @@ export const getProjectsByIdSocialConnectionsByConnectionIdStatisticsAudience = 
 });
 
 /**
- * Export up to 20 already loaded X audience sample pages after checking the selected account and cached own-post scope. Values are submitted client samples, not a new provider fetch or a complete audience report. CSV includes contact rows and page coverage; XLSX adds coverage and incoming public post evidence. Does not persist audience contacts or refetch provider data.
+ * Export up to 20 already loaded X audience sample pages (100 contacts and 100 incoming posts per page, 2 MiB JSON maximum) after checking the selected account and cached own-post scope. Values are submitted client samples, not a new provider fetch or a complete audience report. CSV includes contact rows and page metadata; XLSX adds coverage, incoming public post evidence and definitions. Bios and locations are left out by default; includeProfileDetails explicitly opts in for contacts. Does not persist audience contacts or refetch provider data.
  */
 export const postProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExport = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportData, ThrowOnError>): RequestResult<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportResponses, PostProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceExportErrors, ThrowOnError>({
     url: '/projects/{id}/social-connections/{connectionId}/statistics/audience/export',

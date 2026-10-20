@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   socialAccountStatisticsCsv,
@@ -55,5 +56,36 @@ describe("social account statistics export", () => {
     const bytes = await socialAccountStatisticsXlsx([sheet]);
     expect(bytes[0]).toBe(0x50);
     expect(bytes[1]).toBe(0x4b);
+  });
+});
+
+describe("statistics spreadsheet writers", () => {
+  it("escapes user CSV text and preserves numeric zero, negatives, quotes and missing cells", () => {
+    expect(
+      socialAccountStatisticsCsv([
+        ["=CMD()", 0, -2, null, 'Hello,"world"\nnext'],
+      ]),
+    ).toBe('\'=CMD(),0,-2,,"Hello,""world""\nnext"\r\n');
+  });
+  it("writes real numeric XLSX cells and inert text with valid workbook relationships", async () => {
+    const bytes = await socialAccountStatisticsXlsx([
+      { name: "Posts", rows: [["=CMD()", 0, null, "A&B<>\u0001"]] },
+      { name: "Definitions", rows: [["semantics", "observed"]] },
+    ]);
+    const zip = await JSZip.loadAsync(bytes);
+    expect(await zip.file("xl/workbook.xml")?.async("string")).toContain(
+      'name="Definitions"',
+    );
+    const sheet = await zip.file("xl/worksheets/sheet1.xml")?.async("string");
+    expect(sheet).toContain(
+      't="inlineStr"><is><t xml:space="preserve">=CMD()</t>',
+    );
+    expect(sheet).toContain('<c r="B1"><v>0</v></c>');
+    expect(sheet).not.toContain('<c r="C1"');
+    expect(sheet).toContain("A&amp;B&lt;&gt;");
+    expect(sheet).not.toContain("\u0001");
+    expect(
+      await zip.file("xl/_rels/workbook.xml.rels")?.async("string"),
+    ).toContain('Target="worksheets/sheet2.xml"');
   });
 });

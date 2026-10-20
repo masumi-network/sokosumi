@@ -21037,6 +21037,11 @@ export const SocialPerformanceAudienceExportRequestSchema = {
                 'xlsx'
             ]
         },
+        includeProfileDetails: {
+            type: 'boolean',
+            default: false,
+            description: 'Include contact bios and locations. Bios and locations are left out by default.'
+        },
         pages: {
             type: 'array',
             items: {

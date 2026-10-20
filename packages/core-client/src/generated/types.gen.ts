@@ -6035,6 +6035,10 @@ export type SocialStatisticsResearchPost = SocialAccountPost & {
 
 export type SocialPerformanceAudienceExportRequest = {
     format: 'csv' | 'xlsx';
+    /**
+     * Include contact bios and locations. Bios and locations are left out by default.
+     */
+    includeProfileDetails?: boolean;
     pages: Array<SocialPerformanceAudienceResponse & {
         contacts?: Array<SocialPerformanceContact>;
     }>;
