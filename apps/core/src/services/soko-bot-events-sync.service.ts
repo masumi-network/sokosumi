@@ -96,7 +96,17 @@ export function buildEventMessage(changes: Change[]): string {
     "Delegated work changed status:",
     ...lines,
     "",
-    "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over. Update memory and any related schedule, then report briefly.",
+    ...(changes.some((change) => change.kind === "TASK")
+      ? [
+          "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over.",
+        ]
+      : []),
+    ...(changes.some((change) => change.kind === "JOB")
+      ? [
+          "Read each Job with get_job_status. AWAITING_INPUT: answer its inputRequest with provide_job_input when the answer is in the request, project, or memory; otherwise ask the owner one question. FAILED: say why and decide between hiring again with a better brief, another Agent, or reporting. COMPLETED: read the result and files, use them for any next step, and show the Job with preview_result.",
+        ]
+      : []),
+    "Update memory and any related schedule, then report briefly.",
   ].join("\n");
 }
 

@@ -2099,6 +2099,105 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("reads a Job as a compact digest with its open input request", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the jobs",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_job_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_job_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ jobId: "job_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      WEB_APP_BASE_URL: "https://app.example",
+    });
+    jobFindFirstMock.mockResolvedValue({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      agentId: "agent_1",
+      agent: { name: "AttentionInsight" },
+      jobType: "FREE",
+      transaction: null,
+      purchase: null,
+      refundedTransactionId: null,
+      updatedAt: new Date("2026-10-20T10:00:00Z"),
+      events: [
+        {
+          id: "event_2",
+          status: "AWAITING_INPUT",
+          result: null,
+          input: null,
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "brand", type: "string", name: "Brand name" }],
+          }),
+          createdAt: new Date("2026-10-20T10:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+        {
+          id: "event_1",
+          status: "INITIATED",
+          result: null,
+          input: { input: JSON.stringify({ input_url: "https://nmkr.io" }) },
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "input_url", type: "url", name: "Website" }],
+          }),
+          createdAt: new Date("2026-10-20T09:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+      ],
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_job_status",
+      toolCallId: "call_teammate_job",
+      input: { jobId: "job_1" },
+    });
+
+    expect(result).toMatchObject({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      status: "input_required",
+      input: [{ label: "Website", value: "https://nmkr.io" }],
+      inputRequest: {
+        eventId: "event_2",
+        fields: [{ id: "brand", name: "Brand name", required: true }],
+      },
+      result: null,
+      url: "https://app.example/agents/agent_1/jobs/job_1",
+      trust: "untrusted-data",
+    });
+  });
+
   it("keeps a fresh in-flight tool call single-flight", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",

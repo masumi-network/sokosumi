@@ -1020,6 +1020,16 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openJob": "Abrir job",
+      "jobHint": {
+        "started": "Iniciando el job.",
+        "payment_pending": "Esperando a que se confirme el pago antes de que el agente empiece.",
+        "processing": "El agente está trabajando en ello.",
+        "input_required": "El agente necesita más información para continuar.",
+        "result_pending": "El agente terminó. El resultado está en camino.",
+        "failed": "El agente no pudo terminar este job.",
+        "payment_failed": "El pago no se completó, así que el agente no empezó."
+      },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
       "assignee": "Asignado a",
@@ -1027,7 +1037,6 @@
       "destination": "Cuenta",
       "scheduled": "Programado para",
       "recurrence": "Repetición",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Tarea",
         "task_schedule": "Programación de tarea",

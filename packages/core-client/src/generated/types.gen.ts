@@ -3161,6 +3161,10 @@ export type ChatResultAvailable = {
     timezone?: string | null;
     recurrence?: string | null;
     question?: string | null;
+    details?: Array<{
+        label: string;
+        value: string;
+    }>;
     outputs?: Array<ChatResultOutput>;
     task?: {
         id: string;

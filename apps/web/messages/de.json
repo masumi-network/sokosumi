@@ -1020,6 +1020,16 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1027,7 +1037,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
