@@ -14,7 +14,7 @@ import {
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -104,13 +104,16 @@ export function StudioLightbox({
                   {labels.schedule}
                 </Button>
               ) : null}
-              <Button
-                onClick={() => onRegenerate(single)}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.regenerate}
-              </Button>
+              {supportsVariation(catalog, single.model) ? (
+                <Button
+                  onClick={() => onRegenerate(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {labels.regenerate}
+                </Button>
+              ) : null}
               <Button
                 onClick={() => onUseAsReference(single)}
                 size="sm"

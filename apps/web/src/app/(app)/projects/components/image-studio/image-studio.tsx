@@ -37,6 +37,7 @@ import {
   modelIdForRepeat,
   resolveModel,
   settingsOf,
+  supportsVariation,
 } from "./catalog";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -170,8 +171,8 @@ export function ImageStudio({
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
     // of them can be unselected, the rest of the catalog can be added, and
-    // "Select all" still means all 152. Nothing below treats these five as
-    // special after this line.
+    // bulk selection is bounded by the 12-image purchase ceiling. Nothing
+    // below treats these five as special after this line.
     return {
       modelIds: curatedModels(catalog).map((model) => model.id),
       settings: {
@@ -296,6 +297,12 @@ export function ImageStudio({
     from: "asset" | "job",
     reroll = false,
   ) {
+    if (
+      from === "asset" &&
+      !reroll &&
+      !supportsVariation(catalog, source.model)
+    )
+      return;
     const id = crypto.randomUUID();
     const request: QueuedGeneration = {
       id,

@@ -606,7 +606,7 @@ describe("the batch ceiling", () => {
       />,
     );
 
-    clickOption("selectAllModels");
+    clickOption("selectModelsUpToLimit");
     generate();
 
     const requests = onGenerate.mock.calls[0][0] as GenerationRequest[];

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -160,12 +160,14 @@ export function StudioGallery({
                       >
                         <Dices aria-hidden className="size-3.5" />
                       </HoverAction>
-                      <HoverAction
-                        label={labels.regenerate}
-                        onClick={() => onVariation(asset)}
-                      >
-                        <Shuffle aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {supportsVariation(catalog, asset.model) ? (
+                        <HoverAction
+                          label={labels.regenerate}
+                          onClick={() => onVariation(asset)}
+                        >
+                          <Shuffle aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <HoverAction
                         label={labels.reusePrompt}
                         onClick={() => onReusePrompt(asset)}

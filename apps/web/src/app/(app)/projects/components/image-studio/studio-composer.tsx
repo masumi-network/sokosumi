@@ -247,20 +247,26 @@ export function StudioComposer({
     [availableModels, needle],
   );
 
-  /** Select or unselect exactly the models the search is showing. */
+  /** Select the shown models that fit, keeping the existing selection first. */
   function setShown(on: boolean) {
     const ids = new Set(shownModels.map((model) => model.id));
-    onTargetChange((current) => ({
-      ...current,
-      modelIds: on
-        ? [
-            ...current.modelIds,
-            ...shownModels
-              .map((model) => model.id)
-              .filter((id) => !current.modelIds.includes(id)),
-          ]
-        : current.modelIds.filter((id) => !ids.has(id)),
-    }));
+    onTargetChange((current) => {
+      const selectedCount = availableModels.filter((model) =>
+        current.modelIds.includes(model.id),
+      ).length;
+      return {
+        ...current,
+        modelIds: on
+          ? [
+              ...current.modelIds,
+              ...shownModels
+                .map((model) => model.id)
+                .filter((id) => !current.modelIds.includes(id))
+                .slice(0, Math.max(0, MAX_BATCH - selectedCount)),
+            ]
+          : current.modelIds.filter((id) => !ids.has(id)),
+      };
+    });
   }
 
   const setSettings = (update: (current: StudioSettings) => StudioSettings) =>
@@ -309,9 +315,13 @@ export function StudioComposer({
    * chips show the clamp, so the loss is visible where the choice is made.
    */
   const plan = useMemo(() => {
-    // Only reachable if the catalog ever grows past the ceiling. One run each
-    // of as many models as will fit beats several runs of an arbitrary few.
-    const models = selectedModels.slice(0, MAX_BATCH);
+    // Selection enforces the ceiling. An over-limit target supplied by a
+    // caller is blocked below rather than silently omitting selected models.
+    const models = selectedModels;
+    const configured = models.map((model) => ({
+      model,
+      settings: clampToModel(model, settings),
+    }));
     const each = models.length
       ? Math.max(1, Math.min(copies, Math.floor(MAX_BATCH / models.length)))
       : 0;
@@ -321,11 +331,9 @@ export function StudioComposer({
     // asked for — the batch is comparable while it is still arriving, which is
     // the entire reason to run one brief on several models.
     for (let copy = 0; copy < each; copy += 1) {
-      for (const model of models) {
-        legs.push({ model, settings: clampToModel(model, settings) });
-      }
+      legs.push(...configured);
     }
-    return { copies: each, legs, models };
+    return { copies: each, legs, models, configured };
   }, [copies, selectedModels, settings]);
 
   /**
@@ -339,12 +347,26 @@ export function StudioComposer({
   const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
+  const selectionLimitReached = selectedModels.length >= MAX_BATCH;
+  const overSelectionLimit = selectedModels.length > MAX_BATCH;
+  const selectionLimitReason = t("modelSelectionLimit", { count: MAX_BATCH });
   const canGenerate =
-    !busy && prompt.trim().length > 0 && selectedModels.length > 0;
+    !busy &&
+    prompt.trim().length > 0 &&
+    selectedModels.length > 0 &&
+    !overSelectionLimit;
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
       const adding = !current.modelIds.includes(model.id);
+      if (
+        adding &&
+        availableModels.filter((candidate) =>
+          current.modelIds.includes(candidate.id),
+        ).length >= MAX_BATCH
+      ) {
+        return current;
+      }
       const next = adding
         ? [...current.modelIds, model.id]
         : current.modelIds.filter((id) => id !== model.id);
@@ -402,16 +424,22 @@ export function StudioComposer({
       ? selectedModels[0].label
       : t("modelCount", { count: selectedModels.length });
 
-  /** True when every chosen model picks its own output format. */
-  const modelChoosesFormat = shared.outputFormats.length === 0;
+  const hasSharedFormat = shared.outputFormats.length > 0;
 
+  const plannedSettings = plan.configured.map(({ settings: actual }) =>
+    [
+      actual.aspectRatio,
+      actual.resolution,
+      actual.outputFormat ?? t("modelChoosesFormat"),
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  const mixedSettings = new Set(plannedSettings).size > 1;
   const optionSummary = [
-    settings.aspectRatio,
-    settings.resolution,
-    // Omitted when the models choose: naming a format the request will not
-    // carry is the summary describing a different generation from the one the
-    // button buys.
-    modelChoosesFormat ? null : settings.outputFormat,
+    mixedSettings
+      ? t("mixedSettings")
+      : (plannedSettings[0] ?? labels.moreOptions),
     plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
   ]
     .filter(Boolean)
@@ -434,6 +462,11 @@ export function StudioComposer({
         attachments={[]}
         belowEditor={
           <>
+            {overSelectionLimit ? (
+              <p className="text-destructive px-4 pb-2 text-xs" role="alert">
+                {selectionLimitReason}
+              </p>
+            ) : null}
             {references.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 px-4 pt-1 pb-2">
                 <span className="text-muted-foreground text-xs font-medium">
@@ -453,6 +486,7 @@ export function StudioComposer({
                   </span>
                 ))}
                 <Button
+                  type="button"
                   className="hit-area size-6"
                   onClick={onClearReferences}
                   size="icon"
@@ -482,7 +516,12 @@ export function StudioComposer({
           <>
             <Popover>
               <PopoverTrigger asChild>
-                <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+                <Button
+                  type="button"
+                  className={TRIGGER_CLASS}
+                  size="sm"
+                  variant="ghost"
+                >
                   <TriggerLabel label={labels.model}>
                     {modelSummary}
                   </TriggerLabel>
@@ -490,7 +529,7 @@ export function StudioComposer({
               </PopoverTrigger>
               <PopoverContent
                 align="start"
-                className="w-96 max-w-[calc(100vw-2rem)] p-2"
+                className="app-scrollbar max-h-[min(32rem,var(--radix-popover-content-available-height))] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   searchRef.current?.focus();
@@ -506,17 +545,28 @@ export function StudioComposer({
                   </span>
                   <div className="flex gap-1">
                     <Button
+                      type="button"
                       className="h-7 px-2 text-xs"
-                      disabled={shownModels.every((model) =>
-                        selectedModelIds.includes(model.id),
-                      )}
+                      disabled={
+                        selectionLimitReached ||
+                        shownModels.every((model) =>
+                          selectedModelIds.includes(model.id),
+                        )
+                      }
                       onClick={() => setShown(true)}
                       size="sm"
                       variant="ghost"
                     >
-                      {labels.selectAllModels}
+                      {selectedModels.length +
+                        shownModels.filter(
+                          (model) => !selectedModelIds.includes(model.id),
+                        ).length >
+                      MAX_BATCH
+                        ? t("selectModelsUpToLimit", { count: MAX_BATCH })
+                        : labels.selectAllModels}
                     </Button>
                     <Button
+                      type="button"
                       className="h-7 px-2 text-xs"
                       disabled={
                         !shownModels.some((model) =>
@@ -539,8 +589,14 @@ export function StudioComposer({
                   placeholder={labels.searchModels}
                   value={modelQuery}
                 />
+                <p
+                  className="text-muted-foreground mb-2 px-1 text-xs"
+                  id="studio-model-selection-limit"
+                >
+                  {selectionLimitReason}
+                </p>
                 <div
-                  className="app-scrollbar max-h-80 overflow-y-auto"
+                  className="app-scrollbar max-h-80 overflow-y-auto overscroll-contain"
                   role="group"
                   aria-label={labels.model}
                 >
@@ -555,10 +611,20 @@ export function StudioComposer({
                       clampToModel(model, settings),
                     );
                     const checked = selectedModelIds.includes(model.id);
+                    const unavailable = !checked && selectionLimitReached;
                     return (
                       <button
                         aria-checked={checked}
-                        className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                        aria-describedby={
+                          unavailable
+                            ? "studio-model-selection-limit"
+                            : undefined
+                        }
+                        aria-disabled={unavailable || undefined}
+                        className={cn(
+                          "hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]",
+                          unavailable && "cursor-not-allowed opacity-60",
+                        )}
                         key={model.id}
                         onClick={() => toggleModel(model)}
                         role="checkbox"
@@ -593,7 +659,12 @@ export function StudioComposer({
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+                <Button
+                  type="button"
+                  className={TRIGGER_CLASS}
+                  size="sm"
+                  variant="ghost"
+                >
                   <TriggerLabel label={labels.moreOptions}>
                     {optionSummary}
                   </TriggerLabel>
@@ -601,7 +672,7 @@ export function StudioComposer({
               </PopoverTrigger>
               <PopoverContent
                 align="start"
-                className="w-80 max-w-[calc(100vw-2rem)] space-y-3"
+                className="app-scrollbar max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 max-w-[calc(100vw-2rem)] space-y-3 overflow-y-auto overscroll-contain"
               >
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
@@ -610,6 +681,18 @@ export function StudioComposer({
                   <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                     {labels.noModelSelected}
                   </p>
+                ) : null}
+                {mixedSettings ? (
+                  <ul className="space-y-2 text-xs">
+                    {plan.configured.map(({ model }, index) => (
+                      <li className="break-words" key={model.id}>
+                        <span className="font-medium">{model.label}</span>
+                        <p className="text-muted-foreground tabular-nums">
+                          {labels.dimensions}: {plannedSettings[index]}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
 
                 <Row label={labels.aspectRatio}>
@@ -651,11 +734,9 @@ export function StudioComposer({
                   ))}
                 </Row>
 
-                {/* Hidden rather than empty when every chosen model picks its own
-                format — an `outputFormats: []` row in Core's catalog means the
-                model decides, and a labelled row with no chips in it reads as
-                a control that is broken. */}
-                {modelChoosesFormat ? null : (
+                {/* Without a shared format there are no common choices to offer.
+                Each model's actual format is disclosed with its settings. */}
+                {hasSharedFormat ? (
                   <Row label={labels.outputFormat}>
                     {shared.outputFormats.map((format) => (
                       <button
@@ -675,7 +756,7 @@ export function StudioComposer({
                       </button>
                     ))}
                   </Row>
-                )}
+                ) : null}
 
                 <Row label={labels.copies}>
                   {COPY_CHOICES.map((count) => {
@@ -747,6 +828,7 @@ export function StudioComposer({
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
                     size="sm"
                     variant="ghost"
@@ -767,7 +849,7 @@ export function StudioComposer({
                 </PopoverTrigger>
                 <PopoverContent
                   align="end"
-                  className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
+                  className="app-scrollbar max-h-[min(32rem,var(--radix-popover-content-available-height))] w-88 max-w-[calc(100vw-2rem)] space-y-3 overflow-y-auto overscroll-contain"
                 >
                   <div>
                     <p className="text-sm font-medium">{labels.creditsTitle}</p>
@@ -783,27 +865,28 @@ export function StudioComposer({
                   ) : null}
 
                   <ul className="space-y-2">
-                    {plan.models.map((model) => {
-                      const credits = creditsForImage(
-                        model,
-                        clampToModel(model, settings),
-                      );
-                      return (
-                        <li key={model.id}>
-                          <div className="flex min-w-0 items-baseline gap-2">
-                            <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                              {model.label}
-                            </span>
-                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                              {credits === null
-                                ? labels.creditsNoFigure
-                                : t("creditsEach", {
-                                    credits,
-                                    count: plan.copies,
-                                  })}
-                            </span>
-                          </div>
-                          {/* Composed here rather than rendered from Core's
+                    {plan.configured.map(
+                      ({ model, settings: actual }, index) => {
+                        const credits = creditsForImage(model, actual);
+                        return (
+                          <li key={model.id}>
+                            <div className="flex min-w-0 items-baseline gap-2">
+                              <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                                {model.label}
+                              </span>
+                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                {credits === null
+                                  ? labels.creditsNoFigure
+                                  : t("creditsEach", {
+                                      credits,
+                                      count: plan.copies,
+                                    })}
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                              {labels.dimensions}: {plannedSettings[index]}
+                            </p>
+                            {/* Composed here rather than rendered from Core's
                           `price.basis`. That string is built as "fal lists
                           $0.03 per images for this endpoint" — fal's pricing
                           API answers in plurals because it is describing a
@@ -811,25 +894,26 @@ export function StudioComposer({
                           images". Web holds the same two figures separately,
                           so it can say it once, correctly, and in the reader's
                           language. */}
-                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                            {t("priceBasis", {
-                              price: `$${model.price.unitPriceUsd}`,
-                              unit: priceUnitLabel(model.price.unit),
-                            })}
-                          </p>
-                          <a
-                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
-                            href={model.price.sourceUrl}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            {t("creditsCheckedOn", {
-                              date: model.price.verifiedAt,
-                            })}
-                          </a>
-                        </li>
-                      );
-                    })}
+                            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                              {t("priceBasis", {
+                                price: `$${model.price.unitPriceUsd}`,
+                                unit: priceUnitLabel(model.price.unit),
+                              })}
+                            </p>
+                            <a
+                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                              href={model.price.sourceUrl}
+                              rel="noreferrer"
+                              target="_blank"
+                            >
+                              {t("creditsCheckedOn", {
+                                date: model.price.verifiedAt,
+                              })}
+                            </a>
+                          </li>
+                        );
+                      },
+                    )}
                   </ul>
                 </PopoverContent>
               </Popover>
