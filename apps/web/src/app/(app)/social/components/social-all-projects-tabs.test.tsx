@@ -1,10 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
+const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: refreshMock }),
 }));
 
 // The prompt reaches for the sidebar switcher; here only its copy matters.
@@ -29,13 +35,14 @@ vi.mock(
 
 import { SocialAllProjectsTabs } from "./social-all-projects-tabs";
 
-function renderTabs(searchParams = "", notice?: string) {
+function renderTabs(searchParams = "", notice?: string, projectFailed = false) {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
       <SocialAllProjectsTabs
         actions={<button type="button">New post</button>}
         calendar={<p>Calendar panel</p>}
         notice={notice}
+        projectFailed={projectFailed}
         workspaceId="workspace-1"
       />
     </NuqsTestingAdapter>,
@@ -131,5 +138,40 @@ describe("SocialAllProjectsTabs", () => {
 
     expect(screen.getByText("That project is gone")).toBeVisible();
     expect(screen.getByText("Calendar panel")).toBeVisible();
+  });
+
+  it("shows a slim retry banner, not the big prompt, when the project failed to load", async () => {
+    const user = userEvent.setup();
+    refreshMock.mockClear();
+    renderTabs("", undefined, true);
+
+    const banner = screen.getByTestId("social-project-load-error");
+    expect(banner).toHaveAttribute("role", "status");
+    expect(banner).toHaveTextContent("title.project");
+    expect(banner).toHaveTextContent("projectHelp");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    expect(screen.queryByText(/choose a project/)).not.toBeInTheDocument();
+
+    await user.click(within(banner).getByRole("button", { name: "tryAgain" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+
+    // The banner stays above the tabs that need a project, with the prompt.
+    await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
+    expect(screen.getByTestId("social-project-load-error")).toBeVisible();
+    expect(screen.getByText("choose a project for accounts")).toBeVisible();
+
+    // Performance spans every project, so a failed project is not its news.
+    await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
+    expect(
+      screen.queryByTestId("social-project-load-error"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no banner when the project loaded", () => {
+    renderTabs();
+
+    expect(
+      screen.queryByTestId("social-project-load-error"),
+    ).not.toBeInTheDocument();
   });
 });

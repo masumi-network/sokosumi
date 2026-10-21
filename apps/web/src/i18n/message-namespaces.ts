@@ -35,6 +35,16 @@ export const AUTH_MESSAGE_PATHS = [
   "App.Error",
 ] as const;
 
+/** `/setup/assistant`: setup's bag plus the Soko Bot create form it reuses. */
+export const SETUP_ASSISTANT_MESSAGE_PATHS = [
+  ...AUTH_MESSAGE_PATHS,
+  "App.SokoBot.Create",
+  "App.SokoBot.Chat",
+  "App.SokoBot.Avatar",
+  // The optional mail and calendar connect step reuses the chat card's copy.
+  "App.Chat.SokoBot",
+] as const;
+
 /**
  * App shell chrome for nested Soko Bot/Admin providers.
  * Widened beyond the minimal sketch where sidebar/header overlays need keys.

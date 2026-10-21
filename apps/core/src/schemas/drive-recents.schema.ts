@@ -78,10 +78,36 @@ const driveRecentsTaskOutputItemSchema = z
   })
   .openapi("DriveRecentsTaskOutputItem");
 
+const driveRecentsTableItemSchema = z
+  .object({
+    kind: z.literal("table").openapi({
+      example: "table",
+      description: "Live Files table",
+    }),
+    tableId: z.string().openapi({
+      example: "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f",
+      description: "Table ID",
+    }),
+    name: z.string().openapi({
+      example: "Leads",
+      description: "Table title",
+    }),
+    activityAt: dateTimeSchema.openapi({
+      example: "2026-08-18T10:00:00.000Z",
+      description: "Latest activity timestamp (table updatedAt)",
+    }),
+    projectId: z.string().nullable().openapi({
+      example: "prj_abc123",
+      description: "Parent project ID, or null",
+    }),
+  })
+  .openapi("DriveRecentsTableItem");
+
 const driveRecentsItemSchema = z
   .discriminatedUnion("kind", [
     driveRecentsDriveFileItemSchema,
     driveRecentsTaskOutputItemSchema,
+    driveRecentsTableItemSchema,
   ])
   .openapi("DriveRecentsItem");
 
@@ -112,7 +138,7 @@ export const driveRecentsQuerySchema = z
         param: { name: "q", in: "query" },
         example: "report",
         description:
-          "Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.",
+          "Search recents by file name (Drive blobs), task/file name and task description (task outputs) or title (tables). Case-insensitive substring.",
       }),
   })
   .merge(cursorPaginationQuerySchema)

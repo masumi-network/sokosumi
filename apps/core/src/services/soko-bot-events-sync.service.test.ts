@@ -515,9 +515,11 @@ describe("SokoBotEventsSyncService", () => {
       },
     ]);
     await new SokoBotEventsSyncService().syncDelegatedWork(input);
-    expect(startTurnMock.mock.calls[0]?.[0].message).toContain(
-      'Job "Agent job" (id job_1) is now COMPLETED',
-    );
+    const message = startTurnMock.mock.calls[0]?.[0].message;
+    expect(message).toContain('Job "Agent job" (id job_1) is now COMPLETED');
+    expect(message).toContain("Read each Job with get_job_status");
+    expect(message).toContain("provide_job_input");
+    expect(message).not.toContain("Read each Task");
   });
 
   it.each([

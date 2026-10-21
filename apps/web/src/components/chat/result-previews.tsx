@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  type NumberFormatOptions,
+  useFormatter,
+  useTranslations,
+} from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -166,6 +170,8 @@ export function ResultPreviewCard({
       : undefined;
   const Icon = icons[result.kind];
   const statusKey = `status.${result.status}`;
+  const jobHintKey = `jobHint.${jobStatus}`;
+  const jobHint = jobStatus && t.has(jobHintKey) ? t(jobHintKey) : null;
   function openSource(event: ReactMouseEvent<HTMLElement>) {
     if (event.defaultPrevented || (event.button !== 0 && event.button !== 1))
       return;
@@ -228,7 +234,9 @@ export function ResultPreviewCard({
               />
             )}
             <span className="text-muted-foreground text-xs">
-              {t(`kind.${result.kind}`)}
+              {jobStatus && result.agent
+                ? result.agent.name
+                : t(`kind.${result.kind}`)}
             </span>
           </div>
           {jobStatus ? (
@@ -249,6 +257,9 @@ export function ResultPreviewCard({
             {result.title}
           </h3>
         )}
+        {jobHint ? (
+          <p className="text-muted-foreground text-sm">{jobHint}</p>
+        ) : null}
         {!nativeTask && result.summary && result.summary !== result.title ? (
           <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
             {result.summary}
@@ -263,7 +274,7 @@ export function ResultPreviewCard({
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
             {(
               [
-                ["assignee", nativeTask ? null : result.assignee],
+                ["assignee", nativeTask || jobStatus ? null : result.assignee],
                 ["project", nativeTask ? null : result.project],
                 ["destination", result.destination],
               ] as const
@@ -284,6 +295,14 @@ export function ResultPreviewCard({
                 </div>
               ) : null,
             )}
+            {result.details?.map((detail, index) => (
+              <div key={`${detail.label}-${index}`} className="contents">
+                <dt className="text-muted-foreground">{detail.label}</dt>
+                <dd className="min-w-0 wrap-break-word">
+                  <DetailValue value={detail.value} />
+                </dd>
+              </div>
+            ))}
             {result.scheduledAt ? (
               <div className="contents">
                 <dt className="text-muted-foreground">{t("scheduled")}</dt>
@@ -368,9 +387,8 @@ export function ResultPreviewCard({
                       <FileText aria-hidden className="size-4 shrink-0" />
                       <span className="wrap-break-word">
                         {output.name}
-                        {output.contentType ? ` · ${output.contentType}` : ""}
                         {output.sizeBytes != null
-                          ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                          ? ` · ${fileSize(output.sizeBytes, format.number)}`
                           : ""}
                       </span>
                     </Link>
@@ -392,21 +410,63 @@ export function ResultPreviewCard({
           </ul>
         ) : null}
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
-          <span>
-            {t("recorded", {
-              time: format.dateTime(new Date(result.capturedAt), "dateTime"),
-            })}
-          </span>
+          {jobStatus ? null : (
+            <span>
+              {t("recorded", {
+                time: format.dateTime(new Date(result.capturedAt), "dateTime"),
+              })}
+            </span>
+          )}
           <span
             aria-hidden
-            className="text-foreground inline-flex items-center gap-1"
+            className="text-foreground ml-auto inline-flex items-center gap-1"
           >
-            {t("open")}
+            {jobStatus ? t("openJob") : t("open")}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </span>
         </div>
       </div>
     </article>
+  );
+}
+
+const SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/** A decimal file size in the reader's locale, such as "182 kB". */
+export function fileSize(
+  bytes: number,
+  formatNumber: (value: number, options: NumberFormatOptions) => string,
+): string {
+  const step = Math.min(
+    SIZE_UNITS.length - 1,
+    bytes >= 1000 ? Math.floor(Math.log10(bytes) / 3) : 0,
+  );
+  return formatNumber(bytes / 1000 ** step, {
+    style: "unit",
+    unit: SIZE_UNITS[step],
+    unitDisplay: "short",
+    maximumFractionDigits: step > 1 ? 1 : 0,
+  });
+}
+
+/** An http(s) value opens in a new tab; anything else stays text. */
+function DetailValue({ value }: { value: string }) {
+  let url: URL | null = null;
+  try {
+    url = /^https?:\/\//i.test(value) ? new URL(value) : null;
+  } catch {
+    url = null;
+  }
+  if (!url) return value;
+  return (
+    <a
+      href={url.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-2 outline-none focus-visible:ring-2"
+    >
+      {`${url.host}${url.pathname === "/" ? "" : url.pathname}`}
+    </a>
   );
 }
 

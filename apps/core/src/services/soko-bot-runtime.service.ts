@@ -3,9 +3,11 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
+  jobInclude,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
@@ -26,6 +28,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
@@ -34,6 +37,7 @@ import {
   sanitizeSokoBotMemoryMarkdown,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
+  sokoBotAskCoworkerInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
@@ -94,6 +98,7 @@ import {
   type TableOperationCompletion,
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
+import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -162,6 +167,10 @@ import {
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import {
+  addressCoworkers,
+  createOrGetCoworkerQuestionRoom,
+} from "@/lib/soko-bot/coworker-question-room";
+import {
   decisionProposalTargets,
   describeDecision,
   parseDecisionProposal,
@@ -197,6 +206,7 @@ import {
 import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
+  validateChatCoworkerIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
@@ -275,15 +285,41 @@ import {
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
   sokoBotId: string,
+  ownerUserId?: string | null,
 ): {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 } {
+  if (ownerUserId) {
+    if (coworkerId)
+      throw new SokoBotRuntimeValidationError(
+        "Give coworkerId or assignToOwner, not both",
+      );
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: ownerUserId,
+    };
+  }
   if (coworkerId == null) return {};
   if (coworkerId === sokoBotId) {
     return { assigneeId: null, assigneeSokoBotId: sokoBotId };
   }
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
+}
+
+/** A shared bot works for nobody, so it has no owner to assign. */
+function ownerAssignee(
+  assignToOwner: true | undefined,
+  actingUserId: string | null,
+): string | null {
+  if (!assignToOwner) return null;
+  if (!actingUserId)
+    throw new SokoBotRuntimeValidationError(
+      "A shared assistant has no owner to assign; pick a Coworker",
+    );
+  return actingUserId;
 }
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
@@ -296,8 +332,9 @@ const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALLS_PER_FIFTEEN_MINUTES = 64;
 
 /**
- * Core tool calls a turn may make, in proportion to how long it may run: a
- * fixed 64 stopped a six-hour background run after eight minutes.
+ * Changes a turn may make through Core's tools, in proportion to how long it
+ * may run: a fixed 64 stopped a six-hour background run after eight minutes.
+ * Reads get `READ_CALLS_PER_WRITE_CALL` times as many.
  */
 export function sokoBotToolCallLimit(turn: {
   createdAt: Date;
@@ -310,12 +347,33 @@ export function sokoBotToolCallLimit(turn: {
     Math.round((duration / fifteenMinutes) * TOOL_CALLS_PER_FIFTEEN_MINUTES),
   );
 }
-/** The limit is on Core's tools; sandbox reads are recorded but not counted. */
-const CORE_TOOL_CALLS = {
-  capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
+/**
+ * Core tools that only read. They get their own, larger budget: a script
+ * paging three years of mail reads thousands of times, and a six-hour CRM run
+ * hit the shared cap of 1,536 after 97 minutes. Anything else (a change, a
+ * background run, a provider refresh) counts against the turn's limit; sandbox
+ * tools are recorded but not counted.
+ */
+const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
+  SOKO_BOT_CAPABILITIES.filter(
+    (capability) =>
+      /^(get|list|read|search|find)_|^(refresh_context|preview_result)$/.test(
+        capability,
+      ) && !SOKO_BOT_SANDBOX_CAPABILITIES.some((tool) => tool === capability),
+  );
+const CORE_READ_CALLS = {
+  capability: { in: [...CORE_READ_CAPABILITIES] },
 } satisfies Prisma.SokoBotToolCallWhereInput;
+const CORE_WRITE_CALLS = {
+  capability: {
+    notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES, ...CORE_READ_CAPABILITIES],
+  },
+} satisfies Prisma.SokoBotToolCallWhereInput;
+const READ_CALLS_PER_WRITE_CALL = 10;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
+/** A few Coworkers sounded out before committing work, not a survey. */
+const MAX_COWORKER_QUESTIONS_PER_TURN = 3;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
 
@@ -1298,15 +1356,126 @@ export class SokoBotRuntimeService {
           roomId: room.id,
           content: input.message,
           toolCallId: input.toolCallId,
-          openedDirect: {
-            name: room.name,
-            created,
-            withUserName: member.user.name,
+          via: {
+            capability: "open_direct_chat",
+            result: {
+              name: room.name,
+              created,
+              withUserName: member.user.name,
+            },
           },
         },
         tx,
       );
     }, "Opening the direct chat collided with another operation");
+  }
+
+  /**
+   * Asks Coworkers something in a private channel of the owner, the bot and
+   * them, before the bot commits work to them. The question is an ordinary
+   * mention, so each Coworker answers in the room through the dispatch a
+   * person's mention uses, and the bot reads the answer with `read_chat`.
+   */
+  private async askCoworker(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { coworkerIds: string[]; question: string; toolCallId: string },
+  ) {
+    const ownerUserId = authorized.turn.actingUserId;
+    // The owner is in the room and reads the answer; a teammate or another
+    // assistant asking would put the owner's bot in a room they never see.
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "TEAMMATE" ||
+      authorized.askedByKind === "ASSISTANT" ||
+      !ownerUserId
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Asking a Coworker is for your owner's own requests. Tell them who you would ask and what.",
+      );
+    }
+    if (authorized.reader.sharedScope) {
+      throw new SokoBotRuntimeValidationError(
+        "A shared Soko Bot has no owner to ask Coworkers with. Create a DRAFT Task with the question instead.",
+      );
+    }
+    const asked = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "ask_coworker",
+        NOT: { toolCallId: input.toolCallId },
+      },
+    });
+    if (asked >= MAX_COWORKER_QUESTIONS_PER_TURN) {
+      throw new SokoBotRuntimeValidationError(
+        `One turn may ask Coworkers at most ${MAX_COWORKER_QUESTIONS_PER_TURN} times. Follow up in the rooms you opened with post_chat.`,
+      );
+    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    const organizationId = workspace?.organizationId;
+    if (!organizationId) {
+      throw new SokoBotRuntimeValidationError(
+        "Asking Coworkers in a group chat needs an organization workspace. Create a DRAFT Task with the question instead.",
+      );
+    }
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "ask_coworker",
+      );
+      let coworkerIds: string[];
+      try {
+        coworkerIds = await validateChatCoworkerIds(
+          input.coworkerIds,
+          authorized.turn.workspaceId,
+          tx,
+        );
+      } catch (error) {
+        if (!(error instanceof HTTPException)) throw error;
+        throw new SokoBotRuntimeValidationError(
+          "Every Coworker you ask must be available here and able to chat; check the ids with find_coworkers. For one who cannot chat, put the question in a DRAFT Task.",
+        );
+      }
+      const found = await tx.coworker.findMany({
+        where: { id: { in: coworkerIds } },
+        select: { id: true, name: true, slug: true },
+      });
+      const coworkers = coworkerIds.flatMap(
+        (id) => found.find((coworker) => coworker.id === id) ?? [],
+      );
+      const room = await createOrGetCoworkerQuestionRoom(tx, {
+        organizationId,
+        ownerUserId,
+        sokoBotId: authorized.turn.sokoBotId,
+        coworkers,
+      });
+      return this.postChat(
+        authorized,
+        {
+          roomId: room.id,
+          content: addressCoworkers(
+            input.question,
+            coworkers,
+            (coworker) =>
+              resolveMentionedCoworkerIds({
+                content: input.question,
+                roomCoworkers: [coworker],
+              }).length > 0,
+          ),
+          toolCallId: input.toolCallId,
+          via: {
+            capability: "ask_coworker",
+            result: { name: room.name, created: room.created, coworkers },
+          },
+        },
+        tx,
+      );
+    }, "Asking the Coworker collided with another operation");
   }
 
   /**
@@ -1355,7 +1524,11 @@ export class SokoBotRuntimeService {
       content: string;
       toolCallId: string;
       resultReferences?: ChatResultReference[];
-      openedDirect?: { name: string; created: boolean; withUserName: string };
+      /** The tool that posted when it was not post_chat, and what it adds to the result. */
+      via?: {
+        capability: "open_direct_chat" | "ask_coworker";
+        result: Record<string, unknown>;
+      };
       publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
@@ -1384,7 +1557,7 @@ export class SokoBotRuntimeService {
         tx,
         authorized,
         false,
-        input.openedDirect ? "open_direct_chat" : "post_chat",
+        input.via?.capability ?? "post_chat",
       );
       // A turn another assistant started may answer only where it was asked.
       // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
@@ -1544,7 +1717,7 @@ export class SokoBotRuntimeService {
         queuedMentions:
           mentionedCoworkerIds.length + mentionedSokoBotIds.length,
         deliveryStatus: "QUEUED",
-        ...input.openedDirect,
+        ...input.via?.result,
       };
       const receipt = await commitActionReceipt(tx, {
         turnId: authorized.turn.id,
@@ -3169,7 +3342,11 @@ export class SokoBotRuntimeService {
           projectId: input.projectId,
           name: input.name,
           description: input.description,
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status: input.status,
           channel: Channel.SOKOSUMI,
           effectEventId,
@@ -3547,7 +3724,11 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           taskId: input.taskId,
           intent: "assignment",
-          ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
+          ...toolAssigneeFields(
+            input.coworkerId,
+            authorized.turn.sokoBotId,
+            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+          ),
           status,
           channel: Channel.SOKOSUMI,
           effectEventId,
@@ -3863,10 +4044,17 @@ export class SokoBotRuntimeService {
           });
           if (operation) return operation;
         }
+        const isRead = CORE_READ_CAPABILITIES.includes(input.capability);
         const callCount = await tx.sokoBotToolCall.count({
-          where: { turnId: input.turnId, ...CORE_TOOL_CALLS },
+          where: {
+            turnId: input.turnId,
+            ...(isRead ? CORE_READ_CALLS : CORE_WRITE_CALLS),
+          },
         });
-        if (callCount >= authorized.toolCallLimit) {
+        const limit = isRead
+          ? authorized.toolCallLimit * READ_CALLS_PER_WRITE_CALL
+          : authorized.toolCallLimit;
+        if (callCount >= limit) {
           throw new SokoBotRuntimeConflictError(
             "Soko Bot turn tool-call limit reached",
           );
@@ -4011,8 +4199,14 @@ export class SokoBotRuntimeService {
               };
             } else {
               const body = tableMutationSchema.parse(input.input);
+              const { removeColumnIds } =
+                SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(
+                  input.input,
+                );
               key = body.key;
-              request = { id: tableId, metadata: body };
+              request = removeColumnIds?.length
+                ? { id: tableId, metadata: body, removeColumnIds }
+                : { id: tableId, metadata: body };
             }
           }
           const operation = await readTableOperation(actor, key, request);
@@ -4721,7 +4915,7 @@ export class SokoBotRuntimeService {
               if (child.status === "COMPLETED") continue;
               if (
                 (await tx.sokoBotToolCall.count({
-                  where: { turnId: authorized.turn.id, ...CORE_TOOL_CALLS },
+                  where: { turnId: authorized.turn.id, ...CORE_WRITE_CALLS },
                 })) > authorized.toolCallLimit
               ) {
                 throw new SokoBotRuntimeConflictError(
@@ -4792,10 +4986,21 @@ export class SokoBotRuntimeService {
             tableBatchSchema.parse(input.input),
             complete,
           );
+        const { removeColumnIds } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_table_columns.parse(input.input);
+        // Deleting columns deletes their data: only on the owner's word.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          removeColumnIds?.length &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Columns are only deleted when the owner asks in chat; ask them first",
+          );
         return mutateDataTable(
           scopedActor,
           tableId,
-          tableMutationSchema.parse(input.input),
+          { ...tableMutationSchema.parse(input.input), removeColumnIds },
           complete,
         );
       }
@@ -4991,31 +5196,29 @@ export class SokoBotRuntimeService {
       }
       case "get_job_status": {
         const { jobId } = jobIdInputSchema.parse(input.input);
-        return prisma.job.findFirst({
+        const row = await prisma.job.findFirst({
           where: {
             AND: [
               { id: jobId, workspaceId: authorized.turn.workspaceId },
               buildSokoBotReaderJobWhere(authorized.reader),
             ],
           },
-          select: {
-            id: true,
-            name: true,
-            agentId: true,
-            jobType: true,
-            updatedAt: true,
-            events: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: {
-                id: true,
-                status: true,
-                result: true,
-                inputSchema: true,
-              },
-            },
-          },
+          include: jobInclude,
         });
+        if (!row) return null;
+        const job = mapJobWithStatus(row);
+        return {
+          id: job.id,
+          name: job.name ?? job.agent.name,
+          agent: { id: job.agentId, name: job.agent.name },
+          url: new URL(
+            `/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`,
+            getEnv().WEB_APP_BASE_URL,
+          ).toString(),
+          updatedAt: job.updatedAt.toISOString(),
+          ...digestJob(job),
+          trust: "untrusted-data",
+        };
       }
       case "provide_job_input":
         provideJobInputSchema.parse(input.input);
@@ -5077,6 +5280,13 @@ export class SokoBotRuntimeService {
       case "open_direct_chat": {
         const parsed = sokoBotOpenDirectChatInputSchema.parse(input.input);
         return this.openDirectChat(authorized, {
+          ...parsed,
+          toolCallId: input.toolCallId,
+        });
+      }
+      case "ask_coworker": {
+        const parsed = sokoBotAskCoworkerInputSchema.parse(input.input);
+        return this.askCoworker(authorized, {
           ...parsed,
           toolCallId: input.toolCallId,
         });

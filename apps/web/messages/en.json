@@ -1020,6 +1020,16 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openJob": "Open job",
+      "jobHint": {
+        "started": "Starting the job.",
+        "payment_pending": "Waiting for the payment to confirm before the Agent starts.",
+        "processing": "The Agent is working on it.",
+        "input_required": "The Agent needs more input to continue.",
+        "result_pending": "The Agent finished. The result is on its way.",
+        "failed": "The Agent couldn't finish this Job.",
+        "payment_failed": "The payment didn't go through, so the Agent didn't start."
+      },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
       "assignee": "Assigned to",
@@ -1027,7 +1037,6 @@
       "destination": "Account",
       "scheduled": "Scheduled for",
       "recurrence": "Recurrence",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Task",
         "task_schedule": "Task schedule",
@@ -2163,6 +2172,7 @@
           "resume": "Resume",
           "end": "End",
           "delete": "Delete",
+          "more": "More actions",
           "paused": "Schedule paused",
           "resumed": "Schedule resumed",
           "ended": "Schedule ended",
@@ -2435,6 +2445,19 @@
         "emptyHint": "Connect one to post."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Try again",
+          "help": "Everything else still works. Check your connection and try again.",
+          "projectHelp": "Showing all projects for now. Try again, or choose another one.",
+          "title": {
+            "drafts": "Couldn't load drafts",
+            "attention": "Couldn't load posts that need attention",
+            "accounts": "Couldn't load accounts",
+            "calendar": "Couldn't load the calendar",
+            "post": "Couldn't open that post",
+            "project": "Couldn't load that project"
+          }
+        },
         "loadMore": "Load more",
         "loadMoreError": "Couldn't load more.",
         "loadMoreOffline": "You're offline.",
@@ -2713,9 +2736,9 @@
           "clearFilters": "Clear filters",
           "invalidRange": "End date must be on or after the start date.",
           "loading": "Loading statistics…",
-          "loadFailed": "Failed to load statistics",
+          "loadFailed": "Couldn't load stats.",
           "retry": "Try again",
-          "refreshFailed": "Failed to refresh statistics. Previous results are retained. Check the connected account and permissions, then try again.",
+          "refreshFailed": "Couldn't refresh.",
           "empty": "No imported posts match these filters. Sync an account or clear the filters.",
           "refresh": "Refresh statistics",
           "loadMore": "Load more posts",
@@ -6947,6 +6970,7 @@
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Members could not be loaded",
@@ -7694,7 +7718,8 @@
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
-      }
+      },
+      "tableKind": "Table"
     },
     "SokoBot": {
       "Metadata": {
@@ -7709,15 +7734,15 @@
         "title": "Meet your Soko Bot",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "A personal project manager inside Sokosumi. It answers directly when it can, delegates Tasks to your Coworkers, and hires marketplace Agents to run Jobs. Give it a name and a picture.",
+        "description": "Your personal assistant in Sokosumi.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
         "submit": "Create Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
-        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
-        "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
+        "spendNotice": "Uses your credits. Set a daily limit in its settings.",
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -8416,6 +8441,20 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns."
+      },
+      "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
+      "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "previousPosition": "Previous position",
+      "newPosition": "New position",
+      "anyOption": "Any option",
+      "dnd": {
+        "instructions": "To move a row or column, drag its handle, or focus the handle and press the arrow keys.",
+        "pickedUp": "Picked up {item}.",
+        "over": "{item} is over {target}.",
+        "dropped": "{item} moved to the place of {target}.",
+        "cancelled": "Moving {item} was cancelled."
       }
     },
     "ProjectScope": {
@@ -8722,6 +8761,12 @@
       "rejectError": "We could not reject the remaining invitations.",
       "activateError": "We could not switch you into that organization. Try again before continuing.",
       "activateRetry": "Try switching again"
+    },
+    "Assistant": {
+      "metadataTitle": "Set up your assistant",
+      "later": "Later",
+      "skip": "Skip",
+      "continue": "Continue"
     }
   }
 }

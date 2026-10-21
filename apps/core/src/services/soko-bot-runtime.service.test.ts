@@ -492,6 +492,16 @@ vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
   // resolver, and stubbing that would have hidden what it actually matches.
   ...(await importOriginal<object>()),
   createOrGetDirectRoom: createOrGetDirectRoomMock,
+  validateChatCoworkerIds: validateChatCoworkerIdsMock,
+}));
+const { createOrGetCoworkerQuestionRoomMock, validateChatCoworkerIdsMock } =
+  vi.hoisted(() => ({
+    createOrGetCoworkerQuestionRoomMock: vi.fn(),
+    validateChatCoworkerIdsMock: vi.fn(),
+  }));
+vi.mock("@/lib/soko-bot/coworker-question-room", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  createOrGetCoworkerQuestionRoom: createOrGetCoworkerQuestionRoomMock,
 }));
 const { unreadCountsMock } = vi.hoisted(() => ({
   unreadCountsMock: vi.fn().mockResolvedValue(new Map()),
@@ -2089,6 +2099,105 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("reads a Job as a compact digest with its open input request", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the jobs",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_job_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_job_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ jobId: "job_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      WEB_APP_BASE_URL: "https://app.example",
+    });
+    jobFindFirstMock.mockResolvedValue({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      agentId: "agent_1",
+      agent: { name: "AttentionInsight" },
+      jobType: "FREE",
+      transaction: null,
+      purchase: null,
+      refundedTransactionId: null,
+      updatedAt: new Date("2026-10-20T10:00:00Z"),
+      events: [
+        {
+          id: "event_2",
+          status: "AWAITING_INPUT",
+          result: null,
+          input: null,
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "brand", type: "string", name: "Brand name" }],
+          }),
+          createdAt: new Date("2026-10-20T10:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+        {
+          id: "event_1",
+          status: "INITIATED",
+          result: null,
+          input: { input: JSON.stringify({ input_url: "https://nmkr.io" }) },
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "input_url", type: "url", name: "Website" }],
+          }),
+          createdAt: new Date("2026-10-20T09:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+      ],
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_job_status",
+      toolCallId: "call_teammate_job",
+      input: { jobId: "job_1" },
+    });
+
+    expect(result).toMatchObject({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      status: "input_required",
+      input: [{ label: "Website", value: "https://nmkr.io" }],
+      inputRequest: {
+        eventId: "event_2",
+        fields: [{ id: "brand", name: "Brand name", required: true }],
+      },
+      result: null,
+      url: "https://app.example/agents/agent_1/jobs/job_1",
+      trust: "untrusted-data",
+    });
+  });
+
   it("keeps a fresh in-flight tool call single-flight", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",
@@ -2157,7 +2266,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionToolCallCountMock.mockResolvedValue(64);
+    transactionToolCallCountMock.mockResolvedValue(640);
 
     await expect(
       new SokoBotRuntimeService().executeTool({
@@ -2168,8 +2277,54 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("tool-call limit reached");
 
+    const [{ where }] = transactionToolCallCountMock.mock.calls[0];
+    expect(where.capability.in).toEqual(
+      expect.arrayContaining(["get_task_status", "search_inbox", "read_table"]),
+    );
+    for (const notARead of [
+      "write_table_rows",
+      "start_background_run",
+      "refresh_social_post_statistics",
+      "bash",
+    ])
+      expect(where.capability.in).not.toContain(notARead);
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
     expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("lets reads go past the change limit", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(64);
+
+    await new SokoBotRuntimeService()
+      .executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_read_65",
+        input: { taskId: "task_1" },
+      })
+      .catch(() => undefined);
+
+    expect(transactionToolCallCreateMock).toHaveBeenCalled();
   });
 
   it("gives a turn tool calls in proportion to how long it may run", () => {
@@ -5516,6 +5671,224 @@ describe("open_direct_chat", () => {
       toolCallId: "call_1",
     });
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ask_coworker", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    actingUserId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+    source: "CHAT",
+    chainDepth: 0,
+  };
+  const ELENA = { id: "cow_elena", name: "Elena", slug: "elena" };
+  const coworkerFindMany = vi.fn();
+  const outboxUpsert = vi.fn();
+
+  function arm() {
+    vi.clearAllMocks();
+    outboxUpsert.mockResolvedValue({ id: "effect" });
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    toolCallCountMock.mockResolvedValue(0);
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
+    validateChatCoworkerIdsMock.mockResolvedValue(["cow_elena"]);
+    coworkerFindMany.mockResolvedValue([ELENA]);
+    createOrGetCoworkerQuestionRoomMock.mockResolvedValue({
+      id: "room_ask",
+      name: "Ask Elena",
+      created: true,
+    });
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_ask",
+      name: "Ask Elena",
+      kind: "channel",
+    });
+    chatSokoBotMemberFindManyMock.mockResolvedValue([]);
+    chatCoworkerMemberFindManyMock.mockResolvedValue([{ coworker: ELENA }]);
+    chatMessageCountMock.mockResolvedValue(0);
+    transactionChatMessageCreateMock.mockResolvedValue({
+      id: "msg_1",
+      createdAt: new Date("2026-10-20T10:00:00.000Z"),
+    });
+    transactionChatMentionCreateManyMock.mockResolvedValue({ count: 1 });
+    transactionChatRoomUpdateMock.mockResolvedValue({});
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotTurn: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+            findUnique: turnFindUniqueMock,
+          },
+          workspace: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.workspaceId }),
+            findUnique: workspaceFindUniqueMock,
+          },
+          member: { findFirst: vi.fn().mockResolvedValue({ id: "member" }) },
+          coworker: { findMany: coworkerFindMany },
+          sokoBotToolCall: {
+            update: vi
+              .fn()
+              .mockResolvedValue({ id: "receipt", capability: "ask_coworker" }),
+          },
+          sokoBotEffectOutbox: { upsert: outboxUpsert },
+          chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
+          chatRoomSokoBotMember: { findMany: chatSokoBotMemberFindManyMock },
+          chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
+          chatRoomMessage: {
+            create: transactionChatMessageCreateMock,
+            count: chatMessageCountMock,
+          },
+          chatRoomMention: {
+            createMany: transactionChatMentionCreateManyMock,
+            findMany: mentionFindManyMock,
+          },
+          chatRoom: {
+            update: transactionChatRoomUpdateMock,
+            findFirst: chatRoomFindFirstMock,
+            findUniqueOrThrow: vi.fn().mockResolvedValue({
+              userMembers: [{ userId: SCOPE.userId }],
+              coworkerMembers: [{ coworkerId: "cow_elena" }],
+              sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+            }),
+          },
+        }),
+    );
+    return {
+      turn: SCOPE_TURN,
+      askedByKind: "OWNER",
+      reader: { sharedScope: null },
+    } as never;
+  }
+
+  const ask = (
+    authorized: never,
+    question = "Can you write a German landing page? What would you need?",
+  ) =>
+    new SokoBotRuntimeService()["askCoworker"](authorized, {
+      coworkerIds: ["cow_elena"],
+      question,
+      toolCallId: "call_1",
+    });
+
+  it("asks in a room with the owner and stages a mention Elena answers", async () => {
+    const authorized = arm();
+
+    const result = await ask(authorized);
+
+    expect(createOrGetCoworkerQuestionRoomMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      {
+        organizationId: "org_1",
+        ownerUserId: SCOPE.userId,
+        sokoBotId: SCOPE.sokoBotId,
+        coworkers: [ELENA],
+      },
+    );
+    // The mention is what the Coworker dispatch answers; the outbox turns it
+    // from staged to pending once the audience is rechecked.
+    expect(transactionChatMentionCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          messageId: "msg_1",
+          coworkerId: "cow_elena",
+          status: "staged",
+        }),
+      ],
+      skipDuplicates: true,
+    });
+    expect(result).toMatchObject({
+      roomId: "room_ask",
+      name: "Ask Elena",
+      created: true,
+      coworkers: [ELENA],
+      queuedMentions: 1,
+    });
+  });
+
+  it("mentions the Coworker when the question does not", async () => {
+    const authorized = arm();
+
+    await ask(authorized, "Can you do this?");
+
+    expect(outboxUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          payload: expect.objectContaining({
+            content: "@elena Can you do this?",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["a scheduled turn", { source: "SCHEDULE" }, "OWNER"],
+    ["a chained turn", { chainDepth: 1 }, "OWNER"],
+    ["a teammate's request", {}, "TEAMMATE"],
+    ["another assistant's request", {}, "ASSISTANT"],
+  ])("refuses %s", async (_label, turn, askedByKind) => {
+    arm();
+
+    await expect(
+      ask({
+        turn: { ...SCOPE_TURN, ...turn },
+        askedByKind,
+        reader: { sharedScope: null },
+      } as never),
+    ).rejects.toThrow(/owner's own requests/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot, which has no owner to ask with", async () => {
+    arm();
+
+    await expect(
+      ask({
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: {
+          sharedScope: {
+            sokoBotId: SCOPE.sokoBotId,
+            workspaceId: SCOPE.workspaceId,
+            projectId: null,
+          },
+        },
+      } as never),
+    ).rejects.toThrow(/shared Soko Bot/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("stops after three questions in one turn", async () => {
+    const authorized = arm();
+    toolCallCountMock.mockResolvedValue(3);
+
+    await expect(ask(authorized)).rejects.toThrow(/at most 3 times/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("needs an organization workspace", async () => {
+    const authorized = arm();
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+
+    await expect(ask(authorized)).rejects.toThrow(/organization workspace/);
+  });
+
+  it("says what to do when a Coworker cannot chat", async () => {
+    const authorized = arm();
+    const { HTTPException } = await import("hono/http-exception");
+    validateChatCoworkerIdsMock.mockRejectedValue(
+      new HTTPException(400, {
+        message: "Room AI coworkers must be active chat coworkers",
+      }),
+    );
+
+    await expect(ask(authorized)).rejects.toThrow(/DRAFT Task/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
   });
 });
 

@@ -4747,7 +4747,7 @@ model DataTable {
   operations  TableOperation[]
   taskScopes  TableTaskScope[]
 
-  @@index([workspaceId, archivedAt, createdAt, id])
+  @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([projectId])
   @@map("data_table")
 }
@@ -4774,11 +4774,15 @@ model TableRow {
   values     Json      @default("{}")
   evidence   Json      @default("{}")
   version    Int       @default(1)
+  /// Manual row order. Defaults to the insert time in epoch seconds, so a new
+  /// row lands after every existing one; a move takes a value between its
+  /// new neighbours.
+  position   Float     @default(dbgenerated("EXTRACT(epoch FROM clock_timestamp())"))
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  @@index([tableId, archivedAt, id])
+  @@index([tableId, archivedAt, position, id])
   @@map("table_row")
 }
 

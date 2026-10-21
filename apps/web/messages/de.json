@@ -1020,6 +1020,16 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1027,7 +1037,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
@@ -2163,6 +2172,7 @@
           "resume": "Fortsetzen",
           "end": "Beenden",
           "delete": "Löschen",
+          "more": "Weitere Aktionen",
           "paused": "Zeitplan pausiert",
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
@@ -2435,6 +2445,19 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Erneut versuchen",
+          "help": "Alles andere funktioniert weiterhin. Prüfe deine Verbindung und versuche es erneut.",
+          "projectHelp": "Vorerst werden alle Projekte angezeigt. Versuche es erneut oder wähle ein anderes Projekt.",
+          "title": {
+            "drafts": "Entwürfe konnten nicht geladen werden",
+            "attention": "Beiträge, die Aufmerksamkeit brauchen, konnten nicht geladen werden",
+            "accounts": "Konten konnten nicht geladen werden",
+            "calendar": "Der Kalender konnte nicht geladen werden",
+            "post": "Dieser Beitrag konnte nicht geöffnet werden",
+            "project": "Dieses Projekt konnte nicht geladen werden"
+          }
+        },
         "loadMore": "Mehr laden",
         "loadMoreError": "Mehr konnte nicht geladen werden.",
         "loadMoreOffline": "Du bist offline.",
@@ -2713,9 +2736,9 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
@@ -6946,7 +6969,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Starte den Channel mit einer Nachricht oder erwähne einen KI-Coworker.",
+        "noDirectMessagesDescription": "Schreib eine Nachricht, um das Gespräch zu beginnen.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
@@ -7694,7 +7718,8 @@
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
-      }
+      },
+      "tableKind": "Tabelle"
     },
     "SokoBot": {
       "Metadata": {
@@ -7709,15 +7734,15 @@
         "title": "Lern deinen Soko Bot kennen",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
+        "description": "Dein persönlicher Assistent in Sokosumi.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
         "submit": "Soko Bot erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
-        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -8416,6 +8441,20 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
+      },
+      "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
+      "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previousPosition": "Vorherige Position",
+      "newPosition": "Neue Position",
+      "anyOption": "Beliebige Option",
+      "dnd": {
+        "instructions": "Um eine Zeile oder Spalte zu verschieben, den Griff ziehen oder ihn fokussieren und die Pfeiltasten drücken.",
+        "pickedUp": "{item} aufgenommen.",
+        "over": "{item} ist über {target}.",
+        "dropped": "{item} an die Stelle von {target} verschoben.",
+        "cancelled": "Verschieben von {item} abgebrochen."
       }
     },
     "ProjectScope": {
@@ -8722,6 +8761,12 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
     }
   }
 }

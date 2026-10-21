@@ -56,6 +56,7 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toast, success: vi.fn() } }));
 
+import { setupAssistantPath } from "@/lib/workspace-gate";
 import { IdentityOnboardingForm } from "./identity-onboarding-form.client";
 
 function deferred<T>() {
@@ -166,7 +167,9 @@ describe("IdentityOnboardingForm navigation", () => {
     await act(() =>
       preference.resolve({ ok: true, value: { organizationId: "org-1" } }),
     );
-    expect(mocks.replace).toHaveBeenCalledWith("/chat/join/abc?ref=mail");
+    expect(mocks.replace).toHaveBeenCalledWith(
+      setupAssistantPath("/chat/join/abc?ref=mail"),
+    );
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
   it("deduplicates Finish and close events before state batches", async () => {

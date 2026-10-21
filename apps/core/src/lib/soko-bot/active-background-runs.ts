@@ -35,5 +35,5 @@ export async function withActiveBackgroundRuns(
     (run) =>
       `- "${run.backgroundTitle}" (runId ${run.id}, started ${run.createdAt.toISOString()})`,
   );
-  return `${text}\n\n[Your background runs still working. When the owner calls one off or changes the plan, stop it with stop_background_run; saying you stopped is not enough.\n${lines.join("\n")}]`;
+  return `${text}\n\n[Your background runs still working. When the owner calls one off, stop it with stop_background_run; saying you stopped is not enough. When they only change how it should go, the work is still wanted: stop it and start_background_run again with the updated brief in this same turn. Anything else (a question, an edit you make yourself) leaves it running.\n${lines.join("\n")}]`;
 }
