@@ -21,6 +21,7 @@ import {
   firstAndLastNameFormSchema,
 } from "@/lib/schemas/account";
 import { cn } from "@/lib/utils";
+import { setupAssistantPath } from "@/lib/workspace-gate";
 
 type WorkspaceChoice = "personal" | "organization";
 
@@ -49,6 +50,11 @@ export function IdentityOnboardingForm({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const leavingGateRef = useRef(false);
+  // Only someone who gets their first workspace here is offered the
+  // assistant; a visit to an already-ready gate goes straight on.
+  const [leaveUrl] = useState(() =>
+    workspaceReady ? returnUrl : setupAssistantPath(returnUrl),
+  );
 
   const form = useForm<FirstAndLastNameFormType>({
     resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
@@ -63,8 +69,8 @@ export function IdentityOnboardingForm({
     // action, which refreshes the current URL. Soft router.replace +
     // refresh remounts /setup and cancels the leave. replace (not assign)
     // keeps /setup off the history stack so Back does not bounce-loop.
-    window.location.replace(returnUrl);
-  }, [returnUrl]);
+    window.location.replace(leaveUrl);
+  }, [leaveUrl]);
 
   useEffect(() => {
     if (!workspaceReady || wizardOpen || leavingGateRef.current) {

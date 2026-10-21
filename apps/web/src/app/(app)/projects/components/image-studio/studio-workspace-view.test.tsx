@@ -28,6 +28,7 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
+  prepareStudioAssetSocialMedia: vi.fn(),
 }));
 
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
@@ -109,11 +110,10 @@ vi.mock("./use-studio-state", () => ({
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: mocks.enqueue,
     waitingForSlot: false,
-    lastError: null,
-    clearError: vi.fn(),
   }),
 }));
 

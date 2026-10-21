@@ -8,13 +8,15 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
-import type { TaskWithIncludes } from "@/types/task";
+import { taskSchema } from "@/schemas/task.schema";
+import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
 
 import {
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
+  mapTaskListItem,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -462,6 +464,111 @@ describe("mapTask", () => {
     const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("returns the Owner of a Task a Coworker made for them", () => {
+    const task = {
+      id: "tsk_made_for",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: "cow_123",
+      creatorCoworker: defaultTaskCoworker,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Made by a Coworker",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      ownerId: "user_123",
+      creator: { type: "coworker", id: "cow_123" },
+    });
+    expect(
+      mapTaskListItem({
+        ...task,
+        _count: { jobs: 0, events: 0 },
+      } as unknown as TaskListItemWithIncludes),
+    ).toMatchObject({
+      ownerId: "user_123",
+      creator: { type: "coworker", id: "cow_123" },
+    });
+  });
+
+  it("returns a null Owner and Creator once the person who made a public Task is deleted", () => {
+    const task = {
+      id: "tsk_without_owner",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: null,
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: null,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Left behind",
+      description: null,
+      status: TaskStatus.COMPLETED,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    // The response schema accepts the null Owner and Creator it documents.
+    const mapped = taskSchema
+      .pick({
+        ownerId: true,
+        owner: true,
+        userId: true,
+        user: true,
+        creator: true,
+      })
+      .parse(mapTask(task, TEST_USER_AUTH));
+
+    expect(mapped).toEqual({
+      ownerId: null,
+      owner: null,
+      userId: null,
+      user: null,
+      creator: null,
+    });
   });
 
   it("exposes the stored priority", () => {

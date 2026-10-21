@@ -6,7 +6,7 @@ import {
 
 import {
   ComposioApiError,
-  deleteProjectSocialSession,
+  deleteComposioToolSession,
   projectComposioFetch,
   projectComposioResponse,
   record,
@@ -14,8 +14,8 @@ import {
 import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
 import {
   ComposioToolError,
-  createSocialPostToolSession,
-  executeSocialPostTool,
+  createComposioToolSession,
+  executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import type {
   SocialAccountMetric,
@@ -67,9 +67,12 @@ function isYouTubeQuotaError(error: unknown): boolean {
   );
 }
 
+/** Tool errors keep more than a user should read. */
+const PROVIDER_MESSAGE_SHOWN_LIMIT = 300;
+
 function statisticsFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ComposioToolError && error.providerMessage) {
-    return `${fallback} ${error.providerMessage}`;
+    return `${fallback} ${error.providerMessage.slice(0, PROVIDER_MESSAGE_SHOWN_LIMIT)}`;
   }
   if (error instanceof ComposioApiError) {
     return `${fallback} Connector request failed (HTTP ${error.httpStatus}).`;
@@ -1173,7 +1176,7 @@ export async function fetchSocialAccountStatisticsPage(
   const label = socialPostProviderLabel(context.provider);
   let sessionId: string | undefined;
   try {
-    sessionId = await createSocialPostToolSession({
+    sessionId = await createComposioToolSession({
       toolkitSlug: context.provider === "x" ? "twitter" : context.provider,
       connectedAccountId: context.connectedAccountId,
       executorUserId: context.executorUserId,
@@ -1183,7 +1186,7 @@ export async function fetchSocialAccountStatisticsPage(
     });
     const activeSession = sessionId;
     const read: ReadTool = async (toolSlug, args) => {
-      const payload = await executeSocialPostTool({
+      const payload = await executeComposioTool({
         sessionId: activeSession,
         toolSlug,
         arguments: args,
@@ -1244,7 +1247,7 @@ export async function fetchSocialAccountStatisticsPage(
     );
   } finally {
     if (sessionId)
-      await deleteProjectSocialSession(
+      await deleteComposioToolSession(
         sessionId,
         "delete account statistics session",
       );

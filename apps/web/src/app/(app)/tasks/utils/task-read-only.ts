@@ -18,8 +18,8 @@ interface ReadOnlyForViewerParams {
 interface OrgCollaboratorViewerParams extends ReadOnlyForViewerParams {
   /** Organization of the task's workspace; `null` for a personal workspace. */
   taskWorkspaceOrganizationId: string | null;
-  /** Owner of the task. */
-  taskOwnerId: string;
+  /** Owner of the task; `null` when it has none. */
+  taskOwnerId: string | null;
   /** Viewer's user id, or null/undefined when unauthenticated. */
   sessionUserId: string | null | undefined;
 }
@@ -83,7 +83,7 @@ function canOrgCollaboratorActOnTaskForViewer({
     return false;
   }
 
-  if (sessionUserId === taskOwnerId) {
+  if (taskOwnerId !== null && sessionUserId === taskOwnerId) {
     return true;
   }
 
@@ -109,7 +109,8 @@ export function canCommentOnTaskForViewer(
 
 /**
  * Organization workspace collaborators may cancel without owning the task,
- * even without an assigned seat. Other mutations use
+ * even without an assigned seat. A cancel-only status write skips the seat
+ * check in Core's task events route. Other mutations use
  * {@link isReadOnlyForViewer}.
  */
 export function canCancelTaskForViewer(

@@ -1,5 +1,6 @@
+import type { SocialPost } from "@sokosumi/core-client";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
@@ -64,9 +65,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const query = await searchParams;
   const t = await getTranslations("App.Social");
   const projectId = query.projectId?.trim();
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
+  let project = null;
+  let projectLoadFailed = false;
+  if (projectId) {
+    try {
+      project = await projectService.getProjectById(projectId);
+    } catch {
+      projectLoadFailed = true;
+    }
+  }
 
   if (!project) {
     const [calendar, sokoBot] = await Promise.all([
@@ -91,7 +98,10 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             calendar={<SocialCalendar calendar={calendar} />}
-            notice={projectId ? t("pickUnavailable") : undefined}
+            notice={
+              projectId && !projectLoadFailed ? t("pickUnavailable") : undefined
+            }
+            projectFailed={projectLoadFailed}
             workspaceId={calendar.workspaceId}
           />
         </SocialCalendarPreviewProvider>
@@ -99,25 +109,80 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [pages, connections, selectedPost, calendar, sokoBot] =
-    await Promise.all([
-      Promise.all(
-        SECTION_ORDER.map((section) =>
-          projectService.listSocialPosts(project.id, {
-            statuses: SECTION_STATUSES[section],
-          }),
-        ),
-      ),
-      projectService.listSocialConnections(project.id),
-      query.postId
-        ? projectService.getSocialPost(project.id, query.postId)
-        : Promise.resolve(null),
-      loadWorkspaceCalendarPage({
-        projectId: project.id,
-        searchParams: Promise.resolve(withoutAgendaView(query)),
+  const [
+    pages,
+    connectionsResult,
+    selectedPostResult,
+    calendarResult,
+    sokoBot,
+  ] = await Promise.all([
+    Promise.all(
+      SECTION_ORDER.map(async (section) => {
+        try {
+          return {
+            failed: false as const,
+            ...(await projectService.listSocialPosts(project.id, {
+              statuses: SECTION_STATUSES[section],
+            })),
+          };
+        } catch {
+          return {
+            failed: true as const,
+            posts: [],
+            nextCursor: null,
+          };
+        }
       }),
-      sokoBotService.getMine().catch(() => null),
-    ]);
+    ),
+    projectService
+      .listSocialConnections(project.id)
+      .then((connections) => ({ failed: false as const, connections }))
+      .catch(() => ({ failed: true as const, connections: [] })),
+    query.postId
+      ? projectService
+          .getSocialPost(project.id, query.postId)
+          .then((post) => ({ failed: false as const, post }))
+          .catch(() => ({ failed: true as const, post: null }))
+      : Promise.resolve({ failed: false as const, post: null }),
+    loadWorkspaceCalendarPage({
+      projectId: project.id,
+      searchParams: Promise.resolve(withoutAgendaView(query)),
+    })
+      .then((calendar) => ({ failed: false as const, calendar }))
+      .catch((error: unknown) => {
+        unstable_rethrow(error);
+        return { failed: true as const, calendar: null };
+      }),
+    sokoBotService.getMine().catch(() => null),
+  ]);
+  const { connections, failed: accountsFailed } = connectionsResult;
+  const { calendar, failed: calendarFailed } = calendarResult;
+  const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
+  // Count every affected scheduled/failed post, including later list pages.
+  // A failed read here only shortens the reconnect counts; Social stays up.
+  const affectedPosts: SocialPost[] = [...pages[1].posts];
+  try {
+    const scheduledPage = await projectService.listSocialPosts(project.id, {
+      statuses: ["SCHEDULED"],
+    });
+    affectedPosts.push(...scheduledPage.posts);
+    for (const [statuses, initialCursor] of [
+      [SECTION_STATUSES.attention, pages[1].nextCursor],
+      [["SCHEDULED"], scheduledPage.nextCursor],
+    ] as const) {
+      let cursor = initialCursor;
+      while (cursor) {
+        const page = await projectService.listSocialPosts(project.id, {
+          statuses,
+          cursor,
+        });
+        affectedPosts.push(...page.posts);
+        cursor = page.nextCursor;
+      }
+    }
+  } catch {
+    // Keep the posts already read.
+  }
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
@@ -138,10 +203,12 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
             actions={
@@ -151,13 +218,22 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               />
             }
             calendar={
-              <SocialCalendar
-                calendar={calendar}
-                lockedProjectId={project.id}
-              />
+              calendar ? (
+                <SocialCalendar
+                  calendar={calendar}
+                  lockedProjectId={project.id}
+                />
+              ) : undefined
             }
             accountCount={managedAccountCount}
+            managedConnections={connections}
+            affectedPosts={affectedPosts}
+            accountsFailed={accountsFailed}
+            calendarFailed={calendarFailed}
             connections={activeConnections}
+            failedSections={SECTION_ORDER.filter(
+              (_, index) => pages[index].failed,
+            )}
             nextCursors={Object.fromEntries(
               SECTION_ORDER.map((section, index) => [
                 section,
@@ -166,6 +242,8 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             )}
             posts={posts}
             projectId={project.id}
+            requestedPostId={query.postId}
+            selectedPostFailed={selectedPostFailed}
             selectedPostId={selectedPost?.id}
           />
         </SocialComposeProvider>

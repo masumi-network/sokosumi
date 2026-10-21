@@ -7,6 +7,7 @@ import {
 } from "@/clients/composio.client";
 import {
   badRequest,
+  integrationNotConfigured,
   internalServerError,
   serviceUnavailable,
 } from "@/helpers/error";
@@ -14,7 +15,7 @@ import {
 export function mapProjectSocialConnectionServiceError(error: unknown): never {
   if (error instanceof HTTPException) throw error;
   if (error instanceof ComposioConfigError) {
-    throw serviceUnavailable("Integrations are not configured on this server.");
+    throw integrationNotConfigured();
   }
   if (error instanceof ComposioIdentityError) {
     throw badRequest(error.message, error.kind ? { kind: error.kind } : {});

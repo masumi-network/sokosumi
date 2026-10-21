@@ -1,18 +1,15 @@
-import type { SocialPostMediaRef } from "@sokosumi/core-client";
+import type {
+  SocialAccountPostMedia,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { Play } from "lucide-react";
 import { Fragment } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
-/** Provider-hosted preview media from imported account history. */
-export type ImportedPostMedia = {
-  kind: "image" | "gif" | "video";
-  url: string;
-  thumbnailUrl?: string | null;
-};
-
-export type PreviewMedia = SocialPostMediaRef | ImportedPostMedia;
+/** Imported media stays provider-hosted; draft media belongs to Drive. */
+type PreviewMedia = SocialPostMediaRef | SocialAccountPostMedia;
 
 /** The connected account a preview renders as its author. */
 export interface SocialPostPreviewAccount {
@@ -27,12 +24,17 @@ export interface SocialPostPreviewContentProps {
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
-  /** Preformatted publication time, including unavailable dates and time zones. */
+  /** Override the feed's time label, including an unknown publication date. */
   timestampLabel?: string;
-  /** Imported history may not include media even when the published post has it. */
-  showMediaPlaceholder?: boolean;
-  /** Hide decorative feed controls when a preview is paired with real metrics. */
-  showEngagementActions?: boolean;
+  /** The provider did not return media for this imported post. */
+  mediaUnavailable?: boolean;
+  /**
+   * Drafts grid: cap tall LinkedIn/Facebook/X media so a row of cards
+   * stays even. Composer and the full preview keep the feed height.
+   */
+  compact?: boolean;
+  /** Compact cards open the full preview instead of growing in the grid. */
+  onSeeMore?: () => void;
 }
 
 export function accountName(
@@ -70,34 +72,51 @@ export function PreviewAvatar({
 }
 
 const TOKEN_PATTERN =
-  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/gu;
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+)/giu;
+const TOKEN_PATTERN_WITH_CASHTAG =
+  /(https?:\/\/[^\s]+|www\.[^\s]+|#[\p{L}\p{N}_]+|(?<![\p{L}\p{N}_])@[\p{L}\p{N}_.]+|(?<![\p{L}\p{N}])\$[A-Za-z]{1,6}(?:[._][A-Za-z]{1,2})?(?![A-Za-z0-9]))/giu;
 const URL_DISPLAY_MAX = 25;
 
 /** Links show without their scheme and shortened, the way X and LinkedIn do. */
 function displayUrl(url: string): string {
-  const bare = url.replace(/^(https?:\/\/)?(www\.)?/, "");
+  const bare = url.replace(/^(https?:\/\/)?(www\.)?/i, "");
   return bare.length > URL_DISPLAY_MAX
     ? `${bare.slice(0, URL_DISPLAY_MAX - 1)}…`
     : bare;
 }
 
-const URL_TRAILING_PUNCT = /[.,;:!?)]+$/;
+const URL_TRAILING_PUNCT = /[.,;:!?)>\]"'\u201d\u2019]+$/;
 
 /** Post text with links, hashtags and mentions in the platform's link color. */
 export function PreviewRichText({
   text,
   linkClassName,
+  cashtags = false,
 }: {
   text: string;
   linkClassName: string;
+  /** X colors $TICKER the way the live feed does. */
+  cashtags?: boolean;
 }) {
-  const parts = text.split(TOKEN_PATTERN);
+  const parts = text.split(
+    cashtags ? TOKEN_PATTERN_WITH_CASHTAG : TOKEN_PATTERN,
+  );
   return parts.map((part, index) => {
     // split() with one capture group puts matches at odd indexes.
     if (index % 2 === 0) {
       return <Fragment key={index}>{part}</Fragment>;
     }
-    if (part.startsWith("www.") || part.startsWith("http")) {
+    if (part.startsWith("@")) {
+      const mention = part.replace(URL_TRAILING_PUNCT, "");
+      const trail = part.slice(mention.length);
+      return (
+        <Fragment key={index}>
+          <span className={linkClassName}>{mention}</span>
+          {trail}
+        </Fragment>
+      );
+    }
+    if (/^www\./i.test(part) || /^https?:/i.test(part)) {
       const url = part.replace(URL_TRAILING_PUNCT, "");
       const trail = part.slice(url.length);
       return (
@@ -115,25 +134,6 @@ export function PreviewRichText({
   });
 }
 
-function isDraftMedia(media: PreviewMedia): media is SocialPostMediaRef {
-  return "fileUrl" in media;
-}
-
-function previewMediaSrc(media: PreviewMedia): string {
-  if (isDraftMedia(media)) return media.fileUrl;
-  return media.kind === "video" && media.thumbnailUrl
-    ? media.thumbnailUrl
-    : media.url;
-}
-
-function previewMediaLabel(media: PreviewMedia): string {
-  return isDraftMedia(media) ? media.name : media.kind;
-}
-
-function previewMediaKey(media: PreviewMedia): string {
-  return isDraftMedia(media) ? media.pathname : media.url;
-}
-
 export function PreviewMediaItem({
   media,
   className,
@@ -145,10 +145,16 @@ export function PreviewMediaItem({
   showPlay?: boolean;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
-  const src = previewMediaSrc(media);
-  const label = previewMediaLabel(media);
+  const src =
+    "fileUrl" in media
+      ? media.fileUrl
+      : media.kind === "video"
+        ? (media.thumbnailUrl ?? media.url)
+        : media.url;
+  const label = "name" in media ? media.name : media.kind;
   const visual =
-    media.kind === "video" && (isDraftMedia(media) || !media.thumbnailUrl) ? (
+    media.kind === "video" &&
+    !("thumbnailUrl" in media && media.thumbnailUrl) ? (
       <video
         aria-label={label}
         className={mediaClassName}
@@ -204,16 +210,29 @@ export function PreviewMediaItem({
 export function PreviewMediaGrid({
   media,
   className,
+  compact = false,
 }: {
   media: PreviewMedia[];
   className?: string;
+  compact?: boolean;
 }) {
   if (media.length === 0) return null;
   const [first, ...rest] = media;
   if (media.length === 1 && first) {
     return (
-      <div className={cn("overflow-hidden", className)}>
-        <PreviewMediaItem media={first} showPlay className="max-h-[32rem]" />
+      <div
+        className={cn("overflow-hidden", compact && "max-h-64", className)}
+        data-testid={compact ? "social-post-preview-media-compact" : undefined}
+      >
+        <PreviewMediaItem
+          media={first}
+          showPlay
+          className={
+            compact
+              ? "max-h-64 w-full object-cover object-top"
+              : "max-h-[32rem]"
+          }
+        />
       </div>
     );
   }
@@ -232,7 +251,10 @@ export function PreviewMediaGrid({
         </div>
       ) : null}
       {rest.slice(0, 3).map((item) => (
-        <div key={previewMediaKey(item)} className="min-h-0">
+        <div
+          key={"pathname" in item ? item.pathname : item.url}
+          className="min-h-0"
+        >
           <PreviewMediaItem media={item} showPlay />
         </div>
       ))}

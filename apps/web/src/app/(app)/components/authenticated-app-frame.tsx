@@ -86,7 +86,7 @@ export default async function AuthenticatedAppFrame({
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   // In parallel: the sidebar's Social row and the seat gate are both single
   // reads the frame already has to finish before it paints nav.
-  const [hasAssignedSeat, socialMenuEnabled] = await Promise.all([
+  const [hasAssignedSeat, socialBetaEnabled] = await Promise.all([
     organizationSeatService
       .hasAssignedSeat(activeOrganizationId)
       .catch((error) => {
@@ -135,7 +135,7 @@ export default async function AuthenticatedAppFrame({
                             sessionUser={session.user}
                             activeOrganizationId={activeOrganizationId}
                             adminMenuEnabled={adminMenuEnabled}
-                            socialMenuEnabled={socialMenuEnabled}
+                            socialBetaEnabled={socialBetaEnabled}
                           />
                         </FeatureBadgesProvider>
                         <Suspense fallback={null}>

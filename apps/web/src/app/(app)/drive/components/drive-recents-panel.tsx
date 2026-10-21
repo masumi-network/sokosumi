@@ -8,8 +8,10 @@ import {
   Edit3,
   Folder,
   MoreHorizontal,
+  Table2,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type ReactElement,
@@ -29,9 +31,12 @@ import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
+  driveItemArticleClass,
+  driveItemBodyClass,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
+  driveItemNameClass,
   driveItemsPanelClass,
   driveRecentsDayItemsClass,
 } from "@/app/drive/components/drive-view-layout";
@@ -93,6 +98,12 @@ function toDriveFileItem(
     size: item.size,
     uploadedAt: item.activityAt,
   };
+}
+
+function recentsItemKey(item: DriveRecentsItem): string {
+  if (item.kind === "drive-file") return item.pathname;
+  if (item.kind === "table") return item.tableId;
+  return item.taskFileId;
 }
 
 function formatActivityAt(
@@ -243,16 +254,10 @@ export function DriveRecentsPanel({
       }
 
       setItems((current) => {
-        const seen = new Set(
-          current.map((item) =>
-            item.kind === "drive-file" ? item.pathname : item.taskFileId,
-          ),
+        const seen = new Set(current.map(recentsItemKey));
+        const appended = page.items.filter(
+          (item) => !seen.has(recentsItemKey(item)),
         );
-        const appended = page.items.filter((item) => {
-          const id =
-            item.kind === "drive-file" ? item.pathname : item.taskFileId;
-          return !seen.has(id);
-        });
         return [...current, ...appended];
       });
       setNextCursor(page.nextCursor);
@@ -462,6 +467,51 @@ export function DriveRecentsPanel({
                           </DriveItemCard>
                         )}
                       </DriveFilePreview>
+                    </li>
+                  );
+                }
+
+                if (item.kind === "table") {
+                  const activityLabel = formatActivityAt(
+                    formatter,
+                    item.activityAt,
+                  );
+                  // A table opens its editor, so it is a link wearing the
+                  // Files item row, as in the Tables tab.
+                  return (
+                    <li key={item.tableId}>
+                      <Link
+                        href={`/drive/tables/${item.tableId}`}
+                        className={cn(
+                          driveItemArticleClass(viewMode),
+                          "focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
+                        )}
+                      >
+                        <div className={driveItemBodyClass(viewMode)}>
+                          <div className={driveItemIconWellClass(viewMode)}>
+                            <Table2
+                              aria-hidden
+                              className={cn(
+                                "text-muted-foreground",
+                                viewMode === "grid" ? "size-4" : "size-5",
+                              )}
+                            />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className={driveItemNameClass()}>
+                              {item.name}
+                            </span>
+                            <div className={driveItemMetaMobileClass(viewMode)}>
+                              <span>{t("tableKind")}</span>
+                              <span>{activityLabel}</span>
+                            </div>
+                          </div>
+                          <div className={driveItemMetaDesktopClass(viewMode)}>
+                            <span>{t("tableKind")}</span>
+                            <span>{activityLabel}</span>
+                          </div>
+                        </div>
+                      </Link>
                     </li>
                   );
                 }

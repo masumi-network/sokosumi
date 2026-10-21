@@ -18,10 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { archiveSokoBotAction } from "@/lib/actions/soko-bot/action";
+import { SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 export function ArchiveSokoBotButton() {
   const t = useTranslations("App.SokoBot.Settings");
   const router = useRouter();
+  const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -33,9 +36,13 @@ export function ArchiveSokoBotButton() {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("archiveConfirmTitle")}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {botId ? t("sharedArchiveConfirmTitle") : t("archiveConfirmTitle")}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            {t("archiveConfirmDescription")}
+            {botId
+              ? t("sharedArchiveConfirmDescription")
+              : t("archiveConfirmDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -43,13 +50,15 @@ export function ArchiveSokoBotButton() {
           <AlertDialogAction
             onClick={() =>
               startTransition(async () => {
-                const result = await archiveSokoBotAction({});
+                const result = await archiveSokoBotAction({ botId });
                 if (!result.ok) {
                   toast.error(result.error.message ?? t("archiveError"));
                   return;
                 }
                 toast.success(t("archived"));
-                router.refresh();
+                // A shared bot's console closes with it; the roster lists it.
+                if (botId) router.push(SOKO_BOTS_ROUTE);
+                else router.refresh();
               })
             }
           >

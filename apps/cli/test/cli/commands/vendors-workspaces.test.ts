@@ -12,6 +12,9 @@ function clientWith(response: unknown): CoreHttpClient {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({}) as T,
   };
 }
@@ -75,6 +78,9 @@ test("vendors create posts name and slug then prints admin membership", async ()
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -118,6 +124,9 @@ test("vendors create uses the last repeated option value", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };

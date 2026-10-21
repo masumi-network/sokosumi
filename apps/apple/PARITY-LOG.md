@@ -5070,3 +5070,70 @@ Web moved its sidebar mention counts to `MentionCountPill` ([mention-count-pill.
 ## 38g fix — an undated social post reads "now"
 
 Web [#6026](https://github.com/masumi-network/sokosumi/pull/6026) stopped falling back to the result's `capturedAt` when a social post result has no `social.timestamp`: `result-previews.tsx` passes `null`, and `SocialPostPreview` prints `preview.now` ("now", "jetzt", "ahora") in both the short and the long day. Apple still drew the recording day. `ResultSocialPost.timestamp` is now optional and taken from `social.timestamp` only; `SocialPostWords.shortDay`/`longDay` print the catalog's "now" for nil. Tests: `ResultSocialPostTests.withoutTimeOrSummaryThePreviewReadsNowAndUsesTheTitle` (red before the fix) and the window test `SokoBotSocialPostPreviewTests.anUndatedPostReadsNow` ("@sokosumi · now").
+
+## M10 deviation — reaction chips say who reacted at once
+
+The user reported the who-reacted names as missing on 2026-10-14; diagnosis showed SwiftUI resolved the chip's `.help` correctly (`dynamicToolTipStringAtPoint:trackingRect:` returned the names over the chip in a hosted room), and the user confirmed it appeared only after a long wait. Web shows its chip tooltip at once (`delayDuration = 0`) and fills a toggling chip on hover (`hover:bg-muted`). `MessageReactionsView` now tracks the hovered chip, fills it (accent or secondary, a step stronger) when it toggles, and publishes the chip's bounds and `whoReacted` as an anchor preference; `whoReactedLabel()`, applied on `MessageRowView` after the hover pill, draws the label above the chip's leading edge. An overlay on the chip itself was drawn under the row's hover pill, and an `alignmentGuide(.top)` inside that overlay was ignored, so the label hangs from a zero-height anchor instead. Window tests: `ReactionChipHoverTests` (label and fill red before the change). A throwaway render of two transcript rows, light and dark, with the pill showing, confirmed the label draws over the row above and over the pill, and wraps a 12-name list with "and 19 more".
+
+## M10 follow-up — keyboard focus shows who reacted
+
+Web's chip tooltip (Radix, `delayDuration = 0`) opens on keyboard focus as well as hover; #6374 left that open. `MessageReactionsView` now keeps a `@FocusState` keyed by emoji on each chip and publishes the label for the hovered chip, else the focused one, through the same anchor preference, still dropped while the transcript scrolls (M8). The fill stays hover-only. The read-only chip (web's `aria-disabled` button, still focusable there) gains `.focusable(interactions: .activate)`, so like the plain `Button` it joins the key loop only with Keyboard navigation on.
+
+No window test drives focus. In `ReactionChipHoverTests` the host is never active or key; a volatile `AppleKeyboardUIMode = 2` left `NSApp.isFullKeyboardAccessEnabled` false, and a Tab sent through `sendEvent`, `selectNextKeyView` or the hosting view's `keyDown` left the window itself first responder with no label drawn. A throwaway copy of `apps/apple` whose entry point hosts the chips in an active key window (launched through LaunchServices) showed the same: the `-AppleKeyboardUIMode` argument and the bundle's own defaults domain do not turn Keyboard navigation on, only the global setting does, which the probe did not change. With `.focusable()` added to the chips in that copy only, so focus moves without Keyboard navigation, the label followed focus: "Ada, Bob" on the first chip, "Cyd" after Tab, no fill on the focused chip, nothing once `isScrolling` went true, and the same on read-only chips. A pass with Keyboard navigation on in the signed app is pending.
+
+Review follow-up (Grok on #6376): a focused chip and a chip hovered in another row both drew names, because each `MessageRowView` draws its own label and "the pointer wins" held only inside one reactions row. Web shows one: Radix dispatches `tooltip.open` and every open tooltip closes on it (`@radix-ui/react-tooltip` 1.4.1). The transcript's `TranscriptScrollActivity`, already shared by every row of the room and Thread transcripts, now names the reactions row whose chip is under the pointer (`reactionRowUnderPointer`, a `@Namespace` id, released when the pointer leaves or the row disappears); a row shows its focus label only while that is nil, and reads it only while it holds focus and no pointer. In the throwaway probe with two rows, focus on the first row's chip and the pointer on the second row's chip drew only the second row's label; when the pointer left, the focus label returned. The same review removed a coverage profile (`default.profraw`) that the probe had written into `apps/apple` and the first commit picked up; `*.profraw` is ignored now.
+## SOK-1356: decode shared Soko Bot participants
+
+Not a `/apple-parity-next` row. It is the Apple layer of the shared Soko Bots stack (SOK-1356), on the Core rollout commit `feat(core): create and manage shared Soko Bots`. It must ship before the Core release that adds shared Soko Bots, and `MACOS_MINIMUM_BUILD` must move to the build that carries it: a build whose snapshot still requires `ownerUserId` cannot decode a room or message that carries one.
+
+### Contract
+
+`scripts/update-core-api.py` against the Core OpenAPI document written by `write-openapi-snapshot` at that commit. Structural diff:
+
+- `ChatRoomSokoBotParticipant.ownerUserId` is `string | null` (null for a shared Soko Bot), and a new required `scope` (`ChatRoomSokoBotScope`: `personal`, `project`, `workspace`).
+- `getMySokoBot`: the bot's `userId` is `string | null`, with new optional `projectId` and `viewerCanManage`; the response gains an optional `sharedBots` array of the new `SharedSokoBotSummary`. The endpoint still returns the caller's personal Soko Bot, so `userId` stays set there; Apple reads none of the new fields yet.
+- Descriptions only: `DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}`, `GET /soko-bots/me` 200, the 403 of `resolveMySokoBotDecision`, and `ChatRoom.isReadOnly` (also true for the Channel of an archived or deleted shared Soko Bot).
+
+No selected path was added or dropped. The new shared Soko Bot routes (scoped create, by-id routes) are not selected. A later revision of that commit adds `ChatRoomSokoBotParticipant.sharedRoomId`. This snapshot does not carry it, and its `ChatRoomSokoBotParticipant` sets no `additionalProperties`.
+
+### Behaviour
+
+- `ChannelEditPermissions.canRemove` keeps `ownerUserId == currentUserId`. A null owner never equals the caller, so the members panel offers no Remove for a shared Soko Bot. Core lets any host member remove one; Apple hides the action until it manages shared Soko Bots (a follow-up).
+- Removing a person drops only the Soko Bots they own (`WorkspaceState+ChannelMembers`); a shared Soko Bot stays, as Core keeps it.
+- The generated participant decoder is synthesized `Codable` and does not reject unknown keys, so builds without this change ignore `scope`.
+
+### Tests
+
+- `ChannelEditingTests.decodesSharedSokoBotWithoutOwner`: Core's JSON with `"ownerUserId":null` and `"scope":"project"` decodes, and the result is not removable. `removalMatrixMatchesCore` gains a workspace Soko Bot that nobody removes.
+- `WorkspaceStateTests.channelMembershipChangesReconcileTheRoomInPlace` and `memberRemovalBeatsAnInFlightRoomList`: a shared Soko Bot stays after the Guest leaves.
+- Every existing participant fixture now carries `scope: personal`.
+- Mutants, each restored from a copy: a null owner counted as the caller's in `canRemove` fails 2 tests; a null owner removed with any leaver fails 2 tests.
+
+### Verification
+
+All from `apps/apple`, on the snapshot from that commit:
+- `swift test --package-path Packages/CoreAPI`: **6 tests in 2 suites passed**; `Packages/SokosumiChat`: **1326 tests in 148 suites passed**; `Packages/SokosumiWorkspace`: **205 tests in 4 suites passed**.
+- `xcodebuild test … -enableCodeCoverage NO`: **2,084 tests, 2,082 passed, 2 failed**: `NativeWindowTests/StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` (Vision read the Message yourself row as "• You • Ada Lovelace", so the `hasPrefix("You")` check failed) and `NativeWindowTests/MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` ("The resting pointer filled its row before the gesture"). Both failed again when their two suites ran alone, and both fail the same way on `origin/main` (`f14ec4a8c`), so they are not caused by this change. Neither uses a Soko Bot participant.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0`: **Build complete**.
+- `mint run swiftformat --lint .`: **0/635 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 632 files**.
+
+Unverified: a shared Soko Bot in a running app; no deployed Core could create one when this was written.
+
+## 01b — the sign-in screen matches web's Log in page
+
+[#6431](https://github.com/masumi-network/sokosumi/pull/6431), taken outside the Work order at the user's request (2026-10-19). `SignInView` now draws web's auth layout ([layout.tsx](<../web/src/app/(auth)/layout.tsx>), [auth-header.tsx](<../web/src/app/(auth)/components/auth-header.tsx>), [auth-aside.tsx](<../web/src/app/(auth)/components/auth-aside.tsx>)). Every method (email, Google, Microsoft, passkey) stays on the web page the system browser opens. Assets: the wordmark (light and dark SVG), the Kanji mark (template SVG) and web's five auth photos as JPEG.
+
+Merging `main` brought #6398 (sign-up goes to the website) and #6399 (Debug server picker). Register keeps web's "Don't have an account? Register" line and opens `CoreSettings.signUpURL`. `ServerChoiceSection` stays under the terms notice in Debug builds.
+
+Recorded deviations: no customer-logo marquee and no Serviceplan quote (user choice); one "Continue in browser" button in place of web's per-method buttons; English only.
+
+Verification: `SignInViewTests` renders five states in light and dark. This Mac has Xcode 26.0.1, which cannot build the workspace (tools 6.4) or the app (type-checker limits in unrelated files). So the merged view, Register link and Debug picker included, was rendered through a standalone harness against the real `SokosumiAuth` and `CoreAPI`. The picker's fields keep leading text inside the centered column. The test suite, SwiftLint and SwiftFormat run in CI only. Unverified: the running app, a real browser round trip, keyboard focus and VoiceOver.
+
+Review follow-up, after #6431 merged (squash `7951fdf18`), taken from Cursor's draft #6432 by hand:
+- The wordmark SVGs carry `fill` on each path instead of CSS classes, which the asset catalog may drop.
+- The primary button and Register use a `BrandSolid` color asset: web's `--primary-solid`, `#2B5C78` light and `#336D8F` dark. The app's AccentColor is lighter in dark (`#418AB4`) and stays unchanged for the rest of the app.
+- Register and the terms notice stay up while the browser is open. The Debug server picker shows only when signed out, because Apply changes the issuer an attempt already started against.
+- Only "Log in" carries the header trait; the subtitle reads as its own line.
+- The legal footer wraps, centered, through `WrappingRow`'s new `centersRows`, so it fits the 420pt minimum window. `theLegalFooterFitsTheMinimumWindow` checks that each link is inside the window and none overlap.
+
+Not taken from #6432: its tests, which did not compile (calls on `NSObject` in its Apple CI run); a test comparing color constants with themselves; and a Larger Text test, since macOS ignored `dynamicTypeSize` set from the environment in a harness render. Verified the same way as above: the harness rendered every state in light and dark and at 420pt. Tests and lint run in CI only.

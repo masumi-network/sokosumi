@@ -24,6 +24,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   dataTableSchema,
+  dataTableSummarySchema,
   tableBatchResultSchema,
   tableColumnSchema,
   tableRowSchema,
@@ -374,6 +375,7 @@ export async function createDataTable(
   );
 }
 
+/** Most recently changed first; the cursor is the last table ID of a page. */
 export async function listDataTables(
   actor: TableActor,
   options: {
@@ -381,33 +383,51 @@ export async function listDataTables(
     limit?: number;
     archived?: boolean;
     projectId?: string;
+    search?: string;
   } = {},
 ) {
   const scope = await scopeForTask(actor, null, prisma);
   const limit = Math.min(options.limit ?? 50, 100);
-  const tables = await prisma.dataTable.findMany({
-    where: {
-      workspaceId: actor.workspaceId,
-      ...(scope ? { id: scope.tableId } : {}),
-      archivedAt: options.archived ? { not: null } : null,
-      ...(options.cursor ? { AND: [{ id: { gt: options.cursor } }] } : {}),
-      ...(options.projectId ? { projectId: options.projectId } : {}),
-    },
-    orderBy: { id: "asc" },
-    take: limit + 1,
-    include: tableInclude,
-  });
-  const total = await prisma.dataTable.count({
-    where: {
-      workspaceId: actor.workspaceId,
-      ...(scope ? { id: scope.tableId } : {}),
-      archivedAt: options.archived ? { not: null } : null,
-      ...(options.projectId ? { projectId: options.projectId } : {}),
-    },
-  });
+  const search = options.search?.trim();
+  const where: Prisma.DataTableWhereInput = {
+    workspaceId: actor.workspaceId,
+    ...(scope ? { id: scope.tableId } : {}),
+    archivedAt: options.archived ? { not: null } : null,
+    ...(options.projectId ? { projectId: options.projectId } : {}),
+    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
+  };
+  const cursor = options.cursor
+    ? await prisma.dataTable.findFirst({
+        where: { id: options.cursor, workspaceId: actor.workspaceId },
+        select: { id: true, updatedAt: true },
+      })
+    : null;
+  if (options.cursor && !cursor)
+    throw unprocessableEntity("Invalid table cursor");
+  const [tables, total] = await Promise.all([
+    prisma.dataTable.findMany({
+      where: cursor
+        ? {
+            ...where,
+            OR: [
+              { updatedAt: { lt: cursor.updatedAt } },
+              { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
+            ],
+          }
+        : where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      include: { _count: { select: { columns: true } } },
+    }),
+    prisma.dataTable.count({ where }),
+  ]);
   return {
     total,
-    items: tables.slice(0, limit).map((table) => dataTableSchema.parse(table)),
+    items: tables
+      .slice(0, limit)
+      .map(({ _count, ...table }) =>
+        dataTableSummarySchema.parse({ ...table, columnCount: _count.columns }),
+      ),
     nextCursor: tables.length > limit ? tables[limit - 1].id : null,
   };
 }
@@ -415,10 +435,14 @@ export async function listDataTables(
 export async function mutateDataTable(
   actor: TableActor,
   id: string,
-  input: z.infer<typeof tableMutationSchema>,
+  input: z.infer<typeof tableMutationSchema> & {
+    /** Columns to delete, with their values; named, so a column left out of `columns` by mistake is never lost. */
+    removeColumnIds?: string[];
+  },
   complete?: TableOperationCompletion,
 ) {
   const body = tableMutationSchema.parse(input);
+  const removed = new Set(input.removeColumnIds ?? []);
   if (await scopeForTask(actor, id, prisma))
     throw forbidden("Selected-row tasks cannot change table metadata");
   if (
@@ -431,13 +455,22 @@ export async function mutateDataTable(
   return operation(
     actor,
     body.key,
-    { id, metadata: body },
+    removed.size
+      ? { id, metadata: body, removeColumnIds: input.removeColumnIds }
+      : { id, metadata: body },
     async (tx, batchId) => {
       if (await scopeForTask(actor, id, tx))
         throw forbidden("Selected-row tasks cannot change table metadata");
       const table = await requireDataTable(actor, id, tx);
       if (table.version !== body.version)
         throw conflict("Table schema changed. Reload before editing.");
+      if (removed.size) {
+        assertEditable(table);
+        if ([...removed].some((c) => !table.columns.some((x) => x.id === c)))
+          throw unprocessableEntity("Unknown column to remove");
+        if (body.columns?.some((column) => column.id && removed.has(column.id)))
+          throw unprocessableEntity("A removed column cannot also be kept");
+      }
       if (body.columns) {
         assertEditable(table);
         const columns = body.columns.map((column) => ({
@@ -450,11 +483,13 @@ export async function mutateDataTable(
         );
         if (
           table.columns.some(
-            (column) => !columns.some((next) => next.id === column.id),
+            (column) =>
+              !removed.has(column.id) &&
+              !columns.some((next) => next.id === column.id),
           )
         )
           throw unprocessableEntity(
-            "Columns cannot be removed; hide them in a view",
+            "List every column you keep; delete one only by naming it in removeColumnIds",
           );
         for (const [position, column] of columns.entries()) {
           const previous = table.columns.find((item) => item.id === column.id);
@@ -492,6 +527,7 @@ export async function mutateDataTable(
             });
         }
       }
+      if (removed.size) await removeColumns(tx, table, [...removed]);
       const updated = await tx.dataTable.update({
         where: { id },
         data: {
@@ -520,6 +556,54 @@ export async function mutateDataTable(
     },
     complete,
   );
+}
+
+/** Deletes columns with their values, and drops them from saved views. */
+async function removeColumns(
+  tx: Prisma.TransactionClient,
+  table: Awaited<ReturnType<typeof requireDataTable>>,
+  ids: string[],
+) {
+  const left = await tx.tableColumn.count({
+    where: { tableId: table.id, id: { notIn: ids } },
+  });
+  if (left < 1) throw unprocessableEntity("A table keeps at least one column");
+  // A Coworker filling these columns would fail on its next write.
+  const busy = await tx.tableTaskScope.findFirst({
+    where: {
+      tableId: table.id,
+      columnIds: { hasSome: ids },
+      task: {
+        status: { in: ["READY", "QUEUED", "RUNNING", "INPUT_REQUIRED"] },
+      },
+    },
+    select: { task: { select: { name: true } } },
+  });
+  if (busy)
+    throw conflict(
+      `"${busy.task.name}" is still filling this column; cancel it or wait before deleting the column`,
+    );
+  await tx.tableColumn.deleteMany({
+    where: { tableId: table.id, id: { in: ids } },
+  });
+  await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
+  const gone = new Set(ids);
+  for (const view of table.views) {
+    const definition = tableViewDefinitionSchema.parse(view.definition);
+    const next = {
+      filters: definition.filters.filter((f) => !gone.has(f.columnId)),
+      sort:
+        definition.sort && gone.has(definition.sort.columnId)
+          ? null
+          : definition.sort,
+      visibleColumnIds: definition.visibleColumnIds.filter((c) => !gone.has(c)),
+    };
+    if (canonical(next) !== canonical(definition))
+      await tx.tableView.update({
+        where: { id: view.id },
+        data: { definition: next, version: { increment: 1 } },
+      });
+  }
 }
 
 async function scopeForTask(
@@ -589,6 +673,92 @@ async function scopeForTask(
   return scope;
 }
 
+/** Renumbers a table's rows 1..n in their current order. */
+async function renumberRowPositions(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+) {
+  await tx.$executeRaw(PrismaRaw.sql`
+    UPDATE "table_row" AS r SET "position" = ordered.n
+    FROM (
+      SELECT "id", row_number() OVER (ORDER BY "position", "id") AS n
+      FROM "table_row" WHERE "tableId" = ${tableId}::uuid
+    ) AS ordered
+    WHERE r."id" = ordered."id"
+  `);
+}
+
+/** The row directly before `rowId` in table order, or null when it is first. */
+async function predecessorOf(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+  rowId: string,
+): Promise<string | null> {
+  const [row] = await tx.$queryRaw<Array<{ id: string }>>(PrismaRaw.sql`
+    SELECT p."id"::text FROM "table_row" AS p, "table_row" AS r
+    WHERE r."id" = ${rowId}::uuid AND p."tableId" = r."tableId"
+      AND p."tableId" = ${tableId}::uuid
+      AND (p."position", p."id") < (r."position", r."id")
+    ORDER BY p."position" DESC, p."id" DESC LIMIT 1
+  `);
+  return row?.id ?? null;
+}
+
+function isRowMove(change: { after: unknown }): boolean {
+  const value = (change.after as { value?: unknown } | null)?.value;
+  return !!value && typeof value === "object" && "afterRowId" in value;
+}
+
+/** A position that places `rowId` directly after `afterRowId`, or first when null. */
+async function positionAfter(
+  tx: Prisma.TransactionClient,
+  tableId: string,
+  rowId: string,
+  afterRowId: string | null,
+  renumbered = false,
+): Promise<number> {
+  if (afterRowId === rowId)
+    throw unprocessableEntity("A row cannot move after itself");
+  const lower = afterRowId
+    ? await tx.tableRow.findFirst({
+        where: { id: afterRowId, tableId },
+        select: { id: true, position: true },
+      })
+    : null;
+  if (afterRowId && !lower) throw notFound("Row not found");
+  const upper = await tx.tableRow.findFirst({
+    where: {
+      tableId,
+      id: { not: rowId },
+      ...(lower
+        ? {
+            OR: [
+              { position: { gt: lower.position } },
+              { position: lower.position, id: { gt: lower.id } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ position: "asc" }, { id: "asc" }],
+    select: { position: true },
+  });
+  if (!lower) return upper ? upper.position - 1 : 0;
+  if (!upper) {
+    // Last: at least the current insert time, so a row inserted afterwards
+    // (whose position defaults to its insert time) still lands below it.
+    const [{ now }] = await tx.$queryRaw<Array<{ now: number }>>(
+      PrismaRaw.sql`SELECT EXTRACT(epoch FROM clock_timestamp())::double precision AS now`,
+    );
+    return Math.max(now, lower.position + 0.001);
+  }
+  const middle = (lower.position + upper.position) / 2;
+  if (lower.position < middle && middle < upper.position) return middle;
+  // Equal neighbours or exhausted float precision: spread positions and retry.
+  if (renumbered) throw conflict("Row order could not be updated. Retry.");
+  await renumberRowPositions(tx, tableId);
+  return positionAfter(tx, tableId, rowId, afterRowId, true);
+}
+
 export async function batchTableRows(
   actor: TableActor,
   id: string,
@@ -646,6 +816,7 @@ export async function batchTableRows(
           scope &&
           (!scope.rowIds.includes(patch.id) ||
             patch.archived !== undefined ||
+            patch.afterRowId !== undefined ||
             Object.keys(patch.values).some(
               (columnId) => !scope.columnIds.includes(columnId),
             ))
@@ -684,11 +855,28 @@ export async function batchTableRows(
           evidence[columnId] = patch.evidence[columnId] ?? [];
         }
         validateTableValues(columns, values, evidence);
+        let position: number | undefined;
+        if (patch.afterRowId !== undefined) {
+          // Audited as neighbours, not positions: a renumber rewrites positions.
+          const before = await predecessorOf(tx, id, previous.id);
+          position = await positionAfter(tx, id, previous.id, patch.afterRowId);
+          audit.push(
+            changeData(
+              scopedActor,
+              id,
+              batchId,
+              { afterRowId: before },
+              { afterRowId: patch.afterRowId },
+              previous.id,
+            ),
+          );
+        }
         const updated = await tx.tableRow.update({
           where: { id: previous.id },
           data: {
             values,
             evidence,
+            position,
             version: { increment: 1 },
             archivedAt:
               patch.archived === undefined
@@ -758,7 +946,19 @@ export async function queryTableRows(
       terms.push(
         PrismaRaw.sql`r.values -> ${filter.columnId} = ${JSON.stringify(filter.value ?? null)}::jsonb`,
       );
-    else
+    else if (
+      table.columns.find((column) => column.id === filter.columnId)?.type ===
+      "multiple_select"
+    ) {
+      // A tag matches a whole option, never a substring of the array's JSON.
+      const tags = (
+        Array.isArray(filter.value) ? filter.value : [filter.value]
+      ).filter((tag) => typeof tag === "string" && tag !== "");
+      if (tags.length)
+        terms.push(
+          PrismaRaw.sql`r.values -> ${filter.columnId} @> ${JSON.stringify(tags)}::jsonb`,
+        );
+    } else
       terms.push(
         PrismaRaw.sql`strpos(lower(r.values ->> ${filter.columnId}), lower(${String(filter.value ?? "")})) > 0`,
       );
@@ -768,13 +968,13 @@ export async function queryTableRows(
   );
   const sort = query.sort
     ? PrismaRaw.sql`COALESCE(r.values -> ${query.sort.columnId}, 'null'::jsonb)`
-    : PrismaRaw.sql`r.id`;
+    : PrismaRaw.sql`r.position`;
   const direction =
     query.sort?.direction === "desc" ? PrismaRaw.sql`DESC` : PrismaRaw.sql`ASC`;
   if (query.cursor) {
     const cursor = await prisma.tableRow.findFirst({
       where: { id: query.cursor, tableId: id },
-      select: { id: true, values: true },
+      select: { id: true, values: true, position: true },
     });
     if (!cursor || (scope && !scope.rowIds.includes(cursor.id)))
       throw unprocessableEntity("Invalid row cursor");
@@ -782,7 +982,7 @@ export async function queryTableRows(
       query.sort?.direction === "desc" ? PrismaRaw.sql`<` : PrismaRaw.sql`>`;
     const cursorValue = query.sort
       ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
-      : PrismaRaw.sql`${cursor.id}::uuid`;
+      : PrismaRaw.sql`${cursor.position}::double precision`;
     terms.push(
       PrismaRaw.sql`(${sort}, r.id) ${operator} (${cursorValue}, ${cursor.id}::uuid)`,
     );
@@ -886,7 +1086,9 @@ export async function undoTableBatch(
       for (const row of currentRows) {
         const rowChanges = changes.filter((item) => item.rowId === row.id);
         const earliest = rowChanges[rowChanges.length - 1].sequence;
-        const later = await tx.tableChange.findFirst({
+        const undoesMove = rowChanges.some(isRowMove);
+        const laterChanges = await tx.tableChange.findMany({
+          select: { after: true },
           where: {
             tableId: id,
             rowId: row.id,
@@ -908,13 +1110,15 @@ export async function undoTableBatch(
               : {}),
           },
         });
-        if (later)
+        // A later move changes no values, so it only blocks undoing a move.
+        if (laterChanges.some((change) => undoesMove || !isRowMove(change)))
           throw conflict(
             "A value in this batch changed later. Nothing was undone.",
           );
         const values = tableValuesSchema.parse(row.values);
         const evidence = tableEvidenceSchema.parse(row.evidence);
         let archivedAt = row.archivedAt;
+        let moveAfter: string | null | undefined;
         for (const item of rowChanges) {
           const before = item.before as { value: unknown };
           const after = item.after as { value: unknown };
@@ -937,6 +1141,9 @@ export async function undoTableBatch(
             values[item.columnId] = previous.value;
             evidence[item.columnId] = previous.evidence;
           } else if (before.value === null) archivedAt = new Date();
+          else if (isRowMove(item))
+            moveAfter = (before.value as { afterRowId: string | null })
+              .afterRowId;
           else
             archivedAt = (before.value as { archived: boolean }).archived
               ? new Date()
@@ -959,7 +1166,16 @@ export async function undoTableBatch(
           tableRowSchema.parse(
             await tx.tableRow.update({
               where: { id: row.id },
-              data: { values, evidence, archivedAt, version: { increment: 1 } },
+              data: {
+                values,
+                evidence,
+                archivedAt,
+                position:
+                  moveAfter === undefined
+                    ? undefined
+                    : await positionAfter(tx, id, row.id, moveAfter),
+                version: { increment: 1 },
+              },
             }),
           ),
         );
@@ -967,6 +1183,10 @@ export async function undoTableBatch(
       if (currentRows.length !== rowIds.length)
         throw conflict("Row is no longer available");
       await persistChanges(tx, audit);
+      await tx.dataTable.update({
+        where: { id },
+        data: { updatedAt: new Date() },
+      });
       return { tableId: id, result: { batchId, rows } };
     },
   );

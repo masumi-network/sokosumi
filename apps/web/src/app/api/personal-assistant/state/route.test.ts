@@ -15,6 +15,12 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 import { GET } from "./route";
 
+const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
+
+function stateRequest(query = "") {
+  return new Request(`https://web.test/api/personal-assistant/state${query}`);
+}
+
 describe("GET /api/personal-assistant/state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,7 +29,7 @@ describe("GET /api/personal-assistant/state", () => {
   it("returns 401 when the browser has no session", async () => {
     getSessionResultMock.mockResolvedValue(ok(null));
 
-    const response = await GET();
+    const response = await GET(stateRequest());
 
     expect(response.status).toBe(401);
     expect(getChatStateMock).not.toHaveBeenCalled();
@@ -38,7 +44,7 @@ describe("GET /api/personal-assistant/state", () => {
       err({ path: "/auth/get-session", reason: "timeout" }),
     );
 
-    const response = await GET();
+    const response = await GET(stateRequest());
 
     expect(response.status).toBe(503);
     expect(response.headers.get("Retry-After")).toBe("1");
@@ -46,6 +52,33 @@ describe("GET /api/personal-assistant/state", () => {
       error: "State unavailable",
       reason: "timeout",
     });
+    expect(getChatStateMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the caller's own bot without a bot id", async () => {
+    getSessionResultMock.mockResolvedValue(ok({ user: { id: "u1" } }));
+    getChatStateMock.mockResolvedValue(null);
+
+    const response = await GET(stateRequest());
+
+    expect(response.status).toBe(200);
+    expect(getChatStateMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it("reads the shared bot named by botId", async () => {
+    getSessionResultMock.mockResolvedValue(ok({ user: { id: "u1" } }));
+    getChatStateMock.mockResolvedValue(null);
+
+    const response = await GET(stateRequest(`?botId=${BOT_ID}`));
+
+    expect(response.status).toBe(200);
+    expect(getChatStateMock).toHaveBeenCalledWith(BOT_ID);
+  });
+
+  it("returns 400 for a bot id that is not a uuid", async () => {
+    const response = await GET(stateRequest("?botId=nope"));
+
+    expect(response.status).toBe(400);
     expect(getChatStateMock).not.toHaveBeenCalled();
   });
 });

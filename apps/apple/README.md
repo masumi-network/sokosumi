@@ -62,15 +62,9 @@ the release App and Sparkle keys by
 
 Open `Sokosumi.xcworkspace` (not the bare project — the workspace is what makes the package tests reachable from the `Sokosumi` scheme), select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
 
-Configuration resolves environment variables before the corresponding Info.plist keys:
+The OAuth client ID resolves the `SOKOSUMI_OAUTH_CLIENT_ID` environment variable before the `SokosumiOAuthClientID` Info.plist key.
 
-| Environment | Info.plist | Purpose |
-| --- | --- | --- |
-| `SOKOSUMI_CORE_BASE_URL` | `SokosumiCoreBaseURL` | Core API URL, including `/v1` |
-| `SOKOSUMI_WEB_BASE_URL` | `SokosumiWebBaseURL` | Web origin for setup links |
-| `SOKOSUMI_OAUTH_CLIENT_ID` | `SokosumiOAuthClientID` | Registered public OAuth client ID |
-
-The URL defaults point to production. Sign-in uses system-browser OAuth with PKCE and Keychain token storage. It does not reuse the web app's cookies.
+A Release build always talks to production (`https://api.sokosumi.com/v1` and `https://app.sokosumi.com`); nothing redirects it. A Debug build ("Sokosumi Dev") shows a **Server** section on the signed-out sign-in screen: type the Core API URL and web origin (a PR preview from `/deploy mainnet`, or local portless) and press Apply. A Core URL without a path gets `/v1`. The choice survives relaunch; Use production clears it. It is editable only while signed out, because tokens belong to the issuer that minted them, and the client ID stays the mainnet one, so only mainnet-backed servers sign in. Sign-in uses system-browser OAuth with PKCE and Keychain token storage. It does not reuse the web app's cookies.
 
 The browser returns to the app at `https://app.sokosumi.com/auth/apple/callback`, a link only this app can claim, so nobody is asked to authorize it. That needs a build signed for the team: an ad-hoc build (`DEVELOPMENT_TEAM=`) runs the tests but cannot sign in. See [AGENTS.md](AGENTS.md#oauth-and-core-setup).
 

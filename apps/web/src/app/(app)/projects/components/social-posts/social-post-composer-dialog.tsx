@@ -7,16 +7,19 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaValidationReason,
+  socialPostFirstCommentLimit,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
@@ -24,6 +27,16 @@ import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -51,6 +64,10 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import {
+  accountChipLabel,
+  formatComposerHandle,
+} from "./social-post-account-chip-label";
+import {
   initialCreateConnectionIds,
   readRememberedComposerAccounts,
   writeRememberedComposerAccounts,
@@ -64,12 +81,18 @@ import {
   socialPostComposerRequirements,
 } from "./social-post-composer-rules";
 import {
+  type SocialPostComposerText,
+  socialPostTextFor,
+  socialPostTextWrite,
+} from "./social-post-composer-text";
+import {
   buildSocialPostMediaRef,
   hasSocialPostMedia,
   sameSocialPostMedia,
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
+import { publishFailureCopy } from "./social-post-publish-failure";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -77,7 +100,7 @@ import {
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
-  | { kind: "create" }
+  | { kind: "create"; media?: SocialPostMediaRef[]; text?: string }
   | { kind: "edit"; post: SocialPost }
   | { kind: "schedule"; post: SocialPost };
 
@@ -96,13 +119,33 @@ interface SocialPostComposerDialogProps {
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
 
-function formatHandle(handle: string | null): string {
-  if (!handle) return "";
-  return handle.startsWith("@") ? handle : `@${handle}`;
+function accountLabel(connection: ProjectSocialConnection): string {
+  return (
+    formatComposerHandle(connection.externalHandle) ||
+    connection.displayName ||
+    socialPostProviderLabel(connection.provider)
+  );
 }
 
-/** An IANA zone as people read it: `America/New_York` → `America/New York`. */
-function zoneName(timezone: string): string {
+/** The zone as people read it: `America/New_York` → `Eastern Time`. */
+function zoneName(
+  timezone: string,
+  locale: string,
+  at: Date = new Date(),
+): string {
+  try {
+    const nameFor = (timeZoneName: "longGeneric" | "long") =>
+      new Intl.DateTimeFormat(locale, { timeZone: timezone, timeZoneName })
+        .formatToParts(at)
+        .find((part) => part.type === "timeZoneName")?.value;
+    const generic = nameFor("longGeneric");
+    // UTC's generic name is an offset (`GMT+00:00`); the long name is words.
+    if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
+    const longName = nameFor("long");
+    if (longName) return longName;
+  } catch {
+    // Unknown IANA zone from an old post.
+  }
   return timezone.replaceAll("_", " ");
 }
 
@@ -122,14 +165,18 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
+  const firstCommentId = useId();
   const isMobile = useIsMobile();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
+  const tooLongId = useId();
   const publishHintId = useId();
+  const saveHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
@@ -168,9 +215,18 @@ export function SocialPostComposerDialog({
   const organizationId = session?.session.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
-  const [text, setText] = useState(post?.text ?? "");
+  const [copy, setCopy] = useState<SocialPostComposerText>({
+    shared: mode.kind === "create" ? (mode.text ?? "") : (post?.text ?? ""),
+    byConnectionId: {},
+    lastSharedEditId: null,
+  });
+  const [firstComment, setFirstComment] = useState(post?.firstComment ?? "");
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
-    post?.media ? [...post.media] : [],
+    mode.kind === "create"
+      ? [...(mode.media ?? [])]
+      : post?.media
+        ? [...post.media]
+        : [],
   );
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.
@@ -188,12 +244,44 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState(
     post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
   );
+  const suggestedConnectionId =
+    connectionIds.length === 1 ? connectionIds[0] : undefined;
+  const { data: suggestedTimes } = useQuery({
+    queryKey: [
+      "social-suggested-times",
+      session?.user?.id,
+      session?.session.activeOrganizationId ?? null,
+      projectId,
+      suggestedConnectionId,
+      viewerTimezone,
+    ],
+    queryFn: async () =>
+      (
+        await coreClient.getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
+          projectId,
+          suggestedConnectionId!,
+          { timezone: viewerTimezone },
+        )
+      ).data,
+    enabled:
+      open && Boolean(suggestedConnectionId) && Boolean(session?.user?.id),
+    staleTime: 5 * 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [previewConnectionId, setPreviewConnectionId] = useState<string | null>(
     null,
   );
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [initial] = useState(() => ({
+    text: post?.text ?? "",
+    media: post?.media ?? [],
+    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+  }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
@@ -229,41 +317,92 @@ export function SocialPostComposerDialog({
     )?.provider ??
     post?.provider ??
     providers[0];
-  // One text goes to every selected account, so the strictest one rules.
+  // Media errors still name the strictest selected provider.
   const provider = providers.reduce((strictest, candidate) =>
     SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
       ? candidate
       : strictest,
   );
-  const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
   const accept = socialPostComposerAccept(providers);
-  const issueProvider =
-    providers.find(
-      (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
-    ) ?? provider;
-  const composerIssue = socialPostComposerIssue(issueProvider, text, media);
-  const draftIssueProvider =
-    providers.find(
-      (candidate) =>
-        socialPostComposerDraftIssue(candidate, text, media) !== null,
-    ) ?? provider;
-  const draftIssue = socialPostComposerDraftIssue(
-    draftIssueProvider,
-    text,
-    media,
+  function textFor(connectionId: string | null | undefined): string {
+    return socialPostTextFor(connectionId, copy);
+  }
+  function setDisplayedText(next: string): void {
+    setCopy((current) =>
+      socialPostTextWrite(
+        previewConnection?.id,
+        next,
+        current,
+        multiAccount && selectedConnections.length > 1,
+      ),
+    );
+  }
+  const displayedText = textFor(previewConnection?.id);
+  const displayedLimit =
+    SOCIAL_POST_TEXT_LIMITS[previewConnection ? previewProvider : provider];
+  const displayedOverLimit = displayedText.length > displayedLimit;
+  const accountTexts =
+    selectedConnections.length > 0
+      ? selectedConnections.map((connection) => ({
+          provider: connection.provider,
+          text: textFor(connection.id),
+        }))
+      : providers.map((candidate) => ({
+          provider: candidate,
+          text: copy.shared,
+        }));
+  const issueAccount =
+    accountTexts.find(
+      (account) =>
+        socialPostComposerIssue(account.provider, account.text, media) !== null,
+    ) ?? accountTexts[0];
+  const composerIssue = issueAccount
+    ? socialPostComposerIssue(issueAccount.provider, issueAccount.text, media)
+    : null;
+  const draftIssueAccount =
+    accountTexts.find(
+      (account) =>
+        socialPostComposerDraftIssue(account.provider, account.text, media) !==
+        null,
+    ) ?? accountTexts[0];
+  const draftIssue = draftIssueAccount
+    ? socialPostComposerDraftIssue(
+        draftIssueAccount.provider,
+        draftIssueAccount.text,
+        media,
+      )
+    : null;
+  const requirementHints = socialPostComposerRequirements(accountTexts, media);
+  const trimmedText = displayedText.trim();
+  const overLimit = accountTexts.some(
+    (account) =>
+      account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
   );
-  const requirementHints = socialPostComposerRequirements(
-    providers,
-    text,
-    media,
+  const trimmedFirstComment = firstComment.trim();
+  const commentProviders = (
+    selectedConnections.length > 0
+      ? selectedConnections.map((connection) => connection.provider)
+      : providers
+  ).filter(socialPostSupportsFirstComment);
+  const showFirstComment = commentProviders.length > 0;
+  const firstCommentLimit = commentProviders.reduce(
+    (strictest, candidate) =>
+      Math.min(
+        strictest,
+        socialPostFirstCommentLimit(candidate) ?? SOCIAL_POST_FIRST_COMMENT_MAX,
+      ),
+    SOCIAL_POST_FIRST_COMMENT_MAX,
   );
-  const trimmedText = text.trim();
-  const overLimit = text.length > textLimit;
+  const overFirstComment =
+    showFirstComment && firstComment.length > firstCommentLimit;
   const mediaValid = providers.every(
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
-  const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
-  const draftValid = isScheduleOnly || (draftIssue === null && !overLimit);
+  const textValid =
+    isScheduleOnly ||
+    (composerIssue === null && !overLimit && !overFirstComment);
+  const draftValid =
+    isScheduleOnly || (draftIssue === null && !overLimit && !overFirstComment);
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -468,16 +607,27 @@ export function SocialPostComposerDialog({
     }
   }
 
+  function nameIfMany(
+    connection: ProjectSocialConnection,
+    error: string,
+  ): string {
+    if (selectedConnections.length <= 1) return error;
+    return t("toasts.publishFailedItem", {
+      account: accountLabel(connection),
+      error,
+    });
+  }
+
   /**
    * Creates the post for each picked account and publishes it at once. A
    * post that fails to publish stays in Needs attention to retry, so the
-   * reader loses nothing; the toast names the first failure.
+   * reader loses nothing. The toast names every failed account.
    */
   async function handlePublishNow(): Promise<void> {
     if (!canPublishNow) return;
     setPending("publish");
     let published = 0;
-    let failure: string | null = null;
+    const failures: string[] = [];
     // Accounts whose post now exists, live or in Needs attention. If the run
     // stops early they leave the selection, so Post now again never posts a
     // second copy to them.
@@ -486,12 +636,19 @@ export function SocialPostComposerDialog({
       for (const connection of selectedConnections) {
         const created = await createProjectSocialPost({
           projectId,
-          text: trimmedText,
+          text: textFor(connection.id).trim(),
+          ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
-          onError(created.error);
+          onError({
+            ...created.error,
+            message: nameIfMany(
+              connection,
+              created.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         const result = await publishProjectSocialPost({
@@ -502,21 +659,26 @@ export function SocialPostComposerDialog({
         done.push(connection.id);
         if (!result.ok) {
           onSaved(created.value);
-          onError(result.error);
+          onError({
+            ...result.error,
+            message: nameIfMany(
+              connection,
+              result.error.message ?? t("toasts.failed"),
+            ),
+          });
           return;
         }
         onSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
-          failure ??=
-            result.value.lastAttempt?.outcome === "authorization_revoked"
-              ? t("outcomes.authorizationRevoked")
-              : (result.value.lastError ?? t("toasts.failed"));
+          const reason =
+            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+          failures.push(nameIfMany(connection, reason));
         }
       }
-      if (failure) {
-        toast.error(t("toasts.publishFailed", { error: failure }));
+      if (failures.length > 0) {
+        toast.error(t("toasts.publishFailed", { error: failures.join("; ") }));
       } else {
         toast.success(t("toasts.publishedMany", { count: published }));
       }
@@ -591,6 +753,7 @@ export function SocialPostComposerDialog({
           projectId,
           postId: mode.post.id,
           text: trimmedText,
+          firstComment: trimmedFirstComment,
           media,
           socialConnectionId: connectionId || null,
           revision: mode.post.revision,
@@ -608,7 +771,8 @@ export function SocialPostComposerDialog({
       const created = await createForEachAccount((socialConnectionId) =>
         createProjectSocialPost({
           projectId,
-          text: trimmedText,
+          text: textFor(socialConnectionId).trim(),
+          ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
           socialConnectionId,
         }),
@@ -634,7 +798,10 @@ export function SocialPostComposerDialog({
         const created = await createForEachAccount((socialConnectionId) =>
           createProjectSocialPost({
             projectId,
-            text: trimmedText,
+            text: textFor(socialConnectionId).trim(),
+            ...(trimmedFirstComment
+              ? { firstComment: trimmedFirstComment }
+              : {}),
             media,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
@@ -651,12 +818,14 @@ export function SocialPostComposerDialog({
       let revision = mode.post.revision;
       const contentChanged =
         trimmedText !== mode.post.text ||
+        trimmedFirstComment !== (mode.post.firstComment ?? "") ||
         !sameSocialPostMedia(media, mode.post.media);
       if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
           postId: mode.post.id,
           text: trimmedText,
+          firstComment: trimmedFirstComment,
           media,
           revision,
         });
@@ -713,16 +882,42 @@ export function SocialPostComposerDialog({
     </div>
   );
 
-  const hasContent = trimmedText !== "" || media.length > 0;
+  const hasContent =
+    media.length > 0 ||
+    accountTexts.some((account) => account.text.trim() !== "");
+  const isDirty =
+    mode.kind === "create"
+      ? firstComment.trim() !== "" ||
+        copy.shared.trim() !== "" ||
+        Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
+        media.length > 0 ||
+        scheduledAt !== ""
+      : firstComment !== (post?.firstComment ?? "") ||
+        displayedText !== initial.text ||
+        !sameSocialPostMedia(media, initial.media) ||
+        scheduledAt !== initial.scheduledAt ||
+        (connectionIds[0] ?? "") !== initial.connectionId;
+
+  function handleComposerOpenChange(nextOpen: boolean): void {
+    if (!nextOpen && isDirty) {
+      setDiscardOpen(true);
+      return;
+    }
+    onOpenChange(nextOpen);
+  }
+
   const footerMessage = scheduledAtTooSoon ? (
     <p id={scheduledAtErrorId} className="text-destructive">
       {t("composer.scheduledAtTooSoon")}
     </p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
-  ) : overLimit ? (
-    <p className="text-destructive" data-testid="social-post-too-long">
-      {t("composer.tooLong")}
+  ) : overFirstComment ? (
+    <p
+      className="text-destructive"
+      data-testid="social-post-first-comment-too-long"
+    >
+      {t("composer.firstCommentTooLong")}
     </p>
   ) : null;
   const requirementHintLines = requirementHints.map(
@@ -733,13 +928,37 @@ export function SocialPostComposerDialog({
       }),
     }),
   );
-  // Post now is off because the draft still needs text or media. The
-  // disabled button ignores pointer events, so the tooltip lives on a
-  // focusable wrapper.
-  const showPublishRequirementHint =
-    primaryAction === "publish" &&
+  // Post now or Schedule is off because the draft still needs text or
+  // media. The disabled button ignores pointer events, so the tooltip
+  // lives on a focusable wrapper.
+  const showRequirementHint =
+    (primaryAction === "publish" || primaryAction === "schedule") &&
     !primaryEnabled &&
     requirementHintLines.length > 0;
+  // Save draft is off because there is nothing to keep. Instagram still
+  // needs media to post, but a caption alone can be a draft.
+  const saveHint = t("composer.requirements.text_or_media_required");
+  const showSaveRequirementHint =
+    !isScheduleOnly &&
+    primaryAction !== "save" &&
+    !canSave &&
+    !isBusy &&
+    !overLimit &&
+    !hasContent;
+  const saveDraftButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      disabled={!canSave}
+      loading={pending === "save"}
+      onClick={() => {
+        void handleSaveDraft();
+      }}
+      aria-describedby={showSaveRequirementHint ? saveHintId : undefined}
+    >
+      {saveLabel}
+    </Button>
+  );
   const primaryButton = (
     <Button
       type="button"
@@ -747,22 +966,24 @@ export function SocialPostComposerDialog({
       disabled={!primaryEnabled}
       loading={pending === primaryAction}
       onClick={runPrimary}
-      aria-describedby={showPublishRequirementHint ? publishHintId : undefined}
+      aria-describedby={showRequirementHint ? publishHintId : undefined}
     >
       {primaryLabel}
-      <kbd
-        aria-hidden
-        className="hidden font-sans text-xs opacity-70 sm:inline"
-      >
-        ⌘↵
-      </kbd>
+      {primaryEnabled ? (
+        <kbd
+          aria-hidden
+          className="hidden font-sans text-xs opacity-70 sm:inline"
+        >
+          ⌘↵
+        </kbd>
+      ) : null}
     </Button>
   );
 
   return (
     <TaskFormModal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleComposerOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={title}
       cancelLabel={t("composer.dismiss")}
@@ -846,6 +1067,7 @@ export function SocialPostComposerDialog({
                   </div>
                 ) : (
                   <div
+                    aria-invalid={needsAccount || undefined}
                     aria-labelledby={accountsLabelId}
                     className="flex flex-wrap items-center gap-2"
                     data-testid="social-post-accounts"
@@ -853,9 +1075,10 @@ export function SocialPostComposerDialog({
                   >
                     {connections.map((connection) => {
                       const selected = connectionIds.includes(connection.id);
-                      const handle =
-                        formatHandle(connection.externalHandle) ||
-                        t("composer.unknownHandle");
+                      const handle = accountChipLabel(
+                        connection,
+                        t("composer.unknownHandle"),
+                      );
                       return (
                         <button
                           aria-label={t("composer.accountOption", {
@@ -887,22 +1110,44 @@ export function SocialPostComposerDialog({
                         </button>
                       );
                     })}
+                    {needsAccount ? (
+                      <p
+                        className="text-destructive basis-full text-sm"
+                        data-testid="social-post-pick-account"
+                      >
+                        {t("composer.pickAccount")}
+                      </p>
+                    ) : null}
                   </div>
                 )}
               </div>
 
               {isScheduleOnly ? null : (
-                <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
+                <div
+                  className="order-1 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                  data-testid="social-post-composer-editor"
+                >
+                  {selectedConnections.length > 1 ? (
+                    <p
+                      className="text-muted-foreground text-xs"
+                      data-testid="social-post-text-for-account"
+                    >
+                      {t("composer.textForAccount")}
+                    </p>
+                  ) : null}
                   <textarea
                     id={textId}
-                    aria-invalid={overLimit || undefined}
+                    aria-describedby={
+                      displayedOverLimit ? tooLongId : undefined
+                    }
+                    aria-invalid={displayedOverLimit || undefined}
                     aria-label={t("composer.text")}
                     className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
                     disabled={isBusy}
-                    onChange={(event) => setText(event.target.value)}
+                    onChange={(event) => setDisplayedText(event.target.value)}
                     placeholder={t("composer.textPlaceholder")}
                     ref={textareaRef}
-                    value={text}
+                    value={displayedText}
                   />
                   {media.length > 0 ? mediaStrip : null}
                   <div className="flex flex-wrap items-center gap-1">
@@ -941,32 +1186,43 @@ export function SocialPostComposerDialog({
                       }}
                       type="file"
                     />
-                    <span
-                      aria-live="polite"
-                      className={cn(
-                        "ms-auto text-xs tabular-nums",
-                        overLimit
-                          ? "text-destructive"
-                          : "text-muted-foreground",
-                      )}
-                      data-testid="social-post-character-count"
-                    >
-                      {t("composer.characters", {
-                        count: text.length,
-                        limit: textLimit,
-                      })}
+                    <span className="ms-auto flex flex-col items-end gap-0.5">
+                      <span
+                        aria-live="polite"
+                        className={cn(
+                          "text-xs tabular-nums",
+                          displayedOverLimit
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                        data-testid="social-post-character-count"
+                      >
+                        {t("composer.characters", {
+                          count: displayedText.length,
+                          limit: displayedLimit,
+                        })}
+                      </span>
+                      {displayedOverLimit ? (
+                        <p
+                          className="text-destructive text-xs"
+                          data-testid="social-post-too-long"
+                          id={tooLongId}
+                        >
+                          {t("composer.tooLong")}
+                        </p>
+                      ) : null}
                     </span>
                   </div>
                   {/* One platform: the count above already is its limit. */}
-                  {providers.length > 1 ? (
+                  {accountTexts.length > 1 ? (
                     <ul
                       aria-label={t("composer.platforms")}
                       className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
                       data-testid="social-post-platforms"
                     >
-                      {providers.map((candidate) => {
-                        const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
-                        const over = text.length > limit;
+                      {accountTexts.map((account, index) => {
+                        const limit = SOCIAL_POST_TEXT_LIMITS[account.provider];
+                        const over = account.text.length > limit;
                         return (
                           <li
                             className={cn(
@@ -975,21 +1231,23 @@ export function SocialPostComposerDialog({
                                 ? "text-destructive"
                                 : "text-muted-foreground",
                             )}
-                            data-testid={`social-post-platform-${candidate}`}
-                            key={candidate}
+                            data-testid={`social-post-platform-${account.provider}`}
+                            key={`${account.provider}-${index}`}
                           >
                             <SocialPostProviderIcon
                               aria-hidden
                               className="size-3.5"
-                              provider={candidate}
+                              provider={account.provider}
                             />
                             <span>
                               {t("composer.platformLimit", {
-                                provider: socialPostProviderLabel(candidate),
-                                format: t(
-                                  `composer.formats.${socialPostComposerFormat(candidate)}`,
+                                provider: socialPostProviderLabel(
+                                  account.provider,
                                 ),
-                                count: text.length,
+                                format: t(
+                                  `composer.formats.${socialPostComposerFormat(account.provider)}`,
+                                ),
+                                count: account.text.length,
                                 limit,
                               })}
                             </span>
@@ -998,12 +1256,50 @@ export function SocialPostComposerDialog({
                       })}
                     </ul>
                   ) : null}
+                  {showFirstComment ? (
+                    <div className="space-y-2">
+                      <label
+                        className="text-sm font-medium"
+                        htmlFor={firstCommentId}
+                      >
+                        {t("composer.firstComment")}
+                      </label>
+                      <textarea
+                        id={firstCommentId}
+                        aria-invalid={overFirstComment || undefined}
+                        className="placeholder:text-muted-foreground field-sizing-content min-h-16 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                        data-testid="social-post-first-comment"
+                        disabled={isBusy}
+                        onChange={(event) =>
+                          setFirstComment(event.target.value)
+                        }
+                        placeholder={t("composer.firstCommentPlaceholder")}
+                        value={firstComment}
+                      />
+                      <p
+                        aria-live="polite"
+                        className={cn(
+                          "text-end text-xs tabular-nums",
+                          overFirstComment
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                        data-testid="social-post-first-comment-count"
+                      >
+                        {t("composer.characters", {
+                          count: firstComment.length,
+                          limit: firstCommentLimit,
+                        })}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
               <section
                 aria-labelledby={scheduledAtId}
-                className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                className="order-3 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
+                data-testid="social-post-composer-when"
               >
                 <div className="space-y-1">
                   <h3 id={scheduledAtId} className="text-sm font-semibold">
@@ -1025,8 +1321,18 @@ export function SocialPostComposerDialog({
                   invalid={scheduledAtTooSoon}
                   labelledBy={scheduledAtId}
                   onChange={setScheduledAt}
+                  suggestedHours={suggestedTimes?.hours}
                   value={scheduledAt}
                 />
+                {scheduledAtTooSoon ? (
+                  <p
+                    className="text-destructive text-sm"
+                    data-testid="social-post-scheduled-too-soon"
+                    id={scheduledAtErrorId}
+                  >
+                    {t("composer.scheduledAtTooSoon")}
+                  </p>
+                ) : null}
                 <div
                   className="text-muted-foreground space-y-0.5 text-xs"
                   data-testid="social-post-timezone"
@@ -1040,10 +1346,10 @@ export function SocialPostComposerDialog({
                             scheduledDate,
                             "dateTimeWithYear",
                           ),
-                          zone: zoneName(viewerTimezone),
+                          zone: zoneName(viewerTimezone, locale, scheduledDate),
                         })
                       : t("composer.timezone.yours", {
-                          zone: zoneName(viewerTimezone),
+                          zone: zoneName(viewerTimezone, locale),
                         })}
                   </p>
                   {post?.scheduledAt &&
@@ -1056,7 +1362,7 @@ export function SocialPostComposerDialog({
                           "dateTimeWithYear",
                           { timeZone: post.timezone },
                         ),
-                        zone: zoneName(post.timezone),
+                        zone: zoneName(post.timezone, locale, post.scheduledAt),
                       })}
                     </p>
                   ) : null}
@@ -1067,7 +1373,7 @@ export function SocialPostComposerDialog({
             {previewAccount || hasContent ? (
               <aside
                 aria-label={t("preview.open")}
-                className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
+                className="bg-background-muted order-2 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
               >
                 <p className="text-muted-foreground text-xs font-medium">
                   {t("preview.open")}
@@ -1081,12 +1387,17 @@ export function SocialPostComposerDialog({
                   >
                     {selectedConnections.map((connection) => {
                       const handle =
-                        formatHandle(connection.externalHandle) ||
+                        formatComposerHandle(connection.externalHandle) ||
                         t("composer.unknownHandle");
                       const active = previewConnection?.id === connection.id;
                       return (
                         <button
-                          aria-label={t("preview.as", { handle })}
+                          aria-label={t("preview.as", {
+                            handle,
+                            provider: socialPostProviderLabel(
+                              connection.provider,
+                            ),
+                          })}
                           aria-pressed={active}
                           className={cn(
                             "focus-visible:ring-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 md:h-8",
@@ -1098,13 +1409,10 @@ export function SocialPostComposerDialog({
                           onClick={() => setPreviewConnectionId(connection.id)}
                           type="button"
                         >
-                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={connection.provider}
-                            />
-                          </span>
+                          <AccountChipMark
+                            avatarUrl={connection.avatarUrl}
+                            provider={connection.provider}
+                          />
                           <span className="max-w-32 truncate">{handle}</span>
                         </button>
                       );
@@ -1116,7 +1424,7 @@ export function SocialPostComposerDialog({
                   className={cn(!hasContent && "opacity-60")}
                   media={media}
                   provider={previewProvider}
-                  text={hasContent ? text : t("composer.previewEmpty")}
+                  text={hasContent ? displayedText : t("composer.previewEmpty")}
                   timestamp={scheduledAtValid ? scheduledDate : null}
                 />
               </aside>
@@ -1132,19 +1440,30 @@ export function SocialPostComposerDialog({
             </div>
             <div className="flex items-center justify-end gap-2">
               {!isScheduleOnly && primaryAction !== "save" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={!canSave}
-                  loading={pending === "save"}
-                  onClick={() => {
-                    void handleSaveDraft();
-                  }}
-                >
-                  {saveLabel}
-                </Button>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex"
+                        tabIndex={showSaveRequirementHint ? 0 : undefined}
+                      >
+                        {saveDraftButton}
+                      </span>
+                    </TooltipTrigger>
+                    {showSaveRequirementHint ? (
+                      <TooltipContent>
+                        <p>{saveHint}</p>
+                      </TooltipContent>
+                    ) : null}
+                  </Tooltip>
+                  {showSaveRequirementHint ? (
+                    <span className="sr-only" id={saveHintId}>
+                      {saveHint}
+                    </span>
+                  ) : null}
+                </>
               ) : null}
-              {showPublishRequirementHint ? (
+              {showRequirementHint ? (
                 <>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1175,6 +1494,23 @@ export function SocialPostComposerDialog({
         onOpenChange={setPickerOpen}
         onSelect={handleSelectDriveFile}
       />
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent data-task-form-portal="">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("composer.discardTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("composer.discardDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("composer.keepEditing")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onOpenChange(false)}>
+              {t("composer.discard")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TaskFormModal>
   );
 }

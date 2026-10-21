@@ -1,13 +1,24 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, MoreVertical } from "lucide-react";
+import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,57 +37,23 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
+import {
+  recycleProjectSocialAccountPost,
+  refreshProjectSocialAccountStatistics,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { projectService } from "@/lib/services/project.service";
+import { socialSyncPollIntervalMs } from "@/lib/social-sync-poll";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
-import { SocialPostPerformanceCard } from "./social-post-performance-card";
-
-const ACCOUNT_METRIC_LABELS: Record<string, string> = {
-  followers_count: "followers",
-  follows_count: "following",
-  following_count: "following",
-  tweet_count: "posts",
-  post_count: "posts",
-  quote_count: "quotes",
-  listed_count: "lists",
-  posts_liked_count: "postsLiked",
-  viewCount: "views",
-  videoCount: "videos",
-  subscriberCount: "subscribers",
-  accounts_engaged: "engagedAccounts",
-  total_interactions: "interactions",
-  profile_links_taps: "profileLinkClicks",
-  page_media_view: "views",
-  page_post_engagements: "engagement",
-  page_video_views: "video_views",
-  page_daily_follows_unique: "newFollowers",
-  page_daily_unfollows_unique: "lostFollowers",
-  page_total_actions: "actions",
-  page_total_media_view_unique: "reach",
-  estimatedMinutesWatched: "watch_time",
-  averageViewDuration: "averageWatchDuration",
-  averageViewPercentage: "averageViewedPercent",
-  subscribersGained: "newSubscribers",
-  subscribersLost: "lostSubscribers",
-  post_media_view: "views",
-  post_total_media_view_unique: "reach",
-  url_clicks: "linkClicks",
-  saved: "saves",
-  like_count: "likes",
-  comment_count: "comments",
-  share_count: "shares",
-  save_count: "saves",
-  likes_count: "likes_received",
-};
+import { SocialPublishedPost } from "./social-published-post";
 
 type StatisticsPage = Awaited<
   ReturnType<typeof projectService.listSocialAccountStatistics>
 >;
 type Account = StatisticsPage["accounts"][number];
-type Metric = NonNullable<Account["statistics"]>["metrics"][number];
 
 function utcPreset(days: 7 | 30 | 90) {
   const until = new Date();
@@ -118,6 +95,42 @@ function PerformanceQuerySkeleton({ label }: { label: string }) {
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-24 w-full" />
       </div>
+      <div className="space-y-4" aria-hidden>
+        <Skeleton className="h-4 w-48" />
+        {Array.from({ length: 2 }, (_, card) => (
+          <div
+            key={card}
+            className="grid min-w-0 gap-6 rounded-xl border p-4 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]"
+            data-testid="social-published-post-skeleton"
+          >
+            <div className="w-full min-w-0 max-w-md space-y-4 rounded-xl border p-4 lg:max-w-none">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-10 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="min-w-0 space-y-4">
+              <Skeleton className="h-3 w-40" />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {Array.from({ length: 3 }, (_, metric) => (
+                  <div key={metric} className="space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-11 w-44 md:h-8" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -130,6 +143,103 @@ function accountName(account: Account) {
       ?.name ??
     account.provider
   );
+}
+
+function RecycleAccountPost({
+  projectId,
+  accountPostId,
+}: {
+  projectId: string;
+  accountPostId: string;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function recycle(delayDays?: 7 | 14 | 30) {
+    if (pending) return;
+    setPending(true);
+    try {
+      const result = await recycleProjectSocialAccountPost({
+        projectId,
+        accountPostId,
+        ...(delayDays ? { delayDays, timezone: getDefaultTimezone() } : {}),
+      });
+      if (!result.ok) {
+        toast.error(result.error.message || t("recycle.failed"));
+        return;
+      }
+      toast.success(delayDays ? t("recycle.scheduled") : t("recycle.drafted"));
+      setOpen(false);
+    } catch {
+      toast.error(t("recycle.failed"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        className="h-11 md:h-8"
+        variant="outline"
+        onClick={() => setOpen(true)}
+      >
+        {t("recycle.action")}
+      </Button>
+      <AlertDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && !pending) setOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("recycle.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("recycle.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-col sm:space-x-0">
+            <Button
+              type="button"
+              disabled={pending}
+              loading={pending}
+              onClick={() => void recycle()}
+            >
+              {t("recycle.saveDraft")}
+            </Button>
+            {([7, 14, 30] as const).map((days) => (
+              <Button
+                key={days}
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void recycle(days)}
+              >
+                {t("recycle.inDays", { days })}
+              </Button>
+            ))}
+            <AlertDialogCancel disabled={pending}>
+              {t("recycle.cancel")}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function latestFetchedAt(accounts: Account[]) {
+  let latest: NonNullable<Account["statistics"]>["fetchedAt"] = null;
+  for (const account of accounts) {
+    const fetchedAt = account.statistics?.fetchedAt;
+    if (!fetchedAt) continue;
+    if (!latest || new Date(fetchedAt) > new Date(latest)) latest = fetchedAt;
+  }
+  return latest;
 }
 
 export function SocialPostStatistics(
@@ -209,7 +319,9 @@ export function SocialPostStatistics(
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(session?.user.id),
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: (current) =>
+      socialSyncPollIntervalMs(current.state.data?.pages[0]?.accounts ?? []),
   });
   const accounts = query.data?.pages[0]?.accounts ?? [];
   const accountsById = new Map(
@@ -218,9 +330,13 @@ export function SocialPostStatistics(
   const selectedAccount =
     accounts.find((account) => account.id === filters.statisticsAccount) ??
     null;
-  const impressionBased =
-    selectedAccount?.provider === "x" ||
-    selectedAccount?.provider === "linkedin";
+  const impressionBased = selectedAccount
+    ? selectedAccount.provider === "x" ||
+      selectedAccount.provider === "linkedin"
+    : accounts.some(
+        (account) =>
+          account.provider === "x" || account.provider === "linkedin",
+      );
   const headline = query.data?.pages[0]?.headline;
   const posts = validRange
     ? (query.data?.pages.flatMap((page) => page.posts) ?? [])
@@ -228,6 +344,7 @@ export function SocialPostStatistics(
   const consistency = query.data?.pages[0]?.consistency;
   const enqueueingRef = useRef(false);
   const mountedRef = useRef(false);
+  const autoRequestedIdsRef = useRef(new Set<string>());
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   useMountEffect(() => {
@@ -237,13 +354,16 @@ export function SocialPostStatistics(
     };
   });
 
-  async function handleSync(targets: Account[]) {
+  async function enqueueRefresh(
+    targets: Account[],
+    { silent = false }: { silent?: boolean } = {},
+  ) {
     if (enqueueingRef.current || targets.length === 0) return;
     enqueueingRef.current = true;
-    setSyncErrors({});
+    if (!silent) setSyncErrors({});
     try {
       for (const account of targets) {
-        setEnqueueingId(account.id);
+        if (!silent) setEnqueueingId(account.id);
         try {
           if (!projectId) return;
           const result = await refreshProjectSocialAccountStatistics({
@@ -251,14 +371,14 @@ export function SocialPostStatistics(
             connectionId: account.id,
           });
           if (!mountedRef.current) return;
-          if (!result.ok) {
+          if (!result.ok && !silent) {
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
             }));
           }
         } catch {
-          if (mountedRef.current)
+          if (mountedRef.current && !silent)
             setSyncErrors((errors) => ({
               ...errors,
               [account.id]: t("accountSyncFailed"),
@@ -273,51 +393,32 @@ export function SocialPostStatistics(
     }
   }
 
-  function metricLabel(metric: Metric) {
-    const key = `accountMetrics.${ACCOUNT_METRIC_LABELS[metric.key] ?? metric.key}`;
-    return t.has(key)
-      ? t(key)
-      : metric.key
-          .replace(/([a-z])([A-Z])/g, "$1 $2")
-          .replaceAll(/[_.-]/g, " ");
+  function handleSync(targets: Account[]) {
+    return enqueueRefresh(targets);
   }
-  function renderMetrics(metrics: Metric[]) {
-    return (
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
-        {metrics.map((metric, index) => (
-          <div
-            key={`${metric.key}-${metric.period}-${index}`}
-            className="space-y-1"
-          >
-            <dt className="text-muted-foreground break-words">
-              {metricLabel(metric)}
-            </dt>
-            <dd className="font-medium tabular-nums">
-              {metric.value == null
-                ? t("unavailable")
-                : formatter.number(metric.value)}
-              {metric.unit &&
-              metric.unit !== "count" &&
-              metric.value != null ? (
-                <span className="text-muted-foreground ms-1 font-normal">
-                  {t.has(`units.${metric.unit}`)
-                    ? t(`units.${metric.unit}`)
-                    : metric.unit}
-                </span>
-              ) : null}
-            </dd>
-            {metric.period ? (
-              <dd className="text-muted-foreground text-xs">
-                {t.has(`periods.${metric.period}`)
-                  ? t(`periods.${metric.period}`)
-                  : metric.period.replaceAll(/[_-]/g, " ")}
-              </dd>
-            ) : null}
-          </div>
-        ))}
-      </dl>
+
+  const autoRequestKey = accounts
+    .filter((account) => account.sync?.mayAutoRequest)
+    .map((account) => account.id)
+    .toSorted()
+    .join(",");
+  useEffect(() => {
+    if (!query.isSuccess) return;
+    for (const account of accounts) {
+      if (!account.sync?.mayAutoRequest)
+        autoRequestedIdsRef.current.delete(account.id);
+    }
+    const stale = accounts.filter(
+      (account) =>
+        account.status === "active" &&
+        account.sync?.mayAutoRequest &&
+        !autoRequestedIdsRef.current.has(account.id),
     );
-  }
+    if (stale.length === 0) return;
+    for (const account of stale) autoRequestedIdsRef.current.add(account.id);
+    void enqueueRefresh(stale, { silent: true });
+  }, [autoRequestKey, query.isSuccess]);
+
   function exportHref(format: "csv" | "xlsx") {
     const params = new URLSearchParams({ format });
     if (filters.statisticsProvider)
@@ -332,10 +433,13 @@ export function SocialPostStatistics(
   }
 
   function formatUpdated(value: string | Date) {
-    return formatter.dateTime(new Date(value), {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    });
+    return formatter.relativeTime(new Date(value));
+  }
+
+  function isSyncInFlight(account: Account | undefined) {
+    return (
+      account?.sync?.status === "queued" || account?.sync?.status === "running"
+    );
   }
   function handlePreset(days: "7" | "30" | "90") {
     const window = utcPreset(Number(days) as 7 | 30 | 90);
@@ -347,6 +451,13 @@ export function SocialPostStatistics(
   }
   const statusAccount = selectedAccount ?? accounts[0];
   const statusSnapshot = statusAccount?.statistics;
+  const latestFetched = latestFetchedAt(
+    selectedAccount ? [selectedAccount] : accounts,
+  );
+  const viewAccounts = selectedAccount ? [selectedAccount] : accounts;
+  const updating =
+    Boolean(enqueueingId) ||
+    viewAccounts.some((account) => isSyncInFlight(account));
 
   const advancedFilterCount = [
     !preset && Boolean(filters.publishedFrom || filters.publishedUntil),
@@ -361,7 +472,7 @@ export function SocialPostStatistics(
       {query.isPending ? (
         <PerformanceQuerySkeleton label={t("loading")} />
       ) : null}
-      {query.isPending ? null : query.isError ? (
+      {query.isPending ? null : query.isError && !query.isFetchNextPageError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm">{t("loadFailed")}</p>
           <Button
@@ -396,7 +507,7 @@ export function SocialPostStatistics(
               >
                 <SelectTrigger
                   aria-label={t("performance.accountTabs")}
-                  className="text-foreground w-full sm:w-auto sm:min-w-[200px]"
+                  className="text-foreground h-11 w-full sm:w-auto sm:min-w-[200px] md:h-10 data-[size=default]:h-11 md:data-[size=default]:h-10"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -417,10 +528,12 @@ export function SocialPostStatistics(
                 </SelectContent>
               </Select>
               <div className="text-muted-foreground min-w-0 text-sm">
-                {statusSnapshot?.fetchedAt ? (
+                {updating ? (
+                  <p>{t("updating")}</p>
+                ) : latestFetched ? (
                   <p>
                     {t("updatedAt", {
-                      date: formatUpdated(statusSnapshot.fetchedAt),
+                      date: formatUpdated(latestFetched),
                     })}
                   </p>
                 ) : (
@@ -613,19 +726,19 @@ export function SocialPostStatistics(
               {t("invalidRange")}
             </p>
           ) : null}
-          {headline ? (
+          {validRange && headline ? (
             <SocialPerformanceOverview
               headline={headline}
               impressionBased={impressionBased}
             />
           ) : null}
-          {headline?.daily.length ? (
+          {validRange && headline?.daily.length ? (
             <PerformanceTrendChart
               days={headline.daily}
               impressionBased={impressionBased}
             />
           ) : null}
-          {consistency ? (
+          {validRange && consistency ? (
             <PostingConsistency
               days={consistency.daily.map((day) => ({
                 date:
@@ -640,37 +753,48 @@ export function SocialPostStatistics(
             />
           ) : null}
           <section className="space-y-4" aria-label={t("postsTitle")}>
-            <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+              <p className="text-muted-foreground text-sm">{t("postsHint")}</p>
+            </div>
             {!query.isPending &&
             !query.isError &&
             validRange &&
             posts.length === 0 ? (
-              <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-                {t("empty")}
-              </p>
+              <EmptyState description={t("empty")} icon={BarChart2} />
             ) : null}
-            <ul className="grid items-start gap-4 lg:grid-cols-2">
+            <ul className="space-y-3">
               {posts.map((post) => (
-                <li key={post.id} className="min-w-0">
-                  <SocialPostPerformanceCard
-                    post={post}
-                    account={accountsById.get(post.connectionId)}
-                  >
-                    {post.additionalMetrics.length
-                      ? renderMetrics(post.additionalMetrics)
-                      : null}
-                  </SocialPostPerformanceCard>
-                </li>
+                <SocialPublishedPost
+                  key={post.id}
+                  post={post}
+                  account={accountsById.get(post.connectionId) ?? null}
+                  actions={
+                    projectId && post.strong && post.canRecycle ? (
+                      <RecycleAccountPost
+                        projectId={projectId}
+                        accountPostId={post.id}
+                      />
+                    ) : null
+                  }
+                />
               ))}
             </ul>
             {query.hasNextPage && validRange ? (
-              <Button
-                variant="outline"
-                loading={query.isFetchingNextPage}
-                onClick={() => void query.fetchNextPage()}
-              >
-                {t("loadMore")}
-              </Button>
+              <div className="space-y-3">
+                {query.isFetchNextPageError ? (
+                  <p className="text-sm" role="alert">
+                    {t("loadMoreError")}
+                  </p>
+                ) : null}
+                <Button
+                  variant="outline"
+                  loading={query.isFetchingNextPage}
+                  onClick={() => void query.fetchNextPage()}
+                >
+                  {t("loadMore")}
+                </Button>
+              </div>
             ) : null}
           </section>
         </>

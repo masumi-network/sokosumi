@@ -67,7 +67,9 @@ describe.skipIf(!databaseUrl)(
         where: { id: assignedBotId },
       });
       await db.user.deleteMany({
-        where: { id: { in: [userId, ...(assigned ? [assigned.userId] : [])] } },
+        where: {
+          id: { in: [userId, ...(assigned?.userId ? [assigned.userId] : [])] },
+        },
       });
       await db.$disconnect();
     });
@@ -75,7 +77,7 @@ describe.skipIf(!databaseUrl)(
       const turn = await db.sokoBotTurn.create({
         data: {
           sokoBotId: botId,
-          userId,
+          requestedByUserId: userId,
           workspaceId,
           source: "EVENT",
           status: "RUNNING",

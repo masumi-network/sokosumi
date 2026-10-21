@@ -35,10 +35,8 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
     <main className="hero">
       <div className="hero-copy">
         <h1>What is your name?</h1>
-        {/* Remounts after each submit (useFocusFirstInvalid). One form, so
-            pressing either button disables both; each has its own action,
-            so only the one pressed spins. Sign out skips validation: the
-            empty required fields would otherwise block leaving. */}
+        {/* Sign out skips validation: the empty required fields would
+            otherwise block leaving. */}
         <form key={state.attempt} ref={formRef} className="fields">
           <FormAlert message={errors.form} />
           <FormField

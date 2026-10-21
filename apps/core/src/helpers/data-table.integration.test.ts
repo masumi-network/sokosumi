@@ -328,6 +328,46 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
       ),
     ).rejects.toThrow("populated column");
   });
+  it("removes only named columns, with their values, and keeps writes working", async () => {
+    const table = await createDataTable(actor, input());
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ values: { [nameId]: "Acme", [numberId]: 3 } }],
+      }),
+    );
+    await expect(
+      mutateDataTable(actor, table.id, {
+        ...tableMutationSchema.parse({
+          key: randomUUID(),
+          version: 1,
+          columns: [table.columns[0]],
+        }),
+      }),
+    ).rejects.toThrow("removeColumnIds");
+    const next = await mutateDataTable(actor, table.id, {
+      ...tableMutationSchema.parse({ key: randomUUID(), version: 1 }),
+      removeColumnIds: [numberId],
+    });
+    expect(next.columns.map((column) => column.id)).toEqual([nameId]);
+    const rows = await queryTableRows(actor, table.id, { limit: 10 });
+    expect(rows.rows[0]?.values).toEqual({ [nameId]: "Acme" });
+    const row = rows.rows[0];
+    if (!row) throw new Error("row missing");
+    await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [
+          { id: row.id, version: row.version, values: { [nameId]: "Beta" } },
+        ],
+      }),
+    );
+  });
+
   it("server-filters and sorts numeric JSON values with bounded keyset pagination", async () => {
     const table = await createDataTable(actor, input());
     await batchTableRows(
@@ -352,6 +392,59 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
       sort: { columnId: numberId, direction: "asc" },
     });
     expect(second.rows.map((row) => row.values[numberId])).toEqual([10]);
+  });
+  it("filters tags by whole option, while text keeps substring matching", async () => {
+    const tagsId = randomUUID();
+    const table = await createDataTable(
+      actor,
+      createDataTableSchema.parse({
+        key: randomUUID(),
+        title: "Tagged",
+        columns: [
+          { id: nameId, name: "Company", type: "text" },
+          {
+            id: tagsId,
+            name: "Tags",
+            type: "multiple_select",
+            options: ["lead", "leader", "customer"],
+          },
+        ],
+        rows: [
+          { values: { [nameId]: "Acme", [tagsId]: ["lead", "customer"] } },
+          { values: { [nameId]: "Beta", [tagsId]: ["leader"] } },
+          { values: { [nameId]: "Gamma", [tagsId]: null } },
+        ],
+      }),
+    );
+    async function names(filter: {
+      columnId: string;
+      operator: "contains";
+      value: string | string[];
+    }) {
+      const { rows } = await queryTableRows(actor, table.id, {
+        filters: [filter],
+      });
+      return rows.map((row) => row.values[nameId]);
+    }
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "lead" }),
+    ).toEqual(["Acme"]);
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "LEADER" }),
+    ).toEqual([]);
+    expect(
+      await names({
+        columnId: tagsId,
+        operator: "contains",
+        value: ["lead", "customer"],
+      }),
+    ).toEqual(["Acme"]);
+    expect(
+      await names({ columnId: tagsId, operator: "contains", value: "" }),
+    ).toEqual(["Acme", "Beta", "Gamma"]);
+    expect(
+      await names({ columnId: nameId, operator: "contains", value: "cm" }),
+    ).toEqual(["Acme"]);
   });
   it("enforces selected rows and columns even when a bot omits task context", async () => {
     const table = await createDataTable(actor, input());

@@ -244,6 +244,7 @@ function createInput(overrides: Record<string, unknown> = {}) {
       organizationId: "org_1",
       workspaceId: "11111111-1111-7111-8111-111111111111",
     },
+    creator: { kind: "user" as const, userId: "user_1" },
     agentInput: {
       agentId: "agent_1",
       inputData: { prompt: "hello" },
@@ -387,6 +388,131 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(txJobCreateMock).toHaveBeenCalledOnce();
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the person who hires as the Job's Creator", async () => {
+    await createAgentJobForUser(
+      createInput({ creator: { kind: "user", userId: "user_1" } }),
+    );
+
+    const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+    expect(data.creatorUser).toEqual({ connect: { id: "user_1" } });
+    expect(data.creatorCoworker).toBeUndefined();
+    expect(data.creatorSokoBot).toBeUndefined();
+    expect(data.owner).toEqual({ connect: { id: "user_1" } });
+  });
+
+  it.each([
+    ["free", () => undefined],
+    [
+      "paid",
+      () => {
+        agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+        getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+        createAgentClientMock.mockReturnValue({
+          startPaidAgentJob: sellerResponding(paidV1JobResponse),
+        });
+      },
+    ],
+  ])(
+    "records a Soko Bot hiring for a person as Creator and the person as Owner (%s)",
+    async (_kind, arrange) => {
+      arrange();
+
+      await createAgentJobForUser(
+        createInput({ creator: { kind: "soko_bot", sokoBotId: "bot_1" } }),
+      ).catch(() => undefined);
+
+      const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+      expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
+      expect(data.creatorUser).toBeUndefined();
+      expect(data.owner).toEqual({ connect: { id: "user_1" } });
+    },
+  );
+
+  it.each([
+    { kind: "user" as const, userId: "user_1" },
+    { kind: "coworker" as const, coworkerId: "cow_1" },
+    { kind: "soko_bot" as const, sokoBotId: "bot_1" },
+  ])(
+    "charges a paid Job made by a $kind to its Owner and checks their Seat",
+    async (creator) => {
+      agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+      getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+      createAgentClientMock.mockReturnValue({
+        startPaidAgentJob: sellerResponding(paidV1JobResponse),
+      });
+
+      await createAgentJobForUser(createInput({ creator })).catch(
+        () => undefined,
+      );
+
+      expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        expect.anything(),
+      );
+      expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        BigInt(5),
+        expect.anything(),
+      );
+      const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+      expect(data.transaction.create.user).toEqual({
+        connect: { id: "user_1" },
+      });
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+        userId: "user_1",
+        organizationId: "org_1",
+      });
+    },
+  );
+
+  it("records a Coworker hiring for a person as Creator and the person as Owner", async () => {
+    await createAgentJobForUser(
+      createInput({ creator: { kind: "coworker", coworkerId: "cow_1" } }),
+    );
+
+    const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+    expect(data.creatorCoworker).toEqual({ connect: { id: "cow_1" } });
+    expect(data.owner).toEqual({ connect: { id: "user_1" } });
+    expect(data.creatorUser).toBeUndefined();
+  });
+
+  it("charges a Job without an Owner to the Organization pool with no member and no Seat check", async () => {
+    // A Soko Bot hiring on its own for public work.
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        owner: {
+          ownerId: null,
+          organizationId: "org_1",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "soko_bot", sokoBotId: "bot_1" },
+      }),
+    ).catch(() => undefined);
+
+    const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
+    expect(data.owner).toBeUndefined();
+    expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
+    expect(data.transaction.create.user).toBeUndefined();
+    expect(data.transaction.create.organization).toEqual({
+      connect: { id: "org_1" },
+    });
+    expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      null,
+      "org_1",
+      BigInt(5),
+      expect.anything(),
+    );
   });
 
   it("runs the local Job callback inside its creation transaction", async () => {

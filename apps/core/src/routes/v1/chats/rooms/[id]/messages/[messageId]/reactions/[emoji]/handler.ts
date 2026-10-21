@@ -11,9 +11,9 @@ import {
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  requireWritableChatRoom,
 } from "../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../membership-status";
+import { requireWritableChatRoom } from "../../../../../writable-chat-room";
 
 export const chatRoomMessageReactionParamsSchema = z.object({
   id: z

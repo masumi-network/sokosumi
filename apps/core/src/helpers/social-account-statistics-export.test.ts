@@ -28,6 +28,8 @@ const post = {
     { key: "quotes", value: 3, period: "lifetime", unit: "count" },
   ],
   fetchedAt: "2026-10-01T13:00:00.000Z",
+  strong: false,
+  canRecycle: false,
 };
 
 describe("social account statistics export", () => {
@@ -40,11 +42,11 @@ describe("social account statistics export", () => {
     });
     const csv = socialAccountStatisticsCsv(sheet.rows);
     expect(csv).toContain(
-      "platform,account,published_at,text,url,views,impressions,likes,comments,shares,saves,quotes,publication_from,publication_until",
+      "platform,account,published_at,text,url,views,impressions,likes,comments,shares,saves,quotes,fetched_at,publication_from,publication_until",
     );
     expect(csv).toContain('"Hello, world"');
     expect(csv).toContain("Launch");
-    expect(csv).toContain(",100,4,,1,,3,");
+    expect(csv).toContain(",100,4,,1,,3,2026-10-01T13:00:00.000Z,");
   });
 
   it("prefixes spreadsheet-formula text and builds a zip workbook", async () => {

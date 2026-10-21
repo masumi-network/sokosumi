@@ -63,7 +63,7 @@ const historyBaseItemSchema = z.object({
   }),
 });
 
-export const historyTaskItemSchema = historyBaseItemSchema
+const historyTaskItemSchema = historyBaseItemSchema
   .extend({
     kind: z.literal("task"),
     status: taskStatusSchema.openapi({ example: TaskStatus.RUNNING }),
@@ -82,7 +82,7 @@ export const historyTaskItemSchema = historyBaseItemSchema
   })
   .openapi("HistoryTaskItem");
 
-export const historyJobItemSchema = historyBaseItemSchema
+const historyJobItemSchema = historyBaseItemSchema
   .extend({
     kind: z.literal("job"),
     status: sokosumiJobStatusSchema.openapi({
@@ -109,7 +109,7 @@ export const historyJobItemSchema = historyBaseItemSchema
   })
   .openapi("HistoryJobItem");
 
-export const historyImageItemSchema = historyBaseItemSchema
+const historyImageItemSchema = historyBaseItemSchema
   .extend({
     kind: z.literal("image"),
     /**

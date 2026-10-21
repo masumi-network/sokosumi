@@ -29,6 +29,7 @@ export const ACTION_CAPABILITIES = new Set([
   "link_tasks",
   "post_chat",
   "open_direct_chat",
+  "ask_coworker",
   "create_schedule",
   "update_schedule",
   "delete_schedule",
@@ -73,7 +74,9 @@ export async function verifyTaskArchiveReceipt(
 ): Promise<boolean> {
   const receipt = await tx.sokoBotToolCall.findUnique({
     where: { id: receiptId },
-    include: { turn: { select: { userId: true, workspaceId: true } } },
+    include: {
+      turn: { select: { requestedByUserId: true, workspaceId: true } },
+    },
   });
   if (
     !receipt ||

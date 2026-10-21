@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
@@ -31,7 +31,8 @@ vi.mock("@/lib/auth/auth.server", () => ({
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
-    getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
+    getWorkspaceCalendarSources: (query?: unknown) =>
+      getWorkspaceCalendarSourcesMock(query),
   },
 }));
 
@@ -308,5 +309,128 @@ describe("loadWorkspaceCalendarPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(getProjectCalendarMock).not.toHaveBeenCalled();
+  });
+
+  describe("scheduled Social post horizon", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-01-10T12:00:00Z"));
+      hasSocialBetaAccessMock.mockResolvedValue(true);
+      getWorkspaceCalendarSourcesMock.mockResolvedValue([
+        { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
+        {
+          sourceId: "project:project-1",
+          sourceType: "PROJECT",
+          latestScheduledSocialPostAt: new Date("2026-12-31T12:00:00Z"),
+        },
+        {
+          sourceId: "project:project-2",
+          sourceType: "PROJECT",
+          latestScheduledSocialPostAt: new Date("2027-02-15T12:00:00Z"),
+        },
+      ]);
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("extends the workspace limit to the latest post across projects and clamps later URLs", async () => {
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({ date: "2027-03-15" }),
+      });
+
+      expect(result.latestDate).toBe("2027-02-01");
+      expect(result.initialDate).toBe("2027-02-01");
+      expect(result.range.to.getTime()).toBeGreaterThan(
+        new Date("2027-02-15T12:00:00Z").getTime(),
+      );
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining(result.range),
+      );
+    });
+
+    it.each([undefined, PROJECT.id])(
+      "uses only the selected project's posts for route project %s",
+      async (routeProjectId) => {
+        const result = await loadWorkspaceCalendarPage({
+          projectId: routeProjectId,
+          searchParams: Promise.resolve({
+            date: "2026-12-31",
+            projectId: routeProjectId ? "project-2" : PROJECT.id,
+            sourceId: routeProjectId ? "workspace:workspace-1" : undefined,
+          }),
+        });
+
+        expect(result.latestDate).toBe("2026-12-01");
+        expect(result.initialDate).toBe("2026-12-31");
+        expect(result.range.to.getTime()).toBeGreaterThan(
+          new Date("2026-12-31T12:00:00Z").getTime(),
+        );
+      },
+    );
+
+    it("loads the owned horizon through the existing sources query", async () => {
+      await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({ scope: "owned" }),
+      });
+
+      expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledWith({
+        includeSocialPosts: "true",
+        scope: "owned",
+      });
+    });
+
+    it("includes the latest post's month in the calendar timezone", async () => {
+      getWorkspaceCalendarSourcesMock.mockResolvedValue([
+        { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
+        {
+          sourceId: "project:project-1",
+          latestScheduledSocialPostAt: new Date("2026-07-31T23:00:00Z"),
+        },
+      ]);
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({
+          date: "2026-08-15",
+          timezone: "Pacific/Kiritimati",
+        }),
+      });
+
+      expect(result.latestDate).toBe("2026-08-01");
+      expect(result.initialDate).toBe("2026-08-15");
+    });
+
+    it.each([
+      { sourceId: "workspace:workspace-1" },
+      { assigneeId: "coworker-1" },
+      { assigneeUserId: "user-1" },
+      { status: "READY" },
+    ])("keeps the default when filters exclude posts: %s", async (filters) => {
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({ ...filters, date: "2027-03-15" }),
+      });
+
+      expect(result.latestDate).toBe("2026-03-01");
+      expect(result.initialDate).toBe("2026-03-01");
+    });
+
+    it("keeps the default for callers without Social access", async () => {
+      hasSocialBetaAccessMock.mockResolvedValue(false);
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({ date: "2027-03-15" }),
+      });
+
+      expect(result.latestDate).toBe("2026-03-01");
+    });
+
+    it("propagates a project horizon load failure", async () => {
+      getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
+
+      await expect(
+        loadWorkspaceCalendarPage({
+          projectId: PROJECT.id,
+          searchParams: Promise.resolve({}),
+        }),
+      ).rejects.toThrow("offline");
+      expect(getProjectCalendarMock).not.toHaveBeenCalled();
+    });
   });
 });

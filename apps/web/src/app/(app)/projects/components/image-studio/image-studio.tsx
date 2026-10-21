@@ -11,6 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { toast } from "sonner";
 
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
@@ -22,14 +23,21 @@ import {
 } from "@/components/ui/popover";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
+import {
+  prepareStudioAssetSocialMedia,
+  requestImageJobCancel,
+} from "@/lib/actions/image-studio/action";
+import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 
 import {
+  clampToModel,
   curatedModels,
+  modelById,
   modelIdForRepeat,
   resolveModel,
   settingsOf,
+  supportsVariation,
 } from "./catalog";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -37,6 +45,7 @@ import {
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
+import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioTemplateCarousel } from "./studio-template-picker";
@@ -55,7 +64,6 @@ import {
 import {
   type GenerationRequest,
   type QueuedGeneration,
-  type QueueErrorCode,
   useGenerationQueue,
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
@@ -92,6 +100,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  canScheduleSocial = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -110,6 +119,8 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  /** Social beta members can send a lightbox image into the composer. */
+  canScheduleSocial?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -136,6 +147,15 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const [hasNewerSettings, setHasNewerSettings] = useState(false);
+  const [composerKey, setComposerKey] = useState(0);
+  const [parentAssetId, setParentAssetId] = useState<
+    string | null | undefined
+  >();
+  const [templateUndo, setTemplateUndo] = useState<{
+    prompt: string;
+    target: StudioTarget;
+  } | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
@@ -155,8 +175,8 @@ export function ImageStudio({
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
     // of them can be unselected, the rest of the catalog can be added, and
-    // "Select all" still means all 152. Nothing below treats these five as
-    // special after this line.
+    // bulk selection is bounded by the 12-image purchase ceiling. Nothing
+    // below treats these five as special after this line.
     return {
       modelIds: curatedModels(catalog).map((model) => model.id),
       settings: {
@@ -223,7 +243,11 @@ export function ImageStudio({
   });
 
   const checkedAssets = useMemo(
-    () => state.assets.filter((asset) => checkedIds.includes(asset.id)),
+    () =>
+      checkedIds.flatMap((id) => {
+        const asset = state.assets.find((asset) => asset.id === id);
+        return asset ? [asset] : [];
+      }),
     [checkedIds, state.assets],
   );
 
@@ -249,6 +273,21 @@ export function ImageStudio({
         ? [selectedAsset]
         : [];
 
+  async function scheduleAsset(asset: StudioAsset) {
+    const result = await prepareStudioAssetSocialMedia({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.scheduleFailed);
+      return;
+    }
+    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    router.push(
+      `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
+    );
+  }
+
   /**
    * Repeat a piece of work on its own terms.
    *
@@ -262,6 +301,12 @@ export function ImageStudio({
     from: "asset" | "job",
     reroll = false,
   ) {
+    if (
+      from === "asset" &&
+      !reroll &&
+      !supportsVariation(catalog, source.model)
+    )
+      return;
     const id = crypto.randomUUID();
     const request: QueuedGeneration = {
       id,
@@ -296,14 +341,18 @@ export function ImageStudio({
    *
    * It writes the brief and the frame and stops there: no submission, nothing
    * locked, and the caret goes into the prompt box, because the value of a
-   * template is the edit that follows it. Undoing one is retyping — the text is
-   * ordinary editable text, which is why this is not a mode.
+   * template is the edit that follows it. Replacing a typed brief keeps one
+   * undo snapshot until the next edit, settings change, or submission.
    *
    * The frame is set unconditionally. A model that cannot honour it is already
    * clamped per leg when the batch is built (`clampToModel`), which is the same
    * rule any other frame choice goes through.
    */
   function applyTemplate(template: StudioTemplate) {
+    setHasNewerSettings(true);
+    setTemplateUndo(
+      (current) => current ?? (prompt.trim() ? { prompt, target } : null),
+    );
     setPrompt(template.prompt);
     setTarget((current) => ({
       ...current,
@@ -314,6 +363,8 @@ export function ImageStudio({
 
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
@@ -331,6 +382,7 @@ export function ImageStudio({
    * person picks one.
    */
   function handleGenerate(requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     const referenceProjectIds = new Set(
       checkedAssets.map((asset) => asset.projectId),
     );
@@ -344,11 +396,50 @@ export function ImageStudio({
   }
 
   function sendTo(target: string, requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     setActionError(null);
     queue.enqueue(
       requests.map((request) => ({ ...request, projectId: target })),
     );
     setPrompt("");
+    setHasNewerSettings(false);
+  }
+
+  function canEditRequest(request: QueuedGeneration) {
+    const model = modelById(catalog, request.modelId);
+    if (!model || request.projectId !== activeProjectId) return false;
+    const { referenceAssetIds, parentAssetId, settings } = request;
+    if (
+      referenceAssetIds.some(
+        (id) =>
+          !state.assets.some(
+            (asset) => asset.id === id && asset.projectId === request.projectId,
+          ),
+      ) ||
+      (parentAssetId !== null &&
+        !state.assets.some(
+          (asset) =>
+            asset.id === parentAssetId && asset.projectId === request.projectId,
+        )) ||
+      (referenceAssetIds.length > 0 &&
+        (!model.editEndpoint || model.maxReferences < referenceAssetIds.length))
+    ) {
+      return false;
+    }
+    const restored = clampToModel(model, settings);
+    return (
+      restored.aspectRatio === settings.aspectRatio &&
+      restored.resolution === settings.resolution &&
+      restored.outputFormat === settings.outputFormat &&
+      (restored.seed ?? null) === (settings.seed ?? null)
+    );
+  }
+
+  function clearReferences() {
+    setTemplateUndo(null);
+    setCheckedIds([]);
+    setParentAssetId(undefined);
+    setHasNewerSettings(true);
   }
 
   function handleCancelJob(jobId: string) {
@@ -387,25 +478,7 @@ export function ImageStudio({
     }
   }
 
-  function queueMessage(code: QueueErrorCode | null) {
-    switch (code) {
-      case "insufficient_credits":
-        return labels.errorInsufficientCredits;
-      case "unreachable":
-        return labels.errorUnreachable;
-      default:
-        return null;
-    }
-  }
-
-  // The queue's own code first: where this page has wording of its own, it is
-  // translated, and Core's `message` is English.
-  const problem =
-    actionError ??
-    queueMessage(queue.lastErrorCode) ??
-    queue.lastError ??
-    errorMessage(studio.error) ??
-    null;
+  const problem = actionError ?? errorMessage(studio.error) ?? null;
 
   /**
    * How long each finished version took, from the jobs the state already
@@ -426,7 +499,8 @@ export function ImageStudio({
   const showsNothing =
     state.assets.length === 0 &&
     activeJobs.length === 0 &&
-    queue.queued.length === 0;
+    queue.queued.length === 0 &&
+    queue.failed.length === 0;
 
   // Chat-style feed: the scroller is `flex-col-reverse`, so scrollTop 0 is the
   // newest image and prepending older pages never moves what is on screen. The
@@ -452,14 +526,27 @@ export function ImageStudio({
 
   const composer = (
     <StudioComposer
+      key={composerKey}
       busy={pending}
       catalog={catalog}
       labels={labels}
       onApplyTemplate={applyTemplate}
-      onClearReferences={() => setCheckedIds([])}
+      onClearReferences={clearReferences}
+      onCopiesChange={() => {
+        setTemplateUndo(null);
+        setHasNewerSettings(true);
+      }}
       onGenerate={handleGenerate}
-      onPromptChange={setPrompt}
-      onTargetChange={setTarget}
+      onPromptChange={(value) => {
+        setTemplateUndo(null);
+        setPrompt(value);
+      }}
+      onTargetChange={(update) => {
+        setTemplateUndo(null);
+        setTarget(update);
+        setHasNewerSettings(true);
+      }}
+      parentAssetId={parentAssetId}
       prompt={prompt}
       promptRef={promptRef}
       referenceAssets={checkedAssets}
@@ -471,24 +558,13 @@ export function ImageStudio({
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-col gap-3",
+        "flex min-h-0 min-w-0 flex-col",
         STUDIO_COLUMN_MOBILE_SHELL_CLASS,
         isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >
-      {problem ? (
-        <Notice
-          closeLabel={labels.close}
-          onDismiss={
-            queue.lastError || queue.lastErrorCode
-              ? queue.clearError
-              : undefined
-          }
-        >
-          {problem}
-        </Notice>
-      ) : null}
+      {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
 
       <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
         <div
@@ -524,18 +600,59 @@ export function ImageStudio({
               onReroll={(asset) => repeat(asset, "asset", true)}
               onReusePrompt={reusePrompt}
               onVariation={(asset) => repeat(asset, "asset")}
-              onToggleSelect={(assetId) =>
+              onToggleSelect={(assetId) => {
+                setTemplateUndo(null);
+                setParentAssetId(undefined);
+                setHasNewerSettings(true);
                 setCheckedIds((current) =>
                   current.includes(assetId)
                     ? current.filter((id) => id !== assetId)
                     : [...current, assetId],
-                )
-              }
+                );
+              }}
               queued={queue.queued}
               selectedIds={checkedIds}
               showProject={projectId === null}
             />
           )}
+
+          {queue.failed.map((failure) => (
+            <StudioFailedSubmission
+              key={failure.request.id}
+              failure={failure}
+              hasNewerDraft={prompt.trim().length > 0 || hasNewerSettings}
+              labels={labels}
+              onDismiss={() => queue.dismissFailed(failure.request.id)}
+              onRetry={() => queue.retry(failure.request.id)}
+              onEdit={
+                canEditRequest(failure.request)
+                  ? () => {
+                      if (prompt.trim().length > 0 || hasNewerSettings) return;
+                      const { request } = failure;
+                      setTemplateUndo(null);
+                      setPrompt(request.prompt);
+                      setTarget({
+                        modelIds: [request.modelId],
+                        settings: request.settings,
+                      });
+                      setCheckedIds(request.referenceAssetIds);
+                      setParentAssetId(request.parentAssetId);
+                      setHasNewerSettings(true);
+                      // A saved failure is one leg, even if its batch had copies.
+                      setComposerKey((current) => current + 1);
+                      queue.dismissFailed(request.id);
+                      requestAnimationFrame(() => promptRef.current?.focus());
+                    }
+                  : undefined
+              }
+            />
+          ))}
+
+          {queue.failed.length > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              {t("savedRequestsInTab")}
+            </p>
+          ) : null}
 
           {queue.waitingForSlot ? (
             <p className="text-muted-foreground text-xs leading-relaxed">
@@ -580,8 +697,30 @@ export function ImageStudio({
             <Columns2 aria-hidden />
             {labels.compareSelected}
           </Button>
-          <Button onClick={() => setCheckedIds([])} size="sm" variant="ghost">
+          <Button onClick={clearReferences} size="sm" variant="ghost">
             {labels.clearSelection}
+          </Button>
+        </div>
+      ) : null}
+
+      {templateUndo ? (
+        <div
+          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+          role="status"
+        >
+          <span>{t("templateReplacedBrief")}</span>
+          <Button
+            className="h-10 md:h-8"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setPrompt(templateUndo.prompt);
+              setTarget(templateUndo.target);
+              setTemplateUndo(null);
+              promptRef.current?.focus();
+            }}
+          >
+            {t("undoTemplate")}
           </Button>
         </div>
       ) : null}
@@ -648,10 +787,20 @@ export function ImageStudio({
           labels={labels}
           onClose={() => setViewing(null)}
           onRegenerate={(asset) => repeat(asset, "asset")}
+          onSchedule={canScheduleSocial ? scheduleAsset : undefined}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
+            setParentAssetId(undefined);
+            setHasNewerSettings(true);
+            setTemplateUndo(null);
             setCheckedIds([asset.id]);
+            setPrompt("");
+            setTarget((current) => ({
+              ...current,
+              settings: { ...settingsOf(asset), seed: null },
+            }));
             setViewing(null);
+            requestAnimationFrame(() => promptRef.current?.focus());
           }}
           siblings={state.assets}
         />
@@ -746,7 +895,7 @@ function Notice({
 }) {
   return (
     <p
-      className="bg-card-background text-foreground flex shrink-0 items-start gap-2 rounded-xl p-3 text-sm"
+      className="bg-card-background text-foreground mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-xl p-3 text-sm md:mx-5"
       role="status"
     >
       <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />

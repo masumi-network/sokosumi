@@ -33,6 +33,9 @@ function client(
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>(path: string, body: unknown) => {
       calls.push({ method: "PATCH", path, body });
       return response as T;

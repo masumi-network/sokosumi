@@ -1,4 +1,3 @@
-import { SsrfError, ssrfSafeFetch } from "@sokosumi/net";
 import {
   type SocialPostMediaKind,
   type SocialPostMediaRef,
@@ -7,8 +6,11 @@ import {
   socialPostMediaKindForMime,
   socialPostProviderLabel,
 } from "@sokosumi/utils";
-
 import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import { socialPostMediaRefSchema } from "@/schemas/social-post.schema";
 
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
@@ -64,11 +66,6 @@ export function requireSocialPostMedia(
   );
 }
 
-/** Base MIME type of a response, lowercased and stripped of parameters. */
-function servedMimeType(contentType: string | null): string {
-  return (contentType ?? "").split(";")[0].trim().toLowerCase();
-}
-
 function kindLabel(kind: SocialPostMediaKind): string {
   switch (kind) {
     case "image":
@@ -85,49 +82,35 @@ async function downloadOne(
   ref: SocialPostMediaRef,
   signal?: AbortSignal,
 ): Promise<SocialPostMediaBytes> {
-  const maxBytes = socialPostMaxBytesForKind(provider, ref.kind);
   const label = socialPostProviderLabel(provider);
-  let response: Response;
   try {
-    response = await ssrfSafeFetch(ref.fileUrl, {
-      maxResponseBytes: maxBytes,
-      signal: signal
-        ? AbortSignal.any([
-            signal,
-            AbortSignal.timeout(MEDIA_DOWNLOAD_TIMEOUT_MS),
-          ])
-        : AbortSignal.timeout(MEDIA_DOWNLOAD_TIMEOUT_MS),
+    const { bytes, mimeType } = await downloadDriveFile(ref.fileUrl, {
+      maxBytes: socialPostMaxBytesForKind(provider, ref.kind),
+      timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+      acceptsMimeType: (mime) => socialPostMediaKindForMime(mime) === ref.kind,
+      signal,
     });
+    return { bytes, name: ref.name, mimeType, kind: ref.kind };
   } catch (error) {
-    if (error instanceof SsrfError && /maxResponseBytes/.test(error.message)) {
-      throw new SocialPostMediaError(
-        "media_too_large",
-        `Media file "${ref.name}" is too large for ${label}`,
-      );
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    switch (error.reason) {
+      case "too_large":
+        throw new SocialPostMediaError(
+          "media_too_large",
+          `Media file "${ref.name}" is too large for ${label}`,
+        );
+      case "unavailable":
+        throw new SocialPostMediaError(
+          "media_missing",
+          `Media file "${ref.name}" is no longer available`,
+        );
+      case "wrong_type":
+        throw new SocialPostMediaError(
+          "media_type_mismatch",
+          `Media file "${ref.name}" is not ${kindLabel(ref.kind)}`,
+        );
     }
-    throw error;
   }
-  if (!response.ok) {
-    throw new SocialPostMediaError(
-      "media_missing",
-      `Media file "${ref.name}" is no longer available`,
-    );
-  }
-  const servedMime = servedMimeType(response.headers.get("content-type"));
-  if (socialPostMediaKindForMime(servedMime) !== ref.kind) {
-    throw new SocialPostMediaError(
-      "media_type_mismatch",
-      `Media file "${ref.name}" is not ${kindLabel(ref.kind)}`,
-    );
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.length > maxBytes) {
-    throw new SocialPostMediaError(
-      "media_too_large",
-      `Media file "${ref.name}" is too large for ${label}`,
-    );
-  }
-  return { bytes, name: ref.name, mimeType: servedMime, kind: ref.kind };
 }
 
 /**

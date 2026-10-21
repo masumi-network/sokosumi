@@ -16,6 +16,7 @@ const {
   roomFindFirstMock,
   roomDeleteManyMock,
   queryRawMock,
+  sokoBotFindUniqueMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
@@ -23,6 +24,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
+  sokoBotFindUniqueMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -40,6 +42,7 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock, deleteMany: roomDeleteManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
+  sokoBot: { findUnique: sokoBotFindUniqueMock },
   $queryRaw: queryRawMock,
 };
 
@@ -115,6 +118,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.OWNER });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   roomDeleteManyMock.mockResolvedValue({ count: 1 });
+  sokoBotFindUniqueMock.mockResolvedValue(null);
 });
 
 describe("DELETE /chats/rooms/{id}", () => {
@@ -162,6 +166,21 @@ describe("DELETE /chats/rooms/{id}", () => {
     roomFindFirstMock.mockResolvedValue(null);
 
     expect((await permanentlyDelete()).status).toBe(404);
+    expect(roomDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to delete a shared Soko Bot's room, even for an owner", async () => {
+    roomFindFirstMock.mockResolvedValue(archivedRoom());
+    sokoBotFindUniqueMock.mockResolvedValue({ id: "shared-bot" });
+
+    const response = await permanentlyDelete();
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/cannot be permanently deleted/);
+    expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
+      where: { sharedRoomId: ROOM_ID },
+      select: { id: true },
+    });
     expect(roomDeleteManyMock).not.toHaveBeenCalled();
   });
 

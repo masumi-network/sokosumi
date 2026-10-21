@@ -5,7 +5,7 @@ import {
   type ChatResultPreview,
   SokosumiJobStatus,
 } from "@sokosumi/core-client";
-import { getChatRoomMessageResultsResponseTransformer } from "@sokosumi/core-client/transformers";
+import { getMySokoBotTurnResultsResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  type NumberFormatOptions,
+  useFormatter,
+  useTranslations,
+} from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -29,6 +33,10 @@ import {
   useState,
 } from "react";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
+import {
+  SokoBotTargetContext,
+  useSokoBotTargetId,
+} from "@/app/personal-assistant/components/soko-bot-target";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
@@ -41,9 +49,12 @@ import { Button } from "@/components/ui/button";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useSession } from "@/lib/auth/auth.client";
+import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
+import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { ProjectSelectionMessage } from "./project-selection-message";
+import { loadRoomMessageResults } from "./room-message-results";
 import { selectChatProjectAction } from "./select-project-action";
 
 const icons = {
@@ -58,6 +69,21 @@ const icons = {
   project_selection: FolderKanban,
 };
 
+/**
+ * Core points bot cards (such as a schedule) at the caller's own console. For
+ * a shared bot that is the wrong console, so send them to the bot's own.
+ */
+export function cardHref(sourceHref: string, botId?: string | null): string {
+  const rest = sourceHref.slice(SOKO_BOT_ROUTE.length);
+  if (
+    !botId ||
+    !sourceHref.startsWith(SOKO_BOT_ROUTE) ||
+    !/^([?#]|$)/.test(rest)
+  )
+    return sourceHref;
+  return `${sokoBotConsoleRoute(botId)}${rest}`;
+}
+
 /** Both chat timelines use the same recorded card and existing decision actions. */
 export function ResultPreviewCard({
   result,
@@ -69,6 +95,7 @@ export function ResultPreviewCard({
   onDecisionResolved: () => void;
 }) {
   const sourceLink = useRef<HTMLAnchorElement>(null);
+  const botId = useSokoBotTargetId();
   const t = useTranslations("Components.ChatResults");
   const format = useFormatter();
   const tTaskStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -143,6 +170,8 @@ export function ResultPreviewCard({
       : undefined;
   const Icon = icons[result.kind];
   const statusKey = `status.${result.status}`;
+  const jobHintKey = `jobHint.${jobStatus}`;
+  const jobHint = jobStatus && t.has(jobHintKey) ? t(jobHintKey) : null;
   function openSource(event: ReactMouseEvent<HTMLElement>) {
     if (event.defaultPrevented || (event.button !== 0 && event.button !== 1))
       return;
@@ -186,7 +215,7 @@ export function ResultPreviewCard({
     >
       <Link
         ref={sourceLink}
-        href={result.sourceHref}
+        href={cardHref(result.sourceHref, botId)}
         aria-label={t("openLabel", { title: result.title })}
         className="focus-visible:ring-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
         data-testid="result-preview-source"
@@ -205,7 +234,9 @@ export function ResultPreviewCard({
               />
             )}
             <span className="text-muted-foreground text-xs">
-              {t(`kind.${result.kind}`)}
+              {jobStatus && result.agent
+                ? result.agent.name
+                : t(`kind.${result.kind}`)}
             </span>
           </div>
           {jobStatus ? (
@@ -226,6 +257,9 @@ export function ResultPreviewCard({
             {result.title}
           </h3>
         )}
+        {jobHint ? (
+          <p className="text-muted-foreground text-sm">{jobHint}</p>
+        ) : null}
         {!nativeTask && result.summary && result.summary !== result.title ? (
           <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
             {result.summary}
@@ -240,7 +274,7 @@ export function ResultPreviewCard({
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
             {(
               [
-                ["assignee", nativeTask ? null : result.assignee],
+                ["assignee", nativeTask || jobStatus ? null : result.assignee],
                 ["project", nativeTask ? null : result.project],
                 ["destination", result.destination],
               ] as const
@@ -261,6 +295,14 @@ export function ResultPreviewCard({
                 </div>
               ) : null,
             )}
+            {result.details?.map((detail, index) => (
+              <div key={`${detail.label}-${index}`} className="contents">
+                <dt className="text-muted-foreground">{detail.label}</dt>
+                <dd className="min-w-0 wrap-break-word">
+                  <DetailValue value={detail.value} />
+                </dd>
+              </div>
+            ))}
             {result.scheduledAt ? (
               <div className="contents">
                 <dt className="text-muted-foreground">{t("scheduled")}</dt>
@@ -345,9 +387,8 @@ export function ResultPreviewCard({
                       <FileText aria-hidden className="size-4 shrink-0" />
                       <span className="wrap-break-word">
                         {output.name}
-                        {output.contentType ? ` · ${output.contentType}` : ""}
                         {output.sizeBytes != null
-                          ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                          ? ` · ${fileSize(output.sizeBytes, format.number)}`
                           : ""}
                       </span>
                     </Link>
@@ -369,16 +410,18 @@ export function ResultPreviewCard({
           </ul>
         ) : null}
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
-          <span>
-            {t("recorded", {
-              time: format.dateTime(new Date(result.capturedAt), "dateTime"),
-            })}
-          </span>
+          {jobStatus ? null : (
+            <span>
+              {t("recorded", {
+                time: format.dateTime(new Date(result.capturedAt), "dateTime"),
+              })}
+            </span>
+          )}
           <span
             aria-hidden
-            className="text-foreground inline-flex items-center gap-1"
+            className="text-foreground ml-auto inline-flex items-center gap-1"
           >
-            {t("open")}
+            {jobStatus ? t("openJob") : t("open")}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </span>
         </div>
@@ -387,51 +430,103 @@ export function ResultPreviewCard({
   );
 }
 
+const SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/** A decimal file size in the reader's locale, such as "182 kB". */
+export function fileSize(
+  bytes: number,
+  formatNumber: (value: number, options: NumberFormatOptions) => string,
+): string {
+  const step = Math.min(
+    SIZE_UNITS.length - 1,
+    bytes >= 1000 ? Math.floor(Math.log10(bytes) / 3) : 0,
+  );
+  return formatNumber(bytes / 1000 ** step, {
+    style: "unit",
+    unit: SIZE_UNITS[step],
+    unitDisplay: "short",
+    maximumFractionDigits: step > 1 ? 1 : 0,
+  });
+}
+
+/** An http(s) value opens in a new tab; anything else stays text. */
+function DetailValue({ value }: { value: string }) {
+  let url: URL | null = null;
+  try {
+    url = /^https?:\/\//i.test(value) ? new URL(value) : null;
+  } catch {
+    url = null;
+  }
+  if (!url) return value;
+  return (
+    <a
+      href={url.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-2 outline-none focus-visible:ring-2"
+    >
+      {`${url.host}${url.pathname === "/" ? "" : url.pathname}`}
+    </a>
+  );
+}
+
 interface ResultPreviewsProps {
   descriptors: ChatResultDescriptor[];
-  source: { roomId: string; messageId: string } | { turnId: string };
+  source:
+    | { roomId: string; messageId: string }
+    | { turnId: string; botId?: string };
   onDecisionResolved?: () => void;
   existingDecisionIds?: string[];
   renderFooter?: (results: ChatResultPreview[]) => ReactNode;
+  /** A shared bot's id, so its decision cards resolve on that bot. */
+  sokoBotId?: string | null;
 }
 export function ResultPreviews(props: ResultPreviewsProps) {
-  return props.descriptors.length ? (
-    <AuthorizedResultPreviews {...props} />
+  if (!props.descriptors.length) return props.renderFooter?.([]) ?? null;
+  const previews = <AuthorizedResultPreviews {...props} />;
+  return props.sokoBotId ? (
+    <SokoBotTargetContext.Provider value={props.sokoBotId}>
+      {previews}
+    </SokoBotTargetContext.Provider>
   ) : (
-    (props.renderFooter?.([]) ?? null)
+    previews
   );
 }
 function AuthorizedResultPreviews({
   descriptors,
-  source,
+  source: givenSource,
   onDecisionResolved,
   existingDecisionIds,
   renderFooter,
 }: ResultPreviewsProps) {
   const t = useTranslations("Components.ChatResults");
   const { data: session } = useSession();
-  const path =
-    "turnId" in source
-      ? `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`
-      : `/api/chat/${encodeURIComponent(source.roomId)}/messages/${encodeURIComponent(source.messageId)}/results`;
+  const viewerId = session?.user.id;
+  // A shared bot's console reads, and continues, that bot's turns.
+  const botId = useSokoBotTargetId();
+  const source =
+    "turnId" in givenSource && botId ? { ...givenSource, botId } : givenSource;
   const query = useQuery({
     queryKey: [
       "chat-results",
-      session?.user.id,
+      viewerId,
       session?.session.activeOrganizationId,
-      path,
+      source,
       descriptors.map((d) => d.id),
     ],
-    enabled: !!session?.user.id,
+    enabled: !!viewerId,
     queryFn: async ({ signal }) => {
-      const response = await fetch(path, {
-        signal,
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+      if (!("turnId" in source))
+        return loadRoomMessageResults(source.roomId, source.messageId);
+      const response = await fetch(
+        withBotIdParam(
+          `/api/personal-assistant/turns/${encodeURIComponent(source.turnId)}/results`,
+          "botId" in source ? source.botId : null,
+        ),
+        { signal, credentials: "same-origin", cache: "no-store" },
+      );
       if (!response.ok) throw new Error("Results unavailable");
-      // Both endpoints share the generated response envelope.
-      const page = await getChatRoomMessageResultsResponseTransformer(
+      const page = await getMySokoBotTurnResultsResponseTransformer(
         await response.json(),
       );
       return page.data;

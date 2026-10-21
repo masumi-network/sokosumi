@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { AgentJobStatus, jobInclude, type Prisma } from "@sokosumi/database";
+import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
 import { formatTaskIdentifier } from "@sokosumi/utils";
@@ -10,6 +10,7 @@ import {
 } from "@/helpers/access-control";
 import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
 import { notFound, unprocessableEntity } from "@/helpers/error";
+import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
@@ -308,7 +309,7 @@ export async function resolveChatResultReference(
       const schedule = await client.sokoBotSchedule.findFirst({
         where: {
           id: ref.id,
-          userId: actor.userId,
+          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
         },
         include: {
@@ -435,27 +436,19 @@ export async function resolveChatResultReference(
       });
       if (!row) throw notFound("Result unavailable");
       const job = mapJobWithStatus(row);
+      const digest = digestJob(job);
       const href = `/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`;
-      const outputs = await client.blob.findMany({
-        where: {
-          event: { jobId: job.id },
-          status: "READY",
-          fileUrl: { not: null },
-        },
-        take: 12,
-      });
+      const outputs = job.events
+        .flatMap((event) => event.blobs)
+        .filter((blob) => blob.status === "READY" && blob.fileUrl)
+        .slice(0, 12);
+      const finished = digest.result ?? digest.error;
       data = chatResultAvailableSchema.parse({
         ...base,
         title: (job.name ?? job.agent.name).slice(0, 500),
         status: job.status,
-        summary:
-          (
-            job.result ??
-            (row.events?.[0]?.status === AgentJobStatus.FAILED
-              ? row.events[0].result
-              : null) ??
-            job.input
-          )?.slice(0, 4000) ?? null,
+        summary: finished ? plainExcerpt(finished, 600) : null,
+        details: finished ? [] : digest.input,
         assignee: job.agent.name,
         agent: { name: job.agent.name, icon: job.agent.icon ?? null },
         sourceHref: href,
@@ -489,7 +482,7 @@ export async function resolveChatResultReference(
       const decision = await client.sokoBotPendingDecision.findFirst({
         where: {
           id: ref.id,
-          userId: actor.userId,
+          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
         },
       });
@@ -555,6 +548,25 @@ export async function hydrateChatResultSnapshots(
             allowedOutputs.has(output.openHref),
           ),
           decision: current.data.decision,
+          // A hired Agent's Job keeps working after the turn; its card is live.
+          ...(snapshot.data.kind === "job"
+            ? {
+                status: current.data.status,
+                summary: current.data.summary,
+                details: current.data.details,
+                outputs: current.data.outputs,
+              }
+            : {}),
+          // Auto tags, the project and the assignee usually land seconds
+          // after the turn; the card keeps the name and status it reported.
+          task:
+            current.data.task && snapshot.data.task
+              ? {
+                  ...current.data.task,
+                  name: snapshot.data.task.name,
+                  status: snapshot.data.task.status,
+                }
+              : snapshot.data.task,
           // Choices are live: removed projects and old names are never selectable.
           projectOptions: current.data.projectOptions,
         };

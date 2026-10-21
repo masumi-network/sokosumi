@@ -1,0 +1,434 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+const coreClientMock = {
+  deleteProjectsByIdAdsAccountsByAccountId: vi.fn(),
+  deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
+  getProjectsByIdAdsAccounts: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdTargetingLanguages: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdTargetingLocations: vi.fn(),
+  getProjectsByIdAdsMarket: vi.fn(),
+  getProjectsByIdAdsMarketAds: vi.fn(),
+  getProjectsByIdAdsMarketKeywords: vi.fn(),
+  putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
+  putProjectsByIdAdsMarket: vi.fn(),
+  patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
+  postProjectsByIdAdsAccounts: vi.fn(),
+  postProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  postProjectsByIdAdsConnectionsFinalize: vi.fn(),
+  postProjectsByIdAdsConnectionsInitiate: vi.fn(),
+};
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: coreClientMock,
+}));
+
+const ACCOUNT = {
+  id: "account-1",
+  connectionId: "connection-1",
+  provider: "google_ads" as const,
+  externalAccountId: "123-456-7890",
+  name: "Launch plan",
+  currency: "EUR",
+  timeZone: null,
+  loginCustomerId: null,
+  createdAt: new Date("2026-10-01T10:00:00.000Z"),
+};
+
+type AdsService = typeof import("./ads.service").adsService;
+
+describe("adsService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lists a project's ad accounts", async () => {
+    coreClientMock.getProjectsByIdAdsAccounts.mockResolvedValue({
+      data: [ACCOUNT],
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.listAccounts("project-1")).resolves.toEqual([
+      ACCOUNT,
+    ]);
+    expect(coreClientMock.getProjectsByIdAdsAccounts).toHaveBeenCalledWith(
+      "project-1",
+    );
+  });
+
+  it("initiates a connection for a provider", async () => {
+    const initiation = {
+      connectionId: "ca_1",
+      redirectUrl: "https://connect.composio.dev/link",
+    };
+    coreClientMock.postProjectsByIdAdsConnectionsInitiate.mockResolvedValue({
+      data: initiation,
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.initiateConnection("project-1", "meta_ads"),
+    ).resolves.toEqual(initiation);
+    expect(
+      coreClientMock.postProjectsByIdAdsConnectionsInitiate,
+    ).toHaveBeenCalledWith("project-1", { provider: "meta_ads" });
+  });
+
+  it("finalizes a connection and returns what it can reach", async () => {
+    const finalization = {
+      connection: {
+        id: "connection-1",
+        provider: "google_ads",
+        status: "active",
+        createdAt: new Date("2026-10-01T10:00:00.000Z"),
+      },
+      availableAccounts: [],
+    };
+    coreClientMock.postProjectsByIdAdsConnectionsFinalize.mockResolvedValue({
+      data: finalization,
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.finalizeConnection("project-1", "ca_1"),
+    ).resolves.toEqual(finalization);
+    expect(
+      coreClientMock.postProjectsByIdAdsConnectionsFinalize,
+    ).toHaveBeenCalledWith("project-1", { connectionId: "ca_1" });
+  });
+
+  it("attaches the chosen accounts", async () => {
+    coreClientMock.postProjectsByIdAdsAccounts.mockResolvedValue({
+      data: [ACCOUNT],
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.attachAccounts("project-1", "connection-1", ["123-456-7890"]),
+    ).resolves.toEqual([ACCOUNT]);
+    expect(coreClientMock.postProjectsByIdAdsAccounts).toHaveBeenCalledWith(
+      "project-1",
+      { adConnectionId: "connection-1", externalAccountIds: ["123-456-7890"] },
+    );
+  });
+
+  it("disconnects an account, which answers with no content", async () => {
+    coreClientMock.deleteProjectsByIdAdsAccountsByAccountId.mockResolvedValue(
+      undefined,
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.disconnectAccount("project-1", "account-1"),
+    ).resolves.toBeUndefined();
+    expect(
+      coreClientMock.deleteProjectsByIdAdsAccountsByAccountId,
+    ).toHaveBeenCalledWith({ id: "project-1", accountId: "account-1" });
+  });
+
+  it("discards a connection that holds no accounts", async () => {
+    coreClientMock.deleteProjectsByIdAdsConnectionsByAdConnectionId.mockResolvedValue(
+      undefined,
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.discardConnection("project-1", "connection-1"),
+    ).resolves.toBeUndefined();
+    expect(
+      coreClientMock.deleteProjectsByIdAdsConnectionsByAdConnectionId,
+    ).toHaveBeenCalledWith({ id: "project-1", adConnectionId: "connection-1" });
+  });
+
+  it("lets Core errors through", async () => {
+    coreClientMock.getProjectsByIdAdsAccounts.mockRejectedValue(
+      new Error("boom"),
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.listAccounts("project-1")).rejects.toThrow("boom");
+  });
+
+  it("lists an account's campaigns over a range", async () => {
+    const body = { campaigns: [], range: "LAST_7_DAYS", currency: "EUR" };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: body },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.listCampaigns("project-1", "account-1", "LAST_7_DAYS"),
+    ).resolves.toEqual(body);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { range: "LAST_7_DAYS" },
+    );
+  });
+
+  it("reads one campaign's details over a range", async () => {
+    const body = { campaign: { id: "42" } };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      { data: body },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.getCampaignDetails(
+        "project-1",
+        "account-1",
+        "42",
+        "LAST_30_DAYS",
+      ),
+    ).resolves.toEqual(body);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
+      { range: "LAST_30_DAYS" },
+    );
+  });
+
+  it("updates a campaign's status or budget", async () => {
+    coreClientMock.patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      undefined,
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.updateCampaign("project-1", "account-1", "42", {
+      status: "PAUSED",
+    });
+    expect(
+      coreClientMock.patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
+      { status: "PAUSED" },
+    );
+  });
+
+  it("creates a campaign and returns its id", async () => {
+    coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: { id: "42" } },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.createCampaign("project-1", "account-1", {
+        name: "Spring sale",
+        dailyBudget: 25,
+      }),
+    ).resolves.toEqual({ id: "42" });
+    expect(
+      coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { name: "Spring sale", dailyBudget: 25 },
+    );
+  });
+
+  it("sends a Google campaign's spec in the request body", async () => {
+    coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: { id: "42" } },
+    );
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "EXACT" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.createCampaign("project-1", "account-1", {
+      name: "Spring sale",
+      dailyBudget: 25,
+      google,
+    });
+    expect(
+      coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { name: "Spring sale", dailyBudget: 25, google },
+    );
+  });
+
+  it("edits a campaign with a PUT of its settings", async () => {
+    coreClientMock.putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      { data: undefined },
+    );
+    const google = {
+      type: "SEARCH" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com",
+      keywords: [{ text: "running shoes", matchType: "EXACT" as const }],
+      headlines: ["One", "Two", "Three"],
+      descriptions: ["First description", "Second description"],
+    };
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.editCampaign("project-1", "account-1", "42", {
+      name: "Spring sale",
+      dailyBudget: 25,
+      google,
+    });
+    expect(
+      coreClientMock.putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
+      { name: "Spring sale", dailyBudget: 25, google },
+    );
+  });
+
+  it("reads the market profile, which is null until one is saved", async () => {
+    coreClientMock.getProjectsByIdAdsMarket.mockResolvedValue({
+      data: { profile: null },
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.getMarketProfile("project-1")).resolves.toEqual({
+      profile: null,
+    });
+    expect(coreClientMock.getProjectsByIdAdsMarket).toHaveBeenCalledWith(
+      "project-1",
+    );
+  });
+
+  it("saves the market profile", async () => {
+    const profile = {
+      keywords: ["running shoes"],
+      countryCode: "DE" as const,
+      languageCode: "de" as const,
+    };
+    const saved = { profile: { ...profile, updatedAt: new Date() } };
+    coreClientMock.putProjectsByIdAdsMarket.mockResolvedValue({ data: saved });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.saveMarketProfile("project-1", profile),
+    ).resolves.toEqual(saved);
+    expect(coreClientMock.putProjectsByIdAdsMarket).toHaveBeenCalledWith(
+      "project-1",
+      profile,
+    );
+  });
+
+  it("lists market keywords and ads", async () => {
+    const keywords = { keywords: [], fetchedAt: new Date() };
+    const ads = { status: "ready" as const, ads: [], fetchedAt: new Date() };
+    coreClientMock.getProjectsByIdAdsMarketKeywords.mockResolvedValue({
+      data: keywords,
+    });
+    coreClientMock.getProjectsByIdAdsMarketAds.mockResolvedValue({ data: ads });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.listMarketKeywords("project-1")).resolves.toBe(
+      keywords,
+    );
+    await expect(adsService.listMarketAds("project-1")).resolves.toBe(ads);
+  });
+
+  it("searches Google locations by name and gets one by id", async () => {
+    const locations = {
+      locations: [
+        {
+          id: "2276",
+          name: "Germany",
+          canonicalName: "Germany",
+          targetType: "Country",
+          countryCode: "DE",
+        },
+      ],
+    };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLocations.mockResolvedValue(
+      { data: locations },
+    );
+
+    const { adsService } = await import("./ads.service");
+    const lookup =
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLocations;
+
+    await expect(
+      adsService.searchLocations("project-1", "account-1", "Ger"),
+    ).resolves.toBe(locations);
+    expect(lookup).toHaveBeenLastCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { q: "Ger" },
+    );
+
+    await adsService.getLocationById("project-1", "account-1", "2372");
+    expect(lookup).toHaveBeenLastCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { ids: "2372" },
+    );
+  });
+
+  it("lists Google's languages", async () => {
+    const languages = {
+      languages: [{ id: "1001", code: "de", name: "German" }],
+    };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages.mockResolvedValue(
+      { data: languages },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.listLanguages("project-1", "account-1"),
+    ).resolves.toBe(languages);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdTargetingLanguages,
+    ).toHaveBeenCalledWith({ id: "project-1", accountId: "account-1" });
+  });
+
+  it.each([
+    [
+      "searchLocations",
+      (service: AdsService) =>
+        service.searchLocations("project-1", "account-1", "Ger"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLocations",
+    ],
+    [
+      "getLocationById",
+      (service: AdsService) =>
+        service.getLocationById("project-1", "account-1", "2276"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLocations",
+    ],
+    [
+      "listLanguages",
+      (service: AdsService) => service.listLanguages("project-1", "account-1"),
+      "getProjectsByIdAdsAccountsByAccountIdTargetingLanguages",
+    ],
+  ] as const)(
+    "lets a Core failure through from %s",
+    async (_name, call, operation) => {
+      coreClientMock[operation].mockRejectedValue(new Error("boom"));
+
+      const { adsService } = await import("./ads.service");
+
+      await expect(call(adsService)).rejects.toThrow("boom");
+    },
+  );
+});

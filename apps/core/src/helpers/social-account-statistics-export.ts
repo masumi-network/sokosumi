@@ -47,6 +47,7 @@ export function socialAccountStatisticsExportSheets({
           "url",
           ...METRICS,
           ...additionalKeys,
+          "fetched_at",
           "publication_from",
           "publication_until",
         ],
@@ -62,6 +63,7 @@ export function socialAccountStatisticsExportSheets({
               post.additionalMetrics.find((metric) => metric.key === key)
                 ?.value ?? null,
           ),
+          post.fetchedAt,
           publishedFrom?.toISOString() ?? null,
           publishedUntil?.toISOString() ?? null,
         ]),

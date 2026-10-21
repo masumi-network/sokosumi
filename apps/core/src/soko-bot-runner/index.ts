@@ -31,6 +31,7 @@ import {
   searchWorkspace,
   writeWorkspaceFile,
 } from "./local-tools";
+import { runTurnLoop } from "./loop";
 
 interface TurnStart {
   message: string;
@@ -39,6 +40,8 @@ interface TurnStart {
   capabilities: SokoBotCapability[];
   deadlineAt: string;
   maxSteps: number;
+  /** A background run: keep working until it reports DONE. */
+  background?: boolean;
 }
 
 class CoreRejected extends Error {
@@ -153,7 +156,10 @@ function buildTools(
     Record<SokoBotCapability, (input: never) => Promise<unknown>>
   > = {
     web_fetch: fetchWebPage,
-    bash: runCommand,
+    // The turn's tool endpoint, so a script can call the same tools; the
+    // sandbox proxy adds the token, so the command never holds it.
+    bash: (input: { command: string; timeoutSeconds?: number }) =>
+      runCommand(input, { SOKO_TOOLS_URL: `${base}/tools` }),
     workspace_read: readWorkspaceFile,
     workspace_write: writeWorkspaceFile,
     workspace_list: listWorkspace,
@@ -251,12 +257,6 @@ async function runSubagent(
   return { findings: result.text || "(no findings)" };
 }
 
-/** Each provider's switch for a returned reasoning summary; others ignore it. */
-const REASONING_SUMMARY_OPTIONS = {
-  openai: { reasoningSummary: "auto" },
-  google: { thinkingConfig: { includeThoughts: true } },
-};
-
 /** The summaries the provider returned across steps, capped; undefined if none. */
 function reasoningSummary(
   steps: readonly { reasoningText?: string | undefined }[],
@@ -287,31 +287,23 @@ async function main(): Promise<void> {
     Date.parse(start.deadlineAt) - Date.now() - 20_000,
   );
   try {
-    const result = await generateText({
+    const tools = buildTools(start.capabilities, gateway, start.model, {
+      forSubagent: false,
+    });
+    const { text, finishReason, steps } = await runTurnLoop({
       model: gateway(start.model),
       system: start.system,
-      messages: [{ role: "user", content: start.message }],
-      tools: buildTools(start.capabilities, gateway, start.model, {
-        forSubagent: false,
-      }),
-      stopWhen: stepCountIs(start.maxSteps),
-      // Ask for the provider's reasoning summary (never raw thoughts) so the
-      // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: REASONING_SUMMARY_OPTIONS,
-      abortSignal: AbortSignal.any([
-        stopped.signal,
-        AbortSignal.timeout(budgetMs),
-      ]),
-      maxRetries: 1,
+      message: start.message,
+      tools,
+      maxSteps: start.maxSteps,
+      background: Boolean(start.background),
+      deadline: Date.now() + budgetMs,
+      stopped: stopped.signal,
     });
     await callCore("/complete", {
-      // A model can answer in one step and end on an empty one; `text` is
-      // only the last step's.
-      text:
-        result.text ||
-        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
-      finishReason: result.finishReason,
-      reasoning: reasoningSummary(result.steps),
+      text,
+      finishReason,
+      reasoning: reasoningSummary(steps),
     });
   } catch (error) {
     if (isInactive(error)) {

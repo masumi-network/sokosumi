@@ -1,8 +1,8 @@
 "use client";
 
 import type { SocialPost } from "@sokosumi/core-client";
+import { CircleAlert } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
 
 export const SOCIAL_METRIC_KEYS = [
   "views",
@@ -15,92 +15,61 @@ export const SOCIAL_METRIC_KEYS = [
 
 export function SocialPostMetrics({
   statistics,
-  variant = "default",
+  compact = false,
+  hideUpdatedAt = false,
+  extra,
 }: {
   statistics: SocialPost["statistics"];
-  variant?: "default" | "compact" | "summary";
+  compact?: boolean;
+  hideUpdatedAt?: boolean;
+  extra?: React.ReactNode;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
-  const compact = variant === "compact";
-  const summary = variant === "summary";
+  const entries = SOCIAL_METRIC_KEYS.flatMap((key) => {
+    const value = statistics?.metrics[key];
+    if (value == null) return [];
+    return [{ key, value }];
+  });
+  if (compact && entries.length === 0 && !statistics?.error) return null;
   return (
-    <div className={cn("space-y-2", summary && "@container")}>
+    <div className="space-y-2">
       <dl
         className={
-          summary
-            ? "grid grid-cols-2 gap-x-4 gap-y-5 @sm:grid-cols-3"
-            : compact
-              ? "flex flex-wrap gap-x-3 gap-y-1 text-xs"
-              : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6"
+          compact
+            ? "flex flex-wrap gap-x-3 gap-y-1 text-xs"
+            : "grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"
         }
       >
-        {SOCIAL_METRIC_KEYS.map((key) => {
-          const value = statistics?.metrics[key];
-          return (
-            <div
-              key={key}
-              className={cn(
-                compact ? "flex gap-1" : "space-y-1",
-                summary && "flex min-w-0 flex-col gap-1 space-y-0",
-              )}
-            >
-              <dt
-                className={cn(
-                  "text-muted-foreground",
-                  summary && "order-2 text-xs",
-                )}
-              >
-                {t(`metrics.${key}`)}
-              </dt>
-              <dd
-                className={cn(
-                  "font-medium tabular-nums",
-                  summary && "order-1 text-xl tracking-tight",
-                )}
-                title={
-                  summary && value != null ? formatter.number(value) : undefined
-                }
-              >
-                {value == null && summary ? (
-                  <span
-                    title={t("unavailable")}
-                    className="text-muted-foreground"
-                  >
-                    <span aria-hidden>—</span>
-                    <span className="sr-only">{t("unavailable")}</span>
-                  </span>
-                ) : value == null ? (
-                  t("unavailable")
-                ) : (
-                  formatter.number(
-                    value,
-                    summary && Math.abs(value) >= 10000
-                      ? { notation: "compact", maximumFractionDigits: 1 }
-                      : undefined,
-                  )
-                )}
-              </dd>
-            </div>
-          );
-        })}
+        {entries.map(({ key, value }) => (
+          <div key={key} className={compact ? "flex gap-1" : "space-y-1"}>
+            <dt className="text-muted-foreground">{t(`metrics.${key}`)}</dt>
+            <dd className="font-medium tabular-nums">
+              {formatter.number(value)}
+            </dd>
+          </div>
+        ))}
+        {compact ? null : extra}
       </dl>
-      <p className="text-muted-foreground text-xs">
-        {statistics?.fetchedAt
-          ? t("updatedAt", {
-              date: formatter.dateTime(
-                new Date(statistics.fetchedAt),
-                "dateTime",
-                summary
-                  ? { timeZone: "UTC", timeZoneName: "short" }
-                  : undefined,
-              ),
-            })
-          : t("notFetched")}
-      </p>
+      {compact || hideUpdatedAt ? null : (
+        <p className="text-muted-foreground text-xs">
+          {statistics?.fetchedAt
+            ? t("updatedAt", {
+                date: formatter.dateTime(
+                  new Date(statistics.fetchedAt),
+                  "dateTime",
+                ),
+              })
+            : t("notFetched")}
+        </p>
+      )}
       {statistics?.error ? (
-        <p role="status" className="text-semantic-warning text-xs">
-          {t("refreshFailed")}
+        <p
+          role="status"
+          className="text-semantic-warning flex items-center gap-1.5 text-xs"
+        >
+          <CircleAlert aria-hidden className="size-3.5 shrink-0" />
+          {t("loadFailed")}
         </p>
       ) : null}
     </div>

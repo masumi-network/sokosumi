@@ -24,6 +24,9 @@ const LEVEL_CLASS = [
   "bg-primary-solid dark:bg-chart-1",
 ] as const;
 
+const UNKNOWN_CLASS =
+  "border-muted-foreground bg-background border border-dashed";
+
 const WEEKDAY_ROWS = [1, 3, 5] as const;
 
 export function PostingConsistency({
@@ -204,7 +207,7 @@ export function PostingConsistency({
                     }
                     className={cn(
                       "aspect-square w-full rounded-xs",
-                      LEVEL_CLASS[measured ?? 0],
+                      measured == null ? UNKNOWN_CLASS : LEVEL_CLASS[measured],
                       selected && "ring-ring ring-1 ring-inset",
                     )}
                     style={{ gridColumn: column + 2, gridRow: row + 2 }}
@@ -225,6 +228,15 @@ export function PostingConsistency({
           />
         ))}
         <span>{t("performance.legendMore")}</span>
+        {mode === "engagement" ? (
+          <>
+            <span
+              className={cn("ms-2 size-3 rounded-xs", UNKNOWN_CLASS)}
+              aria-hidden
+            />
+            <span>{t("performance.legendUnknown")}</span>
+          </>
+        ) : null}
       </div>
     </section>
   );

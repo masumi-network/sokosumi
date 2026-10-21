@@ -27,6 +27,13 @@ import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
+import {
+  deprecatedWorkUserIdSchema,
+  deprecatedWorkUserSchema,
+  workCreatorField,
+  workOwnerIdSchema,
+  workOwnerSchema,
+} from "@/schemas/work-creator.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
 const customBrandSchema = z.object({
@@ -168,40 +175,6 @@ export const taskEventSchema = z
   })
   .openapi("TaskEvent");
 
-const taskCreatorUserSchema = z
-  .object({
-    type: z.literal("user"),
-    id: z.string().openapi({ example: "user_123" }),
-    user: userSummarySchema,
-  })
-  .openapi("TaskCreatorUser");
-
-const taskCreatorCoworkerSchema = z
-  .object({
-    type: z.literal("coworker"),
-    id: z.string().openapi({ example: "cow_123" }),
-    coworker: coworkerSummarySchema,
-  })
-  .openapi("TaskCreatorCoworker");
-
-const taskCreatorSokoBotSchema = z
-  .object({
-    type: z.literal("sokoBot"),
-    id: z.string().uuid().openapi({
-      example: "01960001-0001-7001-8001-000000000099",
-    }),
-    sokoBot: sokoBotSummarySchema,
-  })
-  .openapi("TaskCreatorSokoBot");
-
-const taskCreatorSchema = z
-  .discriminatedUnion("type", [
-    taskCreatorUserSchema,
-    taskCreatorCoworkerSchema,
-    taskCreatorSokoBotSchema,
-  ])
-  .openapi("TaskCreator");
-
 const taskAssigneeCoworkerSchema = z
   .object({
     type: z.literal("coworker"),
@@ -240,22 +213,12 @@ const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
-  ownerId: z.string().openapi({
-    example: "user_123",
-    description: "Task owner. Always a user.",
-  }),
-  owner: userSummarySchema,
+  ownerId: workOwnerIdSchema,
+  owner: workOwnerSchema,
   /** @deprecated Use `ownerId`. */
-  userId: z.string().openapi({
-    example: "user_123",
-    deprecated: true,
-    description: "Deprecated. Use ownerId instead.",
-  }),
+  userId: deprecatedWorkUserIdSchema,
   /** @deprecated Use `owner`. */
-  user: userSummarySchema.openapi({
-    deprecated: true,
-    description: "Deprecated. Use owner instead.",
-  }),
+  user: deprecatedWorkUserSchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   organization: organizationSummarySchema.nullable(),
   projectId: z.string().uuid().nullable().openapi({
@@ -304,10 +267,7 @@ const taskBaseSchema = z.object({
     description:
       "Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.",
   }),
-  creator: taskCreatorSchema.openapi({
-    description:
-      "Actor that created the task. Exactly one of user, coworker, or sokoBot.",
-  }),
+  ...workCreatorField,
   /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
   sokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",

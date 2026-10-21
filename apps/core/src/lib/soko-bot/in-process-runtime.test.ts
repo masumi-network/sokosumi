@@ -59,6 +59,9 @@ vi.mock("@/lib/db/prisma", () => {
     },
   };
 });
+vi.mock("./active-background-runs", () => ({
+  withActiveBackgroundRuns: async (_turnId: string, text: string) => text,
+}));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));

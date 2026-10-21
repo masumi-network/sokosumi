@@ -238,7 +238,7 @@ struct DirectStreamSessionTests {
   @Test func onlyCoworkerOneToOneDirectsUseStream() {
     var candidate = room()
     #expect(DirectStreamSession.supports(candidate))
-    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", presence: .online)]
+    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", scope: .personal, presence: .online)]
     #expect(!DirectStreamSession.supports(candidate))
     candidate.sokoBotMembers = []
     candidate.kind = .channel

@@ -75,7 +75,13 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const BOOLEAN_OPTION_NAMES = ["create-api-key", "details", "personal"] as const;
+const BOOLEAN_OPTION_NAMES = [
+  "create-api-key",
+  "details",
+  "personal",
+  "unassign",
+  "clear-project",
+] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
   ...GLOBAL_VALUE_OPTIONS,
@@ -119,6 +125,13 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "result-file",
   "email",
   "slug",
+  "description-file",
+  "project-id",
+  "assignee-user-id",
+  "to",
+  "relation",
+  "note",
+  "sort",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([

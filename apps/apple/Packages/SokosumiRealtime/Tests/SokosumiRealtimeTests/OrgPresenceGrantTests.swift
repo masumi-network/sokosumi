@@ -2,12 +2,12 @@ import SokosumiChat
 @testable import SokosumiRealtime
 import Testing
 
-private typealias PresenceScope = GatedScope<Bool>
+private typealias PresenceScope = GatedScope<String>
 
 /// Org presence's reader: `presence` on the organization's channel.
 private func presenceScope() -> PresenceScope {
   PresenceScope { capability, organizationId in
-    (organizationIds(grantedPresenceIn: capability) ?? []).contains(organizationId) ? true : nil
+    orgPresenceChannelNames(grantedPresenceIn: capability)?[organizationId]
   }
 }
 
@@ -30,8 +30,8 @@ struct OrgPresenceGrantTests {
     let firstRequest = scope.requestAuthorization()
     let first = try #require(firstRequest)
     let granted = scope.finishAuthorization(first, capability: granted, failed: false)
-    #expect(granted == .granted(target: "org_1", grant: true))
-    #expect(scope.grant == true)
+    #expect(granted == .granted(target: "org_1", grant: "presence:org_org_1"))
+    #expect(scope.grant == "presence:org_org_1")
     let secondRequest = scope.requestAuthorization()
     let second = try #require(secondRequest)
     let subscribeOnly = scope.finishAuthorization(second, capability: #"{"presence:org_org_1":["subscribe"]}"#, failed: false)

@@ -84,6 +84,7 @@ const MEMBER: CoworkerOption = {
 function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
   return {
     id: "01960001-0001-7001-8001-000000000001",
+    creator: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     organizationId: null,
     ownerId: "user_1",
@@ -197,7 +198,7 @@ describe("TaskSchedulesView", () => {
     expect(document.cookie).toContain("schedules_view_mode=grid");
     expect(screen.getByRole("list")).toHaveAttribute("data-view", "grid");
     expect(screen.getAllByTestId("schedule-row")).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "edit" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "more" })).toHaveLength(2);
     expect(screen.getAllByTestId("schedule-row")[0]).toHaveTextContent(
       "nextRun(Mon, 9:00)",
     );

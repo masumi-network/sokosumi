@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -17,7 +17,6 @@ import {
   removeOwnedSokoBotsFromChannel,
   requireChannelRosterAccess,
 } from "../../../channel-membership";
-import { isOrganizationOwnerOrAdmin } from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({

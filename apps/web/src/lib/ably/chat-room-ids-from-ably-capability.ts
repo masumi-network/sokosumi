@@ -1,6 +1,7 @@
 import { parseChatRoomIdFromChannelName } from "@sokosumi/utils";
 
 import { parseAblyCapabilityMap } from "./ably-capability-map";
+import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 /**
  * Extract chat room ids granted in an Ably token capability map.
@@ -16,12 +17,14 @@ export function chatRoomIdsFromAblyCapability(
     return null;
   }
 
+  const environment = getRealtimeChannelEnvironment();
+
   const roomIds = new Set<string>();
   for (const [channelName, operations] of Object.entries(map)) {
     if (!Array.isArray(operations) || !operations.includes("subscribe")) {
       continue;
     }
-    const roomId = parseChatRoomIdFromChannelName(channelName);
+    const roomId = parseChatRoomIdFromChannelName(channelName, environment);
     if (roomId != null) {
       roomIds.add(roomId);
     }
