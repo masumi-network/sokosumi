@@ -50,6 +50,26 @@ describe("CMO version", () => {
     );
   });
 
+  it("writes scripts, follows Agent Jobs and asks Coworkers like v27", () => {
+    const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
+    expect(cmo.skills).toEqual(
+      expect.arrayContaining([
+        "code-tools",
+        "agent-jobs",
+        "ask-coworker-first",
+      ]),
+    );
+    expect(cmo.capabilities).toEqual(
+      expect.arrayContaining([
+        "bash",
+        "ask_coworker",
+        "hire_agent",
+        "get_job_status",
+        "provide_job_input",
+      ]),
+    );
+  });
+
   it("describes both CMO tools", () => {
     for (const capability of SOKO_BOT_CMO_CAPABILITIES) {
       expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toBeTruthy();

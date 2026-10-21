@@ -6,8 +6,10 @@ import { v25 } from "./v25.js";
 /**
  * Cuso, the AI CMO behind cmo.xyz. v25's operating contract (chained work,
  * no splitting a request into questions) on v19's model, with a marketing
- * persona, the CMO skills, and the tools a marketer needs. Personal mail and
- * calendar stay out: Cuso works for the business, not the inbox.
+ * persona, the CMO skills, and the tools a marketer needs. Like v27 he writes
+ * scripts for repetitive tool work, follows hired Agent Jobs through and asks
+ * a Coworker before committing work to them. Personal mail and calendar stay
+ * out: Cuso works for the business, not the inbox.
  */
 export const cmoV1: SokoBotVersion = {
   id: "cmo-v1",
@@ -25,6 +27,9 @@ export const cmoV1: SokoBotVersion = {
     "social-posts",
     "long-work",
     "chained-work",
+    "code-tools",
+    "agent-jobs",
+    "ask-coworker-first",
   ],
   capabilities: [
     "refresh_context",
@@ -51,6 +56,7 @@ export const cmoV1: SokoBotVersion = {
     "list_chats",
     "read_chat",
     "post_chat",
+    "ask_coworker",
     "list_files",
     "read_file",
     "upload_file",
