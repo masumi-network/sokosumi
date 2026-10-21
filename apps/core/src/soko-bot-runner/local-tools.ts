@@ -33,15 +33,36 @@ export function workspacePath(relative = "."): string {
 }
 
 /**
- * Commands get a plain environment: nothing the runner was started with, plus
- * what the caller passes on purpose (never a secret).
+ * Where the sandbox says which CAs to trust. Its firewall terminates TLS for
+ * Core to add the turn token, so a script without these fails with
+ * SELF_SIGNED_CERT_IN_CHAIN (and a bot then turned verification off).
+ */
+const CA_TRUST_VARIABLES = [
+  "NODE_EXTRA_CA_CERTS",
+  "NODE_USE_SYSTEM_CA",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "REQUESTS_CA_BUNDLE",
+  "CURL_CA_BUNDLE",
+] as const;
+
+/**
+ * Commands get a plain environment: nothing the runner was started with but
+ * the CA trust, plus what the caller passes on purpose (never a secret).
  */
 function commandEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const trust = Object.fromEntries(
+    CA_TRUST_VARIABLES.flatMap((name) => {
+      const value = process.env[name];
+      return value ? [[name, value]] : [];
+    }),
+  );
   return {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
     LANG: "C.UTF-8",
     TERM: "dumb",
+    ...trust,
     ...extra,
   };
 }
