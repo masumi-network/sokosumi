@@ -14,7 +14,6 @@ const {
   projectAccess,
   liveFiles,
   job,
-  blobs,
   projects,
 } = vi.hoisted(() => ({
   workspace: vi.fn(),
@@ -28,7 +27,6 @@ const {
   projectAccess: vi.fn(),
   liveFiles: vi.fn(),
   job: vi.fn(),
-  blobs: vi.fn(),
   projects: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -39,7 +37,6 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
     job: { findFirst: job },
-    blob: { findMany: blobs },
     fileResource: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -341,83 +338,113 @@ describe("authorized chat results", () => {
       },
     ]);
   });
+  const jobRow = (state: Record<string, unknown>) => ({
+    id: "job",
+    name: null,
+    agentId: "agent",
+    agent: { name: "Researcher", icon: null },
+    input: null,
+    inputSchema: null,
+    result: null,
+    events: [],
+    ...state,
+  });
   it.each([
     {
-      status: "FAILED",
-      result: null,
-      input: "Research the launch",
+      status: "failed",
       events: [
         {
           status: "FAILED",
           result: "Provider could not read the uploaded document",
+          blobs: [],
+          links: [],
         },
       ],
-      expected: "Provider could not read the uploaded document",
+      summary: "Provider could not read the uploaded document",
     },
     {
-      status: "RUNNING",
-      result: null,
-      input: "Research the launch",
+      status: "completed",
+      result: "## Findings\n\n**Attention** is on the [hero](https://x.io).",
       events: [],
-      expected: "Research the launch",
+      summary: "Findings\nAttention is on the hero.",
     },
-    {
-      status: "processing",
-      result: null,
-      input: "Research the launch",
-      events: [
-        { status: "RUNNING", result: null },
-        { status: "FAILED", result: "An earlier attempt failed" },
-      ],
-      expected: "Research the launch",
-    },
-  ])(
-    "retains the available work or failure summary for $status jobs",
-    async (state) => {
-      job.mockResolvedValue({
-        id: "job",
-        name: null,
-        agentId: "agent",
-        agent: { name: "Researcher" },
-        ...state,
-      });
-      blobs.mockResolvedValue([]);
-      const snapshot = await resolveChatResultReference({
-        reference: { kind: "job", id: "job" },
-        actor,
-        previewId: id,
-      });
-      expect(snapshot.data.summary).toBe(state.expected);
-    },
-  );
+    { status: "processing", events: [], summary: null },
+  ])("summarizes a $status job as plain text", async (state) => {
+    job.mockResolvedValue(jobRow(state));
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+      previewId: id,
+    });
+    expect(snapshot.data.summary).toBe(state.summary);
+  });
+
+  it("labels the hire input with the Agent's field names instead of raw JSON", async () => {
+    job.mockResolvedValue(
+      jobRow({
+        status: "payment_pending",
+        input: JSON.stringify({
+          input_url: "https://nmkr.io",
+          study_type: "web",
+          empty: "",
+        }),
+        inputSchema: JSON.stringify({
+          input_data: [{ id: "input_url", type: "url", name: "Website URL" }],
+        }),
+      }),
+    );
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+    });
+    expect(snapshot.data.summary).toBeNull();
+    expect(snapshot.data.details).toEqual([
+      { label: "Website URL", value: "https://nmkr.io" },
+      { label: "Study type", value: "web" },
+    ]);
+  });
 
   it("shows delegated job outputs without exposing object URLs", async () => {
-    job.mockResolvedValue({
-      id: "job",
-      name: "Research",
-      agentId: "agent",
-      agent: { name: "Researcher" },
-      status: "COMPLETED",
-      result: "Report ready",
-    });
-    blobs.mockResolvedValue([
-      {
-        id: "pdf",
-        status: "READY",
-        fileUrl: "https://stored.example/pdf",
-        name: "report.pdf",
-        mimeType: "application/pdf",
-        size: null,
-      },
-      {
-        id: "png",
-        status: "READY",
-        fileUrl: "https://stored.example/png",
-        name: "chart.png",
-        mimeType: "image/png",
-        size: 42n,
-      },
-    ]);
+    job.mockResolvedValue(
+      jobRow({
+        name: "Research",
+        status: "completed",
+        result: "Report ready",
+        events: [
+          {
+            status: "COMPLETED",
+            result: "Report ready",
+            links: [],
+            blobs: [
+              {
+                id: "pdf",
+                status: "READY",
+                fileUrl: "https://stored.example/pdf",
+                name: "report.pdf",
+                mimeType: "application/pdf",
+                size: null,
+              },
+              {
+                id: "png",
+                status: "READY",
+                fileUrl: "https://stored.example/png",
+                name: "chart.png",
+                mimeType: "image/png",
+                size: 42n,
+              },
+              {
+                id: "pending",
+                status: "PENDING",
+                fileUrl: null,
+                name: "later.png",
+                mimeType: "image/png",
+                size: null,
+              },
+            ],
+          },
+        ],
+      }),
+    );
     const snapshot = await resolveChatResultReference({
       reference: { kind: "job", id: "job" },
       actor,
@@ -430,6 +457,18 @@ describe("authorized chat results", () => {
       previewHref: "/api/jobs/job/files/pdf/content",
       downloadHref: "/api/jobs/job/files/pdf/content?download=true",
     });
+    expect(JSON.stringify(snapshot)).not.toContain("stored.example");
+  });
+
+  it("keeps a job card live after the turn that recorded it", async () => {
+    job.mockResolvedValue(jobRow({ status: "processing" }));
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+    });
+    job.mockResolvedValue(jobRow({ status: "completed", result: "Done" }));
+    const [live] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(live).toMatchObject({ status: "completed", summary: "Done" });
   });
   it.each(["application/pdf", "text/plain", "audio/mpeg", "video/mp4"])(
     "offers authorized content for %s previews",
@@ -506,19 +545,26 @@ describe("authorized chat results", () => {
   });
 
   it("keeps long recorded results within the existing tool ledger budget", async () => {
-    job.mockResolvedValue({
-      id: "job",
-      agentId: "agent",
-      agent: { name: "Researcher" },
-      status: "COMPLETED",
-      result: "漢".repeat(4000),
-    });
-    blobs.mockResolvedValue(
-      Array.from({ length: 12 }, () => ({
-        name: "漢".repeat(500),
-        mimeType: "application/pdf",
-        size: null,
-      })),
+    job.mockResolvedValue(
+      jobRow({
+        status: "completed",
+        result: "漢".repeat(4000),
+        events: [
+          {
+            status: "COMPLETED",
+            result: null,
+            links: [],
+            blobs: Array.from({ length: 12 }, (_, index) => ({
+              id: `blob-${index}`,
+              status: "READY",
+              fileUrl: "https://stored.example/file",
+              name: "漢".repeat(500),
+              mimeType: "application/pdf",
+              size: null,
+            })),
+          },
+        ],
+      }),
     );
     const snapshot = await resolveChatResultReference({
       reference: { kind: "job", id: "job" },
@@ -527,7 +573,7 @@ describe("authorized chat results", () => {
     expect(
       chatResultSnapshotSchema.safeParse(persistedToolResult(snapshot)).success,
     ).toBe(true);
-    expect(snapshot.data.summary).toBe("漢".repeat(1000));
+    expect(snapshot.data.summary).toBe(`${"漢".repeat(599)}…`);
     expect(snapshot.data.outputs.length).toBeGreaterThan(0);
     expect(snapshot.data.outputs.length).toBeLessThan(12);
   });

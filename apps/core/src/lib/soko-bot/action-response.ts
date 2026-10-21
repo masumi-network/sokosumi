@@ -422,7 +422,7 @@ function describeRead(capability: string, value: unknown): string[] {
     observations.push(
       `Latest reported task update (${quoteRead(event.by ?? "unknown author")}): ${quoteRead(event.comment)}.`,
     );
-  if (!isTask && status === "AWAITING_INPUT")
+  if (!isTask && (status === "AWAITING_INPUT" || status === "input_required"))
     observations.push(
       "The latest job event is awaiting input; completion is not verified.",
     );

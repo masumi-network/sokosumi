@@ -11373,6 +11373,28 @@ export const ChatResultAvailableSchema = {
             maxLength: 4000,
             default: null
         },
+        details: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    value: {
+                        type: 'string',
+                        maxLength: 500
+                    }
+                },
+                required: [
+                    'label',
+                    'value'
+                ]
+            },
+            maxItems: 8,
+            default: []
+        },
         outputs: {
             type: 'array',
             items: {
