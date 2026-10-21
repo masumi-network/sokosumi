@@ -965,7 +965,14 @@ export const AdminSokoBotListItemSchema = {
             minimum: 0
         },
         owner: {
-            $ref: '#/components/schemas/AdminSokoBotOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         createdAt: {
             type: 'string',
@@ -2389,9 +2396,24 @@ export const ChatRoomSokoBotParticipantSchema = {
             example: 'orb:user_123'
         },
         ownerUserId: {
-            type: 'string',
-            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.',
             example: 'user_123'
+        },
+        scope: {
+            $ref: '#/components/schemas/ChatRoomSokoBotScope'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The shared Soko Bot\'s own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.',
+            example: '01960001-0001-7001-8001-0000000000ab'
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
@@ -2404,8 +2426,21 @@ export const ChatRoomSokoBotParticipantSchema = {
         'image',
         'avatarSeed',
         'ownerUserId',
+        'scope',
+        'sharedRoomId',
         'presence'
     ]
+} as const;
+
+export const ChatRoomSokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ],
+    description: 'Who the Soko Bot belongs to: one person, a Project, or the whole workspace.',
+    example: 'personal'
 } as const;
 
 export const ChatRoomMessageMentionSchema = {
@@ -2864,7 +2899,14 @@ export const AdminSokoBotDetailSchema = {
                     example: '2021-01-01T00:00:00.000Z'
                 },
                 owner: {
-                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/AdminSokoBotOwner'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 },
                 turns: {
                     type: 'array',
@@ -4206,7 +4248,20 @@ export const SokoBotSchema = {
             format: 'uuid'
         },
         userId: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
         },
         name: {
             type: [
@@ -6383,7 +6438,14 @@ export const SokoBotSummarySchema = {
             example: 'https://blob.example/mascot.png'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -6703,7 +6765,14 @@ export const TaskEventSchema = {
                     example: 'https://blob.example/mascot.png'
                 },
                 owner: {
-                    $ref: '#/components/schemas/UserSummary'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/UserSummary'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [
@@ -9863,7 +9932,7 @@ export const ChatRoomSchema = {
         },
         isReadOnly: {
             type: 'boolean',
-            description: 'Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.',
+            description: 'Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.',
             example: false
         },
         groupName: {
@@ -11303,6 +11372,28 @@ export const ChatResultAvailableSchema = {
             ],
             maxLength: 4000,
             default: null
+        },
+        details: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    value: {
+                        type: 'string',
+                        maxLength: 500
+                    }
+                },
+                required: [
+                    'label',
+                    'value'
+                ]
+            },
+            maxItems: 8,
+            default: []
         },
         outputs: {
             type: 'array',
@@ -13311,13 +13402,17 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsTableItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
-            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
+            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -13450,6 +13545,51 @@ export const DriveRecentsTaskOutputItemSchema = {
         'taskName',
         'projectId',
         'projectName'
+    ]
+} as const;
+
+export const DriveRecentsTableItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'table'
+            ],
+            example: 'table',
+            description: 'Live Files table'
+        },
+        tableId: {
+            type: 'string',
+            example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f',
+            description: 'Table ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Leads',
+            description: 'Table title'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (table updatedAt)'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null'
+        }
+    },
+    required: [
+        'kind',
+        'tableId',
+        'name',
+        'activityAt',
+        'projectId'
     ]
 } as const;
 
@@ -14519,6 +14659,73 @@ export const TableViewSchema = {
         'name',
         'version',
         'definition'
+    ]
+} as const;
+
+export const DataTableSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columnCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columnCount'
     ]
 } as const;
 
@@ -19628,6 +19835,7 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'NEEDS_APPROVAL',
                 'SCHEDULED',
                 'PUBLISHING',
                 'PUBLISHED',
@@ -22899,6 +23107,12 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canApprove: {
+            type: 'boolean'
+        },
+        canReject: {
+            type: 'boolean'
+        },
         canDuplicate: {
             type: 'boolean',
             description: 'True when the post can be copied into a new draft (published, failed, or missed)'
@@ -22937,6 +23151,8 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canApprove',
+        'canReject',
         'canDuplicate',
         'connectionNeedsReconnect'
     ]
@@ -22996,6 +23212,7 @@ export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
         'DRAFT',
+        'NEEDS_APPROVAL',
         'SCHEDULED',
         'PUBLISHING',
         'PUBLISHED',
@@ -23367,6 +23584,36 @@ export const ScheduleSocialPostRequestSchema = {
     },
     required: [
         'scheduledAt',
+        'revision'
+    ]
+} as const;
+
+export const ApproveSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const RejectSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
         'revision'
     ]
 } as const;
@@ -25489,7 +25736,20 @@ export const SokoBotStateSchema = {
                     format: 'uuid'
                 },
                 userId: {
-                    type: 'string'
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                projectId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                viewerCanManage: {
+                    type: 'boolean'
                 },
                 name: {
                     type: [
@@ -25659,10 +25919,91 @@ export const SokoBotStateSchema = {
                 'createdAt',
                 'updatedAt'
             ]
+        },
+        sharedBots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SharedSokoBotSummary'
+            }
         }
     },
     required: [
         'sokoBot'
+    ]
+} as const;
+
+export const SharedSokoBotSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'project',
+                'workspace'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'scope',
+        'projectId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'status',
+        'archivedAt',
+        'sharedRoomId',
+        'viewerCanManage'
     ]
 } as const;
 
@@ -27047,6 +27388,84 @@ export const JudgeSokoBotLabTurnRequestSchema = {
         'scenarioId'
     ],
     additionalProperties: false
+} as const;
+
+export const CreateScopedSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        avatarId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        personalityTone: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityDetail: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityStyle: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        scope: {
+            $ref: '#/components/schemas/SokoBotScope'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'name',
+        'scope'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ]
 } as const;
 
 export const CoworkerSchema = {

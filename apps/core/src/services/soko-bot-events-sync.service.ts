@@ -59,7 +59,8 @@ interface Change {
 
 interface BotWork {
   sokoBotId: string;
-  userId: string;
+  /** Who the turn acts for; null when a shared bot acts on its own. */
+  userId: string | null;
   workspaceId: string;
   changes: Change[];
   /** Delegations whose baseline is set silently (first observation). */
@@ -95,7 +96,17 @@ export function buildEventMessage(changes: Change[]): string {
     "Delegated work changed status:",
     ...lines,
     "",
-    "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over. Update memory and any related schedule, then report briefly.",
+    ...(changes.some((change) => change.kind === "TASK")
+      ? [
+          "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over.",
+        ]
+      : []),
+    ...(changes.some((change) => change.kind === "JOB")
+      ? [
+          "Read each Job with get_job_status. AWAITING_INPUT: answer its inputRequest with provide_job_input when the answer is in the request, project, or memory; otherwise ask the owner one question. FAILED: say why and decide between hiring again with a better brief, another Agent, or reporting. COMPLETED: read the result and files, use them for any next step, and show the Job with preview_result.",
+        ]
+      : []),
+    "Update memory and any related schedule, then report briefly.",
   ].join("\n");
 }
 
@@ -171,7 +182,12 @@ export class SokoBotEventsSyncService {
               events: {
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 take: 1,
-                select: { id: true, comment: true, createdAt: true },
+                select: {
+                  id: true,
+                  comment: true,
+                  createdAt: true,
+                  sokoBotId: true,
+                },
               },
             },
           },
@@ -236,6 +252,9 @@ export class SokoBotEventsSyncService {
             note: delegation.task.events[0]?.comment ?? null,
             eventId: delegation.task.events[0]?.id ?? null,
             eventAt: delegation.task.events[0]?.createdAt,
+            byThisBot:
+              delegation.task.events[0]?.sokoBotId ===
+              delegation.turn.sokoBotId,
           }
         : delegation.job
           ? {
@@ -245,6 +264,7 @@ export class SokoBotEventsSyncService {
               note: null,
               eventId: delegation.job.events[0]?.id ?? null,
               eventAt: delegation.job.events[0]?.createdAt,
+              byThisBot: false,
             }
           : null;
       if (
@@ -254,14 +274,18 @@ export class SokoBotEventsSyncService {
       ) {
         continue;
       }
-      const work = byBot.get(delegation.turn.sokoBotId) ?? {
+      // A shared bot's delegations belong to different members; each result
+      // turn runs for the member who asked for that work, never another one.
+      const actingUserId = sokoBotActingUserId(delegation.turn);
+      const workKey = `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`;
+      const work = byBot.get(workKey) ?? {
         sokoBotId: delegation.turn.sokoBotId,
-        userId: sokoBotActingUserId(delegation.turn),
+        userId: actingUserId,
         workspaceId: delegation.turn.workspaceId,
         changes: [],
         baselines: [],
       };
-      byBot.set(delegation.turn.sokoBotId, work);
+      byBot.set(workKey, work);
       // A background run follows the Tasks and Jobs it started itself; an
       // event turn beside it would act on the same result without its plan.
       if (
@@ -321,6 +345,7 @@ export class SokoBotEventsSyncService {
                 createdAt: true,
                 status: true,
                 comment: true,
+                sokoBotId: true,
               },
             })
           : (
@@ -330,10 +355,13 @@ export class SokoBotEventsSyncService {
                 take: MAX_CHANGES_PER_TURN,
                 select: { id: true, createdAt: true, status: true },
               })
-            ).map((event) => ({ ...event, comment: null }));
+            ).map((event) => ({ ...event, comment: null, sokoBotId: null }));
+        // The bot's own status change is not news to it: Joseph completed a
+        // Task for its owner, then woke to report that the Task was completed.
         const actionable = events.filter(
           (event) =>
             event.status &&
+            event.sokoBotId !== delegation.turn.sokoBotId &&
             (delegation.task ? TASK_WAKE_STATUSES : JOB_WAKE_STATUSES).has(
               event.status,
             ),
@@ -375,6 +403,7 @@ export class SokoBotEventsSyncService {
       if (
         (delegation.lastSeenStatus === null &&
           (current.status === "COMPLETED" || current.status === "CANCELED")) ||
+        current.byThisBot ||
         !wake
       ) {
         work.baselines.push({
@@ -488,6 +517,7 @@ export class SokoBotEventsSyncService {
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
+          sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),

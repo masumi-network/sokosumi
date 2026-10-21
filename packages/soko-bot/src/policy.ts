@@ -38,6 +38,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_chat",
   "post_chat",
   "open_direct_chat",
+  "ask_coworker",
   "list_files",
   "read_file",
   "list_tables",
@@ -122,6 +123,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "generate_image",
   "post_chat",
   "open_direct_chat",
+  // The question is a prompt for a Coworker; a page must not write it.
+  "ask_coworker",
   "reply_to_task",
   "assign_task",
   "update_assigned_task",
@@ -217,6 +220,9 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
+  // Opens a private channel of the owner, the bot and Coworkers and asks them
+  // something. Nobody else is in it, so it is not an outward post.
+  "ask_coworker",
   "upload_file",
   "generate_image",
   "create_table",
@@ -265,6 +271,25 @@ export function exceedsUnattendedHireBudget(params: {
 }): boolean {
   const unattended = params.source !== "CHAT" || params.chainDepth > 0;
   return unattended && params.maxCredits > params.ceiling;
+}
+
+/** Who an unattended turn tells the bot to ask: a shared bot has no owner. */
+function unattendedAsk(shared: boolean): string {
+  return shared ? "the team in your shared room" : "the owner";
+}
+
+/** Why a second hire in a turn nobody asked for was refused. */
+export function unattendedSecondHireRefusal(shared: boolean): string {
+  return `A turn nobody asked for may hire once. Report what you found and ask ${unattendedAsk(shared)} before hiring again.`;
+}
+
+/** Why a hire over the unattended ceiling was refused. */
+export function unattendedHireOverCeilingRefusal(
+  shared: boolean,
+  ceiling: number,
+  maxCredits: number,
+): string {
+  return `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${maxCredits}. ${shared ? `Ask ${unattendedAsk(true)} instead.` : "Ask the owner in their chat instead."}`;
 }
 
 /** Reads plus the sandbox: what every owner turn starts from. */
@@ -356,7 +381,7 @@ export function capabilitiesForClassification(
   > = {
     MEMORY: ["update_memory"],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat"],
+    CHAT: ["post_chat", "open_direct_chat", "ask_coworker"],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",

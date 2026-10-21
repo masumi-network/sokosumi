@@ -1020,6 +1020,16 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1027,7 +1037,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
@@ -2163,6 +2172,7 @@
           "resume": "Fortsetzen",
           "end": "Beenden",
           "delete": "Löschen",
+          "more": "Weitere Aktionen",
           "paused": "Zeitplan pausiert",
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
@@ -2492,6 +2502,7 @@
         },
         "status": {
           "DRAFT": "Entwurf",
+          "NEEDS_APPROVAL": "Freigabe nötig",
           "SCHEDULED": "Geplant",
           "PUBLISHING": "Wird veröffentlicht",
           "PUBLISHED": "Veröffentlicht",
@@ -2681,6 +2692,7 @@
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
+          "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2810,8 +2822,8 @@
           "historyNotFetched": "Der Kontoverlauf wurde noch nicht importiert.",
           "historyLimited": "Der Verlauf ist unvollständig oder durch die Plattform eingeschränkt. Prüfe die Kontoberechtigungen und synchronisiere erneut.",
           "dateUnavailable": "Veröffentlichungsdatum nicht verfügbar",
-          "mediaPost": "Medienbeitrag",
-          "openPost": "Beitrag auf der Plattform öffnen",
+          "noPostMetrics": "Für diesen Beitrag wurden noch keine Kennzahlen gemeldet.",
+          "openPost": "Beitrag auf der Plattform ansehen",
           "accountMetrics": {
             "followers": "Follower",
             "following": "Gefolgte Konten",
@@ -2854,7 +2866,13 @@
             "linkClicks": "Linkklicks",
             "replies": "Antworten",
             "reposts": "Erneut geteilte Beiträge",
-            "dislikes": "Negative Bewertungen"
+            "dislikes": "Negative Bewertungen",
+            "quotes": "Zitate",
+            "totalWatchTime": "Gesamte Wiedergabezeit",
+            "averageWatchTime": "Durchschnittliche Wiedergabezeit",
+            "skipRate": "Überspringrate",
+            "facebookViews": "Facebook-Aufrufe",
+            "crosspostedViews": "Aufrufe durch Crossposting"
           },
           "periods": {
             "lifetime": "Gesamter Zeitraum",
@@ -3034,10 +3052,14 @@
           "overview": "Übersicht",
           "design": "Design",
           "memory": "Gedächtnis",
-          "ariaLabel": "Projektbereiche"
+          "ariaLabel": "Projektbereiche",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots für dieses Projekt"
         }
       }
     },
@@ -4795,7 +4817,8 @@
             "delete": "Soko Bot löschen",
             "deleted": "Soko Bot gelöscht.",
             "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
-            "error": "Dieser Soko Bot konnte nicht gelöscht werden."
+            "error": "Dieser Soko Bot konnte nicht gelöscht werden.",
+            "confirmLabelShared": "Dieser Bot ist geteilt und hat keinen Besitzer. Zur Bestätigung seine ID eingeben ({id})"
           },
           "chat": {
             "readOnly": "Nur lesen",
@@ -6937,7 +6960,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Starte den Channel mit einer Nachricht oder erwähne einen KI-Coworker.",
+        "noDirectMessagesDescription": "Schreib eine Nachricht, um das Gespräch zu beginnen.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
@@ -7685,7 +7709,8 @@
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
-      }
+      },
+      "tableKind": "Tabelle"
     },
     "SokoBot": {
       "Metadata": {
@@ -7700,15 +7725,15 @@
         "title": "Lern deinen Soko Bot kennen",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
+        "description": "Dein persönlicher Assistent in Sokosumi.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
         "submit": "Soko Bot erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
-        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -7834,7 +7859,12 @@
         "deleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden gelöscht. Erstellte Aufgaben bleiben auf deinem Board. Du kannst sofort einen neuen Assistenten anlegen.",
         "deleteConfirmLabel": "Zur Bestätigung {name} eingeben",
         "deleteError": "Dein Soko Bot konnte nicht gelöscht werden.",
-        "deleted": "Soko Bot gelöscht."
+        "deleted": "Soko Bot gelöscht.",
+        "sharedArchiveDescription": "Stoppt alle Turns und Zeitpläne für alle. Ein Owner oder Admin kann ihn wieder aktivieren; der Verlauf bleibt erhalten.",
+        "sharedArchiveConfirmTitle": "Diesen geteilten Bot archivieren?",
+        "sharedArchiveConfirmDescription": "Er stoppt für alle: Laufende Turns werden abgebrochen und Zeitpläne gestoppt. Der Verlauf bleibt erhalten.",
+        "sharedDeleteConfirmTitle": "Diesen geteilten Bot löschen?",
+        "sharedDeleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden für alle gelöscht. Erstellte Aufgaben bleiben, wo sie sind."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8115,7 +8145,53 @@
       "chatWith": "Mit {name} chatten",
       "yourAssistantTitle": "Dein Assistent",
       "teamTitle": "Die Assistenten deines Teams",
-      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält.",
+      "Shared": {
+        "title": "Geteilte Bots",
+        "count": "{count, plural, one {# Bot} other {# Bots}}",
+        "empty": "Noch keine geteilten Bots. Ein geteilter Bot arbeitet für ein Projekt oder den ganzen Workspace, und alle sprechen in einem Raum mit ihm.",
+        "scopeWorkspace": "Arbeitet für den ganzen Workspace",
+        "scopeProject": "Arbeitet für ein Projekt",
+        "scopeProjectNamed": "Arbeitet für {project}",
+        "archived": "Archiviert",
+        "fallbackName": "Geteilter Assistent",
+        "openBot": "Einstellungen für {name}",
+        "Create": {
+          "trigger": "Neuer Soko Bot",
+          "title": "Soko Bot erstellen",
+          "description": "Wähle, für wen er arbeitet. Alle Mitglieder teilen einen Projekt- oder Workspace-Bot und sehen seinen Chatverlauf, sein Gedächtnis und seine Einstellungen.",
+          "nameLabel": "Name",
+          "scopeLabel": "Arbeitet für",
+          "scopes": {
+            "personal": {
+              "label": "Nur dich",
+              "hint": "Dein eigener Assistent. Niemand sonst kann ihn verwalten."
+            },
+            "project": {
+              "label": "Ein Projekt",
+              "hint": "Sieht die öffentlichen Tasks des Projekts. Alle sprechen in seinem Raum mit ihm."
+            },
+            "workspace": {
+              "label": "Den ganzen Workspace",
+              "hint": "Sieht jeden öffentlichen Task und jedes Projekt. Alle sprechen in seinem Raum mit ihm."
+            }
+          },
+          "projectLabel": "Projekt",
+          "projectPlaceholder": "Projekt wählen",
+          "cancel": "Abbrechen",
+          "submit": "Erstellen",
+          "error": "Der Soko Bot konnte nicht erstellt werden.",
+          "created": "Soko Bot erstellt."
+        },
+        "Archived": {
+          "title": "{name} ist archiviert",
+          "description": "Ein archivierter Bot liest nichts mehr, führt keine Zeitpläne aus und antwortet nicht mehr in seinem Raum. Sein Verlauf bleibt erhalten.",
+          "back": "Zurück zu Soko Bots",
+          "reactivate": "Reaktivieren",
+          "reactivated": "Soko Bot reaktiviert.",
+          "reactivateError": "Der Soko Bot konnte nicht reaktiviert werden."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -8356,6 +8432,20 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
+      },
+      "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
+      "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previousPosition": "Vorherige Position",
+      "newPosition": "Neue Position",
+      "anyOption": "Beliebige Option",
+      "dnd": {
+        "instructions": "Um eine Zeile oder Spalte zu verschieben, den Griff ziehen oder ihn fokussieren und die Pfeiltasten drücken.",
+        "pickedUp": "{item} aufgenommen.",
+        "over": "{item} ist über {target}.",
+        "dropped": "{item} an die Stelle von {target} verschoben.",
+        "cancelled": "Verschieben von {item} abgebrochen."
       }
     },
     "ProjectScope": {
@@ -8662,6 +8752,12 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
     }
   }
 }

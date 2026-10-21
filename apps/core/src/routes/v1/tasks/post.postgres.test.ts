@@ -74,6 +74,7 @@ const actors = {
   }),
   sokoBot: (ws: Workspace): AuthenticationContext => ({
     actor: "sokoBot",
+    scope: "personal",
     sokoBotId: ws.sokoBotId,
     userId: adaId,
     workspaceId: ws.workspaceId,

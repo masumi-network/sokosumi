@@ -6,6 +6,10 @@ import {
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
+import {
+  chatRoomPresenceSchema,
+  chatRoomSokoBotParticipantSchema,
+} from "@/schemas/chat-room-participant.schema";
 
 /**
  * Roster writes fan out to one row per id, so an unbounded array turns a
@@ -30,10 +34,6 @@ export const CHAT_ROOM_UNREAD_THREAD_CAP = 3;
  * end inside a token and put a raw id on the row.
  */
 export const CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS = 1000;
-
-const chatRoomPresenceSchema = z
-  .enum(["online", "afk", "offline"])
-  .openapi("ChatRoomPresence");
 
 /**
  * Non-null channel discoverability. Never chain `.nullable()` onto this named
@@ -143,30 +143,6 @@ const chatRoomCoworkerParticipantSchema = z
   })
   .openapi("ChatRoomCoworkerParticipant");
 
-export const chatRoomSokoBotParticipantSchema = z
-  .object({
-    id: z.string().uuid().openapi({
-      example: "01960001-0001-7001-8001-000000000099",
-    }),
-    name: z.string().openapi({ example: "Soko Bot" }),
-    caption: z
-      .string()
-      .nullable()
-      .openapi({ example: "Jane's personal assistant" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/soko-bot.png" }),
-    avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
-    ownerUserId: z.string().openapi({
-      description:
-        "The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.",
-      example: "user_123",
-    }),
-    presence: chatRoomPresenceSchema.openapi({ example: "online" }),
-  })
-  .openapi("ChatRoomSokoBotParticipant");
-
 /**
  * One unread Thread as a list row carries it: where opening it lands, what
  * to label it with and how much is unread. Left unnamed in OpenAPI so the
@@ -227,7 +203,7 @@ export const chatRoomSchema = z
     }),
     isReadOnly: z.boolean().openapi({
       description:
-        "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
+        "Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.",
       example: false,
     }),
     groupName: z.string().nullable().openapi({

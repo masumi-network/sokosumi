@@ -24,6 +24,8 @@ import {
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   requireArchivedChatRoomUserAccess,
+  requireChatRoomCoworkerAccess,
+  requireChatRoomSokoBotAccess,
   requireChatRoomUserAccess,
   requireChatRoomUserMembership,
   requireChatRoomUserWriteAccess,
@@ -65,6 +67,44 @@ const roomUsers = [
   { id: "user_bob", name: "Bob Jones" },
   { id: "user_self", name: "Self User" },
 ];
+
+describe("assistant room write access", () => {
+  const writableShared = {
+    OR: [
+      { sharedSokoBot: { is: null } },
+      { sharedSokoBot: { is: { archivedAt: null, deletedAt: null } } },
+    ],
+  };
+
+  it.each([
+    [
+      "a Coworker",
+      requireChatRoomCoworkerAccess,
+      { coworkerMembers: { some: { coworkerId: "member" } } },
+    ],
+    [
+      "a Soko Bot",
+      requireChatRoomSokoBotAccess,
+      { sokoBotMembers: { some: { sokoBotId: "member" } } },
+    ],
+  ])(
+    "keeps %s out of an archived shared Soko Bot's room",
+    async (_label, requireAccess, membership) => {
+      const findFirst = vi.fn().mockResolvedValue(null);
+      await expect(
+        requireAccess("room", "member", {
+          chatRoom: { findFirst },
+        } as never),
+      ).rejects.toThrow("Room not found");
+      expect(findFirst.mock.calls[0]?.[0]?.where).toEqual({
+        id: "room",
+        archivedAt: null,
+        ...writableShared,
+        ...membership,
+      });
+    },
+  );
+});
 
 describe("resolveWorkspaceIdForChatRoom", () => {
   beforeEach(() => {

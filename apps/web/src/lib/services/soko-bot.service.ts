@@ -1,11 +1,13 @@
 import "server-only";
 
 import type {
+  CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
   InstallSokoBotSkillResponse,
   JudgeSokoBotLabTurnRequest,
   ResolveSokoBotDecisionRequest,
+  SharedSokoBotSummary,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
@@ -44,10 +46,29 @@ const SOKO_BOT_RECENT_TURN_LIMIT = 20;
  * touches the database. Returned shapes are Core DTOs.
  */
 export const sokoBotService = {
-  /** Active (non-archived) bot for the signed-in user, or `null`. */
-  async getMine(): Promise<SokoBot | null> {
-    const response = await coreClient.getMySokoBot();
+  /**
+   * Active (non-archived) bot for the signed-in user, or `null`. With
+   * `botId`, the project or workspace bot of that id instead.
+   */
+  async getMine(botId?: string): Promise<SokoBot | null> {
+    const response = await coreClient.getMySokoBot(botId);
     return (response.data.sokoBot as SokoBot | null) ?? null;
+  },
+
+  /**
+   * The workspace's project and workspace bots. `null` when Core leaves the
+   * field out (a Soko Bot key caller) or the read fails: the caller then
+   * shows no shared-bot surface at all.
+   */
+  async listShared(): Promise<SharedSokoBotSummary[] | null> {
+    const response = await coreClient.getMySokoBot();
+    return response.data.sharedBots ?? null;
+  },
+
+  /** Create a bot in a scope; any member may create a shared one. */
+  async createScoped(input: CreateScopedSokoBotRequest): Promise<SokoBot> {
+    const response = await coreClient.createSokoBot(input);
+    return response.data;
   },
 
   /**
@@ -55,8 +76,8 @@ export const sokoBotService = {
    * field on `getMine`, which is polled for turn state while this aggregates
    * every turn the bot has taken.
    */
-  async getMyUsage(): Promise<SokoBotUsage> {
-    const response = await coreClient.getMySokoBotUsage();
+  async getMyUsage(botId?: string): Promise<SokoBotUsage> {
+    const response = await coreClient.getMySokoBotUsage(botId);
     return response.data;
   },
 
@@ -69,8 +90,13 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async archive(): Promise<void> {
-    await coreClient.archiveMySokoBot();
+  async archive(botId?: string): Promise<void> {
+    await coreClient.archiveMySokoBot(botId);
+  },
+
+  /** Brings an archived shared bot back, into its room. */
+  async reactivate(botId: string): Promise<void> {
+    await coreClient.reactivateSokoBot(botId);
   },
 
   async listAvatars(
@@ -106,8 +132,8 @@ export const sokoBotService = {
    * whether the row itself went away or had to stay as a tombstone because
    * Tasks, billing or chat still reference it.
    */
-  async deletePermanently() {
-    const response = await coreClient.deleteMySokoBotPermanently();
+  async deletePermanently(botId?: string) {
+    const response = await coreClient.deleteMySokoBotPermanently(botId);
     return response.data;
   },
 
@@ -116,12 +142,15 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async updateProactive(input: {
-    paused?: boolean;
-    dailyLimit?: number;
-    timezone?: string;
-  }): Promise<SokoBot> {
-    const response = await coreClient.updateMySokoBotProactive(input);
+  async updateProactive(
+    input: {
+      paused?: boolean;
+      dailyLimit?: number;
+      timezone?: string;
+    },
+    botId?: string,
+  ): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotProactive(input, botId);
     return response.data;
   },
 
@@ -129,10 +158,11 @@ export const sokoBotService = {
     await coreClient.sendMySokoBotTurnFeedback(turnId, { useful });
   },
 
-  async setFollowBoard(enabled: boolean): Promise<SokoBot> {
-    const response = await coreClient.updateMySokoBotBoardFollowing({
-      enabled,
-    });
+  async setFollowBoard(enabled: boolean, botId?: string): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotBoardFollowing(
+      { enabled },
+      botId,
+    );
     return response.data;
   },
 
@@ -156,8 +186,8 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async listIntegrations(): Promise<SokoBotIntegrations> {
-    const response = await coreClient.listMySokoBotIntegrations();
+  async listIntegrations(botId?: string): Promise<SokoBotIntegrations> {
+    const response = await coreClient.listMySokoBotIntegrations(botId);
     return response.data;
   },
 
@@ -184,10 +214,13 @@ export const sokoBotService = {
   async connectIntegration(
     provider: string,
     returnUrl: string,
+    botId?: string,
   ): Promise<{ redirectUrl: string }> {
-    const response = await coreClient.connectMySokoBotIntegration(provider, {
-      returnUrl,
-    });
+    const response = await coreClient.connectMySokoBotIntegration(
+      provider,
+      { returnUrl },
+      botId,
+    );
     return response.data;
   },
 
@@ -198,18 +231,21 @@ export const sokoBotService = {
 
   async completeIntegrationAuth(
     sessionUri: string,
+    botId?: string,
   ): Promise<{ provider: string; status: string }> {
-    const response =
-      await coreClient.completeMySokoBotIntegrationAuth(sessionUri);
+    const response = await coreClient.completeMySokoBotIntegrationAuth(
+      sessionUri,
+      botId,
+    );
     return response.data;
   },
 
-  async disconnectIntegration(provider: string): Promise<void> {
-    await coreClient.disconnectMySokoBotIntegration(provider);
+  async disconnectIntegration(provider: string, botId?: string): Promise<void> {
+    await coreClient.disconnectMySokoBotIntegration(provider, botId);
   },
 
-  async getStats(): Promise<SokoBotDailyStats> {
-    const response = await coreClient.getMySokoBotStats();
+  async getStats(botId?: string): Promise<SokoBotDailyStats> {
+    const response = await coreClient.getMySokoBotStats(botId);
     return response.data;
   },
 
@@ -271,62 +307,72 @@ export const sokoBotService = {
   },
 
   /** Bot + recent turns as the JSON-safe chat projection; `null` without a bot. */
-  async getChatState(): Promise<SokoBotChatState | null> {
+  async getChatState(botId?: string): Promise<SokoBotChatState | null> {
     // Both reads are independent; running them in series added a whole Core
     // round-trip to every assistant page load.
-    const [bot, turns] = await Promise.all([this.getMine(), this.listTurns()]);
+    const [bot, turns] = await Promise.all([
+      this.getMine(botId),
+      this.listTurns(SOKO_BOT_RECENT_TURN_LIMIT, botId),
+    ]);
     if (!bot) return null;
     return toSokoBotChatState(bot, turns);
   },
 
-  async listTurns(limit = SOKO_BOT_RECENT_TURN_LIMIT): Promise<SokoBotTurn[]> {
-    const response = await coreClient.listMySokoBotTurns({ limit });
+  async listTurns(
+    limit = SOKO_BOT_RECENT_TURN_LIMIT,
+    botId?: string,
+  ): Promise<SokoBotTurn[]> {
+    const response = await coreClient.listMySokoBotTurns({ limit }, botId);
     return response.data;
   },
 
-  async getTurn(turnId: string): Promise<SokoBotTurn> {
-    const response = await coreClient.getMySokoBotTurn(turnId);
+  async getTurn(turnId: string, botId?: string): Promise<SokoBotTurn> {
+    const response = await coreClient.getMySokoBotTurn(turnId, botId);
     return response.data;
   },
 
   /** Narrow status snapshots for the client poller (max 20 turns). */
-  async startTurn(input: StartSokoBotTurnRequest) {
-    const response = await coreClient.startMySokoBotTurn(input);
+  async startTurn(input: StartSokoBotTurnRequest, botId?: string) {
+    const response = await coreClient.startMySokoBotTurn(input, botId);
     return response.data;
   },
 
-  async resetMemory() {
-    const response = await coreClient.resetMySokoBotMemory();
+  async resetMemory(botId?: string) {
+    const response = await coreClient.resetMySokoBotMemory(botId);
     return response.data;
   },
 
-  async createSchedule(input: CreateSokoBotScheduleRequest) {
-    const response = await coreClient.createMySokoBotSchedule(input);
+  async createSchedule(input: CreateSokoBotScheduleRequest, botId?: string) {
+    const response = await coreClient.createMySokoBotSchedule(input, botId);
     return response.data;
   },
 
   async updateSchedule(
     scheduleId: string,
     input: UpdateSokoBotScheduleRequest,
+    botId?: string,
   ) {
     const response = await coreClient.updateMySokoBotSchedule(
       scheduleId,
       input,
+      botId,
     );
     return response.data;
   },
 
-  async deleteSchedule(scheduleId: string): Promise<void> {
-    await coreClient.deleteMySokoBotSchedule(scheduleId);
+  async deleteSchedule(scheduleId: string, botId?: string): Promise<void> {
+    await coreClient.deleteMySokoBotSchedule(scheduleId, botId);
   },
 
   async resolveDecision(
     decisionId: string,
     input: ResolveSokoBotDecisionRequest,
+    botId?: string,
   ) {
     const response = await coreClient.resolveMySokoBotDecision(
       decisionId,
       input,
+      botId,
     );
     return response.data;
   },

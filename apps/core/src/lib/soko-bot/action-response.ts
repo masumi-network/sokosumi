@@ -29,6 +29,7 @@ export const ACTION_LABELS: Record<string, string> = {
   link_tasks: "Linked tasks",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
+  ask_coworker: "Asked a Coworker",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
@@ -51,7 +52,11 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     .object({ statusChanged: z.literal(true), status: z.string() })
     .safeParse(call.result);
   if (call.capability === "reply_to_task" && reply.success)
-    return reply.data.status === "CANCELED" ? "Canceled task" : "Resumed task";
+    return reply.data.status === "CANCELED"
+      ? "Canceled task"
+      : reply.data.status === "COMPLETED"
+        ? "Completed task"
+        : "Resumed task";
   if (
     call.capability === "upload_file" &&
     z.object({ replaced: z.literal(true) }).safeParse(call.result).success
@@ -253,6 +258,8 @@ const QUESTIONS = {
   DETAILS: "What additional details should I use?",
 } as const;
 
+const MAX_OBSERVATIONS = 8;
+
 export const actionNarrativeSchema = z
   .object({
     kind: z.enum(["REPORT", "CLARIFY", "SILENT"]),
@@ -261,7 +268,11 @@ export const actionNarrativeSchema = z
     question: z
       .enum(["TARGET", "SCOPE", "TIME", "APPROVAL", "DETAILS"])
       .nullable(),
-    observationToolCallIds: z.array(z.string()).max(8),
+    // A weekly wrap reads a dozen Tasks; rejecting the extra ids would post
+    // the raw JSON instead of the message.
+    observationToolCallIds: z
+      .array(z.string())
+      .transform((ids) => ids.slice(0, MAX_OBSERVATIONS)),
   })
   .strict();
 
@@ -411,7 +422,7 @@ function describeRead(capability: string, value: unknown): string[] {
     observations.push(
       `Latest reported task update (${quoteRead(event.by ?? "unknown author")}): ${quoteRead(event.comment)}.`,
     );
-  if (!isTask && status === "AWAITING_INPUT")
+  if (!isTask && (status === "AWAITING_INPUT" || status === "input_required"))
     observations.push(
       "The latest job event is awaiting input; completion is not verified.",
     );

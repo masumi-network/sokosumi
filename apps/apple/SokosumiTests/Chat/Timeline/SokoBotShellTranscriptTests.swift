@@ -16,7 +16,7 @@
     @MainActor struct SokoBotShellTranscriptTests {
       private static let reader = Components.Schemas.ChatRoomUserParticipant(id: "user_1", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
       private static let sokoBot = Components.Schemas.ChatRoomMessageSender.case3(.init(_type: .sokoBot, sokoBot: .init(
-        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_1", ownerUserId: "user_1", presence: .online
+        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_1", ownerUserId: "user_1", scope: .personal, presence: .online
       )))
 
       private static func message(_ id: String, content: String, sender: Components.Schemas.ChatRoomMessageSender,

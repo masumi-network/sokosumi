@@ -189,6 +189,7 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
 
 const SOKO_BOT_AUTH_CONTEXT: AuthenticationContext = {
   actor: "sokoBot",
+  scope: "personal",
   sokoBotId: "01960001-0001-7001-8001-000000000099",
   userId: "user_123",
   workspaceId: "ws_personal",

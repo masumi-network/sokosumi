@@ -2,11 +2,9 @@ import type { SokoBotIntegrations } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  connectSokoBotIntegrationAction,
-  disconnectSokoBotIntegrationAction,
-} from "@/lib/actions/soko-bot/action";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { disconnectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
+import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
+import { useSokoBotTargetId } from "./soko-bot-target";
 
 export type SokoBotIntegration = SokoBotIntegrations["integrations"][number];
 
@@ -15,28 +13,26 @@ export function useIntegrationActions() {
   const t = useTranslations("App.SokoBot.Integrations");
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const botId = useSokoBotTargetId();
 
   function connect(provider: string) {
     setBusy(provider);
     startTransition(async () => {
-      const returnUrl = `${window.location.origin}${SOKO_BOT_ROUTE}/integrations/return?provider=${encodeURIComponent(provider)}`;
-      const result = await connectSokoBotIntegrationAction({
-        provider,
-        returnUrl,
-      });
-      if (!result.ok) {
+      const error = await startSokoBotConnect(provider, { botId });
+      if (error) {
         setBusy(null);
-        toast.error(result.error.message ?? t("connectError"));
-        return;
+        toast.error(error.message ?? t("connectError"));
       }
-      window.location.assign(result.value.redirectUrl);
     });
   }
 
   function disconnect(provider: string) {
     setBusy(provider);
     startTransition(async () => {
-      const result = await disconnectSokoBotIntegrationAction({ provider });
+      const result = await disconnectSokoBotIntegrationAction({
+        provider,
+        botId,
+      });
       setBusy(null);
       if (!result.ok) {
         toast.error(result.error.message ?? t("disconnectError"));

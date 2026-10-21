@@ -37,6 +37,7 @@ const authorized = {
     workspaceId: "workspace",
     versionId: "v24",
   },
+  reader: { sharedScope: null },
   grant: {
     capabilities: [
       "search_inbox",
@@ -115,6 +116,24 @@ describe("background runs", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("refuses a shared bot with a reason of its own", async () => {
+    const shared = {
+      ...authorized,
+      reader: {
+        sharedScope: {
+          sokoBotId: "bot",
+          workspaceId: "workspace",
+          projectId: null,
+        },
+      },
+    } as unknown as AuthorizedSokoBotRuntime;
+    await expect(
+      startBackgroundRun(shared, { title: "t", brief: "b" }),
+    ).rejects.toThrow("A shared Soko Bot cannot start background runs");
+    expect(findUniqueOrThrow).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("lists runs with their latest plan", async () => {
     findMany.mockResolvedValue([
       {
@@ -156,5 +175,21 @@ describe("background runs", () => {
       { stopped: true },
     );
     expect(cancelTurn).toHaveBeenCalledWith("owner", "run-1");
+  });
+
+  it("stops its own run as the bot when the turn acts for nobody", async () => {
+    findFirst.mockResolvedValueOnce({ id: "run-1", status: "RUNNING" });
+    await stopBackgroundRun(
+      {
+        ...authorized,
+        turn: {
+          ...authorized.turn,
+          actingUserId: null,
+          requestedByUserId: null,
+        },
+      } as never,
+      "run-1",
+    );
+    expect(cancelTurn).toHaveBeenCalledWith({ sokoBotId: "bot" }, "run-1");
   });
 });

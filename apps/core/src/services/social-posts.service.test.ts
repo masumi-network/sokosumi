@@ -212,6 +212,9 @@ describe("social posts service", () => {
         canEdit: true,
         canSchedule: true,
         canCancel: true,
+        canPublishNow: true,
+        canApprove: false,
+        canReject: false,
         canDuplicate: false,
       }),
     ]);
@@ -377,6 +380,28 @@ describe("social posts service", () => {
       canPublishNow: false,
       canDuplicate: true,
       connectionNeedsReconnect: false,
+    });
+  });
+
+  it("marks a needs-approval post as approvable, not publishable", async () => {
+    socialPostFindManyMock.mockResolvedValue([
+      { ...draftPost, status: "NEEDS_APPROVAL" },
+    ]);
+    const { listSocialPosts } = await loadService();
+
+    const { posts } = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(posts[0]).toMatchObject({
+      status: "NEEDS_APPROVAL",
+      canEdit: true,
+      canSchedule: true,
+      canCancel: true,
+      canPublishNow: false,
+      canApprove: true,
+      canReject: true,
     });
   });
 
@@ -1540,6 +1565,7 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          status: "NEEDS_APPROVAL",
           creatorUserId: null,
           creatorCoworkerId: "cow_123",
           scheduledByUserId: USER_ID,
@@ -1573,6 +1599,7 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          status: "NEEDS_APPROVAL",
           creatorUserId: null,
           creatorCoworkerId: null,
           creatorSokoBotId: sokoBotId,
@@ -2091,4 +2118,152 @@ describe("social posts service", () => {
       }),
     );
   });
+
+  it("keeps needs-approval when a time is set", async () => {
+    const pending = { ...scheduledPost, status: "NEEDS_APPROVAL", revision: 2 };
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce({ ...pending, revision: 3 });
+    const { scheduleSocialPost } = await loadService();
+
+    const post = await scheduleSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      scheduledAt: FUTURE,
+      timezone: "Europe/Zurich",
+      revision: 2,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "NEEDS_APPROVAL" }),
+      }),
+    );
+    expect(post).toMatchObject({
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canPublishNow: false,
+    });
+  });
+
+  it("approves a pending post with a future time into scheduled", async () => {
+    const pending = { ...scheduledPost, status: "NEEDS_APPROVAL", revision: 2 };
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce({
+        ...pending,
+        status: "SCHEDULED",
+        scheduledByUserId: USER_ID,
+        scheduledByCoworkerId: null,
+        revision: 3,
+      });
+    const { approveSocialPost } = await loadService();
+
+    const post = await approveSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 2,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: POST_ID, revision: 2 },
+      data: {
+        status: "SCHEDULED",
+        scheduledByUserId: USER_ID,
+        scheduledByCoworkerId: null,
+        revision: { increment: 1 },
+      },
+    });
+    expect(post).toMatchObject({
+      status: "SCHEDULED",
+      canApprove: false,
+      canPublishNow: true,
+    });
+  });
+
+  it("approves a pending post without a future time into a draft", async () => {
+    const pending = {
+      ...draftPost,
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+    };
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce({ ...draftPost, revision: 1 });
+    const { approveSocialPost } = await loadService();
+
+    const post = await approveSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: POST_ID, revision: 0 },
+      data: {
+        status: "DRAFT",
+        revision: { increment: 1 },
+      },
+    });
+    expect(post).toMatchObject({ status: "DRAFT", canApprove: false });
+  });
+
+  it("rejects a pending post by canceling it", async () => {
+    const pending = { ...draftPost, status: "NEEDS_APPROVAL" };
+    socialPostFindFirstMock
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce({
+        ...pending,
+        status: "CANCELED",
+        canceledAt: NOW,
+        revision: 1,
+      });
+    const { rejectSocialPost } = await loadService();
+
+    const post = await rejectSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: POST_ID, revision: 0 },
+      data: {
+        status: "CANCELED",
+        canceledAt: NOW,
+        revision: { increment: 1 },
+      },
+    });
+    expect(post).toMatchObject({
+      status: "CANCELED",
+      canApprove: false,
+      canReject: false,
+    });
+  });
+
+  it.each(["approveSocialPost", "rejectSocialPost"] as const)(
+    "refuses to %s a draft",
+    async (operation) => {
+      const service = await loadService();
+
+      await expect(
+        service[operation]({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          postId: POST_ID,
+          revision: 0,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
 });

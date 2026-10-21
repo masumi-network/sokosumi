@@ -3233,7 +3233,9 @@ function RoomView({
             <p className="text-muted-foreground mt-1 text-sm">
               {selectedRoom?.isSelfDirect
                 ? t("SelfDirect.description")
-                : t("Empty.noMessagesDescription")}
+                : isDirectRoom
+                  ? t("Empty.noDirectMessagesDescription")
+                  : t("Empty.noMessagesDescription")}
             </p>
           </div>
         ) : null}

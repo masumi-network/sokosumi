@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { LIMITS } from "@/config/constants";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -29,7 +29,6 @@ import {
   getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
   getPeerInActiveOrganizationFlags,
-  isOrganizationOwnerOrAdmin,
   loadFormerDirectUserMembers,
   mapChatRoom,
   membershipVisibleActiveRoomWhere,

@@ -16,14 +16,17 @@ import {
 } from "@/schemas/social-post.schema";
 import { createSocialPost } from "@/services/social-posts.service";
 
-import { mapSocialPostServiceError } from "./route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  presentSocialPost,
+} from "./route-helpers.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/social-posts",
     description:
-      "Draft a Social post for a Project, or schedule it directly when scheduledAt is given. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostProjectParamsSchema,
@@ -73,10 +76,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return created(
         c,
-        socialPostSchema.parse({
-          ...post,
-          canPublishNow: post.canPublishNow && !userContext.coworkerId,
-        }),
+        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

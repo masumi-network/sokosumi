@@ -1020,6 +1020,16 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openJob": "Abrir job",
+      "jobHint": {
+        "started": "Iniciando el job.",
+        "payment_pending": "Esperando a que se confirme el pago antes de que el agente empiece.",
+        "processing": "El agente está trabajando en ello.",
+        "input_required": "El agente necesita más información para continuar.",
+        "result_pending": "El agente terminó. El resultado está en camino.",
+        "failed": "El agente no pudo terminar este job.",
+        "payment_failed": "El pago no se completó, así que el agente no empezó."
+      },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
       "assignee": "Asignado a",
@@ -1027,7 +1037,6 @@
       "destination": "Cuenta",
       "scheduled": "Programado para",
       "recurrence": "Repetición",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Tarea",
         "task_schedule": "Programación de tarea",
@@ -2163,6 +2172,7 @@
           "resume": "Reanudar",
           "end": "Finalizar",
           "delete": "Eliminar",
+          "more": "Más acciones",
           "paused": "Programación en pausa",
           "resumed": "Programación reanudada",
           "ended": "Programación finalizada",
@@ -2492,6 +2502,7 @@
         },
         "status": {
           "DRAFT": "Borrador",
+          "NEEDS_APPROVAL": "Pendiente de aprobación",
           "SCHEDULED": "Programada",
           "PUBLISHING": "Publicando",
           "PUBLISHED": "Publicada",
@@ -2681,6 +2692,7 @@
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
+          "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2810,8 +2822,8 @@
           "historyNotFetched": "Todavía no se ha importado el historial de la cuenta.",
           "historyLimited": "El historial está incompleto o limitado por la plataforma. Revisa los permisos y vuelve a sincronizar.",
           "dateUnavailable": "Fecha de publicación no disponible",
-          "mediaPost": "Publicación multimedia",
-          "openPost": "Abrir publicación en la plataforma",
+          "noPostMetrics": "Todavía no se han recibido métricas para esta publicación.",
+          "openPost": "Ver publicación en la plataforma",
           "accountMetrics": {
             "followers": "Seguidores",
             "following": "Cuentas seguidas",
@@ -2854,7 +2866,13 @@
             "linkClicks": "Clics en enlaces",
             "replies": "Respuestas",
             "reposts": "Republicaciones",
-            "dislikes": "No me gusta"
+            "dislikes": "No me gusta",
+            "quotes": "Citas",
+            "totalWatchTime": "Tiempo total de reproducción",
+            "averageWatchTime": "Tiempo medio de reproducción",
+            "skipRate": "Tasa de omisión",
+            "facebookViews": "Visualizaciones en Facebook",
+            "crosspostedViews": "Visualizaciones de publicaciones cruzadas"
           },
           "periods": {
             "lifetime": "Acumulado",
@@ -3034,10 +3052,14 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "ariaLabel": "Secciones del proyecto"
+          "ariaLabel": "Secciones del proyecto",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots de este proyecto"
         }
       }
     },
@@ -4795,7 +4817,8 @@
             "delete": "Eliminar Soko Bot",
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
-            "error": "No se pudo eliminar este Soko Bot."
+            "error": "No se pudo eliminar este Soko Bot.",
+            "confirmLabelShared": "Este bot es compartido y no tiene propietario. Escribe su ID ({id}) para confirmar"
           },
           "chat": {
             "readOnly": "Solo lectura",
@@ -6937,7 +6960,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Empieza el canal con un mensaje o menciona a un coworker de IA.",
+        "noDirectMessagesDescription": "Envía un mensaje para empezar la conversación.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "No se pudieron cargar los miembros",
@@ -7685,7 +7709,8 @@
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
-      }
+      },
+      "tableKind": "Tabla"
     },
     "SokoBot": {
       "Metadata": {
@@ -7700,15 +7725,15 @@
         "title": "Conoce a tu Soko Bot",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tareas a tus Coworkers y contrata Agentes del marketplace para ejecutar Jobs. Ponle un nombre y una imagen.",
+        "description": "Tu asistente personal en Sokosumi.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
-        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",
@@ -7834,7 +7859,12 @@
         "deleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran. Las tareas que creó permanecen en tu tablero. Puedes crear un asistente nuevo enseguida.",
         "deleteConfirmLabel": "Escribe {name} para confirmar",
         "deleteError": "No se pudo eliminar tu Soko Bot.",
-        "deleted": "Soko Bot eliminado."
+        "deleted": "Soko Bot eliminado.",
+        "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
+        "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8115,7 +8145,53 @@
       "chatWith": "Chatear con {name}",
       "yourAssistantTitle": "Tu asistente",
       "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat."
+      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "Shared": {
+        "title": "Bots compartidos",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
+        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
+        "scopeProject": "Trabaja para un proyecto",
+        "scopeProjectNamed": "Trabaja para {project}",
+        "archived": "Archivado",
+        "fallbackName": "Asistente compartido",
+        "openBot": "Ajustes de {name}",
+        "Create": {
+          "trigger": "Nuevo Soko Bot",
+          "title": "Crear un Soko Bot",
+          "description": "Elige para quién trabaja. Todos los miembros comparten un bot de proyecto o de espacio de trabajo y pueden leer su historial de chat, su memoria y sus ajustes.",
+          "nameLabel": "Nombre",
+          "scopeLabel": "Trabaja para",
+          "scopes": {
+            "personal": {
+              "label": "Solo tú",
+              "hint": "Tu propio asistente. Nadie más puede gestionarlo."
+            },
+            "project": {
+              "label": "Un proyecto",
+              "hint": "Ve las Tasks públicas del proyecto. Todos hablan con él en su sala."
+            },
+            "workspace": {
+              "label": "Todo el espacio de trabajo",
+              "hint": "Ve todas las Tasks y todos los proyectos públicos. Todos hablan con él en su sala."
+            }
+          },
+          "projectLabel": "Proyecto",
+          "projectPlaceholder": "Elige un proyecto",
+          "cancel": "Cancelar",
+          "submit": "Crear",
+          "error": "No se pudo crear el Soko Bot.",
+          "created": "Soko Bot creado."
+        },
+        "Archived": {
+          "title": "{name} está archivado",
+          "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
+          "back": "Volver a Soko Bots",
+          "reactivate": "Reactivar",
+          "reactivated": "Soko Bot reactivado.",
+          "reactivateError": "No se pudo reactivar el Soko Bot."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -8356,6 +8432,20 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
+      },
+      "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
+      "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
+      "showMore": "Mostrar más",
+      "showLess": "Mostrar menos",
+      "previousPosition": "Posición anterior",
+      "newPosition": "Nueva posición",
+      "anyOption": "Cualquier opción",
+      "dnd": {
+        "instructions": "Para mover una fila o columna, arrastra su asa, o enfócala y pulsa las flechas.",
+        "pickedUp": "{item} seleccionado.",
+        "over": "{item} está sobre {target}.",
+        "dropped": "{item} se movió al lugar de {target}.",
+        "cancelled": "Se canceló mover {item}."
       }
     },
     "ProjectScope": {
@@ -8662,6 +8752,12 @@
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
       "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "activateRetry": "Intentar cambiar de nuevo"
+    },
+    "Assistant": {
+      "metadataTitle": "Configura tu asistente",
+      "later": "Más tarde",
+      "skip": "Omitir",
+      "continue": "Continuar"
     }
   }
 }

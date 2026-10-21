@@ -51,6 +51,10 @@ export const dataTableSchema = z
     views: z.array(tableViewSchema),
   })
   .openapi("DataTable");
+export const dataTableSummarySchema = dataTableSchema
+  .omit({ columns: true, views: true })
+  .extend({ columnCount: z.int() })
+  .openapi("DataTableSummary");
 export const tableChangeSchema = z
   .object({
     id: z.uuid(),

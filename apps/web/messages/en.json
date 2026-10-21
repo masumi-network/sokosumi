@@ -1020,6 +1020,16 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openJob": "Open job",
+      "jobHint": {
+        "started": "Starting the job.",
+        "payment_pending": "Waiting for the payment to confirm before the Agent starts.",
+        "processing": "The Agent is working on it.",
+        "input_required": "The Agent needs more input to continue.",
+        "result_pending": "The Agent finished. The result is on its way.",
+        "failed": "The Agent couldn't finish this Job.",
+        "payment_failed": "The payment didn't go through, so the Agent didn't start."
+      },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
       "assignee": "Assigned to",
@@ -1027,7 +1037,6 @@
       "destination": "Account",
       "scheduled": "Scheduled for",
       "recurrence": "Recurrence",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Task",
         "task_schedule": "Task schedule",
@@ -2163,6 +2172,7 @@
           "resume": "Resume",
           "end": "End",
           "delete": "Delete",
+          "more": "More actions",
           "paused": "Schedule paused",
           "resumed": "Schedule resumed",
           "ended": "Schedule ended",
@@ -2492,6 +2502,7 @@
         },
         "status": {
           "DRAFT": "Draft",
+          "NEEDS_APPROVAL": "Needs approval",
           "SCHEDULED": "Scheduled",
           "PUBLISHING": "Publishing",
           "PUBLISHED": "Published",
@@ -2681,6 +2692,7 @@
           "offline": "You're offline.",
           "timeout": "Timed out.",
           "missing": "Couldn't open this post.",
+          "mediaUnavailable": "Media isn't included in imported history yet.",
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
@@ -2810,8 +2822,8 @@
           "historyNotFetched": "Account history has not been imported.",
           "historyLimited": "History is incomplete or limited by the platform. Check the account permissions and try syncing again.",
           "dateUnavailable": "Publication date unavailable",
-          "mediaPost": "Media post",
-          "openPost": "Open post on platform",
+          "noPostMetrics": "No metrics reported for this post yet.",
+          "openPost": "View post on platform",
           "accountMetrics": {
             "followers": "Followers",
             "following": "Following",
@@ -2854,7 +2866,13 @@
             "linkClicks": "Link clicks",
             "replies": "Replies",
             "reposts": "Reposts",
-            "dislikes": "Dislikes"
+            "dislikes": "Dislikes",
+            "quotes": "Quotes",
+            "totalWatchTime": "Total watch time",
+            "averageWatchTime": "Average watch time",
+            "skipRate": "Skip rate",
+            "facebookViews": "Facebook views",
+            "crosspostedViews": "Crossposted views"
           },
           "periods": {
             "lifetime": "Lifetime",
@@ -3034,10 +3052,14 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "ariaLabel": "Project sections"
+          "ariaLabel": "Project sections",
+          "bots": "Bots"
         },
         "design": {
           "document": "DESIGN.md"
+        },
+        "bots": {
+          "title": "Bots for this project"
         }
       }
     },
@@ -4831,7 +4853,8 @@
             "delete": "Delete Soko Bot",
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
-            "error": "Could not delete this Soko Bot."
+            "error": "Could not delete this Soko Bot.",
+            "confirmLabelShared": "This bot is shared and has no owner. Type its ID ({id}) to confirm"
           },
           "chat": {
             "readOnly": "Read-only",
@@ -6938,6 +6961,7 @@
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noDirectMessagesDescription": "Send a message to start the conversation.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Members could not be loaded",
@@ -7685,7 +7709,8 @@
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
-      }
+      },
+      "tableKind": "Table"
     },
     "SokoBot": {
       "Metadata": {
@@ -7700,15 +7725,15 @@
         "title": "Meet your Soko Bot",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "A personal project manager inside Sokosumi. It answers directly when it can, delegates Tasks to your Coworkers, and hires marketplace Agents to run Jobs. Give it a name and a picture.",
+        "description": "Your personal assistant in Sokosumi.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
         "submit": "Create Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
-        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
-        "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
+        "spendNotice": "Uses your credits. Set a daily limit in its settings.",
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -7834,7 +7859,12 @@
         "deleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased. Tasks it created stay on your board. You can create a new assistant straight away.",
         "deleteConfirmLabel": "Type {name} to confirm",
         "deleteError": "Could not delete your Soko Bot.",
-        "deleted": "Soko Bot deleted."
+        "deleted": "Soko Bot deleted.",
+        "sharedArchiveDescription": "Stops all turns and schedules for everyone. An owner or admin can reactivate it; history is kept.",
+        "sharedArchiveConfirmTitle": "Archive this shared bot?",
+        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
+        "sharedDeleteConfirmTitle": "Delete this shared bot?",
+        "sharedDeleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased for everyone. Tasks it created stay where they are."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -8115,7 +8145,53 @@
       "chatWith": "Chat with {name}",
       "yourAssistantTitle": "Your assistant",
       "teamTitle": "Your team's assistants",
-      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat.",
+      "Shared": {
+        "title": "Shared bots",
+        "count": "{count, plural, one {# bot} other {# bots}}",
+        "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
+        "scopeWorkspace": "Works for the whole workspace",
+        "scopeProject": "Works for a project",
+        "scopeProjectNamed": "Works for {project}",
+        "archived": "Archived",
+        "fallbackName": "Shared assistant",
+        "openBot": "Settings for {name}",
+        "Create": {
+          "trigger": "New Soko Bot",
+          "title": "Create a Soko Bot",
+          "description": "Choose who it works for. Every member shares a project or workspace bot and can read its chat history, memory and settings.",
+          "nameLabel": "Name",
+          "scopeLabel": "Works for",
+          "scopes": {
+            "personal": {
+              "label": "Only you",
+              "hint": "Your own assistant. Nobody else can manage it."
+            },
+            "project": {
+              "label": "One project",
+              "hint": "Sees the project's public Tasks. Everyone talks to it in its room."
+            },
+            "workspace": {
+              "label": "The whole workspace",
+              "hint": "Sees every public Task and Project. Everyone talks to it in its room."
+            }
+          },
+          "projectLabel": "Project",
+          "projectPlaceholder": "Choose a project",
+          "cancel": "Cancel",
+          "submit": "Create",
+          "error": "Could not create the Soko Bot.",
+          "created": "Soko Bot created."
+        },
+        "Archived": {
+          "title": "{name} is archived",
+          "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
+          "back": "Back to Soko Bots",
+          "reactivate": "Reactivate",
+          "reactivated": "Soko Bot reactivated.",
+          "reactivateError": "Could not reactivate the Soko Bot."
+        }
+      }
     },
     "Calendar": {
       "Metadata": {
@@ -8356,6 +8432,20 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns."
+      },
+      "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
+      "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "previousPosition": "Previous position",
+      "newPosition": "New position",
+      "anyOption": "Any option",
+      "dnd": {
+        "instructions": "To move a row or column, drag its handle, or focus the handle and press the arrow keys.",
+        "pickedUp": "Picked up {item}.",
+        "over": "{item} is over {target}.",
+        "dropped": "{item} moved to the place of {target}.",
+        "cancelled": "Moving {item} was cancelled."
       }
     },
     "ProjectScope": {
@@ -8662,6 +8752,12 @@
       "rejectError": "We could not reject the remaining invitations.",
       "activateError": "We could not switch you into that organization. Try again before continuing.",
       "activateRetry": "Try switching again"
+    },
+    "Assistant": {
+      "metadataTitle": "Set up your assistant",
+      "later": "Later",
+      "skip": "Skip",
+      "continue": "Continue"
     }
   }
 }

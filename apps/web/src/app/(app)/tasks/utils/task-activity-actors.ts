@@ -4,7 +4,7 @@ import {
   TaskEventStatus,
 } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 
 import { getCoworkerImage } from "./coworker-image";
 
@@ -34,11 +34,12 @@ type SokoBotActorSummary = {
   name: string | null;
   avatarSeed?: string | null;
   avatarImageUrl?: string | null;
+  /** Null for a shared bot: it has no owner. */
   owner: {
     id: string;
     name: string;
     image?: string | null;
-  };
+  } | null;
 };
 
 /**
@@ -261,8 +262,8 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     // here than the one the owner sees everywhere else.
     avatarSeed: sokoBot.avatarImageUrl
       ? null
-      : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
-    ownerName: sokoBot.owner.name,
+      : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
+    ownerName: sokoBot.owner?.name,
   };
 }
 

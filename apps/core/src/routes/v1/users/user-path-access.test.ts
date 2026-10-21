@@ -44,6 +44,7 @@ describe("requireAccessToTargetUserData", () => {
   it("allows a soko bot only for its fixed owner id", () => {
     const authContext = {
       actor: "sokoBot" as const,
+      scope: "personal" as const,
       sokoBotId: "11111111-1111-7111-8111-111111111111",
       userId: target,
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -154,6 +155,7 @@ describe("resolveUsersPathUserId", () => {
     const { resolvedUserId, userContext } = resolveUsersPathUserId(
       {
         actor: "sokoBot",
+        scope: "personal",
         sokoBotId: "11111111-1111-7111-8111-111111111111",
         userId: "usr_owner",
         workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -210,5 +212,29 @@ describe("resolveUsersPathUserId", () => {
     expect(resolvedUserId).toBe("usr_self");
     expect(userContext.source).toBe("context");
     expect(userContext.userId).toBe("usr_self");
+  });
+});
+
+describe("shared Soko Bot on user paths", () => {
+  const sharedSokoBot = {
+    actor: "sokoBot" as const,
+    scope: "project" as const,
+    sokoBotId: "11111111-1111-7111-8111-111111111111",
+    userId: null,
+    workspaceId: "22222222-2222-7222-8222-222222222222",
+    organizationId: "org_1",
+    projectId: "33333333-3333-7333-8333-333333333333",
+  };
+
+  it("answers 403 for path me", () => {
+    expect(() => resolveUsersPathUserId(sharedSokoBot, USERS_PATH_ME)).toThrow(
+      expect.objectContaining({ status: 403 }),
+    );
+  });
+
+  it("answers 403 for a concrete user id", () => {
+    expect(() =>
+      requireAccessToTargetUserData(sharedSokoBot, "usr_target"),
+    ).toThrow(expect.objectContaining({ status: 403 }));
   });
 });
