@@ -16,6 +16,34 @@ const FALLBACK_TIMEZONES = [
   "Australia/Sydney",
 ] as const;
 
+/** A date-specific zone label; short labels use the full label as their tooltip. */
+export function formatTimezoneLabel(
+  timezone: string,
+  locale: string,
+  at: Date,
+  style: "long" | "short" = "long",
+): string {
+  const fallback = timezone.replaceAll("_", " ") || "UTC";
+  try {
+    const name = new Intl.DateTimeFormat(locale, {
+      timeZone: timezone,
+      timeZoneName: style,
+    })
+      .formatToParts(at)
+      .find((part) => part.type === "timeZoneName")?.value;
+    if (!name) return fallback;
+    const city =
+      timezone.includes("/") && !timezone.startsWith("Etc/")
+        ? timezone.split("/").at(-1)?.replaceAll("_", " ")
+        : undefined;
+    return style === "long" && city && city !== name
+      ? `${name} (${city})`
+      : name;
+  } catch {
+    return fallback;
+  }
+}
+
 export function getTimezoneOptions(preferred?: string | null): string[] {
   const zones =
     typeof Intl.supportedValuesOf === "function"
