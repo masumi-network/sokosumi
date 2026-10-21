@@ -152,6 +152,10 @@ export function ImageStudio({
   const [parentAssetId, setParentAssetId] = useState<
     string | null | undefined
   >();
+  const [templateUndo, setTemplateUndo] = useState<{
+    prompt: string;
+    target: StudioTarget;
+  } | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
@@ -337,8 +341,8 @@ export function ImageStudio({
    *
    * It writes the brief and the frame and stops there: no submission, nothing
    * locked, and the caret goes into the prompt box, because the value of a
-   * template is the edit that follows it. Undoing one is retyping — the text is
-   * ordinary editable text, which is why this is not a mode.
+   * template is the edit that follows it. Replacing a typed brief keeps one
+   * undo snapshot until the next edit, settings change, or submission.
    *
    * The frame is set unconditionally. A model that cannot honour it is already
    * clamped per leg when the batch is built (`clampToModel`), which is the same
@@ -346,6 +350,9 @@ export function ImageStudio({
    */
   function applyTemplate(template: StudioTemplate) {
     setHasNewerSettings(true);
+    setTemplateUndo(
+      (current) => current ?? (prompt.trim() ? { prompt, target } : null),
+    );
     setPrompt(template.prompt);
     setTarget((current) => ({
       ...current,
@@ -357,6 +364,7 @@ export function ImageStudio({
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
     setHasNewerSettings(true);
+    setTemplateUndo(null);
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
@@ -374,6 +382,7 @@ export function ImageStudio({
    * person picks one.
    */
   function handleGenerate(requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     const referenceProjectIds = new Set(
       checkedAssets.map((asset) => asset.projectId),
     );
@@ -387,6 +396,7 @@ export function ImageStudio({
   }
 
   function sendTo(target: string, requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     setActionError(null);
     queue.enqueue(
       requests.map((request) => ({ ...request, projectId: target })),
@@ -426,6 +436,7 @@ export function ImageStudio({
   }
 
   function clearReferences() {
+    setTemplateUndo(null);
     setCheckedIds([]);
     setParentAssetId(undefined);
     setHasNewerSettings(true);
@@ -521,10 +532,17 @@ export function ImageStudio({
       labels={labels}
       onApplyTemplate={applyTemplate}
       onClearReferences={clearReferences}
-      onCopiesChange={() => setHasNewerSettings(true)}
+      onCopiesChange={() => {
+        setTemplateUndo(null);
+        setHasNewerSettings(true);
+      }}
       onGenerate={handleGenerate}
-      onPromptChange={setPrompt}
+      onPromptChange={(value) => {
+        setTemplateUndo(null);
+        setPrompt(value);
+      }}
       onTargetChange={(update) => {
+        setTemplateUndo(null);
         setTarget(update);
         setHasNewerSettings(true);
       }}
@@ -583,6 +601,7 @@ export function ImageStudio({
               onReusePrompt={reusePrompt}
               onVariation={(asset) => repeat(asset, "asset")}
               onToggleSelect={(assetId) => {
+                setTemplateUndo(null);
                 setParentAssetId(undefined);
                 setHasNewerSettings(true);
                 setCheckedIds((current) =>
@@ -610,6 +629,7 @@ export function ImageStudio({
                   ? () => {
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
+                      setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
                         modelIds: [request.modelId],
@@ -683,6 +703,28 @@ export function ImageStudio({
         </div>
       ) : null}
 
+      {templateUndo ? (
+        <div
+          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+          role="status"
+        >
+          <span>{t("templateReplacedBrief")}</span>
+          <Button
+            className="h-10 md:h-8"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setPrompt(templateUndo.prompt);
+              setTarget(templateUndo.target);
+              setTemplateUndo(null);
+              promptRef.current?.focus();
+            }}
+          >
+            {t("undoTemplate")}
+          </Button>
+        </div>
+      ) : null}
+
       {/* The composer is the anchor, so the question sits over the brief it
       is about. Dismissing it leaves the brief untouched. */}
       <Popover
@@ -750,6 +792,7 @@ export function ImageStudio({
           onUseAsReference={(asset) => {
             setParentAssetId(undefined);
             setHasNewerSettings(true);
+            setTemplateUndo(null);
             setCheckedIds([asset.id]);
             setPrompt("");
             setTarget((current) => ({
