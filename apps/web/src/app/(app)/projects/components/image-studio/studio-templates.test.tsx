@@ -46,11 +46,10 @@ vi.mock("./use-studio-state", () => ({
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: vi.fn(),
     waitingForSlot: false,
-    lastError: null,
-    clearError: vi.fn(),
   }),
 }));
 
@@ -93,7 +92,7 @@ describe("starting from a template", () => {
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(POSTER.prompt);
-    expect(screen.getByText("2:3 · 1K · png")).toBeInTheDocument();
+    expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
   });
 
   it("does not submit, and leaves the caret in the prompt", () => {
@@ -115,5 +114,88 @@ describe("starting from a template", () => {
     for (const template of STUDIO_TEMPLATES) {
       expect(template.prompt).toMatch(/^[\x20-\x7E]+$/);
     }
+  });
+
+  it("undoes a template replacement with the original brief, frame and focus", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, {
+      target: { value: "My original campaign brief" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "moreOptions 1:1 · 1K · png" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "4:5" }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "4:5" }), {
+      key: "Escape",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    expect(prompt).toHaveValue(POSTER.prompt);
+    fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
+    expect(prompt).toHaveValue("My original campaign brief");
+    expect(prompt).toHaveFocus();
+    expect(screen.getByText("4:5 · 1K · png")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("expires template undo when the replacement is edited or submitted", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "Original" } });
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    expect(
+      screen.getByRole("button", { name: "undoTemplate" }),
+    ).toBeInTheDocument();
+    fireEvent.change(prompt, { target: { value: "Edited poster brief" } });
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the original typed brief through several template choices", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "Original brief" } });
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
+    expect(prompt).toHaveValue("Original brief");
+    expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
+  });
+
+  it("expires template undo when the frame changes away and back", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "Original brief" } });
+    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
+    fireEvent.click(screen.getByRole("button", { name: "16:9" }));
+    fireEvent.click(screen.getByRole("button", { name: "1:1" }));
+    expect(prompt).toHaveValue(
+      STUDIO_TEMPLATES.find((template) => template.id === "headshot")?.prompt,
+    );
+    expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("expires template undo when the copy count changes", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "Original brief" } });
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
   });
 });
