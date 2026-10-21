@@ -92,6 +92,7 @@ console.log("done");
 - Print the first reply once (\`| head -c 2000\`) before relying on its fields.
 - Never turn certificate checks off (\`NODE_TLS_REJECT_UNAUTHORIZED\`, \`curl -k\`). A certificate error means something is wrong: stop and say so.
 - Write results to files in your workspace (JSON lines) and save progress after every page, so a rerun continues where it stopped. Print counts and a short summary, never whole pages: what you print comes back into your context.
+- In a background run the workspace is temporary: when the run ends or restarts, its files are gone. Once collecting is done, save the collected data (and later your progress) to Files with \`upload_file\`, and write results to the table in batches as you go, not all at the end.
 - One \`bash\` call ends after at most 10 minutes. Start a long script in the background (\`nohup node sent.mjs > sent.log 2>&1 &\`) and check \`tail sent.log\` and its files between other work.
 - Call tools one after another, or a few at a time; a mailbox does not like hundreds of requests at once.
 - Then judge: reduce the raw files with code (group by address, count, earliest and latest date), read the short result, and look closer only where it matters with \`read_email\`. Write changes in batches (\`write_table_rows\` takes up to 100 rows).
