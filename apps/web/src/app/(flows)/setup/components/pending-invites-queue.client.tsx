@@ -13,6 +13,7 @@ import { acceptOrganizationInviteLink } from "@/lib/actions/organization/invite-
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { setupAssistantPath } from "@/lib/workspace-gate";
 import {
   itemsForBatchAccept,
   type PendingInvitesBatchMode,
@@ -83,7 +84,7 @@ export function PendingInvitesQueue({
       organizationSlug: input.organizationSlug,
       acceptedJoinToken: input.acceptedJoinToken,
     });
-    router.replace(returnUrl);
+    router.replace(setupAssistantPath(returnUrl));
     router.refresh();
   }
 
