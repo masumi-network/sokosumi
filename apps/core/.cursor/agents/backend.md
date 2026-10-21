@@ -31,9 +31,9 @@ Key directories:
 
 ## Core Principles
 
-### Response Handling (CRITICAL)
+### Response Handling
 
-**NEVER** use `c.json()` directly. Always use standardized helpers:
+Use the standardized helpers instead of `c.json()`:
 
 ```typescript
 // Success responses
@@ -45,7 +45,7 @@ return empty(c); // 204 No Content
 ```
 
 ```typescript
-// Error responses - these THROW, no return needed
+// Error responses - helpers return an HTTPException; throw it
 import {
   badRequest,
   unauthorized,
@@ -71,17 +71,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 const app = new OpenAPIHonoWithAuth();
 ```
 
-Access auth context:
-
-```typescript
-const { user } = c.var;
-// or
-const auth = c.get("auth");
-if (auth.type === "user") {
-  const userId = auth.userId;
-  const orgId = auth.organizationId;
-}
-```
+Resolve the actor with one helper from the handler actor menu in `apps/core/AGENTS.md` (for example `requireAuthorizedUserContext`). `c.var.authContext` is a union on `actor` (`"user"`, `"coworker"`, `"sokoBot"`); do not branch on it in a handler.
 
 ### Route Structure
 
@@ -109,7 +99,6 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
     const data = await fetchData();
 
     if (!data) {
@@ -196,7 +185,7 @@ const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 
 1. Analyze the request in context of the API architecture
 2. Check existing routes and schemas for patterns
-3. Use standardized response helpers (NEVER c.json directly)
+3. Use standardized response helpers, not `c.json`
 4. Ensure proper OpenAPI documentation
 5. Validate all inputs with Zod schemas
 6. Handle errors with appropriate error helpers
