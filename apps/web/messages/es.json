@@ -7702,15 +7702,15 @@
         "title": "Conoce a tu Soko Bot",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tareas a tus Coworkers y contrata Agentes del marketplace para ejecutar Jobs. Ponle un nombre y una imagen.",
+        "description": "Tu asistente personal en Sokosumi.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
-        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",
@@ -8729,6 +8729,12 @@
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
       "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "activateRetry": "Intentar cambiar de nuevo"
+    },
+    "Assistant": {
+      "metadataTitle": "Configura tu asistente",
+      "later": "Más tarde",
+      "skip": "Omitir",
+      "continue": "Continuar"
     }
   }
 }
