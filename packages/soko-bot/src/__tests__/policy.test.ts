@@ -6,6 +6,8 @@ import {
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "../policy.js";
 import {
   applyVersionCapabilities,
@@ -146,6 +148,48 @@ describe("Soko Bot route capability ceilings", () => {
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("archive_task");
     }
     expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain("archive_task");
+  });
+});
+
+describe("asking a Coworker first", () => {
+  const classification = {
+    schemaVersion: 1,
+    route: "MANAGE_WORK",
+    confidence: 1,
+    rationaleSummary: "explicit",
+    requestedOutcome: "ask Elena whether she can do it",
+    candidateProjectIds: [],
+    candidateCoworkerIds: [],
+    candidateAgentIds: [],
+    requiresApproval: false,
+    requiresClarification: false,
+  } as const;
+
+  it("comes with delegation and chat writes, never on read-only routes", () => {
+    for (const route of ["DELEGATE_TASK", "HIRE_AGENT", "MANAGE_WORK"] as const)
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain("ask_coworker");
+    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const)
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("ask_coworker");
+    expect(
+      capabilitiesForClassification({ ...classification, writeScope: "CHAT" }),
+    ).toContain("ask_coworker");
+    expect(
+      capabilitiesForClassification({
+        ...classification,
+        writeScope: "MEMORY",
+      }),
+    ).not.toContain("ask_coworker");
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain("ask_coworker");
+  });
+
+  it("is refused after untrusted input except on the owner's own work", () => {
+    // The question is a prompt for a Coworker, so a page must not write it on
+    // a turn nobody asked for. The room holds only the owner, the bot and the
+    // Coworkers, so an owner-directed turn may still ask, as it may brief one.
+    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain("ask_coworker");
+    expect(
+      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+    ).not.toContain("ask_coworker");
   });
 });
 
