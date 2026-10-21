@@ -1048,6 +1048,54 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+@property --edge-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --edge-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes edge-left {
+  to {
+    --edge-left: 20px;
+  }
+}
+
+@keyframes edge-right {
+  from {
+    --edge-right: 20px;
+  }
+  to {
+    --edge-right: 0px;
+  }
+}
+
+/* Horizontal scroll-edge fade: only the edges with content beyond them
+   soften. Browsers without scroll-driven animations keep the plain edge. */
+@utility scroll-edge-x {
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--edge-left),
+      #000 calc(100% - var(--edge-right)),
+      transparent
+    );
+    animation:
+      edge-left linear both,
+      edge-right linear both;
+    animation-timeline: scroll(self x), scroll(self x);
+    animation-range:
+      0 20px,
+      calc(100% - 20px) 100%;
+  }
+}
+
 @utility content-in {
   animation: content-in 200ms ease-out both;
 }
