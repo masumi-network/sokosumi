@@ -3,9 +3,11 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
+  jobInclude,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
@@ -95,6 +97,7 @@ import {
   type TableOperationCompletion,
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
+import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -5070,31 +5073,29 @@ export class SokoBotRuntimeService {
       }
       case "get_job_status": {
         const { jobId } = jobIdInputSchema.parse(input.input);
-        return prisma.job.findFirst({
+        const row = await prisma.job.findFirst({
           where: {
             AND: [
               { id: jobId, workspaceId: authorized.turn.workspaceId },
               buildSokoBotReaderJobWhere(authorized.reader),
             ],
           },
-          select: {
-            id: true,
-            name: true,
-            agentId: true,
-            jobType: true,
-            updatedAt: true,
-            events: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: {
-                id: true,
-                status: true,
-                result: true,
-                inputSchema: true,
-              },
-            },
-          },
+          include: jobInclude,
         });
+        if (!row) return null;
+        const job = mapJobWithStatus(row);
+        return {
+          id: job.id,
+          name: job.name ?? job.agent.name,
+          agent: { id: job.agentId, name: job.agent.name },
+          url: new URL(
+            `/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`,
+            getEnv().WEB_APP_BASE_URL,
+          ).toString(),
+          updatedAt: job.updatedAt.toISOString(),
+          ...digestJob(job),
+          trust: "untrusted-data",
+        };
       }
       case "provide_job_input":
         provideJobInputSchema.parse(input.input);

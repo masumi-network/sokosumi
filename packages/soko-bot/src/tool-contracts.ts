@@ -750,7 +750,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
     "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",
-  get_job_status: "Read current marketplace Agent Job status.",
+  get_job_status:
+    "Read a marketplace Agent Job: status, the input it was hired with, the input it is waiting for (inputRequest with eventId and fields), its result text, error, files, links, and url.",
   provide_job_input:
     "Send the input an Agent Job is waiting for; applied right away.",
   read_memory: "Read canonical short-term Soko Bot memory.",
