@@ -2445,6 +2445,19 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Erneut versuchen",
+          "help": "Alles andere funktioniert weiterhin. Prüfe deine Verbindung und versuche es erneut.",
+          "projectHelp": "Vorerst werden alle Projekte angezeigt. Versuche es erneut oder wähle ein anderes Projekt.",
+          "title": {
+            "drafts": "Entwürfe konnten nicht geladen werden",
+            "attention": "Beiträge, die Aufmerksamkeit brauchen, konnten nicht geladen werden",
+            "accounts": "Konten konnten nicht geladen werden",
+            "calendar": "Der Kalender konnte nicht geladen werden",
+            "post": "Dieser Beitrag konnte nicht geöffnet werden",
+            "project": "Dieses Projekt konnte nicht geladen werden"
+          }
+        },
         "loadMore": "Mehr laden",
         "loadMoreError": "Mehr konnte nicht geladen werden.",
         "loadMoreOffline": "Du bist offline.",
@@ -2723,9 +2736,9 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
