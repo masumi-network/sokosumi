@@ -2582,8 +2582,8 @@
           },
           "timezone": {
             "yours": "Deine Zeitzone: {zone}",
-            "goesOut": "Erscheint {date} ({zone})",
-            "postZone": "Geplant als {date} ({zone})"
+            "goesOut": "Erscheint {date} · {zone}",
+            "postZone": "Geplant als {date} · {zone}"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",

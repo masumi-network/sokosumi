@@ -273,8 +273,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.missingPost": "Couldn't open this post.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
-  "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
-  "composer.timezone.postZone": "Scheduled as {date} in {zone}.",
+  "composer.timezone.goesOut": "Goes out {date} · {zone}",
+  "composer.timezone.postZone": "Scheduled as {date} · {zone}",
   quickPicks: "Quick picks",
   "quick.inAnHour": "In an hour ({time})",
   "quick.tomorrowMorning": "Tomorrow {time}",
@@ -5842,7 +5842,7 @@ describe("ProjectSocialPosts", () => {
 
     await pickInAnHour(user, dialog);
     expect(line).toHaveTextContent(
-      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${formatTimezoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, "en", IN_AN_HOUR)}).`,
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")} · ${formatTimezoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, "en", IN_AN_HOUR)}`,
     );
   });
 
@@ -5869,7 +5869,7 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
     ).toHaveTextContent(
-      `in ${formatTimezoneLabel(otherZone, "en", SCHEDULED_POST.scheduledAt ?? new Date())}.`,
+      `· ${formatTimezoneLabel(otherZone, "en", SCHEDULED_POST.scheduledAt ?? new Date())}`,
     );
   });
 
@@ -5904,7 +5904,7 @@ describe("ProjectSocialPosts", () => {
       "social-post-timezone",
     );
     expect(label).toHaveTextContent(
-      /Goes out .*Central European Summer Time \(Prague\)/,
+      /Goes out .* · Central European Summer Time \(Prague\)$/,
     );
     expect(label).not.toHaveTextContent("Standard Time");
   });
