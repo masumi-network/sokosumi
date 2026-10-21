@@ -4116,7 +4116,7 @@ export type TableColumn = {
     id: string;
     name: string;
     description?: string;
-    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
     options?: Array<string>;
     tableId: string;
     position: number;
@@ -29479,7 +29479,7 @@ export type PostDriveTablesData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
         rows?: Array<{
@@ -29778,7 +29778,7 @@ export type PatchDriveTablesByIdData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
     };

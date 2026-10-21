@@ -160,3 +160,13 @@ export function tableHistoryText(
     return String(input);
   return "—";
 }
+
+/** A row's Last updated label names its year only when it is not this year. */
+export function lastUpdatedFormat(
+  updatedAt: Date,
+  now: Date,
+): "dateTime" | "dateTimeWithYear" {
+  return updatedAt.getFullYear() === now.getFullYear()
+    ? "dateTime"
+    : "dateTimeWithYear";
+}

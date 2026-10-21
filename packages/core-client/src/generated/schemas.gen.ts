@@ -14512,7 +14512,8 @@ export const TableColumnSchema = {
                 'url',
                 'email',
                 'single_select',
-                'multiple_select'
+                'multiple_select',
+                'last_updated'
             ]
         },
         options: {
