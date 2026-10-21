@@ -11,6 +11,10 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
 
+vi.mock("next/server", () => ({
+  connection: async () => {},
+}));
+
 vi.mock("next/navigation", () => ({
   redirect: (...args: unknown[]) => redirectMock(...args),
 }));

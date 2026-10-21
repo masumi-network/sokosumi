@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
@@ -34,6 +35,8 @@ interface SetupAssistantConnectPageProps {
 export default async function SetupAssistantConnectPage({
   searchParams,
 }: SetupAssistantConnectPageProps) {
+  // Every read below is per request; say so before the first Core call.
+  await connection();
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
     return <CoreUnavailableNotice />;
