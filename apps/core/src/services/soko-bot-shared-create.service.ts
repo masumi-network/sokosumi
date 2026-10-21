@@ -3,7 +3,7 @@ import {
   createEmptySokoBotMemory,
   renderSokoBotMemory,
 } from "@sokosumi/soko-bot";
-import { CHANNEL_SLUG_MAX_LENGTH, sanitizeChannelSlug } from "@sokosumi/utils";
+import { channelSlugWithId } from "@/helpers/channel-slug";
 import { forbidden } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
@@ -32,15 +32,6 @@ export interface CreateSharedSokoBotInput {
   personalityStyle?: number | null;
   /** IANA timezone, validated by the route; the column default otherwise. */
   timezone?: string;
-}
-
-/** Unique per Organization: the bot id is in it, the name only reads well. */
-export function sharedSokoBotRoomSlug(name: string, sokoBotId: string): string {
-  const head = sanitizeChannelSlug(name).slice(
-    0,
-    CHANNEL_SLUG_MAX_LENGTH - sokoBotId.length - 1,
-  );
-  return `${head.replace(/-+$/, "") || "bot"}-${sokoBotId}`;
 }
 
 async function requireOrganizationId(
@@ -174,7 +165,7 @@ export async function createSharedSokoBot(
           organizationId,
           createdByUserId: input.callerUserId,
           name,
-          slug: sharedSokoBotRoomSlug(name, bot.id),
+          slug: channelSlugWithId(name, bot.id, "bot"),
           // Public, so a member who left the room can join it again.
           discoverability: "public",
           userMembers: {

@@ -29,6 +29,7 @@ export const ACTION_CAPABILITIES = new Set([
   "link_tasks",
   "post_chat",
   "open_direct_chat",
+  "ask_coworker",
   "create_schedule",
   "update_schedule",
   "delete_schedule",

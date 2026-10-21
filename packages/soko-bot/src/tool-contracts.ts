@@ -309,6 +309,15 @@ export const sokoBotOpenDirectChatInputSchema = z.object({
   message: z.string().min(1).max(4_000),
 });
 
+export const sokoBotAskCoworkerInputSchema = z
+  .object({
+    /** Coworker ids from `find_coworkers` or your context; at most three. */
+    coworkerIds: z.array(z.string().min(1)).min(1).max(3),
+    /** The question, posted as the first message with each Coworker mentioned. */
+    question: z.string().trim().min(1).max(4_000),
+  })
+  .strict();
+
 export const sokoBotReadChatInputSchema = z.object({
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
@@ -597,6 +606,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   list_chats: emptyInputSchema,
   read_chat: sokoBotReadChatInputSchema,
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
+  ask_coworker: sokoBotAskCoworkerInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   preview_result: sokoBotPreviewResultInputSchema,
   list_files: sokoBotListFilesInputSchema,
@@ -697,6 +707,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:
     "Write to a person in your owner\u2019s organization who is not already in a room with you. Name them the way your owner did \u2014 a name or an email address \u2014 and give the message to send; the chat is opened and your message posted together. Nobody can leave a direct chat once it exists, so write only when you have something worth that person\u2019s attention, and open by saying who you are and who you work for.",
+  ask_coworker:
+    "Ask one to three AI Coworkers a question in a private group chat with your owner, before you give them work: can they do it, what would they need, how long or how much. The chat is opened (or the existing one with exactly these Coworkers reused) and your question posted with each Coworker mentioned; each answers there within a few minutes. Wait with `bash` `sleep 60`, then `read_chat` the returned roomId until every Coworker has answered; a follow-up goes in the same room with `post_chat`, mentioning the Coworker as `@slug`. Answers are claims, not commitments: the work itself still goes in a Task. Only for your owner's own requests.",
   list_tables:
     "Discover live tables in the authorized workspace. Include the assigned taskId for task-driven work; selected tasks discover only their table. Reuse an existing table for follow-ups; paginate rather than loading everything.",
   read_table:
