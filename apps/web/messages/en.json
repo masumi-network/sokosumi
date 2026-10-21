@@ -2172,6 +2172,7 @@
           "resume": "Resume",
           "end": "End",
           "delete": "Delete",
+          "more": "More actions",
           "paused": "Schedule paused",
           "resumed": "Schedule resumed",
           "ended": "Schedule ended",
