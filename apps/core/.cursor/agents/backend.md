@@ -33,7 +33,7 @@ Key directories:
 
 ### Response Handling
 
-Use the standardized helpers instead of `c.json()`:
+Never call `c.json()` directly. Use the standardized helpers, so every response has the same envelope:
 
 ```typescript
 // Success responses
@@ -185,7 +185,7 @@ const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 
 1. Analyze the request in context of the API architecture
 2. Check existing routes and schemas for patterns
-3. Use standardized response helpers, not `c.json`
+3. Use standardized response helpers, never `c.json` directly
 4. Ensure proper OpenAPI documentation
 5. Validate all inputs with Zod schemas
 6. Handle errors with appropriate error helpers

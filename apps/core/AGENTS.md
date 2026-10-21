@@ -114,7 +114,7 @@ This class applies `authMiddleware` (`src/middleware/auth.ts`) itself. Do not ad
 
 ### Response Handling
 
-Use the standardized response helpers.
+Never call `c.json()` directly. Use the standardized response helpers: they keep every response in the same envelope.
 
 #### Success Responses
 
@@ -133,7 +133,7 @@ return empty(c);
 
 #### Error Responses
 
-Do not build error bodies with `c.json({ error: "..." }, statusCode)`. The global error handler writes the envelope:
+Never build error bodies with `c.json({ error: "..." }, statusCode)`. The global error handler writes the envelope:
 
 ```typescript
 import {
