@@ -1020,6 +1020,16 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openJob": "Open job",
+      "jobHint": {
+        "started": "Starting the Job.",
+        "payment_pending": "Waiting for the payment to confirm before the Agent starts.",
+        "processing": "The Agent is working on it.",
+        "input_required": "The Agent needs more input to continue.",
+        "result_pending": "The Agent finished. The result is on its way.",
+        "failed": "The Agent couldn't finish this Job.",
+        "payment_failed": "The payment didn't go through, so the Agent didn't start."
+      },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
       "assignee": "Assigned to",

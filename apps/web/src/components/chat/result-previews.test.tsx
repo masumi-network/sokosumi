@@ -67,6 +67,37 @@ describe("chat result cards", () => {
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
   });
+  it("shows a hired Agent's Job as status, labelled input and a job link", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "job",
+          title: "Attention insights for nmkr.io",
+          status: "payment_pending",
+          question: null,
+          scheduledAt: null,
+          timezone: null,
+          assignee: "AttentionInsight",
+          agent: { name: "AttentionInsight", icon: null },
+          sourceHref: "/agents/agent/jobs/job",
+          details: [
+            { label: "Website", value: "https://nmkr.io" },
+            { label: "Study type", value: "web" },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain("jobHint.payment_pending");
+    expect(html).toContain("Website");
+    expect(html).toContain('href="https://nmkr.io/"');
+    expect(html).toContain(">nmkr.io</a>");
+    expect(html).toContain("openJob");
+    expect(html).not.toContain("recorded");
+    expect(html).not.toContain(">assignee<");
+    expect(html).not.toContain("input_url");
+  });
   it("names source and download links by their resource", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
