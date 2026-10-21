@@ -116,6 +116,18 @@ describe("versions", () => {
     );
   });
 
+  it("lets v26 script repetitive tool work", () => {
+    const v26 = getSokoBotVersion("v26");
+    const prompt = composeSystemPrompt(v26);
+    expect(prompt).toContain("# Coding with your tools");
+    expect(prompt).toContain("$SOKO_TOOLS_URL/<tool name>");
+    expect(prompt).toContain("# Chained work");
+    expect(v26.model).toBe(getSokoBotVersion("v25").model);
+    expect(composeSystemPrompt(getSokoBotVersion("v25"))).not.toContain(
+      "# Coding with your tools",
+    );
+  });
+
   it("tell owners what a version change means for them", () => {
     const luna = composeSokoBotVersionNotice(getSokoBotVersion("v19"));
     expect(luna).toMatch(/^I've been updated to version v19\./);

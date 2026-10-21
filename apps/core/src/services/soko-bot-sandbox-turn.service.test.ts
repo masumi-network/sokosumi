@@ -488,6 +488,29 @@ describe("sandbox turn service", () => {
     ).rejects.toThrow("Unknown Sokosumi tool");
   });
 
+  it("gives a script's read its own call id and the bare result", async () => {
+    executeToolMock.mockResolvedValue({ messages: [], nextPageToken: null });
+    const result = await runSandboxTool(claims, {
+      capability: "search_inbox",
+      toolInput: { query: "in:sent" },
+    });
+    expect(result).toEqual({ messages: [], nextPageToken: null });
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capability: "search_inbox",
+        toolCallId: expect.stringMatching(/^script:/),
+      }),
+    );
+  });
+
+  it("refuses a script's outward action after the turn read the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    await expect(
+      runSandboxTool(claims, { capability: "post_chat", toolInput: {} }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("refuses an outward action after the turn read the web", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     await expect(

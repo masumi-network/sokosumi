@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
@@ -178,9 +179,13 @@ export async function startSandboxTurn(
 }
 
 /** A Sokosumi tool call from the runner, executed and receipted by Core. */
+/**
+ * A Core tool for the sandbox: the model's call, or a script's when there is
+ * no `toolCallId`. A script's call gets its own id and the bare result.
+ */
 export async function runSandboxTool(
   claims: TurnTokenClaims,
-  input: { capability: string; toolCallId: string; toolInput: unknown },
+  input: { capability: string; toolCallId?: string; toolInput: unknown },
 ): Promise<unknown> {
   const { capability } = input;
   if (
@@ -191,8 +196,9 @@ export async function runSandboxTool(
   return runTurnTool({
     log: logFor(claims),
     capability,
-    toolCallId: input.toolCallId,
+    toolCallId: input.toolCallId ?? `script:${randomUUID()}`,
     toolInput: input.toolInput,
+    cite: input.toolCallId !== undefined,
   });
 }
 

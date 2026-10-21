@@ -2157,7 +2157,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionToolCallCountMock.mockResolvedValue(64);
+    transactionToolCallCountMock.mockResolvedValue(640);
 
     await expect(
       new SokoBotRuntimeService().executeTool({
@@ -2168,8 +2168,54 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("tool-call limit reached");
 
+    const [{ where }] = transactionToolCallCountMock.mock.calls[0];
+    expect(where.capability.in).toEqual(
+      expect.arrayContaining(["get_task_status", "search_inbox", "read_table"]),
+    );
+    for (const notARead of [
+      "write_table_rows",
+      "start_background_run",
+      "refresh_social_post_statistics",
+      "bash",
+    ])
+      expect(where.capability.in).not.toContain(notARead);
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
     expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("lets reads go past the change limit", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(64);
+
+    await new SokoBotRuntimeService()
+      .executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_read_65",
+        input: { taskId: "task_1" },
+      })
+      .catch(() => undefined);
+
+    expect(transactionToolCallCreateMock).toHaveBeenCalled();
   });
 
   it("gives a turn tool calls in proportion to how long it may run", () => {

@@ -52,6 +52,52 @@ Never turn down a job because it is big. A chat turn can work for up to an hour;
 `,
   },
   {
+    id: "code-tools",
+    name: "Coding with your tools",
+    description:
+      "Writes a script when a job repeats the same tool call many times — paging years of mail, every row of a table — and keeps its own judgment for what the script finds.",
+    content: `# Coding with your tools
+
+You can program. Any Sokosumi tool you hold can be called from a script in your workspace, so a job that repeats one tool call dozens or hundreds of times is a script, not hundreds of calls by hand. Code does the mechanical part completely; you do the judging.
+
+**When to code:** paging through months or years of mail, reading every row of a large table, checking many Tasks or Jobs, collecting anything into one list. When you notice you are making the same call for the fifth time, stop and write the script. Single look-ups and the decisions themselves stay ordinary tool calls.
+
+**How:** \`bash\` sets \`SOKO_TOOLS_URL\`. POST \`{"input": …}\` to \`$SOKO_TOOLS_URL/<tool name>\`, with the same tool names and the same input you use as tool calls. The reply is \`{"result": …}\`, exactly what the tool gives you; an error has a status and a \`message\`. A 409 means the turn ended or its tool budget is spent: stop. The rules are the same as for your own calls: what you may not do by hand, a script may not do either.
+
+\`\`\`js
+// sent.mjs: every mail the owner sent in the period, one line each
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+async function call(tool, input) {
+  const response = await fetch(\`\${process.env.SOKO_TOOLS_URL}/\${tool}\`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ input }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(\`\${tool} \${response.status}: \${body.message}\`);
+  return body.result;
+}
+let pageToken = existsSync("sent.token") ? readFileSync("sent.token", "utf8") || undefined : undefined;
+do {
+  const page = await call("search_inbox", {
+    provider: "gmail", query: "in:sent after:2023/10/21 before:2026/10/21", limit: 50, pageToken,
+  });
+  for (const mail of page.messages) appendFileSync("sent.jsonl", JSON.stringify(mail) + "\\n");
+  pageToken = page.nextPageToken ?? undefined;
+  writeFileSync("sent.token", pageToken ?? "");
+} while (pageToken);
+console.log("done");
+\`\`\`
+
+- Print the first reply once (\`| head -c 2000\`) before relying on its fields.
+- Write results to files in your workspace (JSON lines) and save progress after every page, so a rerun continues where it stopped. Print counts and a short summary, never whole pages: what you print comes back into your context.
+- One \`bash\` call ends after at most 10 minutes. Start a long script in the background (\`nohup node sent.mjs > sent.log 2>&1 &\`) and check \`tail sent.log\` and its files between other work.
+- Call tools one after another, or a few at a time; a mailbox does not like hundreds of requests at once.
+- Then judge: reduce the raw files with code (group by address, count, earliest and latest date), read the short result, and look closer only where it matters with \`read_email\`. Write changes in batches (\`write_table_rows\` takes up to 100 rows).
+- Your report counts what the files and tool results show (rows added, changed, archived; months covered), not what you remember.
+`,
+  },
+  {
     id: "social-account-performance",
     name: "Social account performance",
     description:
