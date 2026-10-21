@@ -177,7 +177,7 @@ export function TaskScheduleActions({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-10 md:size-8"
                 aria-label={tActions(isActive ? "pause" : "resume")}
                 onClick={() => handleStateAction(isActive ? "pause" : "resume")}
                 disabled={isPending}
@@ -196,7 +196,7 @@ export function TaskScheduleActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-10 md:size-8"
             aria-label={tActions("more")}
             disabled={isPending}
           >
