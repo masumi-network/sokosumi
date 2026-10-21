@@ -35,6 +35,7 @@ import {
   sanitizeSokoBotMemoryMarkdown,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
+  sokoBotAskCoworkerInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
@@ -163,6 +164,10 @@ import {
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import {
+  addressCoworkers,
+  createOrGetCoworkerQuestionRoom,
+} from "@/lib/soko-bot/coworker-question-room";
+import {
   decisionProposalTargets,
   describeDecision,
   parseDecisionProposal,
@@ -198,6 +203,7 @@ import {
 import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
+  validateChatCoworkerIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
@@ -363,6 +369,8 @@ const CORE_WRITE_CALLS = {
 const READ_CALLS_PER_WRITE_CALL = 10;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
+/** A few Coworkers sounded out before committing work, not a survey. */
+const MAX_COWORKER_QUESTIONS_PER_TURN = 3;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
 
@@ -1345,15 +1353,126 @@ export class SokoBotRuntimeService {
           roomId: room.id,
           content: input.message,
           toolCallId: input.toolCallId,
-          openedDirect: {
-            name: room.name,
-            created,
-            withUserName: member.user.name,
+          via: {
+            capability: "open_direct_chat",
+            result: {
+              name: room.name,
+              created,
+              withUserName: member.user.name,
+            },
           },
         },
         tx,
       );
     }, "Opening the direct chat collided with another operation");
+  }
+
+  /**
+   * Asks Coworkers something in a private channel of the owner, the bot and
+   * them, before the bot commits work to them. The question is an ordinary
+   * mention, so each Coworker answers in the room through the dispatch a
+   * person's mention uses, and the bot reads the answer with `read_chat`.
+   */
+  private async askCoworker(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { coworkerIds: string[]; question: string; toolCallId: string },
+  ) {
+    const ownerUserId = authorized.turn.actingUserId;
+    // The owner is in the room and reads the answer; a teammate or another
+    // assistant asking would put the owner's bot in a room they never see.
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "TEAMMATE" ||
+      authorized.askedByKind === "ASSISTANT" ||
+      !ownerUserId
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Asking a Coworker is for your owner's own requests. Tell them who you would ask and what.",
+      );
+    }
+    if (authorized.reader.sharedScope) {
+      throw new SokoBotRuntimeValidationError(
+        "A shared Soko Bot has no owner to ask Coworkers with. Create a DRAFT Task with the question instead.",
+      );
+    }
+    const asked = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "ask_coworker",
+        NOT: { toolCallId: input.toolCallId },
+      },
+    });
+    if (asked >= MAX_COWORKER_QUESTIONS_PER_TURN) {
+      throw new SokoBotRuntimeValidationError(
+        `One turn may ask Coworkers at most ${MAX_COWORKER_QUESTIONS_PER_TURN} times. Follow up in the rooms you opened with post_chat.`,
+      );
+    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    const organizationId = workspace?.organizationId;
+    if (!organizationId) {
+      throw new SokoBotRuntimeValidationError(
+        "Asking Coworkers in a group chat needs an organization workspace. Create a DRAFT Task with the question instead.",
+      );
+    }
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "ask_coworker",
+      );
+      let coworkerIds: string[];
+      try {
+        coworkerIds = await validateChatCoworkerIds(
+          input.coworkerIds,
+          authorized.turn.workspaceId,
+          tx,
+        );
+      } catch (error) {
+        if (!(error instanceof HTTPException)) throw error;
+        throw new SokoBotRuntimeValidationError(
+          "Every Coworker you ask must be available here and able to chat; check the ids with find_coworkers. For one who cannot chat, put the question in a DRAFT Task.",
+        );
+      }
+      const found = await tx.coworker.findMany({
+        where: { id: { in: coworkerIds } },
+        select: { id: true, name: true, slug: true },
+      });
+      const coworkers = coworkerIds.flatMap(
+        (id) => found.find((coworker) => coworker.id === id) ?? [],
+      );
+      const room = await createOrGetCoworkerQuestionRoom(tx, {
+        organizationId,
+        ownerUserId,
+        sokoBotId: authorized.turn.sokoBotId,
+        coworkers,
+      });
+      return this.postChat(
+        authorized,
+        {
+          roomId: room.id,
+          content: addressCoworkers(
+            input.question,
+            coworkers,
+            (coworker) =>
+              resolveMentionedCoworkerIds({
+                content: input.question,
+                roomCoworkers: [coworker],
+              }).length > 0,
+          ),
+          toolCallId: input.toolCallId,
+          via: {
+            capability: "ask_coworker",
+            result: { name: room.name, created: room.created, coworkers },
+          },
+        },
+        tx,
+      );
+    }, "Asking the Coworker collided with another operation");
   }
 
   /**
@@ -1402,7 +1521,11 @@ export class SokoBotRuntimeService {
       content: string;
       toolCallId: string;
       resultReferences?: ChatResultReference[];
-      openedDirect?: { name: string; created: boolean; withUserName: string };
+      /** The tool that posted when it was not post_chat, and what it adds to the result. */
+      via?: {
+        capability: "open_direct_chat" | "ask_coworker";
+        result: Record<string, unknown>;
+      };
       publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
@@ -1431,7 +1554,7 @@ export class SokoBotRuntimeService {
         tx,
         authorized,
         false,
-        input.openedDirect ? "open_direct_chat" : "post_chat",
+        input.via?.capability ?? "post_chat",
       );
       // A turn another assistant started may answer only where it was asked.
       // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
@@ -1591,7 +1714,7 @@ export class SokoBotRuntimeService {
         queuedMentions:
           mentionedCoworkerIds.length + mentionedSokoBotIds.length,
         deliveryStatus: "QUEUED",
-        ...input.openedDirect,
+        ...input.via?.result,
       };
       const receipt = await commitActionReceipt(tx, {
         turnId: authorized.turn.id,
@@ -5156,6 +5279,13 @@ export class SokoBotRuntimeService {
       case "open_direct_chat": {
         const parsed = sokoBotOpenDirectChatInputSchema.parse(input.input);
         return this.openDirectChat(authorized, {
+          ...parsed,
+          toolCallId: input.toolCallId,
+        });
+      }
+      case "ask_coworker": {
+        const parsed = sokoBotAskCoworkerInputSchema.parse(input.input);
+        return this.askCoworker(authorized, {
           ...parsed,
           toolCallId: input.toolCallId,
         });

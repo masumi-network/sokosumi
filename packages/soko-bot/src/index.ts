@@ -92,6 +92,7 @@ export {
   type SokoBotDecisionTarget,
   sokoBotAgentIdInputSchema,
   sokoBotArchiveTaskInputSchema,
+  sokoBotAskCoworkerInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
