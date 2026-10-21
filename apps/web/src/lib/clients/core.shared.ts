@@ -805,12 +805,13 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   /**
    * Creates a chat room. A `direct` room is create-or-get: Core returns the
-   * existing room for the same participant set instead of a duplicate.
+   * existing room for the same participant set instead of a duplicate
+   * (200 found, 201 created).
    */
   async function createChatRoom(
     body: CreateChatRoomRequest & NonNullable<PostChatsRoomsData["body"]>,
   ) {
-    return executeCoreOperation(
+    return executeCoreOperationWithResponse(
       getClient,
       (client) =>
         corePostChatsRooms({
