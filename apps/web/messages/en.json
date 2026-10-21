@@ -8728,6 +8728,12 @@
       "rejectError": "We could not reject the remaining invitations.",
       "activateError": "We could not switch you into that organization. Try again before continuing.",
       "activateRetry": "Try switching again"
+    },
+    "Assistant": {
+      "metadataTitle": "Set up your assistant",
+      "later": "Later",
+      "skip": "Skip",
+      "continue": "Continue"
     }
   }
 }

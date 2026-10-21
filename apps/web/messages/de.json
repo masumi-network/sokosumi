@@ -8728,6 +8728,12 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
     }
   }
 }

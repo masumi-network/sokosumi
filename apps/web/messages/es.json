@@ -8728,6 +8728,12 @@
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
       "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "activateRetry": "Intentar cambiar de nuevo"
+    },
+    "Assistant": {
+      "metadataTitle": "Configura tu asistente",
+      "later": "Más tarde",
+      "skip": "Omitir",
+      "continue": "Continuar"
     }
   }
 }

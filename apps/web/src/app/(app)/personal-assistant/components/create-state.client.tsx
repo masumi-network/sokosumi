@@ -3,7 +3,7 @@
 import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { type ReactNode, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,17 @@ import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
  */
 export function CreateState({
   paidByOrganization,
+  secondaryAction,
+  onCreated,
 }: {
   paidByOrganization: boolean;
+  /** Shown under the submit button, e.g. "Later" in the first-run flow. */
+  secondaryAction?: ReactNode;
+  /**
+   * Takes over once the bot and its room exist, instead of the reveal and
+   * the jump to chat.
+   */
+  onCreated?: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
@@ -42,6 +51,11 @@ export function CreateState({
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("error"));
+        return;
+      }
+      if (onCreated) {
+        await openNewSokoBotRoom(result.value.id);
+        onCreated();
         return;
       }
       setCreated({ name: result.value.name ?? trimmed });
@@ -125,6 +139,7 @@ export function CreateState({
         >
           {t("submit")}
         </Button>
+        {secondaryAction}
       </form>
     </div>
   );
