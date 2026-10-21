@@ -124,6 +124,11 @@ const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
       description: "Task event that carries the charge",
       example: "evt_123",
     }),
+    taskArchived: z.boolean().openapi({
+      description:
+        "Whether the task is archived. An archived task cannot be opened, so clients should not link to it.",
+      example: false,
+    }),
   })
   .openapi("TransactionHistoryTaskItem");
 
@@ -159,6 +164,21 @@ const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
       description:
         "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
       example: "STRIPE_TOPUP",
+    }),
+    refundedJobId: z.string().nullable().openapi({
+      description:
+        "Job this refund top up refunded, for deep-linking. Null for any other top up, or when the job no longer exists.",
+      example: "job_123",
+    }),
+    refundedAgentId: z.string().nullable().openapi({
+      description:
+        "Agent that ran the refunded job, for deep-linking. Null when `refundedJobId` is null.",
+      example: "agent_123",
+    }),
+    refundedTaskId: z.string().nullable().openapi({
+      description:
+        "Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.",
+      example: "tsk_123",
     }),
   })
   .openapi("TransactionHistoryTopUpItem");

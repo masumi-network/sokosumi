@@ -1,3 +1,7 @@
+import type {
+  OnChainJobStatus,
+  TaskX402PaymentRefundKind,
+} from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AgentPreview, UserPreview } from "@/helpers/history";
@@ -29,6 +33,7 @@ export interface TransactionHistoryRow {
   imagePrompt: string | null;
   taskId: string | null;
   taskName: string | null;
+  taskArchived: boolean | null;
   taskEventId: string | null;
   taskEventComment: string | null;
   coworkerId: string | null;
@@ -41,6 +46,15 @@ export interface TransactionHistoryRow {
   bucketSource: string | null;
   topUpSource: string | null;
   topUpNote: string | null;
+  refundedJobId: string | null;
+  refundedJobName: string | null;
+  refundedAgentId: string | null;
+  refundedJobOnChainStatus: OnChainJobStatus | null;
+  refundedTaskId: string | null;
+  refundedTaskName: string | null;
+  refundedTaskArchived: boolean | null;
+  refundSource: "job" | "taskPaymentClaim" | "taskX402" | null;
+  refundX402Kind: TaskX402PaymentRefundKind | null;
 }
 
 export interface BuildTransactionHistoryParams {
@@ -158,6 +172,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       pij."prompt" AS "imagePrompt",
       te."taskId" AS "taskId",
       tk."name" AS "taskName",
+      tk."archivedAt" IS NOT NULL AS "taskArchived",
       te."id" AS "taskEventId",
       te."comment" AS "taskEventComment",
       cu."coworkerId" AS "coworkerId",
@@ -170,6 +185,19 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       bucket."referenceType" AS "bucketSource",
       topup."referenceType"::TEXT AS "topUpSource",
       topup."referenceNote" AS "topUpNote",
+      rj."id" AS "refundedJobId",
+      rj."name" AS "refundedJobName",
+      rj."agentId" AS "refundedAgentId",
+      rjp."onChainStatus"::TEXT AS "refundedJobOnChainStatus",
+      rtk."id" AS "refundedTaskId",
+      rtk."name" AS "refundedTaskName",
+      rtk."archivedAt" IS NOT NULL AS "refundedTaskArchived",
+      CASE
+        WHEN rj."id" IS NOT NULL THEN 'job'
+        WHEN rpc."id" IS NOT NULL THEN 'taskPaymentClaim'
+        WHEN rx."id" IS NOT NULL THEN 'taskX402'
+      END AS "refundSource",
+      rx."refundKind"::TEXT AS "refundX402Kind",
       CONCAT_WS(
         ' ',
         j."name",
@@ -181,7 +209,9 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         cw."name",
         sb."name",
         topup."referenceType"::TEXT,
-        topup."referenceNote"
+        topup."referenceNote",
+        rj."name",
+        rtk."name"
       ) AS "searchText"
     FROM "Transaction" AS t
     LEFT JOIN "Job" AS j ON j."transactionId" = t."id"
@@ -217,6 +247,15 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     -- The bucket a top up created. One-to-one with the transaction that paid
     -- for it, so this is a plain join rather than a lateral pick.
     LEFT JOIN "credit_bucket" AS topup ON topup."sourceTransactionId" = t."id"
+    -- What a refund top up refunded. Each source stores a unique back-reference
+    -- to its refund transaction, so these are plain joins. A refund comes from
+    -- exactly one of them.
+    LEFT JOIN "Job" AS rj ON rj."refundedTransactionId" = t."id"
+    LEFT JOIN "jobPurchase" AS rjp ON rjp."jobId" = rj."id"
+    LEFT JOIN "task_payment_claim" AS rpc ON rpc."refundTransactionId" = t."id"
+    LEFT JOIN "taskEvent" AS rpce ON rpce."id" = rpc."taskEventId"
+    LEFT JOIN "task_x402_payment" AS rx ON rx."refundTransactionId" = t."id"
+    LEFT JOIN "task" AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
     WHERE ${buildScopeSql(params)}
   `;
 }
@@ -268,6 +307,7 @@ export async function findTransactionHistoryPage(
       ledger."imagePrompt",
       ledger."taskId",
       ledger."taskName",
+      ledger."taskArchived",
       ledger."taskEventId",
       ledger."taskEventComment",
       ledger."coworkerId",
@@ -279,7 +319,16 @@ export async function findTransactionHistoryPage(
       ledger."sokoBotScheduleKey",
       ledger."bucketSource",
       ledger."topUpSource",
-      ledger."topUpNote"
+      ledger."topUpNote",
+      ledger."refundedJobId",
+      ledger."refundedJobName",
+      ledger."refundedAgentId",
+      ledger."refundedJobOnChainStatus",
+      ledger."refundedTaskId",
+      ledger."refundedTaskName",
+      ledger."refundedTaskArchived",
+      ledger."refundSource",
+      ledger."refundX402Kind"
     FROM (${buildLedgerSql(params)}) AS ledger
     ${buildWhereSql(filters)}
     ORDER BY ledger."consumedAt" DESC, ledger."id" DESC
@@ -351,6 +400,45 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   SIGNUP_BONUS: "Signup bonus",
   FREE: "Free credits",
 };
+
+/**
+ * Why a refund happened, in words a user can act on. Never the raw failure
+ * reason: that is a node or chain error, not something to show a customer.
+ */
+function refundReason(row: TransactionHistoryRow): string | null {
+  switch (row.refundSource) {
+    case "job":
+      return row.refundedJobOnChainStatus === "REFUND_WITHDRAWN"
+        ? "Refund approved"
+        : "Payment could not be completed";
+    case "taskPaymentClaim":
+      return "Payment could not be completed";
+    case "taskX402":
+      switch (row.refundX402Kind) {
+        case "NODE_REFUSAL":
+          return "Payment was refused";
+        case "OPERATOR_GOODWILL":
+        case "OPERATOR_RESOLVE":
+          return "Refunded by support";
+        default:
+          return null;
+      }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Why and what a refund top up refunded, or null when nothing is known. The
+ * reason leads: it is short, and a long job name would push it off a phone row.
+ */
+function refundDescription(row: TransactionHistoryRow): string | null {
+  const name =
+    row.refundSource === "job" ? row.refundedJobName : row.refundedTaskName;
+  if (!name) return null;
+  const reason = refundReason(row);
+  return reason ? `${reason} · ${truncate(name)}` : truncate(name);
+}
 
 /** A prompt is a paragraph; a list row is a line. */
 function truncate(value: string, max = 120): string {
@@ -459,6 +547,7 @@ export function mapTransactionHistoryRow(
           : null,
         taskId: row.taskId ?? "",
         taskEventId: row.taskEventId ?? "",
+        taskArchived: row.taskArchived ?? false,
       };
     case "coworker":
       return {
@@ -481,8 +570,14 @@ export function mapTransactionHistoryRow(
         ...base,
         kind: "topUp",
         title: TOP_UP_TITLE_BY_SOURCE[row.topUpSource ?? ""] ?? "Top up",
-        description: row.topUpNote ? truncate(row.topUpNote) : null,
+        description: row.topUpNote
+          ? truncate(row.topUpNote)
+          : refundDescription(row),
         bucketSource: row.topUpSource,
+        refundedJobId: row.refundedJobId,
+        refundedAgentId: row.refundedAgentId,
+        // An archived task is a 404 everywhere: name it, but link nowhere.
+        refundedTaskId: row.refundedTaskArchived ? null : row.refundedTaskId,
       };
     case "unattributed":
       // Nothing links this spend to an entity. Say so plainly: the date, the

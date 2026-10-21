@@ -83,6 +83,7 @@ function createLedgerRow(
     imagePrompt: null,
     taskId: null,
     taskName: null,
+    taskArchived: null,
     taskEventId: null,
     taskEventComment: null,
     coworkerId: null,
@@ -95,6 +96,15 @@ function createLedgerRow(
     bucketSource: null,
     topUpSource: null,
     topUpNote: null,
+    refundedJobId: null,
+    refundedJobName: null,
+    refundedAgentId: null,
+    refundedJobOnChainStatus: null,
+    refundedTaskId: null,
+    refundedTaskName: null,
+    refundedTaskArchived: null,
+    refundSource: null,
+    refundX402Kind: null,
     ...overrides,
   };
 }

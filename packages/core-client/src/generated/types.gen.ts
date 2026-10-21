@@ -8686,6 +8686,10 @@ export type TransactionHistoryTaskItem = {
      * Task event that carries the charge
      */
     taskEventId: string;
+    /**
+     * Whether the task is archived. An archived task cannot be opened, so clients should not link to it.
+     */
+    taskArchived: boolean;
 };
 
 export type TransactionHistoryCoworkerItem = {
@@ -8794,6 +8798,18 @@ export type TransactionHistoryTopUpItem = {
      * `CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.
      */
     bucketSource: string | null;
+    /**
+     * Job this refund top up refunded, for deep-linking. Null for any other top up, or when the job no longer exists.
+     */
+    refundedJobId: string | null;
+    /**
+     * Agent that ran the refunded job, for deep-linking. Null when `refundedJobId` is null.
+     */
+    refundedAgentId: string | null;
+    /**
+     * Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.
+     */
+    refundedTaskId: string | null;
 };
 
 export type TransactionHistoryUnattributedItem = {

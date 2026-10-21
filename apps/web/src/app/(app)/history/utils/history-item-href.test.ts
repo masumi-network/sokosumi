@@ -28,6 +28,7 @@ describe("getHistoryItemHref", () => {
       title: "Ship restyle",
       taskId: "task-1",
       taskEventId: "event-1",
+      taskArchived: false,
     };
     const job: TransactionHistoryItem = {
       ...base,
