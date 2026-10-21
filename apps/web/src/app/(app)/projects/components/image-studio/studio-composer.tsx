@@ -154,6 +154,8 @@ export function StudioComposer({
   promptRef,
   referenceAssets,
   onClearReferences,
+  onCopiesChange,
+  parentAssetId,
   target,
   showTemplates = true,
 }: {
@@ -193,6 +195,9 @@ export function StudioComposer({
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
   onClearReferences: () => void;
+  onCopiesChange?: () => void;
+  /** Recovery keeps the saved parent independent of reference order. */
+  parentAssetId?: string | null;
   target: StudioTarget;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
@@ -377,7 +382,10 @@ export function StudioComposer({
         modelId: leg.model.id,
         modelLabel: leg.model.label,
         settings: leg.settings,
-        parentAssetId: references[0]?.id ?? null,
+        parentAssetId:
+          parentAssetId === undefined
+            ? (references[0]?.id ?? null)
+            : parentAssetId,
         referenceAssetIds: references.map((asset) => asset.id),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
@@ -711,6 +719,7 @@ export function StudioComposer({
                         onClick={() => {
                           if (overCeiling) return;
                           setCopies(count);
+                          onCopiesChange?.();
                         }}
                         title={reason}
                         type="button"

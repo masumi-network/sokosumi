@@ -34,11 +34,9 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     queued: [],
+    failed: [],
     enqueue: vi.fn(),
     waitingForSlot: false,
-    lastError: null,
-    lastErrorCode: null,
-    clearError: vi.fn(),
   }),
 }));
 
