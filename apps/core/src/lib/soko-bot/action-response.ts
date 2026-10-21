@@ -29,6 +29,7 @@ export const ACTION_LABELS: Record<string, string> = {
   link_tasks: "Linked tasks",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
+  ask_coworker: "Asked a Coworker",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
