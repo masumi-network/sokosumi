@@ -562,6 +562,22 @@ try {
     );
   }
 
+  // Opens a private channel with a Coworker, whose answer spends credits.
+  const askCoworkerId = flag("--ask-coworker");
+  if (askCoworkerId) {
+    await run("ask_coworker", {
+      coworkerIds: [askCoworkerId],
+      question:
+        "Tool smoke run from a Soko Bot harness: in one sentence, what kind of work do you take on?",
+    });
+    leftBehind.push(`Question channel opened with Coworker ${askCoworkerId}`);
+  } else {
+    skip(
+      "ask_coworker",
+      "would open a channel and ask a real Coworker; pass --ask-coworker <coworkerId>",
+    );
+  }
+
   // Every capability accounted for, so a run cannot report "29 ok" while two
   // tools were never reached at all.
   const untouched = SOKO_BOT_CAPABILITIES.filter(

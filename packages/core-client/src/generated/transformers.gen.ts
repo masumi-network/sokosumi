@@ -1577,7 +1577,7 @@ export const getDriveSearchResponseTransformer = async (data: any): Promise<GetD
     return data;
 };
 
-const dataTableSchemaResponseTransformer = (data: any) => {
+const dataTableSummarySchemaResponseTransformer = (data: any) => {
     if (data.archivedAt) {
         data.archivedAt = new Date(data.archivedAt);
     }
@@ -1587,8 +1587,17 @@ const dataTableSchemaResponseTransformer = (data: any) => {
 };
 
 export const getDriveTablesResponseTransformer = async (data: any): Promise<GetDriveTablesResponse> => {
-    data.data = data.data.map((item: any) => dataTableSchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => dataTableSummarySchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+const dataTableSchemaResponseTransformer = (data: any) => {
+    if (data.archivedAt) {
+        data.archivedAt = new Date(data.archivedAt);
+    }
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 

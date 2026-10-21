@@ -18,6 +18,10 @@ export interface SocialPostPreviewContentProps {
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
+  /** Override the feed's time label, including an unknown publication date. */
+  timestampLabel?: string;
+  /** Imported history does not include media yet. */
+  mediaUnavailable?: boolean;
   /**
    * Drafts grid: cap tall LinkedIn/Facebook/X media so a row of cards
    * stays even. Composer and the full preview keep the feed height.
