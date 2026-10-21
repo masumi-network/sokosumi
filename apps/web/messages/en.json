@@ -8354,6 +8354,7 @@
       "editColumn": "Edit column",
       "addColumn": "Add column",
       "columnDescription": "Descriptions help people and agents understand values. Column IDs stay stable.",
+      "lastUpdatedHint": "Fills itself with the time each row last changed.",
       "columnConflictReview": "This table changed while you were saving. Review the latest columns before saving again.",
       "reloadLatest": "Reload latest",
       "reviewLatest": "Review complete",
@@ -8422,7 +8423,8 @@
         "url": "URL",
         "email": "Email",
         "single_select": "Single select",
-        "multiple_select": "Multiple select"
+        "multiple_select": "Multiple select",
+        "last_updated": "Last updated"
       },
       "archived": "Archived",
       "active": "Active",
