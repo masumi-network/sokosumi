@@ -2157,7 +2157,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionToolCallCountMock.mockResolvedValue(64);
+    transactionToolCallCountMock.mockResolvedValue(640);
 
     await expect(
       new SokoBotRuntimeService().executeTool({
@@ -2168,6 +2168,13 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("tool-call limit reached");
 
+    expect(transactionToolCallCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        capability: {
+          notIn: expect.arrayContaining(["bash", "write_table_rows"]),
+        },
+      }),
+    });
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
     expect(taskFindFirstMock).not.toHaveBeenCalled();
   });

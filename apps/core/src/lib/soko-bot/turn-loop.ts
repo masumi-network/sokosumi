@@ -376,6 +376,8 @@ export async function runTurnTool(input: {
   capability: SokoBotCapability;
   toolCallId: string;
   toolInput: unknown;
+  /** A read's result carries its call id for the model to cite; scripts don't cite. */
+  cite?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
   if (await isTaintBlocked(log.turnId, capability)) {
@@ -407,7 +409,7 @@ export async function runTurnTool(input: {
     capability,
   );
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
-  return ACTION_CAPABILITIES.has(capability)
+  return ACTION_CAPABILITIES.has(capability) || input.cite === false
     ? result
     : { evidenceToolCallId: callId, result };
 }

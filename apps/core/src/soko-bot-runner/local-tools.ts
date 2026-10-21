@@ -32,27 +32,31 @@ export function workspacePath(relative = "."): string {
   return resolved;
 }
 
-/** Commands get a plain environment: nothing the runner was started with. */
-function commandEnv(): NodeJS.ProcessEnv {
+/**
+ * Commands get a plain environment: nothing the runner was started with, plus
+ * what the caller passes on purpose (never a secret).
+ */
+function commandEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
     LANG: "C.UTF-8",
     TERM: "dumb",
+    ...extra,
   };
 }
 
-export function runCommand(input: {
-  command: string;
-  timeoutSeconds?: number;
-}): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+export function runCommand(
+  input: { command: string; timeoutSeconds?: number },
+  env: Record<string, string> = {},
+): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   const timeoutMs = (input.timeoutSeconds ?? DEFAULT_BASH_TIMEOUT_S) * 1_000;
   return new Promise((resolve) => {
     // Its own process group: a timeout kills the pipeline bash started, not
     // just bash, whose children would otherwise hold the output open forever.
     const child = spawn("bash", ["-lc", input.command], {
       cwd: WORKSPACE,
-      env: commandEnv(),
+      env: commandEnv(env),
       detached: true,
     });
     let timedOut = false;

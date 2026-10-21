@@ -156,7 +156,10 @@ function buildTools(
     Record<SokoBotCapability, (input: never) => Promise<unknown>>
   > = {
     web_fetch: fetchWebPage,
-    bash: runCommand,
+    // The turn's tool endpoint, so a script can call the same tools; the
+    // sandbox proxy adds the token, so the command never holds it.
+    bash: (input: { command: string; timeoutSeconds?: number }) =>
+      runCommand(input, { SOKO_TOOLS_URL: `${base}/tools` }),
     workspace_read: readWorkspaceFile,
     workspace_write: writeWorkspaceFile,
     workspace_list: listWorkspace,

@@ -38,6 +38,16 @@ describe("commands", () => {
     expect(Date.now() - started).toBeLessThan(5_000);
     expect(result.stderr).toContain("[killed after 1s]");
   });
+
+  it("passes only the env it is given, not the runner's", async () => {
+    process.env.SOKO_BOT_SECRET_FOR_TEST = "leak";
+    const result = await runCommand(
+      { command: 'echo "$SOKO_TOOLS_URL|$SOKO_BOT_SECRET_FOR_TEST"' },
+      { SOKO_TOOLS_URL: "https://core.test/tools" },
+    );
+    delete process.env.SOKO_BOT_SECRET_FOR_TEST;
+    expect(result.stdout.trim()).toBe("https://core.test/tools|");
+  });
 });
 
 describe("citableSources", () => {
