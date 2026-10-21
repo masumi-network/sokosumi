@@ -1022,7 +1022,7 @@
       "openLabel": "Open source: {title}",
       "openJob": "Open job",
       "jobHint": {
-        "started": "Starting the Job.",
+        "started": "Starting the job.",
         "payment_pending": "Waiting for the payment to confirm before the Agent starts.",
         "processing": "The Agent is working on it.",
         "input_required": "The Agent needs more input to continue.",
