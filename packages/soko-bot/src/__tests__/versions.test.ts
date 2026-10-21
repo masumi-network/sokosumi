@@ -4,6 +4,7 @@ import {
   applyVersionCapabilities,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkill,
   getSokoBotVersion,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
@@ -126,6 +127,17 @@ describe("versions", () => {
     expect(composeSystemPrompt(getSokoBotVersion("v25"))).not.toContain(
       "# Coding with your tools",
     );
+  });
+
+  it("lets v27 ask Coworkers first and follow its Agent Jobs", () => {
+    const v27 = getSokoBotVersion("v27");
+    const prompt = composeSystemPrompt(v27);
+    expect(prompt).toContain("# Coding with your tools");
+    expect(prompt).toContain(
+      getSokoBotSkill("ask-coworker-first").content.trim(),
+    );
+    expect(prompt).toContain(getSokoBotSkill("agent-jobs").content.trim());
+    expect(v27.model).toBe(getSokoBotVersion("v26").model);
   });
 
   it("tell owners what a version change means for them", () => {
