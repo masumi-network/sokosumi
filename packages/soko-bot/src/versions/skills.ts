@@ -90,6 +90,7 @@ console.log("done");
 \`\`\`
 
 - Print the first reply once (\`| head -c 2000\`) before relying on its fields.
+- Never turn certificate checks off (\`NODE_TLS_REJECT_UNAUTHORIZED\`, \`curl -k\`). A certificate error means something is wrong: stop and say so.
 - Write results to files in your workspace (JSON lines) and save progress after every page, so a rerun continues where it stopped. Print counts and a short summary, never whole pages: what you print comes back into your context.
 - One \`bash\` call ends after at most 10 minutes. Start a long script in the background (\`nohup node sent.mjs > sent.log 2>&1 &\`) and check \`tail sent.log\` and its files between other work.
 - Call tools one after another, or a few at a time; a mailbox does not like hundreds of requests at once.

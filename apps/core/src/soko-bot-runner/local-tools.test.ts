@@ -48,6 +48,13 @@ describe("commands", () => {
     delete process.env.SOKO_BOT_SECRET_FOR_TEST;
     expect(result.stdout.trim()).toBe("https://core.test/tools|");
   });
+
+  it("keeps the sandbox's CA trust, so scripts can reach Core", async () => {
+    process.env.NODE_EXTRA_CA_CERTS = "/etc/sandbox-ca.pem";
+    const result = await runCommand({ command: 'echo "$NODE_EXTRA_CA_CERTS"' });
+    delete process.env.NODE_EXTRA_CA_CERTS;
+    expect(result.stdout.trim()).toBe("/etc/sandbox-ca.pem");
+  });
 });
 
 describe("citableSources", () => {
