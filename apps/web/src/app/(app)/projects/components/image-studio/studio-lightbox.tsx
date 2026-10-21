@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -41,6 +42,7 @@ export function StudioLightbox({
   labels,
   onClose,
   onRegenerate,
+  onSchedule,
   onSelect,
   onUseAsReference,
   siblings,
@@ -54,6 +56,8 @@ export function StudioLightbox({
   labels: StudioLabels;
   onClose: () => void;
   onRegenerate: (asset: StudioAsset) => void;
+  /** Opens Social with this image attached. Absent when Social is not available. */
+  onSchedule?: (asset: StudioAsset) => Promise<void>;
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
@@ -67,6 +71,7 @@ export function StudioLightbox({
   const formatDate = (value: string) =>
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
+  const [scheduling, setScheduling] = useState(false);
 
   if (assets.length === 0) return null;
 
@@ -87,13 +92,28 @@ export function StudioLightbox({
               labels={labels}
             />
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                onClick={() => onRegenerate(single)}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.regenerate}
-              </Button>
+              {onSchedule ? (
+                <Button
+                  loading={scheduling}
+                  onClick={() => {
+                    setScheduling(true);
+                    void onSchedule(single).finally(() => setScheduling(false));
+                  }}
+                  size="sm"
+                >
+                  {labels.schedule}
+                </Button>
+              ) : null}
+              {supportsVariation(catalog, single.model) ? (
+                <Button
+                  onClick={() => onRegenerate(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {labels.regenerate}
+                </Button>
+              ) : null}
               <Button
                 onClick={() => onUseAsReference(single)}
                 size="sm"

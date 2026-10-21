@@ -30,7 +30,7 @@ const workspaceCalendarQueryObjectSchema = z.object({
   }),
   agendaOnly: z.enum(["true", "false"]).optional().openapi({
     description:
-      "Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
+      "Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
   }),
   scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
     description: "Whether to show only the caller's tasks or the workspace",
@@ -91,6 +91,11 @@ export const projectCalendarQuerySchema = workspaceCalendarQueryObjectSchema
   .strict()
   .openapi("ProjectCalendarQuery");
 
+export const workspaceCalendarSourcesQuerySchema =
+  workspaceCalendarQueryObjectSchema
+    .pick({ includeSocialPosts: true, scope: true })
+    .openapi("WorkspaceCalendarSourcesQuery");
+
 export const workspaceCalendarItemSchema = z
   .object({
     id: z.string().openapi({
@@ -137,8 +142,9 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
-    taskOwnerId: z.string().openapi({
-      description: "User who owns the Task Schedule and the Tasks it creates",
+    taskOwnerId: z.union([z.string(), z.null()]).openapi({
+      description:
+        "Owner of the Task Schedule and the Tasks it creates; null when it has none",
       example: "user_123",
     }),
     scheduledAt: dateTimeSchema.openapi({
@@ -185,6 +191,10 @@ export const workspaceCalendarSourceSchema = z
       description:
         "Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.",
       example: true,
+    }),
+    latestScheduledSocialPostAt: dateTimeSchema.nullable().optional().openapi({
+      description:
+        "Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.",
     }),
   })
   .openapi("WorkspaceCalendarSource");

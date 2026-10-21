@@ -105,6 +105,7 @@ function createSokoBotApp(sokoBotId = SOKO_BOT_ID) {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId,
       userId: USER_ID,
       workspaceId: "22222222-2222-7222-8222-222222222222",

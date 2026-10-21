@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
@@ -19,6 +20,7 @@ import {
   ACTION_CAPABILITIES,
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
+import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -164,7 +166,10 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: await withTurnSkills(claims.turnId, stored.userMessage),
+    message: await withActiveBackgroundRuns(
+      claims.turnId,
+      await withTurnSkills(claims.turnId, stored.userMessage),
+    ),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
@@ -174,9 +179,13 @@ export async function startSandboxTurn(
 }
 
 /** A Sokosumi tool call from the runner, executed and receipted by Core. */
+/**
+ * A Core tool for the sandbox: the model's call, or a script's when there is
+ * no `toolCallId`. A script's call gets its own id and the bare result.
+ */
 export async function runSandboxTool(
   claims: TurnTokenClaims,
-  input: { capability: string; toolCallId: string; toolInput: unknown },
+  input: { capability: string; toolCallId?: string; toolInput: unknown },
 ): Promise<unknown> {
   const { capability } = input;
   if (
@@ -187,8 +196,9 @@ export async function runSandboxTool(
   return runTurnTool({
     log: logFor(claims),
     capability,
-    toolCallId: input.toolCallId,
+    toolCallId: input.toolCallId ?? `script:${randomUUID()}`,
     toolInput: input.toolInput,
+    cite: input.toolCallId !== undefined,
   });
 }
 
@@ -368,6 +378,35 @@ function withoutZeroRetention(
   return rest;
 }
 
+const UNDICI_TIMEOUT_ERROR_NAMES = new Set([
+  "HeadersTimeoutError",
+  "TimeoutError",
+  "ConnectTimeoutError",
+  "BodyTimeoutError",
+]);
+
+function undiciErrorName(value: unknown): string | undefined {
+  if (value instanceof Error) return value.name;
+  if (value !== null && typeof value === "object" && "name" in value) {
+    return typeof value.name === "string" ? value.name : undefined;
+  }
+  return undefined;
+}
+
+/** undici wraps connect/header/body timeouts as TypeError("fetch failed"). */
+function isUndiciGatewayFetchFailure(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === "fetch failed") {
+    return true;
+  }
+  const name = undiciErrorName(error);
+  const causeName =
+    error instanceof Error ? undiciErrorName(error.cause) : undefined;
+  return (
+    (name !== undefined && UNDICI_TIMEOUT_ERROR_NAMES.has(name)) ||
+    (causeName !== undefined && UNDICI_TIMEOUT_ERROR_NAMES.has(causeName))
+  );
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
  * routing policy: only the turn's version model, only the Gateway protocol
@@ -403,13 +442,17 @@ export async function proxySandboxModelCall(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
+  const reasoning = reasoningSummaryOptions(payload.providerOptions);
+  const gateway = isGatewaySearchCall(payload)
+    ? withoutZeroRetention(policy.providerOptions.gateway)
+    : policy.providerOptions.gateway;
   payload.providerOptions = {
     // The runner may only ask for a reasoning summary; routing, region and
     // retention stay Core's.
-    ...reasoningSummaryOptions(payload.providerOptions),
-    gateway: isGatewaySearchCall(payload)
-      ? withoutZeroRetention(policy.providerOptions.gateway)
-      : policy.providerOptions.gateway,
+    ...reasoning,
+    // No promptCacheKey or Gateway caching: "auto". Tried on the Personal
+    // CRM run, the cache share fell from 43% to 26% and a step cost 3x.
+    gateway,
   };
 
   const log = logFor(claims);
@@ -423,12 +466,23 @@ export async function proxySandboxModelCall(
     const value = request.headers.get(name);
     if (value !== null) headers.set(name, value);
   }
-  const upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const text = await upstream.text();
+  let upstream: Response;
+  let text: string;
+  try {
+    upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    text = await upstream.text();
+  } catch (error) {
+    if (!isUndiciGatewayFetchFailure(error)) throw error;
+    // No kind on this 502: keep the undici error as cause for Sentry's chain.
+    throw Object.assign(
+      badGateway("Model gateway timed out or is unreachable"),
+      { cause: error },
+    );
+  }
   if (!upstream.ok) return { status: upstream.status, body: text };
 
   let result: {

@@ -4,9 +4,20 @@ import type {
   CreateProjectImageJobRequest,
   ProjectImageJob,
   ProjectImageSettings,
+  SocialPostMediaRef,
 } from "@sokosumi/core-client";
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-import { CoreApiRequestError } from "@/lib/clients/core.client";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import {
   type AuthenticatedRequest,
@@ -58,7 +69,13 @@ interface StartGenerationParameters extends AuthenticatedRequest {
  */
 export type StartGenerationResult =
   | { ok: true; job: ProjectImageJob }
-  | { ok: false; kind: string | null; message: string };
+  | {
+      ok: false;
+      kind: string | null;
+      message: string;
+      /** A lost response may hide an accepted job; retry the same key. */
+      uncertain: boolean;
+    };
 
 interface CancelParameters extends AuthenticatedRequest {
   projectId: string;
@@ -96,6 +113,7 @@ export const startImageGeneration = withSession<
         ok: false,
         kind: error.kind ?? null,
         message: error.message || "Could not start the image generation.",
+        uncertain: error.status === undefined || error.status >= 500,
       };
     }
     throw error;
@@ -110,5 +128,33 @@ export const requestImageJobCancel = withSession<
     return await imageStudioService.cancelJob(projectId, jobId);
   } catch (error) {
     rethrow(error, "Could not request cancellation.");
+  }
+});
+
+interface PrepareSocialMediaParameters extends AuthenticatedRequest {
+  projectId: string;
+  assetId: string;
+}
+
+export const prepareStudioAssetSocialMedia = withSession<
+  PrepareSocialMediaParameters,
+  ActionResultDto<SocialPostMediaRef, ActionError>
+>(async ({ projectId, assetId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedAssetId = assetId.trim();
+  if (!normalizedProjectId || !normalizedAssetId) {
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Image required" }),
+    );
+  }
+
+  try {
+    const media = await imageStudioService.getSocialMedia(
+      normalizedProjectId,
+      normalizedAssetId,
+    );
+    return toActionResult(ok(media));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });

@@ -771,6 +771,7 @@ const MUTATING_TOOLS = new Set([
   "link_tasks",
   "hire_agent",
   "post_chat",
+  "ask_coworker",
   "upload_file",
   "run_integration_tool",
   "create_schedule",

@@ -16,6 +16,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { generateText, stepCountIs, type ToolSet, tool } from "ai";
 import prisma from "@/lib/db/prisma";
+import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -105,7 +106,10 @@ async function runTurn(
 
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
-    const userMessage = await withTurnSkills(input.turnId, input.message);
+    const userMessage = await withActiveBackgroundRuns(
+      input.turnId,
+      await withTurnSkills(input.turnId, input.message),
+    );
     await log.append(runtimeEvent("step.started", { modelId: turn.model }));
     const result = await withEvaluationTurn(input.turnId, () =>
       generateText({

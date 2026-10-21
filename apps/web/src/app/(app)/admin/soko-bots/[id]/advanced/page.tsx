@@ -64,7 +64,7 @@ export default async function AdminSokoBotAdvancedPage({
         <AdminSokoBotDangerZone
           sokoBotId={bot.id}
           botName={bot.name ?? null}
-          ownerEmail={bot.owner.email}
+          ownerEmail={bot.owner?.email ?? null}
         />
       </div>
     </div>

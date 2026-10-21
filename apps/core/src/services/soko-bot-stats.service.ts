@@ -3,6 +3,11 @@ import {
   SOKO_BOT_SANDBOX_CAPABILITIES,
 } from "@sokosumi/soko-bot";
 import { DAY_MS } from "@/config/constants";
+import {
+  ME_SOKO_BOT,
+  memberSokoBot,
+  type SokoBotSelector,
+} from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
@@ -50,16 +55,13 @@ function emptyDay(): SokoBotDayStats {
 export async function getSokoBotDailyStats(input: {
   userId: string;
   workspaceId: string;
+  selector?: SokoBotSelector;
 }): Promise<SokoBotDailyStats | null> {
-  const bot = await prisma.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      projectId: null,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await memberSokoBot(
+    input.userId,
+    input.workspaceId,
+    input.selector ?? ME_SOKO_BOT,
+  );
   if (!bot) return null;
   const since = new Date(Date.now() - DAYS * DAY_MS);
   since.setUTCHours(0, 0, 0, 0);

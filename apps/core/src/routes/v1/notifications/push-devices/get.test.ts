@@ -83,6 +83,7 @@ it("publishes the device contract in OpenAPI", () => {
 it("rejects Soko Bot access to the owner's devices", async () => {
   const response = await app({
     actor: "sokoBot",
+    scope: "personal",
     sokoBotId: "bot-1",
     userId: "user-1",
     workspaceId: "workspace-1",

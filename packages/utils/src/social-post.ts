@@ -86,6 +86,32 @@ export interface SocialPostMediaRef {
   kind: SocialPostMediaKind;
 }
 
+/** Whether attached media satisfies the provider's presence rule. */
+export function socialPostMeetsMediaRequirement(
+  provider: SocialPostProvider,
+  media: readonly SocialPostMediaRef[],
+): boolean {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return true;
+  if (requirement === "any") return media.length > 0;
+  return media.length === 1 && media[0]?.kind === "video";
+}
+
+/**
+ * Why the provider still needs media, or `null` when presence is optional.
+ * Create and schedule use this; MIME and count rules are separate.
+ */
+export function socialPostMediaRequirementMessage(
+  provider: SocialPostProvider,
+): string | null {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return null;
+  const label = socialPostProviderLabel(provider);
+  return requirement === "any"
+    ? `${label} requires at least one image or video`
+    : `${label} requires a video`;
+}
+
 const SOCIAL_POST_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const SOCIAL_POST_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 
@@ -161,6 +187,41 @@ export const SOCIAL_POST_MEDIA_RULES = {
     videoMimeTypes: ["video/mp4"],
   },
 } as const;
+
+/**
+ * Comment length after a successful publish. TikTok has no Composio comment
+ * tool, so it is omitted. Instagram's tool caps at 300.
+ */
+export const SOCIAL_POST_FIRST_COMMENT_LIMITS = {
+  x: 280,
+  linkedin: 1250,
+  facebook: 8000,
+  instagram: 300,
+  tiktok: null,
+  youtube: 10_000,
+} as const satisfies Record<SocialPostProvider, number | null>;
+
+/** Longest first comment any supporting provider accepts. */
+export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.x,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.linkedin,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.facebook,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.instagram,
+  SOCIAL_POST_FIRST_COMMENT_LIMITS.youtube,
+);
+
+/** Comment cap for a provider, or `null` when Composio cannot post one. */
+export function socialPostFirstCommentLimit(
+  provider: SocialPostProvider,
+): number | null {
+  return SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
+}
+
+export function socialPostSupportsFirstComment(
+  provider: SocialPostProvider,
+): boolean {
+  return socialPostFirstCommentLimit(provider) !== null;
+}
 
 /** Longest text any provider accepts: the provider-agnostic request bound. */
 export const SOCIAL_POST_TEXT_MAX = Math.max(

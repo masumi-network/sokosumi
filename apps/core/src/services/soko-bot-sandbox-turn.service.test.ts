@@ -92,6 +92,13 @@ function modelRequest(overrides: Record<string, string> = {}) {
   };
 }
 
+function headersTimeoutError() {
+  return Object.assign(new Error("Headers Timeout Error"), {
+    name: "HeadersTimeoutError",
+    code: "UND_ERR_HEADERS_TIMEOUT",
+  });
+}
+
 function gatewayAnswer(content: unknown[] = []) {
   return new Response(
     JSON.stringify({
@@ -248,6 +255,42 @@ describe("sandbox turn service", () => {
       proxySandboxModelCall(claims, modelRequest()),
     ).rejects.toThrow();
     expect(events().map((event) => event.type)).toContain("step.completed");
+  });
+
+  it("maps an AI Gateway fetch timeout to 502 instead of an unexpected 500", async () => {
+    const fetchFailed = Object.assign(new TypeError("fetch failed"), {
+      cause: headersTimeoutError(),
+    });
+    fetchMock.mockRejectedValue(fetchFailed);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(fetchFailed);
+    expect(((error as Error).cause as Error).cause).toMatchObject({
+      name: "HeadersTimeoutError",
+      code: "UND_ERR_HEADERS_TIMEOUT",
+    });
+  });
+
+  it("maps a bare undici headers timeout to 502", async () => {
+    const timeout = headersTimeoutError();
+    fetchMock.mockRejectedValue(timeout);
+    const error = await proxySandboxModelCall(claims, modelRequest()).then(
+      () => expect.unreachable("expected 502"),
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ status: 502 });
+    expect((error as Error).cause).toBe(timeout);
+  });
+
+  it("does not map an unrelated TypeError to 502", async () => {
+    const boom = new TypeError("Cannot read properties of undefined");
+    fetchMock.mockRejectedValue(boom);
+    await expect(proxySandboxModelCall(claims, modelRequest())).rejects.toBe(
+      boom,
+    );
   });
 
   it("drops zero retention only for the Gateway-run search call", async () => {
@@ -445,6 +488,29 @@ describe("sandbox turn service", () => {
     ).rejects.toThrow("Unknown Sokosumi tool");
   });
 
+  it("gives a script's read its own call id and the bare result", async () => {
+    executeToolMock.mockResolvedValue({ messages: [], nextPageToken: null });
+    const result = await runSandboxTool(claims, {
+      capability: "search_inbox",
+      toolInput: { query: "in:sent" },
+    });
+    expect(result).toEqual({ messages: [], nextPageToken: null });
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capability: "search_inbox",
+        toolCallId: expect.stringMatching(/^script:/),
+      }),
+    );
+  });
+
+  it("refuses a script's outward action after the turn read the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    await expect(
+      runSandboxTool(claims, { capability: "post_chat", toolInput: {} }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("refuses an outward action after the turn read the web", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     await expect(
@@ -462,7 +528,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: null,
-      requestedByUserId: null,
+      askedByUserId: null,
       chainDepth: 0,
       chatMentionId: "mention",
     });
@@ -480,7 +546,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: "parent",
-      requestedByUserId: null,
+      askedByUserId: null,
       chainDepth: 0,
       chatMentionId: null,
     });
@@ -505,7 +571,7 @@ describe("sandbox turn service", () => {
     turnFindUniqueMock.mockResolvedValue({
       source: "CHAT",
       parentTurnId: null,
-      requestedByUserId: "teammate",
+      askedByUserId: "teammate",
       chainDepth: 0,
       chatMentionId: "mention",
     });

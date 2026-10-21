@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.1...macos-v1.2.0) (2026-10-19)
+
+
+### Features
+
+* **apple:** match web's Log in page on the Mac sign-in screen ([#6431](https://github.com/masumi-network/sokosumi/issues/6431)) ([7951fdf](https://github.com/masumi-network/sokosumi/commit/7951fdf1820c2a905ac661e885816433010a2641))
+* **web:** show, create and manage shared Soko Bots ([#6366](https://github.com/masumi-network/sokosumi/issues/6366)) ([95a22a7](https://github.com/masumi-network/sokosumi/commit/95a22a75ef631b37b5cd7db12534fbafe94b399a))
+
+
+### Bug Fixes
+
+* **apple:** sign-in review follow-ups ([#6434](https://github.com/masumi-network/sokosumi/issues/6434)) ([f21ba33](https://github.com/masumi-network/sokosumi/commit/f21ba339cb09374af2f06083eeeaac5236bd0815))
+
+## [1.1.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.0...macos-v1.1.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **apple:** show the pointing hand over links in messages ([#6404](https://github.com/masumi-network/sokosumi/issues/6404)) ([9ad9cb9](https://github.com/masumi-network/sokosumi/commit/9ad9cb90f7960ce65e934a7a25b57936c433c26e))
+
 ## [1.1.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.0.1...macos-v1.1.0) (2026-10-15)
 
 

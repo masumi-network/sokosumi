@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AdsAccounts } from "./ads-accounts";
-import { AdsRowsSkeleton } from "./ads-skeleton";
+import { AdsCampaignRowsSkeleton, AdsRowsSkeleton } from "./ads-skeleton";
 
 interface AdsTabsProps {
   accounts: ProjectAdAccount[];
@@ -29,6 +29,7 @@ interface AdsTabsProps {
   campaigns: React.ReactNode;
   /** The server-rendered Market tab, present only while the URL is on it. */
   market: React.ReactNode;
+  toolbar: React.ReactNode;
   projectId: string;
 }
 
@@ -42,6 +43,7 @@ export function AdsTabs({
   campaigns,
   market,
   projectId,
+  toolbar,
 }: AdsTabsProps) {
   const t = useTranslations("App.Ads");
   const [tab, setTab] = useQueryState(
@@ -58,23 +60,26 @@ export function AdsTabs({
         if (next) void setTab(next);
       }}
     >
-      <TabsList
-        aria-label={t("tabsLabel")}
-        className={cn(
-          SEGMENTED_TABS_LIST_CLASS_NAME,
-          "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
-        )}
-      >
-        {ADS_TABS.map((candidate) => (
-          <TabsTrigger
-            key={candidate}
-            className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            value={candidate}
-          >
-            {t(`tabs.${candidate}`)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TabsList
+          aria-label={t("tabsLabel")}
+          className={cn(
+            SEGMENTED_TABS_LIST_CLASS_NAME,
+            "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
+          )}
+        >
+          {ADS_TABS.map((candidate) => (
+            <TabsTrigger
+              key={candidate}
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              value={candidate}
+            >
+              {t(`tabs.${candidate}`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tab === "campaigns" ? toolbar : null}
+      </div>
 
       <TabsContent value="campaigns">
         {accounts.length === 0 ? (
@@ -88,7 +93,7 @@ export function AdsTabs({
             title={t("campaigns.emptyTitle")}
           />
         ) : (
-          (campaigns ?? <AdsRowsSkeleton />)
+          (campaigns ?? <AdsCampaignRowsSkeleton />)
         )}
       </TabsContent>
       <TabsContent value="market">{market ?? <AdsRowsSkeleton />}</TabsContent>

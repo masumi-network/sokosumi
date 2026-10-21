@@ -3,12 +3,15 @@ import {
   redactSokoBotSensitiveText,
   SOKO_BOT_CMO_SCHEDULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
+import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
@@ -69,7 +72,8 @@ interface ClaimedOccurrence {
   schedule: {
     id: string;
     sokoBotId: string;
-    userId: string;
+    requestedByUserId: string | null;
+    sokoBot: { userId: string | null };
     workspaceId: string;
     cronExpression: string;
     timezone: string;
@@ -174,7 +178,9 @@ export class SokoBotSchedulesSyncService {
           },
         ],
       },
-      include: { schedule: true },
+      include: {
+        schedule: { include: { sokoBot: { select: { userId: true } } } },
+      },
       orderBy: [{ leaseExpiresAt: "asc" }, { id: "asc" }],
     });
     if (!pending) return null;
@@ -230,6 +236,7 @@ export class SokoBotSchedulesSyncService {
           proactivePaused: false,
         },
       },
+      include: { sokoBot: { select: { userId: true } } },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
@@ -438,6 +445,7 @@ export class SokoBotSchedulesSyncService {
               ingestTimezone: true,
               followWholeBoard: true,
               userId: true,
+              projectId: true,
               name: true,
             },
           });
@@ -447,17 +455,13 @@ export class SokoBotSchedulesSyncService {
               ...SOKO_BOT_CMO_SCHEDULES,
             ].find((candidate) => candidate.key === schedule.systemKey);
             const beat = await buildSystemBeatMessage({
-              bot: {
-                id: bot.id,
-                name: bot.name,
-                userId: bot.userId,
-                workspaceId: bot.workspaceId,
-                ingestTimezone: bot.ingestTimezone,
-                followWholeBoard: bot.followWholeBoard,
-              },
+              bot,
               key: schedule.systemKey,
               // Registry prompt wins so wording changes ship without a migration.
-              prompt: rhythm?.prompt ?? schedule.prompt,
+              prompt:
+                (rhythm &&
+                  sokoBotSystemSchedulePrompt(rhythm, isSharedSokoBot(bot))) ??
+                schedule.prompt,
               // Meeting prep reads the window after its own half-hour slot,
               // so a late or retried run briefs the same meetings, once.
               now:
@@ -499,9 +503,9 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const started = await sokoBotControlPlane.startTurn({
-          userId: schedule.userId,
-          workspaceId: schedule.workspaceId,
+          userId: sokoBotScheduleActingUserId(schedule),
           sokoBotId: schedule.sokoBotId,
+          workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,
           source: "SCHEDULE",

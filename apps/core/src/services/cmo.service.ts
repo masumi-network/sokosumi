@@ -1347,7 +1347,7 @@ export async function getCmoOverview(
   const { findOrOpenOwnerDirectRoom } = await import(
     "@/services/soko-bot-chat.service"
   );
-  const room = await findOrOpenOwnerDirectRoom(bot);
+  const room = await findOrOpenOwnerDirectRoom(bot, userId);
   const strategy = parseCmoStrategy(hire.strategy);
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const credits = await buildCreditsPayload({

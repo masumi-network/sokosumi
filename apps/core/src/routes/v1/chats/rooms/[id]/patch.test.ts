@@ -26,6 +26,7 @@ const {
   memberFindManyMock,
   coworkerFindManyMock,
   sokoBotFindManyMock,
+  sokoBotFindUniqueMock,
   sokoBotMemberDeleteManyMock,
   sokoBotMemberCreateManyMock,
   workspaceFindUniqueMock,
@@ -61,6 +62,7 @@ const {
   memberFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   sokoBotFindManyMock: vi.fn(),
+  sokoBotFindUniqueMock: vi.fn(),
   sokoBotMemberDeleteManyMock: vi.fn(),
   sokoBotMemberCreateManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -143,6 +145,7 @@ const tx = {
   },
   sokoBot: {
     findMany: sokoBotFindManyMock,
+    findUnique: sokoBotFindUniqueMock,
   },
   workspace: {
     findUnique: workspaceFindUniqueMock,
@@ -276,6 +279,7 @@ beforeEach(() => {
   );
   coworkerFindManyMock.mockResolvedValue([]);
   sokoBotFindManyMock.mockResolvedValue([]);
+  sokoBotFindUniqueMock.mockResolvedValue(null);
   workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
   userFindManyMock.mockImplementation(
     async ({ where }: { where: { id: { in: string[] } } }) =>
@@ -405,6 +409,95 @@ describe("PATCH /chats/rooms/{id}", () => {
         },
       }),
     );
+  });
+
+  it.each([
+    ["refuses", null, 400],
+    ["allows", OTHER_USER_ID, 200],
+  ] as const)(
+    "%s a private Channel when its Soko Bot has owner %s",
+    async (_verb, botUserId, status) => {
+      const existing = channelRoom({
+        discoverability: "public",
+        sokoBotMembers: [{ sokoBot: { id: "bot_1", userId: botUserId } }],
+      });
+      const updated = channelRoom({ discoverability: "private" });
+      roomFindFirstMock.mockResolvedValueOnce(existing);
+      memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+      if (status === 200) {
+        roomUpdateMock.mockResolvedValueOnce(updated);
+        roomFindUniqueOrThrowMock.mockResolvedValue(updated);
+      }
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ discoverability: "private" }),
+      });
+
+      expect(response.status).toBe(status);
+      if (status === 400) {
+        expect(await response.text()).toContain("Remove the shared Soko Bot");
+        expect(roomUpdateMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("lets an admin open a plain channel to guests", async () => {
+    const updated = channelRoom({ discoverability: "external" });
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "external" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
+      where: { sharedRoomId: ROOM_ID },
+      select: { id: true },
+    });
+    expect(roomUpdateMock).toHaveBeenCalled();
+  });
+
+  it("refuses to open a shared Soko Bot's room to guests", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    sokoBotFindUniqueMock.mockResolvedValue({ id: "shared-bot" });
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "external" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/cannot take guests/);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an archived shared Soko Bot's room public", async () => {
+    // Archive removed the bot from the room; reactivation would put it back.
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ discoverability: "public", sokoBotMembers: [] }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    sokoBotFindUniqueMock.mockResolvedValue({ id: "shared-bot" });
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "private" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/stays public/);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
   it("does not rewrite the Channel slug when the name changes", async () => {

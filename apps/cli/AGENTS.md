@@ -32,4 +32,4 @@ Use local fixtures or a non-production environment for CLI verification. Never s
 
 ## Portable skill
 
-The consumer skill for headless CLI work lives at [`skills/sokosumi/`](./skills/sokosumi/) (`npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi`). Do not install it at the repo-root `.agents/skills/`.
+The consumer skill for headless CLI work lives at [`skills/sokosumi/`](./skills/sokosumi/) (`npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi`). Keep it there as the single source. Repo-root `.agents/skills/sokosumi` and `.claude/skills/sokosumi` are symlinks to it; never install a copy at the repo root.

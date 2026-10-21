@@ -36,6 +36,7 @@ describe("resolveTaskEventActorFields", () => {
   it("attributes a Soko Bot", () => {
     const fields = resolveTaskEventActorFields({
       actor: "sokoBot",
+      scope: "personal",
       sokoBotId: "01960001-0001-7001-8001-000000000099",
       userId: "user_123",
       workspaceId: "11111111-1111-7111-8111-111111111111",

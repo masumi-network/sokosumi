@@ -12,27 +12,40 @@ interface AdsOptionalSectionProps {
   summary: string | null;
   /** Whether the section holds a refusal. */
   invalid: boolean;
+  name?: string;
   children: ReactNode;
 }
 
-/**
- * An optional part of the ad: closed until the reader wants it. A submit that
- * is refused for something inside it opens it once; the reader can close it
- * again.
- */
 export function AdsOptionalSection({
   title,
   summary,
   invalid,
+  name,
   children,
 }: AdsOptionalSectionProps) {
   const { formState } = useFormContext();
-  const [open, setOpen] = useState(false);
-  const [submits, setSubmits] = useState(formState.submitCount);
+  // A step check replaces this field's error and leaves submitCount alone.
+  const fieldError = name
+    ? (formState.errors as Record<string, unknown>)[name]
+    : undefined;
+  const [open, setOpen] = useState(invalid);
+  const [seen, setSeen] = useState({
+    invalid,
+    submits: formState.submitCount,
+    fieldError,
+  });
 
-  if (submits !== formState.submitCount) {
-    setSubmits(formState.submitCount);
-    if (invalid) setOpen(true);
+  if (
+    seen.invalid !== invalid ||
+    seen.submits !== formState.submitCount ||
+    seen.fieldError !== fieldError
+  ) {
+    const refusedNow = invalid && !seen.invalid;
+    const resubmitted = seen.submits !== formState.submitCount;
+    const rechecked =
+      fieldError !== undefined && seen.fieldError !== fieldError;
+    setSeen({ invalid, submits: formState.submitCount, fieldError });
+    if (invalid && (refusedNow || resubmitted || rechecked)) setOpen(true);
   }
 
   return (

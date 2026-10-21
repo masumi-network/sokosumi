@@ -63,12 +63,14 @@ vi.mock("@/config/env", () => ({
 }));
 
 import {
-  activeIntegrationsForBot,
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+} from "./soko-bot-integration-connection.service";
+import {
+  activeIntegrationsForBot,
   fetchInboxMessages,
   fetchInboxPage,
-  finalizeSokoBotIntegration,
   listIntegrationTools,
   revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
@@ -251,7 +253,6 @@ describe("Soko Bot OAuth replacement", () => {
           projectId: null,
           archivedAt: null,
         },
-        select: { id: true },
       });
       expect(mocks.link).not.toHaveBeenCalled();
       expect(mocks.get).not.toHaveBeenCalled();
@@ -748,6 +749,7 @@ const githubIntegration = {
     tools: {},
   },
   composioAccountId: "acc",
+  connectorUserId: null,
   cursor: null,
 };
 

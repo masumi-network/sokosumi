@@ -63,6 +63,7 @@ export function AdsSitelinksSection() {
   return (
     <AdsOptionalSection
       invalid={!!form.formState.errors.sitelinks}
+      name="sitelinks"
       summary={count > 0 ? t("summary", { count }) : null}
       title={t("title")}
     >
@@ -187,6 +188,7 @@ export function AdsCalloutsSection() {
   return (
     <AdsOptionalSection
       invalid={!!form.formState.errors.callouts}
+      name="callouts"
       summary={count > 0 ? t("summary", { count }) : null}
       title={t("title")}
     >

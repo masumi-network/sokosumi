@@ -3,23 +3,24 @@ import { getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Ads' shape while the project loads: the tab row and one empty-state block. */
+import { AdsCampaignRowsBones } from "./components/ads-skeleton";
+
 export default async function AdsLoading() {
   const t = await getTranslations("App.Ads");
 
   return (
     <WorkspacePageShell title={t("title")}>
-      <div
-        aria-busy="true"
-        aria-live="polite"
-        className="space-y-6"
-        role="status"
-      >
+      <div aria-busy="true" aria-live="polite" role="status">
         <span className="sr-only">{t("loading")}</span>
-        {/* The tab row and one empty-state block, as on the page. */}
-        <div aria-hidden className="space-y-6">
-          <Skeleton className="h-9 w-64 max-w-full" />
-          <Skeleton className="mx-auto h-40 w-full max-w-md" />
+        <div aria-hidden className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Skeleton className="h-9 w-48 max-w-full" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+          </div>
+          <AdsCampaignRowsBones />
         </div>
       </div>
     </WorkspacePageShell>

@@ -2,7 +2,10 @@ import { isDeepStrictEqual } from "node:util";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
+import {
+  buildSokoBotOwnerTaskVisibilityWhere,
+  buildSokoBotScopeTaskWhere,
+} from "@/helpers/task-visibility";
 
 const {
   metadataUpsertMock,
@@ -17,7 +20,9 @@ const {
   startTurnMock,
   taskFindManyMock,
   watchUpsertMock,
+  memberFindManyMock,
 } = vi.hoisted(() => ({
+  memberFindManyMock: vi.fn(),
   metadataUpsertMock: vi.fn().mockResolvedValue({
     key: "board",
     cursorId: null,
@@ -45,6 +50,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTaskWatch: { upsert: watchUpsertMock },
     task: { findMany: taskFindManyMock },
     taskEvent: { findMany: eventFindManyMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -274,6 +280,87 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
   });
 });
 
+describe("a shared bot's board sync", () => {
+  it("reads its scope and runs for nobody, whoever commented", async () => {
+    const task = {
+      id: "public-1",
+      name: "Public launch",
+      status: "READY",
+      ownerId: "owner-user",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      updatedAt: new Date(),
+      sokoBotDelegations: [],
+      sokoBotWatches: [
+        {
+          id: "watch-public",
+          lastSeenEventAt: new Date("2026-09-01T00:00:00.000Z"),
+          lastSeenStatus: "READY",
+        },
+      ],
+    };
+    botFindManyMock.mockResolvedValue([
+      {
+        id: "team-bot",
+        name: "Atlas",
+        userId: null,
+        projectId: "project-1",
+        createdByUserId: "creator-user",
+        workspaceId: ALICE_WORKSPACE_ID,
+        workspace: { organizationId: "org-1" },
+        followWholeBoard: true,
+        ingestTimezone: "Europe/Vienna",
+      },
+    ]);
+    delegationFindManyMock.mockResolvedValue([]);
+    findAttentionItemsMock.mockResolvedValue([]);
+    followUpsBlockMock.mockResolvedValue([]);
+    proactiveGateMock.mockResolvedValue({ ok: true });
+    startTurnMock.mockReset();
+    startTurnMock.mockResolvedValue({ turnId: "turn-1", status: "RUNNING" });
+    watchUpsertMock.mockResolvedValue({});
+    memberFindManyMock.mockReset();
+    taskFindManyMock.mockReset();
+    taskFindManyMock.mockResolvedValue([task]);
+    eventFindManyMock.mockResolvedValue([
+      {
+        createdAt: new Date(),
+        status: null,
+        comment: "Atlas, which marketplace copy should we ship?",
+        userId: ALICE_USER_ID,
+        coworkerId: null,
+        sokoBotId: null,
+        user: { name: "Alice" },
+        coworker: null,
+        sokoBot: null,
+      },
+    ]);
+
+    await new SokoBotTaskboardSyncService().syncTaskboard({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            buildSokoBotScopeTaskWhere({
+              sokoBotId: "team-bot",
+              workspaceId: ALICE_WORKSPACE_ID,
+              projectId: "project-1",
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, sokoBotId: "team-bot" }),
+    );
+    expect(memberFindManyMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("who a Task comment wakes", () => {
   const at = new Date("2026-09-30T10:00:00Z");
   function task(overrides: Record<string, unknown>) {
@@ -370,6 +457,23 @@ describe("who a Task comment wakes", () => {
     expect(startTurnMock.mock.calls.at(-1)?.[0]?.message).toContain(
       "Jarvis (Andreas's assistant): Atlas, can you confirm the budget?",
     );
+  });
+
+  it("signs a shared bot's comment with no owner name", async () => {
+    const own = task({
+      ownerId: ALICE_USER_ID,
+      sokoBotDelegations: [{ id: "delegation-1" }],
+    });
+    const shared = {
+      ...comment("Atlas, can you confirm the budget?", "bot"),
+      sokoBot: { name: "Scout", userId: null, user: null },
+    };
+    expect(await sync(own, shared)).toBe(true);
+    const message = startTurnMock.mock.calls.at(-1)?.[0]?.message;
+    expect(message).toContain(
+      "Scout (shared team assistant): Atlas, can you confirm the budget?",
+    );
+    expect(message).not.toContain("'s assistant");
   });
 
   it("follows only Tasks the bot created, assigned or edited", async () => {

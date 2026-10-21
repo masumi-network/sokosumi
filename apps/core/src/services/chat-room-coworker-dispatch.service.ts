@@ -12,6 +12,8 @@ import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -125,6 +127,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           senderSokoBot: {
             select: {
               id: true,
+              name: true,
               userId: true,
               archivedAt: true,
             },
@@ -209,7 +212,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     }
     // The sending bot's owner is the workspace fallback and the attribution:
     // their assistant asked, so the console can say whose curiosity this was.
-    const userId = mention.message.senderUserId ?? senderBot?.userId ?? null;
+    // A shared bot has no owner: the member its turn ran for stands in.
+    const userId =
+      mention.message.senderUserId ??
+      (senderBot
+        ? await sokoBotMessageMemberId(senderBot, mention.message)
+        : null);
     if (!userId) {
       await failWithShell("Mention sender is no longer available");
       return;
@@ -330,7 +338,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       });
     }
 
-    const senderName = mention.message.senderUser?.name ?? "A teammate";
+    // A Soko Bot asking is named as one, so the Coworker knows who it answers.
+    const senderName =
+      mention.message.senderUser?.name ??
+      (senderBot
+        ? `${sokoBotDisplayName(senderBot)} (personal assistant)`
+        : "A teammate");
     const baseURL = coworker.baseURL.trim();
     const threadRootId = mention.message.parentMessageId;
     let providerResponseId: string | null = null;

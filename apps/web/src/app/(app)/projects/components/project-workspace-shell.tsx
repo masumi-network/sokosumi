@@ -1,5 +1,4 @@
 import { getTranslations } from "next-intl/server";
-
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import {
   ProjectProperties,
@@ -14,10 +13,14 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
 
 export interface ProjectWorkspaceLabels {
   ariaLabel: string;
+  /** Present only while Core offers shared bots in this organization. */
+  bots?: string;
   design: string;
   memory: string;
   overview: string;
@@ -33,11 +36,19 @@ export interface ProjectWorkspaceLabels {
  * below the one being awaited — and every one of these pages is an `async`
  * function that already awaits its translations. One more await is cheaper
  * than an async boundary in the tree.
+ *
+ * It also decides the Bots tab: Core sends `sharedBots` to a member, and
+ * shared bots exist only in an organization.
  */
 export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabels> {
-  const t = await getTranslations("App.Projects.Detail");
+  const [t, sharedBots, organizationId] = await Promise.all([
+    getTranslations("App.Projects.Detail"),
+    sokoBotService.listShared().catch(() => null),
+    userService.getActiveOrganizationId(),
+  ]);
   return {
     ariaLabel: t("tabs.ariaLabel"),
+    ...(sharedBots && organizationId ? { bots: t("tabs.bots") } : {}),
     design: t("tabs.design"),
     memory: t("tabs.memory"),
     overview: t("tabs.overview"),
@@ -118,6 +129,15 @@ export function ProjectWorkspaceShell({
       href: `/projects/${projectId}/memory`,
       label: labels.memory,
     },
+    ...(labels.bots
+      ? [
+          {
+            id: "bots",
+            href: `/projects/${projectId}/bots`,
+            label: labels.bots,
+          },
+        ]
+      : []),
   ];
 
   return (

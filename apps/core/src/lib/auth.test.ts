@@ -56,6 +56,7 @@ const {
   webhookCallUserWebhookMock,
   deleteStripeCustomerBestEffortMock,
   deliverOrganizationCalendarInvalidationsNowMock,
+  disconnectLeaverSokoBotIntegrationsMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -162,6 +163,7 @@ const {
     webhookCallUserWebhookMock: vi.fn(),
     deleteStripeCustomerBestEffortMock: vi.fn(),
     deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
+    disconnectLeaverSokoBotIntegrationsMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -363,6 +365,11 @@ vi.mock("@/services/preferred-workspace.service", () => ({
 vi.mock("@/helpers/stripe-customer-delete", () => ({
   deleteStripeCustomerBestEffort: (...args: unknown[]) =>
     deleteStripeCustomerBestEffortMock(...args),
+}));
+
+vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
+  disconnectLeaverSokoBotIntegrationsBestEffort: (...args: unknown[]) =>
+    disconnectLeaverSokoBotIntegrationsMock(...args),
 }));
 
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -2546,6 +2553,10 @@ describe("core auth config", () => {
     expect(
       deliverOrganizationCalendarInvalidationsNowMock,
     ).toHaveBeenCalledWith("org-1", "user-1");
+    expect(disconnectLeaverSokoBotIntegrationsMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+    );
   });
 
   it("prepares the Stripe email sync before a user update", async () => {

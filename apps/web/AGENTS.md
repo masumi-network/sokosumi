@@ -121,7 +121,7 @@ The web app uses the shared Biome configuration from the repo root. See [shared 
 
 #### Environment Variables
 
-**Critical**: Never use `process.env` directly in web app code.
+Do not read `process.env` directly in web app code.
 
 - **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:

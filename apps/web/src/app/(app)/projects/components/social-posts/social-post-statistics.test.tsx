@@ -13,7 +13,11 @@ import en from "@/../messages/en.json";
 import { TestQueryProvider } from "@/test/query-provider";
 import { SocialPostStatistics } from "./social-post-statistics";
 
-const mocks = vi.hoisted(() => ({ refresh: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  recycle: vi.fn(),
+  fetch: vi.fn(),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -24,6 +28,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 vi.mock("@/lib/actions/project/action", () => ({
   refreshProjectSocialAccountStatistics: mocks.refresh,
+  recycleProjectSocialAccountPost: mocks.recycle,
 }));
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
@@ -37,10 +42,15 @@ vi.mock("next-intl", async () => {
         now: new Date("2026-10-14T08:00:00Z"),
       }).relativeTime,
     }),
-    useTranslations: () =>
+    useTranslations: (
+      namespace:
+        | "App.Projects.SocialPosts.statistics"
+        | "App.Projects.SocialPosts.preview",
+    ) =>
       createTranslator({
         locale: "en",
-        messages: en.App.Projects.SocialPosts.statistics,
+        messages: en,
+        namespace,
       }),
   };
 });
@@ -63,6 +73,7 @@ const account = {
   provider: "x",
   displayName: "Launch account",
   externalHandle: "launch",
+  avatarUrl: null,
   status: "active",
   statistics: snapshot,
   postCount: 1,
@@ -170,6 +181,7 @@ function renderStatistics(
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.refresh.mockReset();
+  mocks.recycle.mockReset();
   mocks.fetch.mockReset();
   vi.stubGlobal("fetch", mocks.fetch);
   mocks.fetch.mockResolvedValue({ ok: true, json: async () => page() });
@@ -188,6 +200,11 @@ describe("SocialPostStatistics account history", () => {
     expect(loading).toHaveTextContent(
       en.App.Projects.SocialPosts.statistics.loading,
     );
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading).toHaveAttribute("role", "status");
+    expect(
+      within(loading).getAllByTestId("social-published-post-skeleton"),
+    ).toHaveLength(2);
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Last \d+ days/ }),
@@ -303,7 +320,9 @@ describe("SocialPostStatistics account history", () => {
     expect(screen.getByRole("button", { name: "More actions" })).toBeVisible();
     expect(screen.getByText("Link clicks")).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Open post on platform" }),
+      screen.getByRole("link", {
+        name: en.App.Projects.SocialPosts.statistics.openPost,
+      }),
     ).toHaveAttribute("href", post.url);
     expect(
       screen.queryByRole("button", { name: /edit|schedule|post now/i }),
@@ -346,7 +365,7 @@ describe("SocialPostStatistics account history", () => {
     });
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
-    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
+    expect(screen.getAllByText("Updated 6 days ago")).toHaveLength(2);
     expect(screen.queryByText("Updated 13 days ago")).not.toBeInTheDocument();
   });
   it("keeps Impressions on All accounts when an X account is connected", async () => {
@@ -381,15 +400,20 @@ describe("SocialPostStatistics account history", () => {
     expect(within(overview).getByText("Impressions")).toBeVisible();
     expect(within(overview).queryByText("Views")).not.toBeInTheDocument();
   });
-  it("shows a platform logo on each published post row", async () => {
+  it("renders the real platform preview and author on each published post card", async () => {
     renderStatistics();
     expect(await screen.findByText(post.text)).toBeVisible();
-    const row = screen.getByText(post.text).closest("li");
-    expect(row).not.toBeNull();
-    expect(
-      row?.querySelectorAll("[data-testid='social-post-provider-icon']"),
-    ).toHaveLength(1);
-    expect(row).toHaveTextContent("Launch account");
+    const card = screen.getByRole("listitem");
+    const preview = within(card).getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "x");
+    expect(preview).toHaveTextContent("Launch account");
+    expect(preview).toHaveTextContent("@launch");
+    expect(within(card).getByText("Link clicks")).toBeVisible();
+    expect(card.querySelectorAll("dl")).toHaveLength(1);
+    expect(within(card).getByText("Link clicks").closest("dl")).toBe(
+      within(card).getByText("Likes / reactions").closest("dl"),
+    );
+    expect(within(card).queryByText("Lifetime")).not.toBeInTheDocument();
   });
   it("hides the trend chart when the selected period has no daily points", async () => {
     mocks.fetch.mockResolvedValue({
@@ -485,6 +509,11 @@ describe("SocialPostStatistics account history", () => {
     renderStatistics();
     await screen.findByText(post.text);
     expect(screen.getByText(/Some post metrics are unavailable/)).toBeVisible();
+    const card = screen.getByRole("listitem");
+    expect(within(card).getByTestId("social-post-preview")).toBeVisible();
+    expect(
+      within(card).getByText("Likes / reactions").closest("div"),
+    ).toHaveTextContent("5");
     expect(
       screen.queryByText(
         "All history currently available from the platform has been imported.",
@@ -768,6 +797,132 @@ describe("SocialPostStatistics account history", () => {
     ).toHaveLength(1);
   });
 
+  it("shows Recycle only for a strong post the account can reshare", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [
+          { ...post, strong: true, canRecycle: true },
+          {
+            ...post,
+            id: "post-weak",
+            text: "Quiet post",
+            strong: false,
+            canRecycle: true,
+          },
+          {
+            ...post,
+            id: "post-locked",
+            text: "Strong but disconnected",
+            strong: true,
+            canRecycle: false,
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getAllByText("Strong")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Recycle" })).toBeVisible();
+    expect(screen.getByText("Quiet post")).toBeVisible();
+    expect(screen.getByText("Strong but disconnected")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Recycle" })).toHaveLength(1);
+    const card = screen.getByText(post.text).closest("li");
+    expect(card).not.toBeNull();
+    if (!card) throw new Error("Published post card is missing");
+    expect(within(card).getByTestId("social-post-preview")).toHaveAttribute(
+      "data-provider",
+      "x",
+    );
+    const badge = within(card).getByText("Strong");
+    expect(badge.parentElement).toContainElement(
+      within(card).getByText("Oct 1, 12:15 AM UTC"),
+    );
+    const recycle = within(card).getByRole("button", { name: "Recycle" });
+    expect(recycle.parentElement).toContainElement(
+      within(card).getByRole("link", {
+        name: en.App.Projects.SocialPosts.statistics.openPost,
+      }),
+    );
+  });
+
+  it("saves a recycled post as a draft", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    mocks.recycle.mockResolvedValue({
+      ok: true,
+      value: { id: "draft-1", status: "DRAFT" },
+    });
+    renderStatistics();
+    fireEvent.click(await screen.findByRole("button", { name: "Recycle" }));
+    expect(
+      await screen.findByRole("heading", { name: "Recycle this post?" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Save as draft" }));
+    await waitFor(() =>
+      expect(mocks.recycle).toHaveBeenCalledWith({
+        projectId: "project-1",
+        accountPostId: post.id,
+      }),
+    );
+  });
+
+  it("schedules a recycled post in seven days", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    mocks.recycle.mockResolvedValue({
+      ok: true,
+      value: { id: "scheduled-1", status: "SCHEDULED" },
+    });
+    renderStatistics();
+    fireEvent.click(await screen.findByRole("button", { name: "Recycle" }));
+    fireEvent.click(await screen.findByRole("button", { name: "In 7 days" }));
+    await waitFor(() =>
+      expect(mocks.recycle).toHaveBeenCalledWith({
+        projectId: "project-1",
+        accountPostId: post.id,
+        delayDays: 7,
+        timezone: expect.any(String),
+      }),
+    );
+  });
+
+  it("hides Recycle when a post is not marked strong", async () => {
+    renderStatistics();
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.queryByText("Strong")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Recycle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides project-only Recycle on the all-projects view", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [{ ...post, strong: true, canRecycle: true }],
+      }),
+    });
+    renderStatistics("", { workspaceId: "workspace-1" });
+    expect(await screen.findByText(post.text)).toBeVisible();
+    expect(screen.getByText("Strong")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Recycle" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reads workspace statistics and hides Sync on the all-projects view", async () => {
     renderStatistics("", { workspaceId: "workspace-1" });
     expect(await screen.findByText(post.text)).toBeVisible();
@@ -789,10 +944,16 @@ describe("SocialPostStatistics account history", () => {
     );
   });
 
-  it("keeps the single Updated line and Sync control", async () => {
+  it("keeps one Updated line per card and one in the header beside Sync", async () => {
     renderStatistics();
     await screen.findByText(post.text);
-    expect(screen.getByText("Updated 6 days ago")).toBeVisible();
+    expect(screen.getAllByText("Updated 6 days ago")).toHaveLength(2);
+    const card = screen.getByRole("listitem");
+    expect(within(card).getAllByText(/^Updated /)).toHaveLength(1);
+    expect(within(card).getByText(/^Updated /)).toHaveClass(
+      "text-muted-foreground",
+      "text-xs",
+    );
     expect(
       screen.getByRole("button", { name: "Sync all accounts" }),
     ).toBeVisible();

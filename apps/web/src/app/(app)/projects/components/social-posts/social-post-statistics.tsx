@@ -6,9 +6,19 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,56 +37,23 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { refreshProjectSocialAccountStatistics } from "@/lib/actions/project/action";
+import {
+  recycleProjectSocialAccountPost,
+  refreshProjectSocialAccountStatistics,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { projectService } from "@/lib/services/project.service";
 import { socialSyncPollIntervalMs } from "@/lib/social-sync-poll";
 import { PerformanceTrendChart } from "./performance-trend-chart";
 import { PostingConsistency } from "./posting-consistency";
 import { SocialPerformanceOverview } from "./social-performance-overview";
-import { SocialPostMetrics } from "./social-post-metrics";
-
-const ACCOUNT_METRIC_LABELS: Record<string, string> = {
-  followers_count: "followers",
-  follows_count: "following",
-  following_count: "following",
-  tweet_count: "posts",
-  listed_count: "lists",
-  posts_liked_count: "postsLiked",
-  viewCount: "views",
-  videoCount: "videos",
-  subscriberCount: "subscribers",
-  accounts_engaged: "engagedAccounts",
-  total_interactions: "interactions",
-  profile_links_taps: "profileLinkClicks",
-  page_media_view: "views",
-  page_post_engagements: "engagement",
-  page_video_views: "video_views",
-  page_daily_follows_unique: "newFollowers",
-  page_daily_unfollows_unique: "lostFollowers",
-  page_total_actions: "actions",
-  page_total_media_view_unique: "reach",
-  estimatedMinutesWatched: "watch_time",
-  averageViewDuration: "averageWatchDuration",
-  averageViewPercentage: "averageViewedPercent",
-  subscribersGained: "newSubscribers",
-  subscribersLost: "lostSubscribers",
-  post_media_view: "views",
-  post_total_media_view_unique: "reach",
-  url_clicks: "linkClicks",
-  saved: "saves",
-  like_count: "likes",
-  comment_count: "comments",
-  share_count: "shares",
-  save_count: "saves",
-  likes_count: "likes_received",
-};
+import { SocialPublishedPost } from "./social-published-post";
 
 type StatisticsPage = Awaited<
   ReturnType<typeof projectService.listSocialAccountStatistics>
 >;
 type Account = StatisticsPage["accounts"][number];
-type Metric = NonNullable<Account["statistics"]>["metrics"][number];
 
 function utcPreset(days: 7 | 30 | 90) {
   const until = new Date();
@@ -118,6 +95,42 @@ function PerformanceQuerySkeleton({ label }: { label: string }) {
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-24 w-full" />
       </div>
+      <div className="space-y-4" aria-hidden>
+        <Skeleton className="h-4 w-48" />
+        {Array.from({ length: 2 }, (_, card) => (
+          <div
+            key={card}
+            className="grid min-w-0 gap-6 rounded-xl border p-4 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]"
+            data-testid="social-published-post-skeleton"
+          >
+            <div className="w-full min-w-0 max-w-md space-y-4 rounded-xl border p-4 lg:max-w-none">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-10 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="min-w-0 space-y-4">
+              <Skeleton className="h-3 w-40" />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {Array.from({ length: 3 }, (_, metric) => (
+                  <div key={metric} className="space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-11 w-44 md:h-8" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -129,6 +142,93 @@ function accountName(account: Account) {
     SOCIAL_PROVIDERS.find((provider) => provider.id === account.provider)
       ?.name ??
     account.provider
+  );
+}
+
+function RecycleAccountPost({
+  projectId,
+  accountPostId,
+}: {
+  projectId: string;
+  accountPostId: string;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function recycle(delayDays?: 7 | 14 | 30) {
+    if (pending) return;
+    setPending(true);
+    try {
+      const result = await recycleProjectSocialAccountPost({
+        projectId,
+        accountPostId,
+        ...(delayDays ? { delayDays, timezone: getDefaultTimezone() } : {}),
+      });
+      if (!result.ok) {
+        toast.error(result.error.message || t("recycle.failed"));
+        return;
+      }
+      toast.success(delayDays ? t("recycle.scheduled") : t("recycle.drafted"));
+      setOpen(false);
+    } catch {
+      toast.error(t("recycle.failed"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        className="h-11 md:h-8"
+        variant="outline"
+        onClick={() => setOpen(true)}
+      >
+        {t("recycle.action")}
+      </Button>
+      <AlertDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && !pending) setOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("recycle.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("recycle.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-col sm:space-x-0">
+            <Button
+              type="button"
+              disabled={pending}
+              loading={pending}
+              onClick={() => void recycle()}
+            >
+              {t("recycle.saveDraft")}
+            </Button>
+            {([7, 14, 30] as const).map((days) => (
+              <Button
+                key={days}
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void recycle(days)}
+              >
+                {t("recycle.inDays", { days })}
+              </Button>
+            ))}
+            <AlertDialogCancel disabled={pending}>
+              {t("recycle.cancel")}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -319,51 +419,6 @@ export function SocialPostStatistics(
     void enqueueRefresh(stale, { silent: true });
   }, [autoRequestKey, query.isSuccess]);
 
-  function metricLabel(metric: Metric) {
-    const key = `accountMetrics.${ACCOUNT_METRIC_LABELS[metric.key] ?? metric.key}`;
-    return t.has(key)
-      ? t(key)
-      : metric.key
-          .replace(/([a-z])([A-Z])/g, "$1 $2")
-          .replaceAll(/[_.-]/g, " ");
-  }
-  function renderMetrics(metrics: Metric[]) {
-    return (
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
-        {metrics.map((metric, index) => (
-          <div
-            key={`${metric.key}-${metric.period}-${index}`}
-            className="space-y-1"
-          >
-            <dt className="text-muted-foreground break-words">
-              {metricLabel(metric)}
-            </dt>
-            <dd className="font-medium tabular-nums">
-              {metric.value == null
-                ? t("unavailable")
-                : formatter.number(metric.value)}
-              {metric.unit &&
-              metric.unit !== "count" &&
-              metric.value != null ? (
-                <span className="text-muted-foreground ms-1 font-normal">
-                  {t.has(`units.${metric.unit}`)
-                    ? t(`units.${metric.unit}`)
-                    : metric.unit}
-                </span>
-              ) : null}
-            </dd>
-            {metric.period ? (
-              <dd className="text-muted-foreground text-xs">
-                {t.has(`periods.${metric.period}`)
-                  ? t(`periods.${metric.period}`)
-                  : metric.period.replaceAll(/[_-]/g, " ")}
-              </dd>
-            ) : null}
-          </div>
-        ))}
-      </dl>
-    );
-  }
   function exportHref(format: "csv" | "xlsx") {
     const params = new URLSearchParams({ format });
     if (filters.statisticsProvider)
@@ -377,12 +432,6 @@ export function SocialPostStatistics(
     return `${statisticsPath}/export?${params}`;
   }
 
-  function formatDate(value: string | Date) {
-    return formatter.dateTime(new Date(value), "dateTime", {
-      timeZone: "UTC",
-      timeZoneName: "short",
-    });
-  }
   function formatUpdated(value: string | Date) {
     return formatter.relativeTime(new Date(value));
   }
@@ -704,7 +753,10 @@ export function SocialPostStatistics(
             />
           ) : null}
           <section className="space-y-4" aria-label={t("postsTitle")}>
-            <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">{t("postsTitle")}</h3>
+              <p className="text-muted-foreground text-sm">{t("postsHint")}</p>
+            </div>
             {!query.isPending &&
             !query.isError &&
             validRange &&
@@ -713,54 +765,19 @@ export function SocialPostStatistics(
             ) : null}
             <ul className="space-y-3">
               {posts.map((post) => (
-                <li key={post.id} className="space-y-3 rounded-lg border p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="flex min-w-0 items-center gap-2 font-medium">
-                      <SocialPostProviderIcon
-                        provider={post.provider}
-                        className="size-4 shrink-0"
-                        aria-hidden
+                <SocialPublishedPost
+                  key={post.id}
+                  post={post}
+                  account={accountsById.get(post.connectionId) ?? null}
+                  actions={
+                    projectId && post.strong && post.canRecycle ? (
+                      <RecycleAccountPost
+                        projectId={projectId}
+                        accountPostId={post.id}
                       />
-                      <span className="truncate">
-                        {accountsById.get(post.connectionId)?.displayName ??
-                          accountsById.get(post.connectionId)?.externalHandle ??
-                          SOCIAL_PROVIDERS.find(
-                            (provider) => provider.id === post.provider,
-                          )?.name ??
-                          post.provider}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {post.publishedAt
-                        ? formatDate(post.publishedAt)
-                        : t("dateUnavailable")}
-                    </p>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap break-words">
-                    {post.text || t("mediaPost")}
-                  </p>
-                  {post.url ? (
-                    <a
-                      className="inline-block text-sm underline underline-offset-4"
-                      href={post.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      {t("openPost")}
-                    </a>
-                  ) : null}
-                  <SocialPostMetrics
-                    statistics={{
-                      metrics: post.metrics,
-                      fetchedAt: post.fetchedAt,
-                      refreshAttemptedAt: null,
-                      error: null,
-                    }}
-                  />
-                  {post.additionalMetrics.length
-                    ? renderMetrics(post.additionalMetrics)
-                    : null}
-                </li>
+                    ) : null
+                  }
+                />
               ))}
             </ul>
             {query.hasNextPage && validRange ? (

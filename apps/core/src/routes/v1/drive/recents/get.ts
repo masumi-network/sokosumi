@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { type Prisma, TaskStatus } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
@@ -8,8 +8,10 @@ import {
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
+import { listDataTables, resolveTableActor } from "@/helpers/data-table";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
+import { driveActorTaskWhere } from "@/helpers/drive-task-actor-visibility";
 import {
   DRIVE_TASK_FILE_WHERE,
   fetchDriveTaskOutputRecentsBatch,
@@ -23,10 +25,6 @@ import {
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
-  buildHumanTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -34,7 +32,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -48,7 +46,7 @@ const route = withCoworkerContextHeaderParameters(
     description: [
       "List recent Drive files and task/agent outputs for the active workspace.",
       "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
-      "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.",
+      "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -117,22 +115,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       files: {
         some: DRIVE_TASK_FILE_WHERE,
       },
+      ...driveActorTaskWhere(authContext, userContext.userId),
     };
-
-    if (
-      !isCoworkerAuthContext(authContext) &&
-      !isSokoBotAuthContext(authContext)
-    ) {
-      baseTaskWhere.AND = [buildHumanTaskVisibilityWhere(userContext.userId)];
-    }
-
-    if (isSokoBotAuthContext(authContext)) {
-      baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
-      baseTaskWhere.status = { not: TaskStatus.DRAFT };
-      baseTaskWhere.AND = [
-        buildSokoBotOwnerTaskVisibilityWhere(authContext.userId),
-      ];
-    }
 
     if (isCoworkerAuthContext(authContext) && authContext.context) {
       const hasWorkspaceGrant = await hasGrantedWorkspaceAccess({
@@ -149,6 +133,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { cursor, take } = parseCursorPagination(query);
     const searchQuery = query.q?.trim();
+    // Agents reach tables only through a task's scope, never a workspace list.
+    const tableActor = isUserAuthContext(authContext)
+      ? await resolveTableActor(authContext, workspaceContext.workspaceId)
+      : null;
 
     const page = await fetchDriveRecentsPage({
       prefix,
@@ -168,6 +156,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           take: taskTake,
           ...(searchQuery ? { searchQuery } : {}),
         }),
+      ...(tableActor
+        ? {
+            fetchTables: async ({ cursor: tableCursor, take: tableTake }) => {
+              const tables = await listDataTables(tableActor, {
+                cursor: tableCursor,
+                limit: tableTake,
+                search: searchQuery,
+              });
+              return {
+                items: tables.items.map((table) => ({
+                  kind: "table" as const,
+                  tableId: table.id,
+                  name: table.title,
+                  activityAt: table.updatedAt,
+                  projectId: table.projectId,
+                })),
+                hasMore: tables.nextCursor !== null,
+                nextCursor: tables.nextCursor,
+              };
+            },
+          }
+        : {}),
     });
 
     const paginationMeta: CursorPaginationMeta = {

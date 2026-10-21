@@ -62,7 +62,7 @@
       #expect(Self.close(mark, token), "\(mark) vs \(token)")
     }
 
-    /// Web's `border-sidebar` ring between overlapping Direct faces is cut through to the ground too.
+    /// The ring between overlapping Direct faces is cut through to the ground too.
     @Test func directStackRingShowsTheGround() throws {
       let stack = DirectRoomAvatarStack(participants: [
         DirectRoomAvatarParticipant(id: "a", name: "Ada", imageURL: nil),
@@ -75,8 +75,7 @@
       #expect(!Self.close(face, ground), "\(face)")
     }
 
-    /// A Read-only Direct's ring fades with its faces, as web's `border-sidebar` does under `opacity-50`: the face
-    /// under it shows at half its own dimmed strength.
+    /// A Read-only Direct's ring fades with its faces: the face under it shows at half its own dimmed strength.
     @Test func dimmedDirectStackRingFadesWithTheFaces() throws {
       let stack = DirectRoomAvatarStack(participants: [
         DirectRoomAvatarParticipant(id: "a", name: "Ada", imageURL: nil),

@@ -15,7 +15,10 @@ import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
 import { AdsMarketSection } from "./components/ads-market-section";
-import { AdsRowsSkeleton } from "./components/ads-skeleton";
+import {
+  AdsCampaignRowsSkeleton,
+  AdsRowsSkeleton,
+} from "./components/ads-skeleton";
 import { AdsTabs } from "./components/ads-tabs";
 
 // Wait for the current session and project access before rendering.
@@ -69,27 +72,27 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
 
   // Only load campaigns while the Campaigns tab is the one showing: they come
   // from the ad provider, so an Accounts visit should not pay for them.
-  const campaigns =
-    account && query.tab === "campaigns" ? (
-      <div className="flex flex-col gap-6">
-        <AdsCampaignsToolbar
-          account={account}
-          accounts={accounts}
-          projectId={project.id}
-          range={query.range}
-        />
-        <Suspense
-          key={`${account.id}:${query.range}`}
-          fallback={<AdsRowsSkeleton />}
-        >
-          <AdsCampaignsSection
-            account={account}
-            projectId={project.id}
-            range={query.range}
-          />
-        </Suspense>
-      </div>
-    ) : null;
+  const onCampaigns = account && query.tab === "campaigns";
+  const campaigns = onCampaigns ? (
+    <Suspense
+      key={`${account.id}:${query.range}`}
+      fallback={<AdsCampaignRowsSkeleton />}
+    >
+      <AdsCampaignsSection
+        account={account}
+        projectId={project.id}
+        range={query.range}
+      />
+    </Suspense>
+  ) : null;
+  const toolbar = account ? (
+    <AdsCampaignsToolbar
+      account={account}
+      accounts={accounts}
+      projectId={project.id}
+      range={query.range}
+    />
+  ) : null;
 
   // The same for Market: its profile and the provider data load on its tab.
   const market =
@@ -106,6 +109,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
         campaigns={campaigns}
         market={market}
         projectId={project.id}
+        toolbar={toolbar}
       />
     </WorkspacePageShell>
   );

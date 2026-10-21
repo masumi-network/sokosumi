@@ -39,4 +39,3 @@ const blobFileSchema = z
 export const blobFilesSchema = z.array(blobFileSchema);
 
 export type BlobFile = z.infer<typeof blobFileSchema>;
-export type BlobFileMetadata = z.infer<typeof blobFileMetadataSchema>;

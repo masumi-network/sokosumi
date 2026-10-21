@@ -24,9 +24,10 @@ export interface OrganizationExitChatRevocationResult {
  *
  * Deletes the user's room memberships and read states for that org's rooms
  * (channels and org directs, including external). Records channel "left"
- * status messages. Soft-archives channels left with zero humans. Hard-deletes
- * directs left with zero humans (soft-archive would keep `directKey` and block
- * create-or-get; product archive API already forbids archiving directs).
+ * status messages. Soft-archives channels left with zero humans, except a
+ * shared Soko Bot's room. Hard-deletes directs left with zero humans
+ * (soft-archive would keep `directKey` and block create-or-get; product
+ * archive API already forbids archiving directs).
  * Revokes pending guest invitations and live invite links on rooms left with
  * zero humans (parity with the member-delete DB trigger).
  *
@@ -50,6 +51,7 @@ export async function applyOrganizationExitChatRevocation(
           id: true,
           kind: true,
           archivedAt: true,
+          sharedSokoBot: { select: { id: true } },
         },
       },
     },
@@ -160,7 +162,12 @@ export async function applyOrganizationExitChatRevocation(
       continue;
     }
 
-    if (room.kind === "channel" && room.archivedAt === null) {
+    // A shared Soko Bot's room stays open for the members who join later.
+    if (
+      room.kind === "channel" &&
+      room.archivedAt === null &&
+      !room.sharedSokoBot
+    ) {
       await tx.chatRoom.updateMany({
         where: { id: roomId, archivedAt: null },
         data: { archivedAt: new Date(), updatedAt: new Date() },

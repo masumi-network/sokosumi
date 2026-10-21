@@ -1,7 +1,7 @@
 import CoreAPI
 
 /// How loudly a sidebar label speaks. The one place that decides it: a muted room that is not on screen rests
-/// (web's `text-muted-foreground`), a room with something to read is loud, and a switch that is on is active. The
+/// muted, a room with something to read is loud, and a switch that is on is active. The
 /// view maps each case to a weight and a colour per row type; it never re-derives the case.
 public enum SidebarEmphasis: Equatable, Sendable {
   /// Bold and full strength: something is waiting.

@@ -12,7 +12,9 @@ const {
   checkMailImportanceMock,
   logSetMock,
   logEmitMock,
+  sweepMock,
 } = vi.hoisted(() => ({
+  sweepMock: vi.fn(),
   botFindManyMock: vi.fn(),
   scheduleFindFirstMock: vi.fn(),
   integrationUpdateMock: vi.fn(),
@@ -42,6 +44,9 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   fetchInboxMessages: fetchInboxMock,
   fetchCalendarEvents: vi.fn().mockResolvedValue([]),
 }));
+vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
+  sweepLeaverSokoBotIntegrations: sweepMock,
+}));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
 }));
@@ -60,47 +65,50 @@ function run() {
   });
 }
 
+function setUp() {
+  vi.clearAllMocks();
+  sweepMock.mockResolvedValue(0);
+  botFindManyMock.mockResolvedValue([
+    {
+      id: "bot-1",
+      userId: "owner",
+      workspaceId: "ws",
+      ingestTimezone: "Europe/Berlin",
+      lastBriefingAt: null,
+    },
+  ]);
+  scheduleFindFirstMock.mockResolvedValue({ id: "standup" });
+  activeIntegrationsMock.mockResolvedValue([
+    {
+      id: "gmail-1",
+      provider: { id: "gmail" },
+      cursor: {
+        newestSeenAt: LAST_SEEN,
+        lastIngestAt: "2026-09-30T05:00:00.000Z",
+      },
+    },
+  ]);
+  fetchInboxMock.mockResolvedValue([
+    {
+      provider: "gmail",
+      id: "m1",
+      receivedAt: "2026-09-30T12:00:00.000Z",
+      subject: "Invoice",
+      from: "a@b.c",
+      snippet: "",
+      unread: true,
+    },
+  ]);
+  startTurnMock.mockResolvedValue({ turnId: "t", status: "COMPLETED" });
+  const log = { set: logSetMock, emit: logEmitMock };
+  checkMailImportanceMock.mockImplementation(async ({ mail }) => ({
+    important: mail,
+    log,
+  }));
+}
+
 describe("soko-bot ingest when the daily limit is spent", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    botFindManyMock.mockResolvedValue([
-      {
-        id: "bot-1",
-        userId: "owner",
-        workspaceId: "ws",
-        ingestTimezone: "Europe/Berlin",
-        lastBriefingAt: null,
-      },
-    ]);
-    scheduleFindFirstMock.mockResolvedValue({ id: "standup" });
-    activeIntegrationsMock.mockResolvedValue([
-      {
-        id: "gmail-1",
-        provider: { id: "gmail" },
-        cursor: {
-          newestSeenAt: LAST_SEEN,
-          lastIngestAt: "2026-09-30T05:00:00.000Z",
-        },
-      },
-    ]);
-    fetchInboxMock.mockResolvedValue([
-      {
-        provider: "gmail",
-        id: "m1",
-        receivedAt: "2026-09-30T12:00:00.000Z",
-        subject: "Invoice",
-        from: "a@b.c",
-        snippet: "",
-        unread: true,
-      },
-    ]);
-    startTurnMock.mockResolvedValue({ turnId: "t", status: "COMPLETED" });
-    const log = { set: logSetMock, emit: logEmitMock };
-    checkMailImportanceMock.mockImplementation(async ({ mail }) => ({
-      important: mail,
-      log,
-    }));
-  });
+  beforeEach(setUp);
 
   it("keeps the mail unseen for the next open slot", async () => {
     proactiveGateMock.mockResolvedValue({
@@ -187,5 +195,72 @@ describe("soko-bot ingest when the daily limit is spent", () => {
     );
     expect(checkMailImportanceMock).not.toHaveBeenCalled();
     expect(startTurnMock.mock.calls[0][0].message).toContain("Invoice");
+  });
+});
+
+describe("soko-bot ingest member", () => {
+  beforeEach(() => {
+    setUp();
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
+  });
+
+  function sharedBot() {
+    botFindManyMock.mockResolvedValue([
+      {
+        id: "bot-1",
+        userId: null,
+        workspaceId: "ws",
+        ingestTimezone: "Europe/Berlin",
+        lastBriefingAt: null,
+      },
+    ]);
+    activeIntegrationsMock.mockResolvedValue([
+      {
+        id: "gmail-1",
+        provider: { id: "gmail" },
+        connectorUserId: "connector",
+        cursor: {
+          newestSeenAt: LAST_SEEN,
+          lastIngestAt: "2026-09-30T05:00:00.000Z",
+        },
+      },
+    ]);
+  }
+
+  it("runs a shared bot's turn for nobody, not for whoever connected the mailbox", async () => {
+    sharedBot();
+    expect((await run()).deltas).toBe(1);
+    expect(startTurnMock.mock.calls[0][0]).toMatchObject({
+      userId: null,
+      sokoBotId: "bot-1",
+      workspaceId: "ws",
+      source: "INGEST",
+    });
+  });
+
+  it("runs a personal bot's turn for its owner on that bot, with no member lookup", async () => {
+    expect((await run()).deltas).toBe(1);
+    expect(startTurnMock.mock.calls[0][0]).toMatchObject({
+      userId: "owner",
+      sokoBotId: "bot-1",
+    });
+  });
+
+  it("sweeps leavers' integrations before reading any mailbox", async () => {
+    await run();
+    expect(sweepMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botFindManyMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("still ingests when the sweep fails", async () => {
+    sweepMock.mockRejectedValue(new Error("db down"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await run()).deltas).toBe(1);
+    expect(log).toHaveBeenCalledWith(
+      "Soko Bot leaver integration sweep failed",
+      { error: "db down" },
+    );
+    log.mockRestore();
   });
 });

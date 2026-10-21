@@ -97,11 +97,13 @@ export async function resolveSokoBotVersion(
 /** Block incompatible existing pins before any classifier or agent inference. Never silently repin. */
 export async function resolveRunnableSokoBotVersion(
   versionId: string | null | undefined,
+  /** A shared bot has no owner; its organization's admins manage it. */
+  shared = false,
 ): Promise<SokoBotVersion> {
   const version = await resolveSokoBotVersion(versionId);
   if (!isApprovedVersion(version))
     throw unprocessableEntity(
-      "This assistant’s version cannot run under the EU inference policy. Ask the owner to choose an approved EU version in assistant settings.",
+      `This assistant’s version cannot run under the EU inference policy. ${shared ? "Ask an organization owner or admin" : "Ask the owner"} to choose an approved EU version in assistant settings.`,
     );
   return version;
 }

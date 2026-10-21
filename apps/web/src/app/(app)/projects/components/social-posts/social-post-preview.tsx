@@ -54,6 +54,7 @@ export function SocialPostPreview({
         "bg-background text-foreground overflow-hidden rounded-xl border text-sm",
         className,
       )}
+      data-compact={content.compact ? "true" : undefined}
       data-provider={provider}
       data-testid="social-post-preview"
     >
@@ -76,9 +77,10 @@ export function SocialPostPreview({
   );
 }
 
-function usePreviewTime(timestamp: Date | null) {
+function usePreviewTime(timestamp: Date | null, label?: string) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
+  if (label !== undefined) return label;
   if (!timestamp) return t("now");
   const now = new Date();
   const diffMs = timestamp.getTime() - now.getTime();
@@ -107,14 +109,25 @@ function foldHead(text: string, maxChars: number, maxLines: number): string {
   return (cut > 0 ? head.slice(0, cut) : head).trimEnd();
 }
 
-function useFold(text: string, maxChars: number, maxLines: number) {
+function useFold(
+  text: string,
+  maxChars: number,
+  maxLines: number,
+  onSeeMore?: () => void,
+) {
   const [expanded, setExpanded] = useState(false);
   const head = foldHead(text, maxChars, maxLines);
   const folded = !expanded && head.length < text.length;
   return {
     folded,
     visibleText: folded ? head : text,
-    expand: () => setExpanded(true),
+    expand: () => {
+      if (onSeeMore) {
+        onSeeMore();
+        return;
+      }
+      setExpanded(true);
+    },
   };
 }
 
@@ -123,11 +136,16 @@ function XPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  compact,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account);
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
+  const fold = useFold(text, 180, 3, onSeeMore);
+  const visibleText = compact ? fold.visibleText : text;
   const actions = [
     { Icon: MessageCircle, key: "reply" },
     { Icon: Repeat2, key: "repost" },
@@ -154,13 +172,29 @@ function XPreview({
         {text ? (
           <p className="mt-0.5 leading-5 whitespace-pre-wrap break-words">
             <PreviewRichText
-              text={text}
+              text={visibleText}
               linkClassName="text-social-x-link"
               cashtags
             />
+            {compact && fold.folded ? (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-social-x-link hover:underline"
+                  onClick={fold.expand}
+                >
+                  {t("x.more")}
+                </button>
+              </>
+            ) : null}
           </p>
         ) : null}
-        <PreviewMediaGrid media={media} className="mt-3 rounded-2xl border" />
+        <PreviewMediaGrid
+          compact={compact}
+          media={media}
+          className="mt-3 rounded-2xl border"
+        />
         <div
           aria-hidden
           className="text-muted-foreground mt-3 flex items-center justify-between pe-8"
@@ -183,11 +217,14 @@ function LinkedInPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  compact,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
-  const fold = useFold(text, 210, 3);
+  const time = usePreviewTime(timestamp, timestampLabel);
+  const fold = useFold(text, 210, 3, onSeeMore);
   const actions = [
     { Icon: ThumbsUp, label: t("linkedin.like") },
     { Icon: MessageSquare, label: t("linkedin.comment") },
@@ -232,7 +269,7 @@ function LinkedInPreview({
       ) : (
         <div className="h-3" />
       )}
-      <PreviewMediaGrid media={media} />
+      <PreviewMediaGrid compact={compact} media={media} />
       <div
         aria-hidden
         className="text-muted-foreground mx-4 flex justify-between border-t py-1"
@@ -259,11 +296,14 @@ function FacebookPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  compact,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
-  const fold = useFold(text, 400, 4);
+  const time = usePreviewTime(timestamp, timestampLabel);
+  const fold = useFold(text, 400, 4, onSeeMore);
   const largeStatus =
     media.length === 0 &&
     text.length <= FACEBOOK_LARGE_STATUS_MAX &&
@@ -319,7 +359,7 @@ function FacebookPreview({
       ) : (
         <div className="h-3" />
       )}
-      <PreviewMediaGrid media={media} />
+      <PreviewMediaGrid compact={compact} media={media} />
       <div
         aria-hidden
         className="text-muted-foreground mx-4 flex justify-around border-t py-1"
@@ -343,13 +383,16 @@ function InstagramPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  mediaUnavailable,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
   const name =
     account?.handle?.replace(/^@/, "") ??
     accountName(account, t("accountFallback"));
-  const fold = useFold(text, 125, 2);
+  const fold = useFold(text, 125, 2, onSeeMore);
   const [first] = media;
 
   return (
@@ -383,7 +426,9 @@ function InstagramPreview({
           </>
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
-            {t("instagram.mediaRequired")}
+            {t(
+              mediaUnavailable ? "mediaUnavailable" : "instagram.mediaRequired",
+            )}
           </div>
         )}
       </div>
@@ -416,9 +461,10 @@ function InstagramPreview({
           </p>
         ) : null}
         <p className="text-muted-foreground text-2xs uppercase">
-          {timestamp
-            ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
-            : t("now")}
+          {timestampLabel ??
+            (timestamp
+              ? formatter.dateTime(timestamp, { month: "long", day: "numeric" })
+              : t("now"))}
         </p>
       </div>
     </div>
@@ -430,12 +476,15 @@ function YouTubePreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  mediaUnavailable,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
   const { title, description } = splitYouTubePostText(text);
-  const fold = useFold(description, 180, 3);
+  const fold = useFold(description, 180, 3, onSeeMore);
   const clip = media[0];
 
   return (
@@ -458,7 +507,7 @@ function YouTubePreview({
           </>
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-xs text-balance text-on-media-muted">
-            {t("youtube.videoRequired")}
+            {t(mediaUnavailable ? "mediaUnavailable" : "youtube.videoRequired")}
           </div>
         )}
       </div>
@@ -506,11 +555,13 @@ function TikTokPreview({
   account,
   media,
   text,
+  mediaUnavailable,
+  onSeeMore,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
   const handle = accountHandle(account) ?? name;
-  const fold = useFold(text, 80, 2);
+  const fold = useFold(text, 80, 2, onSeeMore);
   const clip = media[0];
 
   return (
@@ -523,7 +574,7 @@ function TikTokPreview({
           <PreviewMediaItem media={clip} />
         ) : (
           <div className="flex size-full items-center justify-center px-6 pb-28 pe-12 text-center text-xs text-balance text-on-media-muted">
-            {t("tiktok.videoRequired")}
+            {t(mediaUnavailable ? "mediaUnavailable" : "tiktok.videoRequired")}
           </div>
         )}
         <div
@@ -572,10 +623,12 @@ function GenericPreview({
   media,
   text,
   timestamp,
+  timestampLabel,
+  compact,
 }: SocialPostPreviewContentProps & { provider: SocialPost["provider"] }) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
-  const time = usePreviewTime(timestamp);
+  const time = usePreviewTime(timestamp, timestampLabel);
 
   return (
     <div className="space-y-3 p-4">
@@ -590,7 +643,11 @@ function GenericPreview({
       {text ? (
         <p className="leading-5 whitespace-pre-wrap break-words">{text}</p>
       ) : null}
-      <PreviewMediaGrid media={media} className="rounded-lg" />
+      <PreviewMediaGrid
+        compact={compact}
+        media={media}
+        className="rounded-lg"
+      />
     </div>
   );
 }

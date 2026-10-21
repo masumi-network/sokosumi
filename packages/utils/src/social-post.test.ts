@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SOCIAL_POST_FIRST_COMMENT_LIMITS,
+  SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
@@ -9,10 +11,14 @@ import {
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
+  socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostMediaRequirementMessage,
+  socialPostMeetsMediaRequirement,
   socialPostMimeForFileName,
   socialPostProviderLabel,
+  socialPostSupportsFirstComment,
   splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
@@ -78,11 +84,51 @@ describe("per-provider limits and requirements", () => {
     expect(socialPostProviderLabel(provider)).toBe(label);
   });
 
+  it.each([
+    ["x", true, null],
+    ["linkedin", true, null],
+    ["facebook", true, null],
+    ["instagram", false, "Instagram requires at least one image or video"],
+    ["tiktok", false, "TikTok requires a video"],
+    ["youtube", false, "YouTube requires a video"],
+  ] as const)(
+    "treats empty media on %s as ready=%s",
+    (provider, ready, message) => {
+      expect(socialPostMeetsMediaRequirement(provider, [])).toBe(ready);
+      expect(socialPostMediaRequirementMessage(provider)).toBe(message);
+    },
+  );
+
+  it("accepts one video for TikTok and YouTube, and any file for Instagram", () => {
+    expect(socialPostMeetsMediaRequirement("tiktok", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("tiktok", [image])).toBe(false);
+    expect(socialPostMeetsMediaRequirement("youtube", [video])).toBe(true);
+    expect(socialPostMeetsMediaRequirement("instagram", [jpeg])).toBe(true);
+  });
+
   it("exposes the strictest request bounds and the schedule lead", () => {
     expect(SOCIAL_POST_TEXT_MAX).toBe(SOCIAL_POST_TEXT_LIMITS.facebook);
     expect(SOCIAL_POST_MEDIA_MAX).toBe(4);
     expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
     expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
+  });
+
+  it.each([
+    ["x", 280],
+    ["linkedin", 1250],
+    ["facebook", 8000],
+    ["instagram", 300],
+    ["youtube", 10_000],
+  ] as const)("caps %s first comments at %i characters", (provider, limit) => {
+    expect(SOCIAL_POST_FIRST_COMMENT_LIMITS[provider]).toBe(limit);
+    expect(socialPostFirstCommentLimit(provider)).toBe(limit);
+    expect(socialPostSupportsFirstComment(provider)).toBe(true);
+  });
+
+  it("leaves TikTok without a first comment", () => {
+    expect(socialPostFirstCommentLimit("tiktok")).toBeNull();
+    expect(socialPostSupportsFirstComment("tiktok")).toBe(false);
+    expect(SOCIAL_POST_FIRST_COMMENT_MAX).toBe(10_000);
   });
 });
 

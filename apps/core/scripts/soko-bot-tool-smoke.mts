@@ -71,7 +71,15 @@ if (candidates.length > 1) {
   );
   process.exit(2);
 }
-const bot = candidates[0];
+const found = candidates[0];
+const ownerId = found.userId;
+if (ownerId === null) {
+  console.error(
+    `Soko Bot ${found.id} is shared; the smoke runs a personal bot.`,
+  );
+  process.exit(2);
+}
+const bot = { ...found, userId: ownerId };
 
 const memoryVersion =
   (
@@ -100,7 +108,7 @@ await prisma.sokoBotContextSnapshot.create({
       create: {
         id: turnId,
         sokoBotId: bot.id,
-        userId: bot.userId,
+        requestedByUserId: bot.userId,
         workspaceId: bot.workspaceId,
         clientTurnId: `lab:toolsmoke:${Date.now()}`,
         userMessage: "tool smoke",
@@ -551,6 +559,22 @@ try {
     skip(
       "open_direct_chat",
       "would message a real colleague; pass --dm <name or email>",
+    );
+  }
+
+  // Opens a private channel with a Coworker, whose answer spends credits.
+  const askCoworkerId = flag("--ask-coworker");
+  if (askCoworkerId) {
+    await run("ask_coworker", {
+      coworkerIds: [askCoworkerId],
+      question:
+        "Tool smoke run from a Soko Bot harness: in one sentence, what kind of work do you take on?",
+    });
+    leftBehind.push(`Question channel opened with Coworker ${askCoworkerId}`);
+  } else {
+    skip(
+      "ask_coworker",
+      "would open a channel and ask a real Coworker; pass --ask-coworker <coworkerId>",
     );
   }
 

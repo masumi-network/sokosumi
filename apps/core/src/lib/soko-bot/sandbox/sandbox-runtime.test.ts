@@ -35,6 +35,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     sokoBotTurn: {
+      findFirst: vi.fn().mockResolvedValue({ id: "turn_2" }),
       findUniqueOrThrow: vi
         .fn()
         .mockResolvedValue({ deadlineAt: new Date(Date.now() + 900_000) }),
@@ -73,6 +74,17 @@ describe("SandboxSokoBotRuntime", () => {
     pending.length = 0;
     createEventMock.mockResolvedValue({});
     getSandboxMock.mockResolvedValue({ stop: vi.fn() });
+  });
+
+  it("closes a cancelled turn so it settles without its runner", async () => {
+    await new SandboxSokoBotRuntime().cancelTurn({
+      sessionId: "sess_1",
+      eveTurnId: "turn_2",
+    });
+    const types = createEventMock.mock.calls.map(
+      ([args]) => (args as { data: { type: string } }).data.type,
+    );
+    expect(types).toEqual(["turn.cancelled", "session.waiting"]);
   });
 
   it("runs each turn in a new VM, after stopping any VM still on the workspace", async () => {

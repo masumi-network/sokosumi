@@ -5,7 +5,9 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
+import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
@@ -23,6 +25,7 @@ const {
   botFindManyMock,
   botGroupByMock,
   botFindUniqueMock,
+  memberFindManyMock,
   botFindUniqueOrThrowMock,
   botCountMock,
   botUpdateManyMock,
@@ -54,6 +57,7 @@ const {
   scheduleUpdateMock,
   transactionMock,
   transactionQueryRawMock,
+  memberFindFirstMock,
   tokenSignMock,
   taskFindManyMock,
   turnCreateMock,
@@ -76,6 +80,7 @@ const {
   botFindManyMock: vi.fn(),
   botGroupByMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   botCountMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
@@ -112,6 +117,7 @@ const {
   scheduleUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   transactionQueryRawMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   tokenSignMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   turnCreateMock: vi.fn(),
@@ -236,6 +242,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: adminActionFindUniqueMock,
     },
     task: { findMany: taskFindManyMock },
+    member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
     workspace: { findFirst: workspaceFindFirstMock },
   },
 }));
@@ -267,7 +274,10 @@ import {
   type BuiltContextPacket,
   ContextPacketBuilder,
 } from "@/lib/soko-bot/context-packet";
-import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import {
+  SokoBotControlPlane,
+  SokoBotNotFoundError,
+} from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
 
@@ -308,6 +318,7 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
       create: vi.fn().mockResolvedValue({ id: "intent-1", revision: 1 }),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -453,7 +464,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async ({ capability, route, guarded }) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -511,7 +522,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       };
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
         status: "RUNNING",
@@ -571,7 +582,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (blockerKind, detail) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
         status: "RUNNING",
@@ -623,7 +634,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (status) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -645,7 +656,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("persists the assessed outcome before receipt lines and before delivery is enqueued", async () => {
     turnFindUniqueMock.mockResolvedValueOnce({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(),
       costUsdMicros: 0n,
@@ -686,7 +697,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(prepareTurnActionResultPreviews).toHaveBeenCalledWith(
       "turn_1",
-      expect.objectContaining({ userId: "user_1" }),
+      expect.objectContaining({ requestedByUserId: "user_1" }),
       expect.anything(),
     );
     expect(
@@ -704,7 +715,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (state, blockerKind) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         eveSessionId: "session_1",
         startedAt: new Date(),
         costUsdMicros: 0n,
@@ -975,10 +986,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       ([query]) => query?.where?.source === "CHAT",
     )?.[0];
     expect(replyQuery.where).toMatchObject({
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
-      requestedByUserId: null,
+      askedByUserId: null,
       chatMentionId: null,
     });
     expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toContain(
@@ -1027,7 +1038,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_teammate",
+        askedByUserId: "user_teammate",
         classifyMessage: "yes",
       },
     });
@@ -1041,7 +1052,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       ([query]) => query?.where?.source === "CHAT",
     )?.[0];
     expect(replyQuery.where).toMatchObject({
-      requestedByUserId: "user_teammate",
+      askedByUserId: "user_teammate",
       chatMention: { message: { roomId: "room-1" } },
     });
     expect(intentFindManyMock).toHaveBeenCalledWith(
@@ -1049,6 +1060,88 @@ describe("SokoBotControlPlane lifecycle", () => {
         where: expect.objectContaining({ requesterId: "user_teammate" }),
       }),
     );
+  });
+
+  it("runs a shared bot by id for its member and names them as the requester", async () => {
+    const sharedBot = adminBot({
+      userId: null,
+      workspaceId: "workspace_1",
+      projectId: null,
+      workspace: { organizationId: "org_1" },
+    });
+    botFindFirstMock.mockResolvedValue(sharedBot);
+    botFindUniqueMock.mockResolvedValue(sharedBot);
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "shared-turn",
+      leaseToken: "shared-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "shared-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "member_1",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      clientTurnId: "shared-client",
+      message: "What is open?",
+    });
+
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      id: BOT_ID,
+      workspaceId: "workspace_1",
+      deletedAt: null,
+    });
+    expect(
+      turnFindFirstMock.mock.calls.find(
+        ([query]) => query?.where?.source === "CHAT",
+      )?.[0]?.where,
+    ).toMatchObject({
+      requestedByUserId: "member_1",
+      askedByUserId: "member_1",
+    });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data).toMatchObject({
+      requestedByUserId: "member_1",
+      askedByUserId: "member_1",
+    });
+  });
+
+  it("refuses to run an archived shared bot by id", async () => {
+    botFindFirstMock.mockResolvedValue(
+      adminBot({
+        userId: null,
+        archivedAt: new Date(),
+        workspaceId: "workspace_1",
+        projectId: null,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    await expect(
+      new SokoBotControlPlane(
+        runtimeWithReset(vi.fn()),
+        { build: vi.fn() } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "member_1",
+        sokoBotId: BOT_ID,
+        workspaceId: "workspace_1",
+        clientTurnId: "archived-client",
+        message: "Hello",
+      }),
+    ).rejects.toBeInstanceOf(SokoBotNotFoundError);
+    expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
   it("gives a bare yes no referent when the newest turn did not complete", async () => {
@@ -1188,10 +1281,9 @@ describe("SokoBotControlPlane lifecycle", () => {
         status: "RUNNING",
       },
     ]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
-      "OWNER",
       'What is the status of "Apollo launch"?',
     );
     expect(context.namedTaskIds).toEqual(["old-apollo"]);
@@ -1217,10 +1309,9 @@ describe("SokoBotControlPlane lifecycle", () => {
       { id: "apollo-one", name: "Apollo launch marketing" },
       { id: "apollo-two", name: "Apollo launch engineering" },
     ]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
-      "OWNER",
       "What is the status of Apollo launch?",
     );
     expect(context.namedTaskIds).toEqual(["apollo-one", "apollo-two"]);
@@ -1228,10 +1319,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("does not expand a teammate request through owner-only descriptive search", async () => {
     taskFindManyMock.mockResolvedValue([]);
-    const context = await new SokoBotControlPlane()["classificationContext"](
-      "user_1",
+    const context = await loadClassificationContext(
+      sokoBotTurnReader("user_1", "TEAMMATE", null),
       "workspace_1",
-      "TEAMMATE",
       'Find "Apollo launch"',
     );
     expect(context.namedTaskIds).toEqual([]);
@@ -1262,7 +1352,14 @@ describe("SokoBotControlPlane lifecycle", () => {
         where: expect.objectContaining({ deletedAt: null }),
       }),
     );
-    expect(botCreateMock).toHaveBeenCalled();
+    expect(botCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user_1",
+          createdByUserId: "user_1",
+        }),
+      }),
+    );
     expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -1564,7 +1661,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -1626,7 +1723,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -1665,7 +1762,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const replacement = {
       id: "turn_fresh",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -1782,7 +1879,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_teammate",
+        askedByUserId: "user_teammate",
       },
     });
 
@@ -2151,7 +2248,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         chat: {
           mentionId: "mention_2",
           responseMessageId: "message_2",
-          requestedByUserId: "user_other",
+          askedByUserId: "user_other",
           askedByBot: true,
           chainDepth: 1,
         },
@@ -2198,7 +2295,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_3",
         responseMessageId: "message_3",
-        requestedByUserId: "user_other",
+        askedByUserId: "user_other",
         askedByBot: true,
         chainDepth: 1,
       },
@@ -2244,7 +2341,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chat: {
         mentionId: "mention_1",
         responseMessageId: "message_1",
-        requestedByUserId: "user_1",
+        askedByUserId: "user_1",
       },
     });
 
@@ -2304,7 +2401,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         prompt: "Review active work",
         schedule: {
           sokoBotId: BOT_ID,
-          userId: "user_1",
+          requestedByUserId: "user_1",
           workspaceId: "workspace_1",
         },
         OR: [{ turnId: null }, { turnId: "turn_scheduled" }],
@@ -2401,7 +2498,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         prompt: "Original occurrence prompt",
         schedule: {
           sokoBotId: BOT_ID,
-          userId: "user_1",
+          requestedByUserId: "user_1",
           workspaceId: "workspace_1",
         },
       },
@@ -2483,8 +2580,9 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
+        sokoBot: { userId: "user_1" },
       },
     });
 
@@ -2515,7 +2613,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const turn = {
       id: "turn_abandoned",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Delegate the launch brief",
@@ -2581,7 +2679,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue({
       id: "turn_existing",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       workspaceId: "workspace_1",
       source: "CHAT",
       userMessage: "Hello",
@@ -2667,7 +2765,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       eveSessionId: "session_1",
       eveTurnId: "eve_turn_1",
       cancellationRequestedAt,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
     });
@@ -2711,9 +2809,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "CANCEL_REQUESTED",
       eveSessionId: "session_1",
       eveTurnId: "eve_turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
+      sokoBot: { userId: "user_1", workspaceId: "workspace_1" },
     });
     turnUpdateManyMock.mockResolvedValue({ count: 0 });
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
@@ -2727,15 +2826,92 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it.each([
+    {
+      label: "another bot's background run",
+      sokoBotId: "other_bot",
+      parentTurnId: "parent_1",
+      requestedByUserId: null,
+    },
+    {
+      label: "its own top-level turn",
+      sokoBotId: BOT_ID,
+      parentTurnId: null,
+      requestedByUserId: null,
+    },
+    {
+      label: "a member's background run",
+      sokoBotId: BOT_ID,
+      parentTurnId: "parent_1",
+      requestedByUserId: "member_1",
+    },
+  ])(
+    "lets a bot acting for nobody stop only its own background runs, not $label",
+    async ({ sokoBotId, parentTurnId, requestedByUserId }) => {
+      turnFindFirstMock.mockResolvedValue({
+        id: "turn_1",
+        status: "RUNNING",
+        eveSessionId: "session_1",
+        eveTurnId: "eve_turn_1",
+        requestedByUserId,
+        parentTurnId,
+        sokoBotId,
+        workspaceId: "workspace_1",
+        sokoBot: { userId: null, workspaceId: "workspace_1" },
+      });
+      const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.cancelTurn = cancelTurn;
+
+      await expect(
+        new SokoBotControlPlane(runtime).cancelTurn(
+          { sokoBotId: BOT_ID },
+          "turn_1",
+        ),
+      ).rejects.toThrow("Active turn not found");
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+      expect(cancelTurn).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lets a bot acting for nobody stop its own background run nobody asked for", async () => {
+    turnFindFirstMock.mockResolvedValue({
+      id: "turn_1",
+      status: "RUNNING",
+      eveSessionId: "session_1",
+      eveTurnId: "eve_turn_1",
+      requestedByUserId: null,
+      parentTurnId: "parent_1",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      sokoBot: { userId: null, workspaceId: "workspace_1" },
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
+
+    await new SokoBotControlPlane(runtime).cancelTurn(
+      { sokoBotId: BOT_ID },
+      "turn_1",
+    );
+
+    expect(turnUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "turn_1" }),
+      }),
+    );
+  });
+
   it("never sends a session-wide cancellation before Eve turn binding", async () => {
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",
       status: "RUNNING",
       eveSessionId: "session_1",
       eveTurnId: null,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
+      sokoBot: { userId: "user_1", workspaceId: "workspace_1" },
     });
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
     const runtime = runtimeWithReset(vi.fn());
@@ -2750,7 +2926,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     botFindFirstMock.mockResolvedValue(adminBot({ eveSessionId: "session_1" }));
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
       eveSessionId: "session_1",
@@ -2793,6 +2969,201 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(cancelTurn).toHaveBeenCalledWith(
       expect.objectContaining({ eveTurnId: "eve_turn_1" }),
+    );
+  });
+
+  describe("who may manage a shared bot", () => {
+    const SHARED_ID = { kind: "id", sokoBotId: BOT_ID } as const;
+    const ROLES: Record<string, string> = {
+      owner_1: "owner",
+      admin_1: "admin",
+      member_1: "member",
+      member_2: "member",
+    };
+    const sharedBot = (overrides: Record<string, unknown> = {}) => ({
+      ...adminBot({ userId: null, workspaceId: "ws_1" }),
+      workspace: { organizationId: "org_1" },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      // Only a Member row of the bot's own workspace's Organization counts.
+      memberFindFirstMock.mockImplementation(
+        async (args: {
+          where: {
+            userId: string;
+            organization: { workspace: { id: string } };
+          };
+        }) => {
+          const role =
+            args.where.organization.workspace.id === "ws_1"
+              ? ROLES[args.where.userId]
+              : undefined;
+          return role ? { role } : null;
+        },
+      );
+      botFindFirstMock.mockResolvedValue(sharedBot());
+      turnFindFirstMock.mockResolvedValue(null);
+      botUpdateMock.mockResolvedValue({});
+      memoryCreateMock.mockResolvedValue({ id: "memory_v2", version: 2 });
+    });
+
+    it.each(["owner_1", "admin_1"])("lets %s archive it", async (userId) => {
+      await new SokoBotControlPlane().archive(userId, "ws_1", SHARED_ID);
+      expect(botUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "PAUSED" }),
+        }),
+      );
+    });
+
+    it("refuses a member the archive", async () => {
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(botUpdateMock).not.toHaveBeenCalled();
+      expect(sokoBotMemberDeleteManyMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves an already archived bot alone after the role check", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+      expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["owner_1", "admin_1"])(
+      "lets %s reset its memory",
+      async (userId) => {
+        await new SokoBotControlPlane().resetMemory(userId, "ws_1", SHARED_ID);
+        expect(memoryCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ source: "user_reset" }),
+          }),
+        );
+      },
+    );
+
+    it("refuses a member the memory reset", async () => {
+      await expect(
+        new SokoBotControlPlane().resetMemory("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(memoryCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("answers an archived bot's memory reset as not found", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+      await expect(
+        new SokoBotControlPlane().resetMemory("admin_1", "ws_1", SHARED_ID),
+      ).rejects.toThrow("Soko Bot not found");
+    });
+
+    it("keeps the personal bot's archive and reset with its owner, no role read", async () => {
+      botFindFirstMock.mockResolvedValue(adminBot());
+      await new SokoBotControlPlane().resetMemory("user_1", "ws_1");
+      await new SokoBotControlPlane().archive("user_1", "ws_1");
+      expect(memoryCreateMock).toHaveBeenCalledOnce();
+      expect(botUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "PAUSED" }),
+        }),
+      );
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+    });
+
+    const turnOf = (source: string, userId = "member_1") => ({
+      id: "turn_1",
+      status: "RUNNING",
+      source,
+      chainDepth: 0,
+      eveSessionId: "session_1",
+      eveTurnId: "eve_turn_1",
+      requestedByUserId: userId,
+      sokoBotId: BOT_ID,
+      workspaceId: "ws_1",
+      sokoBot: { userId: null, workspaceId: "ws_1" },
+    });
+
+    it.each(["member_1", "admin_1", "owner_1"])(
+      "lets %s cancel the asking member's chat turn",
+      async (userId) => {
+        turnFindFirstMock.mockResolvedValue(turnOf("CHAT"));
+        await new SokoBotControlPlane(runtimeWithReset(vi.fn())).cancelTurn(
+          userId,
+          "turn_1",
+        );
+        expect(turnFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: "turn_1" } }),
+        );
+        expect(turnUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "CANCEL_REQUESTED" }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      ["another member's chat turn", "CHAT", "member_2", 403],
+      ["a self-started turn", "SCHEDULE", "member_1", 403],
+    ])("refuses a member %s", async (_label, source, caller, status) => {
+      turnFindFirstMock.mockResolvedValue(turnOf(source));
+      await expect(
+        new SokoBotControlPlane(runtimeWithReset(vi.fn())).cancelTurn(
+          caller,
+          "turn_1",
+        ),
+      ).rejects.toMatchObject({ status });
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("hides a shared turn from a non-member and a personal turn from others", async () => {
+      turnFindFirstMock.mockResolvedValue(turnOf("CHAT"));
+      const plane = new SokoBotControlPlane(runtimeWithReset(vi.fn()));
+      await expect(plane.cancelTurn("outsider", "turn_1")).rejects.toThrow(
+        "Active turn not found",
+      );
+      turnFindFirstMock.mockResolvedValue({
+        ...turnOf("CHAT", "user_1"),
+        sokoBot: { userId: "user_1", workspaceId: "ws_1" },
+      });
+      await expect(plane.cancelTurn("admin_1", "turn_1")).rejects.toThrow(
+        "Active turn not found",
+      );
+      expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a shared bot", null, "admin_1"],
+      ["a personal bot", "user_1", "user_1"],
+    ])(
+      "audits an admin action on %s against its owner or the operator",
+      async (_label, owner, auditedUserId) => {
+        let state = adminBot({ userId: owner });
+        botFindUniqueMock.mockImplementation(async () => state);
+        botUpdateMock.mockImplementation(async ({ data }) => {
+          state = { ...state, ...data };
+          return state;
+        });
+        await new SokoBotControlPlane().performAdminAction({
+          sokoBotId: BOT_ID,
+          operatorId: "admin_1",
+          action: "PAUSE",
+          reason: "Investigate",
+          requestId: "request-shared-pause",
+        });
+        expect(adminActionCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "ATTEMPTED",
+              userId: auditedUserId,
+              operatorId: "admin_1",
+            }),
+          }),
+        );
+      },
     );
   });
 
@@ -2895,7 +3266,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "eve-session-secret",
       startedAt: new Date("2026-08-18T12:00:00.000Z"),
       costUsdMicros: 0n,
@@ -2956,7 +3327,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "eve-session-secret",
       startedAt: new Date("2026-08-18T12:00:00.000Z"),
       costUsdMicros: 0n,
@@ -3126,7 +3497,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     scheduleFindFirstMock.mockResolvedValue({
       id: "schedule_1",
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       enabled: false,
       consecutiveFailures: 5,
       timezone: "UTC",
@@ -3459,6 +3830,88 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it.each([
+    {
+      action: "RETRY_SCHEDULE_RUN" as const,
+      targetId: "run_1",
+      member: null,
+    },
+    {
+      action: "RETRY_SCHEDULE_RUN" as const,
+      targetId: "run_1",
+      systemKey: "meeting-prep",
+      member: null,
+    },
+    {
+      action: "RETRY_LAST_FAILED" as const,
+      targetId: "01960001-0001-7001-8001-000000000099",
+      member: "turn_member",
+    },
+  ])(
+    "replays $action on a shared bot for $member",
+    async ({ action, targetId, systemKey = null, member }) => {
+      const controlPlane = new SokoBotControlPlane();
+      const startTurn = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
+        turnId: "turn_admin_retry",
+        sokoBotId: BOT_ID,
+        sessionId: "session_admin_retry",
+        status: "RUNNING",
+        route: "DIRECT_RESPONSE",
+        capabilities: [],
+        duplicate: false,
+      });
+      const sharedBot = adminBot({
+        userId: null,
+        createdByUserId: "creator_1",
+        workspace: { organizationId: "org_1" },
+      });
+      botFindUniqueMock.mockResolvedValue(sharedBot);
+      botFindUniqueOrThrowMock.mockResolvedValue(sharedBot);
+      adminActionFindUniqueMock.mockResolvedValue(null);
+      turnFindUniqueMock.mockResolvedValue(null);
+      scheduleRunFindFirstMock.mockResolvedValue({
+        id: "run_1",
+        status: "FAILED",
+        attempt: 1,
+        turnId: null,
+        prompt: "Occurrence prompt",
+        schedule: {
+          sokoBotId: BOT_ID,
+          // A shared bot's schedule acts for nobody, whoever asked for it.
+          requestedByUserId: "schedule_member",
+          workspaceId: "workspace_1",
+          prompt: "Occurrence prompt",
+          systemKey,
+        },
+        turn: null,
+      });
+      turnFindFirstMock.mockResolvedValue({
+        id: targetId,
+        workspaceId: "workspace_1",
+        userMessage: "Original failed request",
+        route: null,
+        capabilityNames: [],
+        chainDepth: 0,
+        requestedByUserId: "turn_member",
+      });
+
+      await controlPlane.performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action,
+        targetId,
+        reason: "Retry for the team",
+        operationId: `shared-${action}`,
+      });
+
+      const call = startTurn.mock.calls[0]?.[0];
+      expect(call).toMatchObject({ userId: member, sokoBotId: BOT_ID });
+      // The member asked for it themselves, so it is not a teammate replay.
+      expect(call?.chat).toBeUndefined();
+      expect(memberFindManyMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses immutable occurrence prompt and avoids post-start schedule-run mutation for admin retry", async () => {
     const controlPlane = new SokoBotControlPlane();
     const startTurn = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
@@ -3480,7 +3933,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3551,7 +4004,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3627,7 +4080,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3681,7 +4134,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3805,7 +4258,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       prompt: "Original occurrence prompt",
       schedule: {
         sokoBotId: BOT_ID,
-        userId: "user_1",
+        requestedByUserId: "user_1",
         workspaceId: "workspace_1",
         prompt: "Edited future prompt",
       },
@@ -3838,7 +4291,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("settles an expired turn and its linked schedule run once", async () => {
     turnFindFirstMock.mockResolvedValue({
       id: "turn_1",
-      userId: "user_1",
+      requestedByUserId: "user_1",
       sokoBotId: BOT_ID,
       workspaceId: "01960001-0001-7001-8001-000000000004",
       eveSessionId: null,
@@ -3846,7 +4299,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3904,7 +4357,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("checks the owner's wallet for a low balance after a charged turn settled", async () => {
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3951,7 +4404,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("checks the wallet for a charge that committed even when settlement lost its lease", async () => {
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: "session_1",
       startedAt: new Date(Date.now() - 5_000),
       costUsdMicros: 0n,
@@ -3979,7 +4432,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
     turnFindUniqueMock.mockResolvedValue({
       sokoBotId: BOT_ID,
-      userId: "user_1",
+      requestedByUserId: "user_1",
       eveSessionId: null,
       startedAt: null,
       costUsdMicros: 0n,
@@ -4283,5 +4736,27 @@ describe("SET_VERSION and fleet migration", () => {
       { versionId: "v16", count: 19 },
       { versionId: "v14", count: 12 },
     ]);
+  });
+});
+
+describe("reading a turn through the caller's own bot", () => {
+  it("never returns a shared bot's turn the caller once asked", async () => {
+    turnFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotControlPlane(runtimeWithReset(vi.fn())).getTurn(
+        "member_1",
+        "turn_1",
+      ),
+    ).rejects.toThrow();
+    expect(turnFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "turn_1",
+          requestedByUserId: "member_1",
+          sokoBot: { userId: "member_1" },
+        },
+      }),
+    );
   });
 });

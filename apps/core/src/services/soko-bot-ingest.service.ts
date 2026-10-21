@@ -2,14 +2,15 @@ import type {
   SokoBotCalendarEvent,
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
-
 import prisma from "@/lib/db/prisma";
+import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import { checkMailImportance } from "@/lib/soko-bot/mail-importance";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { sweepLeaverSokoBotIntegrations } from "@/services/soko-bot-integration-leaver.service";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
@@ -184,6 +185,19 @@ export class SokoBotIngestSyncService {
       deferred: 0,
       failed: 0,
     };
+    // A member who left must not have their mailbox read once more.
+    try {
+      const disconnected = await sweepLeaverSokoBotIntegrations();
+      if (disconnected > 0) {
+        console.info("[soko-bot-ingest] Disconnected leavers' integrations", {
+          disconnected,
+        });
+      }
+    } catch (error) {
+      console.error("Soko Bot leaver integration sweep failed", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,
@@ -221,7 +235,8 @@ export class SokoBotIngestSyncService {
   private async ingestBot(
     bot: {
       id: string;
-      userId: string;
+      /** `null` for a shared bot. */
+      userId: string | null;
       workspaceId: string;
       ingestTimezone: string;
       lastBriefingAt: Date | null;
@@ -331,6 +346,8 @@ export class SokoBotIngestSyncService {
       return "skipped";
     }
 
+    // A personal bot runs for its owner; a shared bot runs for nobody.
+    const starter = sokoBotSelfStarter(bot);
     const kind = briefing ? "briefing" : "delta";
     const gate = await proactiveGate(bot.id, now);
     if (!gate.ok) {
@@ -367,7 +384,7 @@ export class SokoBotIngestSyncService {
     let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
     try {
       started = await sokoBotControlPlane.startTurn({
-        userId: bot.userId,
+        ...starter,
         workspaceId: bot.workspaceId,
         sokoBotId: bot.id,
         clientTurnId: `ingest:${kind}:${bot.id}:${now.toISOString().slice(0, 13)}`,

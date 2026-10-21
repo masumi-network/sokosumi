@@ -222,6 +222,15 @@ describe("choosing between 152 models", () => {
 });
 
 describe("what the composer says without being opened", () => {
+  it("uses the same side gutter as the chat composer", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+    expect(
+      screen
+        .getByRole("textbox", { name: "promptPlaceholder" })
+        .closest("form"),
+    ).toHaveClass("px-3", "md:px-5");
+  });
+
   it("names the single chosen model", () => {
     render(
       <Harness
@@ -327,7 +336,7 @@ describe("the line above Generate", () => {
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
-  it("generates on Shift+Enter from the prompt", () => {
+  it("keeps Shift+Enter for a new line without buying images", () => {
     const onGenerate = vi.fn();
     render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
 
@@ -335,7 +344,7 @@ describe("the line above Generate", () => {
     fireEvent.change(prompt, { target: { value: "a red fox" } });
     fireEvent.keyDown(prompt, { key: "Enter", shiftKey: true });
 
-    expect(onGenerate).toHaveBeenCalledTimes(1);
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("buys exactly the batch it described", () => {
@@ -597,7 +606,7 @@ describe("the batch ceiling", () => {
       />,
     );
 
-    clickOption("selectAllModels");
+    clickOption("selectModelsUpToLimit");
     generate();
 
     const requests = onGenerate.mock.calls[0][0] as GenerationRequest[];
@@ -607,5 +616,55 @@ describe("the batch ceiling", () => {
     expect(new Set(requests.map((request) => request.modelId)).size).toBe(
       MAX_BATCH,
     );
+  });
+  it.each([{ metaKey: true }, { ctrlKey: true }])(
+    "generates with the explicit shortcut %j",
+    (modifier) => {
+      const onGenerate = vi.fn();
+      render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
+      const prompt = screen.getByLabelText("promptPlaceholder");
+      fireEvent.change(prompt, { target: { value: "a fox" } });
+      fireEvent.keyDown(prompt, { key: "Enter", ...modifier });
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([{ isComposing: true }, { keyCode: 229 }])(
+    "does not buy images while composing text %j",
+    (composition) => {
+      const onGenerate = vi.fn();
+      render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
+      const prompt = screen.getByLabelText("promptPlaceholder");
+      fireEvent.change(prompt, { target: { value: "a fox" } });
+      fireEvent.keyDown(prompt, {
+        key: "Enter",
+        metaKey: true,
+        ...composition,
+      });
+      expect(onGenerate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps an oversized pasted brief, explains the limit and blocks click and keyboard purchases", () => {
+    const onGenerate = vi.fn();
+    render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
+    const prompt = screen.getByLabelText("promptPlaceholder");
+    fireEvent.change(prompt, { target: { value: "x".repeat(4001) } });
+    expect(prompt).toHaveValue("x".repeat(4001));
+    expect(prompt).toHaveAttribute("aria-invalid", "true");
+    expect(prompt).toHaveAccessibleDescription(/promptTooLong/);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      'promptTooLong:{"limit":4000}',
+    );
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /^generate/ }));
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(onGenerate).not.toHaveBeenCalled();
+
+    fireEvent.change(prompt, { target: { value: `  ${"x".repeat(4000)}  ` } });
+    expect(prompt).not.toHaveAttribute("aria-invalid");
+    fireEvent.click(screen.getByRole("button", { name: /^generate/ }));
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+    expect(onGenerate.mock.calls[0][0][0].prompt).toBe("x".repeat(4000));
   });
 });

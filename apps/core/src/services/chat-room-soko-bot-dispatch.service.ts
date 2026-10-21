@@ -1,3 +1,4 @@
+import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import {
@@ -96,7 +97,7 @@ export async function runSokoBotMentionDispatch(params: {
     responseMessageId: string | null;
     sokoBot: {
       id: string;
-      userId: string;
+      userId: string | null;
       workspaceId: string;
       archivedAt: Date | null;
     } | null;
@@ -117,7 +118,9 @@ export async function runSokoBotMentionDispatch(params: {
   // Teammates may talk to the bot in organization rooms, direct chats
   // included; the turn runs as the owner (their bot, their credits, their
   // tools), and the console shows who asked. Personal rooms stay owner-only.
-  const isOwner = bot.userId === userId && !askedByBot;
+  // A shared bot has no owner: its turn runs as the member who asked.
+  const isOwner =
+    isPersonalSokoBot(bot) && bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
     return;
@@ -227,7 +230,7 @@ export async function runSokoBotMentionDispatch(params: {
   const accept = async () => {
     const accepted = sokoBotControlPlane.startTurn({
       sokoBotId: bot.id,
-      userId: bot.userId,
+      userId: isPersonalSokoBot(bot) ? bot.userId : userId,
       // The mentioned bot runs in its own workspace, whatever room it was
       // asked in. The room's workspace ran a different bot of the same owner
       // (their personal one) and put its Tasks there.
@@ -235,13 +238,13 @@ export async function runSokoBotMentionDispatch(params: {
       clientTurnId: `chat:${mentionId}`,
       message: isOwner
         ? message
-        : `${mention.message.senderUser?.name ?? "A teammate"} (a teammate, not your owner) asked:\n${message}`,
+        : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
       source: "CHAT",
       chat: {
         mentionId,
         responseMessageId: placeholderId,
         classifyMessage: message,
-        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByUserId: isOwner && !askedByBot ? null : userId,
         askedByBot,
         chainDepth,
       },

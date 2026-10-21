@@ -972,7 +972,14 @@ export const AdminSokoBotListItemSchema = {
             minimum: 0
         },
         owner: {
-            $ref: '#/components/schemas/AdminSokoBotOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         createdAt: {
             type: 'string',
@@ -1828,6 +1835,10 @@ export const SokoBotDeletionResultSchema = {
                 taskSchedules: {
                     type: 'integer',
                     minimum: 0
+                },
+                jobs: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1836,7 +1847,8 @@ export const SokoBotDeletionResultSchema = {
                 'billingRecords',
                 'chatMessages',
                 'uploadedTaskFiles',
-                'taskSchedules'
+                'taskSchedules',
+                'jobs'
             ]
         }
     },
@@ -2392,9 +2404,24 @@ export const ChatRoomSokoBotParticipantSchema = {
             example: 'orb:user_123'
         },
         ownerUserId: {
-            type: 'string',
-            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.',
             example: 'user_123'
+        },
+        scope: {
+            $ref: '#/components/schemas/ChatRoomSokoBotScope'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The shared Soko Bot\'s own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.',
+            example: '01960001-0001-7001-8001-0000000000ab'
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
@@ -2407,8 +2434,21 @@ export const ChatRoomSokoBotParticipantSchema = {
         'image',
         'avatarSeed',
         'ownerUserId',
+        'scope',
+        'sharedRoomId',
         'presence'
     ]
+} as const;
+
+export const ChatRoomSokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ],
+    description: 'Who the Soko Bot belongs to: one person, a Project, or the whole workspace.',
+    example: 'personal'
 } as const;
 
 export const ChatRoomMessageMentionSchema = {
@@ -2867,7 +2907,14 @@ export const AdminSokoBotDetailSchema = {
                     example: '2021-01-01T00:00:00.000Z'
                 },
                 owner: {
-                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/AdminSokoBotOwner'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 },
                 turns: {
                     type: 'array',
@@ -4209,7 +4256,20 @@ export const SokoBotSchema = {
             format: 'uuid'
         },
         userId: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
         },
         name: {
             type: [
@@ -5612,26 +5672,34 @@ export const AdminTaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5697,26 +5765,34 @@ export const AdminTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -5769,29 +5845,52 @@ export const TaskSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Task owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -5896,7 +5995,21 @@ export const TaskSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -6333,7 +6446,14 @@ export const SokoBotSummarySchema = {
             example: 'https://blob.example/mascot.png'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -6364,30 +6484,7 @@ export const TaskParticipantSchema = {
     ]
 } as const;
 
-export const TaskCreatorSchema = {
-    oneOf: [
-        {
-            $ref: '#/components/schemas/TaskCreatorUser'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorCoworker'
-        },
-        {
-            $ref: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    ],
-    discriminator: {
-        propertyName: 'type',
-        mapping: {
-            user: '#/components/schemas/TaskCreatorUser',
-            coworker: '#/components/schemas/TaskCreatorCoworker',
-            sokoBot: '#/components/schemas/TaskCreatorSokoBot'
-        }
-    },
-    description: 'Actor that created the task. Exactly one of user, coworker, or sokoBot.'
-} as const;
-
-export const TaskCreatorUserSchema = {
+export const WorkCreatorUserSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6411,7 +6508,7 @@ export const TaskCreatorUserSchema = {
     ]
 } as const;
 
-export const TaskCreatorCoworkerSchema = {
+export const WorkCreatorCoworkerSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6435,7 +6532,7 @@ export const TaskCreatorCoworkerSchema = {
     ]
 } as const;
 
-export const TaskCreatorSokoBotSchema = {
+export const WorkCreatorSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -6676,7 +6773,14 @@ export const TaskEventSchema = {
                     example: 'https://blob.example/mascot.png'
                 },
                 owner: {
-                    $ref: '#/components/schemas/UserSummary'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/UserSummary'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [
@@ -6917,29 +7021,69 @@ export const JobSummarySchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -7076,6 +7220,7 @@ export const JobSummarySchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
         'userId',
         'user',
         'workspace',
@@ -9795,7 +9940,7 @@ export const ChatRoomSchema = {
         },
         isReadOnly: {
             type: 'boolean',
-            description: 'Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.',
+            description: 'Whether this room takes no new messages, uploads or Reactions: a Direct whose every other participant has left it (for example through Organization exit), or the Channel of an archived or deleted shared Soko Bot. Its history stays readable, and members can still edit or delete their own messages. False for every other Channel.',
             example: false
         },
         groupName: {
@@ -11236,6 +11381,28 @@ export const ChatResultAvailableSchema = {
             maxLength: 4000,
             default: null
         },
+        details: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    value: {
+                        type: 'string',
+                        maxLength: 500
+                    }
+                },
+                required: [
+                    'label',
+                    'value'
+                ]
+            },
+            maxItems: 8,
+            default: []
+        },
         outputs: {
             type: 'array',
             items: {
@@ -11824,6 +11991,26 @@ export const ChatResultUnavailableSchema = {
     required: [
         'id',
         'state'
+    ]
+} as const;
+
+export const ChatRoomMessageResultsSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        results: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultPreview'
+            }
+        }
+    },
+    required: [
+        'messageId',
+        'results'
     ]
 } as const;
 
@@ -12502,26 +12689,34 @@ export const DeveloperTaskListItemSchema = {
             $ref: '#/components/schemas/DeveloperCoworkerRef'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -12595,26 +12790,34 @@ export const DeveloperTaskDetailSchema = {
             $ref: '#/components/schemas/Task'
         },
         owner: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: 'user_123'
+                        },
+                        name: {
+                            type: 'string',
+                            example: 'Ada Lovelace'
+                        },
+                        email: {
+                            type: 'string',
+                            example: 'ada@example.com'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'email'
+                    ]
                 },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                email: {
-                    type: 'string',
-                    example: 'ada@example.com'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name',
-                'email'
-            ]
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         organization: {
             type: [
@@ -13207,13 +13410,17 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsTableItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
-            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
+            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -13346,6 +13553,51 @@ export const DriveRecentsTaskOutputItemSchema = {
         'taskName',
         'projectId',
         'projectName'
+    ]
+} as const;
+
+export const DriveRecentsTableItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'table'
+            ],
+            example: 'table',
+            description: 'Live Files table'
+        },
+        tableId: {
+            type: 'string',
+            example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f',
+            description: 'Table ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Leads',
+            description: 'Table title'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (table updatedAt)'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null'
+        }
+    },
+    required: [
+        'kind',
+        'tableId',
+        'name',
+        'activityAt',
+        'projectId'
     ]
 } as const;
 
@@ -14415,6 +14667,73 @@ export const TableViewSchema = {
         'name',
         'version',
         'definition'
+    ]
+} as const;
+
+export const DataTableSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columnCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columnCount'
     ]
 } as const;
 
@@ -19407,8 +19726,15 @@ export const WorkspaceCalendarItemSchema = {
             example: 'user_123'
         },
         taskOwnerId: {
-            type: 'string',
-            description: 'User who owns the Task Schedule and the Tasks it creates',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the Task Schedule and the Tasks it creates; null when it has none',
             example: 'user_123'
         },
         scheduledAt: {
@@ -19517,6 +19843,7 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'NEEDS_APPROVAL',
                 'SCHEDULED',
                 'PUBLISHING',
                 'PUBLISHED',
@@ -20240,6 +20567,14 @@ export const SocialAccountPostSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        strong: {
+            type: 'boolean',
+            default: false
+        },
+        canRecycle: {
+            type: 'boolean',
+            default: false
         }
     },
     required: [
@@ -20551,6 +20886,24 @@ export const RefreshSocialAccountStatisticsRequestSchema = {
         }
     },
     additionalProperties: false
+} as const;
+
+export const SocialConnectionSuggestedTimesSchema = {
+    type: 'object',
+    properties: {
+        hours: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 23
+            },
+            maxItems: 3
+        }
+    },
+    required: [
+        'hours'
+    ]
 } as const;
 
 export const InitiateProjectSocialConnectionResponseSchema = {
@@ -22618,6 +22971,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        firstComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         media: {
             type: 'array',
             items: {
@@ -22756,6 +23115,16 @@ export const SocialPostSchema = {
         canPublishNow: {
             type: 'boolean'
         },
+        canApprove: {
+            type: 'boolean'
+        },
+        canReject: {
+            type: 'boolean'
+        },
+        canDuplicate: {
+            type: 'boolean',
+            description: 'True when the post can be copied into a new draft (published, failed, or missed)'
+        },
         connectionNeedsReconnect: {
             type: 'boolean',
             description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
@@ -22766,6 +23135,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'firstComment',
         'media',
         'status',
         'scheduledAt',
@@ -22789,6 +23159,9 @@ export const SocialPostSchema = {
         'canSchedule',
         'canCancel',
         'canPublishNow',
+        'canApprove',
+        'canReject',
+        'canDuplicate',
         'connectionNeedsReconnect'
     ]
 } as const;
@@ -22847,6 +23220,7 @@ export const SocialPostStatusSchema = {
     type: 'string',
     enum: [
         'DRAFT',
+        'NEEDS_APPROVAL',
         'SCHEDULED',
         'PUBLISHING',
         'PUBLISHED',
@@ -23066,6 +23440,11 @@ export const CreateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
+        },
         media: {
             type: 'array',
             items: {
@@ -23156,6 +23535,11 @@ export const UpdateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        firstComment: {
+            type: 'string',
+            maxLength: 10000,
+            example: '#launch'
+        },
         media: {
             type: 'array',
             items: {
@@ -23212,6 +23596,36 @@ export const ScheduleSocialPostRequestSchema = {
     ]
 } as const;
 
+export const ApproveSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const RejectSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const CancelSocialPostRequestSchema = {
     type: 'object',
     properties: {
@@ -23225,6 +23639,39 @@ export const CancelSocialPostRequestSchema = {
     required: [
         'revision'
     ]
+} as const;
+
+export const RecycleSocialAccountPostRequestSchema = {
+    type: 'object',
+    properties: {
+        delayDays: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        7
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        14
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        30
+                    ]
+                }
+            ],
+            example: 7
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    }
 } as const;
 
 export const ProjectImageStudioStateSchema = {
@@ -23462,29 +23909,69 @@ export const JobSchema = {
             example: 'agent_123'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Job owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -23868,6 +24355,7 @@ export const JobSchema = {
         'agentId',
         'ownerId',
         'owner',
+        'creator',
         'userId',
         'user',
         'projectId',
@@ -26494,7 +26982,20 @@ export const SokoBotStateSchema = {
                     format: 'uuid'
                 },
                 userId: {
-                    type: 'string'
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                projectId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                viewerCanManage: {
+                    type: 'boolean'
                 },
                 name: {
                     type: [
@@ -26664,10 +27165,91 @@ export const SokoBotStateSchema = {
                 'createdAt',
                 'updatedAt'
             ]
+        },
+        sharedBots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SharedSokoBotSummary'
+            }
         }
     },
     required: [
         'sokoBot'
+    ]
+} as const;
+
+export const SharedSokoBotSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'project',
+                'workspace'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sharedRoomId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        viewerCanManage: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'scope',
+        'projectId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'status',
+        'archivedAt',
+        'sharedRoomId',
+        'viewerCanManage'
     ]
 } as const;
 
@@ -28054,6 +28636,84 @@ export const JudgeSokoBotLabTurnRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const CreateScopedSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        avatarId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        personalityTone: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityDetail: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityStyle: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        scope: {
+            $ref: '#/components/schemas/SokoBotScope'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'name',
+        'scope'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SokoBotScopeSchema = {
+    type: 'string',
+    enum: [
+        'personal',
+        'project',
+        'workspace'
+    ]
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -28524,29 +29184,52 @@ export const TaskListItemSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         ownerId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
-            description: 'Task owner. Always a user.'
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         owner: {
-            $ref: '#/components/schemas/UserSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/UserSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         userId: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             example: 'user_123',
             deprecated: true,
             description: 'Deprecated. Use ownerId instead.'
         },
         user: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/UserSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use owner instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use owner instead.'
         },
         organizationId: {
             type: [
@@ -28651,7 +29334,21 @@ export const TaskListItemSchema = {
             description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
-            $ref: '#/components/schemas/TaskCreator'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         sokoBotId: {
             type: [
@@ -28921,7 +29618,16 @@ export const TaskScheduleSchema = {
             ]
         },
         ownerId: {
-            type: 'string'
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'user_123',
+            description: 'The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.'
         },
         creatorUserId: {
             type: [
@@ -28941,6 +29647,23 @@ export const TaskScheduleSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        creator: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkCreatorUser'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/WorkCreatorSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who made it: a person, a Coworker or a Soko Bot. Null when the person who made it deleted their account.'
         },
         state: {
             $ref: '#/components/schemas/TaskScheduleState'
@@ -29073,6 +29796,7 @@ export const TaskScheduleSchema = {
         'creatorUserId',
         'creatorCoworkerId',
         'creatorSokoBotId',
+        'creator',
         'state',
         'rule',
         'ruleEffectiveFrom',
@@ -31736,6 +32460,15 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'boolean',
             description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
+        },
+        latestScheduledSocialPostAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
         }
     },
     required: [

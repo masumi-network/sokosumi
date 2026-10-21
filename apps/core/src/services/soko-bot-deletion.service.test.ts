@@ -4,6 +4,7 @@ const BOT_ID = "01960001-0001-7001-8001-000000000001";
 
 const {
   botFindFirstMock,
+  memberFindFirstMock,
   txBotFindFirstMock,
   txBotDeleteMock,
   txBotUpdateMock,
@@ -17,6 +18,7 @@ const {
   txIntegrationsFindManyMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   txBotFindFirstMock: vi.fn(),
   txBotDeleteMock: vi.fn(),
   txBotUpdateMock: vi.fn(),
@@ -32,6 +34,7 @@ const {
     chatMessage: 0,
     uploadedTaskFile: 0,
     taskSchedule: 0,
+    job: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
@@ -44,7 +47,10 @@ vi.mock("@/helpers/chat-room-mention-status", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBot: { findFirst: botFindFirstMock } },
+  default: {
+    sokoBot: { findFirst: botFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
+  },
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   revokeSokoBotIntegrationAccounts: revokeIntegrationsMock,
@@ -99,11 +105,15 @@ vi.mock("@/lib/db/transaction", () => ({
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
       taskSchedule: { count: vi.fn(async () => counts.taskSchedule) },
+      job: { count: vi.fn(async () => counts.job) },
     }),
   ),
 }));
 
-import { deleteSokoBot } from "./soko-bot-deletion.service";
+import {
+  deleteSokoBot,
+  deleteSokoBotForUser,
+} from "./soko-bot-deletion.service";
 
 describe("deleteSokoBot", () => {
   beforeEach(() => {
@@ -118,6 +128,7 @@ describe("deleteSokoBot", () => {
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
+      sharedRoomId: null,
     });
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
@@ -152,6 +163,21 @@ describe("deleteSokoBot", () => {
     expect(data.versionId).toBeNull();
   });
 
+  it("tombstones a shared bot with a room, so the room stays a read-only archive", async () => {
+    txBotFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      sharedRoomId: "01960001-0001-7001-8001-0000000000aa",
+    });
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+    const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deletedAt).toBeInstanceOf(Date);
+    expect(data).not.toHaveProperty("sharedRoomId");
+  });
+
   it("tombstones a bot that created a Task Schedule, whose creator FK restricts deletion", async () => {
     counts.taskSchedule = 1;
 
@@ -159,6 +185,16 @@ describe("deleteSokoBot", () => {
 
     expect(result.outcome).toBe("tombstoned");
     expect(result.retained.taskSchedules).toBe(1);
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("tombstones a bot that created a Job, whose creator FK restricts deletion", async () => {
+    counts.job = 1;
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(result.retained.jobs).toBe(1);
     expect(txBotDeleteMock).not.toHaveBeenCalled();
   });
 
@@ -297,5 +333,94 @@ describe("deleteSokoBot", () => {
 
     expect(result.outcome).toBe("tombstoned");
     expect(result.retained.uploadedTaskFiles).toBe(1);
+  });
+});
+
+describe("deleteSokoBotForUser", () => {
+  const WORKSPACE_ID = "01960001-0001-7001-8001-0000000000aa";
+  const ROLES: Record<string, string> = {
+    owner_1: "owner",
+    admin_1: "admin",
+    member_1: "member",
+  };
+  const SHARED_ID = { kind: "id", sokoBotId: BOT_ID } as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    for (const key of Object.keys(counts) as (keyof typeof counts)[]) {
+      counts[key] = 0;
+    }
+    revokeIntegrationsMock.mockResolvedValue({ revoked: 0, failed: [] });
+    txIntegrationsFindManyMock.mockResolvedValue([]);
+    txBotFindFirstMock.mockResolvedValue({ id: BOT_ID, sharedRoomId: null });
+    failOpenMentionsMock.mockResolvedValue([]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
+    txSokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    memberFindFirstMock.mockImplementation(
+      async (args: { where: { userId: string } }) => {
+        const role = ROLES[args.where.userId];
+        return role ? { role } : null;
+      },
+    );
+  });
+
+  describe.each([
+    ["project", "01960001-0001-7001-8001-0000000000bb"],
+    ["workspace", null],
+  ])("a shared %s bot", (_scope, projectId) => {
+    beforeEach(() => {
+      // An archived shared bot is still found by id: deleting is how it goes.
+      botFindFirstMock.mockResolvedValue({
+        id: BOT_ID,
+        userId: null,
+        projectId,
+        workspaceId: WORKSPACE_ID,
+        archivedAt: new Date(),
+        workspace: { organizationId: "org_1" },
+      });
+    });
+
+    it.each(["owner_1", "admin_1"])("lets %s delete it", async (userId) => {
+      await expect(
+        deleteSokoBotForUser(userId, WORKSPACE_ID, SHARED_ID),
+      ).resolves.toMatchObject({ outcome: "deleted" });
+      expect(txBotDeleteMock).toHaveBeenCalledWith({ where: { id: BOT_ID } });
+    });
+
+    it.each(["member_1", "outsider"])("refuses %s", async (userId) => {
+      await expect(
+        deleteSokoBotForUser(userId, WORKSPACE_ID, SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(revokeIntegrationsMock).not.toHaveBeenCalled();
+      expect(txBotDeleteMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("deletes the caller's own personal bot, archived or not, with no role read", async () => {
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      userId: "member_1",
+      workspaceId: WORKSPACE_ID,
+    });
+    await expect(
+      deleteSokoBotForUser("member_1", WORKSPACE_ID),
+    ).resolves.toMatchObject({ outcome: "deleted" });
+    expect(botFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        userId: "member_1",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        deletedAt: null,
+      },
+      select: { id: true, userId: true, workspaceId: true },
+    });
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("answers a missing bot as not found", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    await expect(
+      deleteSokoBotForUser("admin_1", WORKSPACE_ID, SHARED_ID),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

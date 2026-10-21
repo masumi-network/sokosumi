@@ -36,10 +36,6 @@ public func roomTakesNewMessages(_ room: Components.Schemas.ChatRoom?) -> Bool {
 
 /// Web `canOpenThread` (#5649): a Read-only Direct takes no replies, so only a Thread that already has some opens.
 /// Nor does a row Core has not stored, or a mention shell (web `shouldShowChatRoomThreadButton`).
-func canOpenThread(_ message: Components.Schemas.ChatRoomMessage, in room: Components.Schemas.ChatRoom?) -> Bool {
-  canOpenThread(message, takesNewMessages: roomTakesNewMessages(room))
-}
-
 func canOpenThread(_ message: Components.Schemas.ChatRoomMessage, takesNewMessages: Bool) -> Bool {
   !MessageKind(message).isLocal && MentionThoughtShell(message: message) == nil
     && (takesNewMessages || message.threadReplyCount > 0)

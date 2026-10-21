@@ -1,5 +1,5 @@
 import { Channel, type TaskStatus } from "@sokosumi/database";
-
+import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -28,15 +28,7 @@ export async function simulateSokoBotTaskEvent(input: {
   status: Extract<TaskStatus, "INPUT_REQUIRED" | "FAILED" | "COMPLETED">;
   comment: string;
 }) {
-  const bot = await prisma.sokoBot.findFirst({
-    where: {
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      projectId: null,
-      archivedAt: null,
-    },
-    select: { id: true },
-  });
+  const bot = await memberSokoBot(input.userId, input.workspaceId, ME_SOKO_BOT);
   if (!bot) throw new SokoBotLabError("Soko Bot not found");
   const delegation = await prisma.sokoBotDelegation.findFirst({
     where: {

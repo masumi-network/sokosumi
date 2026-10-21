@@ -8,7 +8,7 @@ enum SelectionFixture {
   static let preview = "7d1f0c2a-0000-4000-8000-000000000007"
   static let books = "0b5e0e7a-0000-4000-8000-0000000000a1"
   static let launch = "0b5e0e7a-0000-4000-8000-0000000000a2"
-  static let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
+  static let botSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","scope":"personal","presence":"online"}}"#
 
   /// A `project_selection` card as Core writes it: titled by Core, no status, the live options sorted by name.
   static func selectionJSON(options: String = #"[{"id":"\#(books)","name":"Books","identifier":"BOO","logo":"https://cdn.example/books.png"},{"id":"\#(launch)","name":"Launch","identifier":null,"logo":null}]"#,

@@ -336,13 +336,13 @@ async function isTainted(turnId: string): Promise<boolean> {
  * The owner typed this turn, or started this background run from one: the
  * work and its spending are theirs, so a page read on the way may not end it.
  */
-async function isOwnerDirected(turnId: string): Promise<boolean> {
+export async function isOwnerDirected(turnId: string): Promise<boolean> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
     select: {
       source: true,
       parentTurnId: true,
-      requestedByUserId: true,
+      askedByUserId: true,
       chainDepth: true,
       chatMentionId: true,
     },
@@ -352,7 +352,7 @@ async function isOwnerDirected(turnId: string): Promise<boolean> {
     turn.parentTurnId !== null ||
     (turn.source === "CHAT" &&
       turn.chatMentionId !== null &&
-      turn.requestedByUserId === null &&
+      turn.askedByUserId === null &&
       turn.chainDepth === 0)
   );
 }
@@ -393,6 +393,8 @@ export async function runTurnTool(input: {
   capability: SokoBotCapability;
   toolCallId: string;
   toolInput: unknown;
+  /** A read's result carries its call id for the model to cite; scripts don't cite. */
+  cite?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
   if (await isTaintBlocked(log.turnId, capability)) {
@@ -424,7 +426,7 @@ export async function runTurnTool(input: {
     capability,
   );
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
-  return ACTION_CAPABILITIES.has(capability)
+  return ACTION_CAPABILITIES.has(capability) || input.cite === false
     ? result
     : { evidenceToolCallId: callId, result };
 }

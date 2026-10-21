@@ -24,6 +24,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
+  requirePersonalSokoBotAuthContext,
   resolveUserContext,
 } from "@/middleware/auth";
 import {
@@ -38,6 +39,11 @@ import {
   taskScheduleVisibilityWhere,
 } from "@/services/task-schedule.service";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
+
+import {
+  getCalendarBrowseEnd,
+  scheduledSocialPostWhere,
+} from "./social-post-range.js";
 
 interface CalendarCursor {
   id: string;
@@ -94,7 +100,11 @@ export async function getCalendarAccessWhere(
         workspaceId,
         assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
-        AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
+        AND: [
+          buildSokoBotOwnerTaskVisibilityWhere(
+            requirePersonalSokoBotAuthContext(authContext).userId,
+          ),
+        ],
       },
     };
   }
@@ -181,11 +191,6 @@ function validateRange(from: string, to: string): { from: Date; to: Date } {
   if (toDate.getTime() - fromDate.getTime() > RUN_HORIZON_MS) {
     throw badRequest("Calendar range cannot exceed 90 days");
   }
-  if (toDate.getTime() > Date.now() + RUN_HORIZON_MS) {
-    throw badRequest(
-      "Calendar browse range cannot extend beyond the next 90 days",
-    );
-  }
   return { from: fromDate, to: toDate };
 }
 
@@ -259,6 +264,34 @@ export async function readWorkspaceCalendar(
 ) {
   if (options.projectId && options.sourceId) {
     throw badRequest("projectId and sourceId cannot be combined");
+  }
+
+  const includePosts =
+    query.includeSocialPosts &&
+    !options.sourceId &&
+    !query.assigneeId &&
+    !query.assigneeUserId &&
+    !query.status;
+  if (query.to.getTime() > Date.now() + RUN_HORIZON_MS) {
+    const latestPost = includePosts
+      ? await prisma.socialPost.aggregate({
+          where: scheduledSocialPostWhere(
+            workspaceId,
+            userId,
+            query.scope,
+            options.projectId,
+          ),
+          _max: { scheduledAt: true },
+        })
+      : null;
+    if (
+      query.to >
+      getCalendarBrowseEnd(new Date(), latestPost?._max.scheduledAt ?? null)
+    ) {
+      throw badRequest(
+        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled Social post's month",
+      );
+    }
   }
 
   const { cursor, from, to } = query;
@@ -489,23 +522,22 @@ export async function readWorkspaceCalendar(
       }),
     ];
   });
-  const includePosts =
-    query.includeSocialPosts &&
-    !options.sourceId &&
-    !query.assigneeId &&
-    !query.assigneeUserId &&
-    !query.status;
   const socialBaseWhere: Prisma.SocialPostWhereInput = {
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
     ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
-    // The agenda view shows only what is still to come: a scheduled or
-    // publishing post whose `scheduledAt` is today or later (the `from` bound
-    // below). Everything else is history the agenda would filter out anyway.
+    // The agenda view shows only what is still to come: a scheduled,
+    // needs-approval, or publishing post whose `scheduledAt` is today or later
+    // (the `from` bound below). Everything else is history the agenda would
+    // filter out anyway.
     ...(query.agendaOnly
       ? {
           status: {
-            in: [SocialPostStatus.SCHEDULED, SocialPostStatus.PUBLISHING],
+            in: [
+              SocialPostStatus.NEEDS_APPROVAL,
+              SocialPostStatus.SCHEDULED,
+              SocialPostStatus.PUBLISHING,
+            ],
           },
         }
       : { status: { not: "DRAFT" } }),

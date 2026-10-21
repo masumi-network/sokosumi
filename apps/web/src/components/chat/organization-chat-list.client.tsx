@@ -71,6 +71,7 @@ import {
   SIDEBAR_ROW_LABEL_INSET_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
+import { moveIdToSlot } from "@/lib/utils/move-id";
 import {
   getActiveRoomIdFromPathname,
   getActiveRoomIdFromSelection,
@@ -94,7 +95,6 @@ import {
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
 import { PendingInvitationRailButton } from "./pending-invitation-rail-button";
 import {
-  movePinnedRoomId,
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
@@ -427,8 +427,7 @@ export function OrganizationChatList({
   /** Undefined past either end of the list, which is how a row knows. */
   function movePinnedTo(roomId: string, targetId: string | undefined) {
     return targetId
-      ? () =>
-          handleReorderPinned(movePinnedRoomId(pinnedRoomIds, roomId, targetId))
+      ? () => handleReorderPinned(moveIdToSlot(pinnedRoomIds, roomId, targetId))
       : undefined;
   }
 

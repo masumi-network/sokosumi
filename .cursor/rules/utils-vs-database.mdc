@@ -14,7 +14,7 @@ Use this rule when adding or moving code shared between **web**, **core**, and *
 - **Any module imported from** `'use client'` components or other client bundles
 - **Cross-app product vocabulary** used in UI and server code alike (e.g. billing plan name unions, `parseSelfServeSubscriptionPlanName`, credit conversion helpers in `credit.ts`)
 
-Export from `packages/utils/src/index.ts` and colocate tests under `packages/utils/src/__tests__/`.
+Export from `packages/utils/src/index.ts`. Place `foo.test.ts` next to `foo.ts`; use `packages/utils/src/__tests__/` only for tests that do not map 1:1 to a source file.
 
 ### Keep in `@sokosumi/database`
 

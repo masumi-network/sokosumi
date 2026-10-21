@@ -50,14 +50,17 @@ vi.mock("./components/ads-tabs", () => ({
     campaigns,
     market,
     projectId,
+    toolbar,
   }: {
     accounts: { id: string }[];
     campaigns: React.ReactNode;
     market: React.ReactNode;
     projectId: string;
+    toolbar: React.ReactNode;
   }) => (
     <div data-testid="ads-tabs">
       {projectId}:{accounts.map(({ id }) => id).join(",")}
+      {toolbar}
       {campaigns}
       {market}
     </div>
@@ -92,6 +95,7 @@ vi.mock("./components/ads-market-section", () => ({
 
 vi.mock("./components/ads-skeleton", () => ({
   AdsRowsSkeleton: () => <div>rows skeleton</div>,
+  AdsCampaignRowsSkeleton: () => <div>campaign rows skeleton</div>,
 }));
 
 const PROJECT = { id: "project-1", name: "Launch plan" };

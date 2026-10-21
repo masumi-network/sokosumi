@@ -59,11 +59,10 @@ function SocialLoadingChrome({
     >
       <span className="sr-only">{label}</span>
       <section aria-hidden className="space-y-2">
-        {/* The tab row and New post share one row, as on the page; on a
-            phone New post is only its icon. */}
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-11 w-64 min-w-0 sm:w-72" />
-          <Skeleton className="h-11 w-14 shrink-0 sm:h-10 sm:w-32" />
+        {/* Same row as Tasks: content-sized tab pill, action on the right. */}
+        <div className="flex flex-row items-center justify-between gap-3">
+          <Skeleton className="h-9 w-64 min-w-0 sm:w-72" />
+          <Skeleton className="h-8 w-14 shrink-0 sm:h-10 sm:w-32" />
         </div>
         {children}
       </section>
@@ -136,6 +135,11 @@ function DraftsPane() {
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-20" />
             </div>
+            {/* Live draft cards put the platform mark on the right of the header. */}
+            <Skeleton
+              className="size-5 shrink-0 rounded-sm"
+              data-testid="social-loading-platform-mark"
+            />
           </div>
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
@@ -155,7 +159,10 @@ function ListPane() {
           className="border-border flex flex-col gap-2 rounded-lg border p-3"
         >
           <div className="flex items-center gap-2">
-            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <Skeleton
+              className="size-9 shrink-0 rounded-md border"
+              data-testid="social-loading-platform-mark"
+            />
             <Skeleton className="h-4 w-40" />
             <Skeleton className="ms-auto h-4 w-16" />
           </div>
@@ -212,14 +219,17 @@ function PlaceholderPostCard() {
   return (
     <div className="border-border flex flex-col gap-1.5 rounded-md border p-1.5">
       <div className="flex items-center gap-1">
-        <Skeleton className="size-4 shrink-0 rounded-full" />
+        <Skeleton
+          className="size-4 shrink-0 rounded-sm"
+          data-testid="social-loading-platform-mark"
+        />
         <Skeleton className="h-3 min-w-0 flex-1" />
         <Skeleton className="h-3 w-10 shrink-0" />
       </div>
       <Skeleton className="h-3 w-full" />
       <Skeleton className="h-3 w-2/3" />
       <div className="flex items-center gap-1">
-        <Skeleton className="size-5 rounded-full" />
+        <Skeleton className="size-5 rounded-sm" />
         <Skeleton className="size-5 rounded-full" />
       </div>
     </div>

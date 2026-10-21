@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
+  RotateCcw,
   TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,10 +47,15 @@ import {
   useComposioConnection,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
   projectId: string;
+  /** Closing or closed projects cannot add or replace accounts. */
+  connectDisabled?: boolean;
+  reconnections?: SocialReconnection[];
+  onReconnected?: (connection: ProjectSocialConnection) => void;
 }
 
 interface PendingConfirmation {
@@ -132,9 +138,13 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  connectDisabled = false,
+  reconnections,
+  onReconnected,
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
+  const postsT = useTranslations("App.Projects.SocialPosts");
   const { connect } = useComposioConnection();
   const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
@@ -147,7 +157,7 @@ export function ProjectSocialAccounts({
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<
-    "disconnect" | "sync" | OAuthAction | null
+    "disconnect" | "startOver" | "sync" | OAuthAction | null
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
@@ -244,6 +254,7 @@ export function ProjectSocialAccounts({
           account: accountName(outcome.value, t("unknownHandle")),
         }),
       });
+      if (action === "reconnect") onReconnected?.(outcome.value);
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
     } else if (outcome.kind === "failed") {
@@ -353,6 +364,45 @@ export function ProjectSocialAccounts({
     }
   }
 
+  async function handleStartOver(
+    connection: ProjectSocialConnection,
+  ): Promise<void> {
+    if (connectDisabled) return;
+    if (disconnectInFlightRef.current || isBusy) {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+
+    disconnectInFlightRef.current = true;
+    setFeedback(null);
+    setPendingAction("startOver");
+    setPendingTarget(connection.id);
+
+    let disconnected = false;
+    try {
+      const result = await disconnectProjectSocialConnection({
+        projectId,
+        socialConnectionId: connection.id,
+      });
+      if (!result.ok) {
+        showActionError(result.error, t("errors.disconnect"));
+        return;
+      }
+      disconnected = true;
+    } catch {
+      showFeedback({ kind: "error", message: t("errors.disconnect") });
+      return;
+    } finally {
+      disconnectInFlightRef.current = false;
+      finishAction();
+    }
+
+    if (!disconnected) return;
+
+    await startOAuth("connect", undefined, connection.provider);
+    router.refresh();
+  }
+
   function requestConfirmation(
     action: PendingConfirmation["action"],
     connection: ProjectSocialConnection,
@@ -388,6 +438,57 @@ export function ProjectSocialAccounts({
       ).primary
     : "";
 
+  if (reconnections) {
+    return (
+      <ul className="grid gap-2" aria-label={postsT("reconnection.accounts")}>
+        {reconnections.map(({ connection, affectedPosts }) => (
+          <li
+            key={connection.id}
+            className="bg-card-background flex flex-wrap items-center gap-3 rounded-lg border p-3"
+            data-testid={`social-reconnect-${connection.id}`}
+          >
+            <AccountChipMark
+              avatarUrl={connection.avatarUrl}
+              provider={connection.provider}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium break-words">
+                {postsT("reconnection.title", {
+                  account:
+                    formatHandle(
+                      connection.externalHandle,
+                      connection.provider,
+                    ) ??
+                    connection.displayName ??
+                    t("unknownHandle"),
+                })}
+              </p>
+              {affectedPosts.length > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {postsT("reconnection.affected", {
+                    count: affectedPosts.length,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-11 md:h-8"
+              disabled={isBusy || connectDisabled}
+              loading={pendingTarget === connection.id}
+              onClick={() => void startOAuth("reconnect", connection.id)}
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              {t("reconnect")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <section
       ref={headingRef}
@@ -397,12 +498,17 @@ export function ProjectSocialAccounts({
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        {connectDisabled ? (
+          <p className="text-muted-foreground me-auto text-sm">
+            {t("projectClosed")}
+          </p>
+        ) : null}
         <DropdownMenu>
           {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
               from opening the menu. */}
-          <DropdownMenuTrigger asChild disabled={isBusy}>
+          <DropdownMenuTrigger asChild disabled={isBusy || connectDisabled}>
             <Button
               type="button"
               variant="outline"
@@ -481,7 +587,12 @@ export function ProjectSocialAccounts({
             );
             const canReconnect =
               connection.status === "reauthorization_required";
-            const canReplace = connection.status === "active" || canReconnect;
+            const isWarningStatus =
+              canReconnect || connection.status === "pending";
+            const canStartOver = connection.status === "pending";
+            const canReplace =
+              !connectDisabled &&
+              (connection.status === "active" || canReconnect);
             const canDisconnect = connection.status !== "disconnected";
             const isRowPending =
               pendingAction !== "connect" && pendingTarget === connection.id;
@@ -504,10 +615,10 @@ export function ProjectSocialAccounts({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
-                        canReconnect && "text-semantic-warning-label",
+                        isWarningStatus && "text-semantic-warning-label",
                       )}
                     >
-                      {canReconnect ? (
+                      {isWarningStatus ? (
                         <TriangleAlert className="size-3" aria-hidden />
                       ) : (
                         <span
@@ -531,7 +642,7 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       className="h-11 md:h-8"
-                      disabled={isBusy}
+                      disabled={isBusy || connectDisabled}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
@@ -539,6 +650,21 @@ export function ProjectSocialAccounts({
                     >
                       <RefreshCw className="size-4" aria-hidden />
                       {t("reconnect")}
+                    </Button>
+                  ) : null}
+                  {canStartOver ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isBusy || connectDisabled}
+                      loading={isRowPending && pendingAction === "startOver"}
+                      onClick={() => {
+                        void handleStartOver(connection);
+                      }}
+                    >
+                      <RotateCcw className="size-4" aria-hidden />
+                      {t("startOver")}
                     </Button>
                   ) : null}
                   {canDisconnect ? (
@@ -559,7 +685,9 @@ export function ProjectSocialAccounts({
                           variant="ghost"
                           size="icon"
                           loading={
-                            isRowPending && pendingAction !== "reconnect"
+                            isRowPending &&
+                            pendingAction !== "reconnect" &&
+                            pendingAction !== "startOver"
                           }
                           aria-label={t("actions", { account: primary })}
                         >

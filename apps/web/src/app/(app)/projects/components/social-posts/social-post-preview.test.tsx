@@ -38,6 +38,44 @@ const VIDEO: SocialPostMediaRef = {
 };
 
 describe("SocialPostPreview", () => {
+  it.each(["instagram", "youtube", "tiktok"] as const)(
+    "uses neutral imported-media copy for %s when media is unavailable",
+    (provider) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          mediaUnavailable
+          provider={provider}
+          text="Published post"
+          timestamp={null}
+        />,
+      );
+      expect(screen.getByText("mediaUnavailable")).toBeVisible();
+      expect(
+        screen.queryByText(/mediaRequired|videoRequired/),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["x", "linkedin", "facebook", "instagram", "youtube"] as const)(
+    "can label an unknown publication date in the %s feed",
+    (provider) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[]}
+          provider={provider}
+          text="Published post"
+          timestamp={null}
+          timestampLabel="Publication date unavailable"
+        />,
+      );
+      expect(screen.getByText(/Publication date unavailable/)).toBeVisible();
+      expect(screen.queryByText(/\bnow\b/)).not.toBeInTheDocument();
+    },
+  );
+
   it("renders an X post with name, handle, and highlighted tags and links", () => {
     render(
       <SocialPostPreview
@@ -816,5 +854,90 @@ describe("SocialPostPreview", () => {
     expect(
       screen.queryByRole("button", { name: "tiktok.more" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("caps a single image on a compact card", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[IMAGE]}
+        provider="linkedin"
+        text="Hello"
+        timestamp={null}
+      />,
+    );
+
+    const frame = screen.getByTestId("social-post-preview-media-compact");
+    expect(frame).toHaveClass("max-h-64");
+    expect(screen.getByRole("img", { name: "a.png" })).toHaveClass(
+      "max-h-64",
+      "object-top",
+    );
+    expect(screen.getByTestId("social-post-preview")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
+  });
+
+  it("keeps feed-height media when the card is not compact", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE]}
+        provider="linkedin"
+        text="Hello"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-post-preview-media-compact"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "a.png" })).toHaveClass(
+      "max-h-[32rem]",
+    );
+  });
+
+  it("folds long X text on a compact card and calls onSeeMore", async () => {
+    const user = userEvent.setup();
+    const onSeeMore = vi.fn();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[]}
+        onSeeMore={onSeeMore}
+        provider="x"
+        text={"word ".repeat(80)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "x.more" }));
+    expect(onSeeMore).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "x.more" })).toBeVisible();
+  });
+
+  it("opens the full preview from LinkedIn see more when onSeeMore is set", async () => {
+    const user = userEvent.setup();
+    const onSeeMore = vi.fn();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[]}
+        onSeeMore={onSeeMore}
+        provider="linkedin"
+        text={"word ".repeat(80)}
+        timestamp={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "linkedin.seeMore" }));
+    expect(onSeeMore).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "linkedin.seeMore" }),
+    ).toBeVisible();
   });
 });

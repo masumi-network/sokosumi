@@ -1,7 +1,12 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ResultPreviewCard, ResultPreviews } from "./result-previews";
+import {
+  cardHref,
+  fileSize,
+  ResultPreviewCard,
+  ResultPreviews,
+} from "./result-previews";
 
 const { resultQuery } = vi.hoisted(() => ({ resultQuery: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
@@ -32,9 +37,16 @@ vi.mock("next-intl", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: vi.fn() }),
 }));
-vi.mock("@/app/personal-assistant/components/chat/decision-card", () => ({
-  DecisionCard: () => <div>decision controls</div>,
-}));
+vi.mock("@/app/personal-assistant/components/chat/decision-card", async () => {
+  const { useSokoBotTargetId } = await import(
+    "@/app/personal-assistant/components/soko-bot-target"
+  );
+  return {
+    DecisionCard: () => (
+      <div>decision controls for {useSokoBotTargetId() ?? "own bot"}</div>
+    ),
+  };
+});
 const task: ChatResultAvailable = {
   id: "card",
   state: "available",
@@ -59,6 +71,44 @@ describe("chat result cards", () => {
     expect(html).toContain("Europe/Prague");
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
+  });
+  it("shows a hired Agent's Job as status, labelled input and a job link", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "job",
+          title: "Attention insights for nmkr.io",
+          status: "payment_pending",
+          question: null,
+          scheduledAt: null,
+          timezone: null,
+          assignee: "AttentionInsight",
+          agent: { name: "AttentionInsight", icon: null },
+          sourceHref: "/agents/agent/jobs/job",
+          details: [
+            { label: "Website", value: "https://nmkr.io" },
+            { label: "Study type", value: "web" },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain("jobHint.payment_pending");
+    expect(html).toContain("Website");
+    expect(html).toContain('href="https://nmkr.io/"');
+    expect(html).toContain(">nmkr.io</a>");
+    expect(html).toContain("openJob");
+    expect(html).not.toContain("recorded");
+    expect(html).not.toContain(">assignee<");
+    expect(html).not.toContain("input_url");
+  });
+  it("formats output sizes with a readable unit", () => {
+    const formatNumber = (value: number, options?: Intl.NumberFormatOptions) =>
+      new Intl.NumberFormat("en", options).format(value);
+    expect(fileSize(512, formatNumber)).toBe("512 byte");
+    expect(fileSize(182_000, formatNumber)).toBe("182 kB");
+    expect(fileSize(4_250_000, formatNumber)).toBe("4.3 MB");
   });
   it("names source and download links by their resource", () => {
     const html = renderToStaticMarkup(
@@ -383,4 +433,151 @@ describe("result footer hydration", () => {
       expect(html).toContain("fallback link");
     },
   );
+});
+
+describe("decision cards from a shared bot", () => {
+  const decision: ChatResultAvailable = {
+    ...task,
+    id: "decision-card",
+    kind: "decision",
+    decision: {
+      id: "d1",
+      turnId: "t1",
+      toolName: "hire_agent",
+      proposal: {},
+      reason: "because",
+      status: "PENDING",
+      expiresAt: new Date("2026-10-08T09:00:00Z"),
+      resolvedAt: null,
+      resultingEntityId: null,
+      createdAt: new Date("2026-10-06T10:00:00Z"),
+      updatedAt: new Date("2026-10-06T10:00:00Z"),
+    },
+  };
+
+  function render(sokoBotId?: string | null): string {
+    resultQuery.mockReturnValue({
+      data: [decision],
+      isFetching: false,
+      isError: false,
+    });
+    return renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: decision.id, capturedAt: decision.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        sokoBotId={sokoBotId}
+      />,
+    );
+  }
+
+  it("resolves on the shared bot that sent the message", () => {
+    expect(render("bot-shared")).toContain("decision controls for bot-shared");
+  });
+
+  it("resolves on the caller's own bot otherwise", () => {
+    expect(render(null)).toContain("decision controls for own bot");
+  });
+});
+
+describe("turn results in a shared bot's console", () => {
+  /** The URL the last query's fetch reads; a failed response is enough. */
+  async function fetchedTurnUrl() {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { queryFn } = resultQuery.mock.lastCall?.[0] ?? {};
+      await queryFn({ signal: new AbortController().signal }).catch(
+        () => undefined,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    return fetchMock.mock.calls[0]?.[0];
+  }
+
+  it("reads the turn's results from the bot in context", async () => {
+    const { SokoBotTargetContext } = await import(
+      "@/app/personal-assistant/components/soko-bot-target"
+    );
+    resultQuery.mockReturnValue({
+      data: [],
+      isFetching: false,
+      isError: false,
+    });
+    renderToStaticMarkup(
+      <SokoBotTargetContext.Provider value="bot-shared">
+        <ResultPreviews
+          descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+          source={{ turnId: "turn-1" }}
+        />
+      </SokoBotTargetContext.Provider>,
+    );
+    expect(resultQuery).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        queryKey: expect.arrayContaining([
+          { turnId: "turn-1", botId: "bot-shared" },
+        ]),
+      }),
+    );
+    expect(await fetchedTurnUrl()).toBe(
+      "/api/personal-assistant/turns/turn-1/results?botId=bot-shared",
+    );
+  });
+
+  it("reads the caller's own turn outside a shared console", async () => {
+    resultQuery.mockReturnValue({
+      data: [],
+      isFetching: false,
+      isError: false,
+    });
+    renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ turnId: "turn-1" }}
+      />,
+    );
+    expect(resultQuery).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        queryKey: expect.arrayContaining([{ turnId: "turn-1" }]),
+      }),
+    );
+    expect(await fetchedTurnUrl()).toBe(
+      "/api/personal-assistant/turns/turn-1/results",
+    );
+  });
+});
+
+describe("bot card links for a shared bot", () => {
+  it("sends the caller's console link to the shared bot's console", () => {
+    expect(cardHref("/personal-assistant", "bot-1")).toBe("/soko-bots/bot-1");
+    expect(cardHref("/personal-assistant?view=advanced", "bot-1")).toBe(
+      "/soko-bots/bot-1?view=advanced",
+    );
+  });
+
+  it("leaves other links and the caller's own bot alone", () => {
+    expect(cardHref("/personal-assistant", null)).toBe("/personal-assistant");
+    expect(cardHref("/tasks/t1", "bot-1")).toBe("/tasks/t1");
+    expect(cardHref("/personal-assistant-x", "bot-1")).toBe(
+      "/personal-assistant-x",
+    );
+  });
+
+  it("links a schedule card in a shared bot's room to its console", async () => {
+    const { SokoBotTargetContext } = await import(
+      "@/app/personal-assistant/components/soko-bot-target"
+    );
+    const schedule: ChatResultAvailable = {
+      ...task,
+      id: "schedule",
+      kind: "bot_schedule",
+      sourceHref: "/personal-assistant",
+    };
+    const html = renderToStaticMarkup(
+      <SokoBotTargetContext.Provider value="bot-1">
+        <ResultPreviewCard result={schedule} onDecisionResolved={() => {}} />
+      </SokoBotTargetContext.Provider>,
+    );
+    expect(html).toContain('href="/soko-bots/bot-1"');
+  });
 });

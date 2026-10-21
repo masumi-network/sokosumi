@@ -48,6 +48,7 @@ const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
 function schedule(state: TaskSchedule["state"]): TaskSchedule {
   return {
     id: SCHEDULE_ID,
+    creator: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     organizationId: null,
     ownerId: "user_1",
@@ -187,7 +188,8 @@ describe("TaskScheduleActions", () => {
     const user = userEvent.setup();
     renderActions("ACTIVE");
 
-    await user.click(screen.getByRole("button", { name: "end" }));
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "end" }));
     expect(changeTaskScheduleStateMock).not.toHaveBeenCalled();
     expect(screen.getByText("confirmEndDescription")).toBeInTheDocument();
 
@@ -203,7 +205,8 @@ describe("TaskScheduleActions", () => {
     const user = userEvent.setup();
     renderActions("ENDED");
 
-    await user.click(screen.getByRole("button", { name: "delete" }));
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "delete" }));
     expect(screen.getByText("confirmDeleteDescription")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "confirmDelete" }));
 
@@ -213,20 +216,58 @@ describe("TaskScheduleActions", () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/schedules"));
   });
 
-  it("leaves an Ended schedule nothing to change but deleting it", () => {
+  it("hides delete on a schedule without an owner unless the viewer may manage it", async () => {
+    const user = userEvent.setup();
+    const ownerless = { ...schedule("ACTIVE"), ownerId: null };
+    const { rerender } = render(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "more" }));
+    expect(screen.queryByRole("menuitem", { name: "delete" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "edit" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    rerender(
+      <TaskScheduleActions
+        schedule={ownerless}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        canDeleteUnowned
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "more" }));
+    expect(
+      screen.getByRole("menuitem", { name: "delete" }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves an Ended schedule nothing to change but deleting it", async () => {
+    const user = userEvent.setup();
     renderActions("ENDED");
 
-    for (const name of ["edit", "pause", "resume", "end", "runNow"]) {
+    for (const name of ["pause", "resume", "runNow"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
-    expect(screen.getByRole("button", { name: "delete" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "more" }));
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["delete"]);
   });
 
   it("opens the edit dialog", async () => {
     const user = userEvent.setup();
     renderActions("PAUSED");
 
-    await user.click(screen.getByRole("button", { name: "edit" }));
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "edit" }));
 
     expect(
       screen.getByRole("dialog", { name: "edit Daily digest" }),

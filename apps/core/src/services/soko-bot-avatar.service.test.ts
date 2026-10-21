@@ -199,10 +199,16 @@ describe("Soko Bot avatar pool", () => {
     // Vercel runs crons on production only, so the creation picker asks for
     // this explicitly rather than showing an empty grid on a preview.
     avatarCountMock.mockResolvedValue(0);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     await topUpAvailableAvatars(6);
 
     expect(avatarCountMock).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(6);
   });
 
   it("ignores excludeIds when deciding whether to generate", async () => {

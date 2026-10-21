@@ -755,7 +755,7 @@ struct ConversationSidebarView: View {
     guard showsDirectAvatars, !room.isSelfDirect, !room.isReadOnly else { return nil }
     let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
     guard participants.count == 1, let peer = participants.first else { return nil }
-    return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
+    return peer.resolvedPresence(live: workspaces.presence.byUserId)
   }
 
   /// The status slot's content: the reorder handle, a spinner while the room changes, or the muted bell. The
@@ -991,7 +991,7 @@ struct DirectRoomAvatarStack: View {
   let participants: [DirectRoomAvatarParticipant]
   /// Self Directs and Read-only Directs show no mark.
   var showsPresence = true
-  /// A Read-only Direct's Former members: web's `opacity-50 grayscale`.
+  /// A Read-only Direct's Former members sit back: faded and greyscale.
   var isDimmed = false
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
@@ -1010,10 +1010,10 @@ struct DirectRoomAvatarStack: View {
     } else {
       HStack(spacing: -Self.overlap) {
         ForEach(participants.enumerated(), id: \.element.id) { index, participant in
-          // Web's `border-sidebar` ring: the face sits 1 pt inside its frame,
+          // Ring between overlapping faces: the face sits 1 pt inside its frame,
           // and the frame is cut out of the face under it, since a Mac sidebar
           // has no single colour to paint the ring in. Dimmed, the cut fades
-          // with the face, as web's border does.
+          // with the face.
           ParticipantAvatar(
             imageURL: participant.imageURL,
             name: participant.name,
@@ -1029,7 +1029,7 @@ struct DirectRoomAvatarStack: View {
           }
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
-              PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
+              PresenceDot(presence: participant.resolvedPresence(live: livePresence), size: Self.markSize).offset(x: 2, y: 2)
             }
           }
           .zIndex(Double(participants.count - index))
@@ -1038,9 +1038,5 @@ struct DirectRoomAvatarStack: View {
       // Bounds the rings' and marks' knockouts to the faces.
       .compositingGroup()
     }
-  }
-
-  private func presence(for participant: DirectRoomAvatarParticipant) -> Components.Schemas.ChatRoomPresence {
-    participant.isAI ? .online : livePresence[participant.id] ?? participant.presence
   }
 }

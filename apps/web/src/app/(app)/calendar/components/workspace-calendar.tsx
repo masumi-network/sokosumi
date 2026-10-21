@@ -8,6 +8,7 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
+  type ProjectSocialProvider as ProjectSocialProviderValue,
   SocialPostStatus,
   type SocialPostStatus as SocialPostStatusValue,
   TaskStatus,
@@ -70,6 +71,10 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import {
+  SOCIAL_POST_PROVIDERS,
+  socialPlatformFilterSection,
+} from "@/components/social-platform-filter";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -213,6 +218,9 @@ const calendarParsers = {
     parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
       SOCIAL_POST_STATUSES,
     ),
+  provider: parseAsStringEnum<ProjectSocialProviderValue>(
+    SOCIAL_POST_PROVIDERS,
+  ),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
@@ -908,7 +916,18 @@ export function WorkspaceCalendar({
     };
   });
 
-  const date = parseCalendarDate(state.date ?? initialDate, initialDate);
+  const requestedDate = parseCalendarDate(
+    state.date ?? initialDate,
+    initialDate,
+  );
+  const latestCalendarDate = latestDate
+    ? parseCalendarDate(latestDate, initialDate)
+    : null;
+  const date =
+    latestCalendarDate &&
+    startOfMonth(requestedDate) > startOfMonth(latestCalendarDate)
+      ? latestCalendarDate
+      : requestedDate;
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
@@ -974,9 +993,6 @@ export function WorkspaceCalendar({
     }
   }, [isMobile, state.view, setState, socialPostsOnly]);
 
-  const latestCalendarDate = latestDate
-    ? parseCalendarDate(latestDate, initialDate)
-    : null;
   const visibleItems = loadedItems
     .filter((item) => {
       // Only Social posts survive the toggle. The grid views drain every page
@@ -993,6 +1009,7 @@ export function WorkspaceCalendar({
           state.assigneeUserId === null &&
           state.status === null &&
           (state.postStatus === null || item.status === state.postStatus) &&
+          (state.provider === null || item.provider === state.provider) &&
           (selectedSourceId === null || item.sourceId === selectedSourceId)
         );
       return (
@@ -1294,7 +1311,7 @@ export function WorkspaceCalendar({
       : []),
     // A coworker, human or task status chosen while Social-only is on would
     // empty the calendar: a Social post has none of the three. Posts have
-    // their own status filter instead.
+    // their own status and platform filters instead.
     ...(socialOnly ? [] : runFilterSections()),
     ...(socialOnly
       ? [
@@ -1318,6 +1335,13 @@ export function WorkspaceCalendar({
                 { shallow: false },
               ),
           },
+          socialPlatformFilterSection({
+            label: t("socialPost.platform"),
+            allLabel: tFilters("all"),
+            value: state.provider,
+            onChange: (provider) =>
+              void setState({ provider }, { shallow: false }),
+          }),
         ]
       : []),
     {
@@ -1461,6 +1485,7 @@ export function WorkspaceCalendar({
                     assigneeUserId: null,
                     status: null,
                     postStatus: state.socialOnly ? null : state.postStatus,
+                    provider: state.socialOnly ? null : state.provider,
                   },
                   { shallow: false },
                 )
@@ -1500,7 +1525,8 @@ export function WorkspaceCalendar({
                   (state.assigneeId !== null ||
                     state.assigneeUserId !== null ||
                     state.status !== null)) ||
-                (socialOnly && state.postStatus !== null) ||
+                (socialOnly &&
+                  (state.postStatus !== null || state.provider !== null)) ||
                 selectedSourceId !== null
               }
             />

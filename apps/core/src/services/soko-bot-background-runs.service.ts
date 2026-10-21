@@ -40,12 +40,18 @@ export async function startBackgroundRun(
   authorized: AuthorizedSokoBotRuntime,
   input: { title: string; brief: string },
 ) {
+  // Every shared turn names its member, so the owner check below would
+  // refuse it anyway, with a message about an owner the bot does not have.
+  if (authorized.reader.sharedScope)
+    throw new SokoBotRuntimeValidationError(
+      "A shared Soko Bot cannot start background runs; do the work in this turn.",
+    );
   const parent = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
     select: {
       source: true,
       parentTurnId: true,
-      requestedByUserId: true,
+      askedByUserId: true,
       chainDepth: true,
       destinationRoomId: true,
     },
@@ -57,7 +63,7 @@ export async function startBackgroundRun(
   // A run works with the owner's whole context and posts where it was asked;
   // started from a teammate's or another bot's message, that would carry the
   // owner's private context into their room.
-  if (parent.requestedByUserId || parent.chainDepth > 0)
+  if (parent.askedByUserId || parent.chainDepth > 0)
     throw new SokoBotRuntimeValidationError(
       "Only the owner can start a background run.",
     );
@@ -72,7 +78,7 @@ export async function startBackgroundRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: authorized.turn.userId,
+    userId: authorized.turn.actingUserId,
     workspaceId: authorized.turn.workspaceId,
     // Cuso shares a workspace with the owner's own assistant: the run belongs
     // to the bot that started it.
@@ -191,6 +197,9 @@ export async function stopBackgroundRun(
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
-  await sokoBotControlPlane.cancelTurn(authorized.turn.userId, run.id);
+  await sokoBotControlPlane.cancelTurn(
+    authorized.turn.actingUserId ?? { sokoBotId: authorized.turn.sokoBotId },
+    run.id,
+  );
   return { runId: run.id, stopped: true, previousStatus: run.status };
 }

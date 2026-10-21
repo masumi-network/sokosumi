@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   receipt: vi.fn(),
   updateReceipt: vi.fn(),
   reclaim: vi.fn(),
-  workspace: vi.fn(),
+  bot: vi.fn(),
   turn: vi.fn(),
   actor: vi.fn(),
   create: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: mocks.reclaim,
       upsert: mocks.alias,
     },
-    workspace: { findUniqueOrThrow: mocks.workspace },
+    sokoBot: { findUnique: mocks.bot },
     sokoBotTurn: { findUnique: mocks.turn },
   },
 }));
@@ -50,7 +50,8 @@ const authorized: AuthorizedSokoBotRuntime = {
   toolCallLimit: 64,
   turn: {
     id: turnId,
-    userId,
+    actingUserId: userId,
+    requestedByUserId: userId,
     workspaceId,
     sokoBotId,
     eveSessionId: sessionId,
@@ -59,6 +60,7 @@ const authorized: AuthorizedSokoBotRuntime = {
     chainDepth: 0,
   },
   classificationConfidence: 1,
+  reader: { userId, audience: undefined, sharedScope: null },
   grant: {
     userId,
     workspaceId,
@@ -85,9 +87,10 @@ it.each(["write_table_rows", "create_table", "update_table_columns"] as const)(
     vi.resetAllMocks();
     const runtime = new SokoBotRuntimeService();
     vi.spyOn(runtime, "authorize").mockResolvedValue(authorized);
-    mocks.workspace.mockResolvedValue({
-      id: workspaceId,
-      organizationId: null,
+    mocks.bot.mockResolvedValue({
+      userId,
+      projectId: null,
+      workspace: { id: workspaceId, organizationId: null },
     });
     mocks.actor.mockResolvedValue(actor);
     const tableId = randomUUID();
