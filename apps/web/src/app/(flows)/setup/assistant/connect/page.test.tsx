@@ -88,7 +88,10 @@ describe("SetupAssistantConnectPage", () => {
       configured: true,
       integrations: [],
     });
-    createRoomMock.mockResolvedValue({ id: "room-1" });
+    createRoomMock.mockResolvedValue({
+      room: { id: "room-1" },
+      created: true,
+    });
   });
 
   it("offers mail and calendar for the new bot, ending in its chat", async () => {

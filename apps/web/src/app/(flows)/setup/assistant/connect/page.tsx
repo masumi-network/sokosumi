@@ -74,7 +74,7 @@ export default async function SetupAssistantConnectPage({
 /** The bot's direct room; the create form already opened it, so this finds it. */
 async function loadChatUrl(sokoBotId: string): Promise<string> {
   try {
-    const room = await chatRoomService.createRoom({
+    const { room } = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [],
