@@ -1037,7 +1037,6 @@
       "destination": "Cuenta",
       "scheduled": "Programado para",
       "recurrence": "Repetición",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Tarea",
         "task_schedule": "Programación de tarea",

@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  type NumberFormatOptions,
+  useFormatter,
+  useTranslations,
+} from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -383,9 +387,8 @@ export function ResultPreviewCard({
                       <FileText aria-hidden className="size-4 shrink-0" />
                       <span className="wrap-break-word">
                         {output.name}
-                        {output.contentType ? ` · ${output.contentType}` : ""}
                         {output.sizeBytes != null
-                          ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                          ? ` · ${fileSize(output.sizeBytes, format.number)}`
                           : ""}
                       </span>
                     </Link>
@@ -425,6 +428,25 @@ export function ResultPreviewCard({
       </div>
     </article>
   );
+}
+
+const SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/** A decimal file size in the reader's locale, such as "182 kB". */
+export function fileSize(
+  bytes: number,
+  formatNumber: (value: number, options: NumberFormatOptions) => string,
+): string {
+  const step = Math.min(
+    SIZE_UNITS.length - 1,
+    bytes >= 1000 ? Math.floor(Math.log10(bytes) / 3) : 0,
+  );
+  return formatNumber(bytes / 1000 ** step, {
+    style: "unit",
+    unit: SIZE_UNITS[step],
+    unitDisplay: "short",
+    maximumFractionDigits: step > 1 ? 1 : 0,
+  });
 }
 
 /** An http(s) value opens in a new tab; anything else stays text. */

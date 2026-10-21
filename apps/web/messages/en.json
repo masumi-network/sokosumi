@@ -1037,7 +1037,6 @@
       "destination": "Account",
       "scheduled": "Scheduled for",
       "recurrence": "Recurrence",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Task",
         "task_schedule": "Task schedule",

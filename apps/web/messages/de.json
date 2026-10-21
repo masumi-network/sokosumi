@@ -1037,7 +1037,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
