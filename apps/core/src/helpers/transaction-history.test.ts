@@ -1,3 +1,4 @@
+import type { TaskX402PaymentRefundKind } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -23,6 +24,7 @@ function sokoBotRow(
     imagePrompt: null,
     taskId: null,
     taskName: null,
+    taskArchived: null,
     taskEventId: null,
     taskEventComment: null,
     coworkerId: null,
@@ -35,6 +37,16 @@ function sokoBotRow(
     bucketSource: null,
     topUpSource: null,
     topUpNote: null,
+    refundedJobId: null,
+    refundedJobName: null,
+    refundedAgentId: null,
+    refundedJobOnChainStatus: null,
+    refundedTaskId: null,
+    refundedTaskName: null,
+    refundedTaskArchived: null,
+    refundedImagePrompt: null,
+    refundSource: null,
+    refundX402Kind: null,
     ...overrides,
   };
 }
@@ -79,5 +91,157 @@ describe("mapTransactionHistoryRow Soko Bot rows", () => {
     expect(
       map(sokoBotRow({ sokoBotName: null, sokoBotTurnSource: null })),
     ).toMatchObject({ title: "Soko Bot · Unnamed", description: null });
+  });
+});
+
+function refundRow(
+  overrides: Partial<TransactionHistoryRow> = {},
+): TransactionHistoryRow {
+  return sokoBotRow({
+    kind: "topUp",
+    amount: 250n,
+    sokoBotId: null,
+    sokoBotName: null,
+    sokoBotTurnSource: null,
+    topUpSource: "REFUND",
+    ...overrides,
+  });
+}
+
+function jobRefundRow(
+  overrides: Partial<TransactionHistoryRow> = {},
+): TransactionHistoryRow {
+  return refundRow({
+    refundSource: "job",
+    refundedJobId: "job-1",
+    refundedJobName: "Audit the contract",
+    refundedAgentId: "agent-1",
+    refundedJobOnChainStatus: "REFUND_WITHDRAWN",
+    ...overrides,
+  });
+}
+
+function taskRefundRow(
+  overrides: Partial<TransactionHistoryRow> = {},
+): TransactionHistoryRow {
+  return refundRow({
+    refundSource: "taskPaymentClaim",
+    refundedTaskId: "task-1",
+    refundedTaskName: "Draft the launch email",
+    ...overrides,
+  });
+}
+
+describe("mapTransactionHistoryRow refund rows", () => {
+  it("says why a job was refunded and links to it", () => {
+    expect(map(jobRefundRow())).toMatchObject({
+      kind: "topUp",
+      title: "Refund",
+      description: "Refund approved · Audit the contract",
+      refundedJobId: "job-1",
+      refundedAgentId: "agent-1",
+      refundedTaskId: null,
+    });
+  });
+
+  it("calls any other job outcome a payment that could not be completed", () => {
+    for (const status of ["FUNDS_OR_DATUM_INVALID", null] as const) {
+      expect(
+        map(jobRefundRow({ refundedJobOnChainStatus: status })).description,
+      ).toBe("Payment could not be completed · Audit the contract");
+    }
+  });
+
+  it("never shows a payment claim's raw failure", () => {
+    expect(map(taskRefundRow())).toMatchObject({
+      description: "Payment could not be completed · Draft the launch email",
+      refundedTaskId: "task-1",
+      refundedJobId: null,
+      refundedAgentId: null,
+    });
+  });
+
+  it("names an archived task's refund but does not link to it", () => {
+    expect(map(taskRefundRow({ refundedTaskArchived: true }))).toMatchObject({
+      description: "Payment could not be completed · Draft the launch email",
+      refundedTaskId: null,
+    });
+  });
+
+  it("explains each x402 refund kind", () => {
+    const describeKind = (refundX402Kind: TaskX402PaymentRefundKind | null) =>
+      map(taskRefundRow({ refundSource: "taskX402", refundX402Kind }))
+        .description;
+
+    expect(describeKind("NODE_REFUSAL")).toBe(
+      "Payment was refused · Draft the launch email",
+    );
+    expect(describeKind("OPERATOR_GOODWILL")).toBe(
+      "Refunded by support · Draft the launch email",
+    );
+    expect(describeKind("OPERATOR_RESOLVE")).toBe(
+      "Refunded by support · Draft the launch email",
+    );
+    expect(describeKind(null)).toBe("Draft the launch email");
+  });
+
+  it("keeps the refund description when a top up note is also set", () => {
+    expect(map(jobRefundRow({ topUpNote: "Manual adjustment" }))).toMatchObject(
+      {
+        description: "Refund approved · Audit the contract",
+        refundedJobId: "job-1",
+      },
+    );
+  });
+
+  it("uses a top up note when the refund has no linked job or task", () => {
+    expect(map(refundRow({ topUpNote: "Manual adjustment" })).description).toBe(
+      "Manual adjustment",
+    );
+  });
+
+  it("truncates a long name and keeps the reason", () => {
+    const description = map(
+      jobRefundRow({ refundedJobName: "x".repeat(300) }),
+    ).description;
+
+    expect(description).toBe(`Refund approved · ${"x".repeat(119)}…`);
+  });
+
+  it("keeps the reason when the refunded job has no name", () => {
+    expect(map(jobRefundRow({ refundedJobName: null }))).toMatchObject({
+      description: "Refund approved",
+      refundedJobId: "job-1",
+    });
+  });
+
+  it("names a legacy studio image refund and keeps its project id", () => {
+    expect(
+      map(
+        refundRow({
+          refundSource: "projectImage",
+          refundedImagePrompt: "A bold event poster",
+          projectId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+        }),
+      ),
+    ).toMatchObject({
+      description: "Payment could not be completed · A bold event poster",
+      projectId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+      refundedJobId: null,
+      refundedTaskId: null,
+    });
+  });
+
+  it("leaves a refund with no job or task, and other top ups, unexplained", () => {
+    expect(map(refundRow())).toMatchObject({
+      description: null,
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
+    });
+    expect(map(refundRow({ topUpSource: "STRIPE_TOPUP" }))).toMatchObject({
+      title: "Credit top up",
+      description: null,
+    });
   });
 });
