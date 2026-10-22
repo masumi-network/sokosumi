@@ -2997,6 +2997,7 @@
           "dialog": {
             "title": "Projekt schließen?",
             "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "scheduledPostsWarning": "{count, plural, one {# geplanter Beitrag wird abgebrochen.} other {# geplante Beiträge werden abgebrochen.}}",
             "reasonLabel": "Grund (optional)",
             "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
             "confirm": "Projekt schließen",
