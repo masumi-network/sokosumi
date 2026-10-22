@@ -51,6 +51,22 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
     },
   ];
 
+/**
+ * Slack is a generic toolkit (the bot runs its tools through
+ * `run_integration_tool`), but Core also reads it to capture contacts: whom
+ * the owner talks with in direct messages and small channels. These are the
+ * Composio slugs that capture calls; Core feature-detects them and skips
+ * Slack when they are missing.
+ */
+export const SOKO_BOT_SLACK_CAPTURE_TOOLS = {
+  provider: "slack",
+  authTest: "SLACK_TEST_AUTH",
+  listConversations: "SLACK_LIST_CONVERSATIONS",
+  conversationMembers: "SLACK_RETRIEVE_CONVERSATION_MEMBERS_LIST",
+  conversationHistory: "SLACK_FETCH_CONVERSATION_HISTORY",
+  userInfo: "SLACK_RETRIEVE_DETAILED_USER_INFORMATION",
+} as const;
+
 /** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
 export function isSokoBotEmailProvider(id: string): boolean {
   return getSokoBotIntegrationProvider(id)?.kinds.includes("email") ?? false;

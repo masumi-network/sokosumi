@@ -3,6 +3,7 @@ export {
   isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
   SOKO_BOT_POPULAR_TOOLKITS,
+  SOKO_BOT_SLACK_CAPTURE_TOOLS,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,

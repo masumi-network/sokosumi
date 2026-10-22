@@ -22,6 +22,7 @@ import {
   rhythmTaskScope,
 } from "@/lib/soko-bot/rhythm-task-scope";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
+import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   activityStats,
   activityStatsLines,
@@ -507,6 +508,13 @@ export async function buildSystemBeatMessage(input: {
         );
       }
       lines.push("");
+      lines.push(
+        ...(await calendarPeopleBlock({
+          workspaceId: bot.workspaceId,
+          attendees: events.slice(0, 15).flatMap((event) => event.attendees),
+          timeZone: bot.ingestTimezone,
+        }).catch(() => [])),
+      );
     }
     const mail: SokoBotInboxMessage[] = [];
     for (const integration of await activeIntegrationsForBot(bot.id, "email")) {

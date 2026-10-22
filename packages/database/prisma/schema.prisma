@@ -809,12 +809,12 @@ model SocialPost {
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
 
   /// Social provider key, e.g. "x".
-  provider String
-  text     String
+  provider     String
+  text         String
   /// Optional comment posted once after the post, on networks Composio supports.
   firstComment String?
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
-  media    Json   @default("[]")
+  media        Json    @default("[]")
 
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
@@ -2178,6 +2178,7 @@ model SokoBotIntegration {
   cursor                   Json?
   lastIngestAt             DateTime?
   lastErrorAt              DateTime?
+  contactCaptureState      ContactCaptureState?
 
   @@unique([sokoBotId, provider])
   @@index([status])

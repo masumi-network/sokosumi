@@ -126,6 +126,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/sync/contact-capture",
+      "schedule": "5,20,35,50 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
     },

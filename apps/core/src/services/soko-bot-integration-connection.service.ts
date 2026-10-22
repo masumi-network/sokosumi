@@ -11,6 +11,7 @@ import {
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
+import { scheduleContactCapture } from "@/services/contact-capture.service";
 import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
 import {
   composioEntityId,
@@ -275,6 +276,19 @@ export async function finalizeSokoBotIntegration(input: {
       "Connection changed; retry finalizing OAuth",
     );
   }
+  // Contacts start filling from this account: a new account gets a fresh
+  // 12-month backfill on the next capture run.
+  if (status === "ACTIVE")
+    await scheduleContactCapture({
+      integrationId: row.id,
+      provider: provider.id,
+      reset: replacing,
+    }).catch((error: unknown) => {
+      console.error("Scheduling contact capture failed", {
+        integrationId: row.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.
   if (replacing) {

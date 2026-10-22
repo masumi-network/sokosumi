@@ -47,6 +47,9 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   fetchCalendarEvents: vi.fn(),
   fetchInboxMessages: vi.fn(),
 }));
+vi.mock("@/services/contacts-context.service", () => ({
+  calendarPeopleBlock: vi.fn().mockResolvedValue([]),
+}));
 
 import {
   buildSystemBeatMessage,
@@ -318,6 +321,79 @@ describe("buildSystemBeatMessage stand-up board", () => {
     );
     // Work without an Owner is still the team's.
     expect(beat.message).toContain('A teammate · COMPLETED · "Weekly digest"');
+  });
+});
+
+describe("buildSystemBeatMessage stand-up people", () => {
+  it("adds who the owner meets today from Contacts, right after the calendar", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    const context = await import("@/services/contacts-context.service");
+    vi.mocked(integrations.activeIntegrationsForBot).mockImplementation(
+      async (_botId, kind) =>
+        kind === "calendar"
+          ? [
+              {
+                id: "int-1",
+                sokoBotId: ALICE_BOT_ID,
+                provider: {
+                  id: "googlecalendar",
+                  name: "Google Calendar",
+                  kinds: ["calendar"],
+                  tools: {},
+                  logoUrl: "",
+                },
+                composioAccountId: "ca",
+                connectorUserId: null,
+                cursor: null,
+              },
+            ]
+          : [],
+    );
+    vi.mocked(integrations.fetchCalendarEvents).mockResolvedValue([
+      {
+        provider: "googlecalendar",
+        id: "e1",
+        title: "Pilot kickoff",
+        startsAt: "2026-09-16T08:00:00.000Z",
+        endsAt: null,
+        allDay: false,
+        location: null,
+        attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+        organizer: null,
+        description: null,
+        link: null,
+      },
+    ]);
+    vi.mocked(context.calendarPeopleBlock).mockResolvedValue([
+      "## People on your calendar (from Contacts)",
+      "- Nina Keller — Head of Partnerships @ Acme · known by Bob (2)",
+      "",
+    ]);
+    taskFindManyMock.mockResolvedValue([]);
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(context.calendarPeopleBlock).toHaveBeenCalledWith({
+      workspaceId: ALICE_WORKSPACE_ID,
+      attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+      timeZone: "Europe/Vienna",
+    });
+    const calendarAt = beat.message.indexOf("## Calendar");
+    const peopleAt = beat.message.indexOf("## People on your calendar");
+    expect(calendarAt).toBeGreaterThanOrEqual(0);
+    expect(peopleAt).toBeGreaterThan(calendarAt);
+    expect(beat.message).toContain("Nina Keller — Head of Partnerships @ Acme");
   });
 });
 
