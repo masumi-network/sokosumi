@@ -25,7 +25,15 @@ describe("parseEnrichmentAnswer", () => {
   it("returns null for no JSON, broken JSON or the wrong shape", () => {
     expect(parseEnrichmentAnswer("I cannot tell.")).toBeNull();
     expect(parseEnrichmentAnswer('{"organization": "Acme",')).toBeNull();
-    expect(parseEnrichmentAnswer('{"lists": "Pilots"}')).toBeNull();
+    expect(parseEnrichmentAnswer('{"organization": 42}')).toBeNull();
+  });
+
+  it("keeps the fields when lists or evidence come back in another shape", () => {
+    expect(
+      parseEnrichmentAnswer(
+        '{"organization":"Acme","lists":"Pilots","evidence":[{"field":"organization"}]}',
+      ),
+    ).toEqual({ organization: "Acme", lists: null, evidence: null });
   });
 });
 

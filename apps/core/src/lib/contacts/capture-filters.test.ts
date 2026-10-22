@@ -47,15 +47,19 @@ describe("classifyAddress", () => {
     ).toEqual({ ok: true, borderline: false });
   });
 
-  it.each(["hey@adyjecinski.com", "business@acme.com", "ceooffice@acme.org"])(
-    "sends the shared inbox %s to the judge",
-    (email) => {
-      expect(classifyAddress(email, identity, outbound)).toEqual({
-        ok: true,
-        borderline: true,
-      });
-    },
-  );
+  it.each([
+    "hey@adyjecinski.com",
+    "business@acme.com",
+    "ceooffice@acme.org",
+    "kontakt@acme.de",
+    "hallo@acme.de",
+    "partner@acme.com",
+  ])("sends the shared inbox %s to the judge", (email) => {
+    expect(classifyAddress(email, identity, outbound)).toEqual({
+      ok: true,
+      borderline: true,
+    });
+  });
 
   it.each([
     "noreply@acme.com",

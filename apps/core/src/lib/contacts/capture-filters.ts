@@ -111,7 +111,7 @@ const AUTOMATED_LOCAL =
 
 /** Shared role inboxes: sometimes a person reads them, often nobody. */
 const ROLE_LOCAL =
-  /^(info|hello|hi|hey|business|ceo|ceooffice|ceo-office|management|general|welcome|contactus|contact-us|mail|contact|sales|support|help|team|office|admin|hr|jobs|careers|press|media|billing|accounts|accounting|finance|service|services|enquiries|inquiries|feedback|partners|partnerships|marketing|events|community|legal|privacy|investors|ir|booking|bookings|orders|reception)$/;
+  /^(info|hello|hi|hey|hallo|kontakt|anfrage|anfragen|buchhaltung|rechnung|rechnungen|bewerbung|verwaltung|post|partner|flights|bank|infrastructure|business|ceo|ceooffice|ceo-office|management|general|welcome|contactus|contact-us|mail|contact|sales|support|help|team|office|admin|hr|jobs|careers|press|media|billing|accounts|accounting|finance|service|services|enquiries|inquiries|feedback|partners|partnerships|marketing|events|community|legal|privacy|investors|ir|booking|bookings|orders|reception)$/;
 
 export type CaptureSkipReason =
   | "invalid_address"

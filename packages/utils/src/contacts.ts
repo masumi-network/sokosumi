@@ -181,18 +181,26 @@ export function contactNameFromChannel(
   value: string,
 ): string {
   if (type === "EMAIL") {
-    // Only `jane.doe@` reads as a name; `rodrigopacini@` or `hey@` stays the
-    // address until a real name arrives, rather than becoming "Hey".
-    const parts =
-      (value.split("@")[0] ?? "").split("+")[0]?.split(/[._-]+/) ?? [];
+    // `jane.doe@` → "Jane Doe", `federico@` → "Federico"; anything else
+    // (`lopezfacundo123@`, a hash) stays the address until a real name arrives.
+    const local = (value.split("@")[0] ?? "").split("+")[0] ?? "";
+    const parts = local.split(/[._-]+/);
+    const letters = (part: string) => /^\p{L}+$/u.test(part);
     const readable =
-      parts.length >= 2 &&
-      parts.length <= 4 &&
-      parts.every((part) => /^\p{L}+$/u.test(part)) &&
-      parts.some((part) => part.length >= 2);
+      (parts.length >= 2 &&
+        parts.length <= 4 &&
+        parts.every(letters) &&
+        parts.some((part) => part.length >= 2)) ||
+      (parts.length === 1 &&
+        letters(local) &&
+        local.length >= 3 &&
+        local.length <= 12);
     return readable
       ? parts
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .map(
+            (part) =>
+              part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
+          )
           .join(" ")
       : value;
   }

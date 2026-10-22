@@ -265,14 +265,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
     const contacts = await contactsOf(workspaceId);
     expect(contacts.map((contact) => contact.name).sort()).toEqual(
-      [
-        "Lukas Meier",
-        "Max Muster",
-        "Nina Keller",
-        "Tom Berger",
-        // No display name and `sara@` is not first.last: the address stays.
-        "sara@acme-robotics.com",
-      ].sort(),
+      ["Lukas Meier", "Max Muster", "Nina Keller", "Tom Berger", "Sara"].sort(),
     );
     const nina = contacts.find((contact) => contact.name === "Nina Keller");
     expect(nina).toMatchObject({
@@ -683,6 +676,26 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       shouldContinue: () => true,
     });
     expect(stats.modelFailures).toBe(1);
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: queued.contact.id },
+        })
+      ).enrichedAt,
+    ).toBeNull();
+    // An answer cut off by the output limit is a failure, not "nothing found".
+    mocks.generateText.mockResolvedValue({
+      text: '```json\n{\n  "organization": "Card',
+      providerMetadata: {},
+    });
+    const cutOff = emptyEnrichmentStats();
+    await enrichWorkspaceContacts({
+      workspaceId: mergeWorkspaceId,
+      budget: { enrichments: 20, usd: 0.05 },
+      stats: cutOff,
+      shouldContinue: () => true,
+    });
+    expect(cutOff.modelFailures).toBe(1);
     expect(
       (
         await prisma.contact.findUniqueOrThrow({
