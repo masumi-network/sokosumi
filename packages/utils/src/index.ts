@@ -154,6 +154,7 @@ export {
 } from "./credit-topup-pricing.js";
 export {
   createDataTableSchema,
+  TABLE_COLUMN_WIDTH,
   tableBatchSchema,
   tableColumnInputSchema,
   tableEvidenceSchema,

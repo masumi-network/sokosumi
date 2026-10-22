@@ -8350,8 +8350,12 @@
       "unknown": "Unbekannt",
       "yes": "Ja",
       "no": "Nein",
-      "editCell": "{column} bearbeiten",
       "cellHistory": "Verlauf und Quellen: {column}",
+      "openLink": "Link öffnen: {column}",
+      "wrapText": "Text umbrechen",
+      "fitColumn": "Breite an Inhalt anpassen",
+      "resizeColumn": "Breite von {column} ändern. Ziehen oder Pfeiltasten nach links und rechts drücken. Doppelklicken passt die Breite an den Inhalt an.",
+      "gridKeys": "Pfeiltasten und Tab wechseln zwischen Zellen. Enter oder Tippen bearbeitet eine Zelle, Escape bricht ab und Enter speichert. Alt+Enter öffnet einen Link, Alt+Umschalt+H zeigt den Verlauf der Zelle.",
       "discard": "Entwurf verwerfen",
       "editColumn": "Spalte bearbeiten",
       "addColumn": "Spalte hinzufügen",
@@ -8453,7 +8457,8 @@
         "csvRows": "CSV-Dateien dürfen bis zu 10.000 Datenzeilen enthalten.",
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
-        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
+        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",

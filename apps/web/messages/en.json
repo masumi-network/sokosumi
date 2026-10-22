@@ -8350,8 +8350,12 @@
       "unknown": "Unknown",
       "yes": "Yes",
       "no": "No",
-      "editCell": "Edit {column}",
       "cellHistory": "History and sources: {column}",
+      "openLink": "Open link: {column}",
+      "wrapText": "Wrap text",
+      "fitColumn": "Fit width to content",
+      "resizeColumn": "Resize {column}. Drag, or press the left and right arrow keys. Double-click to fit the content.",
+      "gridKeys": "Arrow keys and Tab move between cells. Enter or typing edits a cell, Escape cancels, and Enter saves. Alt+Enter opens a link, Alt+Shift+H shows the cell history.",
       "discard": "Discard draft",
       "editColumn": "Edit column",
       "addColumn": "Add column",
@@ -8453,7 +8457,8 @@
         "csvRows": "CSV files can contain up to 10,000 data rows.",
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
-        "csvWidth": "Every CSV row must have the same number of columns."
+        "csvWidth": "Every CSV row must have the same number of columns.",
+        "layout": "Column layout wasn't saved and was reset. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
