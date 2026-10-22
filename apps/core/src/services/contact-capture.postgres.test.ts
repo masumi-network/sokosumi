@@ -654,6 +654,37 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     ).toContainEqual([tom.contact.id, thomas.contact.id].sort());
   });
 
+  it("never asks the model about a contact missing only a role", async () => {
+    const actor: ContactActor = {
+      workspaceId: mergeWorkspaceId,
+      userId: bob,
+      sokoBotId: null,
+    };
+    await inContactTransaction((tx) =>
+      upsertContact(tx, actor, {
+        name: "Imported Person",
+        organization: "Imported AG",
+        summary: "Met at the fair.",
+        channels: [{ type: "EMAIL", value: "imported@imported.test" }],
+        upsert: false,
+      }),
+    );
+    mocks.generateText.mockReset();
+    mocks.generateText.mockResolvedValue({ text: "{}", providerMetadata: {} });
+    await enrichWorkspaceContacts({
+      workspaceId: mergeWorkspaceId,
+      budget: { enrichments: 20, usd: 0.05 },
+      stats: emptyEnrichmentStats(),
+      shouldContinue: () => true,
+    });
+    const prompts = mocks.generateText.mock.calls.map(
+      ([request]) => (request as { prompt: string }).prompt,
+    );
+    expect(prompts.some((prompt) => prompt.includes("Imported Person"))).toBe(
+      false,
+    );
+  });
+
   it("leaves contacts queued when the model fails or the money is spent", async () => {
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
