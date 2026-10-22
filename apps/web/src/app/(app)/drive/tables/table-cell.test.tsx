@@ -1,7 +1,8 @@
 import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { type GridMove, TableCell, TableUpdatedCell } from "./table-cell";
+import type { GridMove } from "@/components/data-grid/grid-keys";
+import { TableCell, TableUpdatedCell } from "./table-cell";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,

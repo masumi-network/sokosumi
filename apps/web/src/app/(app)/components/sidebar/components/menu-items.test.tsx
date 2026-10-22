@@ -236,6 +236,7 @@ describe("MenuItems search action", () => {
       "exploreAgents",
       "taskManager",
       "schedules",
+      "contacts",
       "contentStudio",
       "drive",
     ];
@@ -424,6 +425,7 @@ describe("MenuItems search action", () => {
       "exploreAgents",
       "taskManager",
       "schedules",
+      "contacts",
       "contentStudio",
       "drive",
     ]);
@@ -496,6 +498,7 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
       ["drive", "/drive"],
     ]) {
@@ -510,6 +513,8 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
+      // Contacts belong to the workspace, not a project.
+      ["contacts", "/contacts"],
       ["contentStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
     ]) {

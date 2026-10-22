@@ -7,6 +7,7 @@ import {
   CONTACT_LIST_COLORS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  calendarDateSchema,
   contactFilterSchema,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -63,7 +64,9 @@ export const contactSchema = z
     stage: contactStageSchema,
     owner: z.union([personSchema, z.null()]),
     nextStep: z.string().nullable(),
-    followUpAt: z.iso.date().nullable().openapi({ example: "2026-11-02" }),
+    followUpAt: calendarDateSchema
+      .nullable()
+      .openapi({ example: "2026-11-02" }),
     avatarUrl: z.string().nullable(),
     customFields: z.record(z.string(), z.unknown()),
     firstContactAt: dateTimeSchema.nullable(),

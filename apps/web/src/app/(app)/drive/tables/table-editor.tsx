@@ -20,7 +20,7 @@ import type {
   TableRow,
   TableView,
 } from "@sokosumi/core-client";
-import { encodeTableCsv, TABLE_COLUMN_WIDTH } from "@sokosumi/utils";
+import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -44,6 +44,21 @@ import {
   useState,
 } from "react";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
+import {
+  GRID_HEAD_CHROME,
+  GRID_ROW_BACKGROUND,
+  GRID_ROW_CHROME,
+  GRID_ROW_NUMBER,
+  GRID_SCROLL_CONTAINER,
+  GRID_STICKY_FIRST_COLUMN,
+  GRID_STICKY_ROW_NUMBER,
+} from "@/components/data-grid/grid-classes";
+import {
+  fitGridColumn,
+  ROW_NUMBER_WIDTH,
+} from "@/components/data-grid/grid-layout";
+import { useGridFocus } from "@/components/data-grid/use-grid-focus";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,17 +94,9 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
-import { type GridMove, TableCell, TableUpdatedCell } from "./table-cell";
+import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
-import {
-  cellWrap,
-  clampColumnWidth,
-  columnWidth,
-  fitColumnWidth,
-  measureColumnNeeds,
-  RESIZE_STEP,
-  ROW_NUMBER_WIDTH,
-} from "./table-layout";
+import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import {
   parseTableInput,
@@ -113,106 +120,6 @@ import { useColumnLayout } from "./use-column-layout";
  */
 const EDITOR_TOOLBAR_CONTROL = "h-10 md:h-8";
 const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
-
-/**
- * Row and column chrome (drag handles, row checkboxes, column menus) is
- * painted only where the pointer or focus is, so a long table reads as data
- * rather than a field of controls. It stays in the DOM and the tab order, and
- * focus reveals it. A row's chrome shares the row-number cell with the
- * number, which steps aside while the chrome shows, so nothing shifts; a tap
- * on any cell of a row on a touch screen reveals it the same way.
- */
-const ROW_CHROME =
-  "opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100";
-const ROW_NUMBER =
-  "transition-opacity group-hover/row:opacity-0 group-focus-within/row:opacity-0";
-/** Column chrome; touch screens, which have no hover, always show it. */
-const HEAD_CHROME =
-  "opacity-0 transition-opacity group-hover/head:opacity-100 group-focus-within/head:opacity-100 has-data-[state=open]:opacity-100 pointer-coarse:opacity-100";
-/**
- * Sticky cells paint their row's background so scrolled cells pass under
- * them. The row numbers always stick. The first data column sticks just past
- * them (`start-16` is `ROW_NUMBER_WIDTH`) from md up only: on a phone a wide
- * first column would cover the screen and leave nothing to scroll into view.
- */
-const ROW_BACKGROUND =
-  "bg-card-background group-hover/row:bg-card-background-hover group-data-[state=selected]/row:bg-muted";
-const STICKY_ROW_NUMBER = "sticky start-0 z-10";
-const STICKY_FIRST_COLUMN = "md:sticky md:start-16 md:z-10";
-
-/**
- * A column's trailing edge. Drag it, or focus it and press the left and
- * right arrow keys; a double click fits the column to its content. The column
- * menu's "Fit width to content" is the single-pointer path to the same result.
- */
-function ColumnResizeHandle({
-  label,
-  width,
-  onPreview,
-  onResize,
-  onFit,
-}: {
-  label: string;
-  width: number;
-  onPreview: (width: number) => void;
-  onResize: (width: number) => void;
-  onFit: () => void;
-}) {
-  const drag = useRef<{ x: number; width: number; direction: number } | null>(
-    null,
-  );
-  function widthAt(clientX: number) {
-    const start = drag.current;
-    return start
-      ? clampColumnWidth(start.width + (clientX - start.x) * start.direction)
-      : width;
-  }
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label={label}
-      aria-valuenow={width}
-      aria-valuemin={TABLE_COLUMN_WIDTH.min}
-      aria-valuemax={TABLE_COLUMN_WIDTH.max}
-      tabIndex={0}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        drag.current = {
-          x: event.clientX,
-          width,
-          direction:
-            getComputedStyle(event.currentTarget).direction === "rtl" ? -1 : 1,
-        };
-      }}
-      onPointerMove={(event) => {
-        if (drag.current) onPreview(widthAt(event.clientX));
-      }}
-      onPointerUp={(event) => {
-        const start = drag.current;
-        const next = widthAt(event.clientX);
-        drag.current = null;
-        if (start && next !== start.width) onResize(next);
-      }}
-      onPointerCancel={() => {
-        if (drag.current) onPreview(drag.current.width);
-        drag.current = null;
-      }}
-      onDoubleClick={onFit}
-      onKeyDown={(event) => {
-        const step =
-          event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
-        if (!step) return;
-        event.preventDefault();
-        const next = clampColumnWidth(width + step * RESIZE_STEP);
-        if (next !== width) onResize(next);
-      }}
-      className="after:bg-ring focus-visible:after:opacity-100 absolute inset-y-0 end-0 z-10 w-3 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:end-0 after:w-0.5 after:opacity-0 after:transition-opacity hover:after:opacity-100"
-    />
-  );
-}
 
 interface ReorderItem {
   kind: "column" | "row";
@@ -531,48 +438,13 @@ function TableWorkspace({
     ROW_NUMBER_WIDTH,
   );
   const grid = useRef<HTMLTableElement>(null);
-  const gridId = useId();
-  const cellId = (rowId: string, columnId: string) =>
-    `${gridId}-${rowId}-${columnId}`;
-  const [activeCell, setActiveCell] = useState<{
-    rowId: string;
-    columnId: string;
-  } | null>(null);
-  // The grid is one tab stop: the selected cell, or the first one when the
-  // selection scrolled off this page or its column was hidden.
-  const tabStop =
-    activeCell &&
-    displayedRows.some((row) => row.id === activeCell.rowId) &&
-    columns.some((column) => column.id === activeCell.columnId)
-      ? activeCell
-      : displayedRows[0] && columns[0]
-        ? { rowId: displayedRows[0].id, columnId: columns[0].id }
-        : null;
-  function handleNavigate(
-    rowIndex: number,
-    columnIndex: number,
-    move: GridMove,
-  ): boolean {
-    const row =
-      displayedRows[rowIndex + (move === "up" ? -1 : move === "down" ? 1 : 0)];
-    const column =
-      columns[columnIndex + (move === "left" ? -1 : move === "right" ? 1 : 0)];
-    const target =
-      row && column && document.getElementById(cellId(row.id, column.id));
-    if (!target) return false;
-    // Focusing the cell selects it, through its focus handler.
-    target.focus();
-    return true;
-  }
+  const { gridId, cellProps } = useGridFocus(
+    displayedRows.map((row) => row.id),
+    columns.map((column) => column.id),
+  );
   function handleFit(columnId: string) {
-    const cells = grid.current?.querySelectorAll<HTMLElement>(
-      `[data-column="${columnId}"]`,
-    );
-    if (cells)
-      columnLayout.setWidth(
-        columnId,
-        fitColumnWidth(measureColumnNeeds(cells)),
-      );
+    const width = fitGridColumn(grid.current, columnId);
+    if (width !== null) columnLayout.setWidth(columnId, width);
   }
   async function refresh() {
     await Promise.all([
@@ -1093,7 +965,7 @@ function TableWorkspace({
             aria-describedby={`${gridId}-keys`}
             className="table-fixed border-separate border-spacing-0"
             style={{ width: gridWidth }}
-            containerClassName="max-h-[80dvh] overscroll-x-contain scroll-pt-11 scroll-ps-16 md:[scroll-padding-inline-start:var(--sheet-sticky)]"
+            containerClassName={cn("max-h-[80dvh]", GRID_SCROLL_CONTAINER)}
           >
             <caption className="sr-only">{table.title}</caption>
             <colgroup>
@@ -1138,7 +1010,7 @@ function TableWorkspace({
                         data-column={column.id}
                         className={cn(
                           "group/head bg-card-background relative border-e border-b ps-2 pe-3",
-                          columnIndex === 0 && STICKY_FIRST_COLUMN,
+                          columnIndex === 0 && GRID_STICKY_FIRST_COLUMN,
                           isDragging && "opacity-50",
                           isOver && "bg-muted",
                         )}
@@ -1163,7 +1035,7 @@ function TableWorkspace({
                           <div
                             className={cn(
                               "bg-card-background flex shrink-0 items-center pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
-                              HEAD_CHROME,
+                              GRID_HEAD_CHROME,
                             )}
                           >
                             {!table.archivedAt && (
@@ -1298,8 +1170,8 @@ function TableWorkspace({
                       <th
                         scope="row"
                         className={cn(
-                          ROW_BACKGROUND,
-                          STICKY_ROW_NUMBER,
+                          GRID_ROW_BACKGROUND,
+                          GRID_STICKY_ROW_NUMBER,
                           "border-e border-b p-0 align-top font-normal",
                         )}
                       >
@@ -1307,7 +1179,7 @@ function TableWorkspace({
                           <span
                             className={cn(
                               "text-muted-foreground absolute inset-0 flex items-center justify-center text-xs tabular-nums",
-                              selected.length ? "opacity-0" : ROW_NUMBER,
+                              selected.length ? "opacity-0" : GRID_ROW_NUMBER,
                             )}
                           >
                             {rowIndex + 1}
@@ -1315,7 +1187,7 @@ function TableWorkspace({
                           <div
                             className={cn(
                               "absolute inset-0 flex items-center justify-center gap-1",
-                              !selected.length && ROW_CHROME,
+                              !selected.length && GRID_ROW_CHROME,
                             )}
                           >
                             {canMoveRows ? (
@@ -1344,24 +1216,14 @@ function TableWorkspace({
                       </th>
                       {columns.map((column, columnIndex) => {
                         const grid = {
-                          id: cellId(row.id, column.id),
-                          active:
-                            activeCell?.rowId === row.id &&
-                            activeCell.columnId === column.id,
-                          tabbable:
-                            tabStop?.rowId === row.id &&
-                            tabStop.columnId === column.id,
+                          ...cellProps(rowIndex, columnIndex),
                           className:
                             columnIndex === 0
-                              ? cn(ROW_BACKGROUND, STICKY_FIRST_COLUMN)
+                              ? cn(
+                                  GRID_ROW_BACKGROUND,
+                                  GRID_STICKY_FIRST_COLUMN,
+                                )
                               : undefined,
-                          onActivate: () =>
-                            setActiveCell({
-                              rowId: row.id,
-                              columnId: column.id,
-                            }),
-                          onNavigate: (move: GridMove) =>
-                            handleNavigate(rowIndex, columnIndex, move),
                         };
                         return column.type === "last_updated" ? (
                           <TableUpdatedCell

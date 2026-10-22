@@ -11,6 +11,7 @@ import {
   Repeat,
   Search,
   Share2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -52,7 +53,8 @@ interface MenuItemConfig {
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
-  feature: AnnouncedFeature;
+  /** The Badge campaign row this is, when the feature has one. */
+  feature?: AnnouncedFeature;
 }
 
 /**
@@ -157,6 +159,13 @@ function ScopedMenuItems({
       Icon: Repeat,
       feature: AnnouncedFeature.SCHEDULES,
     },
+    // Workspace-wide like Files, so it is not scoped to the reader's project.
+    {
+      key: "contacts",
+      href: "/contacts",
+      label: t("contacts"),
+      Icon: Users,
+    },
     // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
     // reader's project across without the studio knowing about the switcher.
     {
@@ -259,7 +268,11 @@ function ScopedMenuItems({
                         SIDEBAR_FEATURE_LABEL_CLASS,
                       )}
                     >
-                      <SidebarFeatureLabel label={label} feature={feature} />
+                      {feature ? (
+                        <SidebarFeatureLabel label={label} feature={feature} />
+                      ) : (
+                        <span className="min-w-0 truncate">{label}</span>
+                      )}
                     </span>
                   </>
                 );
@@ -280,7 +293,9 @@ function ScopedMenuItems({
                           <SheetClose asChild>
                             <Link
                               href={hrefFor(href)}
-                              onClick={() => markFeatureSeen(feature)}
+                              onClick={() =>
+                                feature && markFeatureSeen(feature)
+                              }
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
                                 key === "new-task"
@@ -298,7 +313,7 @@ function ScopedMenuItems({
                         <SidebarMenuButton
                           type="button"
                           onClick={() => {
-                            markFeatureSeen(feature);
+                            if (feature) markFeatureSeen(feature);
                             onClick?.();
                           }}
                           data-sidebar-new-task={

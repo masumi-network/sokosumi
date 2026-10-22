@@ -12761,7 +12761,7 @@ export const ContactSchema = {
                 'string',
                 'null'
             ],
-            format: 'date',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
             example: '2026-11-02'
         },
         avatarUrl: {
