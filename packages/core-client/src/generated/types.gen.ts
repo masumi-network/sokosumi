@@ -4118,6 +4118,8 @@ export type TableColumn = {
     description?: string;
     type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
     options?: Array<string>;
+    width: number | null;
+    wrap: boolean | null;
     tableId: string;
     position: number;
     version: number;
@@ -29501,6 +29503,8 @@ export type PostDriveTablesData = {
             description?: string;
             type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
+            width?: number | null;
+            wrap?: boolean | null;
         }>;
         rows?: Array<{
             id?: string;
@@ -29800,6 +29804,8 @@ export type PatchDriveTablesByIdData = {
             description?: string;
             type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
+            width?: number | null;
+            wrap?: boolean | null;
         }>;
     };
     headers?: {
