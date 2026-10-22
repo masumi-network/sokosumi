@@ -264,13 +264,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     });
 
     const contacts = await contactsOf(workspaceId);
-    expect(contacts.map((contact) => contact.name)).toEqual([
-      "Lukas Meier",
-      "Max Muster",
-      "Nina Keller",
-      "Sara",
-      "Tom Berger",
-    ]);
+    expect(contacts.map((contact) => contact.name).sort()).toEqual(
+      [
+        "Lukas Meier",
+        "Max Muster",
+        "Nina Keller",
+        "Tom Berger",
+        // No display name and `sara@` is not first.last: the address stays.
+        "sara@acme-robotics.com",
+      ].sort(),
+    );
     const nina = contacts.find((contact) => contact.name === "Nina Keller");
     expect(nina).toMatchObject({
       organization: "Acme Robotics AG",
@@ -782,16 +785,15 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           where: { workspaceId: guardWorkspaceId },
         })
       ).map((interaction) => interaction.sourceRef?.split(":").at(-1));
-      // Everything the fixtures hold, once. Bob is not a member here, so he
-      // is a contact like anyone else; Nina and Bob wrote back to mail the
-      // owner sent them, so their answers count too.
+      // Everything the fixtures hold, once. Bob's address is at the owner's
+      // company domain, so his mail counts as team (only his Slack id is
+      // captured); Nina wrote back to mail the owner sent her, so her answer
+      // counts too.
       expect(refs.sort()).toEqual(
         [
           "U0BOB",
           "U0LUKAS",
           "U0NINA",
-          "bob@yellowhouse.gmbh",
-          "bob@yellowhouse.gmbh",
           "max@gmail.com",
           "nina.keller@acme-robotics.com",
           "nina.keller@acme-robotics.com",
