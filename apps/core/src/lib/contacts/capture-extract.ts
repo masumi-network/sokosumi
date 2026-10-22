@@ -192,17 +192,27 @@ function headerMap(raw: unknown): Map<string, string> {
   return headers;
 }
 
+/** Plain text for reading a signature; never rendered as HTML. */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<(br|\/p|\/div|\/tr|\/li)[^>]*>/gi, "\n")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&quot;/g, '"');
+  let text = html
+    .replace(/<(script|style|noscript)[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(br|\/p|\/div|\/tr|\/li)[^>]*>/gi, "\n");
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^<>]*>/g, "");
+  } while (text !== previous);
+  return (
+    text
+      .replace(/[<>]/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      // Last, so "&amp;lt;" stays the literal text "&lt;".
+      .replace(/&amp;/g, "&")
+  );
 }
 
 /** One Gmail or Outlook message, from a Composio list or get response. */
