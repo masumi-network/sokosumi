@@ -8350,8 +8350,12 @@
       "unknown": "Desconocido",
       "yes": "Sí",
       "no": "No",
-      "editCell": "Editar {column}",
       "cellHistory": "Historial y fuentes: {column}",
+      "openLink": "Abrir enlace: {column}",
+      "wrapText": "Ajustar texto",
+      "fitColumn": "Ajustar ancho al contenido",
+      "resizeColumn": "Cambiar el ancho de {column}. Arrastra o pulsa las flechas izquierda y derecha. Haz doble clic para ajustarlo al contenido.",
+      "gridKeys": "Las flechas y Tab mueven entre celdas. Enter o escribir edita una celda, Escape cancela y Enter guarda. Alt+Enter abre un enlace y Alt+Mayús+H muestra el historial de la celda.",
       "discard": "Descartar borrador",
       "editColumn": "Editar columna",
       "addColumn": "Añadir columna",
@@ -8453,7 +8457,8 @@
         "csvRows": "Los archivos CSV pueden contener hasta 10.000 filas de datos.",
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
-        "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
+        "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",

@@ -4762,6 +4762,10 @@ model TableColumn {
   options     Json      @default("[]")
   position    Int
   version     Int       @default(1)
+  /// Display width in pixels, shared by everyone on the table; null uses the type's default.
+  width       Int?
+  /// Wrap long values onto more lines; null uses the type's default.
+  wrap        Boolean?
 
   @@index([tableId, position])
   @@map("table_column")

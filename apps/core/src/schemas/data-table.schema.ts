@@ -12,6 +12,8 @@ export const tableColumnSchema = tableColumnInputSchema
     tableId: z.uuid(),
     position: z.int(),
     version: z.int(),
+    width: z.int().nullable(),
+    wrap: z.boolean().nullable(),
   })
   .openapi("TableColumn");
 export const tableRowSchema = z

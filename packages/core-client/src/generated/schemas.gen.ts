@@ -14526,6 +14526,18 @@ export const TableColumnSchema = {
             maxItems: 100,
             default: []
         },
+        width: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        wrap: {
+            type: [
+                'boolean',
+                'null'
+            ]
+        },
         tableId: {
             type: 'string',
             format: 'uuid'
@@ -14541,6 +14553,8 @@ export const TableColumnSchema = {
         'id',
         'name',
         'type',
+        'width',
+        'wrap',
         'tableId',
         'position',
         'version'

@@ -37,12 +37,23 @@ export const tableEvidenceSchema = z.record(
     )
     .max(20),
 );
+/** Bounds, in pixels, of a column's display width in the table view. */
+export const TABLE_COLUMN_WIDTH = { min: 80, max: 800 } as const;
 export const tableColumnInputSchema = z.object({
   id: z.uuid().optional(),
   name: z.string().trim().min(1).max(100),
   description: z.string().max(2000).default(""),
   type: tableColumnTypeSchema,
   options: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  /** Presentational and shared by everyone on the table; omitted keeps the stored value, null resets it. */
+  width: z
+    .int()
+    .min(TABLE_COLUMN_WIDTH.min)
+    .max(TABLE_COLUMN_WIDTH.max)
+    .nullable()
+    .optional(),
+  /** Presentational: wrap long values instead of clipping them to one line. */
+  wrap: z.boolean().nullable().optional(),
 });
 export const tableFilterSchema = z.object({
   columnId: z.uuid(),

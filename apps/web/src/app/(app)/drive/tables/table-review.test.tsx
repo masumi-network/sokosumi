@@ -23,6 +23,8 @@ const f = vi.hoisted(() => {
     options: [],
     position: 0,
     version: 1,
+    width: null,
+    wrap: null,
   };
   const row = {
     id: "00000000-0000-4000-8000-000000000003",
@@ -48,6 +50,7 @@ const f = vi.hoisted(() => {
     get: vi.fn(),
     view: vi.fn(),
     invalidate: vi.fn(async () => {}),
+    toastError: vi.fn(),
     push: vi.fn(),
     views: [] as TableView[],
     score: {
@@ -59,6 +62,8 @@ const f = vi.hoisted(() => {
       options: [],
       position: 1,
       version: 1,
+      width: null,
+      wrap: null,
     },
   };
 });
@@ -66,6 +71,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "date" }),
 }));
+vi.mock("sonner", () => ({ toast: { error: f.toastError } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: f.push }) }));
 vi.mock("nuqs", async () => {
   const { useState } = await import("react");
@@ -80,6 +86,7 @@ vi.mock("@tanstack/react-query", () => ({
     invalidateQueries: f.invalidate,
     setQueryData: vi.fn(),
     setQueriesData: vi.fn(),
+    getQueriesData: () => [],
   }),
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     isPending: false,
@@ -127,9 +134,9 @@ vi.mock("@/lib/services/data-table.client", () => ({
     list: vi.fn(),
   },
 }));
-/** Cells read as text until clicked; the click swaps in the editor. */
+/** A click selects a cell; a double click swaps in the editor. */
 function openCell() {
-  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
   return screen.getByRole("textbox", { name: "Company" });
 }
 beforeEach(() => {
@@ -258,13 +265,24 @@ it("F2: polling row removal pins the edited row and preserves its original versi
 it("F11: typing after Escape starts another edit", () => {
   const save = vi.fn();
   render(
-    <TableCell
-      column={f.column}
-      row={f.row}
-      disabled={false}
-      onSave={save}
-      onHistory={() => {}}
-    />,
+    <table>
+      <tbody>
+        <tr>
+          <TableCell
+            id="cell"
+            active={false}
+            tabbable
+            onActivate={() => {}}
+            onNavigate={() => false}
+            column={f.column}
+            row={f.row}
+            disabled={false}
+            onSave={save}
+            onHistory={() => {}}
+          />
+        </tr>
+      </tbody>
+    </table>,
   );
   const cell = openCell();
   fireEvent.focus(cell);
@@ -280,13 +298,24 @@ it("F11: typing after Escape starts another edit", () => {
 it("F11: IME composition keys do not submit or cancel the draft", () => {
   const save = vi.fn();
   render(
-    <TableCell
-      column={f.column}
-      row={f.row}
-      disabled={false}
-      onSave={save}
-      onHistory={() => {}}
-    />,
+    <table>
+      <tbody>
+        <tr>
+          <TableCell
+            id="cell"
+            active={false}
+            tabbable
+            onActivate={() => {}}
+            onNavigate={() => false}
+            column={f.column}
+            row={f.row}
+            disabled={false}
+            onSave={save}
+            onHistory={() => {}}
+          />
+        </tr>
+      </tbody>
+    </table>,
   );
   const cell = openCell();
   fireEvent.focus(cell);
@@ -863,9 +892,7 @@ it("F3: a cell error wraps instead of painting across the next column", async ()
   fireEvent.blur(cell);
   const alert = await screen.findByRole("alert");
   expect(alert.className).toContain("whitespace-normal");
-  const valueCell = cell.closest("td");
-  expect(valueCell?.className).toContain("whitespace-normal");
-  expect(valueCell?.className).not.toContain("whitespace-nowrap");
+  expect(cell.closest("td")?.className).not.toContain("whitespace-nowrap");
 });
 
 it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
@@ -876,7 +903,7 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
-  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
   const valueCell = screen
     .getByRole("textbox", { name: "Notes" })
     .closest("td");
@@ -884,7 +911,7 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
   expect(valueCell?.className).not.toContain("align-middle");
   const checkboxCell = screen
     .getByRole("checkbox", { name: "selectRow" })
-    .closest("td");
+    .closest("th");
   expect(checkboxCell?.className).toContain("align-top");
 });
 
@@ -896,7 +923,7 @@ it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
-  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
   expect(screen.getByRole("textbox", { name: "Notes" }).className).toContain(
     "dark:bg-transparent",
   );
@@ -1072,11 +1099,68 @@ it("R7: the column handle moves a column by keyboard", async () => {
   ).toEqual([second.id, f.column.id]);
 });
 
-it("R7: the selection cell keeps room after its checkbox", () => {
-  const { container } = render(<TableEditor id={f.column.tableId} />);
-  const cell = container.querySelector("tbody td");
-  expect(cell?.className).toContain("[&:has([role=checkbox])]:pr-4");
-  expect(cell?.className).not.toContain("[&:has([role=checkbox])]:pr-0");
+it("S1: a row number holds the row chrome and the first column sticks", () => {
+  render(<TableEditor id={f.column.tableId} />);
+  const number = screen.getByRole("rowheader", { name: /1/ });
+  expect(number).toContainElement(
+    screen.getByRole("checkbox", { name: "selectRow" }),
+  );
+  expect(number.className).toContain("sticky");
+  expect(screen.getAllByRole("gridcell")[0].className).toContain("md:sticky");
+  expect(screen.getByRole("grid")).toHaveStyle({ width: "264px" });
+});
+
+it("S2: arrow keys move the selection between cells", () => {
+  const second = { ...f.column, id: f.score.id, name: "Second", position: 1 };
+  f.columns = [f.column, second];
+  render(<TableEditor id={f.column.tableId} />);
+  const [first, next] = screen.getAllByRole("gridcell");
+  expect(first).toHaveAttribute("tabindex", "0");
+  first.focus();
+  fireEvent.keyDown(first, { key: "ArrowRight" });
+  expect(next).toHaveFocus();
+  expect(next).toHaveAttribute("aria-selected", "true");
+  expect(next).toHaveAttribute("tabindex", "0");
+  expect(first).toHaveAttribute("tabindex", "-1");
+});
+
+it("S3: a keyboard resize saves the width through the column update", async () => {
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  const handle = screen.getByRole("separator", { name: "resizeColumn" });
+  expect(handle).toHaveAttribute("aria-valuenow", "200");
+  fireEvent.keyDown(handle, { key: "ArrowRight" });
+  expect(handle).toHaveAttribute("aria-valuenow", "216");
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  const [, body] = f.update.mock.calls[0];
+  expect(body.version).toBe(1);
+  expect(body.columns[0]).toMatchObject({ id: f.column.id, width: 216 });
+});
+
+it("S4: wrap text is a column toggle saved for everyone", async () => {
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.keyDown(screen.getByRole("button", { name: "columnMenu" }), {
+    key: "Enter",
+  });
+  const toggle = await screen.findByRole("menuitemcheckbox", {
+    name: "wrapText",
+  });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  fireEvent.click(toggle);
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  expect(f.update.mock.calls[0][1].columns[0]).toMatchObject({ wrap: true });
+});
+
+it("S5: a rejected layout save is reverted with a toast", async () => {
+  f.update.mockRejectedValue({ error: "Conflict" });
+  render(<TableEditor id={f.column.tableId} />);
+  const handle = screen.getByRole("separator", { name: "resizeColumn" });
+  fireEvent.keyDown(handle, { key: "ArrowLeft" });
+  expect(handle).toHaveAttribute("aria-valuenow", "184");
+  await waitFor(() => expect(f.toastError).toHaveBeenCalledTimes(1));
+  expect(f.toastError).toHaveBeenCalledWith("errors.layout");
+  await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "200"));
 });
 
 it("R8: a tag column filters by picking one of its options", () => {
