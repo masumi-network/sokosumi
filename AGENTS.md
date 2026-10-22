@@ -13,6 +13,7 @@ Before working in an app or package, read its `AGENTS.md` and any deeper instruc
 | Implementing or reviewing Web UI, styling, or React components | [Web UI conventions](docs/agents/web-ui.md), `apps/web/AGENTS.md`, and its required UI skills |
 | Installing dependencies, configuring env/DB, launching services, or performing browser verification/login | [Local development](docs/agents/local-development.md); use `.cursor/skills/verify-sokosumi/` for launch, doctor, and sign-in |
 | Running in Cursor Cloud or a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`); provisioning, using, or tearing down a cloud-agent DB | [Cloud environment](docs/agents/cloud-environment.md) and [cloud database runbook](docs/agents/cloud-agent-database.md), before running commands |
+| Adding, changing, hiding, or removing a user-visible feature or screen | [Story map](docs/story-map/README.md) and the **Story map** rules below |
 | Creating branches, committing, pushing, opening/updating PRs, or modifying CI checks | [Delivery rules](docs/agents/delivery.md) |
 | Choosing an engineering flow; maintaining skills; working on Next.js, evlog, Sentry, SwiftUI, Linear, translations, domain docs, coworker access, or Soko Bot | The matching section of [Skill and domain routing](docs/agents/skill-routing.md), then its referenced skill/docs |
 
@@ -25,6 +26,16 @@ Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.
 - **Reuse before adding.** Search existing implementations and state which candidates fit before creating a helper, module, wrapper, or alternate path. Extend the existing seam; share duplicated logic. Ship the smallest complete slice. Remove obsolete callers and misleading names; preserve required migrations and API versioning.
 - **Verify changes.** Run the appropriate checks and review the diff. Fix findings and repeat until no issues remain. Prefer root Turbo commands (`pnpm typecheck`, `pnpm test`, `pnpm build`). For one workspace use `pnpm exec turbo run <task> --filter=<pkg>`, which builds `dist` dependencies such as `@sokosumi/email` and generates Prisma first; bare `pnpm --filter` skips both and reads stale types. `pnpm check` covers Biome. Run relevant tests before pushing. Let commit hooks run; repair missing dependencies instead of bypassing hooks.
 - **Deliver predictably.** Conventional Commit subjects; PR title equals the primary commit subject; write PR bodies with `/pr`. PRs start as drafts unless explicitly requested otherwise. Linear branches start with the lowercase issue identifier; do not invent or file issues during implementation. Humans merge Linear implementation PRs.
+
+## Story map
+
+`docs/story-map/stories.yaml` is the source of truth for Sokosumi's user stories and screens; `screens/` holds the screenshots and `generated/` the outputs. It is maintained with the `user-story-maps` skill ([source and install](https://github.com/enjojoy/user-story-maps)). When you add, change, hide, or remove a user-visible feature or screen, update it **before you call the task done**:
+
+- **Update the source.** In `docs/story-map/stories.yaml`, add or adjust the story, the screen and its flow edge (every flow has a `topic:`), and any new gap or risk.
+- **Refresh the screenshot.** Capture `docs/story-map/screens/<screen-id>.png` from a running app with a demo account only; never real credentials or personal data. If you cannot capture it, set `not_captured: <reason>`.
+- **Validate and build.** Run `python3 <skill>/scripts/storymap.py validate docs/story-map`, fix every error and warning, then `build docs/story-map` (`<skill>` = the installed `user-story-maps` skill folder). Commit `stories.yaml`, `screens/`, and `generated/` together.
+- **Be honest.** Set `status: built` only after you verified the behavior in code or on a running app, and fill `verified:` with how and when. Otherwise use `unverified`, `partly`, or `missing`.
+- **Never hand-edit `docs/story-map/generated/`.** Fix `stories.yaml` and rebuild.
 
 ## Session behavior
 

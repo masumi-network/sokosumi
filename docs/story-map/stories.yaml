@@ -1,0 +1,950 @@
+# Sokosumi (web app) - story map source. The one file to edit; then run `storymap.py validate && storymap.py build` (user-story-maps skill).
+app:
+  name: Sokosumi
+  platform: web
+  device: browser-window
+  version: "main @ 57fb09e7e (apps/web, mobile width 390x844)"
+  checked: 2026-10-16
+  summary: "Marketplace where people give tasks to AI coworkers and follow the results (mobile web app, PWA; macOS app, no iOS app)."
+  disclaimer: "Local demo data plus 10 read-only production screens; names, emails, avatars, organization, chats and private text are masked (G-10)."
+
+theme:
+  font: Inter
+  heading_font: Inter
+  google_font: true
+  primary: "#2B5C78"
+  background: "#FFFFFF"
+  surface: "#F5F5F5"
+  border: "#E2E2E2"
+  text: "#0A0A0A"
+  muted: "#707070"
+  status:
+    built: "#137638"
+    partly: "#C77A12"
+    unverified: "#5B7FA6"
+    missing: "#8A8F98"
+  severity:
+    high: "#BA1C1C"
+    medium: "#C77A12"
+    low: "#8A8F98"
+  device:
+    style: black
+    badge: label
+
+personas:
+  - id: new
+    name: "New user"
+    as_a: "new user"
+    description: "Opens Sokosumi for the first time and needs an account and a workspace."
+  - id: user
+    name: "Workspace member"
+    as_a: "workspace member"
+    description: "Assigns work to AI coworkers and follows the results."
+  - id: owner
+    name: "Account owner"
+    as_a: "account owner"
+    description: "Manages credits, billing, connections and the organization."
+  - id: dev
+    name: "Developer"
+    as_a: "developer"
+    description: "Builds coworkers or integrates through API keys and OAuth clients."
+
+topics:
+  - id: onboarding
+    title: "Onboarding"
+    description: "First-run workspace setup and invitations."
+  - id: access
+    title: "Login & account access"
+    description: "Email, password and one-time-code sign-in, sign-up, password reset."
+  - id: journey
+    title: "Main journey: tasks with AI coworkers"
+    description: "Home, tasks, projects, chat, coworkers, schedules, studio."
+  - id: library
+    title: "Files & library"
+    description: "Files and tables produced in the workspace."
+  - id: settings
+    title: "Settings & account"
+    description: "You menu, account, notifications, connections, developer tools, organization."
+  - id: payments
+    title: "Credits & billing"
+    description: "Credit balance and history, plan billing."
+  - id: support
+    title: "Support & system pages"
+    description: "Help, legal, maintenance, not found, shared links."
+
+flows:
+  - id: signin
+    title: "Sign in and sign up"
+    topic: access
+    description: "Email first, then password or one-time code; new accounts register here."
+    edges:
+      - "signin-email -> signin-password: Enter email, Continue with email"
+      - "signin-email -> signup: Register"
+      - "signin-password -> signin-error: (Wrong password)"
+      - "signin-password -> signin-code: Email me a code instead"
+      - "signin-password -> forgot-password: Forgot password?"
+      - "signin-password -> home: Log in"
+  - id: first-run
+    title: "First-run workspace setup"
+    topic: onboarding
+    description: "A new account with no workspace picks how it works before reaching Home."
+    edges:
+      - "signin-password -> setup: (First login, no workspace yet)"
+      - "setup -> home: Continue"
+      - "signin-email -> invite-accept: (Open an invitation link)"
+      - "invite-accept -> home: (Accept)"
+  - id: home-nav
+    title: "Home and navigation"
+    topic: journey
+    description: "Home is the hub: bottom tabs, workspace switcher, search, notifications."
+    edges:
+      - "home -> workspace-switcher: Tap the project switcher"
+      - "home -> notifications: Tap the bell"
+      - "home -> tasks-board: Tasks tab"
+      - "home -> chat: Chats tab"
+      - "home -> projects: Projects tab"
+      - "home -> you: You tab"
+      - "home -> history-search: Tap the search icon"
+      - "history-search -> credit-history: (Clear the search)"
+  - id: tasks
+    title: "Tasks"
+    topic: journey
+    description: "Board and calendar of work assigned to coworkers; create, open and edit a task."
+    edges:
+      - "tasks-board -> task-new: Tap +"
+      - "tasks-board -> tasks-filter: Tap the display menu"
+      - "tasks-board -> tasks-calendar: Calendar tab"
+      - "tasks-board -> task-detail: Tap a task"
+      - "task-detail -> task-edit: Edit"
+      - "tasks-board -> task-completed: Tap a completed task"
+  - id: projects
+    title: "Projects"
+    topic: journey
+    description: "Group related tasks under a project with a briefing and memory."
+    edges:
+      - "projects -> project-new: Tap +"
+      - "projects -> project-detail: Tap a project"
+      - "project-detail -> project-memory: Memory tab"
+      - "project-detail -> project-edit: Edit"
+  - id: coworkers
+    title: "Chat and coworkers"
+    topic: journey
+    description: "Chat inbox, threads and the coworker gallery used to start new work."
+    edges:
+      - "chat -> chat-threads: Threads"
+      - "chat -> agents: (Search agents link in the coworker picker)"
+      - "agents -> agent-detail: Tap a coworker"
+      - "agent-detail -> task-new: Start a new task for the coworker"
+      - "chat -> chat-room: (Open a conversation)"
+      - "chat -> soko-bots: Soko Bots"
+      - "soko-bots -> soko-bots-live: (Workspace with an active assistant)"
+      - "chat-threads -> threads-live: (Workspace with conversations)"
+      - "home -> personal-assistant: (Assistant entry, sidebar on desktop)"
+  - id: planning
+    title: "Schedules, calendar and studio"
+    topic: journey
+    description: "Recurring tasks, the release calendar and image generation."
+    edges:
+      - "you -> schedules: Schedules"
+      - "schedules -> schedule-new: New schedule"
+      - "you -> studio: Content Studio"
+      - "you -> social: Social Scheduling"
+      - "you -> ads: Ads"
+  - id: files
+    title: "Files, tables and history"
+    topic: library
+    description: "Files and tables the workspace has produced, and workspace search."
+    edges:
+      - "you -> drive: Files"
+      - "drive -> drive-tables: Tables tab"
+  - id: you-menu
+    title: "You menu and account settings"
+    topic: settings
+    description: "Everything personal and administrative lives under the You tab."
+    edges:
+      - "you -> account: Account"
+      - "you -> account-notifications: Notifications"
+      - "you -> connections: Connections"
+      - "you -> you-developer: Developer"
+      - "you-developer -> api-keys: API keys"
+      - "you-developer -> oauth-clients: OAuth clients"
+      - "you-developer -> dev-coworkers: Coworkers"
+      - "you -> organization: (Organization workspace)"
+      - "you -> you-live: (Workspace with plan and usage)"
+      - "you -> admin: Admin"
+  - id: credits
+    title: "Credits and billing"
+    topic: payments
+    description: "Credit balance, history and plan management."
+    edges:
+      - "you -> credit-history: Credit history"
+      - "you -> billing: Billing"
+      - "billing -> credit-history: (Credit history)"
+      - "credit-history -> credit-history-live: (Workspace with real usage)"
+  - id: support
+    title: "Help, legal and system pages"
+    topic: support
+    description: "Help and legal menus, plus the maintenance and not-found pages."
+    edges:
+      - "you -> you-help: Help"
+      - "you -> you-legal: Legal"
+      - "signin-email -> maintenance: (Maintenance mode)"
+      - "signin-email -> not-found: (Unknown address)"
+      - "signin-email -> share-page: (Open a shared link)"
+
+screens:
+  - id: signin-email
+    title: "Sign in: email"
+    flow: signin
+    image: screens/signin-email.png
+    where: "apps/web/src/app/(auth)/signin/page.tsx"
+  - id: signin-password
+    title: "Sign in: password"
+    flow: signin
+    image: screens/signin-password.png
+    where: "apps/web/src/app/(auth)/components/auth-flow.tsx"
+  - id: signin-error
+    title: "Sign in: wrong password"
+    flow: signin
+    image: screens/signin-error.png
+    where: "apps/web/src/app/(auth)/components/auth-flow.tsx"
+  - id: signin-code
+    title: "Sign in: emailed code"
+    flow: signin
+    image: screens/signin-code.png
+    where: "apps/web/src/app/(auth)/components/use-email-code.ts"
+  - id: signup
+    title: "Create account"
+    flow: signin
+    image: screens/signup.png
+    where: "apps/web/src/app/(auth)/signup/page.tsx"
+  - id: forgot-password
+    title: "Forgot password"
+    flow: signin
+    image: screens/forgot-password.png
+    where: "apps/web/src/app/(auth)/forgot-password/page.tsx"
+  - id: setup
+    title: "First-run workspace setup"
+    flow: first-run
+    image: screens/setup.png
+    where: "apps/web/src/app/(flows)/setup/page.tsx"
+  - id: home
+    title: "Home"
+    flow: home-nav
+    image: screens/home.png
+    where: "apps/web/src/app/(app)/(welcome)/page.tsx"
+  - id: workspace-switcher
+    title: "Project switcher"
+    flow: home-nav
+    image: screens/workspace-switcher.png
+    where: "apps/web/src/app/(app)/layout.tsx"
+  - id: notifications
+    title: "Notifications inbox"
+    flow: home-nav
+    image: screens/notifications.png
+    where: "apps/web/src/app/(app)/notifications/page.tsx"
+  - id: history-search
+    title: "Search (credit history)"
+    flow: home-nav
+    image: screens/history-search.png
+    where: "apps/web/src/app/(app)/components/history-search-dialog-provider.tsx"
+  - id: tasks-board
+    title: "Tasks: board"
+    flow: tasks
+    image: screens/tasks-board.png
+    where: "apps/web/src/app/(app)/tasks/(root)/page.tsx"
+  - id: tasks-calendar
+    title: "Tasks: calendar"
+    flow: tasks
+    image: screens/tasks-calendar.png
+  - id: tasks-filter
+    title: "Tasks: display menu"
+    flow: tasks
+    image: screens/tasks-filter.png
+  - id: task-new
+    title: "New task"
+    flow: tasks
+    image: screens/task-new.png
+    where: "apps/web/src/app/(app)/tasks/"
+  - id: task-detail
+    title: "Task detail"
+    flow: tasks
+    image: screens/task-detail.png
+    where: "apps/web/src/app/(app)/tasks/[taskId]/page.tsx"
+  - id: task-edit
+    title: "Edit task"
+    flow: tasks
+    image: screens/task-edit.png
+    where: "apps/web/src/app/(app)/tasks/[taskId]/edit/page.tsx"
+  - id: task-completed
+    title: "Completed task (production, masked)"
+    flow: tasks
+    image: screens/task-completed.png
+    where: "apps/web/src/app/(app)/tasks/[taskId]/page.tsx"
+  - id: projects
+    title: "Projects"
+    flow: projects
+    image: screens/projects.png
+    where: "apps/web/src/app/(app)/projects/(root)/page.tsx"
+  - id: project-new
+    title: "New project"
+    flow: projects
+    image: screens/project-new.png
+    where: "apps/web/src/app/(app)/projects/"
+  - id: project-detail
+    title: "Project detail"
+    flow: projects
+    image: screens/project-detail.png
+    where: "apps/web/src/app/(app)/projects/[projectId]/page.tsx"
+  - id: project-memory
+    title: "Project memory"
+    flow: projects
+    image: screens/project-memory.png
+    where: "apps/web/src/app/(app)/projects/[projectId]/memory/page.tsx"
+  - id: project-edit
+    title: "Edit project"
+    flow: projects
+    image: screens/project-edit.png
+    where: "apps/web/src/app/(app)/projects/[projectId]/edit/page.tsx"
+  - id: chat
+    title: "Chats"
+    flow: coworkers
+    image: screens/chat.png
+    where: "apps/web/src/app/(app)/chat/page.tsx"
+  - id: chat-threads
+    title: "Threads"
+    flow: coworkers
+    image: screens/chat-threads.png
+    where: "apps/web/src/app/(app)/chat/threads/page.tsx"
+  - id: threads-live
+    title: "Threads with real conversations (production, masked)"
+    flow: coworkers
+    image: screens/threads-live.png
+    where: "apps/web/src/app/(app)/chat/threads/page.tsx"
+  - id: agents
+    title: "Coworker gallery"
+    flow: coworkers
+    image: screens/agents.png
+    where: "apps/web/src/app/(app)/agents/page.tsx"
+  - id: agent-detail
+    title: "Coworker detail"
+    flow: coworkers
+    image: screens/agent-detail.png
+    where: "apps/web/src/app/(app)/agents/page.tsx"
+  - id: chat-room
+    title: "Chat room (production, masked)"
+    flow: coworkers
+    image: screens/chat-room.png
+    where: "apps/web/src/app/(app)/chat/rooms/[roomId]/page.tsx"
+  - id: soko-bots
+    title: "Soko Bots"
+    flow: coworkers
+    image: screens/soko-bots.png
+    where: "apps/web/src/app/(app)/soko-bots/page.tsx"
+  - id: soko-bots-live
+    title: "Soko Bots with an active assistant (production)"
+    flow: coworkers
+    image: screens/soko-bots-live.png
+    where: "apps/web/src/app/(app)/soko-bots/page.tsx"
+  - id: personal-assistant
+    title: "Personal assistant"
+    flow: coworkers
+    image: screens/personal-assistant.png
+    where: "apps/web/src/app/(app)/personal-assistant/page.tsx"
+  - id: schedules
+    title: "Schedules"
+    flow: planning
+    image: screens/schedules.png
+    where: "apps/web/src/app/(app)/schedules/page.tsx"
+  - id: schedule-new
+    title: "New schedule"
+    flow: planning
+    image: screens/schedule-new.png
+    where: "apps/web/src/app/(app)/schedules/page.tsx"
+  - id: studio
+    title: "Content Studio"
+    flow: planning
+    image: screens/studio.png
+    where: "apps/web/src/app/(app)/studio/page.tsx"
+  - id: social
+    title: "Social scheduling (production)"
+    flow: planning
+    image: screens/social.png
+    where: "apps/web/src/app/(app)/social/page.tsx"
+  - id: ads
+    title: "Ads: pick a project (production)"
+    flow: planning
+    image: screens/ads.png
+    where: "apps/web/src/app/(app)/ads/page.tsx"
+  - id: drive
+    title: "Files"
+    flow: files
+    image: screens/drive.png
+    where: "apps/web/src/app/(app)/drive/page.tsx"
+  - id: drive-tables
+    title: "Tables"
+    flow: files
+    image: screens/drive-tables.png
+    where: "apps/web/src/app/(app)/drive/page.tsx"
+  - id: you
+    title: "You"
+    flow: you-menu
+    image: screens/you.png
+    where: "apps/web/src/app/(app)/you/page.tsx"
+  - id: you-live
+    title: "You menu with plan, usage and all areas (production, masked)"
+    flow: you-menu
+    image: screens/you-live.png
+    where: "apps/web/src/app/(app)/you/page.tsx"
+  - id: admin
+    title: "Admin tools landing (production)"
+    flow: you-menu
+    image: screens/admin.png
+    where: "apps/web/src/app/(app)/admin/page.tsx"
+  - id: account
+    title: "Account"
+    flow: you-menu
+    image: screens/account.png
+    where: "apps/web/src/app/(app)/account/page.tsx"
+  - id: account-notifications
+    title: "Notification preferences"
+    flow: you-menu
+    image: screens/account-notifications.png
+    where: "apps/web/src/app/(app)/account/notifications/page.tsx"
+  - id: connections
+    title: "Connections"
+    flow: you-menu
+    image: screens/connections.png
+    where: "apps/web/src/app/(app)/connections/page.tsx"
+  - id: you-developer
+    title: "Developer menu"
+    flow: you-menu
+    image: screens/you-developer.png
+    where: "apps/web/src/app/(app)/you/developer/page.tsx"
+  - id: api-keys
+    title: "API keys"
+    flow: you-menu
+    image: screens/api-keys.png
+    where: "apps/web/src/app/(app)/developer/api-keys/page.tsx"
+  - id: oauth-clients
+    title: "OAuth clients"
+    flow: you-menu
+    image: screens/oauth-clients.png
+    where: "apps/web/src/app/(app)/developer/oauth-clients/page.tsx"
+  - id: dev-coworkers
+    title: "Developer coworkers"
+    flow: you-menu
+    image: screens/dev-coworkers.png
+    where: "apps/web/src/app/(app)/developer/coworkers/page.tsx"
+  - id: organization
+    title: "Organization"
+    flow: you-menu
+    image: screens/organization.png
+    where: "apps/web/src/app/(app)/organizations/[organizationSlug]/page.tsx"
+  - id: credit-history
+    title: "Credit history"
+    flow: credits
+    image: screens/credit-history.png
+    where: "apps/web/src/app/(app)/history/page.tsx"
+  - id: credit-history-live
+    title: "Credit history with real usage (production, masked)"
+    flow: credits
+    image: screens/credit-history-live.png
+    where: "apps/web/src/app/(app)/history/page.tsx"
+  - id: billing
+    title: "Billing: access restricted (production)"
+    flow: credits
+    image: screens/billing.png
+    where: "apps/web/src/app/(app)/billing/page.tsx"
+  - id: you-help
+    title: "Help"
+    flow: support
+    image: screens/you-help.png
+    where: "apps/web/src/app/(app)/you/help/page.tsx"
+  - id: you-legal
+    title: "Legal"
+    flow: support
+    image: screens/you-legal.png
+    where: "apps/web/src/app/(app)/you/legal/page.tsx"
+  - id: maintenance
+    title: "Maintenance mode"
+    flow: support
+    image: screens/maintenance.png
+    where: "apps/web/src/app/maintenance/page.tsx"
+  - id: not-found
+    title: "Page not found"
+    flow: support
+    image: screens/not-found.png
+    where: "apps/web/src/app/not-found.tsx"
+  - id: share-page
+    title: "Public share link"
+    flow: support
+    not_captured: "needs a public share link created by a real task"
+    where: "apps/web/src/app/share/[token]/page.tsx"
+  - id: invite-accept
+    title: "Accept invitation"
+    flow: first-run
+    not_captured: "needs an invitation id from a second account"
+    where: "apps/web/src/app/(flows)/accept-invitation/[id]/page.tsx"
+
+stories:
+  - id: US-01
+    persona: new
+    want: "to create an account with my email"
+    so_that: "I can start using Sokosumi"
+    screens: [signup]
+    status: unverified
+    notes: "Form renders. Submit not run: sign-up needs an emailed code that the local build only prints to the Core console."
+  - id: US-02
+    persona: user
+    want: "to log in with my email and password"
+    so_that: "I reach my workspace"
+    screens: [signin-email, signin-password, home]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/(welcome)/page.tsx"
+    notes: "Logged in as two demo accounts through the UI: email step, password step, then Home (or Setup for the account without a workspace)."
+  - id: US-03
+    persona: user
+    want: "to see a clear message when my password is wrong"
+    so_that: "I can fix it and try again"
+    screens: [signin-password, signin-error]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(auth)/components/auth-flow.tsx"
+    notes: "A wrong password shows the toast 'Invalid email or password'."
+  - id: US-04
+    persona: user
+    want: "to log in with a one-time code emailed to me"
+    so_that: "I do not need my password"
+    screens: [signin-password, signin-code]
+    status: unverified
+    notes: "Code step renders with a resend timer; entering a code was not run."
+  - id: US-05
+    persona: user
+    want: "to reset a forgotten password"
+    so_that: "I get back into my account"
+    screens: [signin-password, forgot-password]
+    status: unverified
+    notes: "Reset form renders; sending the reset email was not run (no email provider locally)."
+  - id: US-06
+    persona: new
+    want: "to choose a personal or organization workspace on my first login"
+    so_that: "I land in the right place"
+    screens: [setup]
+    status: unverified
+    notes: "A demo account without a workspace is redirected to Setup after login and sees the form. Submitting Continue was not run."
+  - id: US-07
+    persona: new
+    want: "to accept an invitation to an organization"
+    so_that: "I join my team's workspace"
+    screens: [invite-accept]
+    status: unverified
+    notes: "Needs an invitation id from a second account."
+  - id: US-08
+    persona: user
+    want: "to land on a Home screen with a summary of the last 24 hours"
+    so_that: "I see at a glance what my coworkers did"
+    screens: [home]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/(welcome)/page.tsx"
+    notes: "Welcome message and three counters (tasks completed, minutes worked, tasks needing input)."
+  - id: US-09
+    persona: user
+    want: "to switch between Everything and a single project"
+    so_that: "I focus on one body of work"
+    screens: [home, workspace-switcher]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/layout.tsx"
+    notes: "The switcher lists Everything, recent projects, Create project and Manage projects."
+  - id: US-10
+    persona: user
+    want: "to see my tasks as a board by status"
+    so_that: "I know what is in progress"
+    screens: [tasks-board]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/tasks/(root)/page.tsx"
+    notes: "Board columns Backlog, Todo and more, with demo tasks assigned to demo coworkers."
+  - id: US-11
+    persona: user
+    want: "to see scheduled work on a calendar"
+    so_that: "I know when things run"
+    screens: [tasks-calendar]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/tasks/(root)/page.tsx"
+    notes: "Agenda view renders; it was empty for the demo data ('No scheduled releases')."
+  - id: US-12
+    persona: user
+    want: "to change how the board is displayed"
+    so_that: "I can read it my way"
+    screens: [tasks-board, tasks-filter]
+    status: unverified
+    notes: "The display menu (Board/List, Normal/Compact) opens; switching was not run."
+  - id: US-13
+    persona: user
+    want: "to create a task and assign it to a coworker"
+    so_that: "work starts without a meeting"
+    screens: [tasks-board, task-new]
+    status: unverified
+    notes: "The New task sheet opens with assignee choices and Start from scratch. Submitting from the UI was not run (demo tasks were created through the Core API)."
+  - id: US-14
+    persona: user
+    want: "to open a task and see its status and activity"
+    so_that: "I can follow what happened"
+    screens: [tasks-board, task-detail]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/tasks/[taskId]/page.tsx"
+    notes: "Detail shows identifier, status, assignee, project and an activity log."
+  - id: US-15
+    persona: user
+    want: "to open a completed task and read its description, properties and parent task"
+    so_that: "I can review finished work"
+    screens: [tasks-board, task-completed]
+    status: built
+    verified: "local demo + production task view, 2026-10-16"
+    where: "apps/web/src/app/(app)/tasks/[taskId]/page.tsx"
+    notes: "Production: identifier, share and more buttons, Description, Properties, Auto tags, Parent task. Title, description, assignee, organization masked."
+  - id: US-16
+    persona: user
+    want: "to edit a task"
+    so_that: "I can correct the brief"
+    screens: [task-detail, task-edit]
+    status: unverified
+    notes: "Edit form renders with the task's data. Saving was not run."
+  - id: US-17
+    persona: user
+    want: "to browse my projects"
+    so_that: "I find the right one quickly"
+    screens: [projects]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/projects/(root)/page.tsx"
+    notes: "Two demo projects with briefings."
+  - id: US-18
+    persona: user
+    want: "to create a project in three steps"
+    so_that: "I can group related tasks"
+    screens: [projects, project-new]
+    status: unverified
+    notes: "Step 1 of 3 (name) renders; steps 2 and 3 and saving were not run."
+  - id: US-19
+    persona: user
+    want: "to open a project and see its properties"
+    so_that: "I understand its state"
+    screens: [project-detail]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/projects/[projectId]/page.tsx"
+  - id: US-20
+    persona: user
+    want: "to see a project's memory setting"
+    so_that: "I know what the coworkers remember"
+    screens: [project-detail, project-memory]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/projects/[projectId]/memory/page.tsx"
+    notes: "Memory is off for the demo project; the screen explains that."
+  - id: US-21
+    persona: user
+    want: "to edit a project's name, website and briefing"
+    so_that: "the coworkers get better context"
+    screens: [project-detail, project-edit]
+    status: unverified
+    notes: "Edit form renders with data. Saving was not run."
+  - id: US-22
+    persona: user
+    want: "to browse coworkers and open one"
+    so_that: "I pick who to give work to"
+    screens: [agents, agent-detail]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/agents/page.tsx"
+    notes: "Gallery groups three demo coworkers by vendor; detail has Start a new task. The Agent catalog (Hire) part is not shown on this build."
+  - id: US-23
+    persona: user
+    want: "to see my chats and threads"
+    so_that: "I can follow conversations"
+    screens: [chat, chat-threads, threads-live]
+    status: built
+    verified: "local demo + production threads, 2026-10-16"
+    where: "apps/web/src/app/(app)/chat/threads/page.tsx"
+    notes: "Local: both screens show empty states. Production: Threads lists conversations by channel, replies and age (preview text masked)."
+  - id: US-24
+    persona: user
+    want: "to chat with a coworker in a room"
+    so_that: "I can ask follow-up questions"
+    screens: [chat, chat-room]
+    status: built
+    verified: "local demo + production chat room, 2026-10-16"
+    where: "apps/web/src/app/(app)/chat/rooms/[roomId]/page.tsx"
+    notes: "Production: channel header, pin and thread buttons, message list, composer; names and messages masked. Sending not run. Locally the room needs realtime (Ably) keys."
+  - id: US-25
+    persona: user
+    want: "to read my notifications"
+    so_that: "I notice what needs me"
+    screens: [home, notifications]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/notifications/page.tsx"
+    notes: "Inbox with tabs All, Unread, Needs you, Mentions; empty for the demo account."
+  - id: US-26
+    persona: user
+    want: "to use a Soko Bot assistant"
+    so_that: "a personal project manager delegates for me"
+    screens: [soko-bots, soko-bots-live, personal-assistant]
+    status: partly
+    notes: "Production: team intro, Chat button, assistant card with task count and last activity. Locally the assistant is unavailable. Chat and Settings not opened."
+  - id: US-27
+    persona: user
+    want: "to set up a recurring task"
+    so_that: "routine work happens by itself"
+    screens: [schedules, schedule-new]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/schedules/page.tsx"
+    notes: "List with filters and the New schedule form (title, details, repeat, time, ends). Creating a schedule was not run."
+  - id: US-28
+    persona: user
+    want: "to generate images in the Content Studio"
+    so_that: "I get visuals for my content"
+    screens: [studio]
+    status: partly
+    notes: "Prompt box, model and ratio pickers render; the template poster images show a broken-image icon in the local build and generating was not run."
+  - id: US-29
+    persona: user
+    want: "to plan and publish social posts"
+    so_that: "my campaign runs on schedule"
+    screens: [social]
+    status: partly
+    notes: "Production: week calendar with Calendar, Drafts, Needs attention tabs, Month/Week toggle. Only the calendar was viewed. Local demo gets a 404 (beta flag)."
+  - id: US-30
+    persona: user
+    want: "to manage ad campaigns"
+    so_that: "I can run ads from a project"
+    screens: [ads]
+    status: partly
+    notes: "Production: only the Pick a project screen was viewed. Ad accounts and campaigns not opened. Local demo gets a 404 (beta flag)."
+  - id: US-31
+    persona: user
+    want: "to browse my files and tables"
+    so_that: "I can find what coworkers produced"
+    screens: [drive, drive-tables]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/drive/page.tsx"
+    notes: "Recent, Workspace and Tables tabs; empty for the demo account."
+  - id: US-32
+    persona: owner
+    want: "to see my credit balance and history"
+    so_that: "I know what I have spent"
+    screens: [you, credit-history, credit-history-live, history-search]
+    status: built
+    verified: "local demo + production history, 2026-10-16"
+    where: "apps/web/src/app/(app)/components/history-search-dialog-provider.tsx"
+    notes: "Balance on You, transactions on the history page, plus search. Production: 30-day spend chart, entries by month. Export CSV and filter not used. Avatars and one prompt title masked."
+  - id: US-33
+    persona: owner
+    want: "to see my plan, usage limit and credits and reach every area from the You menu"
+    so_that: "I can find any feature from one place"
+    screens: [you, you-live]
+    status: built
+    verified: "local demo + production You page, 2026-10-16"
+    where: "apps/web/src/app/(app)/you/page.tsx"
+    notes: "Production: profile header (name, email, photo masked), plan badge, usage limit, extra credits, then the area entries incl. Admin."
+  - id: US-34
+    persona: owner
+    want: "to reach internal admin tools from the You menu if my account is staff"
+    so_that: "staff can operate the platform"
+    screens: [you-live, admin]
+    status: partly
+    notes: "Production: landing page lists Accounts and Billing tools. No admin page opened (other people's data). See G-06."
+  - id: US-35
+    persona: owner
+    want: "to manage my plan and billing details"
+    so_that: "I stay on the right plan"
+    screens: [billing]
+    status: unverified
+    notes: "Needs an organization owner or admin. In production a member sees only the restricted message (US-36). Locally needs Stripe test keys."
+  - id: US-36
+    persona: owner
+    want: "to be told clearly when I cannot view billing"
+    so_that: "I know who to ask for access"
+    screens: [billing]
+    status: built
+    verified: "production, read-only, 2026-10-16"
+    where: "apps/web/src/app/(app)/billing/page.tsx"
+    notes: "Message: only organization owners and admins can view billing; switch context or ask an owner."
+  - id: US-37
+    persona: owner
+    want: "to edit my profile, email and password"
+    so_that: "my account stays accurate"
+    screens: [you, account]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/account/page.tsx"
+    notes: "Profile image, name, email and password sections render."
+  - id: US-38
+    persona: owner
+    want: "to choose which notifications I get and where"
+    so_that: "I am not spammed"
+    screens: [you, account-notifications]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/account/notifications/page.tsx"
+    notes: "Groups for Tasks, Chat, Billing, Project updates with In app, Push and Email."
+  - id: US-39
+    persona: owner
+    want: "to connect Google and Microsoft accounts and see authorized apps"
+    so_that: "coworkers can use my mail and calendar"
+    screens: [connections]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/connections/page.tsx"
+    notes: "Both providers show 'is not connected'; connecting needs real OAuth credentials."
+  - id: US-40
+    persona: owner
+    want: "to open my organization page"
+    so_that: "I manage team settings"
+    screens: [organization]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/organizations/[organizationSlug]/page.tsx"
+    notes: "Shows the organization, slug, design brief and brand settings."
+  - id: US-41
+    persona: dev
+    want: "to create and revoke API keys"
+    so_that: "scripts can call Sokosumi"
+    screens: [you, you-developer, api-keys]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/developer/api-keys/page.tsx"
+    notes: "Empty list with a Create button; creating a key was not run."
+  - id: US-42
+    persona: dev
+    want: "to register OAuth clients"
+    so_that: "my app can sign in with Sokosumi"
+    screens: [you-developer, oauth-clients]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/developer/oauth-clients/page.tsx"
+    notes: "Empty list with a Create OAuth client button."
+  - id: US-43
+    persona: dev
+    want: "to see my coworkers as a developer"
+    so_that: "I can maintain them"
+    screens: [you-developer, dev-coworkers]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/developer/coworkers/page.tsx"
+    notes: "Empty list for the demo account (it has no developer coworkers)."
+  - id: US-44
+    persona: user
+    want: "to find help and the legal pages"
+    so_that: "I can get support and read the terms"
+    screens: [you, you-help, you-legal]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/(app)/you/legal/page.tsx"
+    notes: "Help links to Documentation and Support; Legal lists terms, privacy, imprint and cookie settings."
+  - id: US-45
+    persona: user
+    want: "to see a maintenance page during downtime"
+    so_that: "I know to come back later"
+    screens: [maintenance]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/maintenance/page.tsx"
+    notes: "The page renders; the automatic redirect when MAINTENANCE_MODE is on was not exercised."
+  - id: US-46
+    persona: user
+    want: "to see a friendly page for an unknown address"
+    so_that: "I can get back home"
+    screens: [not-found]
+    status: built
+    verified: "local build, demo data, 2026-10-15"
+    where: "apps/web/src/app/not-found.tsx"
+  - id: US-47
+    persona: user
+    want: "to open a public link someone shared with me"
+    so_that: "I can view it without an account"
+    screens: [share-page]
+    status: unverified
+    notes: "Needs a public share link; not captured."
+  - id: US-48
+    persona: user
+    want: "to use Sokosumi from a native iPhone app"
+    so_that: "I have it in my pocket"
+    screens: []
+    status: missing
+    where: "apps/apple/README.md"
+    notes: "Only a macOS app exists; apps/apple/README.md says iOS is planned and has no target yet. The web app is mobile-responsive and installable as a PWA."
+
+gaps:
+  - id: G-01
+    severity: high
+    title: "No native iPhone or Android app"
+    detail: "The only native app is macOS (apps/apple). On phones people use the responsive web app or a PWA, so this map is for the web app at mobile width."
+    where: "apps/apple/README.md"
+    stories: [US-48]
+  - id: G-02
+    severity: medium
+    title: "Billing page shows a generic error when Stripe is not configured"
+    detail: "Opening Billing without Stripe keys gives 'Something went wrong. Try again' with no hint what is missing. Local-only, but a configuration failure in production would look the same."
+    where: "apps/web/src/app/(app)/billing/page.tsx"
+    stories: [US-35]
+  - id: G-03
+    severity: medium
+    title: "Chat rooms need realtime keys locally; only seen in production"
+    detail: "Without Ably keys a local chat room shows a 'Something went wrong' modal (docs/agents/local-development.md). The room was captured read-only in production with its content masked, so message bubbles, reactions and threads inside a room are not mapped."
+    where: "docs/agents/local-development.md"
+    stories: [US-24]
+  - id: G-04
+    severity: low
+    title: "Content Studio template images are broken in the local build"
+    detail: "The poster template shows a broken-image icon; likely the dummy blob token, not verified."
+    where: "apps/web/src/app/(app)/studio/page.tsx"
+    stories: [US-28]
+  - id: G-05
+    severity: low
+    title: "Social and Ads are beta-gated and only their entry screens are mapped"
+    detail: "The local demo account gets a 404 for /social and /ads. In production only the Social week calendar and the Ads Pick a project screen were viewed; Drafts, Needs attention, post creation, ad accounts and campaigns were not opened."
+    where: "apps/web/src/app/(app)/social/page.tsx"
+    stories: [US-29, US-30]
+  - id: G-06
+    severity: low
+    title: "Admin console is mapped only at its landing page"
+    detail: "About 40 routes under /admin plus the vendor and developer consoles are staff tools. Only the Admin landing page was viewed; no admin page was opened because they list other people's data."
+    where: "apps/web/src/app/(app)/admin/page.tsx"
+  - id: G-07
+    severity: medium
+    title: "Sign-up and code sign-in cannot be completed locally"
+    detail: "Both need an emailed code; locally the code is only printed in the Core console, so the success path was not run."
+    where: "apps/web/src/app/(auth)/signup/page.tsx"
+    stories: [US-01, US-04]
+  - id: G-08
+    severity: low
+    title: "/calendar redirects to the Tasks calendar tab"
+    detail: "There is no separate calendar screen; /calendar opens Tasks with the calendar view, so it is not mapped twice."
+    where: "apps/web/src/app/(app)/calendar/page.tsx"
+  - id: G-09
+    severity: medium
+    title: "Billing could not be seen beyond the access-restricted message"
+    detail: "In the production workspace used for the capture a member only sees Billing access restricted. Plan, payment method and invoices need an organization owner or admin account, or the personal context, and were not captured; locally Billing needs Stripe test keys."
+    where: "apps/web/src/app/(app)/billing/page.tsx"
+    stories: [US-35]
+  - id: G-10
+    severity: low
+    title: "Production screenshots are masked"
+    detail: "Ten production screens hide names, emails, avatars, the organization name and logo, chat and thread text and private task text behind grey blocks, so their content cannot be read by design. Layout, controls and numbers are real."
+    where: "docs/story-map/screens"
+  - id: G-11
+    severity: medium
+    title: "Public share page and invitation acceptance are not captured"
+    detail: "Both need a link or id that only a real shared task or a second account can create. They are marked not_captured and their stories stay unverified."
+    where: "apps/web/src/app/share/[token]/page.tsx"
+    stories: [US-47, US-07]
