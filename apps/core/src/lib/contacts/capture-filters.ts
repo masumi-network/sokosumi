@@ -111,7 +111,7 @@ const AUTOMATED_LOCAL =
 
 /** Shared role inboxes: sometimes a person reads them, often nobody. */
 const ROLE_LOCAL =
-  /^(info|hello|hi|contact|sales|support|help|team|office|admin|hr|jobs|careers|press|media|billing|accounts|accounting|finance|service|services|enquiries|inquiries|feedback|partners|partnerships|marketing|events|community|legal|privacy|investors|ir|booking|bookings|orders|reception)$/;
+  /^(info|hello|hi|hey|business|ceo|ceooffice|ceo-office|management|general|welcome|contactus|contact-us|mail|contact|sales|support|help|team|office|admin|hr|jobs|careers|press|media|billing|accounts|accounting|finance|service|services|enquiries|inquiries|feedback|partners|partnerships|marketing|events|community|legal|privacy|investors|ir|booking|bookings|orders|reception)$/;
 
 export type CaptureSkipReason =
   | "invalid_address"
@@ -179,6 +179,15 @@ export function classifyAddress(
     return { ok: false, reason: "invalid_address" };
   if (identity.ownerEmails.has(email)) return { ok: false, reason: "self" };
   if (identity.teammateEmails.has(email))
+    return { ok: false, reason: "teammate" };
+  // A colleague at the owner's or a teammate's company is team, not a contact.
+  const company = companyDomain(email);
+  if (
+    company &&
+    [...identity.ownerEmails, ...identity.teammateEmails].some(
+      (own) => companyDomain(own) === company,
+    )
+  )
     return { ok: false, reason: "teammate" };
   const local = email.slice(0, email.lastIndexOf("@")).split("+")[0] ?? "";
   if (AUTOMATED_LOCAL.test(local) || /no-?reply|donotreply/.test(local))

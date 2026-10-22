@@ -31,6 +31,32 @@ describe("classifyAddress", () => {
     );
   });
 
+  it("treats colleagues at the owner's or a teammate's company as team", () => {
+    expect(
+      classifyAddress("nils.lassen@yellowhouse.gmbh", identity, outbound),
+    ).toEqual({ ok: false, reason: "teammate" });
+    expect(
+      classifyAddress(
+        "alice@gmail.com",
+        {
+          ownerEmails: new Set(["patrick@gmail.com"]),
+          teammateEmails: new Set(),
+        },
+        outbound,
+      ),
+    ).toEqual({ ok: true, borderline: false });
+  });
+
+  it.each(["hey@adyjecinski.com", "business@acme.com", "ceooffice@acme.org"])(
+    "sends the shared inbox %s to the judge",
+    (email) => {
+      expect(classifyAddress(email, identity, outbound)).toEqual({
+        ok: true,
+        borderline: true,
+      });
+    },
+  );
+
   it.each([
     "noreply@acme.com",
     "no-reply@acme.com",

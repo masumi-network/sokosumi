@@ -181,12 +181,20 @@ export function contactNameFromChannel(
   value: string,
 ): string {
   if (type === "EMAIL") {
-    const local = value.split("@")[0] ?? value;
-    return local
-      .split(/[._+-]+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
+    // Only `jane.doe@` reads as a name; `rodrigopacini@` or `hey@` stays the
+    // address until a real name arrives, rather than becoming "Hey".
+    const parts =
+      (value.split("@")[0] ?? "").split("+")[0]?.split(/[._-]+/) ?? [];
+    const readable =
+      parts.length >= 2 &&
+      parts.length <= 4 &&
+      parts.every((part) => /^\p{L}+$/u.test(part)) &&
+      parts.some((part) => part.length >= 2);
+    return readable
+      ? parts
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ")
+      : value;
   }
   if (type === "LINKEDIN") return value.split("/").pop() ?? value;
   return value;

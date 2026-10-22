@@ -103,6 +103,23 @@ describe("contactNameFromChannel", () => {
     ).toBe("nina-keller");
     expect(contactNameFromChannel("X", "ninak")).toBe("ninak");
   });
+
+  it("keeps the address when it does not read as a name", () => {
+    for (const email of [
+      "hey@adyjecinski.com",
+      "rodrigopacini@gmail.com",
+      "business@acme.com",
+      "mr@iventuregroup.com",
+      "jane.d0e@acme.com",
+    ])
+      expect(contactNameFromChannel("EMAIL", email)).toBe(email);
+    expect(contactNameFromChannel("EMAIL", "c.teichert@venista.com")).toBe(
+      "C Teichert",
+    );
+    expect(contactNameFromChannel("EMAIL", "sebastian_aravena@acme.com")).toBe(
+      "Sebastian Aravena",
+    );
+  });
 });
 
 describe("contact input schemas", () => {
