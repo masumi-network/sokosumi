@@ -90,6 +90,9 @@ model Contact {
   firstContactAt     DateTime?
   lastContactAt      DateTime?
   interactionCount   Int          @default(0)
+  /// When the background enrichment last looked at this contact; `null`
+  /// queues it (new, or given a new channel by capture).
+  enrichedAt         DateTime?
   mergedIntoId       String?      @db.Uuid
   mergedInto         Contact?     @relation("ContactMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
   mergedFrom         Contact[]    @relation("ContactMerge")
@@ -112,6 +115,7 @@ model Contact {
   @@index([workspaceId, name])
   @@index([mergedIntoId])
   @@index([ownerUserId])
+  @@index([workspaceId, enrichedAt])
   @@map("contact")
 }
 
@@ -217,4 +221,27 @@ model ContactActivity {
 
   @@index([contactId, createdAt, id])
   @@map("contact_activity")
+}
+
+/// Where automatic capture stands for one connected integration. `cursor`
+/// holds, per source (sent mail, answered mail, calendar, Slack), the forward
+/// position (`since`) and the backward 12-month backfill position
+/// (`backfillUntil`, `pageToken`), written after every page so an interrupted
+/// run resumes where it stopped. Removing the integration removes it; a
+/// reconnect starts a fresh backfill.
+model ContactCaptureState {
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  integrationId       String             @unique @db.Uuid
+  integration         SokoBotIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  /// The oldest moment the backfill reaches.
+  backfillFloor       DateTime
+  backfillCompletedAt DateTime?
+  cursor              Json               @default("{}")
+  lastRunAt           DateTime?
+  lastError           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([lastRunAt])
+  @@map("contact_capture_state")
 }

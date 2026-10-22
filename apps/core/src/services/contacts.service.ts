@@ -18,6 +18,7 @@ import type { z } from "zod";
 import { resolveTableActor } from "@/helpers/data-table";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -921,42 +922,78 @@ export async function mergeContacts(
   return loadContactDto(tx, winnerId);
 }
 
-/** Live contacts sharing a name (case and spacing ignored). */
+/** Mail providers whose domain names no company, for the SQL below. */
+const PERSONAL_MAIL_DOMAINS = [...FREEMAIL_DOMAINS];
+
+/**
+ * Live contacts that may be one person: the same name (case and spacing
+ * ignored), or the same surname and first initial with an address at the
+ * same company domain ("Tom Berger" tom@acme.com and "Thomas Berger"
+ * t.berger@acme.com).
+ */
 export async function findDuplicateContacts(
   actor: ContactActor,
   options: { contactId?: string; limit?: number } = {},
 ): Promise<{ name: string; contacts: ContactDto[] }[]> {
-  const groups = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
-    SELECT lower(btrim("name")) AS "key", array_agg("id"::text ORDER BY "createdAt") AS "ids"
-    FROM "contact"
-    WHERE "workspaceId" = ${actor.workspaceId}::uuid
-      AND "mergedIntoId" IS NULL
-      AND "archivedAt" IS NULL
-    GROUP BY lower(btrim("name"))
+  const only = options.contactId
+    ? PrismaRaw.sql`AND bool_or(c."id" = ${options.contactId}::uuid)`
+    : PrismaRaw.empty;
+  const limit = options.limit ?? 50;
+  const sameName = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
+    SELECT lower(btrim(c."name")) AS "key", array_agg(c."id"::text ORDER BY c."createdAt") AS "ids"
+    FROM "contact" c
+    WHERE c."workspaceId" = ${actor.workspaceId}::uuid
+      AND c."mergedIntoId" IS NULL
+      AND c."archivedAt" IS NULL
+    GROUP BY lower(btrim(c."name"))
     HAVING count(*) > 1
-      ${
-        options.contactId
-          ? PrismaRaw.sql`AND bool_or("id" = ${options.contactId}::uuid)`
-          : PrismaRaw.empty
-      }
-    ORDER BY lower(btrim("name"))
-    LIMIT ${options.limit ?? 50}
+      ${only}
+    ORDER BY lower(btrim(c."name"))
+    LIMIT ${limit}
   `;
-  const ids = groups.flatMap((group) => group.ids);
+  const sameCompany = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
+    SELECT min(c."name") AS "key", array_agg(DISTINCT c."id"::text) AS "ids"
+    FROM "contact" c
+    JOIN "contact_channel" ch ON ch."contactId" = c."id" AND ch."type" = 'EMAIL'
+    WHERE c."workspaceId" = ${actor.workspaceId}::uuid
+      AND c."mergedIntoId" IS NULL
+      AND c."archivedAt" IS NULL
+      AND btrim(c."name") LIKE '% %'
+      AND split_part(ch."value", '@', 2) <> ALL(${PERSONAL_MAIL_DOMAINS}::text[])
+    GROUP BY split_part(ch."value", '@', 2),
+      lower(regexp_replace(btrim(c."name"), '^.*\\s', '')),
+      lower(left(btrim(c."name"), 1))
+    HAVING count(DISTINCT c."id") > 1
+      AND count(DISTINCT lower(btrim(c."name"))) > 1
+      ${only}
+    LIMIT ${limit}
+  `;
+  const seen = new Set<string>();
+  const groups = [...sameName, ...sameCompany].filter((group) => {
+    const key = [...group.ids].sort().join(",");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const ids = [...new Set(groups.flatMap((group) => group.ids))];
   const rows = await prisma.contact.findMany({
     where: { id: { in: ids } },
     include: CONTACT_INCLUDE,
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+  const age = new Map(rows.map((row, index) => [row.id, index]));
   const dtos = new Map(
     (await contactDtos(rows)).map((contact) => [contact.id, contact]),
   );
-  return groups.map((group) => ({
-    name: dtos.get(group.ids[0] ?? "")?.name ?? group.key,
-    contacts: group.ids.flatMap((id) => {
-      const contact = dtos.get(id);
-      return contact ? [contact] : [];
-    }),
-  }));
+  return groups.slice(0, limit).map((group) => {
+    const contacts = [...group.ids]
+      .sort((a, b) => (age.get(a) ?? 0) - (age.get(b) ?? 0))
+      .flatMap((id) => {
+        const contact = dtos.get(id);
+        return contact ? [contact] : [];
+      });
+    return { name: contacts[0]?.name ?? group.key, contacts };
+  });
 }
 
 /** The query a contact filter stands for, as seen by `actor`. */
@@ -1250,10 +1287,22 @@ export async function contactsDriveEntry(
   return { contactCount, activityAt: latest._max.updatedAt ?? new Date() };
 }
 
+/** Whether `name` is only what `contactNameFromChannel` made of an address. */
+function isPlaceholderName(
+  name: string,
+  channels: readonly { type: ContactChannelType; value: string }[],
+): boolean {
+  return channels.some(
+    (channel) => contactNameFromChannel(channel.type, channel.value) === name,
+  );
+}
+
 /**
  * The entry point automatic capture calls for one message or meeting: finds
  * or creates the person by channel (filling only what is empty) and logs the
- * interaction for the teammate who had it, idempotently by `sourceRef`.
+ * interaction for the teammate who had it, idempotently by `sourceRef`. A
+ * name made up from an address gives way to the person's real name. A new or
+ * changed contact is queued for enrichment.
  */
 export async function captureContactInteraction(
   tx: Tx,
@@ -1279,18 +1328,95 @@ export async function captureContactInteraction(
     },
     { defaultChannelSource: CAPTURE_CHANNEL_SOURCE[input.interaction.channel] },
   );
+  let changed = upserted.changed;
+  const current = upserted.contact;
+  if (
+    !upserted.created &&
+    input.name &&
+    input.name !== current.name &&
+    isPlaceholderName(current.name, current.channels)
+  ) {
+    await tx.contact.update({
+      where: { id: current.id },
+      data: { name: input.name, version: { increment: 1 } },
+    });
+    await recordActivity(tx, actor, current.id, "UPDATED", {
+      name: { before: current.name, after: input.name },
+    });
+    changed = true;
+  }
+  if (upserted.created || changed)
+    await tx.contact.update({
+      where: { id: current.id },
+      data: { enrichedAt: null },
+    });
   const logged = await logContactInteraction(
     tx,
     actor,
-    upserted.contact.id,
+    current.id,
     input.interaction,
     { userId: input.teammateUserId },
   );
   return {
     ...upserted,
-    contact: logged.created
-      ? await loadContactDto(tx, upserted.contact.id)
-      : upserted.contact,
+    changed,
+    contact:
+      logged.created || changed
+        ? await loadContactDto(tx, current.id)
+        : current,
     interactionCreated: logged.created,
   };
+}
+
+/** Fields the background enrichment may fill. */
+export interface ContactEnrichment {
+  organization?: string;
+  role?: string;
+  summary?: string;
+}
+
+/**
+ * Fills the empty ones of `fields` and records where each value came from
+ * (`sources`: the interactions it was read from, `sourceUrls` where one was
+ * linked) next to the change in the contact's history. Never overwrites, and
+ * marks the contact enriched either way. Returns the fields it filled.
+ */
+export async function enrichContactFields(
+  tx: Tx,
+  actor: ContactActor,
+  id: string,
+  fields: ContactEnrichment,
+  provenance: { method: string; sources: string[]; sourceUrls: string[] },
+): Promise<string[]> {
+  const contact = await requireWritableContact(tx, actor, id);
+  const data = fillEmpty(contact, fieldData(fields));
+  const changes = changedFields(contact, data);
+  const filled = Object.keys(changes);
+  await tx.contact.update({
+    where: { id },
+    data: {
+      ...data,
+      enrichedAt: new Date(),
+      ...(filled.length ? { version: { increment: 1 } } : {}),
+    },
+  });
+  if (filled.length)
+    await recordActivity(
+      tx,
+      actor,
+      id,
+      "UPDATED",
+      Object.fromEntries(
+        Object.entries(changes).map(([field, change]) => [
+          field,
+          {
+            ...change,
+            source: provenance.method,
+            evidence: provenance.sources.slice(0, 10),
+            sourceUrls: provenance.sourceUrls.slice(0, 5),
+          },
+        ]),
+      ),
+    );
+  return filled;
 }

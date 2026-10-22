@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import { checkMailImportance } from "@/lib/soko-bot/mail-importance";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -92,6 +93,8 @@ export function buildIngestMessage(input: {
   timeZone: string;
   mail: SokoBotInboxMessage[];
   events: SokoBotCalendarEvent[];
+  /** Contacts lines for the people on the calendar. */
+  people?: string[];
 }): string {
   const lines: string[] = [];
   if (input.kind === "briefing") {
@@ -119,6 +122,7 @@ export function buildIngestMessage(input: {
     }
     lines.push("");
   }
+  if (input.people?.length) lines.push(...input.people);
   if (input.mail.length > 0) {
     lines.push(
       `## Mail (${input.mail.length}${input.mail.length >= (input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET) ? "+" : ""})`,
@@ -317,6 +321,13 @@ export class SokoBotIngestSyncService {
       }
       events = events.slice(0, MAX_EVENTS_PER_PACKET);
     }
+    const people = events.length
+      ? await calendarPeopleBlock({
+          workspaceId: bot.workspaceId,
+          attendees: events.flatMap((event) => event.attendees),
+          timeZone: bot.ingestTimezone,
+        }).catch(() => [])
+      : [];
 
     // `consumed` is false when the mail was fetched but not shown to the bot:
     // the check is recorded, the mail stays unseen for the next open slot.
@@ -392,6 +403,7 @@ export class SokoBotIngestSyncService {
           timeZone: bot.ingestTimezone,
           mail: packetMail,
           events,
+          people,
         }),
         source: "INGEST",
         presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],

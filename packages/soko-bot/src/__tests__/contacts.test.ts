@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SOKO_BOT_SLACK_CAPTURE_TOOLS } from "../integrations.js";
 import {
   capabilitiesForClassification,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -218,5 +219,38 @@ describe("v28", () => {
     expect(skill).toMatch(/Never create a duplicate/);
     expect(skill).toMatch(/WEB_RESEARCH/);
     expect(skill).toMatch(/noreply/);
+  });
+
+  it("walks prospect research step by step, with verified sources only", () => {
+    const skill = getSokoBotSkill("contacts").content;
+    const prospects = skill.slice(skill.indexOf("## Prospects"));
+    expect(prospects).not.toBe(skill);
+    for (const step of [
+      "`search_contacts` first",
+      "`web_search` and `web_fetch`",
+      "Never guess an email",
+      "stage PROSPECT",
+      "`whyInteresting`",
+      "`sourceUrl`",
+      "set `verified` only when",
+      "with the sources",
+    ])
+      expect(prospects).toContain(step);
+  });
+
+  it("knows capture logs mail, meetings and Slack, so it does not log them again", () => {
+    const skill = getSokoBotSkill("contacts").content;
+    expect(skill).toMatch(/captured on their own/);
+    expect(skill).toMatch(/Do not log those touchpoints again/);
+    expect(skill).toContain("`find_contact_duplicates`");
+  });
+});
+
+describe("Slack capture tools", () => {
+  it("belong to the Slack toolkit, which Core's tool runner requires", () => {
+    const { provider, ...tools } = SOKO_BOT_SLACK_CAPTURE_TOOLS;
+    expect(provider).toBe("slack");
+    for (const slug of Object.values(tools))
+      expect(slug.startsWith("SLACK_")).toBe(true);
   });
 });

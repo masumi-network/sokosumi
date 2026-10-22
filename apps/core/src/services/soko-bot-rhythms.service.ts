@@ -3,6 +3,7 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
+import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
 import {
   foreignTasksBlock,
@@ -10,6 +11,7 @@ import {
   tasksIn,
 } from "@/lib/soko-bot/memory-task-ownership";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
+import { contactLinesByEmail } from "@/services/contacts-context.service";
 import {
   type ActivityStatsBot,
   activityStats,
@@ -24,23 +26,6 @@ import {
 const HOUR_MS = 60 * 60 * 1_000;
 const DAY_MS = 24 * HOUR_MS;
 const SLOT_MS = 30 * 60 * 1_000;
-/** Mail providers whose domain says nothing about the company. */
-const FREEMAIL = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "outlook.com",
-  "hotmail.com",
-  "live.com",
-  "yahoo.com",
-  "icloud.com",
-  "me.com",
-  "gmx.de",
-  "gmx.net",
-  "web.de",
-  "proton.me",
-  "protonmail.com",
-]);
-
 /** A bot a rhythm runs for; a shared bot (`userId: null`) needs its scope. */
 export type RhythmBot = ActivityStatsBot & { ingestTimezone: string };
 
@@ -151,7 +136,7 @@ function domainOf(email: string): string {
 /** "acme" for anna@acme.com; null for freemail, where the domain names no company. */
 function companyOf(email: string): string | null {
   const domain = domainOf(email);
-  if (!domain || FREEMAIL.has(domain)) return null;
+  if (!domain || FREEMAIL_DOMAINS.has(domain)) return null;
   return domain.split(".")[0] ?? null;
 }
 
@@ -217,6 +202,16 @@ async function meetingPrep(
       `## Meeting ${when(event.startsAt, bot.ingestTimezone)}: ${event.title} [${event.provider}:${event.id}]`,
       `- From outside: ${external.slice(0, 6).join(", ")}`,
     );
+    // Context only: a failed lookup must not cost the meeting its prep.
+    const known = await contactLinesByEmail({
+      workspaceId: bot.workspaceId,
+      emails: external.slice(0, 6),
+      timeZone: bot.ingestTimezone,
+    }).catch(() => new Map<string, string>());
+    for (const email of external.slice(0, 6)) {
+      const line = known.get(email);
+      if (line) lines.push(`- Contact: ${line}`);
+    }
     if (event.description)
       lines.push(
         `- Agenda: ${event.description.replace(/\s+/g, " ").slice(0, 300)}`,
