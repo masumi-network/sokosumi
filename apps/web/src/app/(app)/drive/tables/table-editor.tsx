@@ -930,9 +930,9 @@ function TableWorkspace({
               <TableRowShell className="hover:bg-transparent">
                 <TableHead className={cn("w-px", SELECT_CELL)}>
                   <div className="flex items-center gap-1">
-                    {canMoveRows && (
-                      <span aria-hidden className="size-7 shrink-0" />
-                    )}
+                    {/* Holds the row handle's width even when a sort or
+                    filter removes the handle, so columns never shift. */}
+                    <span aria-hidden className="size-7 shrink-0" />
                     <Checkbox
                       aria-label={t("selectAll")}
                       checked={
@@ -1087,13 +1087,15 @@ function TableWorkspace({
                             !selected.length && ROW_CHROME,
                           )}
                         >
-                          {canMoveRows && (
+                          {canMoveRows ? (
                             <ReorderHandle
                               label={t("reorderRow")}
                               listeners={listeners}
                               axis="y"
                               onMove={(step) => handleRowStep(row.id, step)}
                             />
+                          ) : (
+                            <span aria-hidden className="size-7 shrink-0" />
                           )}
                           <Checkbox
                             aria-label={t("selectRow")}
