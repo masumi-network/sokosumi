@@ -14512,7 +14512,8 @@ export const TableColumnSchema = {
                 'url',
                 'email',
                 'single_select',
-                'multiple_select'
+                'multiple_select',
+                'last_updated'
             ]
         },
         options: {
@@ -19298,6 +19299,13 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        scheduledSocialPostCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.',
+            example: 0
+        },
         closingAt: {
             type: [
                 'string',
@@ -23374,6 +23382,7 @@ export const SocialPostLastAttemptSchema = {
                 'missed',
                 'connection_inactive',
                 'authorization_revoked',
+                'project_closed',
                 null
             ]
         },

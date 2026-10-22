@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { isTableRejection } from "./table-mutations";
 import {
+  lastUpdatedFormat,
   parseTableInput,
   tableError,
   tableUrlLabel,
@@ -361,6 +362,22 @@ export function TableCell({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Read-only: Core moves a row's updatedAt on every change, so there is nothing to edit. */
+export function TableUpdatedCell({ row }: { row: TableRow }) {
+  const format = useFormatter();
+  const updatedAt = new Date(row.updatedAt);
+  return (
+    <div className="text-muted-foreground flex h-10 min-w-40 items-center px-2 text-sm whitespace-nowrap tabular-nums">
+      <time
+        dateTime={updatedAt.toISOString()}
+        title={format.dateTime(updatedAt, "dateTimeWithSeconds")}
+      >
+        {format.dateTime(updatedAt, lastUpdatedFormat(updatedAt, new Date()))}
+      </time>
     </div>
   );
 }

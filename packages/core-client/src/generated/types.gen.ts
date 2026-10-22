@@ -4116,7 +4116,7 @@ export type TableColumn = {
     id: string;
     name: string;
     description?: string;
-    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
     options?: Array<string>;
     tableId: string;
     position: number;
@@ -5646,6 +5646,10 @@ export type Project = {
      */
     projectRevision?: number;
     /**
+     * Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.
+     */
+    scheduledSocialPostCount?: number;
+    /**
      * Exclusive release cutoff while the Project is closing
      */
     closingAt?: Date | null;
@@ -6806,7 +6810,7 @@ export type SocialPostStatistics = {
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
-    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | 'project_closed' | null;
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;
@@ -29479,7 +29483,7 @@ export type PostDriveTablesData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
         rows?: Array<{
@@ -29778,7 +29782,7 @@ export type PatchDriveTablesByIdData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
     };

@@ -1,13 +1,16 @@
 import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { TableCell } from "./table-cell";
+import { TableCell, TableUpdatedCell } from "./table-cell";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
-    dateTime: (date: Date, options: Intl.DateTimeFormatOptions) =>
-      new Intl.DateTimeFormat("en-GB", options).format(date),
+    // A named format (Last updated) reads back as `name:iso`; options format.
+    dateTime: (date: Date, format: string | Intl.DateTimeFormatOptions) =>
+      typeof format === "string"
+        ? `${format}:${date.toISOString()}`
+        : new Intl.DateTimeFormat("en-GB", format).format(date),
   }),
 }));
 /** Cells read as text until clicked; the click swaps in the editor. */
@@ -198,5 +201,14 @@ describe("table cell read mode", () => {
   it("does not open the editor on a disabled cell", () => {
     renderCell({ disabled: true });
     expect(screen.getByRole("button", { name: "editCell" })).toBeDisabled();
+  });
+  it("shows Last updated as a read-only time with no editor", () => {
+    const updatedAt = new Date("2020-03-04T05:06:07.000Z");
+    render(<TableUpdatedCell row={{ ...row, updatedAt }} />);
+    const time = screen.getByText("dateTimeWithYear:2020-03-04T05:06:07.000Z");
+    expect(time.tagName).toBe("TIME");
+    expect(time).toHaveAttribute("dateTime", "2020-03-04T05:06:07.000Z");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

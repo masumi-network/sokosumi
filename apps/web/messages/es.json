@@ -2997,6 +2997,7 @@
           "dialog": {
             "title": "¿Cerrar el proyecto?",
             "description": "El trabajo programado antes del límite de cierre finalizará. El trabajo previsto a partir de ese momento se cancelará y el proyecto no podrá volver a abrirse.",
+            "scheduledPostsWarning": "{count, plural, one {Se cancelará # publicación programada.} other {Se cancelarán # publicaciones programadas.}}",
             "reasonLabel": "Motivo (opcional)",
             "reasonPlaceholder": "¿Por qué se cierra este proyecto?",
             "confirm": "Cerrar proyecto",
@@ -8355,6 +8356,7 @@
       "editColumn": "Editar columna",
       "addColumn": "Añadir columna",
       "columnDescription": "Las descripciones ayudan a personas y agentes a entender los valores. Los ID de columna se mantienen estables.",
+      "lastUpdatedHint": "Se rellena sola con la hora del último cambio de cada fila.",
       "columnConflictReview": "La tabla cambió mientras guardabas. Revisa las columnas más recientes antes de guardar de nuevo.",
       "reloadLatest": "Cargar más recientes",
       "reviewLatest": "Revisión completada",
@@ -8423,7 +8425,8 @@
         "url": "URL",
         "email": "Correo electrónico",
         "single_select": "Selección única",
-        "multiple_select": "Selección múltiple"
+        "multiple_select": "Selección múltiple",
+        "last_updated": "Última actualización"
       },
       "archived": "Archivada",
       "active": "Activa",

@@ -10,6 +10,7 @@ export const tableColumnTypeSchema = z.enum([
   "email",
   "single_select",
   "multiple_select",
+  "last_updated",
 ]);
 export const tableValueSchema = z.union([
   z.string().max(20000),

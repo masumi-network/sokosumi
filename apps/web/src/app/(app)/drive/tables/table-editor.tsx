@@ -24,6 +24,7 @@ import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Clock,
   GripVertical,
   MoreHorizontal,
   Plus,
@@ -78,7 +79,7 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
-import { TableCell } from "./table-cell";
+import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import {
@@ -417,6 +418,10 @@ function TableWorkspace({
     queryFn: () => dataTableService.agents(),
     enabled: dialog === "enrich",
   });
+  // A Last updated column holds no stored value: nothing to filter or fill.
+  const writableColumns = table.columns.filter(
+    (column) => column.type !== "last_updated",
+  );
   const columns = definition.visibleColumnIds?.length
     ? table.columns.filter((column) =>
         definition.visibleColumnIds?.includes(column.id),
@@ -516,7 +521,11 @@ function TableWorkspace({
       });
       output.push(
         ...page.rows.map((row) =>
-          columns.map((column) => row.values[column.id]),
+          columns.map((column) =>
+            column.type === "last_updated"
+              ? new Date(row.updatedAt).toISOString()
+              : row.values[column.id],
+          ),
         ),
       );
       next = page.nextCursor ?? undefined;
@@ -969,6 +978,12 @@ function TableWorkspace({
                         )}
                       >
                         <div className="flex items-center gap-1">
+                          {column.type === "last_updated" && (
+                            <Clock
+                              aria-hidden
+                              className="text-muted-foreground size-3.5 shrink-0"
+                            />
+                          )}
                           <span
                             className="text-muted-foreground truncate"
                             title={column.description}
@@ -1122,39 +1137,43 @@ function TableWorkspace({
                           // than floating mid-band.
                           className="p-1 align-top whitespace-normal"
                         >
-                          <TableCell
-                            column={column}
-                            row={row}
-                            onEditingChange={(editing) =>
-                              setEditingRows((previous) => {
-                                const next = { ...previous };
-                                const columns = new Set(
-                                  next[row.id]?.columns ?? [],
-                                );
-                                if (editing) columns.add(column.id);
-                                else columns.delete(column.id);
-                                if (columns.size)
-                                  next[row.id] = {
-                                    row: next[row.id]?.row ?? row,
-                                    columns: [...columns],
-                                  };
-                                else delete next[row.id];
-                                return next;
-                              })
-                            }
-                            disabled={!!table.archivedAt || !!row.archivedAt}
-                            onSave={(version, value) =>
-                              handleCell(row, column, version, value)
-                            }
-                            onHistory={() => {
-                              setHistoryCursor(undefined);
-                              setHistoryCell({
-                                rowId: row.id,
-                                columnId: column.id,
-                              });
-                              setDialog("history");
-                            }}
-                          />
+                          {column.type === "last_updated" ? (
+                            <TableUpdatedCell row={row} />
+                          ) : (
+                            <TableCell
+                              column={column}
+                              row={row}
+                              onEditingChange={(editing) =>
+                                setEditingRows((previous) => {
+                                  const next = { ...previous };
+                                  const columns = new Set(
+                                    next[row.id]?.columns ?? [],
+                                  );
+                                  if (editing) columns.add(column.id);
+                                  else columns.delete(column.id);
+                                  if (columns.size)
+                                    next[row.id] = {
+                                      row: next[row.id]?.row ?? row,
+                                      columns: [...columns],
+                                    };
+                                  else delete next[row.id];
+                                  return next;
+                                })
+                              }
+                              disabled={!!table.archivedAt || !!row.archivedAt}
+                              onSave={(version, value) =>
+                                handleCell(row, column, version, value)
+                              }
+                              onHistory={() => {
+                                setHistoryCursor(undefined);
+                                setHistoryCell({
+                                  rowId: row.id,
+                                  columnId: column.id,
+                                });
+                                setDialog("history");
+                              }}
+                            />
+                          )}
                         </TableCellShell>
                       ))}
                     </TableRowShell>
@@ -1329,7 +1348,7 @@ function TableWorkspace({
                   }}
                 >
                   <option value="">{t("noFilter")}</option>
-                  {table.columns.map((column) => (
+                  {writableColumns.map((column) => (
                     <option value={column.id} key={column.id}>
                       {column.name}
                     </option>
@@ -1591,7 +1610,7 @@ function TableWorkspace({
                 <legend className="mb-2 text-sm font-medium">
                   {t("outputColumns")}
                 </legend>
-                {table.columns.map((column) => (
+                {writableColumns.map((column) => (
                   <label
                     key={column.id}
                     className="flex items-center gap-2 text-sm"

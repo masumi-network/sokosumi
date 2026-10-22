@@ -1120,3 +1120,24 @@ it("R9: a move waits for the one in flight, and a failed move refreshes", async 
   );
   expect(f.batch).toHaveBeenCalledTimes(1);
 });
+
+it("R10: a Last updated column shows the row's time and is never edited or filtered", () => {
+  f.columns = [
+    f.column,
+    {
+      ...f.score,
+      id: "00000000-0000-4000-8000-000000000006",
+      name: "Last updated",
+      type: "last_updated",
+    },
+  ];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getByText("date").tagName).toBe("TIME");
+  expect(screen.queryByRole("textbox", { name: "Last updated" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "configureView" }));
+  expect(
+    [...(screen.getByLabelText("filter") as HTMLSelectElement).options].map(
+      (option) => option.value,
+    ),
+  ).toEqual(["", f.column.id]);
+});
