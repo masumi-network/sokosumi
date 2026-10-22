@@ -3,7 +3,7 @@
 import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
+import { NewTaskButton } from "@/app/components/new-task-button.client";
 import { loadMoreHistory } from "@/app/history/actions";
 import {
   HistoryListItem,
@@ -122,7 +122,7 @@ function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
       <EmptyState
         title={labels.title}
         description={labels.description}
-        action={<NewTaskEmptyAction />}
+        action={<NewTaskButton />}
       />
     </div>
   );

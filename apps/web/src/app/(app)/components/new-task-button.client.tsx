@@ -7,8 +7,8 @@ import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provi
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { Button } from "@/components/ui/button";
 
-/** The way out of an empty task, job or history list: start a task. */
-export function NewTaskEmptyAction() {
+/** Opens the New Task wizard, like the sidebar "New task" item. */
+export function NewTaskButton({ className }: { className?: string }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const wizard = useOptionalNewTaskWizard();
   const { projectId } = useProjectScope();
@@ -20,6 +20,7 @@ export function NewTaskEmptyAction() {
       type="button"
       variant="primary"
       size="sm"
+      className={className}
       onClick={() => wizard.openNewTaskWizard({ projectId })}
     >
       <Plus aria-hidden />

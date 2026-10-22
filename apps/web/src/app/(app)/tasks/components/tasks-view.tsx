@@ -100,8 +100,7 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { TasksViewFilters } from "./tasks-view-filters";
-import { ViewModeSwitch } from "./view-mode-switch";
+import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 
 interface PendingBoardReopen {
   taskId: string;
@@ -885,20 +884,21 @@ export function TasksView({
 
         <div className="flex items-center gap-2 sm:gap-3">
           {activeTab === "tasks" ? (
-            <TasksViewFilters
-              activeOrganizationId={activeOrganizationId}
-              coworkerOptions={coworkerOptions}
-              projectOptions={projectOptions}
-              labels={labels.filters}
-            />
-          ) : null}
-          {activeTab === "tasks" ? (
-            <ViewModeSwitch
-              value={viewMode}
-              onChange={handleViewModeChange}
-              density={density}
-              onDensityChange={handleDensityChange}
-              labels={labels.display}
+            <TasksViewToolbarActions
+              filters={{
+                activeOrganizationId,
+                coworkerOptions,
+                projectOptions,
+                labels: labels.filters,
+              }}
+              display={{
+                value: viewMode,
+                onChange: handleViewModeChange,
+                density,
+                onDensityChange: handleDensityChange,
+                labels: labels.display,
+              }}
+              canCreateTask={canCreateTask}
             />
           ) : null}
         </div>
