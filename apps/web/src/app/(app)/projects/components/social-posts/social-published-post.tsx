@@ -27,6 +27,7 @@ export function SocialPublishedPost({
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
   const timestamp = post.publishedAt ? new Date(post.publishedAt) : null;
+  const media = post.media ?? [];
   const hasKeyMetrics = Object.values(post.metrics).some(
     (value) => value != null,
   );
@@ -48,8 +49,8 @@ export function SocialPublishedPost({
         }
         className="w-full min-w-0 max-w-md self-start lg:max-w-none"
         compact
-        media={[]}
-        mediaUnavailable
+        media={media}
+        mediaUnavailable={media.length === 0}
         provider={post.provider}
         text={post.text}
         timestamp={timestamp}
