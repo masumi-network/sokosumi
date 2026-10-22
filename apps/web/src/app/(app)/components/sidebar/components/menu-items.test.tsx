@@ -5,7 +5,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
 const openNewTaskWizardMock = vi.fn();
 const { pathnameRef, searchRef } = vi.hoisted(() => ({
@@ -20,18 +19,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-let historySearchValue: {
-  openHistorySearch: typeof openHistorySearchMock;
-  searchShortcutLabel: string;
-} | null = {
-  openHistorySearch: openHistorySearchMock,
-  searchShortcutLabel: "Ctrl+K",
-};
-
-vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useOptionalHistorySearch: () => historySearchValue,
 }));
 
 let newTaskWizardValue: {
@@ -129,34 +116,11 @@ function renderMenu(
   );
 }
 
-describe("MenuItems search action", () => {
+describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
-    historySearchValue = {
-      openHistorySearch: openHistorySearchMock,
-      searchShortcutLabel: "Ctrl+K",
-    };
     newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
-  });
-
-  it("opens history search and closes the mobile sidebar when search is clicked", () => {
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }));
-
-    expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
-  });
-
-  it("still closes the mobile sidebar when history search is unavailable", () => {
-    historySearchValue = null;
-    renderMenu();
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }));
-
-    expect(openHistorySearchMock).not.toHaveBeenCalled();
-    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -185,10 +149,10 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("shows Search by default", () => {
+  it("leaves Search to the app header", () => {
     renderMenu();
 
-    expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
   });
 
   it("keeps product destinations when the member has no assigned seat", () => {
@@ -232,7 +196,6 @@ describe("MenuItems search action", () => {
     );
 
     const primaryOrder = [
-      "search",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -252,14 +215,13 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Tasks, Schedules, Studio", () => {
+  it("orders primary destinations Agents, Tasks, Schedules, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
     );
 
     const primaryOrder = [
-      "search",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -421,7 +383,6 @@ describe("MenuItems search action", () => {
       screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
     ).toEqual([
       "newTask",
-      "searchCtrl+K",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -440,10 +401,6 @@ describe("MenuItems rail selection bar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    historySearchValue = {
-      openHistorySearch: openHistorySearchMock,
-      searchShortcutLabel: "Ctrl+K",
-    };
     newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
     pathnameRef.current = "/";
   });
