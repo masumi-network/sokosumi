@@ -44,6 +44,7 @@ function sokoBotRow(
     refundedTaskId: null,
     refundedTaskName: null,
     refundedTaskArchived: null,
+    refundedImagePrompt: null,
     refundSource: null,
     refundX402Kind: null,
     ...overrides,
@@ -211,6 +212,23 @@ describe("mapTransactionHistoryRow refund rows", () => {
     expect(map(jobRefundRow({ refundedJobName: null }))).toMatchObject({
       description: "Refund approved",
       refundedJobId: "job-1",
+    });
+  });
+
+  it("names a legacy studio image refund and keeps its project id", () => {
+    expect(
+      map(
+        refundRow({
+          refundSource: "projectImage",
+          refundedImagePrompt: "A bold event poster",
+          projectId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+        }),
+      ),
+    ).toMatchObject({
+      description: "Payment could not be completed · A bold event poster",
+      projectId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+      refundedJobId: null,
+      refundedTaskId: null,
     });
   });
 

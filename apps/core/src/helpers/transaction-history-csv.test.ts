@@ -50,6 +50,7 @@ function row(
     refundedTaskId: null,
     refundedTaskName: null,
     refundedTaskArchived: null,
+    refundedImagePrompt: null,
     refundSource: null,
     refundX402Kind: null,
     ...overrides,

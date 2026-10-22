@@ -36,12 +36,18 @@ export function getHistoryItemHref(
     case "sokoBot":
       return sokoBotConsoleRoute(item.sokoBotId);
     // A refund opens what it refunded, the same page as the spend it undid.
-    // Other top ups have no page behind them.
+    // Other top ups have no page behind them. Legacy studio refunds carry
+    // projectId from the refunded image job (no job/task id).
     case "topUp":
       if (item.refundedJobId) {
         return jobHref(item.refundedJobId, item.refundedAgentId);
       }
-      return item.refundedTaskId ? taskHref(item.refundedTaskId) : null;
+      if (item.refundedTaskId) {
+        return taskHref(item.refundedTaskId);
+      }
+      return item.projectId
+        ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
+        : null;
     // Coworker seats and unattributed spends are ledger entries with no page
     // behind them. A link to nowhere is worse than no link.
     default:
@@ -50,6 +56,9 @@ export function getHistoryItemHref(
 }
 
 function jobHref(jobId: string, agentId: string | null): string | null {
+  // Without an agent id, getNotificationHref falls back to /tasks — wrong for
+  // a job. Prefer no link over a false destination.
+  if (!agentId) return null;
   return getNotificationHref({
     kind: NotificationKind.JOB,
     referenceId: jobId,

@@ -37,6 +37,7 @@ const PROJECT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd3";
 const IMAGE_JOB_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd4";
 const SOKO_BOT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd5";
 const VENDOR_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd6";
+const REFUNDED_IMAGE_JOB_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd7";
 
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
@@ -329,6 +330,24 @@ async function seedRefundedX402Payment(
   `;
 }
 
+/** Legacy studio refund: `refundTransactionId` is no longer written for new jobs. */
+async function seedRefundedImageJob(tx: Tx, refundId: string): Promise<void> {
+  await seedChargeTransaction(tx, `${refundId}-charge`);
+  await tx.$executeRaw`
+    INSERT INTO "project_image_job" (
+      "id", "createdAt", "updatedAt", "projectId", "workspaceId", "requestedByUserId",
+      "kind", "model", "prompt", "settings", "idempotencyKey",
+      "transactionId", "refundTransactionId"
+    )
+    VALUES (
+      ${REFUNDED_IMAGE_JOB_ID}::uuid, TIMESTAMP '2026-07-31 09:00:00', NOW(),
+      ${PROJECT_ID}::uuid, ${WORKSPACE_ID}::uuid, ${USER_ID},
+      'GENERATE'::"ProjectImageJobKind", 'fal-ai/some-model', 'A bold event poster',
+      '{}'::jsonb, ${`${refundId}-image-key`}, ${`${refundId}-charge`}, ${refundId}
+    )
+  `;
+}
+
 async function findRefundRow(tx: Tx, refundId: string, q?: string) {
   const { rows } = await findTransactionHistoryPage(
     { ...personalScope, kinds: ["topUp"], q },
@@ -429,6 +448,28 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     });
   });
 
+  it("names a legacy studio image refund and keeps its project id", async () => {
+    await withSeededLedger(async (tx) => {
+      await seedRefundTransaction(tx, "tx-refund-image");
+      await seedRefundedImageJob(tx, "tx-refund-image");
+
+      expect(await findRefundRow(tx, "tx-refund-image")).toMatchObject({
+        refundSource: "projectImage",
+        refundedImagePrompt: "A bold event poster",
+        projectId: PROJECT_ID,
+        refundedJobId: null,
+        refundedTaskId: null,
+      });
+      expect(await findRefundItem(tx, "tx-refund-image")).toMatchObject({
+        description: "Payment could not be completed · A bold event poster",
+        projectId: PROJECT_ID,
+      });
+      expect(
+        await findRefundRow(tx, "tx-refund-image", "event poster"),
+      ).toBeDefined();
+    });
+  });
+
   it("leaves a refund with no job or task unexplained", async () => {
     await withSeededLedger(async (tx) => {
       await seedRefundTransaction(tx, "tx-refund-orphan");
@@ -443,6 +484,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         refundedJobOnChainStatus: null,
         refundedTaskId: null,
         refundedTaskName: null,
+        refundedImagePrompt: null,
         refundX402Kind: null,
       });
       expect(await findRefundItem(tx, "tx-refund-orphan")).toMatchObject({

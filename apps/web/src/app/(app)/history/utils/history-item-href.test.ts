@@ -101,6 +101,23 @@ describe("getHistoryItemHref", () => {
     expect(
       getHistoryItemHref({ ...refund, id: "tx-9", refundedTaskId: "task-1" }),
     ).toBe("/tasks/task-1");
+    // Legacy studio refund: no job/task id, projectId from the refunded image.
+    expect(
+      getHistoryItemHref({
+        ...refund,
+        id: "tx-11",
+        projectId: "project-1",
+      }),
+    ).toBe("/studio?projectId=project-1");
+    // Job id without agent would otherwise fall through to /tasks — refuse.
+    expect(
+      getHistoryItemHref({
+        ...refund,
+        id: "tx-12",
+        refundedJobId: "job-1",
+        refundedAgentId: null,
+      }),
+    ).toBeNull();
     // The refunded job or task is gone: no link to nowhere.
     expect(getHistoryItemHref({ ...refund, id: "tx-10" })).toBeNull();
   });
