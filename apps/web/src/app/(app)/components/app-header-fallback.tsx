@@ -27,6 +27,8 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
 
       <HeaderTrailing>
         <div className="flex items-center gap-2">
+          {/* Holds the header Search trigger's box so the row does not jump. */}
+          <div className="bg-muted hidden size-8 animate-pulse rounded-md md:mr-1.5 md:block lg:w-56 xl:w-64" />
           <div className="flex flex-col items-end gap-1">
             <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
             <div className="bg-muted h-3 w-36 animate-pulse rounded-md" />

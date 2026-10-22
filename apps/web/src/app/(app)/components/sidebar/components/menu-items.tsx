@@ -9,7 +9,6 @@ import {
   Megaphone,
   Plus,
   Repeat,
-  Search,
   Share2,
   Users,
 } from "lucide-react";
@@ -17,7 +16,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
-import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
@@ -50,8 +48,6 @@ interface MenuItemConfig {
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   onClick?: () => void;
-  shortcutLabel?: string;
-  ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
@@ -83,19 +79,10 @@ function ScopedMenuItems({
   const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
-  const historySearch = useOptionalHistorySearch();
   const newTaskWizard = useOptionalNewTaskWizard();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-
-  function handleSearchClick() {
-    historySearch?.openHistorySearch();
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -128,15 +115,6 @@ function ScopedMenuItems({
       Icon: Plus,
       separatorAfter: true,
       feature: AnnouncedFeature.NEW_TASK,
-    },
-    {
-      key: "search",
-      label: t("search"),
-      Icon: Search,
-      onClick: handleSearchClick,
-      shortcutLabel: historySearch?.searchShortcutLabel,
-      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
-      feature: AnnouncedFeature.SEARCH,
     },
     {
       key: "explore-agents",
@@ -228,8 +206,6 @@ function ScopedMenuItems({
                 label,
                 Icon,
                 onClick,
-                shortcutLabel,
-                ariaKeyshortcuts,
                 separatorAfter,
                 feature,
               }) => {
@@ -243,18 +219,7 @@ function ScopedMenuItems({
                     : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
-                const tooltip = shortcutLabel
-                  ? {
-                      children: (
-                        <span className="flex items-center gap-2">
-                          <span>{label}</span>
-                          <span className="text-muted-foreground text-xs tracking-widest">
-                            {shortcutLabel}
-                          </span>
-                        </span>
-                      ),
-                    }
-                  : label;
+                const tooltip = label;
 
                 const content = (
                   <>
@@ -319,7 +284,6 @@ function ScopedMenuItems({
                           data-sidebar-new-task={
                             key === "new-task" ? "" : undefined
                           }
-                          aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
                             newTaskClassName ??
@@ -327,14 +291,6 @@ function ScopedMenuItems({
                           )}
                         >
                           {content}
-                          {shortcutLabel ? (
-                            <span
-                              aria-hidden
-                              className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
-                            >
-                              {shortcutLabel}
-                            </span>
-                          ) : null}
                         </SidebarMenuButton>
                       )}
                       {/* Collapsed, the rail's fill belongs to hover alone, so
