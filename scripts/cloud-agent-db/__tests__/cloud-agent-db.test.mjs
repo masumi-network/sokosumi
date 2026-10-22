@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { upsertEnvLines } from "../apply-env.mjs";
 import { checkAgentFixtureSafety } from "../assert-agent-database.mjs";
@@ -789,5 +792,35 @@ describe("sameRepoPullRequestBodies", () => {
       fetchImpl,
     });
     assert.deepEqual(bodies, []);
+  });
+});
+
+describe("cloud agent boot scripts", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const root = join(here, "../../..");
+
+  it("installs Node 24 and local Postgres from environment.json", () => {
+    const env = JSON.parse(
+      readFileSync(join(root, ".cursor/environment.json"), "utf8"),
+    );
+    assert.equal(env.install, "bash scripts/cloud-agent-db/cloud-install.sh");
+    assert.equal(env.start, "bash scripts/cloud-agent-db/cloud-start.sh");
+
+    const install = readFileSync(
+      join(root, "scripts/cloud-agent-db/cloud-install.sh"),
+      "utf8",
+    );
+    assert.match(install, /ensure-node24\.sh/);
+    assert.match(install, /ensure-pnpm\.sh install/);
+    assert.match(install, /provision\.mjs/);
+    assert.match(install, /ensure-local-postgres\.sh/);
+
+    const start = readFileSync(
+      join(root, "scripts/cloud-agent-db/cloud-start.sh"),
+      "utf8",
+    );
+    assert.match(start, /provision\.mjs/);
+    assert.match(start, /pg_ctlcluster 16 main start/);
+    assert.match(start, /with-db\.mjs/);
   });
 });
