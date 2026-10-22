@@ -3,6 +3,7 @@ import { asRecord, nullableNumber, nullableString } from "./parse-helpers.js";
 
 export interface Task {
   id: string | null;
+  identifier: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   userId: string | null;
@@ -10,8 +11,11 @@ export interface Task {
   name: string | null;
   description: string | null;
   status: string | null;
+  priority: string | null;
+  projectId: string | null;
   coworkerId: string | null;
   coworkerName: string | null;
+  assigneeUserId: string | null;
   jobs: AgentJob[];
   totalCredits: number | null;
   events: unknown[];
@@ -28,6 +32,7 @@ export function parseTask(input: unknown): Task {
   const jobs = Array.isArray(value.jobs) ? value.jobs : [];
   return {
     id: nullableString(value.id),
+    identifier: nullableString(value.identifier),
     createdAt: nullableString(value.createdAt),
     updatedAt: nullableString(value.updatedAt),
     userId: nullableString(value.ownerId),
@@ -35,8 +40,11 @@ export function parseTask(input: unknown): Task {
     name: nullableString(value.name),
     description: nullableString(value.description),
     status: nullableString(value.status),
+    priority: nullableString(value.priority),
+    projectId: nullableString(value.projectId),
     coworkerId: nullableString(value.assigneeId),
     coworkerName: assigneeCoworkerName(value.assignee),
+    assigneeUserId: nullableString(value.assigneeUserId),
     jobs: jobs.map(parseAgentJob),
     totalCredits: nullableNumber(value.credits),
     events: Array.isArray(value.events) ? value.events : [],

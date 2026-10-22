@@ -10,6 +10,7 @@ export const tableColumnTypeSchema = z.enum([
   "email",
   "single_select",
   "multiple_select",
+  "last_updated",
 ]);
 export const tableValueSchema = z.union([
   z.string().max(20000),
@@ -88,6 +89,8 @@ export const tableBatchSchema = z
           values: tableValuesSchema.default({}),
           evidence: tableEvidenceSchema.default({}),
           archived: z.boolean().optional(),
+          /** Moves the row directly after this row; null moves it to the top. */
+          afterRowId: z.uuid().nullable().optional(),
         }),
       )
       .max(100)

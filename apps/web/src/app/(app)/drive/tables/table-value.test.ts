@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseTableInput, tableError } from "./table-value";
+import {
+  lastUpdatedFormat,
+  parseTableInput,
+  tableError,
+  tableHistoryText,
+} from "./table-value";
 
 describe("typed grid input", () => {
   it("keeps unknown separate from false and zero", () => {
@@ -44,4 +49,38 @@ it("localizes typed validation and Core error categories", () => {
       translate,
     ),
   ).toBe("localized:errors.invalid");
+});
+
+describe("history text", () => {
+  it("names a row move instead of printing its raw position", () => {
+    const labels = {
+      archived: "Archived",
+      active: "Active",
+      row: "Row",
+      unknown: "Unknown",
+      yes: "Yes",
+      no: "No",
+      position: "New position",
+    };
+    expect(tableHistoryText({ value: { afterRowId: null } }, labels)).toBe(
+      "New position",
+    );
+    // An inserted row carries its position too; it is still a row.
+    expect(
+      tableHistoryText({ value: { values: {}, position: 3 } }, labels),
+    ).toBe("Row");
+    expect(tableHistoryText({ value: { archived: true } }, labels)).toBe(
+      "Archived",
+    );
+  });
+});
+
+it("names the year of a Last updated time only outside this year", () => {
+  const now = new Date("2026-10-21T12:00:00Z");
+  expect(lastUpdatedFormat(new Date("2026-01-02T12:00:00Z"), now)).toBe(
+    "dateTime",
+  );
+  expect(lastUpdatedFormat(new Date("2025-06-02T12:00:00Z"), now)).toBe(
+    "dateTimeWithYear",
+  );
 });

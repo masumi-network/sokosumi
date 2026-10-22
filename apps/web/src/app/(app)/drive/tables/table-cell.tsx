@@ -1,14 +1,20 @@
 "use client";
 import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { History } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { isTableRejection } from "./table-mutations";
-import { parseTableInput, tableError, tableValueText } from "./table-value";
+import {
+  lastUpdatedFormat,
+  parseTableInput,
+  tableError,
+  tableValueText,
+} from "./table-value";
 
 interface Props {
   column: TableColumn;
@@ -100,7 +106,8 @@ export function TableCell({
       "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm dark:bg-transparent",
   };
   return (
-    <div className="group/cell min-w-48">
+    // Bounded so a long value wraps instead of widening its whole column.
+    <div className="group/cell max-w-80 min-w-48">
       <div className="flex items-center gap-1">
         {column.type === "checkbox" || column.type === "single_select" ? (
           <select
@@ -124,7 +131,11 @@ export function TableCell({
             )}
           </select>
         ) : column.type === "long_text" ? (
-          <Textarea {...props} rows={1} />
+          <Textarea
+            {...props}
+            className={cn(props.className, "max-h-40 min-w-0 flex-1")}
+            rows={1}
+          />
         ) : (
           <Input
             {...props}
@@ -192,6 +203,22 @@ export function TableCell({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Read-only: Core moves a row's updatedAt on every change, so there is nothing to edit. */
+export function TableUpdatedCell({ row }: { row: TableRow }) {
+  const format = useFormatter();
+  const updatedAt = new Date(row.updatedAt);
+  return (
+    <div className="text-muted-foreground flex h-10 min-w-40 items-center px-2 text-sm whitespace-nowrap tabular-nums">
+      <time
+        dateTime={updatedAt.toISOString()}
+        title={format.dateTime(updatedAt, "dateTimeWithSeconds")}
+      >
+        {format.dateTime(updatedAt, lastUpdatedFormat(updatedAt, new Date()))}
+      </time>
     </div>
   );
 }

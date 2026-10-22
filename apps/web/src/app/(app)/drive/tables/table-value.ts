@@ -142,6 +142,7 @@ export function tableHistoryText(
     unknown: string;
     yes: string;
     no: string;
+    position: string;
   },
 ): string {
   if (input === null || input === undefined) return labels.unknown;
@@ -150,10 +151,22 @@ export function tableHistoryText(
   if (typeof input === "object" && "archived" in input)
     return input.archived ? labels.archived : labels.active;
   if (typeof input === "object" && "values" in input) return labels.row;
+  if (typeof input === "object" && "afterRowId" in input)
+    return labels.position;
   if (Array.isArray(input))
     return input.map((value) => tableHistoryText(value, labels)).join("; ");
   if (typeof input === "boolean") return input ? labels.yes : labels.no;
   if (typeof input === "string" || typeof input === "number")
     return String(input);
   return "—";
+}
+
+/** A row's Last updated label names its year only when it is not this year. */
+export function lastUpdatedFormat(
+  updatedAt: Date,
+  now: Date,
+): "dateTime" | "dateTimeWithYear" {
+  return updatedAt.getFullYear() === now.getFullYear()
+    ? "dateTime"
+    : "dateTimeWithYear";
 }

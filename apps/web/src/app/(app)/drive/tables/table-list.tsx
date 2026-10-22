@@ -1,9 +1,10 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Table2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import {
   driveItemArticleClass,
   driveItemBodyClass,
@@ -39,19 +40,18 @@ export function TableList({
     queryKey: ["data-tables", workspaceId, archived, cursor],
     queryFn: () =>
       dataTableService.list({ archived: archived ? "true" : "false", cursor }),
-    refetchInterval: 5000,
+    // Always revalidate on mount and focus, so a table changed elsewhere moves
+    // up; the cached page stays on screen meanwhile instead of a loader.
+    staleTime: 0,
+    placeholderData: keepPreviousData,
   });
+  if (query.isPending) return <DriveListSkeleton viewMode="list" />;
   return (
     // Literally the surface Recents and browse render into, from their own
     // helper, so switching tabs no longer switches page languages. The tab
     // already names the view, so the heading is for assistive technology.
     <section className={cn(driveItemsPanelClass("list"), "space-y-2")}>
       <h2 className="sr-only">{t("tables")}</h2>
-      {query.isPending && (
-        <p role="status" className="text-muted-foreground">
-          {t("loading")}
-        </p>
-      )}
       {query.error && (
         <Alert variant="destructive">
           <AlertDescription className="flex flex-wrap items-center gap-2">
@@ -99,9 +99,7 @@ export function TableList({
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <h3 className={driveItemNameClass()}>{table.title}</h3>
                 <div className={driveItemMetaMobileClass("list")}>
-                  <span>
-                    {t("columnCount", { count: table.columns.length })}
-                  </span>
+                  <span>{t("columnCount", { count: table.columnCount })}</span>
                   <span>
                     {format.dateTime(new Date(table.updatedAt), {
                       dateStyle: "medium",
@@ -110,7 +108,7 @@ export function TableList({
                 </div>
               </div>
               <div className={driveItemMetaDesktopClass("list")}>
-                <span>{t("columnCount", { count: table.columns.length })}</span>
+                <span>{t("columnCount", { count: table.columnCount })}</span>
                 <span>
                   {format.dateTime(new Date(table.updatedAt), {
                     dateStyle: "medium",

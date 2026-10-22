@@ -103,6 +103,7 @@ function taskDelegation(
         comment: string;
         createdAt: Date;
         userId?: string;
+        sokoBotId?: string;
       }[],
     },
     job: null,
@@ -338,6 +339,26 @@ describe("SokoBotEventsSyncService", () => {
     expect(delegationUpdateMock).toHaveBeenCalledOnce();
   });
 
+  it("does not wake the bot for a status change it made itself", async () => {
+    const delegation = taskDelegation("a", "DRAFT", "COMPLETED");
+    delegation.task.events = [
+      {
+        id: "event-1",
+        comment: "Closed at the owner's request",
+        createdAt: new Date(),
+        sokoBotId: turn.sokoBotId,
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
   it("wakes the bot for a Task whose background run has ended", async () => {
     delegationFindManyMock.mockResolvedValue([
       {
@@ -494,9 +515,11 @@ describe("SokoBotEventsSyncService", () => {
       },
     ]);
     await new SokoBotEventsSyncService().syncDelegatedWork(input);
-    expect(startTurnMock.mock.calls[0]?.[0].message).toContain(
-      'Job "Agent job" (id job_1) is now COMPLETED',
-    );
+    const message = startTurnMock.mock.calls[0]?.[0].message;
+    expect(message).toContain('Job "Agent job" (id job_1) is now COMPLETED');
+    expect(message).toContain("Read each Job with get_job_status");
+    expect(message).toContain("provide_job_input");
+    expect(message).not.toContain("Read each Task");
   });
 
   it.each([

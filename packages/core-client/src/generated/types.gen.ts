@@ -3161,6 +3161,10 @@ export type ChatResultAvailable = {
     timezone?: string | null;
     recurrence?: string | null;
     question?: string | null;
+    details?: Array<{
+        label: string;
+        value: string;
+    }>;
     outputs?: Array<ChatResultOutput>;
     task?: {
         id: string;
@@ -3794,7 +3798,9 @@ export type DriveRecentsItem = ({
     kind: 'drive-file';
 } & DriveRecentsDriveFileItem) | ({
     kind: 'task-output';
-} & DriveRecentsTaskOutputItem);
+} & DriveRecentsTaskOutputItem) | ({
+    kind: 'table';
+} & DriveRecentsTableItem);
 
 export type DriveRecentsDriveFileItem = {
     /**
@@ -3864,6 +3870,29 @@ export type DriveRecentsTaskOutputItem = {
      * Parent project name, or null
      */
     projectName: string | null;
+};
+
+export type DriveRecentsTableItem = {
+    /**
+     * Live Files table
+     */
+    kind: 'table';
+    /**
+     * Table ID
+     */
+    tableId: string;
+    /**
+     * Table title
+     */
+    name: string;
+    /**
+     * Latest activity timestamp (table updatedAt)
+     */
+    activityAt: Date;
+    /**
+     * Parent project ID, or null
+     */
+    projectId: string | null;
 };
 
 export type FileSelectionTokenResponse = {
@@ -4087,7 +4116,7 @@ export type TableColumn = {
     id: string;
     name: string;
     description?: string;
-    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
     options?: Array<string>;
     tableId: string;
     position: number;
@@ -4111,6 +4140,20 @@ export type TableView = {
         } | null;
         visibleColumnIds?: Array<string>;
     };
+};
+
+export type DataTableSummary = {
+    id: string;
+    workspaceId: string;
+    projectId: string | null;
+    title: string;
+    description: string;
+    createdBy: string;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    columnCount: number;
 };
 
 export type TableRow = {
@@ -28112,7 +28155,7 @@ export type GetDriveRecentsData = {
          */
         organizationId?: string;
         /**
-         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         * Search recents by file name (Drive blobs), task/file name and task description (task outputs) or title (tables). Case-insensitive substring.
          */
         q?: string;
         /**
@@ -29416,10 +29459,10 @@ export type GetDriveTablesError = GetDriveTablesErrors[keyof GetDriveTablesError
 
 export type GetDriveTablesResponses = {
     /**
-     * Table operation completed
+     * Tables, most recently changed first
      */
     200: {
-        data: Array<DataTable>;
+        data: Array<DataTableSummary>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -29440,7 +29483,7 @@ export type PostDriveTablesData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
         rows?: Array<{
@@ -29739,7 +29782,7 @@ export type PatchDriveTablesByIdData = {
             id?: string;
             name: string;
             description?: string;
-            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select' | 'last_updated';
             options?: Array<string>;
         }>;
     };
@@ -30061,6 +30104,7 @@ export type PostDriveTablesByIdRowsData = {
                 }>;
             };
             archived?: boolean;
+            afterRowId?: string | null;
         }>;
     };
     headers?: {

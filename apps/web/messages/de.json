@@ -1020,6 +1020,16 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1027,7 +1037,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
@@ -2163,6 +2172,7 @@
           "resume": "Fortsetzen",
           "end": "Beenden",
           "delete": "Löschen",
+          "more": "Weitere Aktionen",
           "paused": "Zeitplan pausiert",
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
@@ -2435,6 +2445,19 @@
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Erneut versuchen",
+          "help": "Alles andere funktioniert weiterhin. Prüfe deine Verbindung und versuche es erneut.",
+          "projectHelp": "Vorerst werden alle Projekte angezeigt. Versuche es erneut oder wähle ein anderes Projekt.",
+          "title": {
+            "drafts": "Entwürfe konnten nicht geladen werden",
+            "attention": "Beiträge, die Aufmerksamkeit brauchen, konnten nicht geladen werden",
+            "accounts": "Konten konnten nicht geladen werden",
+            "calendar": "Der Kalender konnte nicht geladen werden",
+            "post": "Dieser Beitrag konnte nicht geöffnet werden",
+            "project": "Dieses Projekt konnte nicht geladen werden"
+          }
+        },
         "loadMore": "Mehr laden",
         "loadMoreError": "Mehr konnte nicht geladen werden.",
         "loadMoreOffline": "Du bist offline.",
@@ -2669,6 +2692,7 @@
           "offline": "Du bist offline.",
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
+          "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2712,9 +2736,9 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
@@ -2798,8 +2822,8 @@
           "historyNotFetched": "Der Kontoverlauf wurde noch nicht importiert.",
           "historyLimited": "Der Verlauf ist unvollständig oder durch die Plattform eingeschränkt. Prüfe die Kontoberechtigungen und synchronisiere erneut.",
           "dateUnavailable": "Veröffentlichungsdatum nicht verfügbar",
-          "mediaPost": "Medienbeitrag",
-          "openPost": "Beitrag auf der Plattform öffnen",
+          "noPostMetrics": "Für diesen Beitrag wurden noch keine Kennzahlen gemeldet.",
+          "openPost": "Beitrag auf der Plattform ansehen",
           "accountMetrics": {
             "followers": "Follower",
             "following": "Gefolgte Konten",
@@ -2842,7 +2866,13 @@
             "linkClicks": "Linkklicks",
             "replies": "Antworten",
             "reposts": "Erneut geteilte Beiträge",
-            "dislikes": "Negative Bewertungen"
+            "dislikes": "Negative Bewertungen",
+            "quotes": "Zitate",
+            "totalWatchTime": "Gesamte Wiedergabezeit",
+            "averageWatchTime": "Durchschnittliche Wiedergabezeit",
+            "skipRate": "Überspringrate",
+            "facebookViews": "Facebook-Aufrufe",
+            "crosspostedViews": "Aufrufe durch Crossposting"
           },
           "periods": {
             "lifetime": "Gesamter Zeitraum",
@@ -3132,10 +3162,28 @@
       "noModelSelected": "Wähle mindestens ein Modell. Format, Auflösung und Dateiformat werden nur angeboten, wenn jedes gewählte Modell sie unterstützt.",
       "generationTime": "Generierungsdauer",
       "runPlan": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}",
+      "modelSelectionLimit": "Wähle bis zu {count} Modelle pro Durchlauf. Wähle ein Modell ab, um ein anderes hinzuzufügen.",
+      "selectModelsUpToLimit": "Bis zu {count} auswählen",
+      "mixedSettings": "Je nach Modell unterschiedlich",
+      "modelChoosesFormat": "Modell wählt",
       "copiesOverCeiling": "{models, plural, one {# Modell} other {# Modelle}} x {copies} Kopien sind {images} Bilder, das Limit ist {limit}.",
       "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
-      "errorUnreachable": "Das Studio war nicht erreichbar. Es wurde nichts generiert. Versuche es erneut.",
-      "errorInsufficientCredits": "Nicht genügend Credits. Es wurde nichts generiert und nichts berechnet. Lade Credits auf und versuche es erneut.",
+      "savedSubmission": "Gespeicherte Anfrage für {model}",
+      "submissionUnconfirmed": "Übermittlung nicht bestätigt",
+      "submissionNotStarted": "Bildgenerierung konnte nicht gestartet werden",
+      "viewSavedBrief": "Gespeicherten Entwurf ansehen",
+      "retrySubmission": "Übermittlung erneut versuchen",
+      "editSavedBrief": "Gespeicherten Entwurf bearbeiten",
+      "dismissSubmission": "Verwerfen",
+      "recoveryEditBlocked": "Im Eingabebereich befindet sich ein neuerer Entwurf. Schließe ihn ab, bevor du diesen gespeicherten Entwurf bearbeitest.",
+      "savedRequestsInTab": "Gespeicherte Anfragen bleiben in diesem Tab. Beim Verlassen oder Neuladen werden sie gelöscht.",
+      "promptShortcut": "Strg oder ⌘ + Eingabetaste zum Generieren. Eingabetaste oder Umschalt + Eingabetaste für eine neue Zeile.",
+      "promptCharacterCount": "{count, number} / {limit, number} Zeichen",
+      "promptTooLong": "Kürze den Entwurf vor dem Generieren auf {limit, number} Zeichen.",
+      "templateReplacedBrief": "Die Vorlage hat deinen Entwurf ersetzt.",
+      "undoTemplate": "Vorlage rückgängig machen",
+      "errorUnreachable": "Die Übermittlung konnte nicht bestätigt werden. Die ursprüngliche Anfrage kann noch abgeschlossen und berechnet werden. Ein erneuter Versuch prüft dieselbe Anfrage, ohne eine weitere Generierung zu erstellen.",
+      "errorInsufficientCredits": "Nicht genügend Credits, um die verbleibenden Bilder zu starten. Deine Anfragen bleiben hier gespeichert, damit du sie nach dem Aufladen erneut versuchen kannst.",
       "credits": "Credits",
       "creditsTitle": "Credits für diesen Stapel",
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
@@ -6931,7 +6979,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Starte den Channel mit einer Nachricht oder erwähne einen KI-Coworker.",
+        "noDirectMessagesDescription": "Schreib eine Nachricht, um das Gespräch zu beginnen.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
@@ -7679,7 +7728,8 @@
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
-      }
+      },
+      "tableKind": "Tabelle"
     },
     "SokoBot": {
       "Metadata": {
@@ -7694,15 +7744,15 @@
         "title": "Lern deinen Soko Bot kennen",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
+        "description": "Dein persönlicher Assistent in Sokosumi.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
         "submit": "Soko Bot erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
-        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -8305,6 +8355,7 @@
       "editColumn": "Spalte bearbeiten",
       "addColumn": "Spalte hinzufügen",
       "columnDescription": "Beschreibungen helfen Menschen und Agenten, Werte zu verstehen. Spalten-IDs bleiben stabil.",
+      "lastUpdatedHint": "Füllt sich selbst mit dem Zeitpunkt der letzten Änderung jeder Zeile.",
       "columnConflictReview": "Diese Tabelle wurde während des Speicherns geändert. Prüfe die neuesten Spalten, bevor du erneut speicherst.",
       "reloadLatest": "Neueste laden",
       "reviewLatest": "Prüfung abgeschlossen",
@@ -8373,7 +8424,8 @@
         "url": "URL",
         "email": "E-Mail",
         "single_select": "Einfachauswahl",
-        "multiple_select": "Mehrfachauswahl"
+        "multiple_select": "Mehrfachauswahl",
+        "last_updated": "Zuletzt aktualisiert"
       },
       "archived": "Archiviert",
       "active": "Aktiv",
@@ -8401,6 +8453,20 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
+      },
+      "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
+      "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previousPosition": "Vorherige Position",
+      "newPosition": "Neue Position",
+      "anyOption": "Beliebige Option",
+      "dnd": {
+        "instructions": "Um eine Zeile oder Spalte zu verschieben, den Griff ziehen oder ihn fokussieren und die Pfeiltasten drücken.",
+        "pickedUp": "{item} aufgenommen.",
+        "over": "{item} ist über {target}.",
+        "dropped": "{item} an die Stelle von {target} verschoben.",
+        "cancelled": "Verschieben von {item} abgebrochen."
       }
     },
     "ProjectScope": {
@@ -8707,6 +8773,12 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
     }
   }
 }

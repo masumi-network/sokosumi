@@ -39,7 +39,6 @@ import {
 } from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
-const NUDGE_COOLDOWN_MS = 24 * HOUR_MS;
 const STALE_RUNNING_MS = 24 * HOUR_MS;
 const UNANSWERED_MS = 4 * HOUR_MS;
 const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
@@ -325,11 +324,10 @@ export async function findAttentionItems(
       sokoBotId: bot.id,
       key: { in: candidates.map((c) => c.key) },
       OR: [
-        {
-          lastDeliveredAt: {
-            gte: new Date(bot.now.getTime() - NUDGE_COOLDOWN_MS),
-          },
-        },
+        // Once per state: the key changes when the Task does. Re-asking daily
+        // about an unchanged failure nagged Crypto's owner five days running
+        // after they had said "Stopped".
+        { lastDeliveredAt: { not: null } },
         { state: { in: ["ACKNOWLEDGED", "CANCELLED", "RESOLVED", "EXPIRED"] } },
         { state: "SNOOZED", snoozedUntil: { gt: bot.now } },
         { nextCheckAt: { gt: bot.now } },

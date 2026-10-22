@@ -63,6 +63,17 @@ export function modelById(
   return catalog.models.find((model) => model.id === id) ?? null;
 }
 
+/** Whether the original model can make a variation using this image. */
+export function supportsVariation(
+  catalog: StudioCatalog,
+  endpoint: string | null | undefined,
+): boolean {
+  const model = modelById(catalog, resolveModel(catalog, endpoint).id);
+  return (
+    model !== null && model.editEndpoint !== null && model.maxReferences >= 1
+  );
+}
+
 /**
  * The model to start from.
  *

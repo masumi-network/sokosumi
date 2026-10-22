@@ -7,6 +7,7 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "@/app/projects/components/social-posts/constants";
+import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import { SocialPostStatistics } from "@/app/projects/components/social-posts/social-post-statistics";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -34,12 +35,18 @@ export function SocialAllProjectsTabs({
   actions,
   calendar,
   notice,
+  projectFailed = false,
   workspaceId,
 }: {
   actions: React.ReactNode;
   calendar: React.ReactNode;
   /** Why the scoped project could not be opened, when it could not. */
   notice?: string;
+  /**
+   * The scoped project failed to load (not "it is gone"). A slim banner offers
+   * a retry above the tabs that need a project; Performance spans every project.
+   */
+  projectFailed?: boolean;
   workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
@@ -83,6 +90,14 @@ export function SocialAllProjectsTabs({
         </div>
         {actions}
       </div>
+
+      {projectFailed && tab !== "statistics" ? (
+        <SocialLoadError
+          data-testid="social-project-load-error"
+          kind="project"
+          variant="banner"
+        />
+      ) : null}
 
       <TabsContent className="space-y-4" value="calendar">
         {/* The calendar shows every project's posts as they are; picking a

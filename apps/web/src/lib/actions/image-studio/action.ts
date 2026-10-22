@@ -69,7 +69,13 @@ interface StartGenerationParameters extends AuthenticatedRequest {
  */
 export type StartGenerationResult =
   | { ok: true; job: ProjectImageJob }
-  | { ok: false; kind: string | null; message: string };
+  | {
+      ok: false;
+      kind: string | null;
+      message: string;
+      /** A lost response may hide an accepted job; retry the same key. */
+      uncertain: boolean;
+    };
 
 interface CancelParameters extends AuthenticatedRequest {
   projectId: string;
@@ -107,6 +113,7 @@ export const startImageGeneration = withSession<
         ok: false,
         kind: error.kind ?? null,
         message: error.message || "Could not start the image generation.",
+        uncertain: error.status === undefined || error.status >= 500,
       };
     }
     throw error;

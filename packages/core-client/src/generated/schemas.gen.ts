@@ -11373,6 +11373,28 @@ export const ChatResultAvailableSchema = {
             maxLength: 4000,
             default: null
         },
+        details: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    value: {
+                        type: 'string',
+                        maxLength: 500
+                    }
+                },
+                required: [
+                    'label',
+                    'value'
+                ]
+            },
+            maxItems: 8,
+            default: []
+        },
         outputs: {
             type: 'array',
             items: {
@@ -13380,13 +13402,17 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsTableItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
-            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
+            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -13519,6 +13545,51 @@ export const DriveRecentsTaskOutputItemSchema = {
         'taskName',
         'projectId',
         'projectName'
+    ]
+} as const;
+
+export const DriveRecentsTableItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'table'
+            ],
+            example: 'table',
+            description: 'Live Files table'
+        },
+        tableId: {
+            type: 'string',
+            example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f',
+            description: 'Table ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Leads',
+            description: 'Table title'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (table updatedAt)'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null'
+        }
+    },
+    required: [
+        'kind',
+        'tableId',
+        'name',
+        'activityAt',
+        'projectId'
     ]
 } as const;
 
@@ -14441,7 +14512,8 @@ export const TableColumnSchema = {
                 'url',
                 'email',
                 'single_select',
-                'multiple_select'
+                'multiple_select',
+                'last_updated'
             ]
         },
         options: {
@@ -14588,6 +14660,73 @@ export const TableViewSchema = {
         'name',
         'version',
         'definition'
+    ]
+} as const;
+
+export const DataTableSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columnCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columnCount'
     ]
 } as const;
 

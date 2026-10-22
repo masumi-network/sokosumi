@@ -1020,6 +1020,16 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openJob": "Abrir job",
+      "jobHint": {
+        "started": "Iniciando el job.",
+        "payment_pending": "Esperando a que se confirme el pago antes de que el agente empiece.",
+        "processing": "El agente está trabajando en ello.",
+        "input_required": "El agente necesita más información para continuar.",
+        "result_pending": "El agente terminó. El resultado está en camino.",
+        "failed": "El agente no pudo terminar este job.",
+        "payment_failed": "El pago no se completó, así que el agente no empezó."
+      },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
       "assignee": "Asignado a",
@@ -1027,7 +1037,6 @@
       "destination": "Cuenta",
       "scheduled": "Programado para",
       "recurrence": "Repetición",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Tarea",
         "task_schedule": "Programación de tarea",
@@ -2163,6 +2172,7 @@
           "resume": "Reanudar",
           "end": "Finalizar",
           "delete": "Eliminar",
+          "more": "Más acciones",
           "paused": "Programación en pausa",
           "resumed": "Programación reanudada",
           "ended": "Programación finalizada",
@@ -2435,6 +2445,19 @@
         "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Inténtalo de nuevo",
+          "help": "Todo lo demás sigue funcionando. Comprueba tu conexión e inténtalo de nuevo.",
+          "projectHelp": "Por ahora se muestran todos los proyectos. Inténtalo de nuevo o elige otro.",
+          "title": {
+            "drafts": "No se pudieron cargar los borradores",
+            "attention": "No se pudieron cargar las publicaciones que requieren atención",
+            "accounts": "No se pudieron cargar las cuentas",
+            "calendar": "No se pudo cargar el calendario",
+            "post": "No se pudo abrir esa publicación",
+            "project": "No se pudo cargar ese proyecto"
+          }
+        },
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más.",
         "loadMoreOffline": "Estás sin conexión.",
@@ -2669,6 +2692,7 @@
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
+          "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2712,9 +2736,9 @@
           "clearFilters": "Borrar filtros",
           "invalidRange": "La fecha final debe ser igual o posterior a la fecha inicial.",
           "loading": "Cargando estadísticas…",
-          "loadFailed": "No se pudieron cargar las estadísticas",
+          "loadFailed": "No se cargaron las estadísticas.",
           "retry": "Volver a intentar",
-          "refreshFailed": "No se pudieron actualizar las estadísticas. Se conservan los resultados anteriores. Revisa la cuenta conectada y los permisos y vuelve a intentarlo.",
+          "refreshFailed": "No se pudieron actualizar.",
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
@@ -2798,8 +2822,8 @@
           "historyNotFetched": "Todavía no se ha importado el historial de la cuenta.",
           "historyLimited": "El historial está incompleto o limitado por la plataforma. Revisa los permisos y vuelve a sincronizar.",
           "dateUnavailable": "Fecha de publicación no disponible",
-          "mediaPost": "Publicación multimedia",
-          "openPost": "Abrir publicación en la plataforma",
+          "noPostMetrics": "Todavía no se han recibido métricas para esta publicación.",
+          "openPost": "Ver publicación en la plataforma",
           "accountMetrics": {
             "followers": "Seguidores",
             "following": "Cuentas seguidas",
@@ -2842,7 +2866,13 @@
             "linkClicks": "Clics en enlaces",
             "replies": "Respuestas",
             "reposts": "Republicaciones",
-            "dislikes": "No me gusta"
+            "dislikes": "No me gusta",
+            "quotes": "Citas",
+            "totalWatchTime": "Tiempo total de reproducción",
+            "averageWatchTime": "Tiempo medio de reproducción",
+            "skipRate": "Tasa de omisión",
+            "facebookViews": "Visualizaciones en Facebook",
+            "crosspostedViews": "Visualizaciones de publicaciones cruzadas"
           },
           "periods": {
             "lifetime": "Acumulado",
@@ -3132,10 +3162,28 @@
       "noModelSelected": "Elige al menos un modelo. El encuadre, la resolución y el formato que se ofrecen son los que todos los modelos elegidos admiten.",
       "generationTime": "Tiempo de generación",
       "runPlan": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}",
+      "modelSelectionLimit": "Elige hasta {count} modelos por lote. Deselecciona un modelo para añadir otro.",
+      "selectModelsUpToLimit": "Seleccionar hasta {count}",
+      "mixedSettings": "Varía según el modelo",
+      "modelChoosesFormat": "El modelo elige",
       "copiesOverCeiling": "{models, plural, one {# modelo} other {# modelos}} x {copies} copias son {images} imágenes, y el límite es {limit}.",
       "batchCeiling": "Como máximo {count} imágenes por pulsación. Sokosumi las envía en grupos pequeños, a medida que el proveedor se libera.",
-      "errorUnreachable": "No se pudo acceder al estudio. No se generó nada. Vuelve a intentarlo.",
-      "errorInsufficientCredits": "No hay créditos suficientes. No se generó nada ni se cobró nada. Recarga tus créditos y vuelve a intentarlo.",
+      "savedSubmission": "Solicitud guardada para {model}",
+      "submissionUnconfirmed": "Envío sin confirmar",
+      "submissionNotStarted": "No se pudo iniciar la generación de imágenes",
+      "viewSavedBrief": "Ver descripción guardada",
+      "retrySubmission": "Reintentar envío",
+      "editSavedBrief": "Editar descripción guardada",
+      "dismissSubmission": "Descartar",
+      "recoveryEditBlocked": "Hay un borrador más reciente en el editor. Termínalo antes de editar esta descripción guardada.",
+      "savedRequestsInTab": "Las solicitudes guardadas permanecen en esta pestaña. Se borran al salir o recargar.",
+      "promptShortcut": "Ctrl o ⌘ + Intro para generar. Intro o Mayús + Intro para una nueva línea.",
+      "promptCharacterCount": "{count, number} / {limit, number} caracteres",
+      "promptTooLong": "Acorta la descripción a {limit, number} caracteres antes de generar.",
+      "templateReplacedBrief": "La plantilla reemplazó tu descripción.",
+      "undoTemplate": "Deshacer plantilla",
+      "errorUnreachable": "No se pudo confirmar el envío. La solicitud original aún podría completarse y cobrarse. Al reintentar se comprueba la misma solicitud sin crear otra generación.",
+      "errorInsufficientCredits": "No hay créditos suficientes para iniciar las imágenes restantes. Tus solicitudes están guardadas aquí para reintentarlas después de añadir créditos.",
       "credits": "Créditos",
       "creditsTitle": "Créditos de este lote",
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
@@ -6931,7 +6979,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Empieza el canal con un mensaje o menciona a un coworker de IA.",
+        "noDirectMessagesDescription": "Envía un mensaje para empezar la conversación.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "No se pudieron cargar los miembros",
@@ -7679,7 +7728,8 @@
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
-      }
+      },
+      "tableKind": "Tabla"
     },
     "SokoBot": {
       "Metadata": {
@@ -7694,15 +7744,15 @@
         "title": "Conoce a tu Soko Bot",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tareas a tus Coworkers y contrata Agentes del marketplace para ejecutar Jobs. Ponle un nombre y una imagen.",
+        "description": "Tu asistente personal en Sokosumi.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
-        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",
@@ -8305,6 +8355,7 @@
       "editColumn": "Editar columna",
       "addColumn": "Añadir columna",
       "columnDescription": "Las descripciones ayudan a personas y agentes a entender los valores. Los ID de columna se mantienen estables.",
+      "lastUpdatedHint": "Se rellena sola con la hora del último cambio de cada fila.",
       "columnConflictReview": "La tabla cambió mientras guardabas. Revisa las columnas más recientes antes de guardar de nuevo.",
       "reloadLatest": "Cargar más recientes",
       "reviewLatest": "Revisión completada",
@@ -8373,7 +8424,8 @@
         "url": "URL",
         "email": "Correo electrónico",
         "single_select": "Selección única",
-        "multiple_select": "Selección múltiple"
+        "multiple_select": "Selección múltiple",
+        "last_updated": "Última actualización"
       },
       "archived": "Archivada",
       "active": "Activa",
@@ -8401,6 +8453,20 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
+      },
+      "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
+      "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
+      "showMore": "Mostrar más",
+      "showLess": "Mostrar menos",
+      "previousPosition": "Posición anterior",
+      "newPosition": "Nueva posición",
+      "anyOption": "Cualquier opción",
+      "dnd": {
+        "instructions": "Para mover una fila o columna, arrastra su asa, o enfócala y pulsa las flechas.",
+        "pickedUp": "{item} seleccionado.",
+        "over": "{item} está sobre {target}.",
+        "dropped": "{item} se movió al lugar de {target}.",
+        "cancelled": "Se canceló mover {item}."
       }
     },
     "ProjectScope": {
@@ -8707,6 +8773,12 @@
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
       "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "activateRetry": "Intentar cambiar de nuevo"
+    },
+    "Assistant": {
+      "metadataTitle": "Configura tu asistente",
+      "later": "Más tarde",
+      "skip": "Omitir",
+      "continue": "Continuar"
     }
   }
 }
