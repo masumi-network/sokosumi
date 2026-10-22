@@ -28,7 +28,8 @@ import {
 /** EU-routed and cheap; the same policy as the agent's own models. */
 export const CONTACT_ENRICHMENT_MODEL = "google/gemini-3.8-flash";
 const TIMEOUT_MS = 15_000;
-const MAX_OUTPUT_TOKENS = 400;
+// Gemini spends part of this on thinking, even at the low level.
+const MAX_OUTPUT_TOKENS = 1_500;
 const MAX_INTERACTIONS = 10;
 const MAX_LISTS_PER_CONTACT = 2;
 
@@ -70,11 +71,12 @@ const enrichmentAnswerSchema = z.object({
   organization: z.string().trim().max(200).nullish(),
   role: z.string().trim().max(200).nullish(),
   summary: z.string().trim().max(1000).nullish(),
-  lists: z.array(z.string().trim().max(80)).max(5).nullish(),
+  lists: z.array(z.string().trim().max(80)).max(5).nullish().catch(null),
   evidence: z
     .array(z.union([z.string(), z.number()]))
     .max(20)
-    .nullish(),
+    .nullish()
+    .catch(null),
 });
 
 export type EnrichmentAnswer = z.infer<typeof enrichmentAnswerSchema>;
@@ -194,11 +196,16 @@ export interface EnrichmentDeps {
 
 const defaultDeps: EnrichmentDeps = {
   async generate({ system, prompt }) {
+    const request = sokoBotModelRequest({
+      role: "agent",
+      model: CONTACT_ENRICHMENT_MODEL,
+    });
     const result = await generateText({
-      ...sokoBotModelRequest({
-        role: "agent",
-        model: CONTACT_ENRICHMENT_MODEL,
-      }),
+      ...request,
+      providerOptions: {
+        ...request.providerOptions,
+        google: { thinkingConfig: { thinkingLevel: "low" } },
+      },
       system,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -392,7 +399,12 @@ async function enrichOne(
     });
     return;
   }
-  const evidence = (answer?.evidence ?? [])
+  // A cut-off or malformed answer stays queued instead of counting as done.
+  if (!answer) {
+    stats.modelFailures += 1;
+    return;
+  }
+  const evidence = (answer.evidence ?? [])
     .map((ref) => contact.interactions[Number(ref) - 1])
     .filter((interaction) => interaction !== undefined);
   const filled = await inContactTransaction((tx) =>
@@ -401,9 +413,9 @@ async function enrichOne(
       actor,
       contact.id,
       {
-        organization: answer?.organization ?? undefined,
-        role: answer?.role ?? undefined,
-        summary: answer?.summary ?? undefined,
+        organization: answer.organization ?? undefined,
+        role: answer.role ?? undefined,
+        summary: answer.summary ?? undefined,
       },
       {
         method: `enrichment:${CONTACT_ENRICHMENT_MODEL}`,
@@ -417,7 +429,7 @@ async function enrichOne(
   stats.fieldsFilled += filled.length;
   if (filled.length) stats.enriched += 1;
   const wanted = new Set(
-    (answer?.lists ?? []).map((name) => name.trim().toLowerCase()),
+    (answer.lists ?? []).map((name) => name.trim().toLowerCase()),
   );
   for (const list of lists
     .filter((candidate) => wanted.has(candidate.nameKey))

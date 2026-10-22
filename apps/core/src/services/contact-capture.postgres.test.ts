@@ -683,6 +683,26 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         })
       ).enrichedAt,
     ).toBeNull();
+    // An answer cut off by the output limit is a failure, not "nothing found".
+    mocks.generateText.mockResolvedValue({
+      text: '```json\n{\n  "organization": "Card',
+      providerMetadata: {},
+    });
+    const cutOff = emptyEnrichmentStats();
+    await enrichWorkspaceContacts({
+      workspaceId: mergeWorkspaceId,
+      budget: { enrichments: 20, usd: 0.05 },
+      stats: cutOff,
+      shouldContinue: () => true,
+    });
+    expect(cutOff.modelFailures).toBe(1);
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: queued.contact.id },
+        })
+      ).enrichedAt,
+    ).toBeNull();
     mocks.generateText.mockReset();
     await enrichWorkspaceContacts({
       workspaceId: mergeWorkspaceId,
