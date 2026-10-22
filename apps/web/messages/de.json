@@ -8349,6 +8349,7 @@
       "unknown": "Unbekannt",
       "yes": "Ja",
       "no": "Nein",
+      "editCell": "{column} bearbeiten",
       "cellHistory": "Verlauf und Quellen: {column}",
       "discard": "Entwurf verwerfen",
       "editColumn": "Spalte bearbeiten",

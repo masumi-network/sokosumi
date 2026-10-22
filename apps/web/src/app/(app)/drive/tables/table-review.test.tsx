@@ -127,6 +127,11 @@ vi.mock("@/lib/services/data-table.client", () => ({
     list: vi.fn(),
   },
 }));
+/** Cells read as text until clicked; the click swaps in the editor. */
+function openCell() {
+  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
+  return screen.getByRole("textbox", { name: "Company" });
+}
 beforeEach(() => {
   vi.resetAllMocks();
   f.shown = [f.row];
@@ -185,7 +190,7 @@ it("F4: unresolved add-row blocks view navigation", async () => {
 it("F4: definitive cell rejection does not leave the cell retry-locked", async () => {
   f.batch.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Rejected edit" } });
   fireEvent.blur(cell);
@@ -205,7 +210,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
     .mockRejectedValueOnce(new TypeError("cell lost acknowledgement"))
     .mockRejectedValueOnce({ error: "Forbidden", message: "Archive rejected" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Pending cell" } });
   fireEvent.blur(cell);
@@ -231,7 +236,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
 it("F2: polling row removal pins the edited row and preserves its original version", async () => {
   f.batch.mockResolvedValue({ rows: [] });
   const { rerender } = render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Unsaved draft" } });
   expect(cell).toHaveValue("Unsaved draft");
@@ -261,12 +266,15 @@ it("F11: typing after Escape starts another edit", () => {
       onHistory={() => {}}
     />,
   );
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Cancelled" } });
   fireEvent.keyDown(cell, { key: "Escape" });
-  fireEvent.change(cell, { target: { value: "New edit" } });
-  fireEvent.blur(cell);
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  const next = openCell();
+  expect(next).toHaveValue("Original");
+  fireEvent.change(next, { target: { value: "New edit" } });
+  fireEvent.blur(next);
   expect(save).toHaveBeenCalledWith(1, "New edit");
 });
 it("F11: IME composition keys do not submit or cancel the draft", () => {
@@ -280,7 +288,7 @@ it("F11: IME composition keys do not submit or cancel the draft", () => {
       onHistory={() => {}}
     />,
   );
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "日本" } });
   fireEvent.keyDown(cell, { key: "Enter", keyCode: 229 });
@@ -454,7 +462,7 @@ it("F2: canceling deliberate view navigation keeps the draft", () => {
   const confirm = vi.fn().mockReturnValue(false);
   vi.stubGlobal("confirm", confirm);
   render(<TableEditor id={f.column.tableId} />);
-  const input = screen.getByLabelText("Company");
+  const input = openCell();
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "Keep draft" } });
   fireEvent.change(screen.getByLabelText("view"), { target: { value: "" } });
@@ -814,7 +822,7 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   const priorConfirm = window.confirm;
   window.confirm = confirmSpy;
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Pending value" } });
   fireEvent.blur(cell);
@@ -849,7 +857,7 @@ it("F3: a cell error wraps instead of painting across the next column", async ()
   // nowrap is inherited, so the reset has to be on the cell and the error box.
   f.batch.mockRejectedValue({ error: "Conflict" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Conflicting value" } });
   fireEvent.blur(cell);
@@ -868,6 +876,7 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
   const valueCell = screen
     .getByRole("textbox", { name: "Notes" })
     .closest("td");
@@ -887,6 +896,7 @@ it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "editCell" }));
   expect(screen.getByRole("textbox", { name: "Notes" }).className).toContain(
     "dark:bg-transparent",
   );

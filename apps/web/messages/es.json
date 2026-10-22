@@ -8349,6 +8349,7 @@
       "unknown": "Desconocido",
       "yes": "Sí",
       "no": "No",
+      "editCell": "Editar {column}",
       "cellHistory": "Historial y fuentes: {column}",
       "discard": "Descartar borrador",
       "editColumn": "Editar columna",
