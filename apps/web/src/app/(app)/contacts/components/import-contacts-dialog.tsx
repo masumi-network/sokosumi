@@ -93,9 +93,12 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-        <form onSubmit={handleSubmit} className="grid gap-5">
+    <Dialog open onOpenChange={(open) => !open && !pending && onClose()}>
+      <DialogContent
+        showCloseButton={!pending}
+        className="app-scrollbar max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+      >
+        <form onSubmit={handleSubmit} className="grid min-w-0 gap-5">
           <DialogHeader>
             <DialogTitle>{t("title")}</DialogTitle>
             <DialogDescription>
@@ -123,20 +126,21 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
               ) : null}
             </dl>
           ) : (
-            <>
-              <fieldset className="grid gap-2">
+            <fieldset disabled={pending} className="grid min-w-0 gap-5">
+              <fieldset className="grid min-w-0 gap-2">
                 <legend className="mb-2 text-sm font-medium">
                   {t("chooseTable")}
                 </legend>
                 {tables.isPending ? (
                   <Skeleton className="h-20 w-full" />
                 ) : tables.data?.items.length ? (
-                  <div className="app-scrollbar grid max-h-48 gap-1 overflow-y-auto">
+                  <div className="app-scrollbar grid max-h-48 grid-cols-1 gap-1 overflow-x-hidden overflow-y-auto">
                     {tables.data.items.map((item) => (
                       <label
                         key={item.id}
                         className={cn(
-                          "has-focus-visible:ring-ring flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm has-focus-visible:ring-2",
+                          "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm has-focus-visible:ring-2",
+                          pending && "cursor-default",
                           tableId === item.id
                             ? "border-primary-tertiary bg-primary-quinary"
                             : "hover:bg-quinary",
@@ -157,7 +161,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
                         <span className="min-w-0 flex-1 truncate">
                           {item.title}
                         </span>
-                        <span className="text-muted-foreground text-xs tabular-nums">
+                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                           {t("columnCount", { count: item.columnCount })}
                         </span>
                       </label>
@@ -170,7 +174,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
                 )}
               </fieldset>
               {tableId ? (
-                <fieldset className="grid gap-2">
+                <fieldset className="grid min-w-0 gap-2">
                   <legend className="mb-1 text-sm font-medium">
                     {t("mapColumns")}
                   </legend>
@@ -231,34 +235,49 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
                   )}
                 </fieldset>
               ) : null}
-            </>
+            </fieldset>
           )}
-          {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
-            {result ? (
-              <Button type="button" variant="primary" onClick={onClose}>
-                {t("done")}
-              </Button>
-            ) : (
-              <>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {t("cancel")}
+          <div className="bg-background sticky -bottom-6 -mx-6 -mb-6 grid gap-3 px-6 pt-1 pb-6">
+            {pending ? (
+              <p role="status" className="text-muted-foreground text-sm">
+                {t("importing")}
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                role="alert"
+                className="text-semantic-destructive-label text-sm"
+              >
+                {error}
+              </p>
+            ) : null}
+            <DialogFooter>
+              {result ? (
+                <Button type="button" variant="primary" onClick={onClose}>
+                  {t("done")}
                 </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  loading={pending}
-                  disabled={!tableId}
-                >
-                  {t("submit")}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={onClose}
+                  >
+                    {t("cancel")}
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={pending}
+                    disabled={!tableId}
+                  >
+                    {t("submit")}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

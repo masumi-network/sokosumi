@@ -8737,6 +8737,7 @@
           "skipped": "Omitidos",
           "listsCreated": "{count, plural, =1 {Se creó 1 lista a partir de las etiquetas} other {Se crearon # listas a partir de las etiquetas}}"
         },
+        "importing": "Importando… Con tablas grandes puede tardar un minuto.",
         "nameRequired": "Elige la columna con los nombres.",
         "failed": "La importación no terminó. Inténtalo de nuevo.",
         "cancel": "Cancelar",

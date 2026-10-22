@@ -72,6 +72,30 @@ describe("ContactCell", () => {
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
+  it("opens the person on Enter even when the cell is editable, and edits on F2 or typing", () => {
+    const onOpen = vi.fn();
+    const onSave = vi.fn();
+    const cell = renderCell({
+      edit: { kind: "text", value: "Lumen AI", onSave },
+      onOpen,
+    });
+    fireEvent.keyDown(cell, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("textbox")).toBeNull();
+
+    fireEvent.keyDown(cell, { key: "F2" });
+    expect(screen.getByRole("textbox", { name: "Organization" })).toHaveValue(
+      "Lumen AI",
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+    fireEvent.keyDown(cell, { key: "L" });
+    expect(screen.getByRole("textbox", { name: "Organization" })).toHaveValue(
+      "L",
+    );
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
   it("moves with the arrow keys", () => {
     const onNavigate = vi.fn(() => true);
     const cell = renderCell({ onNavigate });

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Download, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useDeferredValue, useState } from "react";
+import { useCallback, useDeferredValue, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CONTACT_SORTS,
@@ -93,6 +93,7 @@ export function ContactsWorkspace({
   const [selected, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   const { teammates } = useTeammates();
@@ -134,7 +135,16 @@ export function ContactsWorkspace({
     }
   }
   function open(id: string) {
+    if (!openId && document.activeElement instanceof HTMLElement)
+      returnFocus.current = document.activeElement;
     void setOpenId(id);
+  }
+  function restoreFocus(event: Event) {
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    if (!target?.isConnected) return;
+    event.preventDefault();
+    target.focus();
   }
 
   async function bulk(action: () => Promise<unknown>, done: string) {
@@ -411,6 +421,7 @@ export function ContactsWorkspace({
           lists={lists.data ?? []}
           teammates={teammates}
           onClose={() => void setOpenId(null)}
+          onCloseAutoFocus={restoreFocus}
           onOpenContact={open}
           onMerge={(group) => setDialog({ kind: "merge", contacts: group })}
         />

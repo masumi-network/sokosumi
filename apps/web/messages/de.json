@@ -8737,6 +8737,7 @@
           "skipped": "Übersprungen",
           "listsCreated": "{count, plural, =1 {1 Liste aus den Tags erstellt} other {# Listen aus den Tags erstellt}}"
         },
+        "importing": "Wird importiert… Bei großen Tabellen kann das eine Minute dauern.",
         "nameRequired": "Wähle die Spalte mit den Namen.",
         "failed": "Der Import wurde nicht abgeschlossen. Versuch es noch einmal.",
         "cancel": "Abbrechen",
