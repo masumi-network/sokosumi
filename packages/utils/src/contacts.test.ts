@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarDateSchema,
   contactFilterSchema,
   contactNameFromChannel,
   createContactSchema,
@@ -141,5 +142,15 @@ describe("contact input schemas", () => {
         lastContactOlderThanDays: 90,
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("calendarDateSchema", () => {
+  it("takes a YYYY-MM-DD day and nothing else", () => {
+    expect(calendarDateSchema.safeParse("2026-11-02").success).toBe(true);
+    expect(calendarDateSchema.safeParse("2026-02-30").success).toBe(false);
+    expect(
+      calendarDateSchema.safeParse("2026-11-02T00:00:00.000Z").success,
+    ).toBe(false);
   });
 });

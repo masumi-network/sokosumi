@@ -197,6 +197,18 @@ const httpUrlSchema = z
   .max(2000)
   .refine((value) => /^https?:\/\//.test(value), "Use an HTTP or HTTPS URL");
 
+/**
+ * A `YYYY-MM-DD` calendar day. Not `z.iso.date()`: that is `format: date` in
+ * the OpenAPI document, which the generated client reads as a Date and sends
+ * back as a timestamp.
+ */
+export const calendarDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((date) => z.iso.date().safeParse(date).success, {
+    message: "Not a calendar date",
+  });
+
 function optionalText(max: number) {
   return z.string().trim().max(max).nullable().optional();
 }
@@ -230,7 +242,7 @@ export const contactFieldsSchema = z.object({
   ownerUserId: z.string().min(1).max(200).nullable().optional(),
   nextStep: optionalText(500),
   /** Calendar date, `YYYY-MM-DD`. */
-  followUpAt: z.iso.date().nullable().optional(),
+  followUpAt: calendarDateSchema.nullable().optional(),
   avatarUrl: httpUrlSchema.nullable().optional(),
   customFields: z
     .record(z.string().trim().min(1).max(100), customFieldValueSchema)

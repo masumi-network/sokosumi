@@ -9,6 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { GRID_SELECTED_CELL } from "@/components/data-grid/grid-classes";
+import {
+  type GridCellProps,
+  handleGridKey,
+} from "@/components/data-grid/grid-keys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,20 +33,6 @@ import {
 
 type Value = TableRow["values"][string];
 
-export type GridMove = "up" | "down" | "left" | "right";
-
-/** Where the selection sits in the grid, and how it moves. */
-export interface GridCellProps {
-  id: string;
-  active: boolean;
-  /** The one cell in the tab order: the active one, or the first. */
-  tabbable: boolean;
-  className?: string;
-  onActivate: () => void;
-  /** Moves the selection and focus; false when there is no cell that way. */
-  onNavigate: (move: GridMove) => boolean;
-}
-
 interface Props extends GridCellProps {
   column: TableColumn;
   row: TableRow;
@@ -50,13 +41,6 @@ interface Props extends GridCellProps {
   onHistory: () => void;
   onEditingChange?: (editing: boolean) => void;
 }
-
-const ARROW_MOVES: Record<string, GridMove> = {
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-};
 
 /** Types where a typed character replaces the value, as in a spreadsheet. */
 const TYPE_TO_REPLACE = new Set<TableColumn["type"]>([
@@ -73,51 +57,6 @@ const WRAP_TEXT: Record<CellWrap, string> = {
   clamp: "line-clamp-2 whitespace-pre-line break-words",
   wrap: "whitespace-pre-line break-words",
 };
-
-/**
- * The selection ring: the accent, inside the gridlines so neighbours keep
- * theirs. It replaces the focus ring, so an unselected cell is the only one
- * that drops its outline (`outline-none` would also erase this one).
- */
-const SELECTED = "outline-2 -outline-offset-2 outline-ring";
-
-function hasTextSelection() {
-  const selection = window.getSelection();
-  return !!selection && !selection.isCollapsed;
-}
-
-/**
- * The keys every cell shares: arrows and Tab move the selection, and
- * Cmd/Ctrl+C copies the cell's text. True when the key was handled.
- */
-function handleGridKey(
-  event: KeyboardEvent<HTMLElement>,
-  text: string,
-  onNavigate: (move: GridMove) => boolean,
-): boolean {
-  const modified = event.altKey || event.metaKey || event.ctrlKey;
-  const move =
-    event.key === "Tab"
-      ? event.shiftKey
-        ? "left"
-        : "right"
-      : ARROW_MOVES[event.key];
-  if (move && !modified) {
-    // Tab past the last cell leaves the grid, so it never traps focus.
-    if (onNavigate(move) || event.key !== "Tab") event.preventDefault();
-    return true;
-  }
-  if (
-    (event.metaKey || event.ctrlKey) &&
-    event.key.toLowerCase() === "c" &&
-    !hasTextSelection()
-  ) {
-    event.preventDefault();
-    void navigator.clipboard?.writeText(text);
-    return true;
-  }
-  return false;
-}
 
 /** Focus an editor the moment it opens, caret at the end. */
 function focusEditor(
@@ -476,7 +415,7 @@ export function TableCell({
       }}
       className={cn(
         "group/cell relative border-e border-b p-0 align-top select-none",
-        active ? SELECTED : "outline-none",
+        active ? GRID_SELECTED_CELL : "outline-none",
         editing && "z-15",
         className,
       )}
@@ -532,7 +471,7 @@ export function TableCell({
         <div
           className={cn(
             "bg-background absolute start-0 top-0 min-w-full rounded-sm shadow-md select-text",
-            SELECTED,
+            GRID_SELECTED_CELL,
             column.type === "long_text" ? "w-96" : "w-72",
           )}
         >
@@ -604,7 +543,7 @@ export function TableUpdatedCell({
       }}
       className={cn(
         "text-muted-foreground border-e border-b p-0 align-top select-none",
-        active ? SELECTED : "outline-none",
+        active ? GRID_SELECTED_CELL : "outline-none",
         className,
       )}
     >

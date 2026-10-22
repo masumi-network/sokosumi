@@ -143,6 +143,7 @@ export {
   CONTACT_STAGES,
   type ContactChannelType,
   type ContactFilter,
+  calendarDateSchema,
   contactChannelInputSchema,
   contactFieldsSchema,
   contactFilterSchema,

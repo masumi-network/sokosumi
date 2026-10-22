@@ -95,3 +95,12 @@ Migration `packages/database/prisma/migrations/20261022151847_contacts` (schema 
 
 - **Phase 2 (Web)**: the generated client operations for the routes above (`getContacts`, `postContacts`, `getContactsById`, `patchContactsById`, `postContactsMerge`, `getContactsDuplicates`, `getContactsExportCsv`, `postContactsImport`, `getContactLists`, `postContactLists`, `patchContactListsById`, `deleteContactListsById`, `postContactListsByIdMembers`, …). The left-rail presets map to list query params: My contacts `ownedByMe=true`, Follow-ups due `followUpDue=true`, Recently added `createdWithinDays=14`, Stale `lastContactOlderThanDays=90`, Prospects `stage=PROSPECT`. Add the `/contacts` page the Files entry already links to.
 - **Phase 3 (capture)**: `captureContactInteraction(tx, actor, { name, organization, role, channels, interaction, teammateUserId })` in `contacts.service.ts`, inside `inContactTransaction`. It upserts by channel (fills only empty fields), logs the interaction for the teammate idempotently by `sourceRef`, and returns `created`, `interactionCreated` and any `mergeSuggestion`. Use `actor = { workspaceId, userId: <connection owner>, sokoBotId: <bot> }`.
+
+## Phase 2 as built (2026-10-22)
+
+Web lives in `apps/web/src/app/(app)/contacts/`: `page.tsx` (server; reads the mail and calendar connect offers for the empty state) and a client workspace over `contactsService` (`apps/web/src/lib/services/contacts.client.ts`, the generated client from the browser, like Files tables). URL state: `list` (preset id or list id), `q`, `stage`, `owner`, `knownBy`, `sort`, `dir`, and `contact` for the person panel (deep link).
+
+- **Grid**: the Files tables grid's shared pieces moved to `apps/web/src/components/data-grid/` (column widths and fit, the resize handle, keyboard model, roving focus, sticky and chrome classes); the tables editor and the contacts grid both use them. Contact column widths are a per-browser preference (`localStorage`), not shared like table columns.
+- **Edits** send the version the reader saw; a stale version reloads the contact with a toast. Inline edits keep row order until the next load.
+- **Core change**: `followUpAt` is a `YYYY-MM-DD` string schema (`calendarDateSchema` in `@sokosumi/utils`), not `z.iso.date()`, whose `format: date` made the generated client send a timestamp that Core rejected.
+- **Sidebar**: Contacts sits after Schedules for every member, without a Badge campaign (no `AnnouncedFeature` for it).
