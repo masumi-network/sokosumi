@@ -265,14 +265,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
     const contacts = await contactsOf(workspaceId);
     expect(contacts.map((contact) => contact.name).sort()).toEqual(
-      [
-        "Lukas Meier",
-        "Max Muster",
-        "Nina Keller",
-        "Tom Berger",
-        // No display name and `sara@` is not first.last: the address stays.
-        "sara@acme-robotics.com",
-      ].sort(),
+      ["Lukas Meier", "Max Muster", "Nina Keller", "Tom Berger", "Sara"].sort(),
     );
     const nina = contacts.find((contact) => contact.name === "Nina Keller");
     expect(nina).toMatchObject({

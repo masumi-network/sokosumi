@@ -106,9 +106,8 @@ describe("contactNameFromChannel", () => {
 
   it("keeps the address when it does not read as a name", () => {
     for (const email of [
-      "hey@adyjecinski.com",
       "rodrigopacini@gmail.com",
-      "business@acme.com",
+      "lopezfacundo123@gmail.com",
       "mr@iventuregroup.com",
       "jane.d0e@acme.com",
     ])
@@ -116,7 +115,10 @@ describe("contactNameFromChannel", () => {
     expect(contactNameFromChannel("EMAIL", "c.teichert@venista.com")).toBe(
       "C Teichert",
     );
-    expect(contactNameFromChannel("EMAIL", "sebastian_aravena@acme.com")).toBe(
+    expect(contactNameFromChannel("EMAIL", "federico@acme.com")).toBe(
+      "Federico",
+    );
+    expect(contactNameFromChannel("EMAIL", "SEBASTIAN_aravena@acme.com")).toBe(
       "Sebastian Aravena",
     );
   });

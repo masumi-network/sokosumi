@@ -164,7 +164,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     const elsewhere = await create(asOutsider, {
       channels: [{ type: "EMAIL", value: "nina@example.com" }],
     });
-    expect(elsewhere.contact.name).toBe("nina@example.com");
+    expect(elsewhere.contact.name).toBe("Nina");
     await expect(
       getContactDetail(asOutsider, first.contact.id),
     ).rejects.toMatchObject({ status: 404 });
