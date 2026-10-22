@@ -70,8 +70,6 @@ export const CONTACT_SORT_FIELDS = [
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function stripPrefix(value: string, pattern: RegExp): string {
   return value.replace(pattern, "");
 }
@@ -151,7 +149,9 @@ export function normalizeContactChannelValue(
   switch (type) {
     case "EMAIL": {
       const email = stripPrefix(value, /^mailto:/i).toLowerCase();
-      return EMAIL_PATTERN.test(email) && email.length <= 320 ? email : null;
+      return email.length <= 320 && z.email().safeParse(email).success
+        ? email
+        : null;
     }
     case "PHONE":
     case "WHATSAPP":
