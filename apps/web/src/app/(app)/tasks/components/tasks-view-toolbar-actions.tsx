@@ -10,23 +10,19 @@ import { ViewModeSwitch, type ViewModeSwitchProps } from "./view-mode-switch";
 interface TasksViewToolbarActionsProps {
   filters: ComponentProps<typeof TasksViewFilters>;
   display: ViewModeSwitchProps;
-  canCreateTask: boolean;
 }
 
 /** Right side of the Tasks tab toolbar: filters, display and New task. */
 export function TasksViewToolbarActions({
   filters,
   display,
-  canCreateTask,
 }: TasksViewToolbarActionsProps) {
   return (
     <>
       <TasksViewFilters {...filters} />
       <ViewModeSwitch {...display} />
-      {canCreateTask ? (
-        // Below md the create FAB covers creation.
-        <NewTaskButton className="hidden md:inline-flex" />
-      ) : null}
+      {/* Below md the create FAB covers creation. */}
+      <NewTaskButton className="hidden md:inline-flex" />
     </>
   );
 }
