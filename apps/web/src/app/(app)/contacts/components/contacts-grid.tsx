@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, PanelRightOpen } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type CSSProperties,
+  type MouseEvent,
   type ReactNode,
   useEffect,
   useRef,
@@ -80,6 +81,12 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "followUp", width: 132 },
   { id: "updated", width: 132, sort: "updatedAt" },
 ];
+
+/** A click on the name opens the person but leaves focus on the cell. */
+function keepCellFocus(event: MouseEvent<HTMLElement>) {
+  event.preventDefault();
+  event.currentTarget.closest<HTMLElement>('[role="gridcell"]')?.focus();
+}
 
 const WIDTHS_KEY = "contacts-grid-widths";
 
@@ -238,8 +245,9 @@ export function ContactsGrid({
                 type="button"
                 tabIndex={-1}
                 data-fit
+                onMouseDown={keepCellFocus}
                 onClick={() => onOpen(contact.id)}
-                className="hover:decoration-foreground min-w-0 truncate text-start font-medium underline decoration-transparent underline-offset-4 transition-colors"
+                className="hover:decoration-foreground min-w-0 cursor-pointer truncate text-start font-medium underline decoration-transparent underline-offset-4 transition-colors"
               >
                 {contact.name}
               </button>
@@ -247,8 +255,9 @@ export function ContactsGrid({
                 type="button"
                 tabIndex={-1}
                 aria-label={t("grid.openContact", { name: contact.name })}
+                onMouseDown={keepCellFocus}
                 onClick={() => onOpen(contact.id)}
-                className="text-muted-foreground hover:text-foreground ms-auto hidden shrink-0 group-hover/row:inline-flex"
+                className="text-muted-foreground hover:text-foreground ms-auto hidden shrink-0 cursor-pointer group-hover/row:inline-flex group-aria-selected/cell:inline-flex"
               >
                 <PanelRightOpen aria-hidden className="size-4" />
               </button>

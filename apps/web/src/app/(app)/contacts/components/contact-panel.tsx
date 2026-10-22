@@ -100,6 +100,8 @@ interface Props {
   lists: ContactList[];
   teammates: Teammate[];
   onClose: () => void;
+  /** Where focus goes when the panel closes, instead of the page. */
+  onCloseAutoFocus?: (event: Event) => void;
   onOpenContact: (id: string) => void;
   onMerge: (contacts: Contact[]) => void;
 }
@@ -110,6 +112,7 @@ export function ContactPanel({
   lists,
   teammates,
   onClose,
+  onCloseAutoFocus,
   onOpenContact,
   onMerge,
 }: Props) {
@@ -124,6 +127,7 @@ export function ContactPanel({
         side="right"
         className="w-full gap-0 overflow-y-auto sm:max-w-xl"
         aria-describedby={undefined}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         {detail.data ? (
           <PanelBody

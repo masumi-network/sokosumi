@@ -8737,6 +8737,7 @@
           "skipped": "Skipped",
           "listsCreated": "{count, plural, =1 {Created 1 list from the tags} other {Created # lists from the tags}}"
         },
+        "importing": "Importing… This can take a minute for large tables.",
         "nameRequired": "Choose the column that holds names.",
         "failed": "The import didn't finish. Try again.",
         "cancel": "Cancel",

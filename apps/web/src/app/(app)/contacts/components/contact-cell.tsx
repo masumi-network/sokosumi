@@ -155,7 +155,7 @@ export function ContactCell({
         if (!editing) startEditing();
       }}
       className={cn(
-        "relative border-e border-b p-0 align-middle select-none",
+        "group/cell relative border-e border-b p-0 align-middle select-none",
         active ? GRID_SELECTED_CELL : "outline-none",
         editing && "z-15",
         className,
