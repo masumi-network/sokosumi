@@ -406,7 +406,12 @@ describe("deleteSokoBotForUser", () => {
       deleteSokoBotForUser("member_1", WORKSPACE_ID),
     ).resolves.toMatchObject({ outcome: "deleted" });
     expect(botFindFirstMock).toHaveBeenCalledWith({
-      where: { userId: "member_1", workspaceId: WORKSPACE_ID, deletedAt: null },
+      where: {
+        userId: "member_1",
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        deletedAt: null,
+      },
       select: { id: true, userId: true, workspaceId: true },
     });
     expect(memberFindFirstMock).not.toHaveBeenCalled();

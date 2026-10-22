@@ -48,7 +48,7 @@ describe("one live Soko Bot per user and workspace", () => {
   it("enforces the rule with a partial unique index instead", () => {
     // The schema declares it too, so `prisma migrate dev` never drops it.
     expect(sokoBotModel()).toMatch(
-      /@@unique\(\[userId, workspaceId\], map: "soko_bot_user_workspace_live_key", where: \{ deletedAt: null \}\)/,
+      /@@unique\(\[userId, workspaceId\], map: "soko_bot_user_workspace_live_key", where: \{ deletedAt: null, projectId: null \}\)/,
     );
     const sql = migrationSql();
     const lastLiveKey = sql.lastIndexOf("user_workspace_live_key");
@@ -58,6 +58,33 @@ describe("one live Soko Bot per user and workspace", () => {
     );
     expect(sql).toMatch(
       /DROP INDEX IF EXISTS "orchestrator_userId_workspaceId_key"/,
+    );
+  });
+
+  it("keeps the personal bot unique while a Cuso lives beside it", () => {
+    // Cuso (CMO.xyz) is a personal bot pinned to a Project. He shares the
+    // workspace with the owner's personal assistant; the assistant stays one
+    // per user and workspace, each Project has at most one live pinned bot,
+    // and shared project bots (no owner) are not limited.
+    expect(sokoBotModel()).toMatch(
+      /@@unique\(\[projectId\], map: "soko_bot_project_live_key", where: \{ deletedAt: null, projectId: \{ not: null \}, userId: \{ not: null \} \}\)/,
+    );
+    const sql = migrationSql();
+    const personal = sql.slice(
+      sql.lastIndexOf('CREATE UNIQUE INDEX "soko_bot_user_workspace_live_key"'),
+    );
+    expect(personal.split("\n")[0]).toMatch(
+      /WHERE "deletedAt" IS NULL AND "projectId" IS NULL/,
+    );
+    expect(sql).toMatch(
+      /CREATE UNIQUE INDEX "soko_bot_project_live_key" ON "soko_bot"\("projectId"\) WHERE "deletedAt" IS NULL AND "projectId" IS NOT NULL AND "userId" IS NOT NULL/,
+    );
+    // A pinned bot sets both userId and projectId, so the owner-scope CHECK
+    // goes after the migration that added it.
+    expect(
+      sql.lastIndexOf('DROP CONSTRAINT IF EXISTS "soko_bot_owner_scope_check"'),
+    ).toBeGreaterThan(
+      sql.lastIndexOf('ADD CONSTRAINT "soko_bot_owner_scope_check"'),
     );
   });
 

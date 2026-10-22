@@ -36,7 +36,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: vi.fn().mockResolvedValue([{ userId: "reader" }]),
       findUnique: memberFindUnique,
     },
-    sokoBot: { findFirst: sokoBotFindFirst },
+    sokoBot: {
+      findFirst: sokoBotFindFirst,
+      findUnique: vi.fn().mockResolvedValue({ versionId: "v19" }),
+    },
     sokoBotTurn: { findUnique: turnFindUnique },
     chatRoom: { findFirst: roomFindFirst },
     chatRoomMessage: {

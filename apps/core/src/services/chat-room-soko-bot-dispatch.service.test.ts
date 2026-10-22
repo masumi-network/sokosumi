@@ -102,6 +102,9 @@ describe("Soko Bot mention dispatch", () => {
     await runSokoBotMentionDispatch(input());
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
+        // The mentioned bot itself: in a DM with Joseph it is Joseph, even
+        // when the owner's Cuso lives in the same workspace.
+        sokoBotId: "bot-a",
         userId: "user-a",
         workspaceId: "workspace-a",
         message: "Please answer",
@@ -233,7 +236,7 @@ describe("a shared Soko Bot mention", () => {
     });
   });
 
-  it("keeps a personal bot's teammate turn on its owner", async () => {
+  it("keeps a personal bot's teammate turn on its owner and that bot", async () => {
     const base = sharedInput();
     await runSokoBotMentionDispatch({
       ...base,
@@ -244,7 +247,8 @@ describe("a shared Soko Bot mention", () => {
     });
     const [turn] = startTurn.mock.calls[0];
     expect(turn.userId).toBe("user-a");
-    expect(turn).not.toHaveProperty("sokoBotId");
+    // The id keeps a pinned bot (Cuso) apart from the owner's assistant.
+    expect(turn.sokoBotId).toBe(base.mention.sokoBot.id);
     expect(turn.message).toMatch(/^Ben \(a teammate, not your owner\) asked:/);
   });
 });

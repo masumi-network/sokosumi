@@ -238,10 +238,12 @@ describe("soko-bot ingest member", () => {
     });
   });
 
-  it("runs a personal bot's turn for its owner, with no id and no member lookup", async () => {
+  it("runs a personal bot's turn for its owner on that bot, with no member lookup", async () => {
     expect((await run()).deltas).toBe(1);
-    expect(startTurnMock.mock.calls[0][0].userId).toBe("owner");
-    expect(startTurnMock.mock.calls[0][0]).not.toHaveProperty("sokoBotId");
+    expect(startTurnMock.mock.calls[0][0]).toMatchObject({
+      userId: "owner",
+      sokoBotId: "bot-1",
+    });
   });
 
   it("sweeps leavers' integrations before reading any mailbox", async () => {

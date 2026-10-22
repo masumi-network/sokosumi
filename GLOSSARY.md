@@ -94,6 +94,22 @@ _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 The product at cmo.xyz: an AI agent that runs a business's marketing end to end (social media, content, ads, SEO, graphics), built on Sokosumi. People use it with their Sokosumi account and Workspaces; it holds no accounts or product data of its own. Its brand guide lives in the CMO.XYZ-Style-Guide repository.
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
+**Cuso**:
+CMO's mascot, and for now the name of every person's CMO agent: a Soko Bot on the CMO profile that works in the person's preferred Workspace. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+_Avoid_: CMO bot, marketing assistant, the CMO (that is the product)
+
+**Hiring Cuso**:
+CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+_Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
+
+**CMO hire**:
+The record that a person hired Cuso into a Workspace: the start form's answers, the Brand Brain, the strategy and Cuso's reports. One per person for now.
+_Avoid_: CMO workspace (Cuso works in an ordinary Workspace; this is not one)
+
+**Brand Brain**:
+What Cuso knows about a business (summary, voice, audience, products, competitors, channels), learned while Hiring Cuso and editable by the person.
+_Avoid_: Brand profile, business profile, brand guidelines (that is a Project's DESIGN.md)
+
 ### Tasks
 
 **Task Manager**:

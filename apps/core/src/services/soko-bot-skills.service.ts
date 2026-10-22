@@ -211,7 +211,7 @@ async function requireBot(userId: string, workspaceId: string) {
 
 export async function listInstalledSkills(userId: string, workspaceId: string) {
   return prisma.sokoBotInstalledSkill.findMany({
-    where: { userId, sokoBot: { workspaceId } },
+    where: { userId, sokoBot: { workspaceId, projectId: null } },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

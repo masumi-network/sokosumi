@@ -501,6 +501,7 @@ export class SokoBotTaskboardSyncService {
     const started = await sokoBotControlPlane.startTurn({
       ...starter,
       workspaceId: bot.workspaceId,
+      sokoBotId: bot.id,
       clientTurnId: `taskboard:${createHash("sha256")
         .update(
           JSON.stringify({

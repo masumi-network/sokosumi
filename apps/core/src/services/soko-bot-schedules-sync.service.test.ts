@@ -99,6 +99,9 @@ const dueSchedule = {
   requestedByUserId: "user_1",
   sokoBot: { userId: "user_1" as string | null },
   workspaceId: "01960001-0001-7001-8001-000000000002",
+  // The schedule's own bot runs it: Joseph's schedules never reach a Cuso
+  // that lives in the same workspace, and Cuso's never reach Joseph.
+  sokoBotId: "01960001-0001-7001-8001-0000000000b0",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
   prompt: "Review active work",
@@ -199,6 +202,7 @@ describe("SokoBotSchedulesSyncService", () => {
     expect(startTurnMock).toHaveBeenCalledWith({
       userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
+      sokoBotId: dueSchedule.sokoBotId,
       clientTurnId: sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
       message: dueSchedule.prompt,
       source: "SCHEDULE",

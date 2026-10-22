@@ -197,6 +197,25 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
 
+  // CMO.xyz: subscription plans (Better Auth plan names, comma separated)
+  // that let Cuso schedule and publish for a CMO organization.
+  CMO_SUBSCRIPTION_PLANS: z
+    .string()
+    .default("cmo,starter,standard,pro")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((plan) => plan.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
+  // CMO.xyz mock billing for local and preview runs: a CMO tier picked in
+  // CMO counts as subscribed without real checkout. Never set in production.
+  CMO_MOCK_BILLING: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+
   /** Platform-wide kill switch for everything Soko Bots start on their own. */
   SOKO_BOT_PROACTIVE_PAUSED: z
     .string()
@@ -294,6 +313,16 @@ const baseEnvSchema = z.object({
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Masumi DESIGN.md API (the same service Web uses for brand DESIGN.md).
+   * CMO onboarding generates the brand's DESIGN.md with it when set; without
+   * it Cuso reads the logo, colours and fonts from the site directly.
+   */
+  MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
+  MASUMI_DESIGN_MD_API_URL: z
+    .string()
+    .url()
+    .default("https://www.masumi.network/api/v1"),
   /**
    * Read-write token for the image studio's **own, private-access** Blob
    * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.

@@ -17,7 +17,8 @@ export type ResolvedSokoBotRow = Omit<SokoBot, "userId"> & {
 
 /**
  * The bot a member means, or `null` when they may not reach it. `me` is the
- * member's personal bot; an id is any bot the member may reach.
+ * member's personal bot, never a bot they pinned to a Project (CMO.xyz's
+ * Cuso); an id is any bot the member may reach.
  */
 export async function memberSokoBot(
   userId: string,
@@ -27,7 +28,7 @@ export async function memberSokoBot(
 ): Promise<ResolvedSokoBotRow | null> {
   if (selector.kind === "me") {
     const bot = await client.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
     });
     return bot;
   }

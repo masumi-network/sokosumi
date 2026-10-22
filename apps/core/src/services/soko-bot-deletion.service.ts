@@ -251,7 +251,7 @@ export async function deleteSokoBotForUser(
   const bot =
     selector.kind === "me"
       ? await prisma.sokoBot.findFirst({
-          where: { userId, workspaceId, deletedAt: null },
+          where: { userId, workspaceId, projectId: null, deletedAt: null },
           select: { id: true, userId: true, workspaceId: true },
         })
       : await memberSokoBot(userId, workspaceId, selector);
