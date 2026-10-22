@@ -8354,6 +8354,7 @@
       "editColumn": "Spalte bearbeiten",
       "addColumn": "Spalte hinzufügen",
       "columnDescription": "Beschreibungen helfen Menschen und Agenten, Werte zu verstehen. Spalten-IDs bleiben stabil.",
+      "lastUpdatedHint": "Füllt sich selbst mit dem Zeitpunkt der letzten Änderung jeder Zeile.",
       "columnConflictReview": "Diese Tabelle wurde während des Speicherns geändert. Prüfe die neuesten Spalten, bevor du erneut speicherst.",
       "reloadLatest": "Neueste laden",
       "reviewLatest": "Prüfung abgeschlossen",
@@ -8422,7 +8423,8 @@
         "url": "URL",
         "email": "E-Mail",
         "single_select": "Einfachauswahl",
-        "multiple_select": "Mehrfachauswahl"
+        "multiple_select": "Mehrfachauswahl",
+        "last_updated": "Zuletzt aktualisiert"
       },
       "archived": "Archiviert",
       "active": "Aktiv",

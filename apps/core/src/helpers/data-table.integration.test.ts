@@ -368,6 +368,97 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
     );
   });
 
+  it("sorts a Last updated column by row updatedAt with keyset pagination, and never writes or filters it", async () => {
+    const updatedId = randomUUID();
+    const body = input();
+    const table = await createDataTable(actor, {
+      ...body,
+      columns: [
+        ...body.columns,
+        {
+          id: updatedId,
+          name: "Last updated",
+          description: "",
+          type: "last_updated",
+          options: [],
+        },
+      ],
+    });
+    const inserted = await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: ["A", "B", "C"].map((name) => ({ values: { [nameId]: name } })),
+      }),
+    );
+    const [a, b, c] = inserted.rows;
+    // Spread the times; the edit order below is the expected sort order.
+    for (const [index, row] of [c, a, b].entries())
+      await prisma.tableRow.update({
+        where: { id: row.id },
+        data: { updatedAt: new Date(Date.UTC(2026, 0, 1 + index)) },
+      });
+    const sort = { columnId: updatedId, direction: "asc" as const };
+    const first = await queryTableRows(actor, table.id, { limit: 2, sort });
+    expect(first.rows.map((row) => row.values[nameId])).toEqual(["C", "A"]);
+    const second = await queryTableRows(actor, table.id, {
+      limit: 2,
+      sort,
+      cursor: first.nextCursor!,
+    });
+    expect(second.rows.map((row) => row.values[nameId])).toEqual(["B"]);
+    const desc = await queryTableRows(actor, table.id, {
+      limit: 1,
+      sort: { ...sort, direction: "desc" },
+    });
+    expect(desc.rows.map((row) => row.values[nameId])).toEqual(["B"]);
+    const descNext = await queryTableRows(actor, table.id, {
+      limit: 5,
+      sort: { ...sort, direction: "desc" },
+      cursor: desc.nextCursor!,
+    });
+    expect(descNext.rows.map((row) => row.values[nameId])).toEqual(["A", "C"]);
+    // An edit moves the row's time, so it now sorts last.
+    const edited = await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        patch: [{ id: c.id, version: c.version, values: { [nameId]: "C2" } }],
+      }),
+    );
+    expect(new Date(edited.rows[0].updatedAt).getTime()).toBeGreaterThan(
+      Date.UTC(2026, 0, 3),
+    );
+    const after = await queryTableRows(actor, table.id, { limit: 5, sort });
+    expect(after.rows.map((row) => row.values[nameId])).toEqual([
+      "A",
+      "B",
+      "C2",
+    ]);
+    await expect(
+      batchTableRows(
+        actor,
+        table.id,
+        tableBatchSchema.parse({
+          key: randomUUID(),
+          patch: [
+            {
+              id: a.id,
+              version: a.version,
+              values: { [updatedId]: "2026-01-01T00:00:00.000Z" },
+            },
+          ],
+        }),
+      ),
+    ).rejects.toThrow("filled automatically");
+    await expect(
+      queryTableRows(actor, table.id, {
+        filters: [{ columnId: updatedId, operator: "empty" }],
+      }),
+    ).rejects.toThrow("cannot be filtered");
+  });
   it("server-filters and sorts numeric JSON values with bounded keyset pagination", async () => {
     const table = await createDataTable(actor, input());
     await batchTableRows(
