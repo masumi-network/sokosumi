@@ -2,8 +2,10 @@
 import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { History } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -13,17 +15,62 @@ import {
   lastUpdatedFormat,
   parseTableInput,
   tableError,
+  tableUrlLabel,
   tableValueText,
 } from "./table-value";
+
+type Value = TableRow["values"][string];
 
 interface Props {
   column: TableColumn;
   row: TableRow;
   disabled: boolean;
-  onSave: (version: number, value: TableRow["values"][string]) => Promise<void>;
+  onSave: (version: number, value: Value) => Promise<void>;
   onHistory: () => void;
   onEditingChange?: (editing: boolean) => void;
 }
+
+const ARROW_STEPS: Record<string, [row: number, column: number]> = {
+  ArrowUp: [-1, 0],
+  ArrowDown: [1, 0],
+  ArrowLeft: [0, -1],
+  ArrowRight: [0, 1],
+};
+
+/** Moves focus to the read-mode trigger of the neighbouring grid cell. */
+function focusNeighbour(event: KeyboardEvent<HTMLElement>) {
+  const step = ARROW_STEPS[event.key];
+  const cell = event.currentTarget.closest("td");
+  const row = cell?.parentElement;
+  if (!step || !cell || !row) return;
+  const index = [...row.children].indexOf(cell) + step[1];
+  const target =
+    step[0] === 0
+      ? row
+      : step[0] < 0
+        ? row.previousElementSibling
+        : row.nextElementSibling;
+  const trigger = target?.children[index]?.querySelector<HTMLElement>(
+    "[data-cell-trigger]",
+  );
+  if (!trigger) return;
+  event.preventDefault();
+  trigger.focus();
+}
+
+/** Focus an editor the moment it replaces the read view, caret at the end. */
+function focusEditor(
+  node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null,
+) {
+  if (!node) return;
+  node.focus();
+  if (
+    node instanceof HTMLTextAreaElement ||
+    (node instanceof HTMLInputElement && ["text", "url"].includes(node.type))
+  )
+    node.setSelectionRange(node.value.length, node.value.length);
+}
+
 export function TableCell({
   column,
   row,
@@ -33,6 +80,7 @@ export function TableCell({
   onEditingChange,
 }: Props) {
   const t = useTranslations("App.Tables");
+  const format = useFormatter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
@@ -40,48 +88,67 @@ export function TableCell({
   const [pending, setPending] = useState(false);
   const version = useRef(row.version);
   const initial = useRef("");
-  function handleFocus() {
-    if (editing) return;
-    initial.current = tableValueText(row.values[column.id]);
-    setDraft(initial.current);
+  const returnFocus = useRef(false);
+  // Refs, not state: a blur can fire in the same tick as the Enter, change or
+  // unmount that already started a save, before React re-renders.
+  const active = useRef(false);
+  const saving = useRef(false);
+  const value = row.values[column.id];
+  const text = tableValueText(value);
+
+  function startEditing(next = text) {
+    initial.current = text;
+    setDraft(next);
     version.current = row.version;
+    active.current = true;
     setEditing(true);
   }
-  async function handleSave() {
-    if (!editing || pending) return;
-    if (draft === initial.current) {
-      setEditing(false);
-      onEditingChange?.(false);
+  function stopEditing() {
+    active.current = false;
+    setEditing(false);
+    setError("");
+    onEditingChange?.(false);
+  }
+  async function handleSave(next = draft) {
+    if (!active.current || saving.current) return;
+    if (next === initial.current) {
+      stopEditing();
       return;
     }
+    saving.current = true;
     setPending(true);
     try {
-      const value = parseTableInput(column, draft);
+      const parsed = parseTableInput(column, next);
       setUncertain(true);
-      await onSave(version.current, value);
+      await onSave(version.current, parsed);
       setUncertain(false);
-      setError("");
-      setEditing(false);
-      onEditingChange?.(false);
+      stopEditing();
     } catch (error) {
       if (isTableRejection(error)) setUncertain(false);
       setError(tableError(error, t));
     } finally {
+      saving.current = false;
       setPending(false);
     }
   }
+  function handleToggle(checked: boolean) {
+    const next = String(checked);
+    startEditing(next);
+    onEditingChange?.(true);
+    void handleSave(next);
+  }
+
   const props = {
+    ref: focusEditor,
     "aria-label": column.name,
     "aria-invalid": !!error,
-    disabled: (disabled && !editing) || pending || (!!error && uncertain),
-    value: editing ? draft : tableValueText(row.values[column.id]),
-    onFocus: handleFocus,
+    disabled: pending || (!!error && uncertain),
+    value: draft,
     onChange: (
       event: React.ChangeEvent<
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       >,
     ) => {
-      if (!editing) handleFocus();
       setDraft(event.target.value);
       onEditingChange?.(event.target.value !== initial.current);
     },
@@ -89,13 +156,13 @@ export function TableCell({
     onKeyDown: (event: React.KeyboardEvent) => {
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape" && !uncertain) {
+        returnFocus.current = true;
         setDraft(initial.current);
-        setEditing(false);
-        onEditingChange?.(false);
-        setError("");
+        stopEditing();
       }
       if (event.key === "Enter" && column.type !== "long_text") {
         event.preventDefault();
+        returnFocus.current = true;
         (event.target as HTMLElement).blur();
       }
     },
@@ -105,65 +172,165 @@ export function TableCell({
     className:
       "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm dark:bg-transparent",
   };
-  return (
-    // Bounded so a long value wraps instead of widening its whole column.
-    <div className="group/cell max-w-80 min-w-48">
-      <div className="flex items-center gap-1">
-        {column.type === "checkbox" || column.type === "single_select" ? (
-          <select
-            {...props}
-            className={withEditableTextSize(
-              "bg-background h-10 min-w-32 flex-1 rounded px-2",
-            )}
+
+  function editor() {
+    if (column.type === "single_select")
+      return (
+        <select
+          {...props}
+          onChange={(event) => {
+            props.onChange(event);
+            returnFocus.current = true;
+            void handleSave(event.target.value);
+          }}
+          className={withEditableTextSize(
+            "bg-background h-10 min-w-32 flex-1 rounded px-2",
+          )}
+        >
+          <option value="">{t("unknown")}</option>
+          {column.options?.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    if (column.type === "long_text")
+      return (
+        <Textarea
+          {...props}
+          className={cn(props.className, "max-h-40 min-w-0 flex-1")}
+          rows={1}
+        />
+      );
+    return (
+      <Input
+        {...props}
+        type={
+          column.type === "date"
+            ? "date"
+            : column.type === "number"
+              ? "number"
+              : column.type === "email"
+                ? "email"
+                : column.type === "url"
+                  ? "url"
+                  : "text"
+        }
+        step={column.type === "number" ? "any" : undefined}
+      />
+    );
+  }
+
+  function display() {
+    if (value == null || text === "") return null;
+    switch (column.type) {
+      case "long_text":
+        return <span className="line-clamp-2 whitespace-pre-line">{text}</span>;
+      case "date": {
+        const date = new Date(text);
+        return (
+          <span className="truncate tabular-nums">
+            {Number.isNaN(date.getTime())
+              ? text
+              : format.dateTime(date, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "UTC",
+                })}
+          </span>
+        );
+      }
+      case "number":
+        return <span className="truncate tabular-nums">{text}</span>;
+      case "url":
+      case "email":
+        return (
+          <a
+            href={column.type === "email" ? `mailto:${text}` : text}
+            target={column.type === "url" ? "_blank" : undefined}
+            rel={column.type === "url" ? "noopener noreferrer" : undefined}
+            // `me-6` keeps a strip beside even the longest link that edits.
+            className="pointer-events-auto relative me-6 truncate underline decoration-quaternary underline-offset-2 hover:decoration-current"
           >
-            <option value="">{t("unknown")}</option>
-            {column.type === "checkbox" ? (
-              <>
-                <option value="true">{t("yes")}</option>
-                <option value="false">{t("no")}</option>
-              </>
-            ) : (
-              column.options?.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))
-            )}
-          </select>
-        ) : column.type === "long_text" ? (
-          <Textarea
-            {...props}
-            className={cn(props.className, "max-h-40 min-w-0 flex-1")}
-            rows={1}
-          />
+            {column.type === "url" ? tableUrlLabel(text) : text}
+          </a>
+        );
+      case "single_select":
+      case "multiple_select":
+        return (
+          <span className="flex min-w-0 gap-1 overflow-hidden">
+            {(Array.isArray(value) ? value : [text]).map((option) => (
+              <Badge
+                key={option}
+                variant="outline"
+                className="bg-quinary max-w-full shrink truncate border-transparent font-normal"
+              >
+                {option}
+              </Badge>
+            ))}
+          </span>
+        );
+      default:
+        return <span className="truncate">{text}</span>;
+    }
+  }
+
+  return (
+    // Bounded so a long value truncates instead of widening its whole column.
+    <div
+      className={cn(
+        "group/cell min-w-48",
+        column.type === "long_text" ? "max-w-96 min-w-64" : "max-w-80",
+      )}
+    >
+      <div className="flex items-start gap-1">
+        {column.type === "checkbox" ? (
+          <div className="flex min-h-8 flex-1 items-center px-2">
+            <Checkbox
+              data-cell-trigger
+              aria-label={column.name}
+              checked={editing ? draft === "true" : value === true}
+              disabled={disabled || pending || (!!error && uncertain)}
+              onCheckedChange={(checked) => handleToggle(checked === true)}
+              onKeyDown={focusNeighbour}
+            />
+          </div>
+        ) : !editing ? (
+          // Read mode: the value as text, with one transparent button over the
+          // whole cell that swaps in the editor. Links sit above that button
+          // so they stay clickable; the rest of the cell edits.
+          <div className="relative flex min-h-8 min-w-0 flex-1 items-start px-2 py-1.5 text-sm leading-5">
+            <button
+              type="button"
+              data-cell-trigger
+              ref={(node) => {
+                if (node && returnFocus.current) {
+                  returnFocus.current = false;
+                  node.focus();
+                }
+              }}
+              aria-label={t("editCell", { column: column.name })}
+              title={text || undefined}
+              disabled={disabled}
+              onClick={() => startEditing()}
+              onKeyDown={focusNeighbour}
+              className="focus-visible:ring-ring absolute inset-0 rounded-md outline-none focus-visible:ring-2 enabled:cursor-text"
+            />
+            <div className="pointer-events-none flex min-w-0 flex-1">
+              {display()}
+            </div>
+          </div>
         ) : (
-          <Input
-            {...props}
-            type={
-              column.type === "date"
-                ? "date"
-                : column.type === "number"
-                  ? "number"
-                  : column.type === "email"
-                    ? "email"
-                    : column.type === "url"
-                      ? "url"
-                      : "text"
-            }
-            step={column.type === "number" ? "any" : undefined}
-          />
+          editor()
         )}
         {/* The affordance belongs to one cell out of hundreds, and painting
         every one turned the grid into a field of icons, so it is revealed by
-        pointer or focus. This is a visual-noise fix, not a width fix: the
-        button keeps its 32px in flow whether or not it is painted, which is
-        deliberate — reclaiming that space would mean overlaying the button on
-        the text being edited, and nothing may sit on top of an open editor.
-        The button stays in the DOM, in the accessibility tree and in the tab
-        order, so a keyboard or screen-reader user is unaffected; focusing the
-        cell — which is also what a tap does — reveals it. Its `hit-area`
-        reaches 4px past the box below md, which the row's `gap-1` absorbs, so
-        a tap on the editor's edge still lands in the editor. */}
+        pointer or focus. It keeps its 32px in flow whether or not it is
+        painted, because nothing may sit on top of an open editor. It stays in
+        the DOM, in the accessibility tree and in the tab order, so a keyboard
+        or screen-reader user is unaffected. */}
         <Button
           size="icon"
           variant="ghost"
@@ -189,15 +356,7 @@ export function TableCell({
             {t("retry")}
           </Button>
           {!uncertain && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditing(false);
-                onEditingChange?.(false);
-                setError("");
-              }}
-            >
+            <Button size="sm" variant="outline" onClick={stopEditing}>
               {t("discard")}
             </Button>
           )}

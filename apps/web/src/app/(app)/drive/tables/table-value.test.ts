@@ -4,7 +4,18 @@ import {
   parseTableInput,
   tableError,
   tableHistoryText,
+  tableUrlLabel,
 } from "./table-value";
+
+describe("tableUrlLabel", () => {
+  it("shows host and path without scheme, www or trailing slash", () => {
+    expect(tableUrlLabel("https://www.linkedin.com/in/ada/")).toBe(
+      "linkedin.com/in/ada",
+    );
+    expect(tableUrlLabel("https://example.com/")).toBe("example.com");
+    expect(tableUrlLabel("not a url")).toBe("not a url");
+  });
+});
 
 describe("typed grid input", () => {
   it("keeps unknown separate from false and zero", () => {

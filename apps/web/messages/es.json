@@ -2997,6 +2997,7 @@
           "dialog": {
             "title": "¿Cerrar el proyecto?",
             "description": "El trabajo programado antes del límite de cierre finalizará. El trabajo previsto a partir de ese momento se cancelará y el proyecto no podrá volver a abrirse.",
+            "scheduledPostsWarning": "{count, plural, one {Se cancelará # publicación programada.} other {Se cancelarán # publicaciones programadas.}}",
             "reasonLabel": "Motivo (opcional)",
             "reasonPlaceholder": "¿Por qué se cierra este proyecto?",
             "confirm": "Cerrar proyecto",
@@ -8349,6 +8350,7 @@
       "unknown": "Desconocido",
       "yes": "Sí",
       "no": "No",
+      "editCell": "Editar {column}",
       "cellHistory": "Historial y fuentes: {column}",
       "discard": "Descartar borrador",
       "editColumn": "Editar columna",

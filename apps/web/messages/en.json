@@ -2997,6 +2997,7 @@
           "dialog": {
             "title": "Close project?",
             "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "scheduledPostsWarning": "{count, plural, one {# scheduled post will be canceled.} other {# scheduled posts will be canceled.}}",
             "reasonLabel": "Reason (optional)",
             "reasonPlaceholder": "Why is this project closing?",
             "confirm": "Close project",
@@ -8349,6 +8350,7 @@
       "unknown": "Unknown",
       "yes": "Yes",
       "no": "No",
+      "editCell": "Edit {column}",
       "cellHistory": "History and sources: {column}",
       "discard": "Discard draft",
       "editColumn": "Edit column",
