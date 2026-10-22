@@ -7729,7 +7729,9 @@
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
       },
-      "tableKind": "Tabelle"
+      "tableKind": "Tabelle",
+      "contactsEntryName": "Kontakte",
+      "contactsEntryCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"
     },
     "SokoBot": {
       "Metadata": {

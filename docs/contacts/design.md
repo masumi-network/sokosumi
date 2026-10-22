@@ -1,0 +1,97 @@
+# Contacts — team CRM for Sokosumi (design spec, 2026-10-22)
+
+Owner decisions (Patrick, final):
+- Sidebar tab **Contacts**, visible to every member of a workspace (org or personal).
+- Exactly ONE contacts set per workspace. Auto-created, no setup. It also appears in Files as one special, pinned "Contacts" entry (badge, cannot be deleted/archived/duplicated) that opens the Contacts tab.
+- No privacy layer: everything in a workspace's contacts is visible to all its members. Every interaction shows WHO on the team had it.
+- **Lists are a key feature**: named shared lists (name, color, optional description, live count); a contact can be on many. **Smart lists** = saved filters that update themselves.
+- **Bots can fill and change EVERY field.** Soko Bot management is part of v1: every bot has a `contacts` tool + skill, and connected integrations (email, calendar, Slack, …) automatically create/enrich contacts. No spam/automated senders.
+- A contact is a PERSON across channels: several emails, phone, Slack, LinkedIn, X, website, Telegram, … Group/merge them so one person has every way to reach them, and enrich as much as possible (with sources).
+- Prospects: people with no interaction yet that the owner finds interesting — addable by a person or a bot (bot researches the web and fills verified data with sources).
+- Visually nice; reuse the spreadsheet grid from PR #6469 (`apps/web/src/app/(app)/drive/tables/`: resizable columns, selection, keyboard editing, gridlines, row numbers, sticky header/first column) — extract shared grid pieces rather than copying.
+
+## Architecture decision
+Dedicated Core models (not generic Files `DataTable` rows), because channel uniqueness across the workspace, merges, list counts and derived fields (Last contact, Known by) must be enforced by the database. Core owns all data (Web uses the generated client only). Versioned routes under `apps/core/src/routes/v1/contacts/` with OpenAPI schemas; regenerate `packages/core-client`.
+
+## Data model (Prisma, `packages/database/prisma/schema.prisma`, new migration — never rename existing migrations)
+- `Contact`: id uuid(7), workspaceId, name, organization?, role?, location?, summary? (bot-written about text), whyInteresting?, stage enum (PROSPECT, LEAD, ACTIVE, PARTNER, INVESTOR, CUSTOMER, DORMANT) default LEAD, ownerUserId?, nextStep?, followUpAt? (date), avatarUrl?, customFields Json default {}, firstContactAt?, lastContactAt?, interactionCount int default 0 (derived, maintained by Core on interaction writes), mergedIntoId? (tombstone after merge), createdByUserId?, createdBySokoBotId?, createdAt, updatedAt, archivedAt?, version int (optimistic concurrency like tables).
+- `ContactChannel`: id, workspaceId, contactId, type enum (EMAIL, PHONE, SLACK, LINKEDIN, X, WEBSITE, TELEGRAM, WHATSAPP, GITHUB, OTHER), value (normalized: lowercased email, E.164 phone when parseable, canonical URL/handle; Slack = `teamId:userId`), label?, isPrimary, source enum (MANUAL, EMAIL, CALENDAR, SLACK, WEB_RESEARCH, IMPORT, OTHER), sourceUrl?, verified bool, createdAt. **@@unique([workspaceId, type, value])** — adding an existing channel attaches to that contact (or returns a merge suggestion if it belongs to another).
+- `ContactInteraction`: id, workspaceId, contactId, userId? (teammate), sokoBotId?, occurredAt, channel enum (EMAIL, MEETING, SLACK, CALL, MANUAL, OTHER), direction? (IN/OUT/BOTH), summary (one line), sourceRef? (provider message/event id — @@unique([workspaceId, channel, sourceRef]) for idempotent capture), sourceUrl?, createdAt. Writing/removing updates contact.firstContactAt/lastContactAt/interactionCount in the same transaction.
+- `ContactList`: id, workspaceId, name (@@unique([workspaceId, name]) case-insensitive), color (from a fixed palette of tokens), description?, smartFilter Json? (null = manual list; non-null = smart list definition over contact fields/channels/lists/known-by/last-contact), createdBy…, createdAt, updatedAt.
+- `ContactListMember`: listId, contactId, addedByUserId?, addedBySokoBotId?, addedAt; @@id([listId, contactId]).
+- "Known by" = distinct interaction.userId per contact (query/aggregate; index it).
+- Merge: `mergeContacts(winnerId, loserIds)` moves channels/interactions/list memberships, fills empty winner fields from losers, sets loser.mergedIntoId + archivedAt, all in one serializable transaction (`serializableTransaction()`).
+- History: record field changes (who: user or bot) — reuse an existing history/audit pattern if one fits (search `TableBatch`/history in drive tables); minimal is fine (contact activity entries).
+
+## Core API (v1, OpenAPI, auth like other workspace routes; coworker/Soko Bot context per apps/core/AGENTS.md)
+- `GET /v1/contacts` — list with cursor pagination, search (name/org/channel value), filters (stage, owner, listId, knownByUserId, lastContactBefore/After, hasChannel type), sort (name, organization, lastContactAt, firstContactAt, updatedAt, stage), plus counts.
+- `GET /v1/contacts/{id}` — contact + channels + lists + knownBy + recent interactions (paged sub-resource `GET /v1/contacts/{id}/interactions`).
+- `POST /v1/contacts` (create; with channels; dedupe → 409 with existing contact id if a channel is taken, or `upsert=true` attaches), `PATCH /v1/contacts/{id}` (version check), `POST /v1/contacts/{id}/channels`, `DELETE …/channels/{channelId}`, `POST /v1/contacts/{id}/interactions`, `POST /v1/contacts/merge`, archive/unarchive.
+- Lists: `GET/POST /v1/contact-lists`, `PATCH/DELETE /v1/contact-lists/{id}`, `POST /v1/contact-lists/{id}/members` (bulk add/remove), smart list evaluation through the list endpoint (`GET /v1/contacts?listId=` works for both kinds).
+- `GET /v1/contacts/export.csv?listId=` (CSV of the current filter).
+- Import: `POST /v1/contacts/import` from a Files table id + column mapping (used to import Patrick's Personal CRM table `01a13c5e-fae6-729d-9db4-342ee65781b0`: Name, Organization, Email→EMAIL channel, Relationship→summary, First contact→firstContactAt, LinkedIn→LINKEDIN channel, Location, Tags→lists). Idempotent by channel.
+- Files: the drive listing shows one pinned virtual "Contacts" entry per workspace (special kind, links to /contacts), not deletable.
+
+## Soko Bot (packages/soko-bot + Core runtime)
+- New capability `contacts` with an action-style input (search | get | upsert | update | add_channel | remove_channel | log_interaction | merge | suggest_merge | list_lists | create_list | update_list | add_to_list | remove_from_list | archive) — or a small set of capabilities if that fits the existing pattern better (follow tool-contracts.ts conventions; reads go in the read-only set used for the read budget (`CORE_READ_CAPABILITIES` regex: get_/list_/read_/search_/find_ prefixes) — so prefer separate names like `search_contacts`, `get_contact`, `upsert_contact`, `update_contact`, `log_contact_interaction`, `merge_contacts`, `manage_contact_lists`). Writes are ACTION_CAPABILITIES with receipts. Bots may set every field. Script calls via $SOKO_TOOLS_URL work automatically.
+- Add to every version's grant/route ceiling as appropriate; new skill `contacts` (what a contact is, upsert-by-channel, never create duplicates — search first, log interactions with one-line topics, lists, prospects research with sources, no spam/automated senders, cite sources). Compose a new version **v28 = v27 + contacts skill**; make it the code default and note that the admin promote/migrate is done by the parent session through the admin UI.
+- Meeting prep and daily brief: include contacts context (who is this, who on the team knows them, last interaction) — Phase 3.
+
+## Automatic capture (Core, deterministic first, model only for judgment)
+- Sources per connected integration of every Soko Bot in the workspace: email (gmail/outlook: From/To/Cc of messages the owner SENT or REPLIED to, plus inbound threads the owner answered), calendar (googlecalendar/outlook: attendees of real meetings, excluding resources/rooms/self), Slack (Phase 3: DMs and small channels the owner participates in; `teamId:userId` channel + profile email/name/title).
+- Spam/automation filters (deterministic): noreply/no-reply/notifications/mailer-daemon/bounce local parts, List-Unsubscribe / Precedence bulk headers or provider categories promotions/social/updates/forums, known SaaS sending domains list, one-way inbound never answered → skip; self/teammates (workspace members) are not contacts. Borderline → Jev (the cheap judge already used for mail importance: `apps/core/src/lib/soko-bot/mail-importance.ts` pattern).
+- Backfill when an integration is connected (or on first run after deploy for existing connections): last 12 months, in a durable background job (Core job/cron with progress + resume; not a model loop). Incremental: hook into the existing 15-min `/sync/soko-bot-ingest` cron/service (`apps/core/src/services/soko-bot-ingest.service.ts`).
+- Upsert by channel (idempotent via interaction sourceRef), log interactions with teammate = connection owner. Then enrichment queue: a cheap-model pass (Jev or the bot's model via a non-chat background job) fills organization/role/summary/lists suggestions for new or changed contacts, and proposes merges (same name + org, different emails). Never wipe existing values; "create if missing, enrich if present".
+- Rate/cost guardrails: cap per run, per workspace; log via evlog wide events.
+
+## Web UI (apps/web)
+- Sidebar item **Contacts** (icon users) after Schedules, for every member. Route `/contacts`.
+- Layout: left rail of lists (smart lists first: All contacts, My contacts, Follow-ups due, Recently added, Stale 90+ days, Prospects; then team lists with color dot + count; "+ New list"). Main: toolbar (search, filters, Add contact, Export) + spreadsheet grid (reuse/extract from drive tables grid): Name (avatar initial), Organization, Role, Stage chip, Lists chips, Channels icons (mail/slack/linkedin/x/phone…), Owner avatar, Last contact, Known by avatars, Follow-up, Updated. Resizable/sortable; bulk select → Add to list / Remove / Set stage / Set owner / Merge.
+- Person side panel (sheet/drawer): header (avatar, name, role @ org, Stage, Owner, Lists), Channels block (icon + value, copy/open, source tooltip, add channel), About (summary, why interesting), Next step + Follow-up, Timeline (date · teammate avatar/name · channel icon · one-line topic · source link), bot-added marker ("added by Joseph"), merge suggestion banner.
+- Add contact dialog: name and/or any channel; "Ask my Soko Bot to research" option for prospects.
+- Empty state: friendly, explains automatic capture from connected mail/calendar/Slack with a connect button (reuse personal-assistant integration connect helpers).
+- Design: minimal black/white + Wisteria accent, semantic tokens, design guards (icon touch targets `size-10 md:size-8`, whole pixels, no literal font sizes, sentence case, en/de/es parity with real translations).
+
+## Phases (each = tested PR(s), merged by the parent)
+1. Core foundation: models + migration, services, routes, OpenAPI + client regen, import endpoint, contacts bot tools + skill + v28, Files virtual entry. Tests: unit + PostgreSQL integration (uniqueness, upsert attach, merge, derived fields, lists, smart list filters, import idempotency), soko-bot contract tests.
+2. Web: Contacts tab, lists rail, grid, side panel, add/merge/bulk actions, export, Files entry. Tests + real browser verification with screenshots.
+3. Capture: email + calendar backfill/incremental, spam filters, enrichment + merge suggestions; Slack; prospect research flow; meeting prep/daily brief hooks. Tests with recorded fixtures (no live Composio calls in tests).
+
+## Phase 1 as built (2026-10-22)
+
+Migration `packages/database/prisma/migrations/20261022151847_contacts` (schema in `packages/database/prisma/contact.prisma`). Core services: `apps/core/src/services/contacts.service.ts` (contacts, channels, interactions, merge, filters, activity), `contact-lists.service.ts`, `contacts-import.service.ts` (import and CSV). Shared inputs and channel normalization: `packages/utils/src/contacts.ts`. Bot tools: `apps/core/src/lib/soko-bot/contact-tools.ts`.
+
+### Routes (`/v1`)
+
+| Route | What it does |
+| --- | --- |
+| `GET /contacts` | Filters (`search`, `stage`, `ownerUserId`, `ownedByMe`, `listId`, `knownByUserId`, `knownByMe`, `lastContactAfter/Before`, `lastContactOlderThanDays`, `createdWithinDays`, `followUpDue`, `hasChannel`, `hasInteractions`, `archived`), `sort` + `direction`, cursor pagination; `meta.pagination.total` is the match count |
+| `POST /contacts` | Create; a taken channel is 409 `contact_channel_taken` with `existingContactId`; `upsert: true` attaches instead (200) and can return a `mergeSuggestion` |
+| `GET /contacts/{id}` | Contact + channels + lists + `knownBy` + 10 recent interactions + same-name `mergeSuggestions` |
+| `PATCH /contacts/{id}` | Fields with `version`; stale version is 409 `contact_version_conflict` |
+| `POST /contacts/{id}/archive`, `/unarchive` | Archive state |
+| `POST /contacts/{id}/channels`, `DELETE /contacts/{id}/channels/{channelId}` | Channels (removing a primary promotes the next) |
+| `GET/POST /contacts/{id}/interactions`, `DELETE …/interactions/{interactionId}` | Timeline; idempotent by `sourceRef` |
+| `GET /contacts/{id}/activity` | Field-change history (person or Soko Bot) |
+| `POST /contacts/merge`, `GET /contacts/duplicates` | Merge; same-name duplicate groups |
+| `GET /contacts/export.csv` | Same filters as the list |
+| `POST /contacts/import` | Files table + column mapping |
+| `GET/POST /contact-lists`, `PATCH/DELETE /contact-lists/{id}`, `POST /contact-lists/{id}/members` | Lists; smart lists through `smartFilter` |
+
+### Deviations and decisions
+
+- **List names**: case-insensitive uniqueness uses a stored `nameKey` (lowercased name) with `@@unique([workspaceId, nameKey])`, so Prisma declares it; no expression index.
+- **History**: a small `ContactActivity` model (CREATED, UPDATED with `{field: {before, after}}`, CHANNEL_ADDED/REMOVED, MERGED, ARCHIVED, UNARCHIVED) with `userId` and `sokoBotId`. Table history did not fit (it is keyed by table and row).
+- **Derived fields** are recomputed from the interactions (min, max, count) in the writing transaction. Interactions do not bump `version`, so capture never conflicts with a person's edit.
+- **Import**: "First contact" becomes an interaction with `sourceRef = import:<tableId>:<rowId>:first-contact`, so the derived fields stay derived and a rerun adds nothing. Rows without a channel match an existing contact by exact name (case-insensitive). Tags become manual lists, created when missing.
+- **Phone**: no phone library was added. A number with `+` or `00` becomes E.164; anything else is stored as digits.
+- **Smart lists** may refer to manual lists only (`listIds`), so filters cannot recurse; a list a smart list uses cannot be deleted (409).
+- **Soko Bot**: nine tools instead of one action tool: reads `search_contacts`, `get_contact`, `list_contact_lists`, `find_contact_duplicates` (in the read budget); writes `upsert_contact` (always attaches, never duplicates), `update_contact` (fields + add/remove channels + archive, one receipt), `log_contact_interaction`, `merge_contacts`, `manage_contact_lists` (create/update/delete/add/remove). Writes are action capabilities with local-transaction receipts. They ride on the work routes and the FILE write scope, and are not blocked after web research (prospect research must be able to save what it verified). A bot acts as the member its turn acts for, so shared bots work too. Skill `contacts`; version `v28 = v27 + contacts`, the code default. The admin promote and fleet move are done from the admin UI.
+- **Receipts** name the contact or list in the owner's chat instead of linking it, until Phase 2 ships a page to link to.
+- **Files entry**: `GET /v1/drive/recents` starts the first page with one `kind: "contacts"` item (`pinned: true`, `contactCount`) for people, unless a search excludes it. Web renders it pinned above the days, linking to `/contacts`. It is virtual, so there is nothing to move, rename or delete.
+- CMO is unchanged.
+
+### What the next phases call
+
+- **Phase 2 (Web)**: the generated client operations for the routes above (`getContacts`, `postContacts`, `getContactsById`, `patchContactsById`, `postContactsMerge`, `getContactsDuplicates`, `getContactsExportCsv`, `postContactsImport`, `getContactLists`, `postContactLists`, `patchContactListsById`, `deleteContactListsById`, `postContactListsByIdMembers`, …). The left-rail presets map to list query params: My contacts `ownedByMe=true`, Follow-ups due `followUpDue=true`, Recently added `createdWithinDays=14`, Stale `lastContactOlderThanDays=90`, Prospects `stage=PROSPECT`. Add the `/contacts` page the Files entry already links to.
+- **Phase 3 (capture)**: `captureContactInteraction(tx, actor, { name, organization, role, channels, interaction, teammateUserId })` in `contacts.service.ts`, inside `inContactTransaction`. It upserts by channel (fills only empty fields), logs the interaction for the teammate idempotently by `sourceRef`, and returns `created`, `interactionCreated` and any `mergeSuggestion`. Use `actor = { workspaceId, userId: <connection owner>, sokoBotId: <bot> }`.

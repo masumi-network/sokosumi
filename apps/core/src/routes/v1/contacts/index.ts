@@ -1,0 +1,32 @@
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountActivity from "./[id]/activity.js";
+import mountArchive from "./[id]/archive.js";
+import mountChannels from "./[id]/channels.js";
+import mountGetContact from "./[id]/get.js";
+import mountInteractions from "./[id]/interactions.js";
+import mountPatch from "./[id]/patch.js";
+import mountExport from "./export.js";
+import mountGet from "./get.js";
+import mountImport from "./import.js";
+import mountMerge from "./merge.js";
+import mountPost from "./post.js";
+
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+  requireOrganizationProductSeat: true,
+});
+
+// Static paths before `/{id}`.
+mountGet(app);
+mountPost(app);
+mountExport(app);
+mountMerge(app);
+mountImport(app);
+mountGetContact(app);
+mountPatch(app);
+mountArchive(app);
+mountChannels(app);
+mountInteractions(app);
+mountActivity(app);
+
+export default app;

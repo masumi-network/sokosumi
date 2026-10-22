@@ -3463,6 +3463,250 @@ export type CompleteComposioCallbackRequest = {
     sessionUri: string;
 };
 
+export type ContactList = {
+    id: string;
+    name: string;
+    color: ContactListColor;
+    description: string | null;
+    kind: 'manual' | 'smart';
+    smartFilter: {
+        search?: string;
+        stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+        ownerUserId?: string;
+        ownedByMe?: boolean;
+        listIds?: Array<string>;
+        knownByUserId?: string;
+        knownByMe?: boolean;
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: boolean;
+        hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+        hasInteractions?: boolean;
+    } | null;
+    count: number;
+    createdByUserId: string | null;
+    createdBySokoBotId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export const ContactListColor = {
+    GRAY: 'gray',
+    RED: 'red',
+    ORANGE: 'orange',
+    AMBER: 'amber',
+    GREEN: 'green',
+    TEAL: 'teal',
+    BLUE: 'blue',
+    INDIGO: 'indigo',
+    VIOLET: 'violet',
+    PINK: 'pink'
+} as const;
+
+export type ContactListColor = typeof ContactListColor[keyof typeof ContactListColor];
+
+export type Contact = {
+    id: string;
+    name: string;
+    organization: string | null;
+    role: string | null;
+    location: string | null;
+    summary: string | null;
+    whyInteresting: string | null;
+    stage: ContactStage;
+    owner: ContactPerson | null;
+    nextStep: string | null;
+    followUpAt: Date | null;
+    avatarUrl: string | null;
+    customFields: {
+        [key: string]: unknown;
+    };
+    firstContactAt: Date | null;
+    lastContactAt: Date | null;
+    interactionCount: number;
+    createdByUserId: string | null;
+    createdBySokoBotId: string | null;
+    mergedIntoId: string | null;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    channels: Array<ContactChannel>;
+    lists: Array<ContactListRef>;
+    knownBy: Array<ContactKnownBy>;
+};
+
+export const ContactStage = {
+    PROSPECT: 'PROSPECT',
+    LEAD: 'LEAD',
+    ACTIVE: 'ACTIVE',
+    PARTNER: 'PARTNER',
+    INVESTOR: 'INVESTOR',
+    CUSTOMER: 'CUSTOMER',
+    DORMANT: 'DORMANT'
+} as const;
+
+export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
+
+export type ContactPerson = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
+export type ContactChannel = {
+    id: string;
+    type: ContactChannelType;
+    value: string;
+    label: string | null;
+    isPrimary: boolean;
+    source: ContactChannelSource;
+    sourceUrl: string | null;
+    verified: boolean;
+    createdAt: Date;
+};
+
+export const ContactChannelType = {
+    EMAIL: 'EMAIL',
+    PHONE: 'PHONE',
+    SLACK: 'SLACK',
+    LINKEDIN: 'LINKEDIN',
+    X: 'X',
+    WEBSITE: 'WEBSITE',
+    TELEGRAM: 'TELEGRAM',
+    WHATSAPP: 'WHATSAPP',
+    GITHUB: 'GITHUB',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactChannelType = typeof ContactChannelType[keyof typeof ContactChannelType];
+
+export const ContactChannelSource = {
+    MANUAL: 'MANUAL',
+    EMAIL: 'EMAIL',
+    CALENDAR: 'CALENDAR',
+    SLACK: 'SLACK',
+    WEB_RESEARCH: 'WEB_RESEARCH',
+    IMPORT: 'IMPORT',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactChannelSource = typeof ContactChannelSource[keyof typeof ContactChannelSource];
+
+export type ContactListRef = {
+    id: string;
+    name: string;
+    color: ContactListColor;
+};
+
+export type ContactKnownBy = ContactPerson & {
+    interactionCount: number;
+    lastInteractionAt: Date | null;
+};
+
+export type ContactUpsertResult = {
+    contact: Contact;
+    created: boolean;
+    changed: boolean;
+    mergeSuggestion: ContactMergeSuggestion | null;
+};
+
+export type ContactMergeSuggestion = {
+    reason: 'shared_channel' | 'same_name';
+    contactIds: Array<string>;
+};
+
+export type ContactDuplicateGroup = {
+    name: string;
+    contacts: Array<Contact>;
+};
+
+export type ContactImportResult = {
+    rows: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    listsCreated: number;
+    mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactDetail = Contact & {
+    recentInteractions: Array<ContactInteraction>;
+    mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactInteraction = {
+    id: string;
+    contactId: string;
+    occurredAt: Date;
+    channel: ContactInteractionChannel;
+    direction: ContactInteractionDirection | null;
+    summary: string;
+    sourceRef: string | null;
+    sourceUrl: string | null;
+    user: ContactPerson | null;
+    sokoBot: ContactSokoBot | null;
+    createdAt: Date;
+};
+
+export const ContactInteractionChannel = {
+    EMAIL: 'EMAIL',
+    MEETING: 'MEETING',
+    SLACK: 'SLACK',
+    CALL: 'CALL',
+    MANUAL: 'MANUAL',
+    OTHER: 'OTHER'
+} as const;
+
+export type ContactInteractionChannel = typeof ContactInteractionChannel[keyof typeof ContactInteractionChannel];
+
+export const ContactInteractionDirection = {
+    IN: 'IN',
+    OUT: 'OUT',
+    BOTH: 'BOTH'
+} as const;
+
+export type ContactInteractionDirection = typeof ContactInteractionDirection[keyof typeof ContactInteractionDirection];
+
+export type ContactSokoBot = {
+    id: string;
+    name: string | null;
+};
+
+export type ContactInteractionResult = {
+    interaction: ContactInteraction;
+    created: boolean;
+};
+
+export type ContactActivity = {
+    id: string;
+    kind: ContactActivityKind;
+    changes: {
+        [key: string]: unknown;
+    };
+    user: ContactPerson | null;
+    sokoBot: {
+        id: string;
+        name: string | null;
+    } | null;
+    createdAt: Date;
+};
+
+export const ContactActivityKind = {
+    CREATED: 'CREATED',
+    UPDATED: 'UPDATED',
+    CHANNEL_ADDED: 'CHANNEL_ADDED',
+    CHANNEL_REMOVED: 'CHANNEL_REMOVED',
+    MERGED: 'MERGED',
+    ARCHIVED: 'ARCHIVED',
+    UNARCHIVED: 'UNARCHIVED'
+} as const;
+
+export type ContactActivityKind = typeof ContactActivityKind[keyof typeof ContactActivityKind];
+
 export type CouponDetails = {
     id: string;
     percentOff: number;
@@ -3800,7 +4044,9 @@ export type DriveRecentsItem = ({
     kind: 'task-output';
 } & DriveRecentsTaskOutputItem) | ({
     kind: 'table';
-} & DriveRecentsTableItem);
+} & DriveRecentsTableItem) | ({
+    kind: 'contacts';
+} & DriveRecentsContactsItem);
 
 export type DriveRecentsDriveFileItem = {
     /**
@@ -3893,6 +4139,23 @@ export type DriveRecentsTableItem = {
      * Parent project ID, or null
      */
     projectId: string | null;
+};
+
+export type DriveRecentsContactsItem = {
+    /**
+     * The workspace's one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.
+     */
+    kind: 'contacts';
+    name: string;
+    pinned: true;
+    /**
+     * Live contacts (not archived or merged)
+     */
+    contactCount: number;
+    /**
+     * Latest change to any contact, or now when there are none
+     */
+    activityAt: Date;
 };
 
 export type FileSelectionTokenResponse = {
@@ -25219,6 +25482,2837 @@ export type PostComposioCallbackCompleteResponses = {
 };
 
 export type PostComposioCallbackCompleteResponse = PostComposioCallbackCompleteResponses[keyof PostComposioCallbackCompleteResponses];
+
+export type GetContactListsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contact-lists';
+};
+
+export type GetContactListsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactListsError = GetContactListsErrors[keyof GetContactListsErrors];
+
+export type GetContactListsResponses = {
+    /**
+     * Lists
+     */
+    200: {
+        data: Array<ContactList>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactListsResponse = GetContactListsResponses[keyof GetContactListsResponses];
+
+export type PostContactListsData = {
+    body?: {
+        name: string;
+        color?: 'gray' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'blue' | 'indigo' | 'violet' | 'pink';
+        description?: string | null;
+        smartFilter?: {
+            search?: string;
+            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            ownerUserId?: string;
+            ownedByMe?: boolean;
+            listIds?: Array<string>;
+            knownByUserId?: string;
+            knownByMe?: boolean;
+            lastContactAfter?: Date;
+            lastContactBefore?: Date;
+            lastContactOlderThanDays?: number;
+            createdWithinDays?: number;
+            followUpDue?: boolean;
+            hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            hasInteractions?: boolean;
+        } | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contact-lists';
+};
+
+export type PostContactListsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsError = PostContactListsErrors[keyof PostContactListsErrors];
+
+export type PostContactListsResponses = {
+    /**
+     * List created
+     */
+    201: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsResponse = PostContactListsResponses[keyof PostContactListsResponses];
+
+export type DeleteContactListsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}';
+};
+
+export type DeleteContactListsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactListsByIdError = DeleteContactListsByIdErrors[keyof DeleteContactListsByIdErrors];
+
+export type DeleteContactListsByIdResponses = {
+    /**
+     * List deleted
+     */
+    204: void;
+};
+
+export type DeleteContactListsByIdResponse = DeleteContactListsByIdResponses[keyof DeleteContactListsByIdResponses];
+
+export type PatchContactListsByIdData = {
+    body?: {
+        name?: string;
+        color?: 'gray' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'blue' | 'indigo' | 'violet' | 'pink';
+        description?: string | null;
+        smartFilter?: {
+            search?: string;
+            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            ownerUserId?: string;
+            ownedByMe?: boolean;
+            listIds?: Array<string>;
+            knownByUserId?: string;
+            knownByMe?: boolean;
+            lastContactAfter?: Date;
+            lastContactBefore?: Date;
+            lastContactOlderThanDays?: number;
+            createdWithinDays?: number;
+            followUpDue?: boolean;
+            hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            hasInteractions?: boolean;
+        } | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}';
+};
+
+export type PatchContactListsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactListsByIdError = PatchContactListsByIdErrors[keyof PatchContactListsByIdErrors];
+
+export type PatchContactListsByIdResponses = {
+    /**
+     * List updated
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactListsByIdResponse = PatchContactListsByIdResponses[keyof PatchContactListsByIdResponses];
+
+export type PostContactListsByIdMembersData = {
+    body?: {
+        add?: Array<string>;
+        remove?: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contact-lists/{id}/members';
+};
+
+export type PostContactListsByIdMembersErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Name taken, list in use, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid list
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactListsByIdMembersError = PostContactListsByIdMembersErrors[keyof PostContactListsByIdMembersErrors];
+
+export type PostContactListsByIdMembersResponses = {
+    /**
+     * List
+     */
+    200: {
+        data: ContactList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactListsByIdMembersResponse = PostContactListsByIdMembersResponses[keyof PostContactListsByIdMembersResponses];
+
+export type GetContactsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        search?: string;
+        stage?: ContactStage;
+        ownerUserId?: string;
+        ownedByMe?: 'true' | 'false';
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        archived?: 'true' | 'false';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        direction?: 'asc' | 'desc';
+    };
+    url: '/contacts';
+};
+
+export type GetContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsError = GetContactsErrors[keyof GetContactsErrors];
+
+export type GetContactsResponses = {
+    /**
+     * Contacts
+     */
+    200: {
+        data: Array<Contact>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsResponse = GetContactsResponses[keyof GetContactsResponses];
+
+export type PostContactsData = {
+    body?: {
+        name?: string;
+        organization?: string | null;
+        role?: string | null;
+        location?: string | null;
+        summary?: string | null;
+        whyInteresting?: string | null;
+        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        ownerUserId?: string | null;
+        nextStep?: string | null;
+        followUpAt?: Date | null;
+        avatarUrl?: string | null;
+        customFields?: {
+            [key: string]: string | number | boolean | null;
+        };
+        channels?: Array<{
+            type: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+            value: string;
+            label?: string | null;
+            isPrimary?: boolean;
+            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+            sourceUrl?: string | null;
+            verified?: boolean;
+        }>;
+        upsert?: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts';
+};
+
+export type PostContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel already taken, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contact
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsError = PostContactsErrors[keyof PostContactsErrors];
+
+export type PostContactsResponses = {
+    /**
+     * Existing contact updated (upsert)
+     */
+    200: {
+        data: ContactUpsertResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Contact created
+     */
+    201: {
+        data: ContactUpsertResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsResponse = PostContactsResponses[keyof PostContactsResponses];
+
+export type GetContactsExportCsvData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        search?: string;
+        stage?: ContactStage;
+        ownerUserId?: string;
+        ownedByMe?: 'true' | 'false';
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        archived?: 'true' | 'false';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        direction?: 'asc' | 'desc';
+    };
+    url: '/contacts/export.csv';
+};
+
+export type GetContactsExportCsvErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsExportCsvError = GetContactsExportCsvErrors[keyof GetContactsExportCsvErrors];
+
+export type GetContactsExportCsvResponses = {
+    /**
+     * Contacts as CSV
+     */
+    200: string;
+};
+
+export type GetContactsExportCsvResponse = GetContactsExportCsvResponses[keyof GetContactsExportCsvResponses];
+
+export type PostContactsMergeData = {
+    body?: {
+        winnerId: string;
+        loserIds: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/merge';
+};
+
+export type PostContactsMergeErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already merged, or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid merge
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsMergeError = PostContactsMergeErrors[keyof PostContactsMergeErrors];
+
+export type PostContactsMergeResponses = {
+    /**
+     * The merged contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsMergeResponse = PostContactsMergeResponses[keyof PostContactsMergeResponses];
+
+export type GetContactsDuplicatesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        contactId?: string;
+    };
+    url: '/contacts/duplicates';
+};
+
+export type GetContactsDuplicatesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsDuplicatesError = GetContactsDuplicatesErrors[keyof GetContactsDuplicatesErrors];
+
+export type GetContactsDuplicatesResponses = {
+    /**
+     * Duplicate groups
+     */
+    200: {
+        data: Array<ContactDuplicateGroup>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsDuplicatesResponse = GetContactsDuplicatesResponses[keyof GetContactsDuplicatesResponses];
+
+export type PostContactsImportData = {
+    body?: {
+        tableId: string;
+        mapping: {
+            name: string;
+            organization?: string;
+            role?: string;
+            location?: string;
+            summary?: string;
+            whyInteresting?: string;
+            nextStep?: string;
+            firstContactAt?: string;
+            email?: string;
+            phone?: string;
+            linkedin?: string;
+            x?: string;
+            website?: string;
+            github?: string;
+            telegram?: string;
+            lists?: string;
+        };
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/import';
+};
+
+export type PostContactsImportErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Table not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid mapping
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsImportError = PostContactsImportErrors[keyof PostContactsImportErrors];
+
+export type PostContactsImportResponses = {
+    /**
+     * Import summary
+     */
+    200: {
+        data: ContactImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
+
+export type GetContactsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}';
+};
+
+export type GetContactsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdError = GetContactsByIdErrors[keyof GetContactsByIdErrors];
+
+export type GetContactsByIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: ContactDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdResponse = GetContactsByIdResponses[keyof GetContactsByIdResponses];
+
+export type PatchContactsByIdData = {
+    body?: {
+        name?: string;
+        organization?: string | null;
+        role?: string | null;
+        location?: string | null;
+        summary?: string | null;
+        whyInteresting?: string | null;
+        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        ownerUserId?: string | null;
+        nextStep?: string | null;
+        followUpAt?: Date | null;
+        avatarUrl?: string | null;
+        customFields?: {
+            [key: string]: string | number | boolean | null;
+        };
+        version: number;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}';
+};
+
+export type PatchContactsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Version conflict or merged contact
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contact
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactsByIdError = PatchContactsByIdErrors[keyof PatchContactsByIdErrors];
+
+export type PatchContactsByIdResponses = {
+    /**
+     * Contact updated
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactsByIdResponse = PatchContactsByIdResponses[keyof PatchContactsByIdResponses];
+
+export type PostContactsByIdArchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/archive';
+};
+
+export type PostContactsByIdArchiveErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdArchiveError = PostContactsByIdArchiveErrors[keyof PostContactsByIdArchiveErrors];
+
+export type PostContactsByIdArchiveResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdArchiveResponse = PostContactsByIdArchiveResponses[keyof PostContactsByIdArchiveResponses];
+
+export type PostContactsByIdUnarchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/unarchive';
+};
+
+export type PostContactsByIdUnarchiveErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdUnarchiveError = PostContactsByIdUnarchiveErrors[keyof PostContactsByIdUnarchiveErrors];
+
+export type PostContactsByIdUnarchiveResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdUnarchiveResponse = PostContactsByIdUnarchiveResponses[keyof PostContactsByIdUnarchiveResponses];
+
+export type PostContactsByIdChannelsData = {
+    body?: {
+        type: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
+        value: string;
+        label?: string | null;
+        isPrimary?: boolean;
+        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+        sourceUrl?: string | null;
+        verified?: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/channels';
+};
+
+export type PostContactsByIdChannelsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel taken by another contact, or merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid channel
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdChannelsError = PostContactsByIdChannelsErrors[keyof PostContactsByIdChannelsErrors];
+
+export type PostContactsByIdChannelsResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdChannelsResponse = PostContactsByIdChannelsResponses[keyof PostContactsByIdChannelsResponses];
+
+export type DeleteContactsByIdChannelsByChannelIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        channelId: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/channels/{channelId}';
+};
+
+export type DeleteContactsByIdChannelsByChannelIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Channel taken by another contact, or merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid channel
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactsByIdChannelsByChannelIdError = DeleteContactsByIdChannelsByChannelIdErrors[keyof DeleteContactsByIdChannelsByChannelIdErrors];
+
+export type DeleteContactsByIdChannelsByChannelIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteContactsByIdChannelsByChannelIdResponse = DeleteContactsByIdChannelsByChannelIdResponses[keyof DeleteContactsByIdChannelsByChannelIdResponses];
+
+export type GetContactsByIdInteractionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/contacts/{id}/interactions';
+};
+
+export type GetContactsByIdInteractionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdInteractionsError = GetContactsByIdInteractionsErrors[keyof GetContactsByIdInteractionsErrors];
+
+export type GetContactsByIdInteractionsResponses = {
+    /**
+     * Interactions
+     */
+    200: {
+        data: Array<ContactInteraction>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdInteractionsResponse = GetContactsByIdInteractionsResponses[keyof GetContactsByIdInteractionsResponses];
+
+export type PostContactsByIdInteractionsData = {
+    body?: {
+        occurredAt: Date;
+        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER';
+        direction?: 'IN' | 'OUT' | 'BOTH' | null;
+        summary: string;
+        sourceRef?: string | null;
+        sourceUrl?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/interactions';
+};
+
+export type PostContactsByIdInteractionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdInteractionsError = PostContactsByIdInteractionsErrors[keyof PostContactsByIdInteractionsErrors];
+
+export type PostContactsByIdInteractionsResponses = {
+    /**
+     * Already recorded
+     */
+    200: {
+        data: ContactInteractionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Recorded
+     */
+    201: {
+        data: ContactInteractionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdInteractionsResponse = PostContactsByIdInteractionsResponses[keyof PostContactsByIdInteractionsResponses];
+
+export type DeleteContactsByIdInteractionsByInteractionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        interactionId: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/interactions/{interactionId}';
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Merged contact or a concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdError = DeleteContactsByIdInteractionsByInteractionIdErrors[keyof DeleteContactsByIdInteractionsByInteractionIdErrors];
+
+export type DeleteContactsByIdInteractionsByInteractionIdResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteContactsByIdInteractionsByInteractionIdResponse = DeleteContactsByIdInteractionsByInteractionIdResponses[keyof DeleteContactsByIdInteractionsByInteractionIdResponses];
+
+export type GetContactsByIdActivityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/contacts/{id}/activity';
+};
+
+export type GetContactsByIdActivityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsByIdActivityError = GetContactsByIdActivityErrors[keyof GetContactsByIdActivityErrors];
+
+export type GetContactsByIdActivityResponses = {
+    /**
+     * Activity
+     */
+    200: {
+        data: Array<ContactActivity>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsByIdActivityResponse = GetContactsByIdActivityResponses[keyof GetContactsByIdActivityResponses];
 
 export type GetCouponDetailsData = {
     body?: never;

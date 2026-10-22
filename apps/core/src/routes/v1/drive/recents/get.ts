@@ -38,6 +38,7 @@ import {
   driveRecentsQuerySchema,
 } from "@/schemas/drive-recents.schema";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
+import { contactsDriveEntry } from "@/services/contacts.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -47,6 +48,7 @@ const route = withCoworkerContextHeaderParameters(
       "List recent Drive files and task/agent outputs for the active workspace.",
       "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
       "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.",
+      "For people, the first page starts with the workspace's pinned Contacts entry (kind `contacts`) unless a search excludes it.",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -180,13 +182,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : {}),
     });
 
+    // The contacts set is one pinned entry per workspace, not a file: it heads
+    // the first page and matches a search for its name.
+    const contacts =
+      tableActor &&
+      !cursor &&
+      (!searchQuery || "contacts".includes(searchQuery.toLowerCase()))
+        ? await contactsDriveEntry(workspaceContext.workspaceId)
+        : null;
+    const items = contacts
+      ? [
+          {
+            kind: "contacts" as const,
+            name: "Contacts",
+            pinned: true as const,
+            ...contacts,
+          },
+          ...page.items,
+        ]
+      : page.items;
+
     const paginationMeta: CursorPaginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      total: page.items.length,
+      total: items.length,
       nextCursor: page.nextCursor,
     };
 
-    return ok(c, driveRecentsListSchema.parse(page.items), paginationMeta);
+    return ok(c, driveRecentsListSchema.parse(items), paginationMeta);
   });
 }

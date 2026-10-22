@@ -133,6 +133,31 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CONTACT_CHANNEL_SOURCES,
+  CONTACT_CHANNEL_TYPES,
+  CONTACT_INTERACTION_CHANNELS,
+  CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_LIST_COLORS,
+  CONTACT_SORT_FIELDS,
+  CONTACT_STAGES,
+  type ContactChannelType,
+  type ContactFilter,
+  contactChannelInputSchema,
+  contactFieldsSchema,
+  contactFilterSchema,
+  contactImportMappingSchema,
+  contactImportSchema,
+  contactInteractionInputSchema,
+  contactListInputSchema,
+  contactListMembersSchema,
+  contactListUpdateSchema,
+  contactNameFromChannel,
+  createContactSchema,
+  mergeContactsSchema,
+  normalizeContactChannelValue,
+  updateContactSchema,
+} from "./contacts.js";
 export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
