@@ -1,6 +1,14 @@
 import {
+  CONTACT_LIST_COLORS,
+  CONTACT_SORT_FIELDS,
+  contactChannelInputSchema,
+  contactFieldsSchema,
+  contactFilterSchema,
+  contactInteractionInputSchema,
+  createContactSchema,
   createDataTableSchema,
   isValidTimezone,
+  mergeContactsSchema,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_MAX,
   tableBatchSchema,
@@ -318,6 +326,64 @@ export const sokoBotAskCoworkerInputSchema = z
   })
   .strict();
 
+export const sokoBotSearchContactsInputSchema = contactFilterSchema
+  .extend({
+    /** A manual or smart list from `list_contact_lists`. */
+    listId: z.uuid().optional(),
+    archived: z.boolean().optional(),
+    sort: z.enum(CONTACT_SORT_FIELDS).default("lastContactAt"),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.uuid().optional(),
+    limit: z.int().min(1).max(100).default(25),
+  })
+  .strict();
+
+export const sokoBotContactIdInputSchema = z
+  .object({ contactId: z.uuid() })
+  .strict();
+
+export const sokoBotUpdateContactInputSchema = contactFieldsSchema
+  .partial()
+  .extend({
+    contactId: z.uuid(),
+    /** From the contact you read last; a newer one is a conflict: read again. */
+    version: z.int().positive(),
+    addChannels: z.array(contactChannelInputSchema).max(20).optional(),
+    removeChannelIds: z.array(z.uuid()).max(20).optional(),
+    archived: z.boolean().optional(),
+  })
+  .strict();
+
+export const sokoBotManageContactListsInputSchema = z
+  .object({
+    action: z.enum(["create", "update", "delete", "add", "remove"]),
+    /** Every action but create. */
+    listId: z.uuid().optional(),
+    name: z.string().trim().min(1).max(80).optional(),
+    color: z.enum(CONTACT_LIST_COLORS).optional(),
+    description: z.string().trim().max(500).nullable().optional(),
+    /** Makes it a smart list that fills itself; null turns it manual. */
+    smartFilter: contactFilterSchema.nullable().optional(),
+    /** For add and remove: at most 500 contact ids. */
+    contactIds: z.array(z.uuid()).min(1).max(500).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const missing = (field: string) =>
+      context.addIssue({
+        code: "custom",
+        path: [field],
+        message: `${field} is required for ${value.action}`,
+      });
+    if (value.action === "create" && !value.name) missing("name");
+    if (value.action !== "create" && !value.listId) missing("listId");
+    if (
+      (value.action === "add" || value.action === "remove") &&
+      !value.contactIds
+    )
+      missing("contactIds");
+  });
+
 export const sokoBotReadChatInputSchema = z.object({
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
@@ -601,6 +667,19 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     taskId: z.string().max(200).optional(),
     removeColumnIds: z.array(z.uuid()).min(1).max(100).optional(),
   }),
+  search_contacts: sokoBotSearchContactsInputSchema,
+  get_contact: sokoBotContactIdInputSchema,
+  list_contact_lists: emptyInputSchema,
+  find_contact_duplicates: z
+    .object({ contactId: z.uuid().optional() })
+    .strict(),
+  upsert_contact: createContactSchema,
+  update_contact: sokoBotUpdateContactInputSchema,
+  log_contact_interaction: contactInteractionInputSchema
+    .extend({ contactId: z.uuid() })
+    .strict(),
+  merge_contacts: mergeContactsSchema,
+  manage_contact_lists: sokoBotManageContactListsInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
@@ -719,6 +798,24 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Atomically insert or patch 1–100 rows. Patches require the last read row version; on conflict reload and preserve human edits. Supply source URL evidence per column where available, never invent sources. Never write a last_updated column; it updates itself. Reuse the key for retries. For selected-row tasks pass taskId; only selected row IDs and output column IDs are writable. Editing data never authorizes outreach or sending.",
   update_table_columns:
     "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. To delete columns and their values, name them in removeColumnIds (columns then lists the ones you keep, or is omitted). A column's width and wrap are display settings people choose; leave them out to keep them. Include taskId for task-driven work. Follow-up requests reuse the same table.",
+  search_contacts:
+    "Search your team's shared contacts: people with their channels (emails, phones, LinkedIn, X, Slack, …), organization, stage, lists, who on the team knows them and when they were last in touch. Filter by any of these, by a list (listId, manual or smart), or search names, organizations and addresses. Use it before adding anyone, so you never create a duplicate. Paginate with cursor.",
+  get_contact:
+    "Read one contact in full: channels with their sources, lists, summary, next step, who on the team knows them, the latest interactions, merge suggestions and the version you need to change it.",
+  list_contact_lists:
+    "The team's contact lists with live counts. Smart lists are saved filters that fill themselves; manual lists hold the contacts people put there.",
+  find_contact_duplicates:
+    "Groups of contacts with the same name, likely one person entered twice. Pass a contactId to check one contact. Merge them with merge_contacts when the channels or organization agree.",
+  upsert_contact:
+    "Add a person, or enrich the one who already has one of these channels: missing channels are attached and only empty fields are filled, never overwritten. Give a name and/or channels (normalized for you); mark where you found researched details with source WEB_RESEARCH and sourceUrl, and verified only when you confirmed them. Answers with the contact, whether it was created, and a merge suggestion when the channels belong to two people. Never add automated senders (noreply, notifications, newsletters).",
+  update_contact:
+    "Change a contact you have read: any field (name, organization, role, location, summary, whyInteresting, stage, ownerUserId, nextStep, followUpAt as YYYY-MM-DD, avatarUrl, customFields), add or remove channels, or archive it. Pass the version from get_contact; on a conflict read it again and keep what people changed. Null clears a field.",
+  log_contact_interaction:
+    "Record that the owner (or you for them) was in touch with a contact: when, the channel (EMAIL, MEETING, SLACK, CALL, MANUAL, OTHER), the direction and one line on what it was about. Pass sourceRef (the message or event id) when there is one, so the same message is never logged twice. First contact, last contact and the count update themselves.",
+  merge_contacts:
+    "Fold duplicates into one contact: channels, interactions, lists and history move to winnerId, its empty fields are filled from the others in order, and the others stay as tombstones. Only merge when you are sure it is one person.",
+  manage_contact_lists:
+    "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:

@@ -152,7 +152,9 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables DataTable[]
+  dataTables   DataTable[]
+  contacts     Contact[]
+  contactLists ContactList[]
 
   calendarRevision Int @default(0)
 
@@ -2238,6 +2240,7 @@ enum SokoBotToolCallStatus {
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
 model SokoBot {
+  contactInteractions  ContactInteraction[]     @relation("ContactInteractionSokoBot")
   eventInbox           SokoBotEventInbox[]      @relation("EventInboxBot")
   designatedEventInbox SokoBotEventInbox[]      @relation("EventInboxHandler")
   taskActionClaims     SokoBotTaskActionClaim[]

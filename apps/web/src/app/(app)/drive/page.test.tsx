@@ -761,6 +761,39 @@ describe("DrivePage recents view", () => {
     expect(within(link).getAllByText("tableKind").length).toBeGreaterThan(0);
   });
 
+  it("pins the workspace's Contacts entry above the days, with no file actions", async () => {
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "contacts",
+          name: "Contacts",
+          pinned: true,
+          contactCount: 12,
+          activityAt: "2026-08-01T09:00:00.000Z",
+        },
+        {
+          kind: "table",
+          tableId: "table_1",
+          name: "Leads",
+          activityAt: "2026-08-21T12:00:00.000Z",
+          projectId: null,
+        },
+      ],
+      nextCursor: null,
+    });
+    renderDrive();
+
+    const link = await screen.findByRole("link", { name: /contactsEntryName/ });
+    expect(link).toHaveAttribute("href", "/contacts");
+    const links = screen.getAllByRole("link");
+    expect(links.indexOf(link)).toBeLessThan(
+      links.indexOf(screen.getByRole("link", { name: /Leads/ })),
+    );
+    expect(
+      within(link).queryByRole("button", { name: "moreActions" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("passes search query to recents fetch", async () => {
     const user = userEvent.setup();
     renderDrive();

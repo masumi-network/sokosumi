@@ -167,6 +167,10 @@ import {
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import {
+  isContactCapability,
+  runContactTool,
+} from "@/lib/soko-bot/contact-tools";
+import {
   addressCoworkers,
   createOrGetCoworkerQuestionRoom,
 } from "@/lib/soko-bot/coworker-question-room";
@@ -4471,6 +4475,42 @@ export class SokoBotRuntimeService {
     return { ...actor, taskId, ownerChat };
   }
 
+  /**
+   * Contacts are the workspace's shared set: a bot reads and writes them as
+   * the member its turn acts for, personal and shared bots alike.
+   */
+  private async executeContactTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { capability } = input;
+    if (!isContactCapability(capability))
+      throw new SokoBotRuntimeValidationError("Not a contacts tool");
+    const userId = actingMemberOf(authorized);
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const actor = {
+      workspaceId: authorized.turn.workspaceId,
+      userId,
+      sokoBotId: authorized.turn.sokoBotId,
+    };
+    return runContactTool(capability, input.input, actor, {
+      authorize: (tx) =>
+        this.requireMutationAuthority(tx, authorized, false, capability),
+      commit: (tx, targetId, result) =>
+        commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId: input.toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId,
+          result: persistedToolResult(result),
+        }),
+    });
+  }
+
   /** Social tools use the turn's owner/workspace, never actor fields from model input. */
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
@@ -4790,6 +4830,16 @@ export class SokoBotRuntimeService {
           sokoBotStartBackgroundRunInputSchema.parse(input.input),
         );
       }
+      case "search_contacts":
+      case "get_contact":
+      case "list_contact_lists":
+      case "find_contact_duplicates":
+      case "upsert_contact":
+      case "update_contact":
+      case "log_contact_interaction":
+      case "merge_contacts":
+      case "manage_contact_lists":
+        return this.executeContactTool(input, authorized);
       case "list_tables":
       case "read_table":
       case "create_table":

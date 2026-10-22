@@ -103,11 +103,32 @@ const driveRecentsTableItemSchema = z
   })
   .openapi("DriveRecentsTableItem");
 
+const driveRecentsContactsItemSchema = z
+  .object({
+    kind: z.literal("contacts").openapi({
+      example: "contacts",
+      description:
+        "The workspace's one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.",
+    }),
+    name: z.string().openapi({ example: "Contacts" }),
+    pinned: z.literal(true),
+    contactCount: z.int().openapi({
+      example: 128,
+      description: "Live contacts (not archived or merged)",
+    }),
+    activityAt: dateTimeSchema.openapi({
+      example: "2026-08-18T10:00:00.000Z",
+      description: "Latest change to any contact, or now when there are none",
+    }),
+  })
+  .openapi("DriveRecentsContactsItem");
+
 const driveRecentsItemSchema = z
   .discriminatedUnion("kind", [
     driveRecentsDriveFileItemSchema,
     driveRecentsTaskOutputItemSchema,
     driveRecentsTableItemSchema,
+    driveRecentsContactsItemSchema,
   ])
   .openapi("DriveRecentsItem");
 

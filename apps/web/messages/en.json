@@ -7729,7 +7729,9 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table"
+      "tableKind": "Table",
+      "contactsEntryName": "Contacts",
+      "contactsEntryCount": "{count, plural, =1 {1 contact} other {# contacts}}"
     },
     "SokoBot": {
       "Metadata": {

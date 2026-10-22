@@ -12515,6 +12515,903 @@ export const CompleteComposioCallbackRequestSchema = {
     ]
 } as const;
 
+export const ContactListSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        color: {
+            $ref: '#/components/schemas/ContactListColor'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'manual',
+                'smart'
+            ]
+        },
+        smartFilter: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        search: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        stages: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                enum: [
+                                    'PROSPECT',
+                                    'LEAD',
+                                    'ACTIVE',
+                                    'PARTNER',
+                                    'INVESTOR',
+                                    'CUSTOMER',
+                                    'DORMANT'
+                                ]
+                            },
+                            minItems: 1,
+                            maxItems: 7
+                        },
+                        ownerUserId: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        ownedByMe: {
+                            type: 'boolean'
+                        },
+                        listIds: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            minItems: 1,
+                            maxItems: 20
+                        },
+                        knownByUserId: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        knownByMe: {
+                            type: 'boolean'
+                        },
+                        lastContactAfter: {
+                            type: 'string',
+                            format: 'date-time'
+                        },
+                        lastContactBefore: {
+                            type: 'string',
+                            format: 'date-time'
+                        },
+                        lastContactOlderThanDays: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 3650
+                        },
+                        createdWithinDays: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 3650
+                        },
+                        followUpDue: {
+                            type: 'boolean'
+                        },
+                        hasChannel: {
+                            type: 'string',
+                            enum: [
+                                'EMAIL',
+                                'PHONE',
+                                'SLACK',
+                                'LINKEDIN',
+                                'X',
+                                'WEBSITE',
+                                'TELEGRAM',
+                                'WHATSAPP',
+                                'GITHUB',
+                                'OTHER'
+                            ]
+                        },
+                        hasInteractions: {
+                            type: 'boolean'
+                        }
+                    },
+                    additionalProperties: false
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        count: {
+            type: 'integer'
+        },
+        createdByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdBySokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'color',
+        'description',
+        'kind',
+        'smartFilter',
+        'count',
+        'createdByUserId',
+        'createdBySokoBotId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const ContactListColorSchema = {
+    type: 'string',
+    enum: [
+        'gray',
+        'red',
+        'orange',
+        'amber',
+        'green',
+        'teal',
+        'blue',
+        'indigo',
+        'violet',
+        'pink'
+    ]
+} as const;
+
+export const ContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        role: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        location: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        whyInteresting: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        stage: {
+            $ref: '#/components/schemas/ContactStage'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        nextStep: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUpAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date',
+            example: '2026-11-02'
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        customFields: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        firstContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        interactionCount: {
+            type: 'integer'
+        },
+        createdByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdBySokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        mergedIntoId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        channels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactChannel'
+            }
+        },
+        lists: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactListRef'
+            }
+        },
+        knownBy: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactKnownBy'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'organization',
+        'role',
+        'location',
+        'summary',
+        'whyInteresting',
+        'stage',
+        'owner',
+        'nextStep',
+        'followUpAt',
+        'avatarUrl',
+        'customFields',
+        'firstContactAt',
+        'lastContactAt',
+        'interactionCount',
+        'createdByUserId',
+        'createdBySokoBotId',
+        'mergedIntoId',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'channels',
+        'lists',
+        'knownBy'
+    ]
+} as const;
+
+export const ContactStageSchema = {
+    type: 'string',
+    enum: [
+        'PROSPECT',
+        'LEAD',
+        'ACTIVE',
+        'PARTNER',
+        'INVESTOR',
+        'CUSTOMER',
+        'DORMANT'
+    ]
+} as const;
+
+export const ContactPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
+export const ContactChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        type: {
+            $ref: '#/components/schemas/ContactChannelType'
+        },
+        value: {
+            type: 'string'
+        },
+        label: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        isPrimary: {
+            type: 'boolean'
+        },
+        source: {
+            $ref: '#/components/schemas/ContactChannelSource'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        verified: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'type',
+        'value',
+        'label',
+        'isPrimary',
+        'source',
+        'sourceUrl',
+        'verified',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactChannelTypeSchema = {
+    type: 'string',
+    enum: [
+        'EMAIL',
+        'PHONE',
+        'SLACK',
+        'LINKEDIN',
+        'X',
+        'WEBSITE',
+        'TELEGRAM',
+        'WHATSAPP',
+        'GITHUB',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactChannelSourceSchema = {
+    type: 'string',
+    enum: [
+        'MANUAL',
+        'EMAIL',
+        'CALENDAR',
+        'SLACK',
+        'WEB_RESEARCH',
+        'IMPORT',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactListRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        color: {
+            $ref: '#/components/schemas/ContactListColor'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'color'
+    ]
+} as const;
+
+export const ContactKnownBySchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ContactPerson'
+        },
+        {
+            type: 'object',
+            properties: {
+                interactionCount: {
+                    type: 'integer'
+                },
+                lastInteractionAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'interactionCount',
+                'lastInteractionAt'
+            ]
+        }
+    ]
+} as const;
+
+export const ContactUpsertResultSchema = {
+    type: 'object',
+    properties: {
+        contact: {
+            $ref: '#/components/schemas/Contact'
+        },
+        created: {
+            type: 'boolean'
+        },
+        changed: {
+            type: 'boolean'
+        },
+        mergeSuggestion: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactMergeSuggestion'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'contact',
+        'created',
+        'changed',
+        'mergeSuggestion'
+    ]
+} as const;
+
+export const ContactMergeSuggestionSchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            enum: [
+                'shared_channel',
+                'same_name'
+            ]
+        },
+        contactIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        }
+    },
+    required: [
+        'reason',
+        'contactIds'
+    ]
+} as const;
+
+export const ContactDuplicateGroupSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Contact'
+            }
+        }
+    },
+    required: [
+        'name',
+        'contacts'
+    ]
+} as const;
+
+export const ContactImportResultSchema = {
+    type: 'object',
+    properties: {
+        rows: {
+            type: 'integer'
+        },
+        created: {
+            type: 'integer'
+        },
+        updated: {
+            type: 'integer'
+        },
+        unchanged: {
+            type: 'integer'
+        },
+        skipped: {
+            type: 'integer'
+        },
+        listsCreated: {
+            type: 'integer'
+        },
+        mergeSuggestions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMergeSuggestion'
+            }
+        }
+    },
+    required: [
+        'rows',
+        'created',
+        'updated',
+        'unchanged',
+        'skipped',
+        'listsCreated',
+        'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactDetailSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Contact'
+        },
+        {
+            type: 'object',
+            properties: {
+                recentInteractions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ContactInteraction'
+                    }
+                },
+                mergeSuggestions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ContactMergeSuggestion'
+                    }
+                }
+            },
+            required: [
+                'recentInteractions',
+                'mergeSuggestions'
+            ]
+        }
+    ]
+} as const;
+
+export const ContactInteractionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        contactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        occurredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        channel: {
+            $ref: '#/components/schemas/ContactInteractionChannel'
+        },
+        direction: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactInteractionDirection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        summary: {
+            type: 'string'
+        },
+        sourceRef: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sokoBot: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'contactId',
+        'occurredAt',
+        'channel',
+        'direction',
+        'summary',
+        'sourceRef',
+        'sourceUrl',
+        'user',
+        'sokoBot',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactInteractionChannelSchema = {
+    type: 'string',
+    enum: [
+        'EMAIL',
+        'MEETING',
+        'SLACK',
+        'CALL',
+        'MANUAL',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactInteractionDirectionSchema = {
+    type: 'string',
+    enum: [
+        'IN',
+        'OUT',
+        'BOTH'
+    ]
+} as const;
+
+export const ContactSokoBotSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const ContactInteractionResultSchema = {
+    type: 'object',
+    properties: {
+        interaction: {
+            $ref: '#/components/schemas/ContactInteraction'
+        },
+        created: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'interaction',
+        'created'
+    ]
+} as const;
+
+export const ContactActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            $ref: '#/components/schemas/ContactActivityKind'
+        },
+        changes: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sokoBot: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'changes',
+        'user',
+        'sokoBot',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactActivityKindSchema = {
+    type: 'string',
+    enum: [
+        'CREATED',
+        'UPDATED',
+        'CHANNEL_ADDED',
+        'CHANNEL_REMOVED',
+        'MERGED',
+        'ARCHIVED',
+        'UNARCHIVED'
+    ]
+} as const;
+
 export const CouponDetailsSchema = {
     type: 'object',
     properties: {
@@ -13405,6 +14302,9 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTableItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsContactsItem'
         }
     ],
     discriminator: {
@@ -13412,7 +14312,8 @@ export const DriveRecentsItemSchema = {
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
             'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
-            table: '#/components/schemas/DriveRecentsTableItem'
+            table: '#/components/schemas/DriveRecentsTableItem',
+            contacts: '#/components/schemas/DriveRecentsContactsItem'
         }
     }
 } as const;
@@ -13590,6 +14491,48 @@ export const DriveRecentsTableItemSchema = {
         'name',
         'activityAt',
         'projectId'
+    ]
+} as const;
+
+export const DriveRecentsContactsItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contacts'
+            ],
+            example: 'contacts',
+            description: 'The workspace\'s one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.'
+        },
+        name: {
+            type: 'string',
+            example: 'Contacts'
+        },
+        pinned: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        contactCount: {
+            type: 'integer',
+            example: 128,
+            description: 'Live contacts (not archived or merged)'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest change to any contact, or now when there are none'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'pinned',
+        'contactCount',
+        'activityAt'
     ]
 } as const;
 
