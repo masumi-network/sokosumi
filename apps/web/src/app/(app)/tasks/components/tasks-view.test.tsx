@@ -12,6 +12,7 @@ import type {
 } from "@/app/tasks/types/task-board";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
@@ -326,15 +327,24 @@ it("applies Display density to board and list and restores the saved preference"
   document.cookie = "tasks_density=; max-age=0; path=/";
 });
 
-it("opens the New Task wizard from the toolbar only for seated members", async () => {
+it("gates the toolbar New task button on the page's seat check, not the layout's", async () => {
   openNewTaskWizardMock.mockClear();
   const user = userEvent.setup();
-  const { unmount } = renderBoard();
+  // The layout still says no seat; the page's fresher check says yes.
+  const { unmount } = render(
+    <OrganizationSeatContext value={false}>
+      {boardView([TASK])}
+    </OrganizationSeatContext>,
+  );
   await user.click(screen.getByRole("button", { name: "newTask" }));
   expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
   unmount();
 
-  render(cloneElement(boardView([TASK]), { canCreateTask: false }));
+  render(
+    <OrganizationSeatContext value={true}>
+      {cloneElement(boardView([TASK]), { canCreateTask: false })}
+    </OrganizationSeatContext>,
+  );
   expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
 });
 

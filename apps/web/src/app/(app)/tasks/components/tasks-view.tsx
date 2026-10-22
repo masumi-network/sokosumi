@@ -31,7 +31,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
@@ -66,6 +65,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
@@ -80,11 +80,7 @@ import {
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
-import {
-  CreateTaskModal,
-  CreateTaskModalProvider,
-  useCreateTaskModal,
-} from "./create-task-modal";
+import { CreateTaskModal, CreateTaskModalProvider } from "./create-task-modal";
 import { KanbanBoard } from "./kanban-board";
 import { shouldRollbackBoardReopenOnDismiss } from "./task-board-reopen";
 import { TaskCard } from "./task-card";
@@ -100,6 +96,7 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
+import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 
 interface PendingBoardReopen {
@@ -109,19 +106,6 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   desiredStatus: TaskStatus;
   moveVersion: number;
-}
-
-function TasksMobileCreateFabSlot() {
-  const { handleOpen } = useCreateTaskModal();
-  const t = useTranslations("App.Tasks");
-
-  return (
-    <ListMobileCreateFab
-      ariaLabel={t("createTaskFab")}
-      className="bg-secondary text-secondary-foreground hover:bg-secondary-hover"
-      onOpen={handleOpen}
-    />
-  );
 }
 
 const hydrationStore = (() => {
@@ -898,7 +882,6 @@ export function TasksView({
                 onDensityChange: handleDensityChange,
                 labels: labels.display,
               }}
-              canCreateTask={canCreateTask}
             />
           ) : null}
         </div>
@@ -1033,7 +1016,10 @@ export function TasksView({
           </ChannelProvider>
         </LazyAblyProvider>
       ) : null}
-      {tabsContent}
+      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+      <OrganizationSeatContext value={canCreateTask}>
+        {tabsContent}
+      </OrganizationSeatContext>
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
       ) : null}
