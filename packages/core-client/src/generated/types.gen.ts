@@ -3518,7 +3518,7 @@ export type Contact = {
     stage: ContactStage;
     owner: ContactPerson | null;
     nextStep: string | null;
-    followUpAt: Date | null;
+    followUpAt: string | null;
     avatarUrl: string | null;
     customFields: {
         [key: string]: unknown;
@@ -26310,7 +26310,7 @@ export type PostContactsData = {
         stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
         ownerUserId?: string | null;
         nextStep?: string | null;
-        followUpAt?: Date | null;
+        followUpAt?: string | null;
         avatarUrl?: string | null;
         customFields?: {
             [key: string]: string | number | boolean | null;
@@ -27109,7 +27109,7 @@ export type PatchContactsByIdData = {
         stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
         ownerUserId?: string | null;
         nextStep?: string | null;
-        followUpAt?: Date | null;
+        followUpAt?: string | null;
         avatarUrl?: string | null;
         customFields?: {
             [key: string]: string | number | boolean | null;

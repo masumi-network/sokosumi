@@ -8,6 +8,7 @@ import {
   Edit3,
   Folder,
   MoreHorizontal,
+  Pin,
   Table2,
   Trash2,
   Users,
@@ -342,18 +343,29 @@ export function DriveRecentsPanel({
                   )}
                 >
                   <div className={driveItemBodyClass(viewMode)}>
-                    <div className={driveItemIconWellClass(viewMode)}>
+                    <div
+                      className={cn(
+                        driveItemIconWellClass(viewMode),
+                        "bg-primary-quinary rounded-lg",
+                      )}
+                    >
                       <Users
                         aria-hidden
                         className={cn(
-                          "text-muted-foreground",
+                          "text-primary",
                           viewMode === "grid" ? "size-4" : "size-5",
                         )}
                       />
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className={driveItemNameClass()}>
-                        {t("contactsEntryName")}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className={driveItemNameClass()}>
+                          {t("contactsEntryName")}
+                        </span>
+                        <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
+                          <Pin aria-hidden className="size-3" />
+                          {t("contactsEntryPinned")}
+                        </span>
                       </span>
                       <div className={driveItemMetaMobileClass(viewMode)}>
                         <span>
