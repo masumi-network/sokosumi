@@ -170,7 +170,8 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         pij."projectId",
         tk."projectId",
         rj."projectId",
-        rpij."projectId"
+        rpij."projectId",
+        rtk."projectId"
       ) AS "projectId",
       j."id" AS "jobId",
       j."name" AS "jobName",

@@ -421,6 +421,34 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     });
   });
 
+  it("keeps a refunded task project id for project filters", async () => {
+    await withSeededLedger(async (tx) => {
+      await seedRefundTransaction(tx, "tx-refund-claim");
+      await seedRefundedClaim(tx, "tx-refund-claim");
+      await tx.$executeRaw`
+        UPDATE "task"
+        SET "projectId" = ${PROJECT_ID}::uuid
+        WHERE "id" = ${"tx-refund-claim-task"}
+      `;
+
+      expect(await findRefundRow(tx, "tx-refund-claim")).toMatchObject({
+        projectId: PROJECT_ID,
+      });
+      expect(await findRefundItem(tx, "tx-refund-claim")).toMatchObject({
+        projectId: PROJECT_ID,
+      });
+
+      const projectRows = await findTransactionHistoryPage(
+        { ...personalScope, projectId: PROJECT_ID },
+        { take: 20 },
+        tx,
+      );
+      expect(projectRows.rows.map((row) => row.id)).toContain(
+        "tx-refund-claim",
+      );
+    });
+  });
+
   it("names the task behind a refunded x402 payment and its refund kind", async () => {
     await withSeededLedger(async (tx) => {
       await seedRefundTransaction(tx, "tx-refund-refusal");

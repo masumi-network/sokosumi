@@ -245,6 +245,9 @@ export const transactionHistoryListResponseExample = {
       consumedAt: "2026-01-20T08:00:00.000Z",
       projectId: null,
       bucketSource: "STRIPE_TOPUP",
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
       owner: {
         userId: "550e8400-e29b-41d4-a716-446655440002",
         name: "Bob Smith",
