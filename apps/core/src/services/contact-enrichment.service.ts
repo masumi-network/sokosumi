@@ -165,14 +165,24 @@ export function buildEnrichmentPrompt(
   return lines.join("\n");
 }
 
-/** Worth a model call: something is empty and there is evidence to read. */
+/**
+ * Contacts still missing what the evidence can tell. A role alone is never
+ * asked for: it needs a signature, which the evidence does not carry.
+ */
+const ENRICHMENT_QUEUE = {
+  enrichedAt: null,
+  mergedIntoId: null,
+  archivedAt: null,
+  OR: [{ organization: null }, { summary: null }],
+} satisfies Prisma.ContactWhereInput;
+
+/** Worth a model call: there is evidence to read. */
 function worthAsking(contact: PendingContact): boolean {
-  const empty = !contact.organization || !contact.role || !contact.summary;
   const companyAddress = contact.channels.some(
     (channel) =>
       channel.type === "EMAIL" && companyDomain(channel.value) !== null,
   );
-  return empty && (contact.interactions.length > 0 || companyAddress);
+  return contact.interactions.length > 0 || companyAddress;
 }
 
 /** Who the change is filed under: the teammate and bot who last met them. */
@@ -314,12 +324,7 @@ export async function enrichWorkspaceContacts(input: {
   const deps = input.deps ?? defaultDeps;
   if (budget.enrichments <= 0) return;
   const pending: PendingContact[] = await prisma.contact.findMany({
-    where: {
-      workspaceId: input.workspaceId,
-      enrichedAt: null,
-      mergedIntoId: null,
-      archivedAt: null,
-    },
+    where: { workspaceId: input.workspaceId, ...ENRICHMENT_QUEUE },
     orderBy: { updatedAt: "asc" },
     take: budget.enrichments,
     select: PENDING_SELECT,
@@ -458,7 +463,7 @@ export async function workspacesWithPendingEnrichment(
   if (limit <= 0) return [];
   const rows = await prisma.contact.groupBy({
     by: ["workspaceId"],
-    where: { enrichedAt: null, mergedIntoId: null, archivedAt: null },
+    where: ENRICHMENT_QUEUE,
     _min: { updatedAt: true },
     orderBy: { _min: { updatedAt: "asc" } },
     take: limit,
