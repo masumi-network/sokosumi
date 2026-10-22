@@ -2,7 +2,6 @@ import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { userService } from "@/lib/services/user.service";
 import HeaderProfileSectionClient from "./header-profile-section.client";
-import { HeaderSearchTrigger } from "./header-search-trigger.client";
 import { HeaderTrailingTools } from "./header-trailing-tools";
 
 interface HeaderProfileSectionProps {
@@ -27,7 +26,6 @@ export default function HeaderProfileSection({
 }: HeaderProfileSectionProps) {
   return (
     <div className="flex h-8 items-center gap-1.5 md:h-auto">
-      <HeaderSearchTrigger />
       <Suspense fallback={<HeaderProfileSectionSkeleton />}>
         <HeaderProfileSectionInner session={session} />
       </Suspense>
