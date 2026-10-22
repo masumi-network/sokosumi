@@ -107,6 +107,17 @@ const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
 /** The primitive drops a checkbox cell's trailing padding; this grid needs room. */
 const SELECT_CELL = "ps-3 [&:has([role=checkbox])]:pr-4";
 
+/**
+ * Row and column chrome (drag handles, row checkboxes, column menus) is
+ * painted only where the pointer or focus is, so a long table reads as data
+ * rather than a field of controls. It stays in the DOM and the tab order, and
+ * focus reveals it; touch screens, which have no hover, always show it.
+ */
+const ROW_CHROME =
+  "opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100";
+const HEAD_CHROME =
+  "opacity-0 transition-opacity group-hover/head:opacity-100 group-focus-within/head:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100";
+
 interface ReorderItem {
   kind: "column" | "row";
   id: string;
@@ -163,7 +174,9 @@ function ReorderHandle({
   listeners,
   axis,
   onMove,
+  className,
 }: {
+  className?: string;
   label: string;
   listeners: DraggableSyntheticListeners;
   axis: "x" | "y";
@@ -186,14 +199,17 @@ function ReorderHandle({
       {...listeners}
       onKeyDown={handleKeyDown}
       aria-label={label}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md outline-none focus-visible:ring-2 active:cursor-grabbing"
+      className={cn(
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md outline-none focus-visible:ring-2 active:cursor-grabbing",
+        className,
+      )}
     >
       <GripVertical aria-hidden className="size-4" />
     </button>
   );
 }
 
-/** Two lines, with a toggle only when the text is longer than that. */
+/** One line, with a toggle only when the text is longer than that. */
 function TableDescription({ text }: { text: string }) {
   const t = useTranslations("App.Tables");
   const id = useId();
@@ -215,7 +231,7 @@ function TableDescription({ text }: { text: string }) {
       <p
         ref={ref}
         id={id}
-        className={cn("text-muted-foreground", !expanded && "line-clamp-2")}
+        className={cn("text-muted-foreground", !expanded && "line-clamp-1")}
       >
         {text}
       </p>
@@ -923,9 +939,9 @@ function TableWorkspace({
               <TableRowShell className="hover:bg-transparent">
                 <TableHead className={cn("w-px", SELECT_CELL)}>
                   <div className="flex items-center gap-1">
-                    {canMoveRows && (
-                      <span aria-hidden className="size-7 shrink-0" />
-                    )}
+                    {/* Holds the row handle's width even when a sort or
+                    filter removes the handle, so columns never shift. */}
+                    <span aria-hidden className="size-7 shrink-0" />
                     <Checkbox
                       aria-label={t("selectAll")}
                       checked={
@@ -956,14 +972,27 @@ function TableWorkspace({
                         ref={ref}
                         scope="col"
                         className={cn(
-                          "min-w-48 border-s px-3",
+                          "group/head min-w-48 px-3",
                           isDragging && "opacity-50",
                           isOver && "bg-muted",
                         )}
                       >
                         <div className="flex items-center gap-1">
+                          {column.type === "last_updated" && (
+                            <Clock
+                              aria-hidden
+                              className="text-muted-foreground size-3.5 shrink-0"
+                            />
+                          )}
+                          <span
+                            className="text-muted-foreground truncate"
+                            title={column.description}
+                          >
+                            {column.name}
+                          </span>
                           {!table.archivedAt && (
                             <ReorderHandle
+                              className={cn("ms-auto", HEAD_CHROME)}
                               label={t("reorderColumn", {
                                 column: column.name,
                               })}
@@ -974,21 +1003,15 @@ function TableWorkspace({
                               }
                             />
                           )}
-                          {column.type === "last_updated" && (
-                            <Clock
-                              aria-hidden
-                              className="text-muted-foreground size-3.5 shrink-0"
-                            />
-                          )}
-                          <span className="truncate" title={column.description}>
-                            {column.name}
-                          </span>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-muted-foreground hit-area ms-auto size-7 shrink-0"
+                                className={cn(
+                                  "text-muted-foreground size-10 shrink-0 md:size-8 data-[state=open]:opacity-100",
+                                  HEAD_CHROME,
+                                )}
                                 aria-label={t("columnMenu", {
                                   column: column.name,
                                 })}
@@ -1058,7 +1081,7 @@ function TableWorkspace({
                     <TableRowShell
                       ref={ref}
                       className={cn(
-                        "hover:bg-card-background-hover",
+                        "group/row border-quinary hover:bg-card-background-hover",
                         isDragging && "opacity-50",
                         isOver && "bg-muted",
                       )}
@@ -1068,19 +1091,26 @@ function TableWorkspace({
                     >
                       {/* Top-aligned with the first control in the row: a
                       `long_text` column makes rows uneven, and a centred
-                      checkbox floats in the middle of a tall band. The `h-10`
-                      matches that control's height. */}
+                      checkbox floats in the middle of a tall band. The `h-8`
+                      matches a read-mode cell's first line box. */}
                       <TableCellShell
                         className={cn("w-px py-1 align-top", SELECT_CELL)}
                       >
-                        <div className="flex h-10 items-center gap-1">
-                          {canMoveRows && (
+                        <div
+                          className={cn(
+                            "flex h-8 items-center gap-1",
+                            !selected.length && ROW_CHROME,
+                          )}
+                        >
+                          {canMoveRows ? (
                             <ReorderHandle
                               label={t("reorderRow")}
                               listeners={listeners}
                               axis="y"
                               onMove={(step) => handleRowStep(row.id, step)}
                             />
+                          ) : (
+                            <span aria-hidden className="size-7 shrink-0" />
                           )}
                           <Checkbox
                             aria-label={t("selectRow")}
@@ -1105,7 +1135,7 @@ function TableWorkspace({
                           // are also uneven once a `long_text` column exists,
                           // so controls line up on the row's top edge rather
                           // than floating mid-band.
-                          className="border-s p-1 align-top whitespace-normal"
+                          className="p-1 align-top whitespace-normal"
                         >
                           {column.type === "last_updated" ? (
                             <TableUpdatedCell row={row} />
