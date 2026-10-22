@@ -2,7 +2,7 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn } from "@/app/tasks/actions";
@@ -19,6 +19,7 @@ import { TasksView } from "./tasks-view";
 const {
   dndContextPropsSpy,
   openCreateTaskMock,
+  openNewTaskWizardMock,
   pushMock,
   refreshMock,
   replaceMock,
@@ -26,6 +27,7 @@ const {
 } = vi.hoisted(() => ({
   dndContextPropsSpy: vi.fn(),
   openCreateTaskMock: vi.fn(),
+  openNewTaskWizardMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -147,6 +149,11 @@ vi.mock("./task-card", () => ({
   TaskCard: ({ compact }: { compact: boolean }) => (
     <div data-testid="board-overlay" data-compact={compact} />
   ),
+}));
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => ({
+    openNewTaskWizard: openNewTaskWizardMock,
+  }),
 }));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: ({
@@ -317,6 +324,18 @@ it("applies Display density to board and list and restores the saved preference"
   );
   expect(document.cookie).toContain("tasks_density=normal");
   document.cookie = "tasks_density=; max-age=0; path=/";
+});
+
+it("opens the New Task wizard from the toolbar only for seated members", async () => {
+  openNewTaskWizardMock.mockClear();
+  const user = userEvent.setup();
+  const { unmount } = renderBoard();
+  await user.click(screen.getByRole("button", { name: "newTask" }));
+  expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+  unmount();
+
+  render(cloneElement(boardView([TASK]), { canCreateTask: false }));
+  expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
 });
 
 /** Drives the board's real drop handler with the event dnd-kit would emit. */
