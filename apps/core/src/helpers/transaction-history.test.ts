@@ -184,9 +184,18 @@ describe("mapTransactionHistoryRow refund rows", () => {
     expect(describeKind(null)).toBe("Draft the launch email");
   });
 
-  it("lets a top up note win over the refund description", () => {
+  it("keeps the refund description when a top up note is also set", () => {
     expect(map(jobRefundRow({ topUpNote: "Manual adjustment" }))).toMatchObject(
-      { description: "Manual adjustment", refundedJobId: "job-1" },
+      {
+        description: "Refund approved · Audit the contract",
+        refundedJobId: "job-1",
+      },
+    );
+  });
+
+  it("uses a top up note when the refund has no linked job or task", () => {
+    expect(map(refundRow({ topUpNote: "Manual adjustment" })).description).toBe(
+      "Manual adjustment",
     );
   });
 
@@ -198,9 +207,9 @@ describe("mapTransactionHistoryRow refund rows", () => {
     expect(description).toBe(`Refund approved · ${"x".repeat(119)}…`);
   });
 
-  it("links a nameless job without inventing a description", () => {
+  it("keeps the reason when the refunded job has no name", () => {
     expect(map(jobRefundRow({ refundedJobName: null }))).toMatchObject({
-      description: null,
+      description: "Refund approved",
       refundedJobId: "job-1",
     });
   });

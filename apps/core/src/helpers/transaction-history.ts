@@ -431,12 +431,13 @@ function refundReason(row: TransactionHistoryRow): string | null {
 /**
  * Why and what a refund top up refunded, or null when nothing is known. The
  * reason leads: it is short, and a long job name would push it off a phone row.
+ * A known reason with no name still shows the reason — the row can link by id.
  */
 function refundDescription(row: TransactionHistoryRow): string | null {
   const name =
     row.refundSource === "job" ? row.refundedJobName : row.refundedTaskName;
-  if (!name) return null;
   const reason = refundReason(row);
+  if (!name) return reason;
   return reason ? `${reason} · ${truncate(name)}` : truncate(name);
 }
 
@@ -570,9 +571,12 @@ export function mapTransactionHistoryRow(
         ...base,
         kind: "topUp",
         title: TOP_UP_TITLE_BY_SOURCE[row.topUpSource ?? ""] ?? "Top up",
-        description: row.topUpNote
-          ? truncate(row.topUpNote)
-          : refundDescription(row),
+        // Refund what/why wins over a free-text note so a REFUND row always
+        // says what it refunded when the ledger knows. Notes still fill gaps
+        // for other top ups and for orphan refunds with no linked entity.
+        description:
+          refundDescription(row) ??
+          (row.topUpNote ? truncate(row.topUpNote) : null),
         bucketSource: row.topUpSource,
         refundedJobId: row.refundedJobId,
         refundedAgentId: row.refundedAgentId,
