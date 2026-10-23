@@ -376,6 +376,35 @@ describe("ContextPacketBuilder", () => {
     if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
   });
 
+  it("keeps the last eight turns of the conversation even when Tasks must give way", async () => {
+    const longText = "x".repeat(3_000);
+    const blockers = Array.from({ length: 5 }, (_, index) => ({
+      fromTask: { id: `blocker-${index}`, name: longText, status: "RUNNING" },
+    }));
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, longText),
+        events: [{ status: "RUNNING", comment: longText, createdAt: NOW }],
+        linksTo: blockers,
+        _count: { linksTo: 5 },
+      })),
+    );
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${index}`, longText, longText),
+      ),
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    // The bot can list Tasks again; it cannot read the conversation back.
+    expect(result.packet.tasks.length).toBeLessThan(24);
+    expect(result.packet.recentTurns.map((turn) => turn.id)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `turn-${7 - index}`),
+    );
+  });
+
   it("keeps the newest reply long enough to hold the question it ended with", async () => {
     const long = `${"Research. ".repeat(150)}Want me to replace the row?`;
     // Newest first, as the query returns them.
@@ -936,6 +965,18 @@ describe("ContextPacketBuilder", () => {
             { chatMention: { message: { roomId: "room-one" } } },
             // What a background run reported into this room.
             { parentTurnId: { not: null }, destinationRoomId: "room-one" },
+            // What the bot posted here on its own: an inbox check, a schedule.
+            {
+              chatMentionId: null,
+              destinationRoomId: "room-one",
+              deliveries: {
+                some: {
+                  purpose: "FINAL",
+                  status: "PUBLISHED",
+                  roomId: "room-one",
+                },
+              },
+            },
           ],
         }),
       }),

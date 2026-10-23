@@ -340,12 +340,20 @@ function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
   };
 }
 
+/**
+ * The conversation the bot can never read back with a tool, kept even when
+ * Tasks have to give way: trimmed to its last three turns, "stop messaging me
+ * about these" lost the inbox post it pointed at.
+ */
+const MIN_RECENT_TURNS = 8;
+
 /** Drops one item: the oldest turn, or the last of any other collection. */
 function trimOne(
   packet: ContextPacketWithoutHash,
 ): ContextPacketWithoutHash | null {
   for (const key of PACKET_TRIM_ORDER) {
     const items = packet[key];
+    if (key === "recentTurns" && items.length <= MIN_RECENT_TURNS) continue;
     const index = key === "recentTurns" ? 0 : items.length - 1;
     const item = items[index];
     if (!item || ("requiredReference" in item && item.requiredReference))
@@ -355,7 +363,10 @@ function trimOne(
       [key]: items.filter((_, position) => position !== index),
     };
   }
-  return null;
+  // Nothing else is left to give: the oldest turn goes before memory does.
+  return packet.recentTurns.length
+    ? { ...packet, recentTurns: packet.recentTurns.slice(1) }
+    : null;
 }
 
 function fitPacketToBudget(

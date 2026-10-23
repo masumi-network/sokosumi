@@ -138,10 +138,30 @@ describe("latestExchange", () => {
     expect(block).toContain(`Owner: ${offer.userMessage}`);
   });
 
-  it("stays out when the last turn was not chat or is a day old", () => {
+  it("repeats a post the bot made on its own, without Core's prompt", () => {
+    const block = latestExchange(
+      {
+        recentTurns: [
+          {
+            ...offer,
+            source: "INGEST",
+            userMessage: "New mail arrived that looks important…",
+            finalAnswer:
+              "DigitalOcean — masumi-payment-dev: deployment failed.",
+          },
+        ],
+      },
+      now,
+    ).join("\n");
+    expect(block).toContain(
+      "You, posted on your own (ingest): DigitalOcean — masumi-payment-dev: deployment failed.",
+    );
+    expect(block).not.toContain("Owner:");
+  });
+
+  it("stays out when the last turn is a day old or missing", () => {
     const exchange = (turns: unknown[]) =>
       latestExchange({ recentTurns: turns }, now);
-    expect(exchange([{ ...offer, source: "EVENT" }])).toEqual([]);
     expect(
       exchange([{ ...offer, completedAt: "2026-09-28T18:00:00Z" }]),
     ).toEqual([]);
