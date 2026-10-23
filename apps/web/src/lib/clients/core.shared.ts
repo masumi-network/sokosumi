@@ -18,6 +18,7 @@ import type {
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   CreateEnterpriseContractRequest,
+  CreateNewsletterIssueRequest,
   CreateTaskScheduleRequest,
   CreateTaskScheduleRunRequest,
   CreateUserWorkspace,
@@ -54,6 +55,7 @@ import type {
   GetProjectsByIdAdsAccountsByAccountIdTargetingLocationsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
+  GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
   GetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimesData,
   GetProjectsByIdSocialConnectionsStatisticsData,
@@ -82,6 +84,7 @@ import type {
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
+  PatchNewsletterIssueRequest,
   PatchNewsletterSubscriberRequest,
   PatchNotificationsByIdReadData,
   PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
@@ -185,6 +188,7 @@ import {
   deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
+  deleteProjectsByIdNewsletterIssuesByIssueId as coreDeleteProjectsByIdNewsletterIssuesByIssueId,
   deleteProjectsByIdNewsletterSubscribersBySubscriberId as coreDeleteProjectsByIdNewsletterSubscribersBySubscriberId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -279,6 +283,8 @@ import {
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
+  getProjectsByIdNewsletterIssues as coreGetProjectsByIdNewsletterIssues,
+  getProjectsByIdNewsletterIssuesByIssueId as coreGetProjectsByIdNewsletterIssuesByIssueId,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
@@ -355,6 +361,7 @@ import {
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+  patchProjectsByIdNewsletterIssuesByIssueId as corePatchProjectsByIdNewsletterIssuesByIssueId,
   patchProjectsByIdNewsletterSubscribersBySubscriberId as corePatchProjectsByIdNewsletterSubscribersBySubscriberId,
   patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
@@ -417,6 +424,8 @@ import {
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdNewsletterIssues as corePostProjectsByIdNewsletterIssues,
+  postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
@@ -600,6 +609,100 @@ function nullWhenNotFound(error: unknown): null {
 }
 
 export function createCoreClient(getClient: GetCoreClient) {
+  async function getProjectsByIdNewsletterIssues(
+    id: string,
+    query: GetProjectsByIdNewsletterIssuesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterIssues({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch newsletter issues",
+    );
+  }
+
+  async function getProjectsByIdNewsletterIssuesByIssueId(
+    id: string,
+    issueId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletterIssuesByIssueId({
+          client,
+          path: { id, issueId },
+          cache: "no-store",
+        }),
+      "Failed to fetch newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssues(
+    id: string,
+    body: CreateNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssues({ client, path: { id }, body }),
+      "Failed to create newsletter issue",
+    );
+  }
+
+  async function patchProjectsByIdNewsletterIssuesByIssueId(
+    id: string,
+    issueId: string,
+    body: PatchNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdNewsletterIssuesByIssueId({
+          client,
+          path: { id, issueId },
+          body,
+        }),
+      "Failed to save newsletter issue",
+    );
+  }
+
+  async function deleteProjectsByIdNewsletterIssuesByIssueId(
+    id: string,
+    issueId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdNewsletterIssuesByIssueId({
+          client,
+          path: { id, issueId },
+        }),
+      "Failed to delete newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesPreview(
+    id: string,
+    body: CreateNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesPreview({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to preview newsletter issue",
+    );
+  }
+
   async function getNewsletterAvailability() {
     return executeCoreOperation(
       getClient,
@@ -6166,6 +6269,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
     getNewsletterAvailability,
+    getProjectsByIdNewsletterIssues,
+    getProjectsByIdNewsletterIssuesByIssueId,
+    postProjectsByIdNewsletterIssues,
+    patchProjectsByIdNewsletterIssuesByIssueId,
+    deleteProjectsByIdNewsletterIssuesByIssueId,
+    postProjectsByIdNewsletterIssuesPreview,
     getProjectsByIdNewsletter,
     putProjectsByIdNewsletter,
     getProjectsByIdNewsletterSubscribers,
