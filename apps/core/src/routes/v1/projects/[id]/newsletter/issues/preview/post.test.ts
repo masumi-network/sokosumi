@@ -9,6 +9,7 @@ import {
   NEWSLETTER,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import mount from "./post";
@@ -78,7 +79,7 @@ function preview(body: unknown = INPUT, authenticated = true) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     closingAt: null,
@@ -88,6 +89,16 @@ beforeEach(() => {
 });
 
 describe("POST newsletter issue preview", () => {
+  it.each(["other", null])(
+    "hides preview for workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      expect((await preview()).status).toBe(404);
+      expect(m.project).not.toHaveBeenCalled();
+      expect(m.newsletter).not.toHaveBeenCalled();
+    },
+  );
+
   it("returns the sending renderer's branded HTML and placeholder unsubscribe link", async () => {
     const response = await preview();
     expect(response.status).toBe(200);

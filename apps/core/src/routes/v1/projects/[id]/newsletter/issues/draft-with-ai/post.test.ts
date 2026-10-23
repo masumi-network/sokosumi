@@ -10,6 +10,7 @@ import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 import mount from "./post";
 
@@ -314,12 +315,16 @@ describe("POST newsletter draft-with-ai with an injected fake model", () => {
     expect(m.eval).not.toHaveBeenCalled();
   });
 
-  it("rejects a project whose current workspace is outside the beta organization", async () => {
-    m.workspace.mockResolvedValue({ organization: { slug: "other" } });
-    expect((await draft()).status).toBe(404);
-    expect(m.availableNewsletter).not.toHaveBeenCalled();
-    expect(m.generate).not.toHaveBeenCalled();
-  });
+  it.each(["other", null])(
+    "rejects a project whose current workspace organization is %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      expect((await draft()).status).toBe(404);
+      expect(m.availableNewsletter).not.toHaveBeenCalled();
+      expect(m.generate).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+    },
+  );
 
   it("limits generation with a shared project counter before model calls", async () => {
     m.eval.mockResolvedValue(11);

@@ -6,6 +6,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { newsletterWorkspace } from "@/test/newsletter";
 
 import mountIssue from "../issues/[issueId]/analytics/get";
 import mountGet from "./get";
@@ -109,16 +110,19 @@ describe("newsletter analytics routes", () => {
       ISSUE_ID,
     );
   });
-  it("returns 404 outside the utxo workspace for both endpoints", async () => {
-    m.workspace.mockResolvedValue({ organization: { slug: "other" } });
-    for (const path of [
-      `${BASE}/analytics`,
-      `${BASE}/issues/${ISSUE_ID}/analytics`,
-    ])
-      expect((await app().request(path)).status).toBe(404);
-    expect(m.analytics).not.toHaveBeenCalled();
-    expect(m.issue).not.toHaveBeenCalled();
-  });
+  it.each(["other", null])(
+    "returns 404 for workspace organization %s on both endpoints",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      for (const path of [
+        `${BASE}/analytics`,
+        `${BASE}/issues/${ISSUE_ID}/analytics`,
+      ])
+        expect((await app().request(path)).status).toBe(404);
+      expect(m.analytics).not.toHaveBeenCalled();
+      expect(m.issue).not.toHaveBeenCalled();
+    },
+  );
   it("requires authentication and a workspace for both endpoints", async () => {
     for (const path of [
       `${BASE}/analytics`,
