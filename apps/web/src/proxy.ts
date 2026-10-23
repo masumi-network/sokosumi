@@ -27,6 +27,7 @@ const EXCLUDED_PATHS = [
   "/accept-invitation",
   "/join/",
   "/share/",
+  "/n/",
   "/health",
   "/robots.txt",
   "/sitemap.xml",
