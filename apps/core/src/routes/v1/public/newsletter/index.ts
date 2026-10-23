@@ -3,6 +3,8 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { defaultValidationHook } from "@/lib/hono";
 import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 
+import mountConfirmGet from "./confirm/get.js";
+import mountConfirmPost from "./confirm/post.js";
 import mountGet from "./unsubscribe/get.js";
 import mountPost from "./unsubscribe/post.js";
 
@@ -13,5 +15,7 @@ app.use("*", async (_c, next) => {
 });
 mountGet(app);
 mountPost(app);
+mountConfirmGet(app);
+mountConfirmPost(app);
 
 export default app;
