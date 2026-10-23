@@ -12,7 +12,11 @@ const mocks = vi.hoisted(() => ({
   link: vi.fn(),
   get: vi.fn(),
   remove: vi.fn(),
+  listAuthConfigs: vi.fn(),
+  createAuthConfig: vi.fn(),
+  env: {} as Record<string, string | undefined>,
 }));
+vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
 vi.mock("@/helpers/soko-bot-resolver", () => ({
   ME_SOKO_BOT: { kind: "me" },
   memberSokoBot: mocks.memberSokoBot,
@@ -46,15 +50,8 @@ vi.mock("@/clients/composio.client", () => ({
     },
     toolkits: { get: async () => ({ name: "Gmail", meta: {} }) },
     authConfigs: {
-      list: async () => ({
-        items: [
-          {
-            id: "auth-gmail",
-            toolkit: { slug: "gmail" },
-            isComposioManaged: true,
-          },
-        ],
-      }),
+      list: mocks.listAuthConfigs,
+      create: mocks.createAuthConfig,
     },
   }),
 }));
@@ -76,11 +73,11 @@ const ROLES: Record<string, string> = {
   orgOwner: "owner",
 };
 
-function connect(userId: string) {
+function connect(userId: string, provider = "gmail") {
   return connectSokoBotIntegration({
     userId,
     workspaceId: WORKSPACE_ID,
-    provider: "gmail",
+    provider,
     returnUrl: "https://app.example/return",
     selector: BY_ID,
   });
@@ -97,6 +94,17 @@ function finalize(userId: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.env = {};
+  mocks.listAuthConfigs.mockResolvedValue({
+    items: [
+      {
+        id: "auth-gmail",
+        toolkit: { slug: "gmail" },
+        isComposioManaged: true,
+      },
+    ],
+  });
+  mocks.createAuthConfig.mockResolvedValue({ id: "created" });
   mocks.memberSokoBot.mockResolvedValue(SHARED_BOT);
   mocks.memberRole.mockImplementation(
     async (args: { where: { userId: string } }) => {
@@ -251,5 +259,65 @@ describe("a personal Soko Bot", () => {
       userId: "owner",
     });
     expect(mocks.memberRole).not.toHaveBeenCalled();
+  });
+});
+
+describe("choosing the Composio auth config", () => {
+  const linkedAuthConfigId = () => mocks.link.mock.calls[0][1];
+
+  it("reuses the managed config for other toolkits", async () => {
+    await connect("connector");
+    expect(linkedAuthConfigId()).toBe("auth-gmail");
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+  });
+
+  it("creates a managed config for other toolkits when none exists", async () => {
+    mocks.listAuthConfigs.mockResolvedValue({ items: [] });
+    await connect("connector");
+    expect(linkedAuthConfigId()).toBe("created");
+    expect(mocks.createAuthConfig).toHaveBeenCalledWith("gmail", {
+      type: "use_composio_managed_auth",
+      name: "sokosumi-gmail",
+    });
+  });
+
+  it.each([
+    ["googleads", "COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID", "ac_google"],
+    ["metaads", "COMPOSIO_METAADS_AUTH_CONFIG_ID", "ac_meta"],
+  ])(
+    "links %s through the Project Ads auth config",
+    async (provider, envName, id) => {
+      mocks.env = { [envName]: id };
+      await connect("connector", provider);
+      expect(linkedAuthConfigId()).toBe(id);
+      expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
+      expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses the same ads auth config for a personal bot", async () => {
+    mocks.env = { COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: "ac_google" };
+    mocks.memberSokoBot.mockResolvedValue(PERSONAL_BOT);
+    await connect("owner", "googleads");
+    expect(linkedAuthConfigId()).toBe("ac_google");
+  });
+
+  it("uses the same ads auth config for a shared bot", async () => {
+    mocks.env = { COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: "ac_google" };
+    mocks.memberSokoBot.mockResolvedValue(SHARED_BOT);
+    await connect("connector", "googleads");
+    expect(linkedAuthConfigId()).toBe("ac_google");
+  });
+
+  it("refuses an ads toolkit without its auth config, before Composio or the database", async () => {
+    await expect(connect("connector", "googleads")).rejects.toMatchObject({
+      kind: "NOT_CONFIGURED",
+      message: expect.stringContaining("COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID"),
+    });
+    expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
+    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+    expect(mocks.link).not.toHaveBeenCalled();
+    expect(mocks.botUpdate).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
   });
 });

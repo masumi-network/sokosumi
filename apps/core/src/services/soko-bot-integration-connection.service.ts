@@ -2,6 +2,8 @@ import { Prisma } from "@sokosumi/database";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
+import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
+import { getEnv } from "@/config/env";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotIntegrationReplace } from "@/helpers/soko-bot-management";
@@ -55,8 +57,25 @@ export async function requireBot(
   return bot;
 }
 
-/** Composio-managed auth config per toolkit, created on first use. */
+/**
+ * Ad toolkits use the auth config Project Ads uses (our own OAuth apps) and
+ * are refused without it; others use a Composio-managed one, created on first use.
+ */
 async function ensureAuthConfigId(toolkit: string): Promise<string> {
+  const adProvider = Object.values(PROJECT_AD_PROVIDERS).find(
+    (candidate) => candidate.toolkitSlug === toolkit,
+  );
+  if (adProvider) {
+    const { authConfigEnv } = adProvider;
+    const authConfigId = getEnv()[authConfigEnv];
+    if (!authConfigId) {
+      throw new SokoBotIntegrationError(
+        `${authConfigEnv} is not configured for ${toolkit} connections`,
+        "NOT_CONFIGURED",
+      );
+    }
+    return authConfigId;
+  }
   const composio = requireComposio();
   const existing = await composio.authConfigs.list({ toolkit });
   const managed = existing.items.find(
@@ -84,10 +103,11 @@ export async function connectSokoBotIntegration(input: {
   // Resolving proved the caller reaches a shared bot; it has no owner.
   const sharedBot = isSharedSokoBot(bot);
   const composio = requireComposio();
-  const toolkit = await lookupToolkit(provider.id);
+  // Resolved first so a missing ads auth config refuses before any Composio call.
   const authConfigId = await withComposio("auth config", () =>
     ensureAuthConfigId(provider.id),
   );
+  const toolkit = await lookupToolkit(provider.id);
   const request = await withComposio("start OAuth", () =>
     composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
       callbackUrl: input.returnUrl,
