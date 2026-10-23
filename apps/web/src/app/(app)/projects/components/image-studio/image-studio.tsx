@@ -701,7 +701,12 @@ export function ImageStudio({
       </div>
 
       {checkedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-3 gap-y-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
           <span className="grow" />
           <span className="text-muted-foreground text-xs tabular-nums">
             {t("selectedCount", { count: checkedIds.length })}
@@ -724,12 +729,15 @@ export function ImageStudio({
 
       {templateUndo ? (
         <div
-          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+          className={cn(
+            "text-muted-foreground flex flex-wrap items-center gap-2 text-xs",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
           role="status"
         >
           <span>{t("templateReplacedBrief")}</span>
           <Button
-            className="h-10 md:h-8"
+            className="h-10 text-xs md:h-8"
             size="sm"
             variant="ghost"
             onClick={() => {
