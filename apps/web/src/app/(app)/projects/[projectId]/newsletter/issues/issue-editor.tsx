@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/projects/[projectId]/newsletter/analytics/issue-analytics-summary";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,7 @@ import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
 } from "@/lib/schemas/newsletter-issues";
+import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { NewsletterIssuePreview } from "./issue-preview";
@@ -47,12 +49,14 @@ export function NewsletterIssueEditor({
   activeSubscribers,
   newsletterSlug,
   analytics,
+  draftedBySokoBot = false,
 }: {
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
   newsletterSlug: string;
   analytics?: NewsletterIssueAnalytics | null;
+  draftedBySokoBot?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [currentIssue, setCurrentIssue] = useState(issue);
@@ -144,6 +148,11 @@ export function NewsletterIssueEditor({
 
   return (
     <div className="min-w-0 space-y-4">
+      {draftedBySokoBot && status === NewsletterIssueStatus.DRAFT ? (
+        <Alert role="note">
+          <AlertDescription>{t("Ai.notice")}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="outline">
           <Link href={`/projects/${projectId}/newsletter/issues`}>
@@ -151,6 +160,9 @@ export function NewsletterIssueEditor({
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">
+          {editable && !blocks.fields.length ? (
+            <DraftIssueButton projectId={projectId} template={template} />
+          ) : null}
           {status === NewsletterIssueStatus.SENT ? (
             <Button asChild variant="outline">
               <Link

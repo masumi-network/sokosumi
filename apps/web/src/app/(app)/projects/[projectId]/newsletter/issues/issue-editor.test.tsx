@@ -41,6 +41,7 @@ import { NewsletterIssueEditor } from "./issue-editor";
 function renderEditor(
   issue = NEWSLETTER_ISSUE,
   locale: "en" | "de" | "es" = "en",
+  draftedBySokoBot = false,
 ) {
   return render(
     <NextIntlClientProvider locale={locale} messages={{ en, de, es }[locale]}>
@@ -49,6 +50,7 @@ function renderEditor(
         issue={issue}
         activeSubscribers={3}
         newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
+        draftedBySokoBot={draftedBySokoBot}
       />
     </NextIntlClientProvider>,
   );
@@ -68,6 +70,17 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
+  it("offers AI drafting in an empty editor and shows the review notice", () => {
+    renderEditor({ ...NEWSLETTER_ISSUE, content: [] }, "en", true);
+    expect(
+      screen.getByRole("button", {
+        name: en.App.Projects.Newsletter.Issues.Ai.action,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      en.App.Projects.Newsletter.Issues.Ai.notice,
+    );
+  });
   it.each([
     "SENT",
     "DRAFT",
