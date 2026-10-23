@@ -20,15 +20,22 @@ export default async function NewsletterIssuesPage({
   const query = await loadIssueSearchParams(searchParams);
   const cursor = z.uuid().safeParse(query.cursor);
   try {
-    const response = await newsletterService.listIssues(projectId, {
-      limit: 25,
-      ...(cursor.success ? { cursor: cursor.data } : {}),
-    });
+    const [response, subscribers] = await Promise.all([
+      newsletterService.listIssues(projectId, {
+        limit: 25,
+        ...(cursor.success ? { cursor: cursor.data } : {}),
+      }),
+      newsletterService.listSubscribers(projectId, {
+        limit: 1,
+        status: "ACTIVE",
+      }),
+    ]);
     return (
       <Issues
         projectId={projectId}
         issues={response.data}
         pagination={response.meta.pagination}
+        activeSubscribers={subscribers.data.counts.ACTIVE}
       />
     );
   } catch (error) {

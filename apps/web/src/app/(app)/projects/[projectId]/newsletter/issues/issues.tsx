@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { IssueActions } from "./issue-actions";
 import { IssueDeleteButton } from "./issue-delete-button";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
@@ -29,10 +30,12 @@ export function Issues({
   projectId,
   issues,
   pagination,
+  activeSubscribers,
 }: {
   projectId: string;
   issues: NewsletterIssue[];
   pagination: PaginationMetadata;
+  activeSubscribers: number;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const format = useFormatter();
@@ -99,7 +102,9 @@ export function Issues({
                         : "secondary"
                     }
                   >
-                    {t(`statuses.${issue.status}`)}
+                    {issue.approvedAt && issue.status === "NEEDS_APPROVAL"
+                      ? t("Lifecycle.approved")
+                      : t(`statuses.${issue.status}`)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -117,9 +122,16 @@ export function Issues({
                   {format.dateTime(issue.updatedAt, "dateTime")}
                 </TableCell>
                 <TableCell>
-                  {issue.status === NewsletterIssueStatus.DRAFT ? (
-                    <IssueDeleteButton projectId={projectId} issue={issue} />
-                  ) : null}
+                  <div className="space-y-2">
+                    <IssueActions
+                      issue={issue}
+                      projectId={projectId}
+                      activeSubscribers={activeSubscribers}
+                    />
+                    {issue.status === NewsletterIssueStatus.DRAFT ? (
+                      <IssueDeleteButton projectId={projectId} issue={issue} />
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
-const mocks = vi.hoisted(() => ({ enabled: vi.fn(), get: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  subscribers: vi.fn(),
+  enabled: vi.fn(),
+  get: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NOT_FOUND");
   },
 }));
 vi.mock("@/lib/services/newsletter.service", () => ({
-  newsletterService: { isEnabled: mocks.enabled, getIssue: mocks.get },
+  newsletterService: {
+    listSubscribers: mocks.subscribers,
+    isEnabled: mocks.enabled,
+    getIssue: mocks.get,
+  },
 }));
 vi.mock("@/app/projects/[projectId]/newsletter/issues/issue-editor", () => ({
   NewsletterIssueEditor: () => null,
@@ -25,6 +33,7 @@ const PROPS = {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.enabled.mockResolvedValue(true);
+  mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
 });
 describe("newsletter issue page", () => {

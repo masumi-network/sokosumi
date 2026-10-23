@@ -20609,6 +20609,9 @@ export const WorkspaceCalendarEntrySchema = {
                 },
                 {
                     $ref: '#/components/schemas/SocialPostCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/NewsletterIssueCalendarItem'
                 }
             ]
         }
@@ -20948,6 +20951,70 @@ export const SocialPostCalendarItemSchema = {
         'previewMedia',
         'scheduledAt',
         'lastAttempt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const NewsletterIssueCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'newsletter_issue'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        issueId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        subject: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'SCHEDULED',
+                'SENDING',
+                'SENT'
+            ]
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'issueId',
+        'subject',
+        'status',
+        'scheduledAt',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -21304,6 +21371,12 @@ export const NewsletterIssueSchema = {
                 'null'
             ]
         },
+        approvedByName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         approvedAt: {
             type: [
                 'string',
@@ -21512,6 +21585,45 @@ export const NewsletterIssueStatusSchema = {
         'SENT',
         'FAILED',
         'CANCELED'
+    ]
+} as const;
+
+export const NewsletterIssueRevisionRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const ScheduleNewsletterIssueRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/NewsletterIssueRevisionRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                timezone: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 100
+                }
+            },
+            required: [
+                'scheduledAt',
+                'timezone'
+            ]
+        }
     ]
 } as const;
 
@@ -33044,6 +33156,14 @@ export const WorkspaceCalendarSourceSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
+        },
+        latestScheduledNewsletterIssueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [

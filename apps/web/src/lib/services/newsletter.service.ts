@@ -8,9 +8,11 @@ import type {
   ImportNewsletterSubscribersRequest,
   Newsletter,
   NewsletterIssue,
+  NewsletterIssueRevisionRequest,
   PatchNewsletterIssueRequest,
   PatchNewsletterSubscriberRequest,
   PutNewsletterRequest,
+  ScheduleNewsletterIssueRequest,
 } from "@sokosumi/core-client";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -68,6 +70,76 @@ export const newsletterService = {
       projectId,
       issueId,
     );
+  },
+
+  async submitIssue(
+    projectId: string,
+    issueId: string,
+    input: NewsletterIssueRevisionRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesByIssueIdSubmit(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
+  },
+
+  async approveIssue(
+    projectId: string,
+    issueId: string,
+    input: NewsletterIssueRevisionRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesByIssueIdApprove(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
+  },
+
+  async scheduleIssue(
+    projectId: string,
+    issueId: string,
+    input: ScheduleNewsletterIssueRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesByIssueIdSchedule(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
+  },
+
+  async sendIssueNow(
+    projectId: string,
+    issueId: string,
+    input: NewsletterIssueRevisionRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesByIssueIdSendNow(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
+  },
+
+  async cancelIssue(
+    projectId: string,
+    issueId: string,
+    input: NewsletterIssueRevisionRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesByIssueIdCancel(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
   },
 
   async previewIssue(projectId: string, input: CreateNewsletterIssueRequest) {

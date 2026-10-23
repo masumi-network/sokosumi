@@ -11,9 +11,20 @@ export default async function NewsletterIssuePage({
 }) {
   if (!(await newsletterService.isEnabled())) notFound();
   const { projectId, issueId } = await params;
-  const issue = await newsletterService.getIssue(projectId, issueId);
+  const [issue, subscribers] = await Promise.all([
+    newsletterService.getIssue(projectId, issueId),
+    newsletterService.listSubscribers(projectId, {
+      limit: 1,
+      status: "ACTIVE",
+    }),
+  ]);
   if (!issue) notFound();
   return (
-    <NewsletterIssueEditor key={issue.id} issue={issue} projectId={projectId} />
+    <NewsletterIssueEditor
+      key={issue.id}
+      issue={issue}
+      projectId={projectId}
+      activeSubscribers={subscribers.data.counts.ACTIVE}
+    />
   );
 }

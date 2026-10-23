@@ -49,6 +49,29 @@ export const patchNewsletterIssueRequestSchema =
     )
     .openapi("PatchNewsletterIssueRequest");
 
+export const newsletterIssueRevisionRequestSchema = z
+  .object({ revision: z.int().nonnegative() })
+  .openapi("NewsletterIssueRevisionRequest");
+
+export const scheduleNewsletterIssueRequestSchema =
+  newsletterIssueRevisionRequestSchema
+    .extend({
+      scheduledAt: z.iso.datetime(),
+      timezone: z
+        .string()
+        .min(1)
+        .max(100)
+        .refine((timezone) => {
+          try {
+            new Intl.DateTimeFormat("en", { timeZone: timezone });
+            return true;
+          } catch {
+            return false;
+          }
+        }, "Use a valid IANA time zone"),
+    })
+    .openapi("ScheduleNewsletterIssueRequest");
+
 export const newsletterIssueSchema = z
   .object({
     id: z.uuid(),
@@ -66,6 +89,7 @@ export const newsletterIssueSchema = z
     timezone: z.string().nullable(),
     sentAt: dateTimeSchema.nullable(),
     approvedByUserId: z.string().nullable(),
+    approvedByName: z.string().nullable().optional(),
     approvedAt: dateTimeSchema.nullable(),
     taskId: z.string().nullable(),
     lastError: z.string().nullable(),
