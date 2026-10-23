@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Newsletter } from "@sokosumi/core-client";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -34,6 +33,7 @@ import {
   type NewsletterSettingsValues,
   newsletterSettingsSchema,
 } from "@/lib/schemas/newsletter";
+import { NewsletterSignupCard } from "./newsletter-signup-card";
 
 const FONTS = [
   { value: "Arial", label: "arial" },
@@ -117,19 +117,7 @@ export function NewsletterSettingsForm({
         onSubmit={form.handleSubmit(handleSubmit)}
         className="space-y-8"
       >
-        {publicSlug ? (
-          <div className="space-y-1">
-            <p className="text-sm font-medium">{t("publicAddress")}</p>
-            <p className="text-muted-foreground text-sm break-all">
-              {publicSlug}
-            </p>
-            <Button asChild variant="outline" className="mt-2">
-              <Link href={`/n/${encodeURIComponent(publicSlug)}/archive`}>
-                {t("publicArchive")}
-              </Link>
-            </Button>
-          </div>
-        ) : null}
+        {publicSlug ? <NewsletterSignupCard publicSlug={publicSlug} /> : null}
         <fieldset disabled={isSubmitting} className="min-w-0 space-y-8">
           <section aria-labelledby="newsletter-general" className="space-y-4">
             <h3 id="newsletter-general" className="text-base font-semibold">

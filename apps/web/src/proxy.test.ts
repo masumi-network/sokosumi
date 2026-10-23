@@ -29,18 +29,43 @@ describe("proxy", () => {
     getSessionCookieMock.mockReturnValue("session-token");
   });
 
-  it.each(["/n/weekly/archive", "/n/weekly/p/hello", "/n/weekly"])(
-    "serves public newsletter pages without a session: %s",
-    async (path) => {
+  it.each([
+    "/n/weekly/archive",
+    "/n/weekly/p/hello",
+    "/n/weekly",
+    "/n/weekly/embed",
+  ])("serves public newsletter pages without a session: %s", async (path) => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const response = await proxy(
+      new NextRequest(`https://app.example.com${path}`),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["/n/weekly/embed", null],
+    ["/n/weekly/embed/", null],
+    ["/n/weekly", "DENY"],
+    ["/n/weekly/archive", "DENY"],
+    ["/n/weekly/p/hello", "DENY"],
+    ["/n/weekly/embed/child", "DENY"],
+    ["/n/weekly/other/embed", "DENY"],
+  ])(
+    "preserves route-specific framing headers in proxy: %s",
+    async (path, framing) => {
       const { NextRequest } = await import("next/server");
       const { proxy } = await import("./proxy");
       getSessionCookieMock.mockReturnValue(null);
       const response = await proxy(
         new NextRequest(`https://app.example.com${path}`),
       );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("location")).toBeNull();
-      expect(getSessionCookieMock).not.toHaveBeenCalled();
+      expect(response.headers.get("X-Frame-Options")).toBe(framing);
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Content-Security-Policy")).toBeNull();
     },
   );
 
