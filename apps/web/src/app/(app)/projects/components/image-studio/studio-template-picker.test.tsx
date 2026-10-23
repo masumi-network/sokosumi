@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import {
   act,
   createEvent,
@@ -11,7 +15,10 @@ import {
   STUDIO_TOUCH_CALLOUT_NONE_CLASS,
 } from "./studio-carousel-paint";
 import { TEST_LABELS } from "./studio-fixtures";
-import { StudioTemplateCarousel } from "./studio-template-picker";
+import {
+  StudioTemplateCarousel,
+  StudioTemplateStrip,
+} from "./studio-template-picker";
 
 const mocks = vi.hoisted(() => ({
   reduceMotion: false,
@@ -73,6 +80,40 @@ function hoverStyle(name: string, left: number, width = 300) {
   fireEvent.mouseEnter(screen.getByRole("region", { name: "templates" }));
   fireEvent.mouseMove(button);
 }
+
+describe("the studio template strip", () => {
+  it("hides the scrollbar and fades overflowing edges while keeping native scrolling and focus padding", () => {
+    render(
+      <StudioTemplateStrip labels={TEST_LABELS} onApplyTemplate={vi.fn()} />,
+    );
+    const strip = screen.getByRole("group", { name: TEST_LABELS.templates });
+
+    expect(strip).toHaveClass(
+      "overflow-x-auto",
+      "scroll-edge-x",
+      "p-1",
+      "[-ms-overflow-style:none]",
+      "[scrollbar-width:none]",
+      "[&::-webkit-scrollbar]:hidden",
+    );
+    expect(strip).not.toHaveClass("app-scrollbar");
+  });
+
+  it("defines the horizontal fade as a progressive CSS enhancement", () => {
+    const css = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../../../../globals.css",
+      ),
+      "utf8",
+    );
+
+    expect(css).toMatch(
+      /@utility scroll-edge-x \{\s+@supports \(animation-timeline: scroll\(\)\) \{/,
+    );
+    expect(css).toContain("animation-timeline: scroll(self x), scroll(self x)");
+  });
+});
 
 describe("the empty studio carousel", () => {
   it("draws large cards with a border and no drop shadow", () => {

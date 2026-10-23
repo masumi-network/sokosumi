@@ -102,7 +102,7 @@ export function StudioTemplateStrip({
   return (
     <div
       aria-label={labels.templates}
-      className="app-scrollbar flex gap-2 overflow-x-auto p-1"
+      className="scroll-edge-x flex gap-2 overflow-x-auto p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="group"
     >
       {STUDIO_TEMPLATES.map((template) => (
