@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
+import {
+  NEWSLETTER_ISSUE,
+  NEWSLETTER_PROJECT_ID,
+  PUBLIC_NEWSLETTER_SLUG,
+} from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   subscribers: vi.fn(),
   enabled: vi.fn(),
   get: vi.fn(),
+  settings: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -16,6 +21,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     listSubscribers: mocks.subscribers,
     isEnabled: mocks.enabled,
     getIssue: mocks.get,
+    getSettings: mocks.settings,
   },
 }));
 vi.mock("@/app/projects/[projectId]/newsletter/issues/issue-editor", () => ({
@@ -35,6 +41,7 @@ beforeEach(() => {
   mocks.enabled.mockResolvedValue(true);
   mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
+  mocks.settings.mockResolvedValue({ publicSlug: PUBLIC_NEWSLETTER_SLUG });
 });
 describe("newsletter issue page", () => {
   it("loads a scoped issue from Core", async () => {
@@ -44,6 +51,7 @@ describe("newsletter issue page", () => {
       NEWSLETTER_ISSUE.id,
     );
     expect(result.props.issue).toBe(NEWSLETTER_ISSUE);
+    expect(result.props.newsletterSlug).toBe(PUBLIC_NEWSLETTER_SLUG);
   });
   it("hides disabled newsletters and missing issues", async () => {
     mocks.enabled.mockResolvedValue(false);

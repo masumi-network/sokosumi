@@ -115,6 +115,13 @@ describe("v1 router", () => {
     expect(
       body.paths?.["/public/newsletters/{publicSlug}"]?.get?.security,
     ).toEqual([]);
+    expect(
+      body.paths?.["/public/newsletters/{publicSlug}/issues"]?.get?.security,
+    ).toEqual([]);
+    expect(
+      body.paths?.["/public/newsletters/{publicSlug}/issues/{issueSlug}"]?.get
+        ?.security,
+    ).toEqual([]);
     expect(body.paths?.["/public/newsletter/confirm"]?.get?.security).toEqual(
       [],
     );

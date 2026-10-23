@@ -11,6 +11,66 @@ const UNSUBSCRIBE_URL =
   "https://example.com/v1/public/newsletter/unsubscribe?token=signed-token";
 
 describe("newsletter rendering", () => {
+  it.each([
+    ["en", "Subscribe"],
+    ["de", "Abonnieren"],
+    ["es", "Suscribirse"],
+  ])(
+    "renders a public web footer in %s without email-only content or tracking",
+    async (locale, label) => {
+      const { html, text } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: {
+          name: "Weekly <script>bad</script>",
+          brand: { primaryColor: "#123456", footerText: "Thanks for reading" },
+        },
+        issue: {
+          subject: "Public issue",
+          previewText: "Inbox-only preview",
+          template: "TEXT",
+          content: [
+            {
+              type: "text",
+              text: "**News** [read](https://example.com/read) <script>bad</script>",
+            },
+          ],
+        },
+        subscribeUrl: "https://example.com/n/weekly",
+        locale,
+      });
+      expect(html).toContain(label);
+      expect(html).toContain('href="https://example.com/n/weekly"');
+      expect(html).toContain('href="https://example.com/read"');
+      expect(html).toContain("<strong>News</strong>");
+      expect(html).toContain("#123456");
+      expect(html).toContain("Thanks for reading");
+      expect(html).toContain("&lt;script&gt;");
+      expect(html).not.toContain("<script>");
+      expect(html).not.toContain("Inbox-only preview");
+      expect(html).not.toContain("unsubscribe");
+      expect(html).not.toContain("You received this email");
+      expect(html).not.toContain("token=");
+      expect(html).not.toContain("List-Unsubscribe");
+      expect(html).not.toContain("<img");
+      expect(text).toContain(label);
+    },
+  );
+
+  it.each(["http://localhost:3000/n/weekly", "javascript:alert(1)"])(
+    "validates web footer URLs: %s",
+    async (subscribeUrl) => {
+      const { html } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "News", template: "TEXT", content: [] },
+        subscribeUrl,
+      });
+      expect(html.includes(`href="${subscribeUrl}"`)).toBe(
+        subscribeUrl.startsWith("http:"),
+      );
+    },
+  );
+
   it("keeps the preview unsubscribe placeholder without allowing unsafe URLs", async () => {
     for (const unsubscribeUrl of ["#", "javascript:alert(1)"]) {
       const { html } = await renderNewsletterEmail({

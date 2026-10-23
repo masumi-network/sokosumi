@@ -39,10 +39,23 @@ interface NewsletterEmailProps {
   locale?: string;
 }
 
-function httpsUrl(value: string | undefined): string | undefined {
+type NewsletterRenderProps =
+  | (NewsletterEmailProps & { mode?: "email" })
+  | (Omit<NewsletterEmailProps, "unsubscribeUrl"> & {
+      mode: "web";
+      subscribeUrl: string;
+    });
+
+function safeUrl(
+  value: string | undefined,
+  allowHttp = false,
+): string | undefined {
   if (!value) return undefined;
   try {
-    return new URL(value).protocol === "https:" ? value : undefined;
+    const { protocol } = new URL(value);
+    return protocol === "https:" || (allowHttp && protocol === "http:")
+      ? value
+      : undefined;
   } catch {
     return undefined;
   }
@@ -64,7 +77,7 @@ function inlineText(text: string): ReactNode[] {
     result.push(text.slice(offset, match.index));
     if (match[1] !== undefined) {
       result.push(<strong key={match.index}>{match[1]}</strong>);
-    } else if (httpsUrl(match[3])) {
+    } else if (safeUrl(match[3])) {
       result.push(
         <Link key={match.index} href={match[3]}>
           {match[2]}
@@ -95,7 +108,7 @@ function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
         </Text>
       ));
     case "image": {
-      const src = httpsUrl(block.url);
+      const src = safeUrl(block.url);
       if (!src) return <Text>{block.alt}</Text>;
       const image = (
         <Img
@@ -105,11 +118,11 @@ function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
           style={{ width: "100%", maxWidth: 536, height: "auto" }}
         />
       );
-      const href = httpsUrl(block.href);
+      const href = safeUrl(block.href);
       return href ? <Link href={href}>{image}</Link> : image;
     }
     case "button": {
-      const href = httpsUrl(block.url);
+      const href = safeUrl(block.url);
       return href ? (
         <Section style={{ padding: "16px 0" }}>
           <Button
@@ -133,12 +146,8 @@ function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
   }
 }
 
-export async function renderNewsletterEmail({
-  newsletter,
-  issue,
-  unsubscribeUrl,
-  locale,
-}: NewsletterEmailProps) {
+export async function renderNewsletterEmail(props: NewsletterRenderProps) {
+  const { newsletter, issue, locale } = props;
   const { locale: lang, t } = createEmailTranslator(locale);
   const brand = newsletter.brand;
   const primary = brandColor(brand.primaryColor, LIGHT_PALETTE.textPrimary);
@@ -147,13 +156,15 @@ export async function renderNewsletterEmail({
     brand.fontFamily && /^[\p{L}\p{N}\s,"'-]+$/u.test(brand.fontFamily)
       ? brand.fontFamily
       : FONT_STACK;
-  const logoUrl = httpsUrl(brand.logoUrl);
+  const logoUrl = safeUrl(brand.logoUrl);
   const html = await render(
     <Html lang={lang}>
       <Head>
         <title>{issue.subject}</title>
       </Head>
-      <Preview>{issue.previewText ?? issue.subject}</Preview>
+      {props.mode !== "web" ? (
+        <Preview>{issue.previewText ?? issue.subject}</Preview>
+      ) : null}
       <Body
         style={{
           backgroundColor: LIGHT_PALETTE.pageBackground,
@@ -179,13 +190,27 @@ export async function renderNewsletterEmail({
           ))}
           <Hr style={{ borderColor: LIGHT_PALETTE.hairline }} />
           <Text>{newsletter.name}</Text>
-          <Text>{t("newsletter.why", { name: newsletter.name })}</Text>
+          {props.mode !== "web" ? (
+            <Text>{t("newsletter.why", { name: newsletter.name })}</Text>
+          ) : null}
           {brand.footerText ? (
             <Text style={{ whiteSpace: "pre-line" }}>{brand.footerText}</Text>
           ) : null}
-          <Link href={unsubscribeUrl === "#" ? "#" : httpsUrl(unsubscribeUrl)}>
-            {t("newsletter.unsubscribe")}
-          </Link>
+          {props.mode === "web" ? (
+            <Link href={safeUrl(props.subscribeUrl, true)}>
+              {t("newsletter.subscribe")}
+            </Link>
+          ) : (
+            <Link
+              href={
+                props.unsubscribeUrl === "#"
+                  ? "#"
+                  : safeUrl(props.unsubscribeUrl)
+              }
+            >
+              {t("newsletter.unsubscribe")}
+            </Link>
+          )}
         </Container>
       </Body>
     </Html>,

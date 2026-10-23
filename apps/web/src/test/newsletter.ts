@@ -1,4 +1,9 @@
-import type { NewsletterIssue } from "@sokosumi/core-client";
+import type {
+  NewsletterIssue,
+  PublicNewsletter,
+  PublicNewsletterIssue,
+  PublicNewsletterIssueSummary,
+} from "@sokosumi/core-client";
 
 export const NEWSLETTER_PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 export const NEWSLETTER_ISSUE: NewsletterIssue = {
@@ -26,4 +31,25 @@ export const NEWSLETTER_ISSUE: NewsletterIssue = {
   lastError: null,
   createdAt: new Date("2026-10-23T10:00:00Z"),
   updatedAt: new Date("2026-10-23T10:00:00Z"),
+};
+
+export const PUBLIC_NEWSLETTER_SLUG = "project-news-1234abcd";
+export const PUBLIC_NEWSLETTER: PublicNewsletter = {
+  name: "Project news",
+  senderName: "Ada",
+  brand: {
+    logoUrl: "https://example.com/logo.png",
+  },
+};
+export const PUBLIC_NEWSLETTER_ISSUE: PublicNewsletterIssue = {
+  subject: NEWSLETTER_ISSUE.subject,
+  previewText: NEWSLETTER_ISSUE.previewText,
+  sentAt: new Date("2026-10-23T10:00:00Z"),
+  html: "<html><body><p>Our latest update</p></body></html>",
+};
+export const PUBLIC_NEWSLETTER_ISSUE_SUMMARY: PublicNewsletterIssueSummary = {
+  publicSlug: NEWSLETTER_ISSUE.publicSlug,
+  subject: PUBLIC_NEWSLETTER_ISSUE.subject,
+  previewText: PUBLIC_NEWSLETTER_ISSUE.previewText,
+  sentAt: PUBLIC_NEWSLETTER_ISSUE.sentAt,
 };
