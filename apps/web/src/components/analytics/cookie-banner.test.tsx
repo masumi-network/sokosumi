@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CookieBanner } from "@/components/analytics/cookie-banner";
 import { CONSENT_COOKIE } from "@/lib/analytics/consent";
 
+const pathname = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ usePathname: pathname }));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -14,9 +17,31 @@ function clearConsentCookie() {
 
 describe("CookieBanner mobile", () => {
   beforeEach(() => {
+    pathname.mockReturnValue("/signin");
     clearConsentCookie();
     vi.stubGlobal("innerWidth", 390);
   });
+
+  it.each(["/n/weekly/embed", "/n/weekly/embed/"])(
+    "keeps signup embeds free of the global cookie banner: %s",
+    (path) => {
+      pathname.mockReturnValue(path);
+      render(<CookieBanner />);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.cookie).not.toContain(CONSENT_COOKIE);
+    },
+  );
+
+  it.each(["/n/weekly", "/n/weekly/archive", "/n/weekly/embed/child"])(
+    "preserves the cookie banner on other newsletter routes: %s",
+    async (path) => {
+      pathname.mockReturnValue(path);
+      render(<CookieBanner />);
+      expect(
+        await screen.findByRole("dialog", { name: "title" }),
+      ).toBeVisible();
+    },
+  );
 
   afterEach(() => {
     clearConsentCookie();

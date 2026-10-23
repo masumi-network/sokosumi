@@ -3149,7 +3149,6 @@
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
         "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
-        "publicAddress": "Öffentliche Newsletter-Adresse",
         "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
         "save": "Einstellungen speichern",
         "success": "Newsletter-Einstellungen gespeichert",
@@ -3410,7 +3409,15 @@
           },
           "viewOnWeb": "Im Web ansehen"
         },
-        "publicArchive": "Öffentliches Archiv"
+        "publicArchive": "Öffentliches Archiv",
+        "SignupForm": {
+          "title": "Anmeldeformular",
+          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "hostedPage": "Gehostete Anmeldeseite",
+          "open": "Anmeldeseite öffnen",
+          "embedCode": "Einbettungscode",
+          "embedTitle": "Newsletter-Anmeldung"
+        }
       }
     },
     "Studio": {
@@ -9764,6 +9771,23 @@
     "metadataTitle": "Archiv von {name}",
     "metadataDescription": "Lies frühere Ausgaben von {name}.",
     "backToArchive": "Zurück zum Archiv",
-    "issueContent": "Newsletter-Ausgabe: {subject}"
+    "issueContent": "Newsletter-Ausgabe: {subject}",
+    "Signup": {
+      "title": "{name} abonnieren",
+      "description": "Erhalte neue Ausgaben direkt in dein Postfach.",
+      "email": "E-Mail-Adresse",
+      "name": "Name (optional)",
+      "consent": "Ich bin damit einverstanden, diesen Newsletter zu erhalten. Du kannst dich jederzeit abmelden.",
+      "website": "Webseite",
+      "archive": "Archiv durchstöbern",
+      "success": "Prüfe dein Postfach, um dein Abonnement zu bestätigen",
+      "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+      "invalidName": "Verwende einen Namen mit höchstens 200 Zeichen.",
+      "consentRequired": "Stimme dem Erhalt des Newsletters zu, um ihn zu abonnieren.",
+      "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+      "rateLimit": "Zu viele Anmeldeversuche. Warte ein paar Minuten und versuche es erneut.",
+      "unavailable": "Dieser Newsletter ist nicht verfügbar. Lade die Seite neu und versuche es erneut.",
+      "error": "Anmeldung fehlgeschlagen. Versuche es erneut."
+    }
   }
 }

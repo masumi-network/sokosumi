@@ -42,6 +42,43 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
 });
 
 describe("createCoreClient public newsletter reads", () => {
+  it("uses the generated subscribe operation and preserves its generic 202 response", async () => {
+    const requests: Request[] = [];
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        requests.push(new Request(input, init));
+        return new Response(JSON.stringify({ status: "check_your_inbox" }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    const core = createCoreClient(() => client);
+    const input = {
+      email: "reader@example.com",
+      name: "Ada",
+      source: "SIGNUP_FORM",
+      website: "",
+      locale: "de",
+    } as const;
+    expect(
+      await core.postPublicNewslettersByPublicSlugSubscribe(
+        PUBLIC_NEWSLETTER_SLUG,
+        input,
+        { "x-forwarded-for": "203.0.113.4" },
+      ),
+    ).toEqual({ status: "check_your_inbox" });
+    const request = requests[0];
+    expect(request.url).toBe(
+      `https://core.example.com/v1/public/newsletters/${PUBLIC_NEWSLETTER_SLUG}/subscribe`,
+    );
+    expect(request.method).toBe("POST");
+    expect(request.cache).toBe("no-store");
+    expect(request.headers.get("x-forwarded-for")).toBe("203.0.113.4");
+    expect(await request.json()).toEqual(input);
+  });
+
   it("uses generated public routes with no-store and transforms issue dates", async () => {
     const meta = {
       requestId: "public_test",

@@ -3149,7 +3149,6 @@
         "brand": "Marca",
         "welcome": "Correo de bienvenida",
         "welcomeDescription": "Envía un correo de bienvenida cuando un suscriptor confirme su dirección de correo electrónico.",
-        "publicAddress": "Dirección pública del boletín",
         "colorHint": "Usa un color hexadecimal, como #1a2b3c, o deja el campo vacío.",
         "save": "Guardar ajustes",
         "success": "Ajustes del boletín guardados",
@@ -3410,7 +3409,15 @@
           },
           "viewOnWeb": "Ver en la web"
         },
-        "publicArchive": "Archivo público"
+        "publicArchive": "Archivo público",
+        "SignupForm": {
+          "title": "Formulario de suscripción",
+          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "hostedPage": "Página de suscripción alojada",
+          "open": "Abrir página de suscripción",
+          "embedCode": "Código de inserción",
+          "embedTitle": "Suscripción al boletín"
+        }
       }
     },
     "Studio": {
@@ -9764,6 +9771,23 @@
     "metadataTitle": "Archivo de {name}",
     "metadataDescription": "Lee las ediciones anteriores de {name}.",
     "backToArchive": "Volver al archivo",
-    "issueContent": "Edición del boletín: {subject}"
+    "issueContent": "Edición del boletín: {subject}",
+    "Signup": {
+      "title": "Suscríbete a {name}",
+      "description": "Recibe las nuevas ediciones directamente en tu correo.",
+      "email": "Dirección de correo electrónico",
+      "name": "Nombre (opcional)",
+      "consent": "Acepto recibir este boletín. Puedes darte de baja en cualquier momento.",
+      "website": "Sitio web",
+      "archive": "Explorar el archivo",
+      "success": "Revisa tu correo para confirmar tu suscripción",
+      "invalidEmail": "Introduce una dirección de correo electrónico válida.",
+      "invalidName": "Usa un nombre de 200 caracteres como máximo.",
+      "consentRequired": "Acepta recibir el boletín para suscribirte.",
+      "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+      "rateLimit": "Demasiados intentos de suscripción. Espera unos minutos e inténtalo de nuevo.",
+      "unavailable": "Este boletín no está disponible. Recarga la página e inténtalo de nuevo.",
+      "error": "No se pudo completar la suscripción. Inténtalo de nuevo."
+    }
   }
 }
