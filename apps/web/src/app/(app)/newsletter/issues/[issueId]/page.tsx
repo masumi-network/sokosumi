@@ -41,8 +41,12 @@ export default async function NewsletterIssuePage({
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
-  const [issue, page, t] = await Promise.all([
+  const [issue, subscribers, page, t] = await Promise.all([
     newsletterService.getIssue(project.id, issueId),
+    newsletterService.listSubscribers(project.id, {
+      limit: 1,
+      status: "ACTIVE",
+    }),
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
@@ -63,6 +67,7 @@ export default async function NewsletterIssuePage({
         key={issue.id}
         issue={issue}
         projectId={project.id}
+        activeSubscribers={subscribers.data.counts.ACTIVE}
       />
     </NewsletterPageShell>
   );

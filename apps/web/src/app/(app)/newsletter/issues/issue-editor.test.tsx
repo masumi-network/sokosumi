@@ -14,7 +14,17 @@ import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
-const mocks = vi.hoisted(() => ({ save: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  save: vi.fn(),
+  change: vi.fn(),
+  refresh: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
+}));
+vi.mock("@/lib/actions/newsletter/issue-lifecycle", () => ({
+  changeNewsletterIssue: mocks.change,
+}));
 vi.mock("@/lib/actions/newsletter/issues", () => ({
   saveNewsletterIssue: mocks.save,
 }));
@@ -30,7 +40,11 @@ function renderEditor(
 ) {
   return render(
     <NextIntlClientProvider locale={locale} messages={{ en, de, es }[locale]}>
-      <NewsletterIssueEditor projectId={NEWSLETTER_PROJECT_ID} issue={issue} />
+      <NewsletterIssueEditor
+        projectId={NEWSLETTER_PROJECT_ID}
+        issue={issue}
+        activeSubscribers={3}
+      />
     </NextIntlClientProvider>,
   );
 }

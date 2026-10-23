@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   editor: vi.fn(),
   marker: vi.fn(),
+  subscribers: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -29,6 +30,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     isEnabled: mocks.enabled,
     getIssue: mocks.get,
     getSettings: mocks.settings,
+    listSubscribers: mocks.subscribers,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -64,6 +66,7 @@ beforeEach(() => {
     name: "Launch",
   });
   mocks.settings.mockResolvedValue({ id: "n1" });
+  mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });

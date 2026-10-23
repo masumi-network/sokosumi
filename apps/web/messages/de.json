@@ -3377,6 +3377,36 @@
             "action": "Entwurf löschen",
             "cancel": "Abbrechen",
             "error": "Ausgabe konnte nicht gelöscht werden. Ihr Status hat sich möglicherweise geändert. Lade die Seite neu und versuche es erneut."
+          },
+          "Lifecycle": {
+            "submit": "Zur Freigabe einreichen",
+            "approve": "Freigeben",
+            "approved": "Freigegeben",
+            "schedule": "Planen",
+            "sendNow": "Jetzt senden",
+            "cancel": "Versandplanung aufheben",
+            "close": "Schließen",
+            "approvedBy": "Freigegeben von {user} am {date}",
+            "formerMember": "Ehemaliges Workspace-Mitglied",
+            "task": "Freigabeaufgabe ansehen",
+            "scheduled": "Geplant für {date} ({timezone})",
+            "when": "Zeitpunkt",
+            "timezone": "Zeitzone: {timezone}",
+            "scheduleTitle": "Newsletter planen",
+            "scheduleDescription": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt.",
+            "sendTitle": "Diesen Newsletter jetzt senden?",
+            "sendDescription": "{count, plural, one {Diese Ausgabe wird an # aktiven Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.} other {Diese Ausgabe wird an # aktive Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.}}",
+            "cancelTitle": "Versandplanung für diesen Newsletter aufheben?",
+            "cancelDescription": "Diese Ausgabe wird wieder zum Entwurf. Reiche sie erneut zur Freigabe ein, bevor du sie planst oder sendest.",
+            "saveFirst": "Speichere deine Änderungen, bevor du die Ausgabe einreichst, freigibst, planst oder sendest.",
+            "invalid": "Prüfe die Ausgabe und versuche es erneut.",
+            "error": "Die Newsletter-Ausgabe konnte nicht aktualisiert werden. Lade die Seite neu und versuche es erneut.",
+            "conflict": "Diese Ausgabe wurde geändert. Lade die Seite neu und versuche es erneut.",
+            "humanRequired": "Eine Person muss diese Ausgabe in einer angemeldeten Browsersitzung freigeben oder senden.",
+            "invalidSchedule": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt sowie eine gültige Zeitzone.",
+            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
+            "noSender": "Der Newsletter-Versand ist nicht eingerichtet. Bitte einen Workspace-Administrator, die Einrichtung abzuschließen.",
+            "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
           }
         }
       }
@@ -8772,7 +8802,8 @@
       },
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
-        "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
+        "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant.",
+        "publications": "In diesem Zeitraum sind keine Beiträge oder Newsletter geplant."
       },
       "schedules": {
         "link": "Zeitpläne"
@@ -8817,7 +8848,11 @@
         "past": "Wähle einen Zeitpunkt in der Zukunft."
       },
       "socialOnly": {
-        "label": "Nur Social-Beiträge"
+        "label": "Nur Social-Beiträge",
+        "newslettersLabel": "Nur Beiträge und Newsletter"
+      },
+      "newsletter": {
+        "label": "Newsletter"
       }
     },
     "You": {
