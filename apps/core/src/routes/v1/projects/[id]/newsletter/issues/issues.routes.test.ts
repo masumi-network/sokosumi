@@ -12,6 +12,7 @@ import {
   NEWSLETTER_ISSUE_ID,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import mountDelete from "./[issueId]/delete";
@@ -22,6 +23,7 @@ import mountCreate from "./post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
   findUnique: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspace },
     project: { findFirst: m.project },
     newsletter: { findUnique: m.newsletter },
     newsletterIssue: {
@@ -106,6 +109,7 @@ function app(authenticated = true) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     closingAt: null,
@@ -135,6 +139,32 @@ beforeEach(() => {
 });
 
 describe("newsletter issue routes", () => {
+  it.each(["other", null])(
+    "hides issue reads and writes for workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      const router = app();
+      const responses = await Promise.all([
+        router.request(BASE),
+        router.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`),
+        router.request(BASE, json("POST", INPUT)),
+        router.request(
+          `${BASE}/${NEWSLETTER_ISSUE_ID}`,
+          json("PATCH", { subject: "Updated", revision: 0 }),
+        ),
+        router.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`, { method: "DELETE" }),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual(
+        Array(5).fill(404),
+      );
+      expect(m.findMany).not.toHaveBeenCalled();
+      expect(m.findUnique).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.deleteMany).not.toHaveBeenCalled();
+    },
+  );
+
   it("lists by status with pagination inside the workspace and newsletter", async () => {
     const response = await app().request(`${BASE}?status=DRAFT`);
     expect(response.status).toBe(200);

@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import prisma from "@/lib/db/prisma";
 import { isNewsletterEnabled } from "@/lib/newsletter/feature";
 import { newsletterIssueCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
@@ -11,6 +12,7 @@ export function scheduledNewsletterIssueWhere(
   projectId?: string,
 ): Prisma.NewsletterIssueWhereInput {
   return {
+    project: NEWSLETTER_BETA_PROJECT_WHERE,
     workspaceId,
     ...(projectId ? { projectId } : {}),
     ...(scope === "owned" ? { approvedByUserId: userId } : {}),

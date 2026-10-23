@@ -10,6 +10,7 @@ import {
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
   NEWSLETTER_SUBSCRIBER_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
@@ -105,6 +106,26 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("public newsletter confirmation", () => {
+  it.each(["other", null])(
+    "hides confirmation in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.findUnique.mockImplementation(({ where }) =>
+        where.newsletter?.project.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? pending()
+          : null,
+      );
+      for (const method of ["GET", "POST"]) {
+        expect((await app().request(url(token()), { method })).status).toBe(
+          404,
+        );
+      }
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
   it("GET renders a self-contained POST form without mutating or sending mail", async () => {
     const signed = token();
     const response = await app().request(url(signed));

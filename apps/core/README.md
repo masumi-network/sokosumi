@@ -54,7 +54,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
 | `RESEND_API_KEY` | Resend API key for transactional email |
 | `RESEND_FROM_EMAIL` | From-address for transactional email (default `noreply@sokosumi.com`) |
-| `NEWSLETTER_ENABLED` | Newsletter feature flag (default `false`; only a trimmed, case-insensitive `true` enables it) |
+| `NEWSLETTER_ENABLED` | Enables newsletters only for projects in the utxo organization workspace (default `false`; only a trimmed, case-insensitive `true` enables it). Other organization and personal workspaces remain unavailable. |
 | `NEWSLETTER_FROM_DOMAIN` | Optional newsletter sending hostname, e.g. `news.sokosumi.com`. Required for newsletter sending; never falls back to transactional email configuration. |
 | `RESEND_NEWSLETTER_WEBHOOK_SECRET` | Optional Resend webhook signing secret (`whsec_...`) for `POST /v1/webhooks/resend/newsletter`. The endpoint returns 503 until configured and 404 while newsletters are disabled. |
 | `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
@@ -141,8 +141,15 @@ Core after changing them. The **Web** project needs no new variables.
 A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
 the connect menu, and choosing it returns "This integration is not configured
 yet" without starting OAuth. Social itself is still gated to members of the
-beta organization (`SOCIAL_BETA_ORGANIZATION_SLUG` in `@sokosumi/utils`); that
-is code, not an environment variable.
+beta organization. Newsletters require `NEWSLETTER_ENABLED=true` and a project
+in that organization's workspace; membership alone does not enable newsletters
+in another workspace. The beta organization slug for each feature is `utxo`,
+defined in `BETA_ORGANIZATION_SLUGS` in `@sokosumi/utils`, not an environment
+variable. Public newsletter pages and subscription links remain anonymous for
+beta newsletters. Other workspaces' newsletters return not found, do not appear
+on calendars, and are skipped by the sender without changing their state.
+Unsubscribe links are never gated, so anyone who received an issue can always
+leave the list.
 
 #### TikTok setup
 

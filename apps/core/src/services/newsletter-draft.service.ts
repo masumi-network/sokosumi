@@ -7,6 +7,7 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   assertNewsletterEnabled,
@@ -38,6 +39,7 @@ export async function isNewsletterDraftAvailable(scope: {
   if (!isNewsletterEnabled()) return false;
   return !!(await prisma.newsletter.findFirst({
     where: {
+      project: NEWSLETTER_BETA_PROJECT_WHERE,
       workspaceId: scope.workspaceId,
       ...(scope.projectId ? { projectId: scope.projectId } : {}),
     },

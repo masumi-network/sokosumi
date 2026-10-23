@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
+import { isBetaOrganizationSlug } from "@sokosumi/utils";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
@@ -61,7 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.workspace.findUnique({
           where: { id: workspaceId },
           select: {
-            organization: { select: { name: true, logo: true } },
+            organization: { select: { name: true, logo: true, slug: true } },
             user: { select: { name: true, image: true } },
           },
         }),
@@ -102,6 +103,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!workspace) {
       throw notFound("Workspace not found");
     }
+    const newsletterEnabled =
+      isNewsletterEnabled() &&
+      isBetaOrganizationSlug("newsletter", workspace.organization?.slug);
 
     const workspaceOwner = workspace.organization ?? workspace.user;
     const latestPostByProject = new Map(
@@ -145,7 +149,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? {
                 latestScheduledSocialPostAt:
                   latestPostByProject.get(project.id) ?? null,
-                ...(isNewsletterEnabled()
+                ...(newsletterEnabled
                   ? {
                       latestScheduledNewsletterIssueAt:
                         latestIssueByProject.get(project.id) ?? null,

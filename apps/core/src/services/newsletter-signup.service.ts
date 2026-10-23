@@ -7,6 +7,7 @@ import {
 import { sendEmail } from "@/clients/email.client";
 import { getEnv } from "@/config/env";
 import { badRequest, notFound } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   signNewsletterConfirmToken,
@@ -29,7 +30,7 @@ const CONFIRMATION_RESEND_MS = 10 * 60_000;
 export async function getPublicNewsletter(publicSlug: string) {
   assertNewsletterEnabled();
   const newsletter = await prisma.newsletter.findUnique({
-    where: { publicSlug },
+    where: { publicSlug, project: NEWSLETTER_BETA_PROJECT_WHERE },
     select: { name: true, senderName: true, brand: true },
   });
   if (!newsletter) throw notFound("Newsletter not found");
@@ -44,7 +45,7 @@ export async function subscribeToNewsletter(
   assertNewsletterEnabled();
   if (input.website) return;
   const newsletter = await prisma.newsletter.findUnique({
-    where: { publicSlug },
+    where: { publicSlug, project: NEWSLETTER_BETA_PROJECT_WHERE },
   });
   if (!newsletter) throw notFound("Newsletter not found");
   if (!(await allowNewsletterSignup(newsletter.id, request))) return;
@@ -150,7 +151,11 @@ export async function getNewsletterConfirmSubscriber(token: string) {
   const { newsletterId, subscriberId, consentAt } =
     verifyNewsletterConfirmToken(token, getEnv().BETTER_AUTH_SECRET);
   const subscriber = await prisma.newsletterSubscriber.findUnique({
-    where: { id: subscriberId, newsletterId },
+    where: {
+      id: subscriberId,
+      newsletterId,
+      newsletter: { project: NEWSLETTER_BETA_PROJECT_WHERE },
+    },
     include: { newsletter: true },
   });
   if (!subscriber) throw notFound("Subscriber not found");

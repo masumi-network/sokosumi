@@ -9,6 +9,7 @@ import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 const m = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ const m = vi.hoisted(() => ({
   turn: vi.fn(),
   turnUnique: vi.fn(),
   workspace: vi.fn(),
+  betaWorkspace: vi.fn(),
   query: vi.fn(),
   reserve: vi.fn(),
   count: vi.fn(),
@@ -34,7 +36,10 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ NEWSLETTER_ENABLED: m.enabled }),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish } },
+  default: {
+    sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
+    workspace: { findUnique: m.betaWorkspace },
+  },
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: m.access,
@@ -136,6 +141,7 @@ function execute(runtime = service(), input: unknown = INPUT) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.betaWorkspace.mockResolvedValue(newsletterWorkspace());
   m.access.mockResolvedValue({
     projectId: NEWSLETTER_PROJECT_ID,
     workspaceId: NEWSLETTER_WORKSPACE_ID,
@@ -160,6 +166,16 @@ beforeEach(() => {
 });
 
 describe("Soko Bot newsletter_draft_issue", () => {
+  it.each(["other", null])(
+    "refuses drafting in workspace organization %s",
+    async (slug) => {
+      m.betaWorkspace.mockResolvedValue(newsletterWorkspace(slug));
+      await expect(execute()).rejects.toMatchObject({ status: 404 });
+      expect(m.generate).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+    },
+  );
+
   it("creates only a draft and records bot authorship and the receipt atomically", async () => {
     const result = await execute();
     expect(result).toMatchObject({

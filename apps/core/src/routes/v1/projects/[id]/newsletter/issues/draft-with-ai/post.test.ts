@@ -10,11 +10,13 @@ import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 import mount from "./post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
   posts: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspace },
     project: { findFirst: m.project },
     newsletter: { findUnique: m.newsletter },
     socialPost: { findMany: m.posts },
@@ -116,6 +119,7 @@ function draft(body: unknown = INPUT, authenticated = true) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     name: "Launch",
@@ -138,6 +142,16 @@ beforeEach(() => {
 });
 
 describe("POST newsletter draft-with-ai with an injected fake model", () => {
+  it.each(["other", null])(
+    "hides AI drafting for workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      expect((await draft()).status).toBe(404);
+      expect(m.generate).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+    },
+  );
+
   it("creates a DRAFT without approvals, scheduling, sends, or credit charges", async () => {
     const response = await draft();
     expect(response.status).toBe(201);

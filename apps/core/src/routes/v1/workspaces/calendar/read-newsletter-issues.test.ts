@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { newsletterWorkspace } from "@/test/newsletter";
 import { parseWorkspaceCalendarQuery, readWorkspaceCalendar } from "./read";
 
 const m = vi.hoisted(() => ({
@@ -68,6 +69,30 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("newsletter issues on the project and Social calendar", () => {
+  it.each(["other", null])(
+    "omits entries and totals in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.issues.mockImplementation(({ where }) =>
+        where.AND[0].project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? [scheduled]
+          : [],
+      );
+      m.count.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? 1
+          : 0,
+      );
+      const result = await readWorkspaceCalendar(workspaceId, "user_1", query, {
+        projectId,
+      });
+      expect(result.items).toEqual([]);
+      expect(result.pagination.total).toBe(0);
+    },
+  );
+
   it("returns a newsletter kind and scope without issue content or subscriber data", async () => {
     const result = await readWorkspaceCalendar(workspaceId, "user_1", query, {
       projectId,
@@ -168,6 +193,7 @@ describe("newsletter issues on the project and Social calendar", () => {
     expect(m.latestIssue).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          project: { workspace: { organization: { slug: "utxo" } } },
           workspaceId,
           projectId,
           status: { in: ["SCHEDULED", "SENDING"] },

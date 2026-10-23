@@ -99,6 +99,7 @@ import {
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
+import { requireNewsletterBetaAccess } from "@/helpers/newsletter-beta-access";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -4805,6 +4806,7 @@ export class SokoBotRuntimeService {
     projectId: string,
   ) {
     assertNewsletterEnabled();
+    await requireNewsletterBetaAccess(authorized.turn.workspaceId);
     const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
       projectId,
     ]);

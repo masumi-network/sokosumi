@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { newsletterWorkspace } from "@/test/newsletter";
 import { isNewsletterDraftAvailable } from "./newsletter-draft.service";
 
 const m = vi.hoisted(() => ({ enabled: true, find: vi.fn() }));
@@ -14,6 +15,27 @@ beforeEach(() => {
   m.find.mockResolvedValue({ id: "newsletter" });
 });
 describe("newsletter draft tool availability", () => {
+  it.each(["other", null])(
+    "does not offer the tool for workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.find.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? { id: "newsletter" }
+          : null,
+      );
+      for (const projectId of ["project", null]) {
+        expect(
+          await isNewsletterDraftAvailable({
+            workspaceId: workspace.id,
+            projectId,
+          }),
+        ).toBe(false);
+      }
+    },
+  );
+
   it("does not offer the tool when the feature is disabled", async () => {
     m.enabled = false;
     expect(
@@ -27,7 +49,13 @@ describe("newsletter draft tool availability", () => {
   it("requires a newsletter inside the current bot's project and workspace", async () => {
     const scope = { workspaceId: "workspace", projectId: "project" };
     expect(await isNewsletterDraftAvailable(scope)).toBe(true);
-    expect(m.find).toHaveBeenCalledWith({ where: scope, select: { id: true } });
+    expect(m.find).toHaveBeenCalledWith({
+      where: {
+        ...scope,
+        project: { workspace: { organization: { slug: "utxo" } } },
+      },
+      select: { id: true },
+    });
     m.find.mockResolvedValue(null);
     expect(await isNewsletterDraftAvailable(scope)).toBe(false);
   });
@@ -39,7 +67,10 @@ describe("newsletter draft tool availability", () => {
       }),
     ).toBe(true);
     expect(m.find).toHaveBeenCalledWith({
-      where: { workspaceId: "workspace" },
+      where: {
+        workspaceId: "workspace",
+        project: { workspace: { organization: { slug: "utxo" } } },
+      },
       select: { id: true },
     });
   });
