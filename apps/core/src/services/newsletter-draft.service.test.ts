@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { newsletterWorkspace } from "@/test/newsletter";
 import { isNewsletterDraftAvailable } from "./newsletter-draft.service";
 
 const m = vi.hoisted(() => ({
@@ -27,6 +28,22 @@ describe("newsletter draft tool availability", () => {
     ).toBe(false);
     expect(m.find).not.toHaveBeenCalled();
   });
+  it.each(["other", null])(
+    "does not offer the tool for workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.workspace.mockResolvedValue(workspace);
+      for (const projectId of ["project", null]) {
+        expect(
+          await isNewsletterDraftAvailable({
+            workspaceId: workspace.id,
+            projectId,
+          }),
+        ).toBe(false);
+      }
+      expect(m.find).not.toHaveBeenCalled();
+    },
+  );
   it("requires a newsletter inside the current bot's project and workspace", async () => {
     const scope = { workspaceId: "workspace", projectId: "project" };
     expect(await isNewsletterDraftAvailable(scope)).toBe(true);

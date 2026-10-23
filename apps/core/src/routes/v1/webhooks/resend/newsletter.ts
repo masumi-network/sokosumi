@@ -12,6 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook } from "@/lib/hono";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 
 const EVENT_TYPES = new Map<string, NewsletterEventType>([
   ["email.delivered", "DELIVERED"],
@@ -82,7 +83,10 @@ app.openapi(route, async (c) => {
   }
   const { created_at: occurredAt, data } = parsed.data;
   const send = await prisma.newsletterSend.findUnique({
-    where: { providerMessageId: data.email_id },
+    where: {
+      providerMessageId: data.email_id,
+      issue: NEWSLETTER_BETA_SCOPE,
+    },
     select: {
       id: true,
       issueId: true,
@@ -92,7 +96,14 @@ app.openapi(route, async (c) => {
   });
   if (!send) {
     // Resend can notify us before the sender persists the provider message ID.
-    if (data.tags?.category === "newsletter") {
+    // Sends outside the beta workspace exist and are acknowledged without effects.
+    if (
+      data.tags?.category === "newsletter" &&
+      !(await prisma.newsletterSend.findUnique({
+        where: { providerMessageId: data.email_id },
+        select: { id: true },
+      }))
+    ) {
       throw serviceUnavailable("Newsletter send is not available yet");
     }
     return ok(c, { received: true });

@@ -8,6 +8,7 @@ import {
   NEWSLETTER,
   NEWSLETTER_ISSUE,
   NEWSLETTER_NOW,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
@@ -72,6 +73,29 @@ beforeEach(() => {
 });
 
 describe("public newsletter archive", () => {
+  it.each(["other", null])(
+    "hides archives and issue pages for workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.newsletter.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? NEWSLETTER
+          : null,
+      );
+      m.issue.mockImplementation(({ where }) =>
+        where.newsletter?.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? SENT_ISSUE
+          : null,
+      );
+      expect((await app().request(URL)).status).toBe(404);
+      expect((await app().request(ISSUE_URL)).status).toBe(404);
+      expect(m.list).not.toHaveBeenCalled();
+      expect(m.count).not.toHaveBeenCalled();
+    },
+  );
+
   it("lists only sent issue summaries anonymously, with stable newest-first ordering", async () => {
     const response = await app().request(URL);
     expect(response.status).toBe(200);
