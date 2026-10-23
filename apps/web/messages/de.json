@@ -3054,13 +3054,59 @@
           "design": "Design",
           "memory": "Gedächtnis",
           "ariaLabel": "Projektbereiche",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Newsletter"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots für dieses Projekt"
+        }
+      },
+      "Newsletter": {
+        "title": "Newsletter",
+        "description": "Lege Absender, Erscheinungsbild und Begrüßungs-E-Mail für den Newsletter dieses Projekts fest.",
+        "navigation": "Newsletter-Bereiche",
+        "settings": "Einstellungen",
+        "emptyTitle": "Richte deinen Newsletter ein",
+        "emptyDescription": "Wähle unten einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "general": "Allgemein",
+        "brand": "Erscheinungsbild",
+        "welcome": "Begrüßungs-E-Mail",
+        "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
+        "publicAddress": "Öffentliche Newsletter-Adresse",
+        "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
+        "save": "Einstellungen speichern",
+        "success": "Newsletter-Einstellungen gespeichert",
+        "error": "Die Newsletter-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
+        "unavailable": "Dieser Newsletter ist nicht mehr verfügbar. Lade die Seite neu.",
+        "invalid": "Prüfe die markierten Felder und speichere erneut.",
+        "fields": {
+          "name": "Newsletter-Name",
+          "senderName": "Absendername",
+          "replyTo": "Antwort-E-Mail-Adresse",
+          "logoUrl": "Logo-URL",
+          "primaryColor": "Primärfarbe",
+          "accentColor": "Akzentfarbe",
+          "fontFamily": "Schriftart",
+          "footerText": "Fußzeilentext",
+          "welcomeEmailEnabled": "Begrüßungs-E-Mail senden",
+          "welcomeSubject": "Betreff der Begrüßungs-E-Mail",
+          "welcomeBody": "Text der Begrüßungs-E-Mail"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Gib einen Wert ein.",
+          "email": "Gib eine gültige E-Mail-Adresse ein.",
+          "url": "Gib eine vollständige HTTP- oder HTTPS-URL ein.",
+          "color": "Gib eine Hex-Farbe mit 3 oder 6 Ziffern und einem vorangestellten # ein.",
+          "maxLength": "Verwende höchstens {max} Zeichen."
         }
       }
     },
