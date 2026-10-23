@@ -1,9 +1,19 @@
 import type { SokoBotInboxMessage } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { evaluateMock, logSetMock } = vi.hoisted(() => ({
-  evaluateMock: vi.fn(),
-  logSetMock: vi.fn(),
+const { evaluateMock, logSetMock, memoryMock, flaggedMock } = vi.hoisted(
+  () => ({
+    evaluateMock: vi.fn(),
+    logSetMock: vi.fn(),
+    memoryMock: vi.fn(),
+    flaggedMock: vi.fn(),
+  }),
+);
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBotMemoryRevision: { findFirst: memoryMock },
+    sokoBotTurn: { findMany: flaggedMock },
+  },
 }));
 vi.mock("ai", () => ({
   experimental_evaluate: evaluateMock,
@@ -36,7 +46,36 @@ const check = (inbox: SokoBotInboxMessage[]) =>
   checkMailImportance({ sokoBotId: "bot-1", mail: inbox, source: "ingest" });
 
 describe("checkMailImportance", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    memoryMock.mockResolvedValue(null);
+    flaggedMock.mockResolvedValue([]);
+  });
+
+  it("lets Jev weigh the owner's preferences and what was flagged today", async () => {
+    memoryMock.mockResolvedValue({
+      markdown:
+        "# Soko Bot memory\n\n## Preferences\n\n- Do not flag Make scenario errors or DigitalOcean deployment failures.\n",
+    });
+    flaggedMock.mockResolvedValue([
+      { finalAnswer: "Make — s_New_Registration: two recent errors." },
+    ]);
+    evaluateMock.mockResolvedValue({
+      answers: { mail0: { probability: 0.1 } },
+    });
+    const { important } = await check([
+      mail("a", "[Make] Scenario s_New_Registration encountered an error"),
+    ]);
+    expect(important).toEqual([]);
+    const { state, questions } = evaluateMock.mock.calls[0][0];
+    expect(state.ownerPreferences).toEqual([
+      "Do not flag Make scenario errors or DigitalOcean deployment failures.",
+    ]);
+    expect(state.alreadyFlaggedToday).toEqual([
+      "Make — s_New_Registration: two recent errors.",
+    ]);
+    expect(questions.mail0.instructions).toMatch(/ownerPreferences/);
+  });
 
   it("keeps only the mail Jev is sure needs the owner now", async () => {
     evaluateMock.mockResolvedValue({
@@ -75,6 +114,8 @@ describe("checkMailImportance", () => {
         checked: 1,
         important: 0,
         failed: false,
+        preferences: 0,
+        alreadyFlagged: 0,
         ratings: [
           {
             probability: 0.12,

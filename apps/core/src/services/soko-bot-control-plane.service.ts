@@ -91,6 +91,11 @@ import {
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import {
+  capturePreference,
+  MIN_PREFERENCE_CONFIDENCE,
+} from "@/lib/soko-bot/preference-capture";
+import { logSokoBotRouteOutcome } from "@/lib/soko-bot/route-outcome";
 import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
   matchSokoBotRuntimeTurnBoundary,
@@ -1608,6 +1613,9 @@ export class SokoBotControlPlane {
         }
         if (settled) {
           waitUntil(
+            logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
+          );
+          waitUntil(
             import("@/services/soko-bot-delivery.service")
               .then(({ deliverSokoBotTurnOutbox }) =>
                 deliverSokoBotTurnOutbox(input.turnId),
@@ -2192,6 +2200,18 @@ export class SokoBotControlPlane {
           },
         })
       : null;
+    // A mute or standing instruction the owner typed is saved before the turn
+    // reads memory, whether or not the model would have thought to.
+    const capturedPreference =
+      personAsked &&
+      !askedByTeammate &&
+      (classification.classification.signals?.statesPreference ?? 0) >=
+        MIN_PREFERENCE_CONFIDENCE
+        ? await capturePreference({
+            sokoBotId: bot.id,
+            message: input.chat?.classifyMessage ?? message,
+          })
+        : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -2199,6 +2219,8 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       classification: classification.classification,
+      personAsked,
+      capturedPreference,
       audience: askedByTeammate ? "TEAMMATE" : "OWNER",
       askedByKind: input.chat?.askedByBot
         ? "ASSISTANT"

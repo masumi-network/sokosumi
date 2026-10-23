@@ -11,6 +11,7 @@ const sokoBotContextPacketTriggerSchema = z.object({
   confidence: z.number(),
   requestedOutcome: z.string(),
   unsureRoute: z.enum(SOKO_BOT_ROUTES).optional(),
+  hints: z.array(z.string()).optional(),
   askedBy: z.object({
     kind: z.enum(["OWNER", "TEAMMATE", "ASSISTANT"]),
     name: z.string().nullable(),

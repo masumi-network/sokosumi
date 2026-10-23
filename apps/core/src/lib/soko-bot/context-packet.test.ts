@@ -79,6 +79,7 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   ContextPacketBuilder,
   SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+  triggerHints,
 } from "./context-packet";
 
 const NOW = new Date("2026-08-18T10:00:00.000Z");
@@ -996,5 +997,51 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.sourceCoverage?.calendar.availability).toBe(
       "NOT_FETCHED",
     );
+  });
+});
+
+describe("triggerHints", () => {
+  const typed = (classification: object, extra: object = {}) =>
+    triggerHints({
+      userId: "user-1",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      sharedScope: null,
+      source: "CHAT",
+      classification: { ...CLASSIFICATION, ...classification },
+      personAsked: true,
+      ...extra,
+    });
+
+  it("calls an unsure route a guess and says every tool is there", () => {
+    const [hint] = typed({ route: "CLARIFY", confidence: 0.51 });
+    expect(hint).toMatch(/CLARIFY is a guess \(51%\)/);
+    expect(hint).toMatch(/every tool is available/);
+  });
+
+  it("turns likely signals into context, and a saved preference into a note", () => {
+    const hints = typed(
+      {
+        signals: {
+          refersToEarlier: 0.9,
+          statesPreference: 0.95,
+          aboutMail: 0.8,
+          aboutTasks: 0.05,
+        },
+      },
+      { capturedPreference: "Do not flag Make scenario errors." },
+    );
+    expect(hints.join("\n")).toMatch(/points back at earlier messages/);
+    expect(hints.join("\n")).toMatch(/about mail/);
+    expect(hints.join("\n")).toMatch(
+      /Saved to your memory's preferences .*"Do not flag Make scenario errors\."/,
+    );
+  });
+
+  it("adds nothing for a sure route, or for a turn nobody typed", () => {
+    expect(typed({})).toEqual([]);
+    expect(
+      typed({ route: "CLARIFY", confidence: 0.3 }, { personAsked: false }),
+    ).toEqual([]);
   });
 });
