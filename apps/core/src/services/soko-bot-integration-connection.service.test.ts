@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   listAuthConfigs: vi.fn(),
   createAuthConfig: vi.fn(),
+  getToolkit: vi.fn(),
   env: {} as Record<string, string | undefined>,
 }));
 vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
@@ -48,7 +49,7 @@ vi.mock("@/clients/composio.client", () => ({
       get: mocks.get,
       delete: mocks.remove,
     },
-    toolkits: { get: async () => ({ name: "Gmail", meta: {} }) },
+    toolkits: { get: mocks.getToolkit },
     authConfigs: {
       list: mocks.listAuthConfigs,
       create: mocks.createAuthConfig,
@@ -105,6 +106,7 @@ beforeEach(() => {
     ],
   });
   mocks.createAuthConfig.mockResolvedValue({ id: "created" });
+  mocks.getToolkit.mockResolvedValue({ name: "Gmail", meta: {} });
   mocks.memberSokoBot.mockResolvedValue(SHARED_BOT);
   mocks.memberRole.mockImplementation(
     async (args: { where: { userId: string } }) => {
@@ -302,18 +304,12 @@ describe("choosing the Composio auth config", () => {
     expect(linkedAuthConfigId()).toBe("ac_google");
   });
 
-  it("uses the same ads auth config for a shared bot", async () => {
-    mocks.env = { COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: "ac_google" };
-    mocks.memberSokoBot.mockResolvedValue(SHARED_BOT);
-    await connect("connector", "googleads");
-    expect(linkedAuthConfigId()).toBe("ac_google");
-  });
-
   it("refuses an ads toolkit without its auth config, before Composio or the database", async () => {
     await expect(connect("connector", "googleads")).rejects.toMatchObject({
       kind: "NOT_CONFIGURED",
-      message: expect.stringContaining("COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID"),
+      message: "Google Ads connections are not configured on this environment",
     });
+    expect(mocks.getToolkit).not.toHaveBeenCalled();
     expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
     expect(mocks.createAuthConfig).not.toHaveBeenCalled();
     expect(mocks.link).not.toHaveBeenCalled();

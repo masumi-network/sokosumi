@@ -2,7 +2,7 @@ import { Prisma } from "@sokosumi/database";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
-import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
+import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -61,16 +61,13 @@ export async function requireBot(
  * Ad toolkits use the auth config Project Ads uses (our own OAuth apps) and
  * are refused without it; others use a Composio-managed one, created on first use.
  */
-async function ensureAuthConfigId(toolkit: string): Promise<string> {
-  const adProvider = Object.values(PROJECT_AD_PROVIDERS).find(
-    (candidate) => candidate.toolkitSlug === toolkit,
-  );
+async function resolveAuthConfigId(toolkit: string): Promise<string> {
+  const adProvider = adProviderForToolkit(toolkit);
   if (adProvider) {
-    const { authConfigEnv } = adProvider;
-    const authConfigId = getEnv()[authConfigEnv];
+    const authConfigId = getEnv()[adProvider.authConfigEnv];
     if (!authConfigId) {
       throw new SokoBotIntegrationError(
-        `${authConfigEnv} is not configured for ${toolkit} connections`,
+        `${adProvider.name} connections are not configured on this environment`,
         "NOT_CONFIGURED",
       );
     }
@@ -105,7 +102,7 @@ export async function connectSokoBotIntegration(input: {
   const composio = requireComposio();
   // Resolved first so a missing ads auth config refuses before any Composio call.
   const authConfigId = await withComposio("auth config", () =>
-    ensureAuthConfigId(provider.id),
+    resolveAuthConfigId(provider.id),
   );
   const toolkit = await lookupToolkit(provider.id);
   const request = await withComposio("start OAuth", () =>
