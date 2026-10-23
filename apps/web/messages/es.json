@@ -4141,6 +4141,16 @@
         "retry": "Reintentar"
       }
     },
+    "Newsletter": {
+      "title": "Boletín",
+      "description": "Elige un proyecto para gestionar su boletín.",
+      "nextPage": "Siguientes proyectos",
+      "empty": {
+        "title": "Aún no hay proyectos",
+        "description": "Crea un proyecto para empezar un boletín.",
+        "action": "Crear proyecto"
+      }
+    },
     "Social": {
       "title": "Programación social",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
@@ -4226,6 +4236,7 @@
           "schedules": "Programaciones",
           "social": "Programación social",
           "ads": "Anuncios",
+          "newsletter": "Boletín",
           "contacts": "Contactos"
         },
         "ChatLists": {

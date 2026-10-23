@@ -172,6 +172,37 @@ describe("YouPageClient", () => {
     expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
   });
 
+  it("links Newsletter between Ads and Files when available", () => {
+    renderYouPage({ socialBetaEnabled: true, newsletterEnabled: true });
+
+    const newsletter = screen.getByTestId("you-newsletter");
+    expect(newsletter).toHaveAttribute("href", "/newsletter");
+    expect(
+      screen.getByTestId("you-ads").compareDocumentPosition(newsletter) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      newsletter.compareDocumentPosition(screen.getByTestId("you-files")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Newsletter out until workspace availability is resolved", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-newsletter")).not.toBeInTheDocument();
+  });
+
+  it("shows Newsletter independently of Social availability", () => {
+    renderYouPage({ newsletterEnabled: true });
+
+    expect(screen.getByTestId("you-newsletter")).toHaveAttribute(
+      "href",
+      "/newsletter",
+    );
+    expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
+  });
+
   it("groups Schedules, Studio and Files in the destinations section", () => {
     renderYouPage();
 

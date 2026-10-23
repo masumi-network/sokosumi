@@ -89,10 +89,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-  }: {
-    children: React.ReactNode;
-    href: string;
-  }) => <a href={href}>{children}</a>,
+    ...props
+  }: React.ComponentProps<"a"> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
@@ -105,12 +107,16 @@ function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
   socialBetaEnabled = false,
+  newsletterEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems socialBetaEnabled={socialBetaEnabled} />
+        <MenuItems
+          socialBetaEnabled={socialBetaEnabled}
+          newsletterEnabled={newsletterEnabled}
+        />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -121,6 +127,8 @@ describe("MenuItems", () => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
     newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
+    pathnameRef.current = "/";
+    searchRef.current = "";
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -310,6 +318,74 @@ describe("MenuItems", () => {
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it("leaves Newsletter out of the Instant Nav shell by default", () => {
+    render(
+      <TestQueryProvider>
+        <MenuItems />
+      </TestQueryProvider>,
+    );
+
+    expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
+  });
+
+  it("shows Newsletter when enabled independently of Social", () => {
+    renderMenu(true, false, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter",
+    );
+    expect(screen.queryByRole("link", { name: /social/i })).toBeNull();
+  });
+
+  it("carries the selected project to Newsletter", () => {
+    pathnameRef.current = "/studio";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, false, true);
+
+    expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
+      "href",
+      "/newsletter?projectId=project-1",
+    );
+  });
+
+  it("puts Newsletter after Social and Ads and before Files", () => {
+    renderMenu(true, false, true, true);
+
+    const labels = screen.getAllByRole("link").map((link) => link.textContent);
+    const positions = ["social", "ads", "newsletter", "drive"].map((label) =>
+      labels.indexOf(label),
+    );
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it.each([
+    "/newsletter",
+    "/projects/project-1/newsletter",
+    "/projects/project-1/newsletter/issues/issue-1",
+    "/projects/project-1/newsletter/subscribers",
+  ])("marks Newsletter active on %s", (pathname) => {
+    pathnameRef.current = pathname;
+    renderMenu(true, false, false, true);
+
+    const newsletter = screen.getByRole("link", { name: "newsletter" });
+    expect(newsletter).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByTestId("rail-selection-bar").closest("li"),
+    ).toContainElement(newsletter);
+  });
+
+  it("does not mark Newsletter active on another project section", () => {
+    pathnameRef.current = "/projects/project-1/newsletter-settings";
+    renderMenu(true, false, false, true);
+
+    expect(
+      screen.getByRole("link", { name: "newsletter" }),
+    ).not.toHaveAttribute("aria-current");
+    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
   });
 
   it("keeps the separator under New Task on the collapsed rail", () => {

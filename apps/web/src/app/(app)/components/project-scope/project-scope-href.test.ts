@@ -127,6 +127,17 @@ describe("switchScopeHref", () => {
     );
   });
 
+  it("carries Newsletter's project scope like Social and the studio", () => {
+    expect(scopedHref("/newsletter", "p1")).toBe("/newsletter?projectId=p1");
+    expect(scopedHref("/newsletter", null)).toBe("/newsletter");
+    expect(switchScopeHref("/newsletter", "p2")).toBe(
+      "/newsletter?projectId=p2",
+    );
+    expect(switchScopeHref("/newsletter", null)).toBe("/newsletter");
+    expect(readProjectScope("/newsletter", params("projectId=p1"))).toBe("p1");
+    expect(readProjectScope("/newsletter", params())).toBeNull();
+  });
+
   it("opens the project from an unscoped page", () => {
     expect(switchScopeHref("/agents", "p 1")).toBe("/projects/p%201");
     expect(switchScopeHref("/agents", null)).toBe("/agents");

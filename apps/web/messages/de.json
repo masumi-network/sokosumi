@@ -4141,6 +4141,16 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Wähle ein Projekt aus, um seinen Newsletter zu verwalten.",
+      "nextPage": "Weitere Projekte",
+      "empty": {
+        "title": "Noch keine Projekte",
+        "description": "Erstelle ein Projekt, um einen Newsletter zu starten.",
+        "action": "Projekt erstellen"
+      }
+    },
     "Social": {
       "title": "Social-Planung",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
@@ -4226,6 +4236,7 @@
           "schedules": "Zeitpläne",
           "social": "Social-Planung",
           "ads": "Ads",
+          "newsletter": "Newsletter",
           "contacts": "Kontakte"
         },
         "ChatLists": {
