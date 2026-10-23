@@ -66,17 +66,17 @@ export function resolveCalendarPageQuery(
   status: string | undefined,
   view?: string,
   timezone?: string,
-  latestScheduledSocialPostAt?: Date | null,
+  latestScheduledPublicationAt?: Date | null,
 ) {
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
   const now = new Date();
   const calendarTimezone = isValidTimezone(timezone) ? timezone : "UTC";
-  const latestScheduledCalendarDate = latestScheduledSocialPostAt
+  const latestScheduledCalendarDate = latestScheduledPublicationAt
     ? new Date(
         utcToDateTimeLocalInTimezone(
-          latestScheduledSocialPostAt,
+          latestScheduledPublicationAt,
           calendarTimezone,
         ),
       )
@@ -178,12 +178,17 @@ export async function loadWorkspaceCalendarPage({
     !params.assigneeId &&
     !params.assigneeUserId &&
     !Object.values(TaskStatus).some((status) => status === params.status);
-  const latestScheduledSocialPostAt = socialPostsVisible
+  const latestScheduledPublicationAt = socialPostsVisible
     ? sources.reduce<Date | null>((latest, source) => {
         if (selectedSourceId && source.sourceId !== selectedSourceId) {
           return latest;
         }
-        const scheduledAt = source.latestScheduledSocialPostAt;
+        const scheduledAt = [
+          source.latestScheduledSocialPostAt,
+          source.latestScheduledNewsletterIssueAt,
+        ]
+          .filter((at): at is Date => at != null)
+          .sort((a, b) => b.getTime() - a.getTime())[0];
         return scheduledAt && (!latest || scheduledAt > latest)
           ? scheduledAt
           : latest;
@@ -195,7 +200,7 @@ export async function loadWorkspaceCalendarPage({
       params.status,
       params.view,
       params.timezone,
-      latestScheduledSocialPostAt,
+      latestScheduledPublicationAt,
     );
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
 

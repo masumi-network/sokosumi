@@ -13,7 +13,7 @@ import {
 } from "@/schemas/newsletter.schema";
 import { getNewsletterIssue } from "@/services/newsletter-issues.service";
 
-import { newsletterScope } from "../../context";
+import { newsletterIssueScope } from "../../context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -39,7 +39,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     assertNewsletterEnabled();
     const { id, issueId } = c.req.valid("param");
-    const scope = await newsletterScope(c, id);
+    const scope = await newsletterIssueScope(c, id);
     const issue = await getNewsletterIssue(scope, issueId);
     return ok(c, newsletterIssueSchema.parse(issue));
   });

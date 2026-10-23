@@ -3305,6 +3305,36 @@
             "action": "Eliminar borrador",
             "cancel": "Cancelar",
             "error": "No se pudo eliminar la edición. Es posible que haya cambiado de estado. Recarga la página e inténtalo de nuevo."
+          },
+          "Lifecycle": {
+            "submit": "Enviar para aprobación",
+            "approve": "Aprobar",
+            "approved": "Aprobada",
+            "schedule": "Programar",
+            "sendNow": "Enviar ahora",
+            "cancel": "Cancelar programación",
+            "close": "Cerrar",
+            "approvedBy": "Aprobada por {user} el {date}",
+            "formerMember": "Antiguo miembro del espacio de trabajo",
+            "task": "Ver tarea de aprobación",
+            "scheduled": "Programada para el {date} ({timezone})",
+            "when": "Cuándo",
+            "timezone": "Zona horaria: {timezone}",
+            "scheduleTitle": "Programar boletín",
+            "scheduleDescription": "Elige una fecha entre un minuto y un año a partir de ahora.",
+            "sendTitle": "¿Enviar este boletín ahora?",
+            "sendDescription": "{count, plural, one {Esta edición se enviará a # suscriptor activo. El envío no se puede deshacer.} other {Esta edición se enviará a # suscriptores activos. El envío no se puede deshacer.}}",
+            "cancelTitle": "¿Cancelar la programación de este boletín?",
+            "cancelDescription": "Esta edición volverá a ser un borrador. Vuelve a enviarla para aprobación antes de programarla o enviarla.",
+            "saveFirst": "Guarda los cambios antes de enviar para aprobación, aprobar, programar o enviar.",
+            "invalid": "Revisa la edición e inténtalo de nuevo.",
+            "error": "No se pudo actualizar la edición del boletín. Recarga la página e inténtalo de nuevo.",
+            "conflict": "Esta edición ha cambiado. Recarga la página e inténtalo de nuevo.",
+            "humanRequired": "Una persona debe aprobar o enviar esta edición desde una sesión iniciada en el navegador.",
+            "invalidSchedule": "Elige una fecha entre un minuto y un año a partir de ahora y una zona horaria válida.",
+            "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
+            "noSender": "El envío de boletines no está configurado. Pide a un administrador del espacio de trabajo que complete la configuración.",
+            "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
           }
         }
       }
@@ -8530,7 +8560,8 @@
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo.",
+        "publications": "No hay publicaciones ni boletines programados en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -8554,7 +8585,11 @@
         "platform": "Plataforma"
       },
       "socialOnly": {
-        "label": "Solo publicaciones sociales"
+        "label": "Solo publicaciones sociales",
+        "newslettersLabel": "Solo publicaciones y boletines"
+      },
+      "newsletter": {
+        "label": "Boletín"
       }
     },
     "You": {

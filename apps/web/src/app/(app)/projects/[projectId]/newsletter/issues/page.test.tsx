@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
-const mocks = vi.hoisted(() => ({ enabled: vi.fn(), list: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  subscribers: vi.fn(),
+  enabled: vi.fn(),
+  list: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NOT_FOUND");
@@ -13,7 +17,11 @@ vi.mock("@/lib/clients/core.client", async () => ({
     .CoreApiRequestError,
 }));
 vi.mock("@/lib/services/newsletter.service", () => ({
-  newsletterService: { isEnabled: mocks.enabled, listIssues: mocks.list },
+  newsletterService: {
+    listSubscribers: mocks.subscribers,
+    isEnabled: mocks.enabled,
+    listIssues: mocks.list,
+  },
 }));
 vi.mock("./issues", () => ({ Issues: () => null }));
 
@@ -26,6 +34,7 @@ const PROPS = {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.enabled.mockResolvedValue(true);
+  mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.list.mockResolvedValue({
     data: [NEWSLETTER_ISSUE],
     meta: {

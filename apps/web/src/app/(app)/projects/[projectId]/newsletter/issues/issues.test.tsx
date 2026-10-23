@@ -14,6 +14,7 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  change: vi.fn(),
   remove: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
@@ -25,6 +26,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/actions/newsletter/issues", () => ({
   createNewsletterIssue: mocks.create,
   deleteNewsletterIssue: mocks.remove,
+}));
+
+vi.mock("@/lib/actions/newsletter/issue-lifecycle", () => ({
+  changeNewsletterIssue: mocks.change,
 }));
 
 import { Issues } from "./issues";
@@ -54,6 +59,7 @@ function renderIssues(
           projectId={NEWSLETTER_PROJECT_ID}
           issues={issues}
           pagination={pagination}
+          activeSubscribers={3}
         />
       </NuqsTestingAdapter>
     </NextIntlClientProvider>,

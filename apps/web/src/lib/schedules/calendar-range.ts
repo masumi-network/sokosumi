@@ -19,7 +19,7 @@ export function getCalendarRange(dateParam: string) {
 
 export function getLatestCalendarDate(
   now: Date,
-  latestScheduledSocialPostAt?: Date | null,
+  latestScheduledPublicationAt?: Date | null,
 ): Date {
   const horizon = addDays(now, 90);
   const candidate = startOfMonth(horizon);
@@ -27,8 +27,8 @@ export function getLatestCalendarDate(
 
   const latestDefaultDate =
     candidateRange.to <= horizon ? candidate : subMonths(candidate, 1);
-  const latestScheduledMonth = latestScheduledSocialPostAt
-    ? startOfMonth(latestScheduledSocialPostAt)
+  const latestScheduledMonth = latestScheduledPublicationAt
+    ? startOfMonth(latestScheduledPublicationAt)
     : null;
 
   return latestScheduledMonth && latestScheduledMonth > latestDefaultDate
@@ -39,13 +39,13 @@ export function getLatestCalendarDate(
 export function resolveCalendarDate(
   dateParam: string | undefined,
   now: Date,
-  latestScheduledSocialPostAt?: Date | null,
+  latestScheduledPublicationAt?: Date | null,
 ): string {
   const parsedDate = dateParam ? new Date(`${dateParam}T12:00:00`) : now;
   const date = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
   const latestCalendarDate = getLatestCalendarDate(
     now,
-    latestScheduledSocialPostAt,
+    latestScheduledPublicationAt,
   );
   return format(
     startOfMonth(date) > latestCalendarDate ? latestCalendarDate : date,
