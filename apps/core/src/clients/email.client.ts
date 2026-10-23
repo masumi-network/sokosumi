@@ -23,6 +23,10 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   tag: string;
+  from?: string;
+  replyTo?: string;
+  text?: string;
+  headers?: Record<string, string>;
   bcc?: string | string[];
   /**
    * When Resend should send it, as an ISO instant. Absent means now.
@@ -40,10 +44,13 @@ export interface SendEmailInput {
 
 function toResendPayload(input: SendEmailInput) {
   return {
-    from: getEnv().RESEND_FROM_EMAIL,
+    from: input.from ?? getEnv().RESEND_FROM_EMAIL,
     to: input.to,
     subject: input.subject,
     html: input.html,
+    ...(input.replyTo !== undefined ? { replyTo: input.replyTo } : {}),
+    ...(input.text !== undefined ? { text: input.text } : {}),
+    ...(input.headers !== undefined ? { headers: input.headers } : {}),
     ...(input.bcc !== undefined ? { bcc: input.bcc } : {}),
     ...(input.scheduledAt !== undefined
       ? { scheduledAt: input.scheduledAt }

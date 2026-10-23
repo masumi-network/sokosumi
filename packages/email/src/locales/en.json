@@ -254,5 +254,11 @@
         "button": "Add credits"
       }
     }
+  },
+  "newsletter": {
+    "why": "You received this email because you subscribed to {name}.",
+    "unsubscribe": "Unsubscribe",
+    "confirm": "Confirm unsubscribe",
+    "unsubscribed": "You are unsubscribed"
   }
 }

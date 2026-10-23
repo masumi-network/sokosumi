@@ -22,6 +22,10 @@
   ],
   "crons": [
     {
+      "path": "/sync/newsletter-issues-send",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/social-performance",
       "schedule": "7,22,37,52 * * * *"
     },

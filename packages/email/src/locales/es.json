@@ -254,5 +254,11 @@
         "button": "Añadir créditos"
       }
     }
+  },
+  "newsletter": {
+    "why": "Recibes este correo porque te suscribiste a {name}.",
+    "unsubscribe": "Cancelar suscripción",
+    "confirm": "Confirmar cancelación de suscripción",
+    "unsubscribed": "Tu suscripción se ha cancelado"
   }
 }
