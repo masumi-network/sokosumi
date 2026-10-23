@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   listAuthConfigs: vi.fn(),
   createAuthConfig: vi.fn(),
   getToolkit: vi.fn(),
+  getComposio: vi.fn(),
   env: {} as Record<string, string | undefined>,
 }));
 vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
@@ -43,18 +44,7 @@ vi.mock("@/lib/db/prisma", () => {
   };
 });
 vi.mock("@/clients/composio.client", () => ({
-  getComposio: () => ({
-    connectedAccounts: {
-      link: mocks.link,
-      get: mocks.get,
-      delete: mocks.remove,
-    },
-    toolkits: { get: mocks.getToolkit },
-    authConfigs: {
-      list: mocks.listAuthConfigs,
-      create: mocks.createAuthConfig,
-    },
-  }),
+  getComposio: () => mocks.getComposio(),
 }));
 
 import {
@@ -96,6 +86,18 @@ function finalize(userId: string) {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.env = {};
+  mocks.getComposio.mockReturnValue({
+    connectedAccounts: {
+      link: mocks.link,
+      get: mocks.get,
+      delete: mocks.remove,
+    },
+    toolkits: { get: mocks.getToolkit },
+    authConfigs: {
+      list: mocks.listAuthConfigs,
+      create: mocks.createAuthConfig,
+    },
+  });
   mocks.listAuthConfigs.mockResolvedValue({
     items: [
       {
@@ -304,16 +306,24 @@ describe("choosing the Composio auth config", () => {
     expect(linkedAuthConfigId()).toBe("ac_google");
   });
 
-  it("refuses an ads toolkit without its auth config, before Composio or the database", async () => {
-    await expect(connect("connector", "googleads")).rejects.toMatchObject({
-      kind: "NOT_CONFIGURED",
-      message: "Google Ads connections are not configured on this environment",
-    });
-    expect(mocks.getToolkit).not.toHaveBeenCalled();
-    expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
-    expect(mocks.createAuthConfig).not.toHaveBeenCalled();
-    expect(mocks.link).not.toHaveBeenCalled();
-    expect(mocks.botUpdate).not.toHaveBeenCalled();
-    expect(mocks.upsert).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["googleads", "Google Ads"],
+    ["metaads", "Meta Ads"],
+  ])(
+    "refuses %s without its auth config before any Composio client call",
+    async (provider, name) => {
+      mocks.getComposio.mockReturnValue(null);
+      await expect(connect("connector", provider)).rejects.toMatchObject({
+        kind: "NOT_CONFIGURED",
+        message: `${name} connections are not configured on this environment`,
+      });
+      expect(mocks.getComposio).not.toHaveBeenCalled();
+      expect(mocks.getToolkit).not.toHaveBeenCalled();
+      expect(mocks.listAuthConfigs).not.toHaveBeenCalled();
+      expect(mocks.createAuthConfig).not.toHaveBeenCalled();
+      expect(mocks.link).not.toHaveBeenCalled();
+      expect(mocks.botUpdate).not.toHaveBeenCalled();
+      expect(mocks.upsert).not.toHaveBeenCalled();
+    },
+  );
 });

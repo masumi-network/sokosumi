@@ -99,11 +99,12 @@ export async function connectSokoBotIntegration(input: {
   const bot = await requireBot(input.userId, input.workspaceId, input.selector);
   // Resolving proved the caller reaches a shared bot; it has no owner.
   const sharedBot = isSharedSokoBot(bot);
-  const composio = requireComposio();
-  // Resolved first so a missing ads auth config refuses before any Composio call.
+  // Ads auth is env-only: resolve before requireComposio so a missing ads
+  // config refuses even when COMPOSIO_API_KEY is unset.
   const authConfigId = await withComposio("auth config", () =>
     resolveAuthConfigId(provider.id),
   );
+  const composio = requireComposio();
   const toolkit = await lookupToolkit(provider.id);
   const request = await withComposio("start OAuth", () =>
     composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
