@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import {
+  NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
   PUBLIC_NEWSLETTER,
   PUBLIC_NEWSLETTER_ISSUE,
@@ -14,6 +15,8 @@ const core = vi.hoisted(() => ({
   getPublicNewslettersByPublicSlugIssues: vi.fn(),
   getPublicNewslettersByPublicSlugIssuesByIssueSlug: vi.fn(),
   getProjectsByIdNewsletterIssues: vi.fn(),
+  getProjectsByIdNewsletterAnalytics: vi.fn(),
+  getProjectsByIdNewsletterIssuesByIssueIdAnalytics: vi.fn(),
   getProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssues: vi.fn(),
   patchProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
@@ -43,6 +46,52 @@ beforeEach(() => {
 });
 
 describe("newsletterService", () => {
+  it("loads scoped analytics through the generated Core operations", async () => {
+    core.getProjectsByIdNewsletterAnalytics.mockResolvedValue({
+      data: NEWSLETTER_ANALYTICS,
+    });
+    const query = { from: "2026-10-01", to: "2026-10-02" };
+    expect(
+      await newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, query),
+    ).toBe(NEWSLETTER_ANALYTICS);
+    expect(
+      core.getProjectsByIdNewsletterAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, query);
+    const issue = { totals: NEWSLETTER_ANALYTICS.totals, topLinks: [] };
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockResolvedValue({
+      data: issue,
+    });
+    expect(
+      await newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).toBe(issue);
+    expect(
+      core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics,
+    ).toHaveBeenCalledExactlyOnceWith(
+      NEWSLETTER_ISSUE.projectId,
+      NEWSLETTER_ISSUE.id,
+    );
+  });
+  it("preserves analytics errors for the page to handle", async () => {
+    const error = new CoreApiRequestError("Invalid date range", {
+      status: 422,
+    });
+    core.getProjectsByIdNewsletterAnalytics.mockRejectedValue(error);
+    await expect(
+      newsletterService.getAnalytics(NEWSLETTER_ISSUE.projectId, {}),
+    ).rejects.toBe(error);
+    core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.getIssueAnalytics(
+        NEWSLETTER_ISSUE.projectId,
+        NEWSLETTER_ISSUE.id,
+      ),
+    ).rejects.toBe(error);
+  });
   it.each(["x-vercel-forwarded-for", "x-forwarded-for"])(
     "forwards signup inputs and visitor IP for Core rate limiting: %s",
     async (header) => {

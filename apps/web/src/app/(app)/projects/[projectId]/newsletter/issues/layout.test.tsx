@@ -70,6 +70,9 @@ describe("newsletter issues layout", () => {
     expect(
       screen.getByRole("link", { name: "Subscribers.title" }),
     ).toHaveAttribute("href", "/projects/p1/newsletter/subscribers");
+    expect(
+      screen.getByRole("link", { name: "Analytics.title" }),
+    ).toHaveAttribute("href", "/projects/p1/newsletter/analytics");
     expect(screen.getByText("Issue content")).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
+import { PerformanceDateRange } from "@/components/performance/performance-date-range";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
@@ -26,8 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -674,36 +673,27 @@ export function SocialPostStatistics(
               ) : null}
             </summary>
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="statistics-from">{t("publishedFrom")}</Label>
-                <Input
-                  id="statistics-from"
-                  type="date"
-                  value={filters.publishedFrom ?? (publishedFrom || "")}
-                  onChange={(event) =>
-                    void setFilters({
-                      publishedFrom: event.target.value || null,
-                      performanceRange: null,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="statistics-until">{t("publishedUntil")}</Label>
-                <Input
-                  id="statistics-until"
-                  type="date"
-                  value={filters.publishedUntil ?? (publishedUntil || "")}
-                  min={filters.publishedFrom ?? undefined}
-                  aria-invalid={!validRange}
-                  onChange={(event) =>
-                    void setFilters({
-                      publishedUntil: event.target.value || null,
-                      performanceRange: null,
-                    })
-                  }
-                />
-              </div>
+              <PerformanceDateRange
+                idPrefix="statistics"
+                fromLabel={t("publishedFrom")}
+                untilLabel={t("publishedUntil")}
+                from={filters.publishedFrom ?? (publishedFrom || "")}
+                until={filters.publishedUntil ?? (publishedUntil || "")}
+                minUntil={filters.publishedFrom ?? undefined}
+                invalid={!validRange}
+                onFromChange={(value) =>
+                  void setFilters({
+                    publishedFrom: value || null,
+                    performanceRange: null,
+                  })
+                }
+                onUntilChange={(value) =>
+                  void setFilters({
+                    publishedUntil: value || null,
+                    performanceRange: null,
+                  })
+                }
+              />
               <Button
                 type="button"
                 variant="outline"
