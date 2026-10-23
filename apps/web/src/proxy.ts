@@ -98,7 +98,10 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
-  applyDocumentSecurityHeaders(response, securityHeaderOptions);
+  applyDocumentSecurityHeaders(response, {
+    ...securityHeaderOptions,
+    pathname,
+  });
 
   // Persist `/join/:token` on the response (not an RSC cookies().set).
   const joinToken = joinTokenFromJoinPath(pathname);

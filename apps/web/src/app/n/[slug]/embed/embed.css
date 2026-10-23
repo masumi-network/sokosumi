@@ -1,0 +1,10 @@
+html:has([data-newsletter-embed]),
+body:has([data-newsletter-embed]),
+body:has([data-newsletter-embed]) .bg-background:has([data-newsletter-embed]) {
+  background: transparent;
+}
+
+main:has(> [data-newsletter-embed]) {
+  max-width: var(--container-md);
+  padding: calc(var(--spacing) * 4);
+}

@@ -14,12 +14,27 @@ import type {
   PatchNewsletterSubscriberRequest,
   PutNewsletterRequest,
   ScheduleNewsletterIssueRequest,
+  SubscribeNewsletterRequest,
 } from "@sokosumi/core-client";
 import { DEFAULT_LOCALE, parseLocalePreference } from "@sokosumi/utils";
+import { headers } from "next/headers";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async subscribe(publicSlug: string, input: SubscribeNewsletterRequest) {
+    const requestHeaders = await headers();
+    const ip =
+      requestHeaders.get("x-vercel-forwarded-for") ??
+      requestHeaders.get("x-forwarded-for");
+    // Preserve Core's per-visitor signup limit across the server-action hop.
+    return coreClient.postPublicNewslettersByPublicSlugSubscribe(
+      publicSlug,
+      input,
+      ip ? { "x-vercel-forwarded-for": ip, "x-forwarded-for": ip } : {},
+    );
+  },
+
   getPublicNewsletter: cache(async (publicSlug: string) => {
     try {
       const response =

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 interface PublicNewsletterHeaderProps {
   newsletter: PublicNewsletter;
   slug: string;
-  subscribeLabel: string;
+  subscribeLabel?: string;
 }
 
 export function PublicNewsletterHeader({
@@ -35,9 +35,11 @@ export function PublicNewsletterHeader({
         ) : null}
         <p className="text-lg font-semibold wrap-anywhere">{newsletter.name}</p>
       </div>
-      <Button asChild variant="primary">
-        <Link href={`/n/${encodeURIComponent(slug)}`}>{subscribeLabel}</Link>
-      </Button>
+      {subscribeLabel ? (
+        <Button asChild variant="primary">
+          <Link href={`/n/${encodeURIComponent(slug)}`}>{subscribeLabel}</Link>
+        </Button>
+      ) : null}
     </header>
   );
 }
