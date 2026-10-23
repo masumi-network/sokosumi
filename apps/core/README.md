@@ -56,6 +56,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `RESEND_FROM_EMAIL` | From-address for transactional email (default `noreply@sokosumi.com`) |
 | `NEWSLETTER_ENABLED` | Newsletter feature flag (default `false`; only a trimmed, case-insensitive `true` enables it) |
 | `NEWSLETTER_FROM_DOMAIN` | Optional newsletter sending hostname, e.g. `news.sokosumi.com`. Required for newsletter sending; never falls back to transactional email configuration. |
+| `RESEND_NEWSLETTER_WEBHOOK_SECRET` | Optional Resend webhook signing secret (`whsec_...`) for `POST /v1/webhooks/resend/newsletter`. The endpoint returns 503 until configured and 404 while newsletters are disabled. |
 | `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
 | `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |
 | `STRIPE_SECRET_KEY` | Stripe server secret |
