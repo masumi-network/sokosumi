@@ -14,6 +14,7 @@ import {
 } from "../../newsletter-project";
 import { getNewsletterTabs, newsletterHref } from "../../newsletter-tabs";
 import { NewsletterIssueEditor } from "../issue-editor";
+import { loadIssueEditorSearchParams } from "../search-params";
 
 export const instant = false;
 
@@ -27,9 +28,10 @@ export default async function NewsletterIssuePage({
   await connection();
   if (!(await newsletterService.isEnabled())) notFound();
 
-  const [{ issueId }, scope] = await Promise.all([
+  const [{ issueId }, scope, { draftedBySokoBot }] = await Promise.all([
     params,
     loadNewsletterProject(searchParams),
+    loadIssueEditorSearchParams(searchParams),
   ]);
   if (!scope.project) {
     return newsletterWorkspacePage({
@@ -82,6 +84,7 @@ export default async function NewsletterIssuePage({
         activeSubscribers={subscribers.data.counts.ACTIVE}
         newsletterSlug={newsletter.publicSlug}
         analytics={analytics}
+        draftedBySokoBot={draftedBySokoBot}
       />
     </NewsletterPageShell>
   );

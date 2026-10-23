@@ -19,6 +19,7 @@ const core = vi.hoisted(() => ({
   getProjectsByIdNewsletterIssuesByIssueIdAnalytics: vi.fn(),
   getProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssues: vi.fn(),
+  postProjectsByIdNewsletterIssuesDraftWithAi: vi.fn(),
   patchProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   deleteProjectsByIdNewsletterIssuesByIssueId: vi.fn(),
   postProjectsByIdNewsletterIssuesPreview: vi.fn(),
@@ -46,6 +47,23 @@ beforeEach(() => {
 });
 
 describe("newsletterService", () => {
+  it("drafts through the generated endpoint and preserves Core failures", async () => {
+    const input = { brief: "Launch" };
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockResolvedValue({
+      data: NEWSLETTER_ISSUE,
+    });
+    expect(
+      await newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).toBe(NEWSLETTER_ISSUE);
+    expect(
+      core.postProjectsByIdNewsletterIssuesDraftWithAi,
+    ).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_ISSUE.projectId, input);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterIssuesDraftWithAi.mockRejectedValue(error);
+    await expect(
+      newsletterService.draftIssue(NEWSLETTER_ISSUE.projectId, input),
+    ).rejects.toBe(error);
+  });
   it("loads scoped analytics through the generated Core operations", async () => {
     core.getProjectsByIdNewsletterAnalytics.mockResolvedValue({
       data: NEWSLETTER_ANALYTICS,

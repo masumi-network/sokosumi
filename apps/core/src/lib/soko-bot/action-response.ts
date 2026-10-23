@@ -16,6 +16,7 @@ export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
 export const ACTION_LABELS: Record<string, string> = {
+  newsletter_draft_issue: "Drafted newsletter issue for review",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -171,6 +172,12 @@ function actionTarget(
   assignedTaskIds: ReadonlySet<string | null>,
 ): string {
   const id = call.targetId ?? "";
+  if (call.capability === "newsletter_draft_issue") {
+    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    return issue.success
+      ? `([Review draft](/projects/${issue.data.projectId}/newsletter/issues/${encodeURIComponent(id)}?draftedBySokoBot=true))`
+      : "";
+  }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
   if (CONTACT_CAPABILITIES.has(call.capability))
