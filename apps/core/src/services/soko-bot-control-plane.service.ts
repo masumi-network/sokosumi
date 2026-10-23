@@ -102,6 +102,7 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
@@ -2159,11 +2160,20 @@ export class SokoBotControlPlane {
           capability,
         ),
     );
+    const newsletterDraftAvailable =
+      routeCapabilities.includes("newsletter_draft_issue") &&
+      (await isNewsletterDraftAvailable({
+        workspaceId: input.workspaceId,
+        projectId: bot.projectId,
+      }));
     const capabilities = applyVersionCapabilities(
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
         : routeCapabilities) as readonly SokoBotCapability[],
+    ).filter(
+      (capability) =>
+        capability !== "newsletter_draft_issue" || newsletterDraftAvailable,
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +

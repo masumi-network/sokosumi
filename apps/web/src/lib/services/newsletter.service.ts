@@ -3,6 +3,7 @@ import "server-only";
 import type {
   AddNewsletterSubscriberRequest,
   CreateNewsletterIssueRequest,
+  DraftNewsletterIssueRequest,
   GetProjectsByIdNewsletterAnalyticsData,
   GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
@@ -23,6 +24,14 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async draftIssue(projectId: string, input: DraftNewsletterIssueRequest) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterIssuesDraftWithAi(
+        projectId,
+        input,
+      );
+    return response.data;
+  },
   async getAnalytics(
     projectId: string,
     query: GetProjectsByIdNewsletterAnalyticsData["query"],

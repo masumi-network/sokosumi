@@ -21828,6 +21828,47 @@ export const NewsletterIssueStatusSchema = {
     ]
 } as const;
 
+export const DraftNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        brief: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000
+        },
+        useProjectMemory: {
+            type: 'boolean',
+            default: false
+        },
+        useRecentSocialPosts: {
+            type: 'boolean',
+            default: false
+        },
+        template: {
+            type: 'string',
+            enum: [
+                'TEXT',
+                'IMAGES',
+                'BUTTONS'
+            ],
+            default: 'TEXT'
+        },
+        imageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 10,
+            default: []
+        }
+    },
+    required: [
+        'brief'
+    ],
+    additionalProperties: false
+} as const;
+
 export const NewsletterIssueRevisionRequestSchema = {
     type: 'object',
     properties: {

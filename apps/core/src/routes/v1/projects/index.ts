@@ -42,6 +42,7 @@ import mountPatchNewsletterIssue from "./[id]/newsletter/issues/[issueId]/patch.
 import mountScheduleNewsletterIssue from "./[id]/newsletter/issues/[issueId]/schedule/post.js";
 import mountSendNowNewsletterIssue from "./[id]/newsletter/issues/[issueId]/send-now/post.js";
 import mountSubmitNewsletterIssue from "./[id]/newsletter/issues/[issueId]/submit/post.js";
+import mountDraftNewsletterIssue from "./[id]/newsletter/issues/draft-with-ai/post.js";
 import mountListNewsletterIssues from "./[id]/newsletter/issues/get.js";
 import mountCreateNewsletterIssue from "./[id]/newsletter/issues/post.js";
 import mountPreviewNewsletterIssue from "./[id]/newsletter/issues/preview/post.js";
@@ -105,6 +106,7 @@ mountGetProjectNewsletter(app);
 mountGetNewsletterAnalytics(app);
 mountGetNewsletterIssueAnalytics(app);
 mountListNewsletterIssues(app);
+mountDraftNewsletterIssue(app);
 mountSubmitNewsletterIssue(app);
 mountApproveNewsletterIssue(app);
 mountScheduleNewsletterIssue(app);

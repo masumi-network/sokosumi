@@ -23,9 +23,12 @@ export interface NewsletterScope {
   workspaceId: string;
 }
 
-export async function getNewsletter(scope: NewsletterScope) {
-  await requireScopedProject(scope);
-  const newsletter = await prisma.newsletter.findUnique({ where: scope });
+export async function getNewsletter(
+  scope: NewsletterScope,
+  client: Pick<Prisma.TransactionClient, "project" | "newsletter"> = prisma,
+) {
+  await requireScopedProject(scope, { client });
+  const newsletter = await client.newsletter.findUnique({ where: scope });
   if (!newsletter) throw notFound("Newsletter not found");
   return newsletter;
 }

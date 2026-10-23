@@ -140,6 +140,7 @@ import {
   creditsPerImage,
   IMAGE_ASPECT_RATIOS,
 } from "@/lib/image-studio/image-model";
+import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -214,6 +215,7 @@ import {
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
+import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
@@ -239,6 +241,9 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
+import { getNewsletter } from "@/services/newsletter.service";
+import { generateNewsletterDraft } from "@/services/newsletter-draft.service";
+import { createNewsletterIssue } from "@/services/newsletter-issues.service";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
 import {
   listSocialAccountStatistics,
@@ -3999,6 +4004,12 @@ export class SokoBotRuntimeService {
 
   async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
     const authorized = await this.authorize(input);
+    if (input.capability === "newsletter_draft_issue") {
+      const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(
+        input.input,
+      );
+      await this.requireNewsletterDraftScope(authorized, params.projectId);
+    }
     assertEvaluationActor({
       ...authorized.turn,
       userId: authorized.turn.actingUserId,
@@ -4789,6 +4800,24 @@ export class SokoBotRuntimeService {
     return input;
   }
 
+  private async requireNewsletterDraftScope(
+    authorized: AuthorizedSokoBotRuntime,
+    projectId: string,
+  ) {
+    assertNewsletterEnabled();
+    const refusal = sokoBotProjectRefusal(authorized.reader.sharedScope, [
+      projectId,
+    ]);
+    if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
+    const scope = await requireProjectAccess({
+      projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
+    });
+    await getNewsletter({ projectId, workspaceId: scope.workspaceId });
+    return scope;
+  }
+
   private async executeAuthorizedTool(
     raw: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
@@ -4798,6 +4827,48 @@ export class SokoBotRuntimeService {
       input: await this.resolveTaskIds(authorized, raw.input),
     };
     switch (input.capability) {
+      case "newsletter_draft_issue": {
+        const { projectId, ...params } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(input.input);
+        const scope = await this.requireNewsletterDraftScope(
+          authorized,
+          projectId,
+        );
+        const draft = await generateNewsletterDraft(scope, params);
+        return serializableTransaction(async (tx) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            input.capability,
+            { projectIds: [projectId] },
+          );
+          const issue = await createNewsletterIssue(
+            { projectId, workspaceId: scope.workspaceId },
+            draft,
+            { client: tx, creatorSokoBotId: authorized.turn.sokoBotId },
+          );
+          // Keep the review target intact even when the content exceeds the receipt size limit.
+          const result = newsletterIssueSchema
+            .pick({
+              id: true,
+              projectId: true,
+              subject: true,
+              status: true,
+              revision: true,
+            })
+            .parse(issue);
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: authorized.turn.sokoBotId,
+            targetId: issue.id,
+            observedVersion: String(issue.revision),
+            result: persistedToolResult(result),
+          });
+          return result;
+        }, "Newsletter draft changed concurrently");
+      }
       case "list_project_social_accounts":
       case "list_social_posts":
       case "list_social_post_statistics":

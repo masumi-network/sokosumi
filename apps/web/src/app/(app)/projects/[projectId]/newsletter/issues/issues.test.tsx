@@ -73,6 +73,15 @@ beforeEach(() => {
 });
 
 describe("newsletter issues list", () => {
+  it.each([{ issues: [] }, { issues: [NEWSLETTER_ISSUE] }])(
+    "offers Write it for me with empty and populated lists: %#",
+    ({ issues }) => {
+      renderIssues(issues);
+      expect(
+        screen.getByRole("button", { name: COPY.Ai.action }),
+      ).toBeInTheDocument();
+    },
+  );
   it("shows all translated statuses, delivery dates, editor links, and deletion only for drafts", () => {
     renderIssues(
       Object.values(NewsletterIssueStatus).map((status, index) => ({

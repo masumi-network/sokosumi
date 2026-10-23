@@ -34,6 +34,7 @@ vi.mock("@/app/projects/[projectId]/newsletter/issues/issue-editor", () => ({
 import NewsletterIssuePage from "./page";
 
 const PROPS = {
+  searchParams: Promise.resolve({}),
   params: Promise.resolve({
     projectId: NEWSLETTER_PROJECT_ID,
     issueId: NEWSLETTER_ISSUE.id,
@@ -47,6 +48,13 @@ beforeEach(() => {
   mocks.settings.mockResolvedValue({ publicSlug: PUBLIC_NEWSLETTER_SLUG });
 });
 describe("newsletter issue page", () => {
+  it("passes the AI review notice from the generated draft URL", async () => {
+    const result = await NewsletterIssuePage({
+      ...PROPS,
+      searchParams: Promise.resolve({ draftedBySokoBot: "true" }),
+    });
+    expect(result.props.draftedBySokoBot).toBe(true);
+  });
   it("loads a scoped issue from Core", async () => {
     const result = await NewsletterIssuePage(PROPS);
     expect(mocks.get).toHaveBeenCalledWith(

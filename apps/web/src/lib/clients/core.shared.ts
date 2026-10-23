@@ -29,6 +29,7 @@ import type {
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
   DeleteTasksByIdShareError,
+  DraftNewsletterIssueRequest,
   GetAgentsByIdJobsData,
   GetAgentsByIdReviewsData,
   GetAgentsData,
@@ -440,6 +441,7 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSchedule as corePostProjectsByIdNewsletterIssuesByIssueIdSchedule,
   postProjectsByIdNewsletterIssuesByIssueIdSendNow as corePostProjectsByIdNewsletterIssuesByIssueIdSendNow,
   postProjectsByIdNewsletterIssuesByIssueIdSubmit as corePostProjectsByIdNewsletterIssuesByIssueIdSubmit,
+  postProjectsByIdNewsletterIssuesDraftWithAi as corePostProjectsByIdNewsletterIssuesDraftWithAi,
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -767,6 +769,22 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         corePostProjectsByIdNewsletterIssues({ client, path: { id }, body }),
       "Failed to create newsletter issue",
+    );
+  }
+
+  async function postProjectsByIdNewsletterIssuesDraftWithAi(
+    id: string,
+    body: DraftNewsletterIssueRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterIssuesDraftWithAi({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to draft newsletter issue",
     );
   }
 
@@ -6386,6 +6404,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinProject,
     unpinProject,
     getProjectsById,
+    postProjectsByIdNewsletterIssuesDraftWithAi,
     getProjectsByIdCalendar,
     getProjectsByIdClose,
     getProjectsByIdContextMd,

@@ -4,7 +4,10 @@ import {
   NewsletterSubscriberSource,
   NewsletterSubscriberStatus,
 } from "@sokosumi/database";
-import { newsletterContentSchema } from "@sokosumi/utils";
+import {
+  newsletterContentSchema,
+  newsletterDraftInputSchema,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -24,6 +27,14 @@ const contentSchema = newsletterContentSchema
 export const newsletterTemplateSchema = z
   .enum(["TEXT", "IMAGES", "BUTTONS"])
   .openapi("NewsletterTemplate");
+
+export const draftNewsletterIssueRequestSchema = newsletterDraftInputSchema
+  .clone()
+  .openapi("DraftNewsletterIssueRequest");
+
+export type DraftNewsletterIssueRequest = z.infer<
+  typeof draftNewsletterIssueRequestSchema
+>;
 
 export const newsletterIssueStatusSchema = z
   .enum(NewsletterIssueStatus)
