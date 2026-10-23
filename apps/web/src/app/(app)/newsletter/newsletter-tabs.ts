@@ -33,6 +33,11 @@ export function getNewsletterTabs(
       href: newsletterHref("/newsletter/subscribers", projectId),
       label: t("Subscribers.title"),
     },
+    {
+      id: "analytics",
+      href: newsletterHref("/newsletter/analytics", projectId),
+      label: t("Analytics.title"),
+    },
     settings,
   ];
 }

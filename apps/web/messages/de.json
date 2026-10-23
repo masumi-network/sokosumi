@@ -3416,6 +3416,53 @@
           "open": "Anmeldeseite öffnen",
           "embedCode": "Einbettungscode",
           "embedTitle": "Newsletter-Anmeldung"
+        },
+        "Analytics": {
+          "title": "Statistiken",
+          "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
+          "keyMetrics": "Newsletter-Kennzahlen",
+          "from": "Von",
+          "to": "Bis",
+          "lastDays": "Letzte {days} Tage",
+          "resetRange": "Zeitraum zurücksetzen",
+          "invalidRange": "Wähle gültige Daten für 1 bis 366 Tage, mit dem Beginn vor dem Ende, oder setze den Zeitraum zurück.",
+          "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
+          "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
+          "opensNote": "Öffnungen können zu niedrig erfasst werden, da manche E-Mail-Apps Bilder blockieren.",
+          "emptyTitle": "Kein Versand in diesem Zeitraum",
+          "emptyDescription": "Sende eine Ausgabe, um ihre Statistiken zu sehen, oder wähle einen Zeitraum mit früheren Aktivitäten.",
+          "viewIssues": "Ausgaben ansehen",
+          "subscriberGrowth": "Abonnentenwachstum",
+          "growthMetric": "Kennzahl für das Abonnentendiagramm",
+          "engagement": "Öffnungen und Klicks",
+          "engagementMetric": "Kennzahl für das Interaktionsdiagramm",
+          "issuePerformance": "Ausgabenstatistiken",
+          "subject": "Betreff",
+          "sentAt": "Gesendet am",
+          "unavailable": "—",
+          "issueSummary": "Ausgabenanalyse",
+          "topLinks": "Meistgeklickte Links",
+          "url": "URL",
+          "noLinks": "Noch keine Linkklicks erfasst.",
+          "metrics": {
+            "sent": "Gesendet",
+            "delivered": "Zugestellt",
+            "uniqueOpens": "Eindeutige Öffnungen",
+            "uniqueClicks": "Eindeutige Klicks",
+            "unsubscribes": "Abmeldungen",
+            "bounces": "Unzustellbare E-Mails",
+            "complaints": "Beschwerden",
+            "openRate": "Öffnungsrate",
+            "clickRate": "Klickrate",
+            "activeSubscribers": "Aktive Abonnenten"
+          },
+          "growth": {
+            "newActive": "Neue aktive Abonnenten",
+            "unsubscribed": "Abgemeldet",
+            "bounced": "Unzustellbar",
+            "net": "Nettowachstum",
+            "runningTotal": "Aktive Abonnenten insgesamt"
+          }
         }
       }
     },

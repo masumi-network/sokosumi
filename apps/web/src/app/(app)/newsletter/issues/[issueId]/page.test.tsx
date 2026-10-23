@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   PUBLIC_NEWSLETTER_SLUG,
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   editor: vi.fn(),
   marker: vi.fn(),
   subscribers: vi.fn(),
+  analytics: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -35,6 +37,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     getIssue: mocks.get,
     getSettings: mocks.settings,
     listSubscribers: mocks.subscribers,
+    getIssueAnalytics: mocks.analytics,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -125,5 +128,20 @@ describe("newsletter issue page", () => {
     render(await NewsletterIssuePage(PROPS));
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(mocks.get).not.toHaveBeenCalled();
+  });
+  it("loads lifetime analytics only for sent issues", async () => {
+    await NewsletterIssuePage(PROPS);
+    expect(mocks.analytics).not.toHaveBeenCalled();
+    mocks.get.mockResolvedValue({ ...NEWSLETTER_ISSUE, status: "SENT" });
+    const analytics = { totals: NEWSLETTER_ANALYTICS.totals, topLinks: [] };
+    mocks.analytics.mockResolvedValue(analytics);
+    render(await NewsletterIssuePage(PROPS));
+    expect(mocks.analytics).toHaveBeenCalledExactlyOnceWith(
+      NEWSLETTER_PROJECT_ID,
+      NEWSLETTER_ISSUE.id,
+    );
+    expect(mocks.editor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ analytics }),
+    );
   });
 });

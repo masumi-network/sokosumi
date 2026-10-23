@@ -3416,6 +3416,53 @@
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
           "embedTitle": "Suscripción al boletín"
+        },
+        "Analytics": {
+          "title": "Estadísticas",
+          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
+          "keyMetrics": "Métricas del boletín",
+          "from": "Desde",
+          "to": "Hasta",
+          "lastDays": "Últimos {days} días",
+          "resetRange": "Restablecer fechas",
+          "invalidRange": "Elige fechas válidas que abarquen entre 1 y 366 días, con el inicio antes del final, o restablece las fechas.",
+          "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
+          "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
+          "opensNote": "Las aperturas pueden quedar por debajo de la cifra real porque algunas aplicaciones de correo bloquean las imágenes.",
+          "emptyTitle": "No hay envíos en este período",
+          "emptyDescription": "Envía una edición para ver sus resultados o elige fechas con actividad anterior.",
+          "viewIssues": "Ver ediciones",
+          "subscriberGrowth": "Crecimiento de suscriptores",
+          "growthMetric": "Métrica del gráfico de suscriptores",
+          "engagement": "Aperturas y clics",
+          "engagementMetric": "Métrica del gráfico de interacciones",
+          "issuePerformance": "Resultados por edición",
+          "subject": "Asunto",
+          "sentAt": "Fecha de envío",
+          "unavailable": "—",
+          "issueSummary": "Estadísticas de la edición",
+          "topLinks": "Enlaces con más clics",
+          "url": "URL",
+          "noLinks": "Aún no se han registrado clics en enlaces.",
+          "metrics": {
+            "sent": "Enviados",
+            "delivered": "Entregados",
+            "uniqueOpens": "Aperturas únicas",
+            "uniqueClicks": "Clics únicos",
+            "unsubscribes": "Bajas",
+            "bounces": "Rebotes",
+            "complaints": "Quejas",
+            "openRate": "Tasa de apertura",
+            "clickRate": "Tasa de clics",
+            "activeSubscribers": "Suscriptores activos"
+          },
+          "growth": {
+            "newActive": "Nuevos suscriptores activos",
+            "unsubscribed": "Dados de baja",
+            "bounced": "Rebotados",
+            "net": "Crecimiento neto",
+            "runningTotal": "Total de suscriptores activos"
+          }
         }
       }
     },
