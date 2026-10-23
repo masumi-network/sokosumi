@@ -82,6 +82,20 @@ beforeEach(() => {
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 describe("newsletter issue page", () => {
+  it("passes the AI review notice from the generated draft URL", async () => {
+    render(
+      await NewsletterIssuePage({
+        ...PROPS,
+        searchParams: Promise.resolve({
+          projectId: NEWSLETTER_PROJECT_ID,
+          draftedBySokoBot: "true",
+        }),
+      }),
+    );
+    expect(mocks.editor).toHaveBeenCalledWith(
+      expect.objectContaining({ draftedBySokoBot: true }),
+    );
+  });
   it("loads the issue of the chosen project and reports the project", async () => {
     render(await NewsletterIssuePage(PROPS));
     expect(mocks.get).toHaveBeenCalledWith(

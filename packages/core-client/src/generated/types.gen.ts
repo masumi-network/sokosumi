@@ -6708,6 +6708,14 @@ export const NewsletterIssueStatus = {
 
 export type NewsletterIssueStatus = typeof NewsletterIssueStatus[keyof typeof NewsletterIssueStatus];
 
+export type DraftNewsletterIssueRequest = {
+    brief: string;
+    useProjectMemory?: boolean;
+    useRecentSocialPosts?: boolean;
+    template?: 'TEXT' | 'IMAGES' | 'BUTTONS';
+    imageIds?: Array<string>;
+};
+
 export type NewsletterIssueRevisionRequest = {
     revision: number;
 };
@@ -48170,6 +48178,155 @@ export type PostProjectsByIdNewsletterIssuesResponses = {
 };
 
 export type PostProjectsByIdNewsletterIssuesResponse = PostProjectsByIdNewsletterIssuesResponses[keyof PostProjectsByIdNewsletterIssuesResponses];
+
+export type PostProjectsByIdNewsletterIssuesDraftWithAiData = {
+    body: DraftNewsletterIssueRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/issues/draft-with-ai';
+};
+
+export type PostProjectsByIdNewsletterIssuesDraftWithAiErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterIssuesDraftWithAiError = PostProjectsByIdNewsletterIssuesDraftWithAiErrors[keyof PostProjectsByIdNewsletterIssuesDraftWithAiErrors];
+
+export type PostProjectsByIdNewsletterIssuesDraftWithAiResponses = {
+    /**
+     * Newsletter draft created
+     */
+    201: {
+        data: NewsletterIssue;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterIssuesDraftWithAiResponse = PostProjectsByIdNewsletterIssuesDraftWithAiResponses[keyof PostProjectsByIdNewsletterIssuesDraftWithAiResponses];
 
 export type PostProjectsByIdNewsletterIssuesByIssueIdSubmitData = {
     body: NewsletterIssueRevisionRequest;
