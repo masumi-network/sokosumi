@@ -6,12 +6,14 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { newsletterWorkspace } from "@/test/newsletter";
 
 import mountIssue from "../issues/[issueId]/analytics/get";
 import mountGet from "./get";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   analytics: vi.fn(),
   issue: vi.fn(),
 }));
@@ -25,6 +27,9 @@ vi.mock("@/config/env", async (original) => {
 vi.mock("@/services/newsletter-analytics.service", () => ({
   getNewsletterAnalytics: m.analytics,
   getNewsletterIssueAnalytics: m.issue,
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: { workspace: { findUnique: m.workspace } },
 }));
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -78,6 +83,7 @@ function app(
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.analytics.mockResolvedValue({
     from: "2026-10-01",
     to: "2026-10-02",
@@ -90,6 +96,21 @@ beforeEach(() => {
 });
 
 describe("newsletter analytics routes", () => {
+  it.each(["other", null])(
+    "hides both analytics routes for workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      for (const path of [
+        `${BASE}/analytics`,
+        `${BASE}/issues/${ISSUE_ID}/analytics`,
+      ]) {
+        expect((await app().request(path)).status).toBe(404);
+      }
+      expect(m.analytics).not.toHaveBeenCalled();
+      expect(m.issue).not.toHaveBeenCalled();
+    },
+  );
+
   it("validates the response envelope and binds both endpoints to the workspace", async () => {
     const router = app();
     const response = await router.request(

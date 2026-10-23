@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { newsletterWorkspace } from "@/test/newsletter";
 
 const {
   coworkerFindFirstMock,
@@ -13,6 +14,8 @@ const {
   vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
   socialPostGroupByMock,
+  newsletterIssueGroupByMock,
+  newsletterEnabledMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
@@ -23,6 +26,12 @@ const {
   vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   socialPostGroupByMock: vi.fn(),
+  newsletterIssueGroupByMock: vi.fn(),
+  newsletterEnabledMock: vi.fn(),
+}));
+
+vi.mock("@/lib/newsletter/feature", () => ({
+  isNewsletterEnabled: newsletterEnabledMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -56,6 +65,7 @@ vi.mock("@/lib/db/prisma", () => ({
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
     socialPost: { groupBy: socialPostGroupByMock },
+    newsletterIssue: { groupBy: newsletterIssueGroupByMock },
   },
 }));
 
@@ -127,7 +137,58 @@ describe("GET /workspaces/calendar/sources", () => {
     taskFindFirstMock.mockResolvedValue(null);
     vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
     socialPostGroupByMock.mockResolvedValue([]);
+    newsletterIssueGroupByMock.mockResolvedValue([]);
+    newsletterEnabledMock.mockReturnValue(false);
   });
+
+  it.each(["utxo", "other", null])(
+    "only exposes newsletter sources for the beta workspace: %s",
+    async (slug) => {
+      newsletterEnabledMock.mockReturnValue(true);
+      const workspace = newsletterWorkspace(slug);
+      workspaceFindUniqueMock.mockResolvedValue({
+        ...workspace,
+        user: { name: "Ada", image: null },
+      });
+      const projectId = "22222222-2222-7222-8222-222222222222";
+      projectFindManyMock.mockResolvedValue([
+        {
+          id: projectId,
+          name: "Project",
+          logo: null,
+          closingAt: null,
+          closedAt: null,
+        },
+      ]);
+      const at = new Date("2027-01-20T12:00:00.000Z");
+      newsletterIssueGroupByMock.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? [{ projectId, _max: { scheduledAt: at } }]
+          : [],
+      );
+      const response = await createApp().request(
+        "http://localhost/calendar/sources?includeSocialPosts=true",
+      );
+      expect(response.status).toBe(200);
+      const { data } = await response.json();
+      if (slug === "utxo") {
+        expect(data[1]).toHaveProperty(
+          "latestScheduledNewsletterIssueAt",
+          at.toISOString(),
+        );
+      } else {
+        expect(data[1]).not.toHaveProperty("latestScheduledNewsletterIssueAt");
+      }
+      expect(newsletterIssueGroupByMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            project: { workspace: { organization: { slug: "utxo" } } },
+          }),
+        }),
+      );
+    },
+  );
 
   it("lists workspace and Project sources with their scheduling availability", async () => {
     projectFindManyMock.mockResolvedValue([

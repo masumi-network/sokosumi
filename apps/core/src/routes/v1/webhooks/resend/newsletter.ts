@@ -8,6 +8,7 @@ import {
   unauthorized,
   unprocessableEntity,
 } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -84,7 +85,10 @@ app.openapi(route, async (c) => {
   }
   const { created_at: occurredAt, data } = parsed.data;
   const send = await prisma.newsletterSend.findUnique({
-    where: { providerMessageId: data.email_id },
+    where: {
+      providerMessageId: data.email_id,
+      issue: { project: NEWSLETTER_BETA_PROJECT_WHERE },
+    },
     select: {
       id: true,
       issueId: true,

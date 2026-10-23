@@ -21,6 +21,11 @@ export {
   TURNSTILE_ALWAYS_PASS_SECRET,
 } from "./auth-captcha.js";
 export {
+  BETA_ORGANIZATION_SLUGS,
+  isBetaOrganizationSlug,
+  NEWSLETTER_BETA_ORGANIZATION_SLUG,
+} from "./beta-organizations.js";
+export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   EMAIL_CODE_SIGN_IN_METHODS_REMOVED,

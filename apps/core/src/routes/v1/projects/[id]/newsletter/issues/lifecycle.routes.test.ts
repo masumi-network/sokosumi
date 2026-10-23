@@ -10,6 +10,7 @@ import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_WORKSPACE_ID,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 import mountApprove from "./[issueId]/approve/post";
 import mountCancel from "./[issueId]/cancel/post";
@@ -21,6 +22,7 @@ import mountSubmit from "./[issueId]/submit/post";
 const m = vi.hoisted(() => ({
   users: vi.fn(),
   enabled: true,
+  workspace: vi.fn(),
   domain: "news.example.com",
   authorized: true,
   project: vi.fn(),
@@ -78,6 +80,7 @@ vi.mock("@/lib/db/prisma", () => {
   };
   return {
     default: {
+      workspace: { findUnique: m.workspace },
       ...tx,
       user: { findMany: m.users },
       project: { findFirst: m.project },
@@ -160,6 +163,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   m.enabled = true;
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.domain = "news.example.com";
   m.authorized = true;
   m.project.mockResolvedValue({
@@ -184,6 +188,53 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("newsletter approval and delivery", () => {
+  it.each(["other", null])(
+    "hides all lifecycle actions in workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      for (const action of [
+        "submit",
+        "approve",
+        "schedule",
+        "send-now",
+        "cancel",
+      ]) {
+        const input =
+          action === "schedule"
+            ? {
+                revision: 0,
+                scheduledAt: "2026-10-24T10:00:00Z",
+                timezone: "UTC",
+              }
+            : { revision: 0 };
+        expect((await request(action, input)).status).toBe(404);
+      }
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.createTask).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["other", null])(
+    "hides newsletters from shared bots in workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      const actor: AuthenticationContext = {
+        actor: "sokoBot",
+        scope: "project",
+        sokoBotId: BOT.sokoBotId,
+        userId: null,
+        organizationId: "org_1",
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+        projectId: NEWSLETTER_PROJECT_ID,
+      };
+      expect((await request("submit", { revision: 0 }, actor)).status).toBe(
+        404,
+      );
+      expect(m.createTask).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([USER, COWORKER, BOT])(
     "lets $actor submit and creates its approval Task through the domain service",
     async (actor) => {

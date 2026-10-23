@@ -9,6 +9,7 @@ import {
   NEWSLETTER_ID,
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import router from "../index";
@@ -115,6 +116,27 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("public newsletter signup", () => {
+  it.each(["other", null])(
+    "returns 404 for workspace organization %s without sending confirmation",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.newsletter.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? NEWSLETTER
+          : null,
+      );
+      const response = await app().request(URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "reader@example.com" }),
+      });
+      expect(response.status).toBe(404);
+      expect(m.createMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
   it("creates pending consent, records SUBSCRIBED and sends a signed confirmation from the newsletter domain", async () => {
     await signup({
       email: " Reader@EXAMPLE.com ",

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { NewsletterIssueStatus, Prisma } from "@sokosumi/database";
 import { renderNewsletterEmail } from "@sokosumi/email";
-import { newsletterContentSchema } from "@sokosumi/utils";
+import {
+  isBetaOrganizationSlug,
+  newsletterContentSchema,
+} from "@sokosumi/utils";
 
 import {
   RESEND_BATCH_MAX_SIZE,
@@ -9,6 +12,7 @@ import {
   sendEmails,
 } from "@/clients/email.client";
 import { conflict, notFound } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   newsletterPublicUrl,
@@ -43,12 +47,26 @@ export async function sendNewsletterIssue(
   options: SendNewsletterIssueOptions = {},
 ): Promise<void> {
   assertNewsletterEnabled();
-  newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
     where: { id: issueId },
-    include: { newsletter: true },
+    include: {
+      newsletter: true,
+      project: {
+        select: {
+          workspace: { select: { organization: { select: { slug: true } } } },
+        },
+      },
+    },
   });
   if (!issue) throw notFound("Newsletter issue not found");
+  if (
+    !isBetaOrganizationSlug(
+      "newsletter",
+      issue.project.workspace.organization?.slug,
+    )
+  )
+    return;
+  newsletterPublicUrl("unsubscribe");
   const sender = newsletterSenderOptions(issue.newsletter);
   const now = new Date();
   const recovering =
@@ -263,6 +281,7 @@ export async function sendDueNewsletterIssues(
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {
+      project: NEWSLETTER_BETA_PROJECT_WHERE,
       OR: [
         { status: "SCHEDULED", scheduledAt: { lte: now } },
         { status: "SENDING", leaseExpiresAt: { lte: now } },

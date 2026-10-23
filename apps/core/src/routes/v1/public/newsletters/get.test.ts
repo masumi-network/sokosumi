@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
-import { NEWSLETTER } from "@/test/newsletter";
+import { NEWSLETTER, newsletterWorkspace } from "@/test/newsletter";
 
 import router from "./index";
 
@@ -59,7 +59,10 @@ describe("public newsletter info", () => {
       brand: { primaryColor: "#123456" },
     });
     expect(m.newsletter).toHaveBeenCalledExactlyOnceWith({
-      where: { publicSlug: NEWSLETTER.publicSlug },
+      where: {
+        publicSlug: NEWSLETTER.publicSlug,
+        project: { workspace: { organization: { slug: "utxo" } } },
+      },
       select: { name: true, senderName: true, brand: true },
     });
     expect(m.subscriber).not.toHaveBeenCalled();
@@ -69,6 +72,20 @@ describe("public newsletter info", () => {
     m.newsletter.mockResolvedValue(null);
     expect((await app().request(URL)).status).toBe(404);
   });
+
+  it.each(["other", null])(
+    "hides public metadata for workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.newsletter.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? NEWSLETTER
+          : null,
+      );
+      expect((await app().request(URL)).status).toBe(404);
+    },
+  );
 
   it("returns 404 without data access when disabled", async () => {
     m.enabled = false;

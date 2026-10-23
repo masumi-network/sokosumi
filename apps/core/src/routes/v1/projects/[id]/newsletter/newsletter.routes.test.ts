@@ -11,6 +11,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { newsletterWorkspace } from "@/test/newsletter";
 
 import mountGet from "./get";
 import mountPut from "./put";
@@ -22,6 +23,7 @@ import mountAdd from "./subscribers/post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   projectFindFirst: vi.fn(),
   newsletterFindUnique: vi.fn(),
   newsletterUpsert: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspace },
     project: { findFirst: m.projectFindFirst },
     newsletter: {
       findUnique: m.newsletterFindUnique,
@@ -172,6 +175,7 @@ function allOperations(app = createApp()) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue(newsletterWorkspace());
   m.projectFindFirst.mockResolvedValue({
     id: PROJECT_ID,
     closingAt: null,
@@ -194,6 +198,22 @@ beforeEach(() => {
 });
 
 describe("Project newsletter access", () => {
+  it.each(["other", null])(
+    "returns 404 on every route for workspace organization %s",
+    async (slug) => {
+      m.workspace.mockResolvedValue(newsletterWorkspace(slug));
+      const responses = await Promise.all(allOperations());
+      expect(responses.map((response) => response.status)).toEqual(
+        Array(7).fill(404),
+      );
+      expect(m.projectFindFirst).not.toHaveBeenCalled();
+      expect(m.newsletterFindUnique).not.toHaveBeenCalled();
+      expect(m.newsletterUpsert).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+      expect(m.createMany).not.toHaveBeenCalled();
+    },
+  );
+
   it("returns 404 on every route before access checks or DB work when disabled", async () => {
     m.enabled = false;
     const responses = await Promise.all(allOperations(createApp(AUTH, null)));

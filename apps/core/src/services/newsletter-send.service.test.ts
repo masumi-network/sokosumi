@@ -7,6 +7,7 @@ import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_ISSUE_ID,
   NEWSLETTER_SUBSCRIBER,
+  newsletterWorkspace,
 } from "@/test/newsletter";
 
 import {
@@ -98,6 +99,7 @@ beforeEach(() => {
     ...NEWSLETTER_ISSUE,
     status: "SCHEDULED",
     newsletter: NEWSLETTER,
+    project: { workspace: newsletterWorkspace() },
   });
   m.issueFindMany.mockResolvedValue([{ id: NEWSLETTER_ISSUE_ID }]);
   m.issueUpdate.mockResolvedValue({ count: 1 });
@@ -179,6 +181,22 @@ beforeEach(() => {
 });
 
 describe("sendNewsletterIssue", () => {
+  it.each(["other", null])(
+    "leaves issues in workspace organization %s untouched",
+    async (slug) => {
+      m.issueFindUnique.mockResolvedValue({
+        ...NEWSLETTER_ISSUE,
+        status: "SCHEDULED",
+        newsletter: NEWSLETTER,
+        project: { workspace: newsletterWorkspace(slug) },
+      });
+      await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
+      expect(m.issueUpdate).not.toHaveBeenCalled();
+      expect(m.reserve).not.toHaveBeenCalled();
+      expect(m.batchSend).not.toHaveBeenCalled();
+    },
+  );
+
   it("sends 250 active subscribers in three private batches with signed links and headers", async () => {
     m.state.subscribers = subscribers(250);
     await sendNewsletterIssue(NEWSLETTER_ISSUE_ID);
@@ -369,6 +387,7 @@ describe("sendNewsletterIssue", () => {
     m.issueFindUnique.mockResolvedValue({
       ...NEWSLETTER_ISSUE,
       newsletter: NEWSLETTER,
+      project: { workspace: newsletterWorkspace() },
     });
     await expect(
       sendNewsletterIssue(NEWSLETTER_ISSUE_ID),
@@ -396,6 +415,7 @@ describe("sendNewsletterIssue", () => {
     m.issueFindUnique.mockResolvedValue({
       ...NEWSLETTER_ISSUE,
       newsletter: NEWSLETTER,
+      project: { workspace: newsletterWorkspace() },
       status: "SENDING",
       leaseToken: "old-lease",
       leaseExpiresAt: new Date(Date.now() + 60_000),
@@ -406,6 +426,7 @@ describe("sendNewsletterIssue", () => {
     m.issueFindUnique.mockResolvedValue({
       ...NEWSLETTER_ISSUE,
       newsletter: NEWSLETTER,
+      project: { workspace: newsletterWorkspace() },
       status: "SENDING",
       leaseToken: "old-lease",
       leaseExpiresAt: new Date(0),
@@ -420,6 +441,23 @@ describe("sendNewsletterIssue", () => {
 });
 
 describe("newsletter scheduler", () => {
+  it.each(["other", null])(
+    "never picks up due issues in workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.issueFindMany.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? [{ id: NEWSLETTER_ISSUE_ID }]
+          : [],
+      );
+      await sendDueNewsletterIssues();
+      expect(m.issueFindUnique).not.toHaveBeenCalled();
+      expect(m.issueUpdate).not.toHaveBeenCalled();
+      expect(m.batchSend).not.toHaveBeenCalled();
+    },
+  );
+
   it("does no work while disabled", async () => {
     m.state.enabled = false;
     await sendDueNewsletterIssues();
@@ -435,6 +473,7 @@ describe("newsletter scheduler", () => {
     expect(m.issueFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          project: { workspace: { organization: { slug: "utxo" } } },
           OR: [
             { status: "SCHEDULED", scheduledAt: { lte: expect.any(Date) } },
             { status: "SENDING", leaseExpiresAt: { lte: expect.any(Date) } },

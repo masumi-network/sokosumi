@@ -3,6 +3,7 @@ import { renderNewsletterEmail } from "@sokosumi/email";
 
 import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -39,6 +40,7 @@ export default function mount(app: OpenAPIHono) {
     const { publicSlug, issueSlug } = c.req.valid("param");
     const issue = await prisma.newsletterIssue.findFirst({
       where: {
+        project: NEWSLETTER_BETA_PROJECT_WHERE,
         publicSlug: issueSlug,
         newsletter: { publicSlug },
         status: "SENT",

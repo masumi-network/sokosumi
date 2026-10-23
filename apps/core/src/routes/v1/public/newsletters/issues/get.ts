@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
+import { NEWSLETTER_BETA_PROJECT_WHERE } from "@/helpers/newsletter-beta-access";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -42,7 +43,7 @@ export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { publicSlug } = c.req.valid("param");
     const newsletter = await prisma.newsletter.findUnique({
-      where: { publicSlug },
+      where: { publicSlug, project: NEWSLETTER_BETA_PROJECT_WHERE },
       select: { id: true },
     });
     if (!newsletter) throw notFound("Newsletter not found");
