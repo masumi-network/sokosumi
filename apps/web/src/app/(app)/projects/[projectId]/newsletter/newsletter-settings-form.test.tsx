@@ -109,6 +109,9 @@ describe("NewsletterSettingsForm", () => {
     ).toBeChecked();
     expect(screen.getByText(NEWSLETTER.publicSlug)).toBeInTheDocument();
     expect(
+      screen.getByRole("link", { name: "Public archive" }),
+    ).toHaveAttribute("href", `/n/${NEWSLETTER.publicSlug}/archive`);
+    expect(
       screen.queryByRole("link", { name: NEWSLETTER.publicSlug }),
     ).not.toBeInTheDocument();
     expect(

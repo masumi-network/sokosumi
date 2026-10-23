@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Newsletter } from "@sokosumi/core-client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -122,6 +123,11 @@ export function NewsletterSettingsForm({
             <p className="text-muted-foreground text-sm break-all">
               {publicSlug}
             </p>
+            <Button asChild variant="outline" className="mt-2">
+              <Link href={`/n/${encodeURIComponent(publicSlug)}/archive`}>
+                {t("publicArchive")}
+              </Link>
+            </Button>
           </div>
         ) : null}
         <fieldset disabled={isSubmitting} className="min-w-0 space-y-8">

@@ -3335,8 +3335,10 @@
             "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
             "noSender": "Newsletter sending is not configured. Ask a workspace administrator to finish setup.",
             "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
-          }
-        }
+          },
+          "viewOnWeb": "View on web"
+        },
+        "publicArchive": "Public archive"
       }
     },
     "Studio": {
@@ -9412,5 +9414,18 @@
       "skip": "Skip",
       "continue": "Continue"
     }
+  },
+  "PublicNewsletter": {
+    "archive": "Archive",
+    "subscribe": "Subscribe",
+    "emptyTitle": "No issues yet",
+    "emptyDescription": "Published issues will appear here.",
+    "loadMore": "Load more",
+    "loadError": "Failed to load issues. Try again.",
+    "unavailable": "This archive is no longer available. Reload the page.",
+    "metadataTitle": "{name} archive",
+    "metadataDescription": "Read past issues of {name}.",
+    "backToArchive": "Back to archive",
+    "issueContent": "Newsletter issue: {subject}"
   }
 }
