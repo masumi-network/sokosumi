@@ -5024,6 +5024,10 @@ export type ProjectImageJob = {
     refunded: boolean;
 };
 
+export type NewsletterAvailability = {
+    enabled: boolean;
+};
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -35772,6 +35776,49 @@ export type GetImageStudioStateResponses = {
 };
 
 export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
+
+export type GetNewsletterAvailabilityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/newsletter/availability';
+};
+
+export type GetNewsletterAvailabilityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNewsletterAvailabilityError = GetNewsletterAvailabilityErrors[keyof GetNewsletterAvailabilityErrors];
+
+export type GetNewsletterAvailabilityResponses = {
+    /**
+     * Newsletter availability
+     */
+    200: {
+        data: NewsletterAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNewsletterAvailabilityResponse = GetNewsletterAvailabilityResponses[keyof GetNewsletterAvailabilityResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;

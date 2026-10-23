@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getProjectWorkspaceLabels,
@@ -20,10 +20,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/projects/p1/memory",
 }));
 
-const { listSharedMock, activeOrganizationMock } = vi.hoisted(() => ({
-  listSharedMock: vi.fn(),
-  activeOrganizationMock: vi.fn(),
-}));
+const { listSharedMock, activeOrganizationMock, newsletterEnabledMock } =
+  vi.hoisted(() => ({
+    listSharedMock: vi.fn(),
+    activeOrganizationMock: vi.fn(),
+    newsletterEnabledMock: vi.fn().mockResolvedValue(false),
+  }));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
@@ -33,6 +35,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: { getActiveOrganizationId: activeOrganizationMock },
+}));
+vi.mock("@/lib/services/newsletter.service", () => ({
+  newsletterService: { isEnabled: newsletterEnabledMock },
 }));
 
 const LABELS = {
@@ -49,7 +54,9 @@ const LABELS = {
   },
 };
 
-function renderShell(labels: typeof LABELS & { bots?: string } = LABELS) {
+function renderShell(
+  labels: typeof LABELS & { bots?: string; newsletter?: string } = LABELS,
+) {
   return render(
     <ProjectWorkspaceShell
       createdAt="Yesterday"
@@ -173,6 +180,35 @@ describe("the project detail layout", () => {
 });
 
 describe("getProjectWorkspaceLabels", () => {
+  beforeEach(() => {
+    listSharedMock.mockResolvedValue(null);
+    activeOrganizationMock.mockResolvedValue(null);
+    newsletterEnabledMock.mockResolvedValue(false);
+  });
+
+  it("links Newsletter only when Core enables it", async () => {
+    newsletterEnabledMock.mockResolvedValueOnce(true);
+    const labels = await getProjectWorkspaceLabels();
+    renderShell({ ...LABELS, newsletter: labels.newsletter });
+    expect(
+      screen.getByRole("link", { name: "tabs.newsletter" }),
+    ).toHaveAttribute("href", "/projects/p1/newsletter");
+  });
+
+  it("hides Newsletter when Core disables it", async () => {
+    newsletterEnabledMock.mockResolvedValueOnce(false);
+    const labels = await getProjectWorkspaceLabels();
+    renderShell({ ...LABELS, newsletter: labels.newsletter });
+    expect(
+      screen.queryByRole("link", { name: /newsletter/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Newsletter when the availability read fails", async () => {
+    newsletterEnabledMock.mockRejectedValueOnce(new Error("Core unavailable"));
+    expect((await getProjectWorkspaceLabels()).newsletter).toBeUndefined();
+  });
+
   it("offers the Bots tab when Core lists shared bots in an organization", async () => {
     listSharedMock.mockResolvedValue([]);
     activeOrganizationMock.mockResolvedValue("org-1");
