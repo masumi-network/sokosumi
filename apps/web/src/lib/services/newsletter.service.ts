@@ -2,9 +2,13 @@ import "server-only";
 
 import type {
   AddNewsletterSubscriberRequest,
+  CreateNewsletterIssueRequest,
+  GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
   ImportNewsletterSubscribersRequest,
   Newsletter,
+  NewsletterIssue,
+  PatchNewsletterIssueRequest,
   PatchNewsletterSubscriberRequest,
   PutNewsletterRequest,
 } from "@sokosumi/core-client";
@@ -12,6 +16,68 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async listIssues(
+    projectId: string,
+    query: GetProjectsByIdNewsletterIssuesData["query"],
+  ) {
+    return coreClient.getProjectsByIdNewsletterIssues(projectId, query);
+  },
+
+  async getIssue(
+    projectId: string,
+    issueId: string,
+  ): Promise<NewsletterIssue | null> {
+    try {
+      const response =
+        await coreClient.getProjectsByIdNewsletterIssuesByIssueId(
+          projectId,
+          issueId,
+        );
+      return response.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404)
+        return null;
+      throw error;
+    }
+  },
+
+  async createIssue(projectId: string, input: CreateNewsletterIssueRequest) {
+    const response = await coreClient.postProjectsByIdNewsletterIssues(
+      projectId,
+      input,
+    );
+    return response.data;
+  },
+
+  async saveIssue(
+    projectId: string,
+    issueId: string,
+    input: PatchNewsletterIssueRequest,
+  ) {
+    const response =
+      await coreClient.patchProjectsByIdNewsletterIssuesByIssueId(
+        projectId,
+        issueId,
+        input,
+      );
+    return response.data;
+  },
+
+  async deleteIssue(projectId: string, issueId: string) {
+    await coreClient.deleteProjectsByIdNewsletterIssuesByIssueId(
+      projectId,
+      issueId,
+    );
+  },
+
+  async previewIssue(projectId: string, input: CreateNewsletterIssueRequest) {
+    const response = await coreClient.postProjectsByIdNewsletterIssuesPreview(
+      projectId,
+      input,
+    );
+    return response.data;
+  },
+
   isEnabled: cache(async (): Promise<boolean> => {
     const response = await coreClient.getNewsletterAvailability();
     return response.data.enabled;

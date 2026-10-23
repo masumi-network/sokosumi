@@ -11,6 +11,17 @@ const UNSUBSCRIBE_URL =
   "https://example.com/v1/public/newsletter/unsubscribe?token=signed-token";
 
 describe("newsletter rendering", () => {
+  it("keeps the preview unsubscribe placeholder without allowing unsafe URLs", async () => {
+    for (const unsubscribeUrl of ["#", "javascript:alert(1)"]) {
+      const { html } = await renderNewsletterEmail({
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "Preview", template: "TEXT", content: [] },
+        unsubscribeUrl,
+      });
+      expect(html.includes('href="#"')).toBe(unsubscribeUrl === "#");
+      expect(html).not.toContain('href="javascript:');
+    }
+  });
   it.each([
     ["en", "Confirm subscription", "Your subscription is confirmed", "7 days"],
     ["de", "Abonnement bestätigen", "Dein Abonnement ist bestätigt", "7 Tagen"],
