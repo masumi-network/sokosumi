@@ -13,10 +13,15 @@ import type { StudioAsset } from "./types";
  * generated until it is clear which project it goes to.
  */
 
-const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), stateOptions: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  enqueue: vi.fn(),
+  stateOptions: vi.fn(),
+  replace: vi.fn(),
+  onAccepted: null as null | ((accepted: { remaining: number }) => void),
+}));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
   usePathname: () => "/studio",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -109,12 +114,19 @@ vi.mock("./use-studio-state", () => ({
 }));
 
 vi.mock("./use-generation-queue", () => ({
-  useGenerationQueue: () => ({
-    failed: [],
-    queued: [],
-    enqueue: mocks.enqueue,
-    waitingForSlot: false,
-  }),
+  useGenerationQueue: ({
+    onAccepted,
+  }: {
+    onAccepted: (accepted: { remaining: number }) => void;
+  }) => {
+    mocks.onAccepted = onAccepted;
+    return {
+      failed: [],
+      queued: [],
+      enqueue: mocks.enqueue,
+      waitingForSlot: false,
+    };
+  },
 }));
 
 function asset(id: string, projectId: string, projectName: string) {
@@ -312,6 +324,22 @@ describe("the workspace view", () => {
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("");
+  });
+
+  it("moves the global scope to the picked project once its batch is in", () => {
+    mount(null);
+    generate("a fox");
+    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+
+    // Still sending: a remount now would drop what is queued.
+    mocks.onAccepted?.({ remaining: 1 });
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    mocks.onAccepted?.({ remaining: 0 });
+    expect(mocks.replace).toHaveBeenCalledWith(
+      "/studio?projectId=project-picked",
+      { scroll: false },
+    );
   });
 
   it("keeps the pending style batch when creating its destination project", () => {
