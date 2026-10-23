@@ -3407,8 +3407,10 @@
             "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
             "noSender": "El envío de boletines no está configurado. Pide a un administrador del espacio de trabajo que complete la configuración.",
             "approvalRequired": "Envía esta edición para aprobación y consigue la aprobación de una persona antes de programarla o enviarla."
-          }
-        }
+          },
+          "viewOnWeb": "Ver en la web"
+        },
+        "publicArchive": "Archivo público"
       }
     },
     "Studio": {
@@ -9750,5 +9752,18 @@
       "skip": "Omitir",
       "continue": "Continuar"
     }
+  },
+  "PublicNewsletter": {
+    "archive": "Archivo",
+    "subscribe": "Suscribirse",
+    "emptyTitle": "Aún no hay ediciones",
+    "emptyDescription": "Las ediciones publicadas aparecerán aquí.",
+    "loadMore": "Cargar más",
+    "loadError": "No se pudieron cargar las ediciones. Inténtalo de nuevo.",
+    "unavailable": "Este archivo ya no está disponible. Vuelve a cargar la página.",
+    "metadataTitle": "Archivo de {name}",
+    "metadataDescription": "Lee las ediciones anteriores de {name}.",
+    "backToArchive": "Volver al archivo",
+    "issueContent": "Edición del boletín: {subject}"
   }
 }

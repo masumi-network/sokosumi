@@ -258,6 +258,7 @@
   "newsletter": {
     "why": "Du erhältst diese E-Mail, weil du {name} abonniert hast.",
     "unsubscribe": "Abmelden",
+    "subscribe": "Abonnieren",
     "confirm": "Abmeldung bestätigen",
     "unsubscribed": "Du bist abgemeldet",
     "confirmSubscription": "Abonnement bestätigen",

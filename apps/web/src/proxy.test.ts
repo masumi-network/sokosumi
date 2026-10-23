@@ -29,6 +29,32 @@ describe("proxy", () => {
     getSessionCookieMock.mockReturnValue("session-token");
   });
 
+  it.each(["/n/weekly/archive", "/n/weekly/p/hello", "/n/weekly"])(
+    "serves public newsletter pages without a session: %s",
+    async (path) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(`https://app.example.com${path}`),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(getSessionCookieMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps neighbouring authenticated paths protected", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const response = await proxy(
+      new NextRequest("https://app.example.com/newsletter/settings"),
+    );
+    expect(response.status).toBe(307);
+    expect(getSessionCookieMock).toHaveBeenCalledOnce();
+  });
+
   it("checks the session cookie using the preview commit ref", async () => {
     const { NextRequest, NextResponse } = await import("next/server");
     const { proxy } = await import("./proxy");

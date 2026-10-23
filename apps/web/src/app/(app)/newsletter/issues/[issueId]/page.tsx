@@ -69,6 +69,7 @@ export default async function NewsletterIssuePage({
         issue={issue}
         projectId={project.id}
         activeSubscribers={subscribers.data.counts.ACTIVE}
+        newsletterSlug={newsletter.publicSlug}
       />
     </NewsletterPageShell>
   );

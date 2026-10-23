@@ -7953,6 +7953,20 @@ export type PublicNewsletter = {
     brand: NewsletterBrand;
 };
 
+export type PublicNewsletterIssueSummary = {
+    publicSlug: string;
+    subject: string;
+    previewText: string | null;
+    sentAt: Date;
+};
+
+export type PublicNewsletterIssue = {
+    subject: string;
+    previewText: string | null;
+    sentAt: Date;
+    html: string;
+};
+
 export type NewsletterSignupAccepted = {
     status: 'check_your_inbox';
 };
@@ -57051,6 +57065,135 @@ export type GetPublicNewslettersByPublicSlugResponses = {
 };
 
 export type GetPublicNewslettersByPublicSlugResponse = GetPublicNewslettersByPublicSlugResponses[keyof GetPublicNewslettersByPublicSlugResponses];
+
+export type GetPublicNewslettersByPublicSlugIssuesData = {
+    body?: never;
+    path: {
+        publicSlug: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/public/newsletters/{publicSlug}/issues';
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesError = GetPublicNewslettersByPublicSlugIssuesErrors[keyof GetPublicNewslettersByPublicSlugIssuesErrors];
+
+export type GetPublicNewslettersByPublicSlugIssuesResponses = {
+    /**
+     * Public newsletter archive
+     */
+    200: {
+        data: Array<PublicNewsletterIssueSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesResponse = GetPublicNewslettersByPublicSlugIssuesResponses[keyof GetPublicNewslettersByPublicSlugIssuesResponses];
+
+export type GetPublicNewslettersByPublicSlugIssuesByIssueSlugData = {
+    body?: never;
+    path: {
+        publicSlug: string;
+        issueSlug: string;
+    };
+    query?: {
+        locale?: 'en' | 'de' | 'es';
+    };
+    url: '/public/newsletters/{publicSlug}/issues/{issueSlug}';
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesByIssueSlugErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesByIssueSlugError = GetPublicNewslettersByPublicSlugIssuesByIssueSlugErrors[keyof GetPublicNewslettersByPublicSlugIssuesByIssueSlugErrors];
+
+export type GetPublicNewslettersByPublicSlugIssuesByIssueSlugResponses = {
+    /**
+     * Public newsletter issue
+     */
+    200: {
+        data: PublicNewsletterIssue;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugIssuesByIssueSlugResponse = GetPublicNewslettersByPublicSlugIssuesByIssueSlugResponses[keyof GetPublicNewslettersByPublicSlugIssuesByIssueSlugResponses];
 
 export type PostPublicNewslettersByPublicSlugSubscribeData = {
     body: SubscribeNewsletterRequest;
