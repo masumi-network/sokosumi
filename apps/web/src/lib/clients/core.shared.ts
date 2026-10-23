@@ -145,6 +145,7 @@ import type {
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
   ScheduleNewsletterIssueRequest,
+  SubscribeNewsletterRequest,
   UpdateAdminBadgeCampaignData,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
@@ -451,6 +452,7 @@ import {
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
+  postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
@@ -620,6 +622,25 @@ function nullWhenNotFound(error: unknown): null {
 }
 
 export function createCoreClient(getClient: GetCoreClient) {
+  async function postPublicNewslettersByPublicSlugSubscribe(
+    publicSlug: string,
+    body: SubscribeNewsletterRequest,
+    headers: HeadersInit,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostPublicNewslettersByPublicSlugSubscribe({
+          client,
+          path: { publicSlug },
+          body,
+          headers,
+          cache: "no-store",
+        }),
+      "Failed to subscribe to newsletter",
+    );
+  }
+
   async function getPublicNewslettersByPublicSlug(publicSlug: string) {
     return executeCoreOperation(
       getClient,
@@ -6412,6 +6433,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    postPublicNewslettersByPublicSlugSubscribe,
     getPublicNewslettersByPublicSlug,
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,

@@ -4,7 +4,7 @@ import { withEve } from "eve/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { documentSecurityHeaders } from "./src/config/document-security-headers";
+import { documentSecurityHeaderRules } from "./src/config/document-security-headers";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   PUSH_WORKER_MESSAGES_CACHE_CONTROL,
@@ -84,10 +84,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "*.localhost"],
   async headers() {
     return [
-      {
-        source: "/:path*",
-        headers: documentSecurityHeaders({ includeHsts: isVercelProduction }),
-      },
+      ...documentSecurityHeaderRules({ includeHsts: isVercelProduction }),
       ...[PUSH_WORKER_MESSAGES_PATH, PUSH_WORKER_RENEWAL_PATH].map(
         (source) => ({
           source,
