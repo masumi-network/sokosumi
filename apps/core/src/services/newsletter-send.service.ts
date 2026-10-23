@@ -8,14 +8,17 @@ import {
   type SendEmailInput,
   sendEmails,
 } from "@/clients/email.client";
-import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
-import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  newsletterPublicUrl,
+  newsletterSenderOptions,
+  newsletterUnsubscribeOptions,
+} from "@/lib/newsletter/email";
 import {
   assertNewsletterEnabled,
   isNewsletterEnabled,
 } from "@/lib/newsletter/feature";
-import { signNewsletterUnsubscribeToken } from "@/lib/newsletter/unsubscribe-token";
 import {
   newsletterBrandSchema,
   newsletterTemplateSchema,
@@ -40,26 +43,13 @@ export async function sendNewsletterIssue(
   options: SendNewsletterIssueOptions = {},
 ): Promise<void> {
   assertNewsletterEnabled();
-  const env = getEnv();
-  if (!env.NEWSLETTER_FROM_DOMAIN) {
-    throw serviceUnavailable(
-      "NEWSLETTER_FROM_DOMAIN is required to send newsletters",
-    );
-  }
-  const unsubscribeBaseUrl = new URL(
-    "/v1/public/newsletter/unsubscribe",
-    getBetterAuthPublicBaseUrl(),
-  );
-  if (unsubscribeBaseUrl.protocol !== "https:") {
-    throw serviceUnavailable(
-      "Newsletter unsubscribe links require a public HTTPS Core URL",
-    );
-  }
+  newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
     where: { id: issueId },
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
+  const sender = newsletterSenderOptions(issue.newsletter);
   const now = new Date();
   const recovering =
     issue.status === "SENDING" &&
@@ -111,7 +101,6 @@ export async function sendNewsletterIssue(
     };
     const content = newsletterContentSchema.parse(issue.content);
     const template = newsletterTemplateSchema.parse(issue.template);
-    const from = `"${newsletter.senderName.replace(/["\\\r\n]/g, " ")}" <newsletter@${env.NEWSLETTER_FROM_DOMAIN}>`;
     let cursor: string | undefined;
     while (true) {
       if (options.shouldContinue && !options.shouldContinue()) return;
@@ -148,30 +137,22 @@ export async function sendNewsletterIssue(
           (subscriber) => subscriber.id === send.subscriberId,
         );
         if (!subscriber) continue;
-        const url = new URL(unsubscribeBaseUrl);
-        url.searchParams.set(
-          "token",
-          signNewsletterUnsubscribeToken(
-            { newsletterId: newsletter.id, subscriberId: subscriber.id },
-            env.BETTER_AUTH_SECRET,
-          ),
-        );
+        const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
+          newsletterId: newsletter.id,
+          subscriberId: subscriber.id,
+        });
         const rendered = await renderNewsletterEmail({
           newsletter,
           issue: { ...issue, content, template },
-          unsubscribeUrl: url.href,
+          unsubscribeUrl,
         });
         sends.push(send);
         inputs.push({
           to: subscriber.email,
           ...rendered,
           tag: "newsletter",
-          from,
-          replyTo: newsletter.replyTo,
-          headers: {
-            "List-Unsubscribe": `<${url.href}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
+          ...sender,
+          headers,
         });
       }
       if (inputs.length) {

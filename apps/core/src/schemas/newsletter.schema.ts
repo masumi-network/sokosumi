@@ -141,6 +141,36 @@ export const newsletterSchema = z
   })
   .openapi("Newsletter");
 
+export const publicNewsletterParamsSchema = z.object({
+  publicSlug: z.string().min(1).max(300),
+});
+
+export const publicNewsletterSchema = newsletterSchema
+  .pick({ name: true, senderName: true, brand: true })
+  .openapi("PublicNewsletter");
+
+export const subscribeNewsletterRequestSchema = z
+  .object({
+    email: newsletterEmailSchema,
+    name: z.string().trim().max(200).optional(),
+    source: z.literal("SIGNUP_FORM").optional(),
+    website: z.string().max(2048).optional(),
+    locale: z.enum(["en", "de", "es"]).default("en"),
+  })
+  .openapi("SubscribeNewsletterRequest");
+
+export const newsletterSignupAcceptedSchema = z
+  .object({ status: z.literal("check_your_inbox") })
+  .openapi("NewsletterSignupAccepted");
+
+export const newsletterConfirmQuerySchema = z.object({
+  token: z.string().min(1).max(512),
+});
+
+export type SubscribeNewsletterRequest = z.infer<
+  typeof subscribeNewsletterRequestSchema
+>;
+
 export const newsletterSubscriberStatusSchema = z
   .enum(NewsletterSubscriberStatus)
   .openapi("NewsletterSubscriberStatus");

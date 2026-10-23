@@ -259,6 +259,13 @@
     "why": "You received this email because you subscribed to {name}.",
     "unsubscribe": "Unsubscribe",
     "confirm": "Confirm unsubscribe",
-    "unsubscribed": "You are unsubscribed"
+    "unsubscribed": "You are unsubscribed",
+    "confirmSubscription": "Confirm subscription",
+    "confirmed": "Your subscription is confirmed",
+    "confirmation": {
+      "subject": "Confirm your subscription to {name}",
+      "body": "Please confirm that you want to receive emails from {name}.",
+      "expiry": "This link expires in 7 days. If you did not request this subscription, you can ignore this email."
+    }
   }
 }
