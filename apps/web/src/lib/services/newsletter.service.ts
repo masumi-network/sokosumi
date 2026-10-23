@@ -3,6 +3,7 @@ import "server-only";
 import type {
   AddNewsletterSubscriberRequest,
   CreateNewsletterIssueRequest,
+  GetProjectsByIdNewsletterAnalyticsData,
   GetProjectsByIdNewsletterIssuesData,
   GetProjectsByIdNewsletterSubscribersData,
   GetPublicNewslettersByPublicSlugIssuesData,
@@ -22,6 +23,26 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const newsletterService = {
+  async getAnalytics(
+    projectId: string,
+    query: GetProjectsByIdNewsletterAnalyticsData["query"],
+  ) {
+    const response = await coreClient.getProjectsByIdNewsletterAnalytics(
+      projectId,
+      query,
+    );
+    return response.data;
+  },
+
+  async getIssueAnalytics(projectId: string, issueId: string) {
+    const response =
+      await coreClient.getProjectsByIdNewsletterIssuesByIssueIdAnalytics(
+        projectId,
+        issueId,
+      );
+    return response.data;
+  },
+
   async subscribe(publicSlug: string, input: SubscribeNewsletterRequest) {
     const requestHeaders = await headers();
     const ip =

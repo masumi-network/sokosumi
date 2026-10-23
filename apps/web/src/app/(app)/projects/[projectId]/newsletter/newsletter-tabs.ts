@@ -25,6 +25,11 @@ export function getNewsletterTabs(
         href: `/projects/${projectId}/newsletter/issues`,
         label: t("Issues.title"),
       },
+      {
+        id: "analytics",
+        href: `/projects/${projectId}/newsletter/analytics`,
+        label: t("Analytics.title"),
+      },
     );
   return tabs;
 }

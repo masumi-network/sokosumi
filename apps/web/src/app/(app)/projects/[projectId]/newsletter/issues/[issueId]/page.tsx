@@ -20,6 +20,10 @@ export default async function NewsletterIssuePage({
     newsletterService.getSettings(projectId),
   ]);
   if (!issue || !newsletter) notFound();
+  const analytics =
+    issue.status === "SENT"
+      ? await newsletterService.getIssueAnalytics(projectId, issueId)
+      : null;
   return (
     <NewsletterIssueEditor
       key={issue.id}
@@ -27,6 +31,7 @@ export default async function NewsletterIssuePage({
       projectId={projectId}
       activeSubscribers={subscribers.data.counts.ACTIVE}
       newsletterSlug={newsletter.publicSlug}
+      analytics={analytics}
     />
   );
 }
