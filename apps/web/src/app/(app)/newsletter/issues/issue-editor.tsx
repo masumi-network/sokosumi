@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type NewsletterIssue,
+  type NewsletterIssueAnalytics,
   NewsletterIssueStatus,
 } from "@sokosumi/core-client";
 import type { NewsletterBlock } from "@sokosumi/utils";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { IssueAnalyticsSummary } from "@/app/projects/[projectId]/newsletter/analytics/issue-analytics-summary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,11 +47,13 @@ export function NewsletterIssueEditor({
   issue,
   activeSubscribers,
   newsletterSlug,
+  analytics,
 }: {
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
   newsletterSlug: string;
+  analytics?: NewsletterIssueAnalytics | null;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [currentIssue, setCurrentIssue] = useState(issue);
@@ -181,6 +185,9 @@ export function NewsletterIssueEditor({
         <p className="text-muted-foreground text-sm" role="note">
           {t("readOnly")}
         </p>
+      ) : null}
+      {status === NewsletterIssueStatus.SENT && analytics ? (
+        <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
         <Form {...form}>

@@ -52,6 +52,10 @@ export default async function NewsletterIssuePage({
     limit: 1,
     status: "ACTIVE",
   });
+  const analytics =
+    issue.status === "SENT"
+      ? await newsletterService.getIssueAnalytics(project.id, issueId)
+      : null;
 
   return (
     <NewsletterPageShell
@@ -70,6 +74,7 @@ export default async function NewsletterIssuePage({
         projectId={project.id}
         activeSubscribers={subscribers.data.counts.ACTIVE}
         newsletterSlug={newsletter.publicSlug}
+        analytics={analytics}
       />
     </NewsletterPageShell>
   );

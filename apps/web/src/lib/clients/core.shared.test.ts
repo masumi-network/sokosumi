@@ -16,6 +16,8 @@ import { type Client, createClient } from "@sokosumi/core-client/client";
 import { describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "@/lib/clients/core.shared";
 import {
+  NEWSLETTER_ANALYTICS,
+  NEWSLETTER_ISSUE,
   PUBLIC_NEWSLETTER,
   PUBLIC_NEWSLETTER_ISSUE,
   PUBLIC_NEWSLETTER_ISSUE_SUMMARY,
@@ -160,6 +162,53 @@ describe("createCoreClient public newsletter reads", () => {
         "en",
       ),
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("createCoreClient newsletter analytics", () => {
+  it("preserves calendar dates, transforms issue timestamps and bypasses shared caches", async () => {
+    const requests: Request[] = [];
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        const data = new URL(request.url).pathname.includes("/issues/")
+          ? {
+              totals: NEWSLETTER_ANALYTICS.totals,
+              topLinks: [{ url: "https://example.com/read", uniqueClicks: 2 }],
+            }
+          : NEWSLETTER_ANALYTICS;
+        return new Response(
+          JSON.stringify({
+            data,
+            meta: { timestamp: "2026-10-02T12:00:00Z", requestId: "analytics" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+    const core = createCoreClient(() => client);
+    const response = await core.getProjectsByIdNewsletterAnalytics(
+      NEWSLETTER_ISSUE.projectId,
+      { from: "2026-10-01", to: "2026-10-02" },
+    );
+    expect(response.data).toEqual(NEWSLETTER_ANALYTICS);
+    expect(response.data.from).toBe("2026-10-01");
+    expect(response.data.subscriberGrowth[0]?.date).toBe("2026-10-01");
+    expect(response.data.issues[0]?.sentAt).toBeInstanceOf(Date);
+    const issue = await core.getProjectsByIdNewsletterIssuesByIssueIdAnalytics(
+      NEWSLETTER_ISSUE.projectId,
+      NEWSLETTER_ISSUE.id,
+    );
+    expect(issue.data.topLinks).toEqual([
+      { url: "https://example.com/read", uniqueClicks: 2 },
+    ]);
+    expect(requests.map((request) => request.url)).toEqual([
+      `https://core.example.com/v1/projects/${NEWSLETTER_ISSUE.projectId}/newsletter/analytics?from=2026-10-01&to=2026-10-02`,
+      `https://core.example.com/v1/projects/${NEWSLETTER_ISSUE.projectId}/newsletter/issues/${NEWSLETTER_ISSUE.id}/analytics`,
+    ]);
+    for (const request of requests) expect(request.cache).toBe("no-store");
   });
 });
 
