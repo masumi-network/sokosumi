@@ -86,8 +86,11 @@ const UNREACHABLE: QueueErrorCode = "unreachable";
 export function useGenerationQueue({
   onAccepted,
 }: {
-  /** Fires after Core accepts a request, so the page can go look for it. */
-  onAccepted: () => void;
+  /**
+   * Fires after Core accepts a request, so the page can go look for it.
+   * `remaining` counts the requests still waiting to be sent.
+   */
+  onAccepted: (accepted: { remaining: number }) => void;
 }): GenerationQueue {
   const [queued, setQueued] = useState<QueuedGeneration[]>([]);
   const [waitingForSlot, setWaitingForSlot] = useState(false);
@@ -189,7 +192,7 @@ export function useGenerationQueue({
           updateQueued((current) =>
             current.filter((item) => item.id !== next.id),
           );
-          onAcceptedRef.current();
+          onAcceptedRef.current({ remaining: queuedRef.current.length });
           return;
         }
 

@@ -1464,7 +1464,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Aufladung",
           "unattributed": "Sonstige"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# Interaktion} other {# Interaktionen}}",
+        "sokoBotTurnsList": "Interaktionen von {name}"
       },
       "Export": {
         "button": "CSV exportieren",
@@ -6966,6 +6968,10 @@
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
       "reorderPinnedDone": "Sortieren beenden",
+      "SectionLimit": {
+        "showMore": "{count} weitere anzeigen",
+        "showLess": "Weniger anzeigen"
+      },
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -7745,18 +7751,23 @@
         "description": "Der Persönliche Assistent ist in dieser Umgebung nicht aktiviert. Bitte später erneut versuchen."
       },
       "Create": {
-        "title": "Lern deinen Soko Bot kennen",
+        "title": "Dein eigener Assistent",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Dein persönlicher Assistent in Sokosumi.",
+        "description": "Ein Soko Bot ist ein KI-Assistent, der in Sokosumi für dich arbeitet. Sag ihm in einfachen Worten, was du brauchst, und er kümmert sich darum.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
-        "submit": "Soko Bot erstellen",
+        "submit": "Meinen Soko Bot erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
         "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
-        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen."
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen.",
+        "exampleDelegate": "Macht aus „recherchiere unsere fünf wichtigsten Wettbewerber“ eine Aufgabe für den passenden Coworker und bleibt dran, bis sie erledigt ist.",
+        "exampleBrief": "Schickt dir morgens eine kurze Übersicht aus Postfach und Kalender.",
+        "exampleMemory": "Merkt sich deine Ziele und Vorlieben, damit du dich nicht wiederholen musst.",
+        "examplesLabel": "Was er für dich tun kann",
+        "nameIntro": "Gib ihm zuerst einen Namen."
       },
       "Memory": {
         "title": "Gedächtnis",

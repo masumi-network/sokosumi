@@ -1464,7 +1464,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Recarga",
           "unattributed": "Otros"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interacción} other {# interacciones}}",
+        "sokoBotTurnsList": "Interacciones de {name}"
       },
       "Export": {
         "button": "Exportar CSV",
@@ -6966,6 +6968,10 @@
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
       "reorderPinnedDone": "Terminar de reordenar",
+      "SectionLimit": {
+        "showMore": "Mostrar {count} más",
+        "showLess": "Mostrar menos"
+      },
       "loading": "Cargando...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "El mensaje es demasiado largo ({count}/{max}). Acórtalo para enviarlo.",
@@ -7745,18 +7751,23 @@
         "description": "El Asistente personal no está habilitado en este entorno. Vuelve a intentarlo más tarde."
       },
       "Create": {
-        "title": "Conoce a tu Soko Bot",
+        "title": "Tu propio asistente",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Tu asistente personal en Sokosumi.",
+        "description": "Un Soko Bot es un asistente de IA que trabaja para ti en Sokosumi. Dile lo que necesitas con tus propias palabras y él se encarga.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
-        "submit": "Crear Soko Bot",
+        "submit": "Crear mi Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
         "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
-        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes."
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes.",
+        "exampleDelegate": "Convierte «investiga a nuestros 5 principales competidores» en una tarea para el Coworker adecuado y hace seguimiento hasta que esté hecha.",
+        "exampleBrief": "Te envía cada mañana un breve resumen de tu bandeja de entrada y tu calendario.",
+        "exampleMemory": "Recuerda tus objetivos y preferencias para que no tengas que repetirte.",
+        "examplesLabel": "Lo que puede hacer por ti",
+        "nameIntro": "Primero, ponle un nombre."
       },
       "Memory": {
         "title": "Memoria",

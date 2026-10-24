@@ -45,7 +45,6 @@ export function StudioGallery({
   onVariation,
   queued,
   selectedIds,
-  showProject,
 }: {
   activeJobs: StudioJob[];
   assets: StudioAsset[];
@@ -65,8 +64,6 @@ export function StudioGallery({
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
-  /** Label each image with its project: the workspace view mixes them. */
-  showProject: boolean;
 }) {
   const format = useFormatter();
 
@@ -119,7 +116,7 @@ export function StudioGallery({
                     data-asset-id={asset.id}
                   >
                     <button
-                      aria-label={`${labels.openDetails} — ${showProject ? `${asset.projectName}, ` : ""}${labels.version} ${asset.version}, ${model.label}`}
+                      aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
                       className="focus-visible:ring-ring-halo block w-full cursor-pointer outline-none focus-visible:ring-[3px]"
                       onClick={() => onOpen(asset.id)}
                       type="button"
@@ -135,12 +132,6 @@ export function StudioGallery({
                         <StudioImage asset={asset} labels={labels} />
                       </span>
                     </button>
-
-                    {showProject ? (
-                      <figcaption className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md border px-2 py-0.5 text-xs">
-                        {asset.projectName}
-                      </figcaption>
-                    ) : null}
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one

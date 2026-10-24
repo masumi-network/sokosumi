@@ -4,8 +4,10 @@ import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { Button } from "@/components/ui/button";
@@ -43,6 +46,7 @@ import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+  STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioFailedSubmission } from "./studio-failed-submission";
@@ -81,7 +85,7 @@ type Viewing = { mode: "single" } | { mode: "compare" } | null;
  * The studio.
  *
  * An empty studio offers style briefs in the center. Once generation starts,
- * results fill the feed and the styles sit above the composer below it. Models
+ * results fill the feed and the styles move into the composer's toolbar. Models
  * and generation settings remain summaries that open on demand.
  *
  * There is no conversational assistant here, by design. Generating images is a
@@ -239,7 +243,20 @@ export function ImageStudio({
   });
 
   const queue = useGenerationQueue({
-    onAccepted: useCallback(() => void refresh(), [refresh]),
+    onAccepted: useCallback(
+      ({ remaining }: { remaining: number }) => {
+        void refresh();
+        // Work started from "Everything" belongs to the project it was sent
+        // to: once the last request is in, the page moves there, so the
+        // sidebar's project switcher says where you are. Not before, because
+        // the page remounts per project and would drop what is still queued.
+        if (projectId === null && pickedProjectId && remaining === 0)
+          router.replace(switchScopeHref(pathname, pickedProjectId), {
+            scroll: false,
+          });
+      },
+      [refresh, projectId, pickedProjectId, router, pathname],
+    ),
   });
 
   const checkedAssets = useMemo(
@@ -524,6 +541,8 @@ export function ImageStudio({
     // Re-armed per page: a page that does not fill the viewport must fire again.
   }, [hasOlder, state.assets.length]);
 
+  const dock = useSteadyDock(promptRef);
+
   const composer = (
     <StudioComposer
       key={composerKey}
@@ -552,6 +571,16 @@ export function ImageStudio({
       referenceAssets={checkedAssets}
       target={target}
       showTemplates={!showsNothing}
+      onUndoTemplate={
+        templateUndo
+          ? () => {
+              setPrompt(templateUndo.prompt);
+              setTarget(templateUndo.target);
+              setTemplateUndo(null);
+              promptRef.current?.focus();
+            }
+          : undefined
+      }
     />
   );
 
@@ -570,7 +599,12 @@ export function ImageStudio({
         <div
           className={cn(
             "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
-            showsNothing ? "justify-center" : "justify-end",
+            // The column cancels the page pad so the prompt docks to the
+            // edge; the gallery takes the composer's gutter back. The empty
+            // state's carousel stays edge to edge on purpose.
+            showsNothing
+              ? "justify-center"
+              : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
           <div ref={topRef} />
@@ -612,7 +646,6 @@ export function ImageStudio({
               }}
               queued={queue.queued}
               selectedIds={checkedIds}
-              showProject={projectId === null}
             />
           )}
 
@@ -682,7 +715,12 @@ export function ImageStudio({
       </div>
 
       {checkedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-3 gap-y-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
           <span className="grow" />
           <span className="text-muted-foreground text-xs tabular-nums">
             {t("selectedCount", { count: checkedIds.length })}
@@ -703,28 +741,6 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      {templateUndo ? (
-        <div
-          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
-          role="status"
-        >
-          <span>{t("templateReplacedBrief")}</span>
-          <Button
-            className="h-10 md:h-8"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setPrompt(templateUndo.prompt);
-              setTarget(templateUndo.target);
-              setTemplateUndo(null);
-              promptRef.current?.focus();
-            }}
-          >
-            {t("undoTemplate")}
-          </Button>
-        </div>
-      ) : null}
-
       {/* The composer is the anchor, so the question sits over the brief it
       is about. Dismissing it leaves the brief untouched. */}
       <Popover
@@ -733,9 +749,16 @@ export function ImageStudio({
         }}
         open={awaitingProject !== null}
       >
-        <PopoverAnchor asChild>
-          <div>{composer}</div>
-        </PopoverAnchor>
+        <div className="relative shrink-0" ref={dock.slotRef}>
+          <PopoverAnchor asChild>
+            <div
+              className="bg-background absolute inset-x-0 bottom-0 pt-2"
+              ref={dock.dockRef}
+            >
+              {composer}
+            </div>
+          </PopoverAnchor>
+        </div>
         <PopoverContent
           align="end"
           className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
@@ -807,6 +830,39 @@ export function ImageStudio({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Keep the gallery still while the prompt grows.
+ *
+ * The feed is a bottom-anchored scroller, so anything that shrank it moved
+ * every image on screen: each new line of a brief, or a long template landing
+ * in the box. The composer is docked over the feed's bottom edge instead, in a
+ * slot as tall as the composer minus whatever the prompt has grown past its
+ * resting height. A growing brief then rises over the feed, the way a sheet
+ * would, and the feed's height only follows the composer's own rows.
+ */
+function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const dock = dockRef.current;
+    if (!slot || !dock) return;
+    const sync = () => {
+      const prompt = promptRef.current;
+      const growth = prompt
+        ? prompt.offsetHeight -
+          Number.parseFloat(getComputedStyle(prompt).minHeight)
+        : 0;
+      slot.style.height = `${dock.offsetHeight - (growth > 0 ? growth : 0)}px`;
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [promptRef]);
+  return { slotRef, dockRef };
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { NewTaskButton } from "@/app/components/new-task-button.client";
@@ -9,6 +9,11 @@ import {
   HistoryListItem,
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
+import { HistorySokoBotGroup } from "@/app/history/components/history-soko-bot-group";
+import {
+  groupSokoBotTurns,
+  type HistoryEntry,
+} from "@/app/history/utils/group-soko-bot-turns";
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
@@ -46,6 +51,10 @@ export function HistoryList({
   const [cursor, setCursor] = useState(nextCursor);
   const [isPending, startTransition] = useTransition();
   const { formatMonthYear } = useLocalizedDateTime();
+  const entries = useMemo(
+    () => groupSokoBotTurns(items, (date) => new Date(date).toDateString()),
+    [items],
+  );
   const hasHistory = items.length > 0;
   const showEmptyState = !hasHistory && !isPending;
 
@@ -68,15 +77,16 @@ export function HistoryList({
       {hasHistory ? (
         <div className="bg-card-background overflow-hidden rounded-xl p-2">
           <ul className="flex flex-col gap-2">
-            {items.map((item, index) => {
-              const month = formatMonthYear(item.consumedAt);
+            {entries.map((entry, index) => {
+              const at = entryDate(entry);
+              const month = formatMonthYear(at);
               // Newest first, so a heading opens each run of one month.
               const startsMonth =
                 index === 0 ||
-                month !== formatMonthYear(items[index - 1].consumedAt);
+                month !== formatMonthYear(entryDate(entries[index - 1]));
 
               return (
-                <Fragment key={`${item.kind}:${item.id}`}>
+                <Fragment key={entryKey(entry)}>
                   {startsMonth ? (
                     <li
                       role="presentation"
@@ -86,11 +96,20 @@ export function HistoryList({
                     </li>
                   ) : null}
                   <li>
-                    <HistoryListItem
-                      item={item}
-                      labels={labels.row}
-                      activeOrganizationId={activeOrganizationId}
-                    />
+                    {entry.type === "item" ? (
+                      <HistoryListItem
+                        item={entry.item}
+                        labels={labels.row}
+                        activeOrganizationId={activeOrganizationId}
+                      />
+                    ) : (
+                      <HistorySokoBotGroup
+                        items={entry.items}
+                        credits={entry.credits}
+                        labels={labels.row}
+                        activeOrganizationId={activeOrganizationId}
+                      />
+                    )}
                   </li>
                 </Fragment>
               );
@@ -138,4 +157,16 @@ function appendUniqueHistoryItems(
   );
 
   return [...prev, ...uniqueItems];
+}
+
+function entryDate(entry: HistoryEntry): Date {
+  return entry.type === "item"
+    ? entry.item.consumedAt
+    : entry.items[0].consumedAt;
+}
+
+function entryKey(entry: HistoryEntry): string {
+  return entry.type === "item"
+    ? `${entry.item.kind}:${entry.item.id}`
+    : `sokoBotDay:${entry.key}`;
 }
