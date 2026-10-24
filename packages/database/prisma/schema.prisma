@@ -4144,6 +4144,7 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
+  messageSignals   ChatMessageSignal[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
@@ -4315,6 +4316,7 @@ model ChatRoomMessage {
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
+  signal               ChatMessageSignal?
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.

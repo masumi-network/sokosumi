@@ -2136,6 +2136,17 @@ export const ChatRoomMessageSchema = {
             },
             maxItems: 3,
             description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+        },
+        signal: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatMessageSignal'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
         }
     },
     required: [
@@ -2848,6 +2859,140 @@ export const ChatRoomMessageSkillSchema = {
         'description',
         'url'
     ]
+} as const;
+
+export const ChatMessageSignalSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags that apply: Jev\'s probability at or above the threshold, with readers\' corrections on top. A guide for sorting and highlighting; it never hides a message.'
+        },
+        probabilities: {
+            type: 'object',
+            properties: {
+                question: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                needsDecision: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                commitment: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                blocker: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                decisionMade: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                fyi: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                urgent: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                chitChat: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                workRequest: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                escalation: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                }
+            },
+            description: 'Jev\'s probability per tag, as it answered.'
+        },
+        addressedUserIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.'
+        },
+        commitmentDueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.'
+        },
+        loopClosedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a reader closed this open loop, by making a Task of it or dismissing it.'
+        },
+        loopTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        correctedTags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags a reader corrected by hand.'
+        }
+    },
+    required: [
+        'tags',
+        'probabilities',
+        'addressedUserIds',
+        'commitmentDueAt',
+        'loopClosedAt',
+        'loopTaskId',
+        'correctedTags'
+    ]
+} as const;
+
+export const ChatSignalTagSchema = {
+    type: 'string',
+    enum: [
+        'question',
+        'needsDecision',
+        'commitment',
+        'blocker',
+        'decisionMade',
+        'fyi',
+        'urgent',
+        'chitChat',
+        'workRequest',
+        'escalation'
+    ],
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -10059,6 +10204,13 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
+        unreadNeedsYouCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.',
+            example: 1
+        },
         starredAt: {
             type: [
                 'string',
@@ -10834,6 +10986,17 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     },
                     maxItems: 3,
                     description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+                },
+                signal: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/ChatMessageSignal'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
                 }
             },
             required: [
@@ -12251,6 +12414,370 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatSignalListItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'needsYou',
+                'question',
+                'decision',
+                'commitment'
+            ],
+            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
+        },
+        room: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'channel',
+                        'direct'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        message: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'room',
+        'message',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatCatchUpSummarySchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            description: '`all` or the room id.'
+        },
+        unreadTaggedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        counts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count'
+                ]
+            }
+        },
+        headline: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.'
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    roomId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    roomName: {
+                        type: 'string'
+                    },
+                    line: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'roomId',
+                    'roomName',
+                    'line'
+                ]
+            }
+        },
+        generatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        needsYou: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        decisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        openLoops: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        highlights: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        }
+    },
+    required: [
+        'scope',
+        'unreadTaggedCount',
+        'counts',
+        'headline',
+        'rooms',
+        'generatedAt',
+        'needsYou',
+        'decisions',
+        'openLoops',
+        'highlights'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'decisionMade',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatRoomCatchUpSchema = {
+    type: 'object',
+    properties: {
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread top-level messages from others, tagged or not.'
+        },
+        taggedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'How many of those Jev has read; the rest are too short or still waiting.'
+        },
+        buckets: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    messageIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'Oldest first, so a jump lands on the first one.'
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count',
+                    'messageIds'
+                ]
+            }
+        }
+    },
+    required: [
+        'unreadCount',
+        'taggedCount',
+        'buckets'
+    ]
+} as const;
+
+export const ChatSignalCorrectionRequestSchema = {
+    type: 'object',
+    properties: {
+        tag: {
+            $ref: '#/components/schemas/ChatSignalTag'
+        },
+        applies: {
+            type: 'boolean',
+            description: 'Whether the tag applies to the message, as the reader sees it.'
+        }
+    },
+    required: [
+        'tag',
+        'applies'
+    ]
+} as const;
+
+export const ChatSignalLoopRequestSchema = {
+    type: 'object',
+    properties: {
+        closed: {
+            type: 'boolean',
+            description: 'True closes the open loop; false reopens it.'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Task the loop was made into, when closing it so.'
+        }
+    },
+    required: [
+        'closed'
+    ]
+} as const;
+
+export const ChatSignalRoutingSuggestionSchema = {
+    type: 'object',
+    properties: {
+        coworkerId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        fit: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            description: 'Jev\'s probability that this Coworker can do the request.'
+        }
+    },
+    required: [
+        'coworkerId',
+        'name',
+        'caption',
+        'fit'
     ]
 } as const;
 

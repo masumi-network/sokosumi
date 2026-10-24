@@ -32,6 +32,7 @@ import {
   chatRoomMessageSchema,
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import { enqueueChatMessageSignal } from "@/services/chat-message-signals.service";
 import {
   resolveAttachedSkills,
   skillMetadata,
@@ -603,6 +604,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      // Jev reads it once the room goes quiet; never in front of the send.
+      waitUntil(enqueueChatMessageSignal(message.id));
     }
 
     await publishChatRoomMessageRealtime(message, "create");
