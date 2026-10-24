@@ -98,7 +98,6 @@ function mount(
         onVariation={onVariation}
         queued={[]}
         selectedIds={[]}
-        showProject={false}
       />,
     );
   } else {

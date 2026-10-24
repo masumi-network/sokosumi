@@ -127,6 +127,9 @@ function TriggerLabel({
  * anyone could name. Emphasis is still carried where it belongs — these are
  * `ghost` and Generate is `primary`.
  */
+/** Share of the prompt limit at which the character count shows. */
+const COUNT_VISIBLE_FROM = 0.9;
+
 const TRIGGER_CLASS =
   "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
@@ -467,14 +470,16 @@ export function StudioComposer({
         attachments={[]}
         belowEditor={
           <>
-            <div
-              className="text-muted-foreground flex flex-wrap justify-between gap-x-3 gap-y-1 px-4 pb-2 text-xs"
-              id={promptHelpId}
-            >
-              <span>{t("promptShortcut")}</span>
-              <span
+            {/* Like the DM composer, the card is only the prompt and its
+                controls: the shortcut is read to screen readers, and the
+                count appears once the prompt nears its limit. */}
+            <span className="sr-only" id={promptHelpId}>
+              {t("promptShortcut")}
+            </span>
+            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
+              <p
                 className={cn(
-                  "tabular-nums",
+                  "text-muted-foreground px-4 pb-2 text-right text-xs tabular-nums",
                   promptTooLong && "text-destructive",
                 )}
               >
@@ -482,8 +487,8 @@ export function StudioComposer({
                   count: promptLength,
                   limit: MAX_PROMPT_LENGTH,
                 })}
-              </span>
-            </div>
+              </p>
+            ) : null}
             {promptTooLong ? (
               <p
                 className="text-destructive px-4 pb-2 text-xs"
@@ -963,10 +968,7 @@ export function StudioComposer({
               : promptHelpId
           }
           aria-invalid={promptTooLong || undefined}
-          className={cn(
-            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
-            "focus-visible:ring-ring-halo focus-visible:ring-[3px] focus-visible:ring-inset",
-          )}
+          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (
