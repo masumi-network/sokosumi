@@ -6,9 +6,19 @@ import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mo
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { getSession } from "@/lib/auth/auth.server";
+import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+
+import { SokoBotHome } from "./components/soko-bot-home";
+import {
+  findSokoBotDirectRoom,
+  SOKO_BOT_HOME_MESSAGE_PAGE,
+  type SokoBotHomeChat,
+  toRecentChats,
+} from "./components/soko-bot-home-data";
 
 interface WelcomePageProps {
   searchParams: Promise<{
@@ -16,9 +26,30 @@ interface WelcomePageProps {
   }>;
 }
 
+/** The bot's Direct and the user's recent requests in it; empty on failure. */
+async function loadSokoBotChats(
+  sokoBotId: string,
+  userId: string,
+): Promise<{ roomId: string | null; recentChats: SokoBotHomeChat[] }> {
+  const { rooms } = await chatRoomService
+    .listRooms("direct")
+    .catch(() => ({ rooms: [] }));
+  const room = findSokoBotDirectRoom(rooms, sokoBotId);
+  if (!room) return { roomId: null, recentChats: [] };
+  const page = await chatRoomService
+    .listMessages(room.id, { limit: SOKO_BOT_HOME_MESSAGE_PAGE })
+    .catch(() => null);
+  return {
+    roomId: room.id,
+    recentChats: page ? toRecentChats(page.messages, userId) : [],
+  };
+}
+
 /**
  * `/` welcome: what happened while the user was away, and a way in via a
- * coworker. This is the post-login landing on every breakpoint — desktop gets
+ * coworker. A user with a personal Soko Bot gets {@link SokoBotHome} instead,
+ * a chat with their bot. Shared bots never take the home over: their room is
+ * the team's, so a send from here would post for everyone. This is the post-login landing on every breakpoint — desktop gets
  * the full-page composition, mobile a version sized for a 390px column. The
  * room list is its own surface (`/chat` on mobile, the sidebar on
  * desktop) rather than something stacked underneath the welcome.
@@ -39,7 +70,35 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
-  const activeOrganizationId = await userService.getActiveOrganizationId();
+  const [activeOrganizationId, sokoBot] = await Promise.all([
+    userService.getActiveOrganizationId(),
+    sokoBotService.getMine().catch(() => null),
+  ]);
+  const userId = session?.user.id;
+
+  if (sokoBot && userId) {
+    const [{ roomId, recentChats }, summary] = await Promise.all([
+      loadSokoBotChats(sokoBot.id, userId),
+      taskService.getActivitySummary({ scope: "owned" }),
+    ]);
+    return (
+      <>
+        {landingNotice}
+        <SokoBotHome
+          bot={{
+            id: sokoBot.id,
+            name: sokoBot.name,
+            avatarSeed: sokoBot.avatarSeed,
+            avatarImageUrl: sokoBot.avatarImageUrl ?? null,
+          }}
+          ownerId={userId}
+          roomId={roomId}
+          recentChats={recentChats}
+          awaitingInput={summary?.awaitingInput ?? 0}
+        />
+      </>
+    );
+  }
 
   const [coworkerRows, summary] = await Promise.all([
     coworkerService.listCoworkers("chat"),
