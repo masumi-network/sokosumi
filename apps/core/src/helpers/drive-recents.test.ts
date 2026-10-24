@@ -30,6 +30,9 @@ function driveFile(pathname: string, activityAt: string): DriveRecentsItem {
     pathname,
     size: 100,
     activityAt,
+    resourceId: null,
+    category: null,
+    tags: [],
   };
 }
 
@@ -435,6 +438,82 @@ describe("fetchDriveRecentsPage", () => {
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.kind).toBe("drive-file");
     expect(page.items[0]?.name).toBe("report.pdf");
+  });
+
+  it("keeps only tagged drive files and skips the other sources under a tag filter", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/promo.mp4",
+          pathname: "drive/users/u/promo.mp4",
+          size: 100,
+          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+        {
+          url: "https://blob.example/notes.pdf",
+          pathname: "drive/users/u/notes.pdf",
+          size: 100,
+          uploadedAt: new Date("2026-08-22T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+    });
+    const fetchTaskOutputs = vi.fn();
+    const fetchTables = vi.fn();
+    const binding = { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" };
+
+    const page = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 10,
+      driveFilePathnames: new Set(["drive/users/u/promo.mp4"]),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: binding,
+      fetchTaskOutputs,
+      fetchTables,
+    });
+
+    expect(
+      page.items.map((item) => item.kind === "drive-file" && item.name),
+    ).toEqual(["promo.mp4"]);
+    expect(fetchTaskOutputs).not.toHaveBeenCalled();
+    expect(fetchTables).not.toHaveBeenCalled();
+  });
+
+  it("does not walk the store when no file carries the label", async () => {
+    listMock.mockClear();
+    const page = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 10,
+      driveFilePathnames: new Set(),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" },
+      fetchTaskOutputs: vi.fn(),
+    });
+
+    expect(page).toEqual({ items: [], hasMore: false, nextCursor: null });
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cursor minted under a different tag filter", async () => {
+    const cursor = encodeDriveRecentsCursor({
+      lastItem: driveFile("drive/users/u/a.pdf", "2026-08-21T12:00:00.000Z"),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" },
+    });
+
+    await expect(
+      fetchDriveRecentsPage({
+        prefix: PREFIX,
+        token: "test-token",
+        limit: 10,
+        cursor,
+        cursorSecret: CURSOR_SECRET,
+        cursorBinding: { prefix: PREFIX, searchQuery: "" },
+        fetchTaskOutputs: vi.fn(),
+      }),
+    ).rejects.toThrow("Invalid pagination cursor");
   });
 
   it("paginates by re-scanning with a compact activity cursor", async () => {

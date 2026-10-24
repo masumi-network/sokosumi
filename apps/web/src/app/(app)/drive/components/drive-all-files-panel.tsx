@@ -26,7 +26,10 @@ import { useDebouncedCallback } from "use-debounce";
 import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
-import { DriveFileViewer } from "@/app/drive/components/drive-file-viewer";
+import {
+  DriveFileViewer,
+  type DriveFileViewerFile,
+} from "@/app/drive/components/drive-file-viewer";
 import {
   childFolders,
   DriveFolderNav,
@@ -218,11 +221,7 @@ export function DriveAllFilesPanel({
    * The name and type ride along with the id, so the viewer can choose how to
    * show it on the first frame.
    */
-  const [openFile, setOpenFile] = useState<{
-    id: string;
-    displayName: string;
-    mimeType: string | null;
-  } | null>(null);
+  const [openFile, setOpenFile] = useState<DriveFileViewerFile | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -1213,6 +1212,7 @@ export function DriveAllFilesPanel({
                     id: item.id,
                     displayName: item.displayName,
                     mimeType: item.mimeType,
+                    sizeBytes: item.sizeBytes,
                   })
                 }
                 onDismissLabel={(label) => void dismissLabel(item, label.id)}

@@ -18,6 +18,8 @@ interface RecentsCursorPayload {
 export interface DriveRecentsCursorBinding {
   prefix: string;
   searchQuery: string;
+  /** Sorted, comma-joined label ids. Absent when no tag filter applies. */
+  labelIds?: string;
 }
 
 export interface DriveRecentsPageState {
@@ -188,6 +190,9 @@ function lastItemFromCursorPayload(
       pathname: payload.id,
       size: 0,
       activityAt: payload.activityAt,
+      resourceId: null,
+      category: null,
+      tags: [],
     };
   if (payload.kind === "table")
     return {
@@ -274,6 +279,9 @@ function mapDriveBlobToRecentsItem(
     pathname: blob.pathname,
     size: blob.size,
     activityAt: blob.uploadedAt.toISOString(),
+    resourceId: null,
+    category: null,
+    tags: [],
   };
 }
 
@@ -344,6 +352,11 @@ export async function fetchDriveRecentsPage(input: {
   limit: number;
   cursor?: string;
   searchQuery?: string;
+  /**
+   * Only Drive files at these pathnames, and nothing from the other sources:
+   * the tag filter, which only Drive files can match.
+   */
+  driveFilePathnames?: ReadonlySet<string>;
   cursorSecret: string;
   cursorBinding: DriveRecentsCursorBinding;
   fetchTaskOutputs: (options: { cursor?: string; take: number }) => Promise<{
@@ -358,7 +371,11 @@ export async function fetchDriveRecentsPage(input: {
   const cursorBinding: DriveRecentsCursorBinding = {
     prefix: input.cursorBinding.prefix,
     searchQuery,
+    ...(input.cursorBinding.labelIds
+      ? { labelIds: input.cursorBinding.labelIds }
+      : {}),
   };
+  const driveFilePathnames = input.driveFilePathnames;
 
   let pageState: DriveRecentsPageState = {
     lastItem: null,
@@ -387,6 +404,12 @@ export async function fetchDriveRecentsPage(input: {
       searchQuery &&
       item.kind === "drive-file" &&
       !driveRecentsDriveFileNameMatchesSearch(item.name, searchQuery)
+    ) {
+      return false;
+    }
+    if (
+      driveFilePathnames &&
+      (item.kind !== "drive-file" || !driveFilePathnames.has(item.pathname))
     ) {
       return false;
     }
@@ -429,6 +452,11 @@ export async function fetchDriveRecentsPage(input: {
     trimPoolToNewest();
   }
 
+  // Nothing carries the label, so there is no store to walk.
+  if (driveFilePathnames?.size === 0) {
+    return { items: [], hasMore: false, nextCursor: null };
+  }
+
   const fetchers: DriveRecentsSource[] = [
     ({ cursor, take }) =>
       fetchDriveBlobRecentsBatch({
@@ -437,22 +465,24 @@ export async function fetchDriveRecentsPage(input: {
         cursor,
         take,
       }),
-    async (options) => {
+  ];
+  if (!driveFilePathnames) {
+    fetchers.push(async (options) => {
       const batch = await input.fetchTaskOutputs(options);
       return {
         items: batch.rows.map(mapTaskOutputRowToRecentsItem),
         hasMore: batch.hasMore,
         nextCursor: batch.nextCursor,
       };
-    },
-  ];
+    });
+  }
   const sources: Array<{
     fetch: DriveRecentsSource;
     cursor?: string;
     hasMore: boolean;
     newestFirst?: boolean;
   }> = fetchers.map((fetch) => ({ fetch, hasMore: true }));
-  if (input.fetchTables)
+  if (input.fetchTables && !driveFilePathnames)
     sources.push({
       fetch: input.fetchTables,
       hasMore: true,
