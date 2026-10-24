@@ -76,7 +76,7 @@ export function RoomCatchUpLine({
         type="button"
         aria-label={t("dismissCatchUp")}
         title={t("dismissCatchUp")}
-        className="hover:text-foreground grid size-6 shrink-0 place-items-center rounded-md"
+        className="hit-area hover:text-foreground grid size-6 shrink-0 place-items-center rounded-md"
         onClick={() => setDismissed(true)}
       >
         <X className="size-3.5" aria-hidden />

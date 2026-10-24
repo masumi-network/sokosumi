@@ -62,7 +62,7 @@ export function RoomDecisionsPopover({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="max-h-[min(32rem,70vh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-2"
+        className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-2"
         data-testid="room-decisions-panel"
       >
         <h2 className="px-2 pt-1 pb-2 text-sm font-semibold">

@@ -52,7 +52,7 @@ export function RoomSummaryPopover({
       <PopoverContent
         align="end"
         side="top"
-        className="max-h-[min(32rem,70vh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
+        className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
       >
         {data ? (
           <CatchUpSummaryBody

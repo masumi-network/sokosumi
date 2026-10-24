@@ -181,7 +181,7 @@ export function MessageSignalBar({
               disabled={isSaving}
               aria-label={t("removeTag", { tag: label })}
               title={t("removeTag", { tag: label })}
-              className="hover:bg-background grid size-4 place-items-center rounded-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
+              className="hit-area hover:bg-background grid size-4 place-items-center rounded-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
               onClick={() => correct(chipTags(chip, signal), false)}
             >
               <X className="size-3" aria-hidden />
