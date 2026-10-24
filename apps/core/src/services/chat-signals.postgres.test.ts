@@ -89,8 +89,7 @@ const evaluate: ChatSignalEvaluator = async ({ state }) => {
   }
   return {
     answers,
-    usage: { inputTokens: 100, outputTokens: 50 },
-    providerMetadata: { gateway: { cost: "0.00001" } },
+    costUsd: 0.00001,
   };
 };
 

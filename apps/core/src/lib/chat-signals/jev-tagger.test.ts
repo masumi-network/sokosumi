@@ -171,23 +171,19 @@ describe("chatSignalAddressees", () => {
 });
 
 describe("tagChatSignalBatch", () => {
-  it("makes one call for the whole batch and reports usage and cost", async () => {
+  it("makes one call for the whole batch and reports its cost", async () => {
     const evaluate = vi.fn().mockResolvedValue({
       answers: answers(),
-      usage: { inputTokens: 500, outputTokens: 200 },
-      providerMetadata: { gateway: { cost: "0.0000335" } },
+      costUsd: 0.0000335,
     });
     const result = await tagChatSignalBatch(batch(), {
       timeoutMs: 1_000,
       evaluate,
     });
     expect(evaluate).toHaveBeenCalledOnce();
+    expect(evaluate.mock.calls[0][0].timeoutMs).toBe(1_000);
     expect(result.questionCount).toBe(11);
-    expect(result.usage).toEqual({
-      inputTokens: 500,
-      outputTokens: 200,
-      costUsd: 0.0000335,
-    });
+    expect(result.costUsd).toBe(0.0000335);
     expect(result.readings).toHaveLength(1);
   });
 });

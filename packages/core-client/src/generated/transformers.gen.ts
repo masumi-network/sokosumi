@@ -1501,6 +1501,12 @@ const contactSchemaResponseTransformer = (data: any) => {
     if (data.lastContactAt) {
         data.lastContactAt = new Date(data.lastContactAt);
     }
+    if (data.lastInboundAt) {
+        data.lastInboundAt = new Date(data.lastInboundAt);
+    }
+    if (data.awaitingReplySince) {
+        data.awaitingReplySince = new Date(data.awaitingReplySince);
+    }
     if (data.archivedAt) {
         data.archivedAt = new Date(data.archivedAt);
     }

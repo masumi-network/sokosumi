@@ -337,17 +337,16 @@ export async function tagRoomChatSignals(
       });
       outcome.tagged += written.count;
     }
-    outcome.costUsd = result.usage.costUsd;
+    outcome.costUsd = result.costUsd;
     log.set({
       chatSignals: {
         outcome: "tagged",
         tagged: outcome.tagged,
         questions: result.questionCount,
         latencyMs: result.latencyMs,
-        usage: result.usage,
+        costUsd: result.costUsd,
         costPerMessageUsd:
-          Math.round((result.usage.costUsd / batch.messages.length) * 1e8) /
-          1e8,
+          Math.round((result.costUsd / batch.messages.length) * 1e8) / 1e8,
         // Probabilities and the due choice only: never message text.
         ratings: result.readings.map((reading) => ({
           probabilities: reading.probabilities,

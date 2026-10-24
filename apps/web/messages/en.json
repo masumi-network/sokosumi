@@ -8531,12 +8531,18 @@
         "description": "Everyone your team knows, with every way to reach them."
       },
       "stages": {
+        "CONTACT": "Contact",
+        "FRIEND": "Friend",
         "PROSPECT": "Prospect",
         "LEAD": "Lead",
         "ACTIVE": "Active",
+        "CUSTOMER": "Customer",
         "PARTNER": "Partner",
         "INVESTOR": "Investor",
-        "CUSTOMER": "Customer",
+        "VENDOR": "Vendor",
+        "ADVISOR": "Advisor",
+        "COMMUNITY": "Community",
+        "PRESS": "Press",
         "DORMANT": "Dormant"
       },
       "channelTypes": {
@@ -8563,10 +8569,10 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
+        "noReply": "No reply",
         "followUps": "Follow-ups due",
         "recent": "Recently added",
-        "stale": "Stale 90+ days",
-        "prospects": "Prospects"
+        "stale": "Stale 90+ days"
       },
       "emptyViews": {
         "all": "No contacts yet.",
@@ -8574,8 +8580,8 @@
         "followUps": "No follow-ups are due. Nice work.",
         "recent": "Nobody was added in the last two weeks.",
         "stale": "Everyone has been in touch within the last 90 days.",
-        "prospects": "No prospects yet. Add someone you'd like to meet and say why.",
-        "list": "This list is empty. Select people in All contacts and add them here."
+        "list": "This list is empty. Select people in All contacts and add them here.",
+        "noReply": "Everyone the team wrote to answered, or it has been less than a week."
       },
       "rail": {
         "label": "Contact lists",
@@ -8586,20 +8592,22 @@
         "editList": "Edit list",
         "deleteList": "Delete list",
         "noLists": "No lists yet.",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "autoList": "Made automatically from your contacts"
       },
       "columns": {
         "name": "Name",
         "organization": "Organization",
         "role": "Role",
-        "stage": "Stage",
+        "stage": "Relationship",
         "lists": "Lists",
         "channels": "Channels",
         "owner": "Owner",
         "lastContact": "Last contact",
         "knownBy": "Known by",
         "followUp": "Follow-up",
-        "updated": "Updated"
+        "email": "Email",
+        "reply": "Reply"
       },
       "grid": {
         "label": "Contacts",
@@ -8611,7 +8619,11 @@
         "selectRow": "Select {name}",
         "resizeColumn": "Resize {column}",
         "keys": "Arrow keys move between cells. Enter on a name opens the person; on other cells it edits. F2 edits the name. Escape cancels.",
-        "loadMore": "Load more"
+        "loadMore": "Load more",
+        "copyEmail": "Copy {email}",
+        "emailCopied": "Email copied",
+        "waitingDays": "{days, plural, =0 {today} other {#d}}",
+        "addedAutomatically": "Added to {list} automatically"
       },
       "toolbar": {
         "search": "Search contacts",
@@ -8620,7 +8632,9 @@
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
         "add": "Add contact",
-        "more": "More actions"
+        "more": "More actions",
+        "filter": "Filter",
+        "kind": "Type"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -8863,8 +8877,31 @@
           "nextStep": "next step",
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
-          "customFields": "custom fields"
-        }
+          "customFields": "custom fields",
+          "kind": "type"
+        },
+        "markOrganization": "Mark as organization",
+        "markPerson": "Mark as person",
+        "waitingSince": "Since {date}, no answer yet",
+        "heardFrom": "Last heard from them {when}",
+        "automatic": "Automatic",
+        "classifier": "Automatic classification"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Sales",
+        "relationships": "Relationships",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "No reply",
+        "AWAITING_REPLY": "Awaiting reply",
+        "IN_CONVERSATION": "In conversation",
+        "REPLIED": "Replied"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organization or shared inbox"
       }
     }
   },

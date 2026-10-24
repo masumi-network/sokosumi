@@ -27,7 +27,12 @@ const mocks = vi.hoisted(() => ({
   fetchCalendarPage: vi.fn(),
   runIntegrationTool: vi.fn(),
   judgeRoleInboxes: vi.fn(),
+  judgeListMemberships: vi.fn(),
   generateText: vi.fn(),
+}));
+vi.mock("@/lib/contacts/list-judge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/contacts/list-judge")>()),
+  judgeListMemberships: mocks.judgeListMemberships,
 }));
 vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => ({
   ...(await importOriginal<
@@ -75,6 +80,8 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const backfillWorkspaceId = randomUUID();
 const mergeWorkspaceId = randomUUID();
+const classifyWorkspaceId = randomUUID();
+const classifyOrganizationId = randomUUID();
 const guardWorkspaceId = randomUUID();
 const guardOrganizationId = randomUUID();
 const OWNER_EMAIL = "patrick@yellowhouse.gmbh";
@@ -198,6 +205,19 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     await prisma.workspace.create({
       data: { id: mergeWorkspaceId, userId: bob },
     });
+    await prisma.organization.create({
+      data: {
+        id: classifyOrganizationId,
+        name: "Classify",
+        slug: `classify-${classifyOrganizationId}`,
+      },
+    });
+    await prisma.member.create({
+      data: { userId: bob, organizationId: classifyOrganizationId },
+    });
+    await prisma.workspace.create({
+      data: { id: classifyWorkspaceId, organizationId: classifyOrganizationId },
+    });
     botId = (await addBot(workspaceId, ["gmail", "googlecalendar", "slack"]))
       .id;
   });
@@ -207,6 +227,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       workspaceId,
       backfillWorkspaceId,
       mergeWorkspaceId,
+      classifyWorkspaceId,
       guardWorkspaceId,
     ];
     await prisma.sokoBot.deleteMany({
@@ -220,7 +241,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     });
     await prisma.workspace.deleteMany({ where: { id: { in: workspaces } } });
     await prisma.organization.deleteMany({
-      where: { id: { in: [organizationId, guardOrganizationId] } },
+      where: {
+        id: {
+          in: [organizationId, guardOrganizationId, classifyOrganizationId],
+        },
+      },
     });
     await prisma.user.deleteMany({ where: { id: { in: [alice, bob] } } });
   });
@@ -251,6 +276,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       samples.map(() => 0.2),
     );
     mocks.generateText.mockResolvedValue({ text: "{}", providerMetadata: {} });
+    mocks.judgeListMemberships.mockResolvedValue(new Map());
   });
 
   it("captures people from sent and answered mail, meetings and Slack, with the teammate who had them", async () => {
@@ -403,7 +429,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     });
     expect([...lines.keys()]).toEqual(["nina.keller@acme-robotics.com"]);
     expect(lines.get("nina.keller@acme-robotics.com")).toMatch(
-      /^Nina Keller — Head of Partnerships @ Acme Robotics AG · lead · known by Alice Owner \(4\) · last: 20 Oct 2026, Alice Owner, Slack "Slack direct message" \(contact [0-9a-f-]+\)$/,
+      /^Nina Keller — Head of Partnerships @ Acme Robotics AG · contact · known by Alice Owner \(4\) · last: 20 Oct 2026, Alice Owner, Slack "Slack direct message" \(contact [0-9a-f-]+\)$/,
     );
   });
 
@@ -595,9 +621,15 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       },
     });
     mocks.generateText.mockResolvedValue({
-      text: 'Here: {"organization": "Acme Test AG", "role": null, "summary": "Runs the Acme pilot with Bob.", "lists": ["pilots"], "evidence": [1]}',
+      text: 'Here: {"organization": "Acme Test AG", "role": null, "summary": "Runs the Acme pilot with Bob.", "evidence": [1]}',
       providerMetadata: { gateway: { cost: "0.0002" } },
     });
+    mocks.judgeListMemberships.mockImplementation(
+      async (_contact: unknown, lists: { id: string; name: string }[]) =>
+        new Map(
+          lists.map((list) => [list.id, list.name === "Pilots" ? 0.9 : 0.3]),
+        ),
+    );
     const stats = emptyEnrichmentStats();
     await enrichWorkspaceContacts({
       workspaceId: mergeWorkspaceId,
@@ -626,8 +658,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     });
     expect(enriched.enrichedAt).not.toBeNull();
     expect(
-      enriched.listMemberships.map((membership) => membership.list.name),
-    ).toEqual(["Pilots"]);
+      enriched.listMemberships.map((membership) => [
+        membership.list.name,
+        membership.addedAutomatically,
+      ]),
+    ).toEqual([["Pilots", true]]);
     const update = enriched.activities.find(
       (activity) => activity.kind === "UPDATED",
     );
@@ -654,7 +689,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     ).toContainEqual([tom.contact.id, thomas.contact.id].sort());
   });
 
-  it("never asks the model about a contact missing only a role", async () => {
+  it("classifies a contact once, and never asks again for a missing role", async () => {
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
       userId: bob,
@@ -671,18 +706,187 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     );
     mocks.generateText.mockReset();
     mocks.generateText.mockResolvedValue({ text: "{}", providerMetadata: {} });
+    const run = () =>
+      enrichWorkspaceContacts({
+        workspaceId: mergeWorkspaceId,
+        budget: { enrichments: 20, usd: 0.05 },
+        stats: emptyEnrichmentStats(),
+        shouldContinue: () => true,
+      });
+    await run();
+    await run();
+    const prompts = mocks.generateText.mock.calls.map(
+      ([request]) => (request as { prompt: string }).prompt,
+    );
+    expect(
+      prompts.filter((prompt) => prompt.includes("Imported Person")),
+    ).toHaveLength(1);
+  });
+
+  it("classifies captured entries, files them on lists and proposes at most one new list a day", async () => {
+    // Captured by a Soko Bot, so the classifier may rename and reclassify.
+    const actor: ContactActor = {
+      workspaceId: classifyWorkspaceId,
+      userId: bob,
+      sokoBotId: randomUUID(),
+    };
+    const people = [
+      ["Praxis", "info@praxis-weber.test", "Terminanfrage"],
+      ["Omar Haddad", "omar@seedfund.test", "Monthly investor update"],
+      ["Ines Fund", "ines@angelfund.test", "Seed round intro"],
+      ["Paul Capital", "paul@capitalpartners.test", "Term sheet"],
+      ["Vera Seed", "vera@seedvc.test", "Pitch deck"],
+      ["Kai Other", "kai@other.test", "Lunch"],
+      ["Lea Other", "lea@other2.test", "Coffee"],
+    ] as const;
+    const ids = new Map<string, string>();
+    for (const [name, email, topic] of people) {
+      const { contact } = await inContactTransaction((tx) =>
+        upsertContact(tx, actor, {
+          name,
+          channels: [{ type: "EMAIL", value: email }],
+          upsert: false,
+        }),
+      );
+      ids.set(name, contact.id);
+      await prisma.contactInteraction.create({
+        data: {
+          workspaceId: classifyWorkspaceId,
+          contactId: contact.id,
+          userId: bob,
+          occurredAt: new Date("2026-10-01T10:00:00Z"),
+          channel: "EMAIL",
+          direction: "OUT",
+          summary: topic,
+          sourceRef: `gmail:classify:${email}`,
+        },
+      });
+    }
+    const human: ContactActor = { ...actor, sokoBotId: null };
+    const zurich = await inContactTransaction((tx) =>
+      createContactList(tx, human, {
+        name: "Zurich",
+        color: "blue",
+        description: "People in Zurich",
+      }),
+    );
+    const smart = await inContactTransaction((tx) =>
+      createContactList(tx, human, {
+        name: "Stale",
+        color: "gray",
+        smartFilter: { lastContactOlderThanDays: 90 },
+      }),
+    );
+    mocks.generateText.mockImplementation(
+      async (request: { system: string; prompt: string }) => {
+        if (request.system.includes("contact lists tidy"))
+          return {
+            text: JSON.stringify({
+              lists: [
+                {
+                  name: "Investors",
+                  description: "Funds and angels we talk to about raising.",
+                  members: request.prompt
+                    .split("\n")
+                    .flatMap((line) =>
+                      /(Omar|Ines|Paul|Vera)/.test(line)
+                        ? [Number(/^\[(\d+)\]/.exec(line)?.[1])]
+                        : [],
+                    ),
+                },
+                {
+                  name: "Angel investors",
+                  description: "Too close to the first one.",
+                  members: [1, 2, 3],
+                },
+              ],
+            }),
+            providerMetadata: {},
+          };
+        return {
+          text: request.prompt.includes("Name: Praxis")
+            ? '{"kind":"organization","name":"Praxis Weber","organization":"Praxis Weber","relationship":null,"evidence":[1]}'
+            : '{"kind":"person","name":null,"relationship":"investor","evidence":[1]}',
+          providerMetadata: {},
+        };
+      },
+    );
+    // Jev is sure about nothing except, wrongly, the smart list.
+    mocks.judgeListMemberships.mockImplementation(
+      async (_contact: unknown, lists: { id: string }[]) =>
+        new Map(lists.map((list) => [list.id, list.id === smart.id ? 1 : 0.5])),
+    );
+    const stats = emptyEnrichmentStats();
     await enrichWorkspaceContacts({
-      workspaceId: mergeWorkspaceId,
+      workspaceId: classifyWorkspaceId,
+      budget: { enrichments: 20, usd: 0.05 },
+      stats,
+      shouldContinue: () => true,
+    });
+    // The smart list is never asked about or filled.
+    for (const [, lists] of mocks.judgeListMemberships.mock.calls)
+      expect((lists as { id: string }[]).map((list) => list.id)).not.toContain(
+        smart.id,
+      );
+    const praxis = await prisma.contact.findUniqueOrThrow({
+      where: { id: ids.get("Praxis") },
+      include: { activities: true },
+    });
+    expect(praxis).toMatchObject({
+      name: "Praxis Weber",
+      kind: "ORGANIZATION",
+      stage: "CONTACT",
+    });
+    expect(praxis.classifiedAt).not.toBeNull();
+    expect(
+      praxis.activities.find(
+        (activity) => "kind" in (activity.changes as object),
+      )?.changes,
+    ).toMatchObject({
+      name: { before: "Praxis", after: "Praxis Weber" },
+      kind: { before: "PERSON", after: "ORGANIZATION" },
+    });
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: ids.get("Omar Haddad") },
+        })
+      ).stage,
+    ).toBe("INVESTOR");
+
+    const created = await prisma.contactList.findMany({
+      where: { workspaceId: classifyWorkspaceId, createdAutomatically: true },
+      include: { members: true },
+    });
+    expect(created.map((list) => list.name)).toEqual(["Investors"]);
+    expect(created[0]?.members).toHaveLength(4);
+    expect(
+      created[0]?.members.every((member) => member.addedAutomatically),
+    ).toBe(true);
+    expect(stats).toMatchObject({ listsCreated: 1, listProposalsRejected: 1 });
+    expect(
+      await prisma.contactListMember.count({
+        where: { listId: { in: [zurich.id, smart.id] } },
+      }),
+    ).toBe(0);
+
+    // A second batch the same day proposes nothing more.
+    await prisma.contact.updateMany({
+      where: { workspaceId: classifyWorkspaceId },
+      data: { classifiedAt: null },
+    });
+    mocks.generateText.mockClear();
+    await enrichWorkspaceContacts({
+      workspaceId: classifyWorkspaceId,
       budget: { enrichments: 20, usd: 0.05 },
       stats: emptyEnrichmentStats(),
       shouldContinue: () => true,
     });
-    const prompts = mocks.generateText.mock.calls.map(
-      ([request]) => (request as { prompt: string }).prompt,
-    );
-    expect(prompts.some((prompt) => prompt.includes("Imported Person"))).toBe(
-      false,
-    );
+    expect(
+      mocks.generateText.mock.calls.some(([request]) =>
+        (request as { system: string }).system.includes("contact lists tidy"),
+      ),
+    ).toBe(false);
   });
 
   it("leaves contacts queued when the model fails or the money is spent", async () => {

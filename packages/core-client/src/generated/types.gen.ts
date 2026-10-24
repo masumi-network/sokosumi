@@ -3666,7 +3666,9 @@ export type ContactList = {
     kind: 'manual' | 'smart';
     smartFilter: {
         search?: string;
-        stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+        stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+        kind?: 'PERSON' | 'ORGANIZATION';
+        replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
         ownerUserId?: string;
         ownedByMe?: boolean;
         listIds?: Array<string>;
@@ -3683,6 +3685,7 @@ export type ContactList = {
     count: number;
     createdByUserId: string | null;
     createdBySokoBotId: string | null;
+    createdAutomatically: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -3711,6 +3714,7 @@ export type Contact = {
     summary: string | null;
     whyInteresting: string | null;
     stage: ContactStage;
+    kind: ContactKind;
     owner: ContactPerson | null;
     nextStep: string | null;
     followUpAt: string | null;
@@ -3721,6 +3725,12 @@ export type Contact = {
     firstContactAt: Date | null;
     lastContactAt: Date | null;
     interactionCount: number;
+    lastInboundAt: Date | null;
+    awaitingReplySince: Date | null;
+    /**
+     * Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.
+     */
+    replyState: ContactReplyState | null;
     createdByUserId: string | null;
     createdBySokoBotId: string | null;
     mergedIntoId: string | null;
@@ -3734,22 +3744,41 @@ export type Contact = {
 };
 
 export const ContactStage = {
+    CONTACT: 'CONTACT',
     PROSPECT: 'PROSPECT',
     LEAD: 'LEAD',
     ACTIVE: 'ACTIVE',
+    CUSTOMER: 'CUSTOMER',
     PARTNER: 'PARTNER',
     INVESTOR: 'INVESTOR',
-    CUSTOMER: 'CUSTOMER',
+    VENDOR: 'VENDOR',
+    ADVISOR: 'ADVISOR',
+    COMMUNITY: 'COMMUNITY',
+    PRESS: 'PRESS',
+    FRIEND: 'FRIEND',
     DORMANT: 'DORMANT'
 } as const;
 
 export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
+
+export const ContactKind = { PERSON: 'PERSON', ORGANIZATION: 'ORGANIZATION' } as const;
+
+export type ContactKind = typeof ContactKind[keyof typeof ContactKind];
 
 export type ContactPerson = {
     id: string;
     name: string;
     image: string | null;
 };
+
+export const ContactReplyState = {
+    AWAITING_REPLY: 'AWAITING_REPLY',
+    NO_REPLY: 'NO_REPLY',
+    IN_CONVERSATION: 'IN_CONVERSATION',
+    REPLIED: 'REPLIED'
+} as const;
+
+export type ContactReplyState = typeof ContactReplyState[keyof typeof ContactReplyState];
 
 export type ContactChannel = {
     id: string;
@@ -3794,6 +3823,7 @@ export type ContactListRef = {
     id: string;
     name: string;
     color: ContactListColor;
+    addedAutomatically: boolean;
 };
 
 export type ContactKnownBy = ContactPerson & {
@@ -26444,7 +26474,9 @@ export type PostContactListsData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
             listIds?: Array<string>;
@@ -26723,7 +26755,9 @@ export type PatchContactListsByIdData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
             listIds?: Array<string>;
@@ -27032,6 +27066,8 @@ export type GetContactsData = {
         limit?: number;
         search?: string;
         stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
         /**
@@ -27158,7 +27194,8 @@ export type PostContactsData = {
         location?: string | null;
         summary?: string | null;
         whyInteresting?: string | null;
-        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
         ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
@@ -27328,6 +27365,8 @@ export type GetContactsExportCsvData = {
         limit?: number;
         search?: string;
         stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
         /**
@@ -27957,7 +27996,8 @@ export type PatchContactsByIdData = {
         location?: string | null;
         summary?: string | null;
         whyInteresting?: string | null;
-        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
         ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;

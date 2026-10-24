@@ -25,6 +25,8 @@ export function contactQueryOptions(
     filter: {
       search: query.search,
       stages: query.stage ? [query.stage] : undefined,
+      kind: query.kind,
+      replyStates: query.replyState ? [query.replyState] : undefined,
       ownerUserId: query.ownerUserId,
       ownedByMe: flag(query.ownedByMe),
       knownByUserId: query.knownByUserId,

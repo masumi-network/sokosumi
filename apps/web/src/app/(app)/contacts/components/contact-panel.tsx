@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-query";
 import {
   Bot,
+  Building2,
   CalendarDays,
   Check,
   Copy,
@@ -26,18 +27,20 @@ import {
   PenLine,
   Phone,
   Plus,
+  Sparkles,
   Trash2,
+  UserRound,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import {
-  CONTACT_STAGES,
   channelHref,
   channelLabel,
   coreErrorOf,
   isFollowUpDue,
   LIST_COLOR_DOT,
+  primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -75,8 +78,10 @@ import {
   Dot,
   ListChip,
   PersonAvatar,
+  ReplyChip,
   StageChip,
 } from "./contact-visuals";
+import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
 import { useContactUpdate } from "./use-contact-update";
 import {
@@ -244,6 +249,8 @@ function PanelBody({
     .filter(Boolean)
     .join(t("panel.roleAt"));
   const due = isFollowUpDue(contact.followUpAt, new Date());
+  const email = primaryEmail(contact.channels);
+  const stageOptions = useStageOptions();
 
   return (
     <div className="flex flex-col">
@@ -251,7 +258,8 @@ function PanelBody({
         <ContactAvatar
           name={contact.name}
           src={contact.avatarUrl}
-          className="size-14 [&_[data-slot=avatar-fallback]]:text-base"
+          kind={contact.kind}
+          className="size-14 [&_[data-slot=avatar-fallback]]:text-base [&_svg]:size-6"
         />
         <div className="grid min-w-0 flex-1 gap-1">
           <SheetTitle className="sr-only">{contact.name}</SheetTitle>
@@ -264,8 +272,65 @@ function PanelBody({
             onSave={(name) => (name ? save({ name }) : Promise.resolve())}
           />
           <SheetDescription className="truncate">
-            {subtitle || t("panel.noRole")}
+            {contact.kind === "ORGANIZATION"
+              ? [t("kinds.ORGANIZATION"), contact.organization]
+                  .filter(Boolean)
+                  .join(" · ")
+              : subtitle || t("panel.noRole")}
           </SheetDescription>
+          {email ? (
+            <div className="-ms-2 flex min-w-0 items-center">
+              <a
+                href={`mailto:${email}`}
+                className="hover:bg-quinary flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm"
+              >
+                <Mail
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
+                <span className="truncate">{email}</span>
+              </a>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-muted-foreground size-10 shrink-0 md:size-8"
+                aria-label={t("grid.copyEmail", { email })}
+                onClick={() =>
+                  void navigator.clipboard
+                    ?.writeText(email)
+                    .then(() => toast.success(t("grid.emailCopied")))
+                }
+              >
+                <Copy aria-hidden className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+          {contact.replyState ? (
+            <p className="flex items-center gap-2 text-sm">
+              <ReplyChip
+                state={contact.replyState}
+                since={contact.awaitingReplySince}
+                now={now}
+              />
+              <span className="text-muted-foreground truncate text-xs">
+                {contact.awaitingReplySince
+                  ? t("panel.waitingSince", {
+                      date: format.dateTime(
+                        new Date(contact.awaitingReplySince),
+                        { day: "numeric", month: "short" },
+                      ),
+                    })
+                  : contact.lastInboundAt
+                    ? t("panel.heardFrom", {
+                        when: format.relativeTime(
+                          new Date(contact.lastInboundAt),
+                          now,
+                        ),
+                      })
+                    : null}
+              </span>
+            </p>
+          ) : null}
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
             {contact.createdBySokoBotId ? (
               <Bot aria-hidden className="size-3.5" />
@@ -306,6 +371,22 @@ function PanelBody({
               <Copy aria-hidden className="size-4" />
               {t("panel.copyLink")}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                void save({
+                  kind: contact.kind === "PERSON" ? "ORGANIZATION" : "PERSON",
+                })
+              }
+            >
+              {contact.kind === "PERSON" ? (
+                <Building2 aria-hidden className="size-4" />
+              ) : (
+                <UserRound aria-hidden className="size-4" />
+              )}
+              {contact.kind === "PERSON"
+                ? t("panel.markOrganization")
+                : t("panel.markPerson")}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
@@ -340,18 +421,17 @@ function PanelBody({
                 <StageChip stage={contact.stage} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent
+              align="start"
+              className="max-h-96 min-w-48 overflow-y-auto"
+            >
               <DropdownMenuRadioGroup
                 value={contact.stage}
                 onValueChange={(stage) =>
                   void save({ stage: stage as Contact["stage"] })
                 }
               >
-                {CONTACT_STAGES.map((stage) => (
-                  <DropdownMenuRadioItem key={stage} value={stage}>
-                    {t(`stages.${stage}`)}
-                  </DropdownMenuRadioItem>
-                ))}
+                <GroupedRadioItems options={stageOptions} />
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -422,6 +502,7 @@ function PanelBody({
                       key={list.id}
                       name={list.name}
                       color={list.color}
+                      automatic={list.addedAutomatically}
                     />
                   ))
                 ) : (
@@ -434,11 +515,13 @@ function PanelBody({
             <DropdownMenuContent align="start" className="min-w-56">
               <DropdownMenuLabel>{t("panel.manualLists")}</DropdownMenuLabel>
               {manualLists.map((list) => {
-                const on = contact.lists.some((item) => item.id === list.id);
+                const membership = contact.lists.find(
+                  (item) => item.id === list.id,
+                );
                 return (
                   <DropdownMenuCheckboxItem
                     key={list.id}
-                    checked={on}
+                    checked={!!membership}
                     onSelect={(event) => event.preventDefault()}
                     onCheckedChange={(checked) =>
                       void toggleList(list, checked === true)
@@ -446,6 +529,11 @@ function PanelBody({
                   >
                     <Dot className={LIST_COLOR_DOT[list.color]} />
                     {list.name}
+                    {membership?.addedAutomatically ? (
+                      <span className="text-muted-foreground ms-auto ps-3 text-xs">
+                        {t("panel.automatic")}
+                      </span>
+                    ) : null}
                   </DropdownMenuCheckboxItem>
                 );
               })}
@@ -948,11 +1036,24 @@ function TimelineSection({ contact }: { contact: ContactDetail }) {
   );
 }
 
+/** A change the background classifier made, recorded with its model source. */
+function isAutomatic(entry: ContactActivity): boolean {
+  return Object.values(entry.changes).some(
+    (change) =>
+      typeof change === "object" &&
+      change !== null &&
+      "source" in change &&
+      String(change.source).startsWith("enrichment:"),
+  );
+}
+
 function activityText(
   entry: ContactActivity,
   t: ReturnType<typeof useTranslations<"App.Contacts">>,
 ): string {
-  const who = entry.user?.name ?? entry.sokoBot?.name ?? t("panel.sokoBot");
+  const who = isAutomatic(entry)
+    ? t("panel.classifier")
+    : (entry.user?.name ?? entry.sokoBot?.name ?? t("panel.sokoBot"));
   if (entry.kind === "UPDATED") {
     const fields = Object.keys(entry.changes)
       .map((field) =>
@@ -993,7 +1094,9 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
               key={entry.id}
               className="text-muted-foreground flex items-start gap-2 text-xs"
             >
-              {entry.user ? (
+              {isAutomatic(entry) ? (
+                <Sparkles aria-hidden className="size-4 shrink-0" />
+              ) : entry.user ? (
                 <PersonAvatar person={entry.user} className="size-4" />
               ) : (
                 <Bot aria-hidden className="size-4 shrink-0" />

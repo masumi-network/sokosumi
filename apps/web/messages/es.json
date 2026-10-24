@@ -8531,12 +8531,18 @@
         "description": "Todas las personas que conoce tu equipo, con cada forma de contactarlas."
       },
       "stages": {
+        "CONTACT": "Contacto",
+        "FRIEND": "Amigo",
         "PROSPECT": "Prospecto",
         "LEAD": "Lead",
         "ACTIVE": "Activo",
+        "CUSTOMER": "Cliente",
         "PARTNER": "Socio",
         "INVESTOR": "Inversor",
-        "CUSTOMER": "Cliente",
+        "VENDOR": "Proveedor",
+        "ADVISOR": "Asesor",
+        "COMMUNITY": "Comunidad",
+        "PRESS": "Prensa",
         "DORMANT": "Inactivo"
       },
       "channelTypes": {
@@ -8563,10 +8569,10 @@
       "presets": {
         "all": "Todos los contactos",
         "mine": "Mis contactos",
+        "noReply": "Sin respuesta",
         "followUps": "Seguimientos pendientes",
         "recent": "Añadidos recientemente",
-        "stale": "Sin contacto en 90+ días",
-        "prospects": "Prospectos"
+        "stale": "Sin contacto en 90+ días"
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
@@ -8574,8 +8580,8 @@
         "followUps": "No hay seguimientos pendientes. Buen trabajo.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
         "stale": "Habéis hablado con todos en los últimos 90 días.",
-        "prospects": "Todavía no hay prospectos. Añade a alguien a quien te gustaría conocer y explica por qué.",
-        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
+        "noReply": "Todos a quienes el equipo escribió han respondido, o aún no ha pasado una semana."
       },
       "rail": {
         "label": "Listas de contactos",
@@ -8586,20 +8592,22 @@
         "editList": "Editar lista",
         "deleteList": "Eliminar lista",
         "noLists": "Todavía no hay listas.",
-        "import": "Importar desde una tabla"
+        "import": "Importar desde una tabla",
+        "autoList": "Creada automáticamente a partir de tus contactos"
       },
       "columns": {
         "name": "Nombre",
         "organization": "Organización",
         "role": "Cargo",
-        "stage": "Etapa",
+        "stage": "Relación",
         "lists": "Listas",
         "channels": "Canales",
         "owner": "Responsable",
         "lastContact": "Último contacto",
         "knownBy": "Lo conocen",
         "followUp": "Seguimiento",
-        "updated": "Actualizado"
+        "email": "Correo",
+        "reply": "Respuesta"
       },
       "grid": {
         "label": "Contactos",
@@ -8611,7 +8619,11 @@
         "selectRow": "Seleccionar a {name}",
         "resizeColumn": "Cambiar el ancho de {column}",
         "keys": "Las flechas mueven entre celdas. Intro sobre un nombre abre a la persona; en otras celdas, edita. F2 edita el nombre. Escape cancela.",
-        "loadMore": "Cargar más"
+        "loadMore": "Cargar más",
+        "copyEmail": "Copiar {email}",
+        "emailCopied": "Correo copiado",
+        "waitingDays": "{days, plural, =0 {hoy} other {# d}}",
+        "addedAutomatically": "Añadido a {list} automáticamente"
       },
       "toolbar": {
         "search": "Buscar contactos",
@@ -8620,7 +8632,9 @@
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
         "add": "Añadir contacto",
-        "more": "Más acciones"
+        "more": "Más acciones",
+        "filter": "Filtrar",
+        "kind": "Tipo"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -8863,8 +8877,31 @@
           "nextStep": "el próximo paso",
           "followUpAt": "el seguimiento",
           "avatarUrl": "la foto",
-          "customFields": "los campos propios"
-        }
+          "customFields": "los campos propios",
+          "kind": "tipo"
+        },
+        "markOrganization": "Marcar como organización",
+        "markPerson": "Marcar como persona",
+        "waitingSince": "Desde el {date}, sin respuesta",
+        "heardFrom": "Última noticia suya {when}",
+        "automatic": "Automático",
+        "classifier": "Clasificación automática"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Ventas",
+        "relationships": "Relaciones",
+        "status": "Estado"
+      },
+      "replyStates": {
+        "NO_REPLY": "Sin respuesta",
+        "AWAITING_REPLY": "Esperando respuesta",
+        "IN_CONVERSATION": "En conversación",
+        "REPLIED": "Respondió"
+      },
+      "kinds": {
+        "PERSON": "Persona",
+        "ORGANIZATION": "Organización o buzón compartido"
       }
     }
   },

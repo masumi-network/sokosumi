@@ -8531,12 +8531,18 @@
         "description": "Alle, die dein Team kennt, mit jedem Weg, sie zu erreichen."
       },
       "stages": {
+        "CONTACT": "Kontakt",
+        "FRIEND": "Freund",
         "PROSPECT": "Interessent",
         "LEAD": "Lead",
         "ACTIVE": "Aktiv",
+        "CUSTOMER": "Kunde",
         "PARTNER": "Partner",
         "INVESTOR": "Investor",
-        "CUSTOMER": "Kunde",
+        "VENDOR": "Dienstleister",
+        "ADVISOR": "Berater",
+        "COMMUNITY": "Community",
+        "PRESS": "Presse",
         "DORMANT": "Ruhend"
       },
       "channelTypes": {
@@ -8563,10 +8569,10 @@
       "presets": {
         "all": "Alle Kontakte",
         "mine": "Meine Kontakte",
+        "noReply": "Keine Antwort",
         "followUps": "Fällige Follow-ups",
         "recent": "Neu hinzugefügt",
-        "stale": "Über 90 Tage still",
-        "prospects": "Interessenten"
+        "stale": "Über 90 Tage still"
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
@@ -8574,8 +8580,8 @@
         "followUps": "Keine Follow-ups fällig. Gut gemacht.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
         "stale": "Mit allen gab es in den letzten 90 Tagen Kontakt.",
-        "prospects": "Noch keine Interessenten. Füge jemanden hinzu, den du kennenlernen möchtest, und schreib dazu, warum.",
-        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
+        "noReply": "Alle, denen das Team geschrieben hat, haben geantwortet, oder es ist noch keine Woche her."
       },
       "rail": {
         "label": "Kontaktlisten",
@@ -8586,20 +8592,22 @@
         "editList": "Liste bearbeiten",
         "deleteList": "Liste löschen",
         "noLists": "Noch keine Listen.",
-        "import": "Aus einer Tabelle importieren"
+        "import": "Aus einer Tabelle importieren",
+        "autoList": "Automatisch aus deinen Kontakten erstellt"
       },
       "columns": {
         "name": "Name",
         "organization": "Organisation",
         "role": "Rolle",
-        "stage": "Phase",
+        "stage": "Beziehung",
         "lists": "Listen",
         "channels": "Kanäle",
         "owner": "Zuständig",
         "lastContact": "Letzter Kontakt",
         "knownBy": "Bekannt mit",
         "followUp": "Follow-up",
-        "updated": "Aktualisiert"
+        "email": "E-Mail",
+        "reply": "Antwort"
       },
       "grid": {
         "label": "Kontakte",
@@ -8611,7 +8619,11 @@
         "selectRow": "{name} auswählen",
         "resizeColumn": "Breite von {column} ändern",
         "keys": "Pfeiltasten wechseln die Zelle. Enter auf einem Namen öffnet die Person, auf anderen Zellen bearbeitet es. F2 bearbeitet den Namen. Escape bricht ab.",
-        "loadMore": "Mehr laden"
+        "loadMore": "Mehr laden",
+        "copyEmail": "{email} kopieren",
+        "emailCopied": "E-Mail-Adresse kopiert",
+        "waitingDays": "{days, plural, =0 {heute} other {# T.}}",
+        "addedAutomatically": "Automatisch zu {list} hinzugefügt"
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
@@ -8620,7 +8632,9 @@
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
         "add": "Kontakt hinzufügen",
-        "more": "Weitere Aktionen"
+        "more": "Weitere Aktionen",
+        "filter": "Filter",
+        "kind": "Art"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -8863,8 +8877,31 @@
           "nextStep": "nächsten Schritt",
           "followUpAt": "Follow-up",
           "avatarUrl": "Foto",
-          "customFields": "eigene Felder"
-        }
+          "customFields": "eigene Felder",
+          "kind": "Art"
+        },
+        "markOrganization": "Als Organisation markieren",
+        "markPerson": "Als Person markieren",
+        "waitingSince": "Seit {date} noch keine Antwort",
+        "heardFrom": "Zuletzt von ihnen gehört: {when}",
+        "automatic": "Automatisch",
+        "classifier": "Automatische Einordnung"
+      },
+      "stageGroups": {
+        "general": "Allgemein",
+        "sales": "Vertrieb",
+        "relationships": "Beziehungen",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "Keine Antwort",
+        "AWAITING_REPLY": "Antwort ausstehend",
+        "IN_CONVERSATION": "Im Gespräch",
+        "REPLIED": "Hat geantwortet"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organisation oder Sammelpostfach"
       }
     }
   },

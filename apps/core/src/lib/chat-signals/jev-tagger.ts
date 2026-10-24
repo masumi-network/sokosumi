@@ -1,7 +1,10 @@
-import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
-import { gatewayCostUsd } from "../soko-bot/gateway-cost";
-import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "../soko-bot/jev";
+import {
+  evaluateWithJev,
+  type JevQuestion,
+  type JevState,
+  SOKO_BOT_JEV_MODEL,
+} from "../soko-bot/jev";
 import {
   CHAT_SIGNAL_DUE_CHOICES,
   type ChatSignalDueChoice,
@@ -128,19 +131,11 @@ function asksAddressee(
   );
 }
 
-type Question =
-  | { type: "boolean"; instructions: string }
-  | {
-      type: "choice";
-      instructions: string;
-      criteria: Record<string, string>;
-    };
-
 export function chatSignalRequest(batch: ChatSignalBatch): {
   state: Record<string, unknown>;
-  questions: Record<string, Question>;
+  questions: Record<string, JevQuestion>;
 } {
-  const questions: Record<string, Question> = {};
+  const questions: Record<string, JevQuestion> = {};
   batch.messages.forEach((message, index) => {
     const key = `m${index}`;
     for (const [tag, question] of Object.entries(TAG_QUESTIONS)) {
@@ -301,42 +296,34 @@ export function chatSignalAddressees(
 
 export interface ChatSignalEvaluation {
   answers: unknown;
-  usage: { inputTokens?: number; outputTokens?: number };
-  providerMetadata?: unknown;
+  costUsd: number;
 }
 
 /** The single seam to Jev; tests replace it with scripted answers. */
 export type ChatSignalEvaluator = (request: {
   state: Record<string, unknown>;
-  questions: Record<string, Question>;
-  abortSignal: AbortSignal;
+  questions: Record<string, JevQuestion>;
+  timeoutMs: number;
 }) => Promise<ChatSignalEvaluation>;
 
 export const evaluateChatSignalsWithJev: ChatSignalEvaluator = async ({
   state,
   questions,
-  abortSignal,
+  timeoutMs,
 }) => {
-  const result = await experimental_evaluate({
-    model: gateway.evaluationModel(CHAT_SIGNAL_MODEL),
-    state: state as Parameters<typeof experimental_evaluate>[0]["state"],
+  const { answers, costUsd } = await evaluateWithJev({
+    state: state as JevState,
     questions,
-    abortSignal,
-    maxRetries: 1,
-    providerOptions: JEV_PROVIDER_OPTIONS,
+    timeoutMs,
   });
-  return {
-    answers: result.answers,
-    usage: result.usage,
-    providerMetadata: result.providerMetadata,
-  };
+  return { answers: Object.fromEntries(answers), costUsd };
 };
 
 export interface ChatSignalTagResult {
   readings: ChatSignalReading[];
   questionCount: number;
   latencyMs: number;
-  usage: { inputTokens: number; outputTokens: number; costUsd: number };
+  costUsd: number;
 }
 
 /** Tags a batch of one room's messages in one Jev call. Throws on failure. */
@@ -348,16 +335,12 @@ export async function tagChatSignalBatch(
   const startedAt = Date.now();
   const evaluation = await (options.evaluate ?? evaluateChatSignalsWithJev)({
     ...request,
-    abortSignal: AbortSignal.timeout(options.timeoutMs),
+    timeoutMs: options.timeoutMs,
   });
   return {
     readings: readChatSignalAnswers(batch, evaluation.answers),
     questionCount: Object.keys(request.questions).length,
     latencyMs: Date.now() - startedAt,
-    usage: {
-      inputTokens: evaluation.usage.inputTokens ?? 0,
-      outputTokens: evaluation.usage.outputTokens ?? 0,
-      costUsd: gatewayCostUsd(evaluation.providerMetadata),
-    },
+    costUsd: evaluation.costUsd,
   };
 }

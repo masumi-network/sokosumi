@@ -13083,17 +13083,44 @@ export const ContactListSchema = {
                             items: {
                                 type: 'string',
                                 enum: [
+                                    'CONTACT',
                                     'PROSPECT',
                                     'LEAD',
                                     'ACTIVE',
+                                    'CUSTOMER',
                                     'PARTNER',
                                     'INVESTOR',
-                                    'CUSTOMER',
+                                    'VENDOR',
+                                    'ADVISOR',
+                                    'COMMUNITY',
+                                    'PRESS',
+                                    'FRIEND',
                                     'DORMANT'
                                 ]
                             },
                             minItems: 1,
-                            maxItems: 7
+                            maxItems: 13
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'PERSON',
+                                'ORGANIZATION'
+                            ]
+                        },
+                        replyStates: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                enum: [
+                                    'AWAITING_REPLY',
+                                    'NO_REPLY',
+                                    'IN_CONVERSATION',
+                                    'REPLIED'
+                                ]
+                            },
+                            minItems: 1,
+                            maxItems: 4
                         },
                         ownerUserId: {
                             type: 'string',
@@ -13182,6 +13209,9 @@ export const ContactListSchema = {
                 'null'
             ]
         },
+        createdAutomatically: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -13203,6 +13233,7 @@ export const ContactListSchema = {
         'count',
         'createdByUserId',
         'createdBySokoBotId',
+        'createdAutomatically',
         'createdAt',
         'updatedAt'
     ]
@@ -13267,6 +13298,9 @@ export const ContactSchema = {
         stage: {
             $ref: '#/components/schemas/ContactStage'
         },
+        kind: {
+            $ref: '#/components/schemas/ContactKind'
+        },
         owner: {
             anyOf: [
                 {
@@ -13319,6 +13353,33 @@ export const ContactSchema = {
         },
         interactionCount: {
             type: 'integer'
+        },
+        lastInboundAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        awaitingReplySince: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        replyState: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactReplyState'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.'
         },
         createdByUserId: {
             type: [
@@ -13388,6 +13449,7 @@ export const ContactSchema = {
         'summary',
         'whyInteresting',
         'stage',
+        'kind',
         'owner',
         'nextStep',
         'followUpAt',
@@ -13396,6 +13458,9 @@ export const ContactSchema = {
         'firstContactAt',
         'lastContactAt',
         'interactionCount',
+        'lastInboundAt',
+        'awaitingReplySince',
+        'replyState',
         'createdByUserId',
         'createdBySokoBotId',
         'mergedIntoId',
@@ -13412,13 +13477,27 @@ export const ContactSchema = {
 export const ContactStageSchema = {
     type: 'string',
     enum: [
+        'CONTACT',
         'PROSPECT',
         'LEAD',
         'ACTIVE',
+        'CUSTOMER',
         'PARTNER',
         'INVESTOR',
-        'CUSTOMER',
+        'VENDOR',
+        'ADVISOR',
+        'COMMUNITY',
+        'PRESS',
+        'FRIEND',
         'DORMANT'
+    ]
+} as const;
+
+export const ContactKindSchema = {
+    type: 'string',
+    enum: [
+        'PERSON',
+        'ORGANIZATION'
     ]
 } as const;
 
@@ -13442,6 +13521,16 @@ export const ContactPersonSchema = {
         'id',
         'name',
         'image'
+    ]
+} as const;
+
+export const ContactReplyStateSchema = {
+    type: 'string',
+    enum: [
+        'AWAITING_REPLY',
+        'NO_REPLY',
+        'IN_CONVERSATION',
+        'REPLIED'
     ]
 } as const;
 
@@ -13539,12 +13628,16 @@ export const ContactListRefSchema = {
         },
         color: {
             $ref: '#/components/schemas/ContactListColor'
+        },
+        addedAutomatically: {
+            type: 'boolean'
         }
     },
     required: [
         'id',
         'name',
-        'color'
+        'color',
+        'addedAutomatically'
     ]
 } as const;
 

@@ -1,7 +1,9 @@
 import type {
   ContactChannel,
   ContactChannelType,
+  ContactKind,
   ContactListColor,
+  ContactReplyState,
   ContactStage,
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
@@ -10,10 +12,10 @@ import type { ContactQuery } from "@/lib/services/contacts.client";
 export const CONTACT_PRESETS = {
   all: {},
   mine: { ownedByMe: "true" },
+  noReply: { replyState: "NO_REPLY" },
   followUps: { followUpDue: "true" },
   recent: { createdWithinDays: 14 },
   stale: { lastContactOlderThanDays: 90 },
-  prospects: { stage: "PROSPECT" },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
@@ -44,6 +46,8 @@ export interface ContactView {
   view: string;
   search: string;
   stage: ContactStage | null;
+  replyState: ContactReplyState | null;
+  kind: ContactKind | null;
   /** `me` or a member's user id. */
   owner: string | null;
   /** `me` or a member's user id. */
@@ -62,6 +66,8 @@ export function contactQuery(view: ContactView): ContactQuery {
   const search = view.search.trim();
   if (search) query.search = search;
   if (view.stage) query.stage = view.stage;
+  if (view.replyState) query.replyState = view.replyState;
+  if (view.kind) query.kind = view.kind;
   if (view.owner === "me") query.ownedByMe = "true";
   else if (view.owner) query.ownerUserId = view.owner;
   if (view.knownBy === "me") query.knownByMe = "true";
@@ -90,26 +96,78 @@ export const LIST_COLOR_DOT: Record<ContactListColor, string> = {
   pink: "bg-chart-2",
 };
 
-export const CONTACT_STAGES: ContactStage[] = [
-  "PROSPECT",
-  "LEAD",
-  "ACTIVE",
-  "PARTNER",
-  "INVESTOR",
-  "CUSTOMER",
-  "DORMANT",
-];
+/**
+ * What a contact is to the team, grouped the way the menus show it: the plain
+ * default, the sales steps, the other relationships, and gone quiet.
+ */
+export const STAGE_GROUPS = {
+  general: ["CONTACT", "FRIEND"],
+  sales: ["PROSPECT", "LEAD", "ACTIVE", "CUSTOMER"],
+  relationships: [
+    "PARTNER",
+    "INVESTOR",
+    "VENDOR",
+    "ADVISOR",
+    "COMMUNITY",
+    "PRESS",
+  ],
+  status: ["DORMANT"],
+} as const satisfies Record<string, readonly ContactStage[]>;
+
+export type StageGroup = keyof typeof STAGE_GROUPS;
+
+export const CONTACT_STAGES: ContactStage[] =
+  Object.values(STAGE_GROUPS).flat();
 
 /** Stage chips stay neutral; the dot carries the stage, the label says it. */
 export const STAGE_DOT: Record<ContactStage, string> = {
+  CONTACT: "bg-muted-foreground",
+  FRIEND: "bg-status-done",
   PROSPECT: "bg-primary",
   LEAD: "bg-chart-4",
   ACTIVE: "bg-semantic-success",
-  PARTNER: "bg-chart-3",
-  INVESTOR: "bg-status-working",
   CUSTOMER: "bg-chart-1",
-  DORMANT: "bg-muted-foreground",
+  PARTNER: "bg-chart-2",
+  INVESTOR: "bg-status-working",
+  VENDOR: "bg-chart-5",
+  ADVISOR: "bg-chart-3",
+  COMMUNITY: "bg-status-external",
+  PRESS: "bg-semantic-warning",
+  DORMANT: "bg-quaternary",
 };
+
+export const CONTACT_REPLY_STATES: ContactReplyState[] = [
+  "NO_REPLY",
+  "AWAITING_REPLY",
+  "IN_CONVERSATION",
+  "REPLIED",
+];
+
+/** Only the unanswered states call for attention. */
+export const REPLY_DOT: Record<ContactReplyState, string> = {
+  NO_REPLY: "bg-semantic-destructive",
+  AWAITING_REPLY: "bg-semantic-warning",
+  IN_CONVERSATION: "bg-semantic-success",
+  REPLIED: "bg-muted-foreground",
+};
+
+export const CONTACT_KINDS: ContactKind[] = ["PERSON", "ORGANIZATION"];
+
+/** Whole days between `since` and `now`, never negative. */
+export function daysSince(since: Date | string, now: Date): number {
+  return Math.max(
+    0,
+    Math.floor((now.getTime() - new Date(since).getTime()) / 86_400_000),
+  );
+}
+
+/** The address a person writes to: the primary email, else the first one. */
+export function primaryEmail(channels: ContactChannel[]): string | null {
+  const emails = channels.filter((channel) => channel.type === "EMAIL");
+  return (
+    (emails.find((channel) => channel.isPrimary) ?? emails[0])?.value ?? null
+  );
+}
 
 /** Channel order in a row and the panel: the most direct ways first. */
 export const CHANNEL_ORDER: ContactChannelType[] = [

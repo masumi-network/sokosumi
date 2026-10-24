@@ -18,6 +18,7 @@ const list = (overrides: Partial<ContactList>): ContactList => ({
   count: 15,
   createdByUserId: null,
   createdBySokoBotId: null,
+  createdAutomatically: false,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -34,7 +35,6 @@ function renderRail(view = "all") {
     onNewList: vi.fn(),
     onEditList: vi.fn(),
     onDeleteList: vi.fn(),
-    onImport: vi.fn(),
   };
   render(<ContactsRail {...props} />);
   return props;
@@ -49,10 +49,10 @@ describe("ContactsRail", () => {
     expect(buttons.slice(0, 6)).toEqual([
       "presets.all",
       "presets.mine",
+      "presets.noReply",
       "presets.followUps",
       "presets.recent",
       "presets.stale",
-      "presets.prospects",
     ]);
     expect(screen.getByRole("button", { name: /Investors\s*15/ })).toBeTruthy();
     expect(screen.getByLabelText("rail.smartList")).toBeTruthy();
@@ -67,11 +67,23 @@ describe("ContactsRail", () => {
     expect(props.onViewChange).toHaveBeenCalledWith("stale");
   });
 
-  it("starts a new list and an import", () => {
+  it("starts a new list", () => {
     const props = renderRail();
     fireEvent.click(screen.getByRole("button", { name: "rail.newList" }));
-    fireEvent.click(screen.getByRole("button", { name: "rail.import" }));
     expect(props.onNewList).toHaveBeenCalledOnce();
-    expect(props.onImport).toHaveBeenCalledOnce();
+  });
+
+  it("marks a list the classifier made", () => {
+    render(
+      <ContactsRail
+        view="all"
+        onViewChange={vi.fn()}
+        lists={[list({ name: "Agencies", createdAutomatically: true })]}
+        onNewList={vi.fn()}
+        onEditList={vi.fn()}
+        onDeleteList={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("rail.autoList")).toBeTruthy();
   });
 });
