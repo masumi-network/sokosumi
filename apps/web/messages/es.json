@@ -1624,17 +1624,36 @@
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
-          "intro": "Tu Soko Bot",
+          "heading": "¿Qué hacemos hoy?",
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "awaitingInput": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
-          "recentTitle": "Chats recientes",
+          "recentTitle": "Peticiones recientes",
           "recentEmpty": "Aún no hay chats. Pregunta a {name} lo que quieras o empieza con una sugerencia.",
           "suggestionsLabel": "Sugerencias",
           "suggestions": {
             "today": "¿Qué necesita mi atención hoy?",
             "inbox": "Resume mi bandeja de entrada",
-            "week": "Planifica mi semana"
+            "week": "Planifica mi semana",
+            "delegate": "Encuentra el Coworker o Agente adecuado para esto y haz el seguimiento: "
+          },
+          "actions": {
+            "today": {
+              "title": "Qué me espera hoy",
+              "detail": "Tareas, correos y preguntas del chat que esperan tu respuesta, lo más importante primero."
+            },
+            "inbox": {
+              "title": "Resumir mi bandeja de entrada",
+              "detail": "Lo urgente, lo que vale la pena leer y lo que puede esperar."
+            },
+            "week": {
+              "title": "Planificar mi semana",
+              "detail": "Tu calendario, tareas pendientes y seguimientos en un solo plan."
+            },
+            "delegate": {
+              "title": "Delegar un trabajo",
+              "detail": "{name} encuentra el Coworker o Agente adecuado y hace el seguimiento."
+            }
           }
         }
       },
