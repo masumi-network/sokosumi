@@ -61,6 +61,7 @@ async function toListDto(
     count: await listCount(actor, list, tx),
     createdByUserId: list.createdByUserId,
     createdBySokoBotId: list.createdBySokoBotId,
+    createdAutomatically: list.createdAutomatically,
     createdAt: list.createdAt,
     updatedAt: list.updatedAt,
   };
@@ -119,6 +120,7 @@ export async function createContactList(
   tx: Tx,
   actor: ContactActor,
   input: z.infer<typeof contactListInputSchema>,
+  options: { automatic?: boolean } = {},
 ): Promise<ContactListDto> {
   await checkSmartFilter(tx, actor, input.smartFilter);
   const existing = await tx.contactList.findUnique({
@@ -141,6 +143,7 @@ export async function createContactList(
         smartFilter: input.smartFilter ?? Prisma.DbNull,
         createdByUserId: actor.userId,
         createdBySokoBotId: actor.sokoBotId,
+        createdAutomatically: options.automatic ?? false,
       },
     })
     .catch(nameTaken);
@@ -212,12 +215,17 @@ export async function deleteContactList(
   await tx.contactList.delete({ where: { id } });
 }
 
-/** Adds and removes members of a manual list; smart lists fill themselves. */
+/**
+ * Adds and removes members of a manual list; smart lists fill themselves.
+ * `automatic` marks the additions as the background classifier's, so people
+ * can see them and undo them.
+ */
 export async function updateContactListMembers(
   tx: Tx,
   actor: ContactActor,
   id: string,
   input: z.infer<typeof contactListMembersSchema>,
+  options: { automatic?: boolean } = {},
 ): Promise<ContactListDto> {
   const list = await requireList(tx, actor, id);
   if (list.smartFilter)
@@ -240,6 +248,7 @@ export async function updateContactListMembers(
         contactId,
         addedByUserId: actor.userId,
         addedBySokoBotId: actor.sokoBotId,
+        addedAutomatically: options.automatic ?? false,
       })),
       skipDuplicates: true,
     });
