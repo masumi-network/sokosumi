@@ -33,6 +33,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  parseAsArrayOf,
   parseAsBoolean,
   parseAsString,
   parseAsStringLiteral,
@@ -59,6 +60,7 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
+import { DriveRecentsTagFilter } from "@/app/drive/components/drive-recents-tag-filter";
 import {
   DriveSortControl,
   DriveSortMenuItems,
@@ -133,7 +135,6 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
-import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
@@ -172,6 +173,7 @@ function withoutLegacyDriveScopeParam(
 function driveNavParams(params: URLSearchParams): URLSearchParams {
   const next = withoutLegacyDriveScopeParam(params);
   next.delete("archived");
+  next.delete("tags");
   return next;
 }
 
@@ -290,6 +292,7 @@ function DrivePageWorkspace({
     sortBy: filesSortByParser,
     sortOrder: filesSortOrderParser,
     archived: parseAsBoolean.withDefault(false),
+    tags: parseAsArrayOf(parseAsString).withDefault([]),
   });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
@@ -1030,6 +1033,7 @@ function DrivePageWorkspace({
         taskId: null,
         assigneeId: null,
         archived: null,
+        tags: null,
       },
       { history: "push" },
     );
@@ -1548,6 +1552,16 @@ function DrivePageWorkspace({
     </>
   ) : null;
 
+  const recentsTagFilter = (
+    <DriveRecentsTagFilter
+      store={driveStore}
+      selected={driveNavQuery.tags}
+      onChange={(labelIds) =>
+        void setDriveNavQuery({ tags: labelIds.length > 0 ? labelIds : null })
+      }
+    />
+  );
+
   const filesSortControl = (
     <DriveSortControl
       value={filesSortSelection}
@@ -1687,6 +1701,7 @@ function DrivePageWorkspace({
                     )}
                   />
                 </div>
+                {recentsTagFilter}
               </div>
             )}
             {isTablesView && (
@@ -1819,6 +1834,7 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
+          {recentsTagFilter}
         </div>
       )}
 
@@ -1833,6 +1849,7 @@ function DrivePageWorkspace({
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
+          tagLabelIds={driveNavQuery.tags}
           reloadToken={recentsReloadToken}
           viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
@@ -2019,10 +2036,6 @@ function DrivePageWorkspace({
 
               if (item.kind === "task-file" && item.type === "task-file") {
                 const extension = getExtensionFromUrl(item.name);
-                const { isImage, documentKind } = classifyFilePreview(
-                  item.fileUrl,
-                  item.name,
-                );
                 const searchContext =
                   item.taskName != null
                     ? [
@@ -2039,8 +2052,8 @@ function DrivePageWorkspace({
                     key={`task-file-${item.id}`}
                     name={item.name}
                     fileUrl={item.fileUrl}
-                    isImage={isImage}
-                    documentKind={documentKind}
+                    sizeBytes={item.size ?? null}
+                    detailsHref={null}
                   >
                     {({ activate, nameEl, viewers }) => (
                       <DriveItemCard
