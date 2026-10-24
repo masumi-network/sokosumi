@@ -5894,7 +5894,11 @@
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
-        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert"
+        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
+        "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
+        "tagDirectMessagesDescription": "Jev darf Direktnachrichten zwischen Personen lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
+        "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
@@ -7506,6 +7510,87 @@
         "you": "Du",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
+      },
+      "Signals": {
+        "error": "Das konnte nicht geladen werden. Versuche es erneut.",
+        "retry": "Erneut versuchen",
+        "needsYouCount": "{count, plural, one {# Nachricht wartet auf dich} other {# Nachrichten warten auf dich}}",
+        "needsYouSection": "Wartet auf dich",
+        "catchUp": "Aufholen",
+        "whileYouWereAway": "Während du weg warst:",
+        "whileYouWereAwayTitle": "Während du weg warst",
+        "dismissCatchUp": "Zusammenfassung ausblenden",
+        "summarize": "Zusammenfassung",
+        "summarizing": "Deine Zusammenfassung wird geschrieben…",
+        "writtenByAi": "Von KI geschrieben {time}",
+        "byRoom": "Nach Raum",
+        "due": "Fällig {date}",
+        "caughtUpTitle": "Du bist auf dem Laufenden",
+        "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
+        "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
+        "removeTag": "Tag entfernen: {tag}",
+        "taskMade": "Task erstellt",
+        "loopClosed": "Erledigt",
+        "makeTask": "Task erstellen",
+        "handOff": "Übergeben",
+        "findingCoworkers": "Coworker wird gesucht…",
+        "fit": "{fit} passend",
+        "noCoworkerFits": "Noch passt kein Coworker dazu.",
+        "createTask": "Task erstellen",
+        "editTags": "Tags bearbeiten",
+        "editTagsTitle": "Was diese Nachricht ist",
+        "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
+        "taskDue": "Fällig {date}",
+        "taskSource": "Aus dem Chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# Frage an dich} other {# Fragen an dich}}",
+          "escalation": "{count, plural, one {# Eskalation} other {# Eskalationen}}",
+          "urgent": "{count, plural, one {# dringend} other {# dringend}}",
+          "blocker": "{count, plural, one {# Blocker} other {# Blocker}}",
+          "decisionMade": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+          "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
+          "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
+          "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
+          "question": "{count, plural, one {# Frage} other {# Fragen}}",
+          "fyi": "{count, plural, one {# Info} other {# Infos}}",
+          "chitChat": "{count, plural, one {# Plauderei} other {# Plaudereien}}"
+        },
+        "Sections": {
+          "needsYou": "Wartet auf dich",
+          "decisions": "Entscheidungen",
+          "openLoops": "Offene Punkte",
+          "highlights": "Wichtiges"
+        },
+        "Chips": {
+          "needsYou": "Wartet auf dich",
+          "escalation": "Eskalation",
+          "urgent": "Dringend",
+          "blocker": "Blocker",
+          "decisionMade": "Entscheidung",
+          "needsDecision": "Braucht eine Entscheidung",
+          "commitment": "Zusage",
+          "commitmentDue": "Zusage · fällig {date}",
+          "workRequest": "Arbeitsauftrag"
+        },
+        "Tags": {
+          "question": "Stellt jemandem eine Frage",
+          "needsDecision": "Braucht eine Entscheidung",
+          "decisionMade": "Entscheidung getroffen",
+          "commitment": "Zusage",
+          "blocker": "Blocker",
+          "urgent": "Dringend",
+          "escalation": "Eskalation",
+          "workRequest": "Arbeitsauftrag",
+          "fyi": "Info",
+          "chitChat": "Plauderei"
+        },
+        "Decisions": {
+          "open": "Entscheidungen",
+          "title": "Entscheidungen",
+          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "loadOlder": "Ältere laden",
+          "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+        }
       }
     },
     "Drive": {

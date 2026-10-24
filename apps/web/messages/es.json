@@ -5894,7 +5894,11 @@
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
-        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado"
+        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
+        "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
+        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
+        "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
       "BillingDetails": {
         "title": "Información de facturación",
@@ -7506,6 +7510,87 @@
         "you": "Tú",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
+      },
+      "Signals": {
+        "error": "No se pudo cargar. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "needsYouCount": "{count, plural, one {# mensaje te espera} other {# mensajes te esperan}}",
+        "needsYouSection": "Te esperan",
+        "catchUp": "Ponerse al día",
+        "whileYouWereAway": "Mientras no estabas:",
+        "whileYouWereAwayTitle": "Mientras no estabas",
+        "dismissCatchUp": "Ocultar resumen",
+        "summarize": "Resumen",
+        "summarizing": "Escribiendo tu resumen…",
+        "writtenByAi": "Resumen escrito por IA {time}",
+        "byRoom": "Por sala",
+        "due": "Vence {date}",
+        "caughtUpTitle": "Estás al día",
+        "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
+        "removeTag": "Quitar etiqueta: {tag}",
+        "taskMade": "Tarea creada",
+        "loopClosed": "Hecho",
+        "makeTask": "Crear una tarea",
+        "handOff": "Delegar",
+        "findingCoworkers": "Buscando un Coworker…",
+        "fit": "{fit} de ajuste",
+        "noCoworkerFits": "Ningún Coworker encaja todavía.",
+        "createTask": "Crear una tarea",
+        "editTags": "Editar etiquetas",
+        "editTagsTitle": "Qué es este mensaje",
+        "editTagsNote": "Tu corrección vale para todos en la sala.",
+        "taskDue": "Vence {date}",
+        "taskSource": "Del chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
+          "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
+          "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
+          "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
+          "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
+          "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
+          "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
+          "question": "{count, plural, one {# pregunta} other {# preguntas}}",
+          "fyi": "{count, plural, one {# aviso} other {# avisos}}",
+          "chitChat": "{count, plural, one {# charla} other {# charlas}}"
+        },
+        "Sections": {
+          "needsYou": "Te esperan",
+          "decisions": "Decisiones",
+          "openLoops": "Pendientes",
+          "highlights": "Destacados"
+        },
+        "Chips": {
+          "needsYou": "Te espera",
+          "escalation": "Escalada",
+          "urgent": "Urgente",
+          "blocker": "Bloqueo",
+          "decisionMade": "Decisión",
+          "needsDecision": "Necesita una decisión",
+          "commitment": "Compromiso",
+          "commitmentDue": "Compromiso · vence {date}",
+          "workRequest": "Encargo"
+        },
+        "Tags": {
+          "question": "Hace una pregunta a alguien",
+          "needsDecision": "Necesita una decisión",
+          "decisionMade": "Decisión tomada",
+          "commitment": "Compromiso",
+          "blocker": "Bloqueo",
+          "urgent": "Urgente",
+          "escalation": "Escalada",
+          "workRequest": "Encargo",
+          "fyi": "Aviso",
+          "chitChat": "Charla"
+        },
+        "Decisions": {
+          "open": "Decisiones",
+          "title": "Decisiones",
+          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "loadOlder": "Cargar anteriores",
+          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+        }
       }
     },
     "Drive": {
