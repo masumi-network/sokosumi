@@ -85,7 +85,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v29");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v30");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
@@ -128,6 +128,20 @@ describe("versions", () => {
     expect(composeSystemPrompt(getSokoBotVersion("v25"))).not.toContain(
       "# Coding with your tools",
     );
+  });
+
+  it("lets v30 read Jev's mail triage and ask Jev itself, and is the default", () => {
+    const v29 = getSokoBotVersion("v29");
+    const v30 = getSokoBotVersion("v30");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v30");
+    expect(v30.skills).toEqual([...v29.skills, "jev-triage"]);
+    expect(v30.model).toBe(v29.model);
+    expect(v30.systemPrompt).toBe(v29.systemPrompt);
+    const prompt = composeSystemPrompt(v30);
+    expect(prompt).toContain("# Triage with Jev");
+    expect(prompt).toContain("evaluate_with_jev");
+    expect(prompt).toMatch(/never urgent on their own/);
+    expect(composeSystemPrompt(v29)).not.toContain("evaluate_with_jev");
   });
 
   it("lets v27 ask Coworkers first and follow its Agent Jobs", () => {
