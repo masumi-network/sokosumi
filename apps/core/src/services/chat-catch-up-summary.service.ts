@@ -4,6 +4,7 @@ import { buildChatMessagePreview, readChatMentionKeys } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
 import {
+  CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
   chatCatchUpBucket,
   sqlChatSignalHasTag,
@@ -399,7 +400,11 @@ export async function getChatCatchUpSummary(
   return {
     scope,
     unreadTaggedCount: bucketed.length,
-    counts: [...counts.entries()].map(([bucket, count]) => ({ bucket, count })),
+    // Most pressing first, the order the catch-up line reads in.
+    counts: CHAT_CATCH_UP_BUCKETS.flatMap((bucket) => {
+      const count = counts.get(bucket);
+      return count ? [{ bucket, count }] : [];
+    }),
     headline: written?.text.headline ?? null,
     rooms:
       written?.text.rooms.flatMap((line) => {

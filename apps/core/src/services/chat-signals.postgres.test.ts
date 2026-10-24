@@ -328,6 +328,10 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
       },
     ]);
     expect(first.needsYou.map((item) => item.messageId)).toEqual([question]);
+    expect(first.counts).toEqual([
+      { bucket: "needsYou", count: 1 },
+      { bucket: "decisionMade", count: 1 },
+    ]);
     expect(first.decisions.map((item) => item.messageId)).toEqual([decision]);
     // The prompt carries no ids, only room keys, authors, labels and text.
     expect(generate.mock.calls[0][0].prompt).not.toContain(channelId);
