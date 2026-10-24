@@ -5,6 +5,13 @@ import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   formatTaskAttachmentMarkdown,
 } from "@sokosumi/utils";
+import {
+  CalendarDays,
+  Inbox,
+  ListChecks,
+  type LucideIcon,
+  UserPlus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -34,7 +41,12 @@ import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const NO_MENTIONS = {};
-const SUGGESTION_KEYS = ["today", "inbox", "week"] as const;
+const ACTIONS: readonly { key: string; icon: LucideIcon }[] = [
+  { key: "today", icon: ListChecks },
+  { key: "inbox", icon: Inbox },
+  { key: "week", icon: CalendarDays },
+  { key: "delegate", icon: UserPlus },
+];
 
 /** A prefilled draft is edited at its end, not its start. */
 function placeCaretAtEnd(element: Element | null) {
@@ -53,7 +65,7 @@ interface SokoBotHomeComposerProps {
   /** The bot's Direct when it exists; created on first send otherwise. */
   roomId: string | null;
   header: ReactNode;
-  /** Recent chats and stats, between the composer and the suggestions. */
+  /** Recent requests, below the composer and the action cards. */
   children: ReactNode;
 }
 
@@ -136,7 +148,7 @@ export function SokoBotHomeComposer({
 
   return (
     <div className="flex min-h-full w-full min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-1 flex-col pt-8 md:pt-[14dvh]">
+      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-1 flex-col pt-8 pb-8 md:pt-[10dvh]">
         {header}
         <RoomComposer
           ref={composerRef}
@@ -155,23 +167,31 @@ export function SokoBotHomeComposer({
           skills={skills}
           onSkillsChange={setSkills}
         />
+        <nav
+          aria-label={t("suggestionsLabel")}
+          className="grid grid-cols-2 gap-3 px-3 pt-6 md:px-5 lg:grid-cols-4"
+        >
+          {ACTIONS.map(({ key, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              className="press bg-card hover:bg-accent focus-visible:ring-ring flex flex-col items-start gap-2 rounded-xl border p-4 text-start outline-none transition-colors focus-visible:ring-2"
+              onClick={() => applySuggestion(t(`suggestions.${key}`))}
+            >
+              <span className="bg-muted text-primary grid size-8 place-items-center rounded-lg border">
+                <Icon aria-hidden className="size-4" />
+              </span>
+              <span className="text-foreground text-sm font-medium">
+                {t(`actions.${key}.title`)}
+              </span>
+              <span className="text-muted-foreground hidden text-sm text-pretty sm:block">
+                {t(`actions.${key}.detail`, { name: botName })}
+              </span>
+            </button>
+          ))}
+        </nav>
         {children}
       </div>
-      <nav
-        aria-label={t("suggestionsLabel")}
-        className="mx-auto flex w-full max-w-2xl flex-wrap justify-center gap-2 px-3 pt-6 pb-4 md:px-5"
-      >
-        {SUGGESTION_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            className="press bg-card text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring rounded-full border px-3 py-1.5 text-sm outline-none transition-colors focus-visible:ring-2"
-            onClick={() => applySuggestion(t(`suggestions.${key}`))}
-          >
-            {t(`suggestions.${key}`)}
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }

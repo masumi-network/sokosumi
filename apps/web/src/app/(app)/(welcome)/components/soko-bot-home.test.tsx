@@ -99,8 +99,9 @@ describe("SokoBotHome", () => {
   it("asks the bot by name", async () => {
     await renderHome();
     expect(
-      screen.getByRole("heading", { level: 1, name: "Joseph" }),
+      screen.getByRole("heading", { level: 1, name: "heading" }),
     ).toBeTruthy();
+    expect(screen.getByText("Joseph")).toBeTruthy();
     expect(
       screen.getByPlaceholderText('placeholder:{"name":"Joseph"}'),
     ).toBeTruthy();
@@ -130,12 +131,23 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/awaitingInput/)).toBeNull();
   });
 
-  it("prefills the composer from a suggestion", async () => {
+  it("prefills the composer from an action card", async () => {
     await renderHome();
-    fireEvent.click(screen.getByRole("button", { name: "suggestions.week" }));
+    expect(screen.getAllByRole("button", { name: /^actions\./ })).toHaveLength(
+      4,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /^actions\.week\.title/ }),
+    );
     expect(
       (screen.getByLabelText("composer") as HTMLTextAreaElement).value,
     ).toBe("suggestions.week");
+    fireEvent.click(
+      screen.getByRole("button", { name: /^actions\.delegate\.title/ }),
+    );
+    expect(
+      (screen.getByLabelText("composer") as HTMLTextAreaElement).value,
+    ).toBe("suggestions.delegate");
   });
 
   it("sends into the bot's room and opens it", async () => {
