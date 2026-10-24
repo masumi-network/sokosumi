@@ -71,7 +71,7 @@ const TAG_QUESTIONS: Record<
 };
 
 const ESCALATION_QUESTION = (key: string) =>
-  `This channel is shared with people outside the company. Does message ${key} show a customer, client or partner who is unhappy, frustrated, complaining, threatening to leave or escalating a problem?`;
+  `This channel is shared with people outside the company. Does message ${key} itself show a customer, client or partner who is unhappy, frustrated, complaining, threatening to leave or escalating a problem? Judge its own words: a neutral question after an earlier complaint is no.`;
 
 const DUE_INSTRUCTIONS = (key: string) =>
   `If message ${key} promises to do something by a time, when is it due, counted from when it was written? NONE when it names no time or promises nothing.`;
