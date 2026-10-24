@@ -107,8 +107,6 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   capturedPreference?: string | null;
 }
 
-/** Below this, a typed turn's route is shown as the guess it is. */
-const SURE_ROUTE_CONFIDENCE = 0.65;
 /** A signal at or above this becomes a hint. */
 const LIKELY_SIGNAL = 0.6;
 /** Below this the message is not about the board, so fewer Tasks come along. */
@@ -122,13 +120,8 @@ const OFF_TOPIC_TASKS = 8;
  */
 export function triggerHints(input: BuildContextPacketInput): string[] {
   if (!input.personAsked) return [];
-  const { confidence, route, signals } = input.classification;
+  const { signals } = input.classification;
   return [
-    ...(confidence < SURE_ROUTE_CONFIDENCE
-      ? [
-          `The route ${route} is a guess (${Math.round(confidence * 100)}%). Decide from the message and the conversation; every tool is available.`,
-        ]
-      : []),
     ...((signals?.refersToEarlier ?? 0) >= LIKELY_SIGNAL
       ? [
           "The message likely points back at earlier messages in this chat, your own posts included: read the CONTEXT block and recentTurns first.",

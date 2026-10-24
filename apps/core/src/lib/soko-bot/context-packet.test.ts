@@ -1013,10 +1013,10 @@ describe("triggerHints", () => {
       ...extra,
     });
 
-  it("calls an unsure route a guess and says every tool is there", () => {
-    const [hint] = typed({ route: "CLARIFY", confidence: 0.51 });
-    expect(hint).toMatch(/CLARIFY is a guess \(51%\)/);
-    expect(hint).toMatch(/every tool is available/);
+  it("leaves an unsure route to the trigger, without telling the bot to act anyway", () => {
+    // "every tool is available" on a CLARIFY at 51% made the bot guess the
+    // client in the ambiguous-request scenario and create a Task.
+    expect(typed({ route: "CLARIFY", confidence: 0.51 })).toEqual([]);
   });
 
   it("turns likely signals into context, and a saved preference into a note", () => {
@@ -1041,7 +1041,17 @@ describe("triggerHints", () => {
   it("adds nothing for a sure route, or for a turn nobody typed", () => {
     expect(typed({})).toEqual([]);
     expect(
-      typed({ route: "CLARIFY", confidence: 0.3 }, { personAsked: false }),
+      typed(
+        {
+          signals: {
+            refersToEarlier: 0.9,
+            statesPreference: 0,
+            aboutMail: 0,
+            aboutTasks: 0,
+          },
+        },
+        { personAsked: false },
+      ),
     ).toEqual([]);
   });
 });
