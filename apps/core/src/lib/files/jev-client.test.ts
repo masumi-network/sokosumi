@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { gatewayJevEvaluator, isJevConfigured } from "./jev-client";
+import {
+  gatewayJevEvaluator,
+  isJevConfigured,
+  METADATA_LABEL_MIN_PROBABILITY,
+} from "./jev-client";
 import type { SerializedJevRequest } from "./jev-request";
 
 const MODEL = "typesafe-ai/jev";
@@ -680,6 +684,21 @@ describe("asking about many labels at once", () => {
     });
 
     expect(verdict.ok).toBe(true);
+    expect(verdict.chosen).toEqual(["label-1"]);
+  });
+
+  it("lowers the gate to the metadata bar when asked to", async () => {
+    fetchMock.mockResolvedValue(
+      labelReply({ "label-1": 0.72, "label-2": 0.69 }),
+    );
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+      minProbability: METADATA_LABEL_MIN_PROBABILITY,
+    });
+
+    expect(METADATA_LABEL_MIN_PROBABILITY).toBe(0.7);
     expect(verdict.chosen).toEqual(["label-1"]);
   });
 

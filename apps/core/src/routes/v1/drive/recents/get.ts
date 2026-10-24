@@ -11,6 +11,10 @@ import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-bi
 import { listDataTables, resolveTableActor } from "@/helpers/data-table";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
+import {
+  findDriveRecentsCatalogEntries,
+  findDriveUploadPathnamesWithLabels,
+} from "@/helpers/drive-recents-labels";
 import { driveActorTaskWhere } from "@/helpers/drive-task-actor-visibility";
 import {
   DRIVE_TASK_FILE_WHERE,
@@ -49,6 +53,7 @@ const route = withCoworkerContextHeaderParameters(
       "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
       "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.",
       "For people, the first page starts with the workspace's pinned Contacts entry (kind `contacts`) unless a search excludes it.",
+      "Drive files carry their catalog id and labels; `tags` narrows the list to Drive files carrying any of the given labels.",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -62,6 +67,7 @@ const route = withCoworkerContextHeaderParameters(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -135,6 +141,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { cursor, take } = parseCursorPagination(query);
     const searchQuery = query.q?.trim();
+    const labelIds = [
+      ...new Set(
+        (query.tags ?? "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    ].sort();
+    const driveFilePathnames =
+      labelIds.length > 0
+        ? await findDriveUploadPathnamesWithLabels({
+            workspaceId: workspaceContext.workspaceId,
+            scope,
+            labelIds,
+          })
+        : undefined;
     // Agents reach tables only through a task's scope, never a workspace list.
     const tableActor = isUserAuthContext(authContext)
       ? await resolveTableActor(authContext, workspaceContext.workspaceId)
@@ -149,8 +171,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursorBinding: {
         prefix,
         searchQuery: searchQuery ?? "",
+        ...(labelIds.length > 0 ? { labelIds: labelIds.join(",") } : {}),
       },
       ...(searchQuery ? { searchQuery } : {}),
+      ...(driveFilePathnames ? { driveFilePathnames } : {}),
       fetchTaskOutputs: ({ cursor: taskCursor, take: taskTake }) =>
         fetchDriveTaskOutputRecentsBatch({
           baseTaskWhere,
@@ -187,9 +211,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const contacts =
       tableActor &&
       !cursor &&
+      !driveFilePathnames &&
       (!searchQuery || "contacts".includes(searchQuery.toLowerCase()))
         ? await contactsDriveEntry(workspaceContext.workspaceId)
         : null;
+    const catalog = await findDriveRecentsCatalogEntries({
+      workspaceId: workspaceContext.workspaceId,
+      scope,
+      pathnames: page.items.flatMap((item) =>
+        item.kind === "drive-file" ? [item.pathname] : [],
+      ),
+    });
+    const pageItems = page.items.map((item) =>
+      item.kind === "drive-file"
+        ? { ...item, ...catalog.get(item.pathname) }
+        : item,
+    );
     const items = contacts
       ? [
           {
@@ -198,9 +235,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             pinned: true as const,
             ...contacts,
           },
-          ...page.items,
+          ...pageItems,
         ]
-      : page.items;
+      : pageItems;
 
     const paginationMeta: CursorPaginationMeta = {
       cursor: cursor ?? null,

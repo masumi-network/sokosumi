@@ -876,6 +876,9 @@ describe("DrivePage files view mode", () => {
           pathname: "notes.txt",
           size: 12,
           activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: null,
+          category: null,
+          tags: [],
         },
       ],
       nextCursor: null,
@@ -920,6 +923,43 @@ describe("DrivePage files view mode", () => {
     });
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+  });
+
+  it("shows a file's labels on Recents and filters by the tags in the URL", async () => {
+    searchParams = new URLSearchParams("tags=tag_a,tag_b");
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "drive-file",
+          name: "promo.mp4",
+          fileUrl: "https://example.com/promo.mp4",
+          pathname: "promo.mp4",
+          size: 12,
+          activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: "res_1",
+          category: null,
+          tags: [
+            { labelId: "tag_a", displayName: "Marketing" },
+            { labelId: "tag_b", displayName: "Content" },
+          ],
+        },
+      ],
+      nextCursor: null,
+    });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-recents-labels")).toBeVisible();
+    });
+    expect(screen.getByTestId("drive-recents-labels")).toHaveTextContent(
+      "MarketingContent",
+    );
+    expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tagLabelIds: ["tag_a", "tag_b"] }),
+    );
+    // A row that used to do nothing now opens.
+    expect(screen.getByRole("button", { name: "promo.mp4" })).toBeVisible();
   });
 
   it("switches Recents to grid without refetching", async () => {
@@ -996,6 +1036,9 @@ describe("DrivePage files view mode", () => {
             pathname: "notes.txt",
             size: 12,
             activityAt: "2026-08-28T10:00:00.000Z",
+            resourceId: null,
+            category: null,
+            tags: [],
           },
         ],
         nextCursor: null,

@@ -14987,6 +14987,55 @@ export const DriveRecentsDriveFileItemSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'Latest activity timestamp (blob uploadedAt)'
+        },
+        resourceId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Files catalog id, for the file detail view. Null until the catalog has adopted this blob.'
+        },
+        category: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                labelId: {
+                    type: 'string',
+                    example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                },
+                displayName: {
+                    type: 'string',
+                    example: 'Marketing'
+                }
+            },
+            required: [
+                'labelId',
+                'displayName'
+            ],
+            description: 'What kind of document this is, when one is known.'
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    labelId: {
+                        type: 'string',
+                        example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                    },
+                    displayName: {
+                        type: 'string',
+                        example: 'Marketing'
+                    }
+                },
+                required: [
+                    'labelId',
+                    'displayName'
+                ]
+            },
+            description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
         }
     },
     required: [
@@ -14995,7 +15044,10 @@ export const DriveRecentsDriveFileItemSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'activityAt'
+        'activityAt',
+        'resourceId',
+        'category',
+        'tags'
     ]
 } as const;
 
