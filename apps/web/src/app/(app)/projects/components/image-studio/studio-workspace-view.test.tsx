@@ -192,7 +192,7 @@ describe("the workspace view", () => {
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
-  it("moves the styles above the prompt as images appear, then returns them when empty", () => {
+  it("moves the styles into the composer's toolbar as images appear, then returns them when empty", () => {
     const props = {
       catalog: TEST_CATALOG,
       initialSelectedAssetId: null,
@@ -220,11 +220,16 @@ describe("the workspace view", () => {
     expect(
       screen.queryByRole("region", { name: "templates" }),
     ).not.toBeInTheDocument();
-    const styles = screen.getByRole("group", { name: "templates" });
+    const menu = screen.getByRole("button", { name: "templates" });
+    expect(box.closest("form")).toContainElement(menu);
     expect(
-      styles.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "poster" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(menu);
     expect(screen.getAllByRole("button", { name: "poster" })).toHaveLength(1);
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "templates" }), {
+      key: "Escape",
+    });
     expect(box).toHaveValue("keep my draft");
 
     view.rerender(
@@ -237,7 +242,7 @@ describe("the workspace view", () => {
       screen.getByRole("region", { name: "templates" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("group", { name: "templates" }),
+      screen.queryByRole("button", { name: "templates" }),
     ).not.toBeInTheDocument();
     expect(box).toHaveValue("keep my draft");
   });

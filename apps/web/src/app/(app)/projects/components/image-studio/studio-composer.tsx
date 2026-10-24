@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 import {
@@ -26,7 +26,7 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
-import { StudioTemplateStrip } from "./studio-template-picker";
+import { StudioTemplateMenu } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
   assetContentUrl,
@@ -162,9 +162,15 @@ export function StudioComposer({
   parentAssetId,
   target,
   showTemplates = true,
+  onUndoTemplate,
 }: {
   busy: boolean;
   showTemplates?: boolean;
+  /**
+   * Present while a template's brief can still be swapped back for the one it
+   * replaced. It sits on the toolbar, so offering it never moves the gallery.
+   */
+  onUndoTemplate?: () => void;
   catalog: StudioCatalog;
   labels: StudioLabels;
   onApplyTemplate: (template: StudioTemplate) => void;
@@ -458,12 +464,6 @@ export function StudioComposer({
       aria-label={labels.composerTitle}
       className="min-w-0 shrink-0 space-y-2"
     >
-      {showTemplates ? (
-        <StudioTemplateStrip
-          labels={labels}
-          onApplyTemplate={onApplyTemplate}
-        />
-      ) : null}
       {/* The chat room's own composer card, minus the formatting toolbar: same
           border, radius, padding and text size, so the two read as one. */}
       <RoomMessageComposer
@@ -472,22 +472,15 @@ export function StudioComposer({
           <>
             {/* Like the DM composer, the card is only the prompt and its
                 controls: the shortcut is read to screen readers, and the
-                count appears once the prompt nears its limit. */}
+                count and the template undo sit on the toolbar, so typing
+                never adds a row. */}
             <span className="sr-only" id={promptHelpId}>
               {t("promptShortcut")}
             </span>
-            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
-              <p
-                className={cn(
-                  "text-muted-foreground px-4 pb-2 text-right text-xs tabular-nums",
-                  promptTooLong && "text-destructive",
-                )}
-              >
-                {t("promptCharacterCount", {
-                  count: promptLength,
-                  limit: MAX_PROMPT_LENGTH,
-                })}
-              </p>
+            {onUndoTemplate ? (
+              <span className="sr-only" role="status">
+                {t("templateReplacedBrief")}
+              </span>
             ) : null}
             {promptTooLong ? (
               <p
@@ -548,8 +541,44 @@ export function StudioComposer({
             : labels.generateOne
         }
         sendDisabled={!canGenerate}
+        toolbarEnd={
+          <>
+            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
+              <span
+                className={cn(
+                  "text-muted-foreground text-xs tabular-nums",
+                  promptTooLong && "text-destructive",
+                )}
+              >
+                {t("promptCharacterCount", {
+                  count: promptLength,
+                  limit: MAX_PROMPT_LENGTH,
+                })}
+              </span>
+            ) : null}
+            {onUndoTemplate ? (
+              <Button
+                type="button"
+                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
+                onClick={onUndoTemplate}
+                size="sm"
+                variant="ghost"
+              >
+                <Undo2 aria-hidden />
+                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
+              </Button>
+            ) : null}
+          </>
+        }
         toolbarStart={
           <>
+            {showTemplates ? (
+              <StudioTemplateMenu
+                labels={labels}
+                onApplyTemplate={onApplyTemplate}
+                triggerClassName={TRIGGER_CLASS}
+              />
+            ) : null}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
