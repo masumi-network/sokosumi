@@ -1464,7 +1464,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Top up",
           "unattributed": "Other"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interaction} other {# interactions}}",
+        "sokoBotTurnsList": "{name}'s interactions"
       },
       "Export": {
         "button": "Export CSV",
@@ -6966,6 +6968,10 @@
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",
+      "SectionLimit": {
+        "showMore": "Show {count} more",
+        "showLess": "Show less"
+      },
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
