@@ -169,7 +169,7 @@ export function SokoBotHomeComposer({
         />
         <nav
           aria-label={t("suggestionsLabel")}
-          className="grid grid-cols-1 gap-3 px-3 pt-6 sm:grid-cols-2 md:px-5 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-3 px-3 pt-6 md:px-5 lg:grid-cols-4"
         >
           {ACTIONS.map(({ key, icon: Icon }) => (
             <button
@@ -184,7 +184,7 @@ export function SokoBotHomeComposer({
               <span className="text-foreground text-sm font-medium">
                 {t(`actions.${key}.title`)}
               </span>
-              <span className="text-muted-foreground text-sm text-pretty">
+              <span className="text-muted-foreground hidden text-sm text-pretty sm:block">
                 {t(`actions.${key}.detail`, { name: botName })}
               </span>
             </button>
