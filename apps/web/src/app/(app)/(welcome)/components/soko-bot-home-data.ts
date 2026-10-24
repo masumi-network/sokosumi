@@ -1,16 +1,9 @@
-import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
+import type { ChatRoom, TaskListItem } from "@sokosumi/core-client";
 
-/** One of the user's own requests in the bot's Direct, newest first. */
-export interface SokoBotHomeChat {
-  messageId: string;
-  title: string;
-  createdAt: Date;
-}
-
-/** Room page the home reads; one page holds plenty of recent requests. */
-export const SOKO_BOT_HOME_MESSAGE_PAGE = 50;
-export const SOKO_BOT_HOME_RECENT_LIMIT = 8;
+type TeamTask = Pick<
+  TaskListItem,
+  "id" | "name" | "status" | "updatedAt" | "assignee" | "owner"
+>;
 
 /**
  * The user's 1:1 with this bot: a Direct whose only agent is the bot, the
@@ -32,37 +25,42 @@ export function findSokoBotDirectRoom(
   );
 }
 
-/** First non-empty line as plain text, or null when nothing readable is left. */
-export function chatTitle(content: string): string | null {
-  const line = content
-    .split("\n")
-    .map((part) => part.trim())
-    .find((part) => part.length > 0);
-  if (!line) return null;
-  const plain = stripInlineMarkdown(line).replace(/^>\s*/, "").trim();
-  return plain.length > 0 ? plain : null;
+/** A Task the team moved in the last day, as one row of the home. */
+export interface SokoBotHomeTask {
+  id: string;
+  name: string;
+  status: TaskListItem["status"];
+  updatedAt: Date;
+  /** Who it is with: the assignee, else whoever owns it. */
+  who: string | null;
 }
 
-/** The user's own top-level messages, newest first, as titled rows. */
-export function toRecentChats(
-  messages: readonly ChatRoomMessage[],
-  userId: string,
-  limit = SOKO_BOT_HOME_RECENT_LIMIT,
-): SokoBotHomeChat[] {
-  const chats: SokoBotHomeChat[] = [];
-  for (const message of [...messages].reverse()) {
-    if (chats.length >= limit) break;
-    if (message.deletedAt || message.parentMessageId) continue;
-    if (message.sender.type !== "user" || message.sender.user.id !== userId) {
-      continue;
-    }
-    const title = chatTitle(message.content);
-    if (!title) continue;
-    chats.push({
-      messageId: message.id,
-      title,
-      createdAt: message.createdAt,
-    });
-  }
-  return chats;
+export const SOKO_BOT_HOME_TASK_LIMIT = 8;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function taskWho(task: TeamTask): string | null {
+  const assignee = task.assignee;
+  if (assignee?.type === "user") return assignee.user.name;
+  if (assignee?.type === "coworker") return assignee.coworker.name;
+  if (assignee?.type === "sokoBot") return assignee.sokoBot.name;
+  return task.owner?.name ?? null;
+}
+
+/** Tasks touched in the 24 hours before `now`, newest first. */
+export function toTeamDay(
+  tasks: readonly TeamTask[],
+  now: Date,
+  limit = SOKO_BOT_HOME_TASK_LIMIT,
+): SokoBotHomeTask[] {
+  return tasks
+    .filter((task) => now.getTime() - task.updatedAt.getTime() <= DAY_MS)
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .slice(0, limit)
+    .map((task) => ({
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      updatedAt: task.updatedAt,
+      who: taskWho(task),
+    }));
 }
