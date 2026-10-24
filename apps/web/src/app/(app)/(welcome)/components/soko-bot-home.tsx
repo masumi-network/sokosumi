@@ -56,7 +56,7 @@ export async function SokoBotHome({
               {botName}
             </span>
           </div>
-          <h1 className="text-foreground text-2xl font-semibold tracking-tight text-balance md:text-3xl">
+          <h1 className="text-foreground text-2xl font-light tracking-tight text-balance md:text-4xl">
             {t("heading")}
           </h1>
         </div>
