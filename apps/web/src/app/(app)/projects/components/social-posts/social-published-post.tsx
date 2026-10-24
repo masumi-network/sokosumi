@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/core-client";
 import { ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { TimezoneLabel } from "@/components/timezone-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SocialMetricTiles } from "./social-account-metrics";
@@ -61,8 +62,8 @@ export function SocialPublishedPost({
             <time dateTime={timestamp.toISOString()}>
               {formatter.dateTime(timestamp, "dateTime", {
                 timeZone: "UTC",
-                timeZoneName: "short",
-              })}
+              })}{" "}
+              <TimezoneLabel timeZone="UTC" at={timestamp} variant="short" />
             </time>
           ) : (
             t("dateUnavailable")
