@@ -22,6 +22,11 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
+import {
+  captureExternalRoomContacts,
+  notifyChatSignalReaders,
+  type TaggedChatMessage,
+} from "@/services/chat-signal-effects.service";
 
 /**
  * A burst is one batch: a room's messages wait until it has been quiet this
@@ -313,8 +318,10 @@ export async function tagRoomChatSignals(
         })
       ).map((message) => [message.id, message.createdAt]),
     );
+    const tagged: TaggedChatMessage[] = [];
     for (const [index, reading] of result.readings.entries()) {
       const message = batch.messages[index];
+      const addressedUserIds = chatSignalAddressees(batch, message, reading);
       const committed =
         (reading.probabilities.commitment ?? 0) >= CHAT_SIGNAL_THRESHOLD;
       const written = await prisma.chatMessageSignal.updateMany({
@@ -323,7 +330,7 @@ export async function tagRoomChatSignals(
           state: "tagged",
           lease: null,
           probabilities: reading.probabilities,
-          addressedUserIds: chatSignalAddressees(batch, message, reading),
+          addressedUserIds,
           commitmentDueAt: committed
             ? resolveChatSignalDueAt(
                 reading.due,
@@ -336,6 +343,15 @@ export async function tagRoomChatSignals(
         },
       });
       outcome.tagged += written.count;
+      if (written.count > 0)
+        tagged.push({
+          messageId: reading.messageId,
+          authorUserId: message.authorUserId,
+          probabilities: reading.probabilities,
+          addressedUserIds,
+          mentionedUserIds: message.mentionedUserIds,
+          sentAt: sentAt.get(reading.messageId) ?? now,
+        });
     }
     outcome.costUsd = result.costUsd;
     log.set({
@@ -359,6 +375,21 @@ export async function tagRoomChatSignals(
       roomId,
       batch.messages.map((message) => message.messageId),
     );
+    const effects = await Promise.allSettled([
+      notifyChatSignalReaders(roomId, tagged),
+      batch.roomKind === "external"
+        ? captureExternalRoomContacts(roomId, tagged)
+        : Promise.resolve(0),
+    ]);
+    for (const effect of effects)
+      if (effect.status === "rejected") report(effect.reason, { roomId });
+    log.set({
+      chatSignals: {
+        notified: effects[0].status === "fulfilled" ? effects[0].value : 0,
+        contactInteractions:
+          effects[1].status === "fulfilled" ? effects[1].value : 0,
+      },
+    });
     return outcome;
   } catch (error) {
     await releaseLease(lease).catch(() => undefined);
