@@ -1,11 +1,7 @@
-import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
+import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import {
-  chatTitle,
-  findSokoBotDirectRoom,
-  toRecentChats,
-} from "./soko-bot-home-data";
+import { findSokoBotDirectRoom, toTeamDay } from "./soko-bot-home-data";
 
 function room(overrides: Partial<ChatRoom>): ChatRoom {
   return {
@@ -16,22 +12,6 @@ function room(overrides: Partial<ChatRoom>): ChatRoom {
     sokoBotMembers: [{ id: "bot" }],
     ...overrides,
   } as ChatRoom;
-}
-
-function message(
-  id: string,
-  content: string,
-  overrides: Partial<ChatRoomMessage> = {},
-): ChatRoomMessage {
-  return {
-    id,
-    content,
-    createdAt: new Date(`2026-10-0${id.slice(-1)}T10:00:00Z`),
-    deletedAt: null,
-    parentMessageId: null,
-    sender: { type: "user", user: { id: "me" } },
-    ...overrides,
-  } as ChatRoomMessage;
 }
 
 describe("findSokoBotDirectRoom", () => {
@@ -52,37 +32,41 @@ describe("findSokoBotDirectRoom", () => {
   });
 });
 
-describe("chatTitle", () => {
-  it("keeps the first non-empty line as plain text", () => {
-    expect(chatTitle("\n  **Plan** my [week](https://x.y)\nmore")).toBe(
-      "Plan my week",
+describe("toTeamDay", () => {
+  const now = new Date("2026-10-24T12:00:00Z");
+  const task = (id: string, hoursAgo: number, extra = {}) => ({
+    id,
+    name: `Task ${id}`,
+    status: "COMPLETED" as const,
+    updatedAt: new Date(now.getTime() - hoursAgo * 3_600_000),
+    assignee: null,
+    owner: { id: "u", name: "Patrick" },
+    ...extra,
+  });
+
+  it("keeps the last 24 hours, newest first, and names who has it", () => {
+    const rows = toTeamDay(
+      [
+        task("old", 30),
+        task("a", 5),
+        task("b", 1, {
+          assignee: {
+            type: "user" as const,
+            id: "u2",
+            user: { id: "u2", name: "Hannah" },
+          },
+        }),
+      ],
+      now,
     );
-  });
-
-  it("returns null for blank content", () => {
-    expect(chatTitle("  \n ")).toBe(null);
-  });
-});
-
-describe("toRecentChats", () => {
-  it("lists the user's own top-level messages newest first", () => {
-    const messages = [
-      message("m1", "First ask"),
-      message("m2", "Bot reply", {
-        sender: { type: "sokoBot", sokoBot: { id: "bot" } } as never,
-      }),
-      message("m3", "Thread reply", { parentMessageId: "m1" }),
-      message("m4", "Deleted", { deletedAt: new Date() }),
-      message("m5", "Second ask"),
-    ];
-    expect(toRecentChats(messages, "me").map((chat) => chat.title)).toEqual([
-      "Second ask",
-      "First ask",
+    expect(rows.map((row) => [row.id, row.who])).toEqual([
+      ["b", "Hannah"],
+      ["a", "Patrick"],
     ]);
   });
 
   it("caps the list", () => {
-    const messages = ["m1", "m2", "m3"].map((id) => message(id, id));
-    expect(toRecentChats(messages, "me", 2)).toHaveLength(2);
+    const tasks = Array.from({ length: 12 }, (_, i) => task(`t${i}`, i));
+    expect(toTeamDay(tasks, now, 3)).toHaveLength(3);
   });
 });

@@ -1624,37 +1624,11 @@
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
-          "heading": "What should we get done today?",
+          "heading": "What's next?",
+          "headingWithName": "What's next, {name}?",
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
-          "awaitingInput": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
-          "recentTitle": "Recent requests",
-          "recentEmpty": "No chats yet. Ask {name} anything, or start with a suggestion.",
-          "suggestionsLabel": "Suggestions",
-          "suggestions": {
-            "today": "What needs me today?",
-            "inbox": "Summarise my inbox",
-            "week": "Plan my week",
-            "delegate": "Find the right Coworker or Agent for this and follow up: "
-          },
-          "actions": {
-            "today": {
-              "title": "What needs me today",
-              "detail": "Tasks, mail and chat questions waiting on you, most important first."
-            },
-            "inbox": {
-              "title": "Summarise my inbox",
-              "detail": "What is urgent, what is worth reading, what can wait."
-            },
-            "week": {
-              "title": "Plan my week",
-              "detail": "Your calendar, due Tasks and follow-ups in one plan."
-            },
-            "delegate": {
-              "title": "Delegate a job",
-              "detail": "{name} finds the right Coworker or Agent and follows up."
-            }
-          }
+          "quietDay": "Nothing moved yet. Ask {name} to start something."
         }
       },
       "SokoBot": {
