@@ -1464,7 +1464,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Top up",
           "unattributed": "Other"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interaction} other {# interactions}}",
+        "sokoBotTurnsList": "{name}'s interactions"
       },
       "Export": {
         "button": "Export CSV",
