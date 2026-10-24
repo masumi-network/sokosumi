@@ -7162,11 +7162,9 @@
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "filterOn": "Nur ungelesene werden angezeigt",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "allThreads": "Alle Threads",
         "justRead": "Gerade gelesen"
       },
       "ThreadsView": {
@@ -7609,6 +7607,11 @@
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
           "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+        },
+        "CatchUpTabs": {
+          "label": "Bereiche von Aufholen",
+          "overview": "Überblick",
+          "threads": "Threads"
         }
       }
     },

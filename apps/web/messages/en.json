@@ -7162,11 +7162,9 @@
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "filterOn": "Showing unread only",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "allThreads": "All threads",
         "justRead": "Read just now"
       },
       "ThreadsView": {
@@ -7609,6 +7607,11 @@
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
           "note": "Collected by Jev. Remove a wrong one from its message."
+        },
+        "CatchUpTabs": {
+          "label": "Catch up sections",
+          "overview": "Overview",
+          "threads": "Threads"
         }
       }
     },

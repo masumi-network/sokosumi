@@ -7162,11 +7162,9 @@
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "filterOn": "Mostrando solo lo no leído",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "allThreads": "Todos los hilos",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {
@@ -7609,6 +7607,11 @@
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
           "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+        },
+        "CatchUpTabs": {
+          "label": "Secciones de Ponerse al día",
+          "overview": "Resumen",
+          "threads": "Hilos"
         }
       }
     },
