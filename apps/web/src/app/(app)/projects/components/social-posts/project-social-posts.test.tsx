@@ -534,7 +534,7 @@ const FAILED_POST = buildPost({
     finishedAt: new Date("2026-09-10T10:05:00.000Z"),
   },
   revision: 5,
-  canEdit: false,
+  canEdit: true,
   canSchedule: true,
   canCancel: true,
   canPublishNow: true,
@@ -2523,6 +2523,35 @@ describe("ProjectSocialPosts", () => {
       await user.click(within(editor).getByRole("button", { name: "Cancel" }));
       expect(screen.getByRole("alertdialog")).toBeVisible();
       expect(editor).toBeVisible();
+    },
+  );
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "closes an unchanged past-due %s editor without asking to discard",
+    async (status) => {
+      freezeClock();
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[{ ...FAILED_POST, status }]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await openTab(user, "Needs attention");
+      await openRowMenu(user, "post-failed");
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("button", { name: "Save" }),
+      ).toBeEnabled();
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(updateProjectSocialPost).not.toHaveBeenCalled();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
     },
   );
 
@@ -4539,53 +4568,59 @@ describe("ProjectSocialPosts", () => {
     ).toBeDisabled();
   });
 
-  it("saves edited media before rescheduling a scheduled post", async () => {
-    freezeClock();
-    const user = userEvent.setup();
-    vi.mocked(updateProjectSocialPost).mockResolvedValue({
-      ok: true,
-      value: { ...SCHEDULED_POST, media: [IMAGE_REF], revision: 3 },
-    });
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[SCHEDULED_POST]}
-        projectId={PROJECT_ID}
-        selectedPostId="post-scheduled"
-      />,
-    );
+  it.each(["SCHEDULED", "FAILED", "MISSED"] as const)(
+    "saves edited media before scheduling a %s post with the new revision",
+    async (status) => {
+      freezeClock();
+      const user = userEvent.setup();
+      const post = { ...SCHEDULED_POST, status };
+      vi.mocked(updateProjectSocialPost).mockResolvedValue({
+        ok: true,
+        value: { ...post, media: [IMAGE_REF], revision: 3 },
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+          selectedPostId="post-scheduled"
+        />,
+      );
 
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }),
-    );
-    const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Add from Drive" }),
-    );
-    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
-    await pickInAnHour(user, dialog);
-    await user.click(
-      within(dialog).getByRole("button", { name: /^Reschedule/ }),
-    );
-
-    await waitFor(() => {
-      expect(updateProjectSocialPost).toHaveBeenCalledWith(
-        expect.objectContaining({
-          postId: "post-scheduled",
-          revision: 2,
-          media: [expect.objectContaining({ pathname: IMAGE_REF.pathname })],
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Edit",
         }),
       );
-    });
-    await waitFor(() => {
-      expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
-        expect.objectContaining({
-          postId: "post-scheduled",
-          revision: 3,
-        }),
+      const dialog = screen.getByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", { name: "Add from Drive" }),
       );
-    });
-  });
+      await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+      await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", { name: /^(Reschedule|Schedule)/ }),
+      );
+
+      await waitFor(() => {
+        expect(updateProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            postId: "post-scheduled",
+            revision: 2,
+            media: [expect.objectContaining({ pathname: IMAGE_REF.pathname })],
+          }),
+        );
+      });
+      await waitFor(() => {
+        expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            postId: "post-scheduled",
+            revision: 3,
+          }),
+        );
+      });
+    },
+  );
 
   it("refuses to attach the same Drive file twice", async () => {
     const user = userEvent.setup();
@@ -4748,6 +4783,70 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("href", "/social?projectId=project-1&tab=accounts");
   });
 
+  it("keeps the reconnect request after editing a failed post whose account is unavailable", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const connection = buildConnection({ status: "reauthorization_required" });
+    const post = {
+      ...FAILED_POST,
+      socialConnection: connection,
+      connectionNeedsReconnect: true,
+      lastError: "Social connection needs reconnecting",
+      lastAttempt: { ...FAILED_POST.lastAttempt!, errorKind: "unauthorized" },
+    };
+    vi.mocked(updateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...post,
+        text: "Fixed copy",
+        lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
+        revision: 6,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        managedConnections={[connection]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Fixed copy" },
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(updateProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        socialConnectionId: connection.id,
+        revision: 5,
+      }),
+    );
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+    const row = screen.getByTestId("social-post-post-failed");
+    expect(within(row).getByText("Fixed copy")).toBeVisible();
+    expect(
+      within(row).getByTestId("social-post-needs-reconnect"),
+    ).toBeVisible();
+    const reconnect = screen.getByTestId("social-reconnect-connection-1");
+    expect(
+      within(reconnect).getByRole("button", { name: "Reconnect" }),
+    ).toBeVisible();
+    expect(within(reconnect).getByText("1 posts affected")).toBeVisible();
+  });
+
   it("sends preview-only connect to the project's Accounts tab", async () => {
     const user = userEvent.setup();
     render(
@@ -4855,13 +4954,122 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Post now" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", { name: "Edit" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
     expect(
       screen.getByRole("menuitem", { name: "Duplicate as draft" }),
     ).toBeVisible();
   });
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "edits a %s post and saves text, media, and account without rescheduling",
+    async (status) => {
+      freezeClock();
+      const user = userEvent.setup();
+      const connection = buildConnection({
+        id: "connection-2",
+        externalHandle: "other",
+      });
+      const post = { ...FAILED_POST, status };
+      vi.mocked(updateProjectSocialPost).mockResolvedValue({
+        ok: true,
+        value: {
+          ...post,
+          text: "Fixed copy",
+          media: [IMAGE_REF],
+          socialConnection: connection,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          revision: 6,
+        },
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection(), connection]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await openTab(user, "Needs attention");
+      await openRowMenu(user, "post-failed");
+      expect(
+        screen.getByRole("menuitem", { name: "Reschedule" }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+      ).toBeVisible();
+      expect(screen.getByRole("menuitem", { name: "Dismiss" })).toBeVisible();
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("heading", { name: "Edit post" }),
+      ).toBeVisible();
+      const textarea = within(dialog).getByLabelText("Text");
+      expect(textarea).toHaveValue("Failed text");
+      expect(
+        within(dialog).getByRole("button", { name: "Save" }),
+      ).toBeEnabled();
+      await user.clear(textarea);
+      await user.type(textarea, "Fixed copy");
+      await user.click(
+        within(dialog).getByRole("button", { name: "X @other" }),
+      );
+      await user.click(
+        within(dialog).getByRole("button", { name: "Add from Drive" }),
+      );
+      await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+      await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        expect(updateProjectSocialPost).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          postId: "post-failed",
+          text: "Fixed copy",
+          firstComment: "",
+          media: [IMAGE_REF],
+          socialConnectionId: "connection-2",
+          revision: 5,
+        });
+      });
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      expect(getTab("Needs attention")).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(toastSuccessMock).toHaveBeenCalledWith("Post updated.");
+      expect(
+        within(screen.getByTestId("social-post-post-failed")).getByText(
+          "Fixed copy",
+        ),
+      ).toBeVisible();
+
+      vi.mocked(publishProjectSocialPost).mockResolvedValue({
+        ok: true,
+        value: { ...PUBLISHED_POST, id: post.id },
+      });
+      await user.click(
+        within(screen.getByTestId("social-post-post-failed")).getByRole(
+          "button",
+          { name: "Retry" },
+        ),
+      );
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Retry",
+        }),
+      );
+      await waitFor(() =>
+        expect(publishProjectSocialPost).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          postId: post.id,
+          revision: 6,
+        }),
+      );
+    },
+  );
 
   it("dismisses a FAILED post after confirmation and leaves Needs attention", async () => {
     const user = userEvent.setup();

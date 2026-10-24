@@ -51,6 +51,8 @@ const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -82,6 +84,8 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 
 const socialPostInclude = {
@@ -730,9 +734,7 @@ export async function updateSocialPost(
     });
   }
   if (!EDITABLE_STATUSES.includes(post.status)) {
-    throw conflict(
-      "Only a draft, scheduled, or needs-approval post can be edited",
-    );
+    throw conflict("This post can no longer be edited");
   }
   requireRevision(post, input.revision);
 
@@ -749,7 +751,9 @@ export async function updateSocialPost(
             ? { scheduledAt: new Date() }
             : {}),
         }
-      : {};
+      : post.status === "FAILED" || post.status === "MISSED"
+        ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
+        : {};
   const currentProvider = requireProvider(post.provider);
   let provider = currentProvider;
   if (input.socialConnectionId === null) {
@@ -810,7 +814,11 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    if (post.status === "SCHEDULED") {
+    if (
+      post.status === "SCHEDULED" ||
+      post.status === "FAILED" ||
+      post.status === "MISSED"
+    ) {
       requireMediaRequirement(provider, media);
     }
   }

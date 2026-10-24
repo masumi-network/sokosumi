@@ -241,9 +241,17 @@ export function SocialPostComposerDialog({
     const initial = post?.socialConnection?.id ?? connections[0]?.id;
     return initial ? [initial] : [];
   });
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-  );
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (!post?.scheduledAt) return "";
+    if (
+      (post.status === "FAILED" || post.status === "MISSED") &&
+      post.scheduledAt.getTime() <=
+        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+    ) {
+      return "";
+    }
+    return toScheduleValue(post.scheduledAt);
+  });
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
   const { data: suggestedTimes } = useQuery({
@@ -279,7 +287,7 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    scheduledAt,
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 
@@ -755,7 +763,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
-          socialConnectionId: connectionId || null,
+          socialConnectionId: connectionIds[0] ?? null,
           revision: mode.post.revision,
         });
         if (!result.ok) {
