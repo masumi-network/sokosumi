@@ -13,6 +13,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+  STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioFailedSubmission } from "./studio-failed-submission";
@@ -239,7 +241,20 @@ export function ImageStudio({
   });
 
   const queue = useGenerationQueue({
-    onAccepted: useCallback(() => void refresh(), [refresh]),
+    onAccepted: useCallback(
+      ({ remaining }: { remaining: number }) => {
+        void refresh();
+        // Work started from "Everything" belongs to the project it was sent
+        // to: once the last request is in, the page moves there, so the
+        // sidebar's project switcher says where you are. Not before, because
+        // the page remounts per project and would drop what is still queued.
+        if (projectId === null && pickedProjectId && remaining === 0)
+          router.replace(switchScopeHref(pathname, pickedProjectId), {
+            scroll: false,
+          });
+      },
+      [refresh, projectId, pickedProjectId, router, pathname],
+    ),
   });
 
   const checkedAssets = useMemo(
@@ -570,7 +585,12 @@ export function ImageStudio({
         <div
           className={cn(
             "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
-            showsNothing ? "justify-center" : "justify-end",
+            // The column cancels the page pad so the prompt docks to the
+            // edge; the gallery takes the composer's gutter back. The empty
+            // state's carousel stays edge to edge on purpose.
+            showsNothing
+              ? "justify-center"
+              : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
           <div ref={topRef} />
@@ -612,7 +632,6 @@ export function ImageStudio({
               }}
               queued={queue.queued}
               selectedIds={checkedIds}
-              showProject={projectId === null}
             />
           )}
 
@@ -682,7 +701,12 @@ export function ImageStudio({
       </div>
 
       {checkedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-3 gap-y-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
           <span className="grow" />
           <span className="text-muted-foreground text-xs tabular-nums">
             {t("selectedCount", { count: checkedIds.length })}
@@ -705,12 +729,15 @@ export function ImageStudio({
 
       {templateUndo ? (
         <div
-          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+          className={cn(
+            "text-muted-foreground flex flex-wrap items-center gap-2 text-xs",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
           role="status"
         >
           <span>{t("templateReplacedBrief")}</span>
           <Button
-            className="h-10 md:h-8"
+            className="h-10 text-xs md:h-8"
             size="sm"
             variant="ghost"
             onClick={() => {

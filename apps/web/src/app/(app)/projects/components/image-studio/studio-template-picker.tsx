@@ -20,6 +20,7 @@ import {
   setStudioCarouselDragging,
   studioCarouselRoot,
 } from "./studio-carousel-paint";
+import { STUDIO_COMPOSER_GUTTER_CLASS } from "./studio-classes";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
@@ -102,7 +103,10 @@ export function StudioTemplateStrip({
   return (
     <div
       aria-label={labels.templates}
-      className="app-scrollbar flex gap-2 overflow-x-auto p-1"
+      className={cn(
+        "app-scrollbar flex gap-2 overflow-x-auto py-1",
+        STUDIO_COMPOSER_GUTTER_CLASS,
+      )}
       role="group"
     >
       {STUDIO_TEMPLATES.map((template) => (
