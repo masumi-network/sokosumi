@@ -534,7 +534,6 @@ export function OrganizationChatList({
         <SidebarGroupContent className="space-y-2">
           <ChatUnreadNavRows
             rooms={roomRows}
-            currentUserId={currentUserId}
             dismissSheetOnNavigate={dismissSheetOnNavigate}
             unreadOnly={unreadOnly}
             onUnreadOnlyChange={handleUnreadOnlyChange}
