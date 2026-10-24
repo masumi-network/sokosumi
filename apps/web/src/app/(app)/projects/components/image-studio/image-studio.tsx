@@ -4,8 +4,10 @@ import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -83,7 +85,7 @@ type Viewing = { mode: "single" } | { mode: "compare" } | null;
  * The studio.
  *
  * An empty studio offers style briefs in the center. Once generation starts,
- * results fill the feed and the styles sit above the composer below it. Models
+ * results fill the feed and the styles move into the composer's toolbar. Models
  * and generation settings remain summaries that open on demand.
  *
  * There is no conversational assistant here, by design. Generating images is a
@@ -539,6 +541,8 @@ export function ImageStudio({
     // Re-armed per page: a page that does not fill the viewport must fire again.
   }, [hasOlder, state.assets.length]);
 
+  const dock = useSteadyDock(promptRef);
+
   const composer = (
     <StudioComposer
       key={composerKey}
@@ -567,6 +571,16 @@ export function ImageStudio({
       referenceAssets={checkedAssets}
       target={target}
       showTemplates={!showsNothing}
+      onUndoTemplate={
+        templateUndo
+          ? () => {
+              setPrompt(templateUndo.prompt);
+              setTarget(templateUndo.target);
+              setTemplateUndo(null);
+              promptRef.current?.focus();
+            }
+          : undefined
+      }
     />
   );
 
@@ -727,31 +741,6 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      {templateUndo ? (
-        <div
-          className={cn(
-            "text-muted-foreground flex flex-wrap items-center gap-2 text-xs",
-            STUDIO_COMPOSER_GUTTER_CLASS,
-          )}
-          role="status"
-        >
-          <span>{t("templateReplacedBrief")}</span>
-          <Button
-            className="h-10 text-xs md:h-8"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setPrompt(templateUndo.prompt);
-              setTarget(templateUndo.target);
-              setTemplateUndo(null);
-              promptRef.current?.focus();
-            }}
-          >
-            {t("undoTemplate")}
-          </Button>
-        </div>
-      ) : null}
-
       {/* The composer is the anchor, so the question sits over the brief it
       is about. Dismissing it leaves the brief untouched. */}
       <Popover
@@ -760,9 +749,16 @@ export function ImageStudio({
         }}
         open={awaitingProject !== null}
       >
-        <PopoverAnchor asChild>
-          <div>{composer}</div>
-        </PopoverAnchor>
+        <div className="relative shrink-0" ref={dock.slotRef}>
+          <PopoverAnchor asChild>
+            <div
+              className="bg-background absolute inset-x-0 bottom-0 pt-2"
+              ref={dock.dockRef}
+            >
+              {composer}
+            </div>
+          </PopoverAnchor>
+        </div>
         <PopoverContent
           align="end"
           className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
@@ -834,6 +830,39 @@ export function ImageStudio({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Keep the gallery still while the prompt grows.
+ *
+ * The feed is a bottom-anchored scroller, so anything that shrank it moved
+ * every image on screen: each new line of a brief, or a long template landing
+ * in the box. The composer is docked over the feed's bottom edge instead, in a
+ * slot as tall as the composer minus whatever the prompt has grown past its
+ * resting height. A growing brief then rises over the feed, the way a sheet
+ * would, and the feed's height only follows the composer's own rows.
+ */
+function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const dock = dockRef.current;
+    if (!slot || !dock) return;
+    const sync = () => {
+      const prompt = promptRef.current;
+      const growth = prompt
+        ? prompt.offsetHeight -
+          Number.parseFloat(getComputedStyle(prompt).minHeight)
+        : 0;
+      slot.style.height = `${dock.offsetHeight - (growth > 0 ? growth : 0)}px`;
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [promptRef]);
+  return { slotRef, dockRef };
 }
 
 /**

@@ -28,7 +28,7 @@ export function HeaderSearchTrigger() {
       data-testid="header-search-trigger"
       className={cn(
         HEADER_SEARCH_BOX_CLASS,
-        "border-input bg-background text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:ring-ring-halo items-center justify-center gap-2 rounded-md border text-sm outline-none transition-[color,border-color] focus-visible:ring-[3px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-transparent lg:justify-start lg:px-2.5",
+        "border-control-border bg-background text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:ring-ring-halo items-center justify-center gap-2 rounded-md border text-sm outline-none transition-[color,border-color] focus-visible:ring-[3px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-transparent lg:justify-start lg:px-2.5",
       )}
     >
       <Search className="size-4 shrink-0" />

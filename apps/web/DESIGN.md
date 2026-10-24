@@ -162,7 +162,8 @@ Black/White plus the neutral ramp (`--background` / `--card-background` through
 `--foreground`) and the step ramp (`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`).
 Values live in `globals.css`. Elevated surfaces are **lighter** (`--card-background` on
 `--muted`), not heavier. Default border = `--border`; `--input` is a separate, stronger
-control boundary. The base layer applies `border-border` + `outline-ring` to all elements.
+boundary for fields (input, textarea, select, checkbox, radio). Labelled controls (outline
+buttons, toggles, triggers, option cards) take the soft `--control-border`. The base layer applies `border-border` + `outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
