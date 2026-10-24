@@ -243,7 +243,7 @@ describe("Social tool contracts", () => {
       schemas.create_social_post.safeParse({
         projectId,
         text: "",
-        media: Array.from({ length: 5 }, () => media),
+        media: Array.from({ length: 11 }, () => media),
       }).success,
     ).toBe(false);
     expect(
@@ -256,6 +256,19 @@ describe("Social tool contracts", () => {
       }).success,
     ).toBe(true);
   });
+
+  it.each(["create_social_post", "update_social_post"] as const)(
+    "%s accepts ten carousel file ids and rejects eleven",
+    (capability) => {
+      const files = Array.from({ length: 10 }, () => ({ fileId: postId }));
+      const input = { ...inputs[capability], media: files };
+      expect(schemas[capability].parse(input).media).toEqual(files);
+      expect(
+        schemas[capability].safeParse({ ...input, media: [...files, files[0]] })
+          .success,
+      ).toBe(false);
+    },
+  );
 
   it.each(["create_social_post", "schedule_social_post"] as const)(
     "%s accepts explicit offsets and validates timezones and accounts",

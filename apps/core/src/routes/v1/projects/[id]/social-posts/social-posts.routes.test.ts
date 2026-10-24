@@ -522,6 +522,20 @@ describe("Project social post routes", () => {
     });
   });
 
+  it("forwards an unassigned draft's provider", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", { text: "Carousel", provider: "instagram" }),
+    );
+    expect(response.status).toBe(201);
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "instagram",
+        socialConnectionId: undefined,
+      }),
+    );
+  });
+
   it("forwards Drive media on create and returns it on the post", async () => {
     const mediaRef = {
       pathname: `drive/users/${USER_ID}/launch.png`,
@@ -604,7 +618,7 @@ describe("Project social post routes", () => {
       `http://localhost/${PROJECT_ID}/social-posts`,
       json("POST", {
         text: "Hello",
-        media: Array.from({ length: 5 }, (_, index) => ({
+        media: Array.from({ length: 11 }, (_, index) => ({
           pathname: `drive/users/${USER_ID}/photo-${index}.png`,
           fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/photo-${index}.png`,
           name: `photo-${index}.png`,

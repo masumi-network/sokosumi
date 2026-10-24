@@ -25018,6 +25018,18 @@ export const CreateSocialPostRequestSchema = {
             maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
+        provider: {
+            type: 'string',
+            enum: [
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
+            ],
+            description: 'Provider for a draft without an account. Defaults to X; a selected connection takes precedence.'
+        },
         firstComment: {
             type: 'string',
             maxLength: 10000,
@@ -25028,8 +25040,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 10,
+            description: 'Drive files to attach, within the chosen account\'s image or video limit. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -25123,8 +25135,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 4,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 10,
+            description: 'Drive files to attach, within the chosen account\'s image or video limit. Never mixed.'
         },
         socialConnectionId: {
             type: [

@@ -354,6 +354,56 @@ describe("social post publisher service", () => {
     expect(settleCall().data.status).not.toBe("PUBLISHING");
   });
 
+  it.each([
+    {
+      ...IMAGE_REF,
+      pathname: "drive/users/user_123/launch.jpg",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.jpg",
+      name: "launch.jpg",
+      mimeType: "image/jpeg",
+      kind: "image",
+    },
+    CLIP_REF,
+  ])(
+    "publishes all ten Instagram $kind attachments through the worker",
+    async (ref) => {
+      const media = Array.from({ length: 10 }, () => ref);
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          provider: "instagram",
+          media,
+        })
+        .mockResolvedValue(null);
+      publishXPostMock.mockResolvedValue({
+        externalId: "ig_1",
+        publishedUrl: null,
+        toolSlug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+      });
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ published: 1, failed: 0, retried: 0 });
+      expect(publishXPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: "instagram", media }),
+      );
+      expect(attemptCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            toolSlug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+          }),
+        }),
+      );
+      expect(settleCall().data).toMatchObject({
+        status: "PUBLISHED",
+        publishedExternalId: "ig_1",
+      });
+    },
+  );
+
   it("claims a due post, publishes it, and records the attempt", async () => {
     const { publishDueSocialPosts } = await loadService();
 

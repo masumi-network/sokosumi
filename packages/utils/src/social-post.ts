@@ -154,9 +154,9 @@ export const SOCIAL_POST_MEDIA_RULES = {
     videoMimeTypes: ["video/mp4"],
   },
   instagram: {
-    maxImages: 1,
+    maxImages: 10,
     maxGifs: 0,
-    maxVideos: 1,
+    maxVideos: 10,
     maxImageBytes: SOCIAL_POST_IMAGE_MAX_BYTES,
     maxGifBytes: 0,
     maxVideoBytes: SOCIAL_POST_VIDEO_MAX_BYTES,
@@ -230,7 +230,11 @@ export const SOCIAL_POST_TEXT_MAX = Math.max(
 
 /** Most attachments any provider accepts: the provider-agnostic request bound. */
 export const SOCIAL_POST_MEDIA_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
+  ...Object.values(SOCIAL_POST_MEDIA_RULES).flatMap((rules) => [
+    rules.maxImages,
+    rules.maxGifs,
+    rules.maxVideos,
+  ]),
 );
 
 export type SocialPostMediaValidationReason =

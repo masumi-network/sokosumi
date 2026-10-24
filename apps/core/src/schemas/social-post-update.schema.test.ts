@@ -66,4 +66,11 @@ describe("updateSocialPostRequestSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts a full ten-file carousel on update", () => {
+    const files = Array.from({ length: 10 }, () => media);
+    expect(
+      updateSocialPostRequestSchema.parse({ revision: 1, media: files }).media,
+    ).toEqual(files);
+  });
 });

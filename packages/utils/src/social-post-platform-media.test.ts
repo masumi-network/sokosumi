@@ -25,12 +25,51 @@ const webp = ref({
 });
 
 describe("validateSocialPostMedia platform limits", () => {
-  it("rejects a second Instagram image", () => {
+  it("accepts two to ten Instagram images and rejects an eleventh", () => {
+    const ten = Array.from({ length: 10 }, () => jpeg);
     expect(validateSocialPostMedia("instagram", [jpeg])).toEqual({ ok: true });
     expect(validateSocialPostMedia("instagram", [jpeg, jpeg])).toEqual({
+      ok: true,
+    });
+    expect(validateSocialPostMedia("instagram", ten)).toEqual({ ok: true });
+    expect(validateSocialPostMedia("instagram", [...ten, jpeg])).toEqual({
       ok: false,
       reason: "too_many_images",
     });
+  });
+
+  it("accepts two to ten Instagram videos and rejects an eleventh", () => {
+    const video = ref({
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      kind: "video",
+    });
+    const ten = Array.from({ length: 10 }, () => video);
+    expect(validateSocialPostMedia("instagram", [video, video])).toEqual({
+      ok: true,
+    });
+    expect(validateSocialPostMedia("instagram", ten)).toEqual({ ok: true });
+    expect(validateSocialPostMedia("instagram", [...ten, video])).toEqual({
+      ok: false,
+      reason: "too_many_videos",
+    });
+  });
+
+  it("rejects mixed Instagram carousels in either order", () => {
+    const video = ref({
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      kind: "video",
+    });
+    for (const media of [
+      [jpeg, video],
+      [video, jpeg],
+    ]) {
+      expect(validateSocialPostMedia("instagram", media)).toEqual({
+        ok: false,
+        reason: "mixed_media",
+      });
+    }
   });
 
   it("accepts webp on Facebook and X, not LinkedIn", () => {

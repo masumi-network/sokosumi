@@ -78,7 +78,7 @@ const socialPostMediaRequestSchema = z
   .max(SOCIAL_POST_MEDIA_MAX)
   .openapi({
     description:
-      "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
+      "Drive files to attach, within the chosen account's image or video limit. Never mixed.",
   });
 
 const socialPostTimezoneSchema = z
@@ -198,6 +198,10 @@ function hasTextOrMedia(value: {
 export const createSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema,
+    provider: socialPostProviderSchema.optional().openapi({
+      description:
+        "Provider for a draft without an account. Defaults to X; a selected connection takes precedence.",
+    }),
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),

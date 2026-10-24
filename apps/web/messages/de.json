@@ -2556,7 +2556,7 @@
             "errors": {
               "too_many_images": "{provider} erlaubt höchstens {max} Bilder pro Beitrag.",
               "too_many_gifs": "{provider} erlaubt ein GIF pro Beitrag.",
-              "too_many_videos": "{provider} erlaubt ein Video pro Beitrag.",
+              "too_many_videos": "{provider} erlaubt {max, plural, one {ein Video} other {höchstens # Videos}} pro Beitrag.",
               "mixed_media": "{provider} erlaubt keine Mischung aus Bildern, GIF oder Video.",
               "unsupported_type": "{provider} akzeptiert dieses Dateiformat nicht.",
               "too_large": "Eine Datei ist zu groß für {provider}."

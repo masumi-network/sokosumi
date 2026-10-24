@@ -131,13 +131,18 @@ describe("socialPostComposerProviders", () => {
     expect(socialPostComposerProviders(undefined, [])).toEqual(["x"]);
   });
 
-  it("keeps connected networks when every account is deselected", () => {
+  it("keeps connected networks for a new post when every account is deselected", () => {
     expect(
       socialPostComposerProviders(undefined, [], ["linkedin", "instagram"]),
     ).toEqual(["linkedin", "instagram"]);
-    expect(
-      socialPostComposerProviders("x", [], ["linkedin", "instagram"]),
-    ).toEqual(["linkedin", "instagram"]);
+  });
+
+  it("keeps an unassigned carousel's stored provider while other networks are connected", () => {
+    expect(socialPostComposerProviders("x", [], ["instagram"])).toEqual(["x"]);
+    const providers = socialPostComposerProviders("instagram", [], ["x"]);
+    expect(providers).toEqual(["instagram"]);
+    const media = Array.from({ length: 10 }, () => IMAGE);
+    expect(socialPostComposerDraftIssue(providers[0], "", media)).toBeNull();
   });
 
   it("lists each selected provider once", () => {

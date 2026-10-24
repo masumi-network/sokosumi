@@ -7315,9 +7315,13 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Provider for a draft without an account. Defaults to X; a selected connection takes precedence.
+     */
+    provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach, within the chosen account's image or video limit. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
@@ -7342,7 +7346,7 @@ export type UpdateSocialPostRequest = {
     text?: string;
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach, within the chosen account's image or video limit. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;
