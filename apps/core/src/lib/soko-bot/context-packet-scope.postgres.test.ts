@@ -60,6 +60,7 @@ async function postedTurn(
       status: "COMPLETED",
       clientTurnId: randomUUID(),
       userMessage: "system prompt",
+      capabilityNames: [],
       finalAnswer: input.finalAnswer,
       deadlineAt: new Date(Date.now() + 60_000),
       destinationRoomId: input.roomId,
