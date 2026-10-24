@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONTACT_STAGES,
   type ContactView,
   channelHref,
   channelLabel,
   contactQuery,
   coreErrorOf,
+  daysSince,
   defaultDirection,
   guessImportMapping,
   initials,
   isFollowUpDue,
+  primaryEmail,
+  STAGE_DOT,
   sortChannels,
 } from "./contacts-view";
 
@@ -16,6 +20,8 @@ const base: ContactView = {
   view: "all",
   search: "",
   stage: null,
+  replyState: null,
+  kind: null,
   owner: null,
   knownBy: null,
   sort: "updatedAt",
@@ -36,8 +42,8 @@ describe("contactQuery", () => {
     expect(contactQuery({ ...base, view: "stale" })).toMatchObject({
       lastContactOlderThanDays: 90,
     });
-    expect(contactQuery({ ...base, view: "prospects" })).toMatchObject({
-      stage: "PROSPECT",
+    expect(contactQuery({ ...base, view: "noReply" })).toMatchObject({
+      replyState: "NO_REPLY",
     });
     expect(contactQuery(base)).toEqual({
       sort: "updatedAt",
@@ -67,6 +73,49 @@ describe("contactQuery", () => {
     expect(
       contactQuery({ ...base, owner: "user-3", knownBy: "me" }),
     ).toMatchObject({ ownerUserId: "user-3", knownByMe: "true" });
+    expect(
+      contactQuery({
+        ...base,
+        replyState: "AWAITING_REPLY",
+        kind: "ORGANIZATION",
+      }),
+    ).toMatchObject({ replyState: "AWAITING_REPLY", kind: "ORGANIZATION" });
+  });
+});
+
+describe("classification", () => {
+  it("offers every stage once, the plain default first", () => {
+    expect(CONTACT_STAGES[0]).toBe("CONTACT");
+    expect(new Set(CONTACT_STAGES).size).toBe(CONTACT_STAGES.length);
+    expect(Object.keys(STAGE_DOT).sort()).toEqual([...CONTACT_STAGES].sort());
+  });
+});
+
+describe("email and reply", () => {
+  const channel = (value: string, isPrimary: boolean, type = "EMAIL") => ({
+    id: value,
+    type: type as "EMAIL",
+    value,
+    label: null,
+    isPrimary,
+    source: "EMAIL" as const,
+    sourceUrl: null,
+    verified: false,
+    createdAt: new Date(),
+  });
+
+  it("shows the primary email, else the first one, else nothing", () => {
+    expect(
+      primaryEmail([channel("b@x.co", false), channel("a@x.co", true)]),
+    ).toBe("a@x.co");
+    expect(primaryEmail([channel("b@x.co", false)])).toBe("b@x.co");
+    expect(primaryEmail([channel("+41790000000", true, "PHONE")])).toBeNull();
+  });
+
+  it("counts whole days waited, never below zero", () => {
+    const now = new Date("2026-10-23T12:00:00Z");
+    expect(daysSince("2026-10-11T13:00:00Z", now)).toBe(11);
+    expect(daysSince("2026-10-24T00:00:00Z", now)).toBe(0);
   });
 });
 

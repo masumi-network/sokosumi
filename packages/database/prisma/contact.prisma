@@ -7,6 +7,8 @@
 // people.
 // ---------------------------------------------------------------------------
 
+/// What a contact is to the team; `CONTACT` is the plain default and the
+/// sales steps only apply to people the team sells to.
 enum ContactStage {
   PROSPECT
   LEAD
@@ -15,6 +17,18 @@ enum ContactStage {
   INVESTOR
   CUSTOMER
   DORMANT
+  CONTACT
+  VENDOR
+  ADVISOR
+  COMMUNITY
+  PRESS
+  FRIEND
+}
+
+/// A person, or an organization or shared inbox (a practice's `info@`).
+enum ContactKind {
+  PERSON
+  ORGANIZATION
 }
 
 enum ContactChannelType {
@@ -80,7 +94,8 @@ model Contact {
   /// About text, usually written by a Soko Bot.
   summary            String?
   whyInteresting     String?
-  stage              ContactStage @default(LEAD)
+  stage              ContactStage @default(CONTACT)
+  kind               ContactKind  @default(PERSON)
   ownerUserId        String?
   owner              User?        @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   nextStep           String?
@@ -90,9 +105,16 @@ model Contact {
   firstContactAt     DateTime?
   lastContactAt      DateTime?
   interactionCount   Int          @default(0)
+  /// Latest interaction from them (IN or BOTH); derived like the above.
+  lastInboundAt      DateTime?
+  /// First outreach (OUT) since they last wrote; null once they answer.
+  awaitingReplySince DateTime?
   /// When the background enrichment last looked at this contact; `null`
   /// queues it (new, or given a new channel by capture).
   enrichedAt         DateTime?
+  /// When the background pass last judged kind, name, stage and lists;
+  /// `null` asks for it once more.
+  classifiedAt       DateTime?
   mergedIntoId       String?      @db.Uuid
   mergedInto         Contact?     @relation("ContactMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
   mergedFrom         Contact[]    @relation("ContactMerge")
@@ -116,6 +138,7 @@ model Contact {
   @@index([mergedIntoId])
   @@index([ownerUserId])
   @@index([workspaceId, enrichedAt])
+  @@index([workspaceId, awaitingReplySince])
   @@map("contact")
 }
 
@@ -173,32 +196,36 @@ model ContactInteraction {
 /// a saved contact filter evaluated on read. `nameKey` is the lowercased name,
 /// so names are unique per workspace regardless of case.
 model ContactList {
-  id                 String              @id @default(uuid(7)) @db.Uuid
-  workspaceId        String              @db.Uuid
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  name               String
-  nameKey            String
-  color              String
-  description        String?
-  smartFilter        Json?
-  createdByUserId    String?
-  createdBySokoBotId String?             @db.Uuid
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  members            ContactListMember[]
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  workspaceId          String              @db.Uuid
+  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name                 String
+  nameKey              String
+  color                String
+  description          String?
+  smartFilter          Json?
+  createdByUserId      String?
+  createdBySokoBotId   String?             @db.Uuid
+  /// Made by the background classifier, not by a person or a bot's turn.
+  createdAutomatically Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  members              ContactListMember[]
 
   @@unique([workspaceId, nameKey])
   @@map("contact_list")
 }
 
 model ContactListMember {
-  listId           String      @db.Uuid
-  list             ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  contactId        String      @db.Uuid
-  contact          Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  addedByUserId    String?
-  addedBySokoBotId String?     @db.Uuid
-  addedAt          DateTime    @default(now())
+  listId             String      @db.Uuid
+  list               ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contactId          String      @db.Uuid
+  contact            Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  addedByUserId      String?
+  addedBySokoBotId   String?     @db.Uuid
+  /// Put there by the background classifier; people can see and undo it.
+  addedAutomatically Boolean     @default(false)
+  addedAt            DateTime    @default(now())
 
   @@id([listId, contactId])
   @@index([contactId])
