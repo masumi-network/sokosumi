@@ -243,6 +243,7 @@ export function OrganizationChatList({
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
   // The app sidebar and the mobile `/chat` page each mount this list.
   const inboxReadLabelId = useId();
+  const inboxNeedsYouLabelId = useId();
   const inboxPinnedLabelId = useId();
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
@@ -404,6 +405,14 @@ export function OrganizationChatList({
         .flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
     : [];
   const inboxPinnedRooms = unreadOnly ? pinned : [];
+  // Rooms with a message waiting on the reader lead the filter, under their
+  // own label: a question or decision for them comes before plain unread.
+  const needsYouInboxRooms = inboxRooms.filter(
+    (room) => (room.unreadNeedsYouCount ?? 0) > 0 && room.mutedAt == null,
+  );
+  const otherInboxRooms = inboxRooms.filter(
+    (room) => !needsYouInboxRooms.includes(room),
+  );
   const unreadRoomIds = new Set(unreadRooms.map((room) => room.id));
   const isUnreadRoom = (room: ChatRoom) => unreadRoomIds.has(room.id);
   // Past the limit a section still lists what is unread and the open room,
@@ -598,6 +607,32 @@ export function OrganizationChatList({
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
+                {needsYouInboxRooms.length > 0 ? (
+                  <>
+                    <p
+                      id={inboxNeedsYouLabelId}
+                      className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pt-2 pb-1 text-xs font-medium"
+                    >
+                      {t("Signals.needsYouSection")}
+                    </p>
+                    <SidebarMenu
+                      data-slot="unread-inbox-needs-you"
+                      aria-labelledby={inboxNeedsYouLabelId}
+                      className="gap-0"
+                    >
+                      <AnimatePresence initial={false}>
+                        {needsYouInboxRooms.map((room) => (
+                          <ChatRoomSidebarRow
+                            key={room.id}
+                            {...roomRowProps(room)}
+                            itemProps={inboxItemProps(room)}
+                            itemMotion={UNREAD_FILTER_ROW_PRESENCE}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </SidebarMenu>
+                  </>
+                ) : null}
                 <SidebarMenu
                   data-slot="unread-inbox"
                   aria-labelledby={
@@ -606,7 +641,7 @@ export function OrganizationChatList({
                   className="gap-0"
                 >
                   <AnimatePresence initial={false}>
-                    {inboxRooms.map((room) => (
+                    {otherInboxRooms.map((room) => (
                       <ChatRoomSidebarRow
                         key={room.id}
                         {...roomRowProps(room)}

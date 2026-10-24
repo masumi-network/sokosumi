@@ -5930,7 +5930,11 @@
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
-        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
+        "tagDirectMessagesTitle": "Sort my direct messages",
+        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
+        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -7506,6 +7510,87 @@
         "you": "You",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
+      },
+      "Signals": {
+        "error": "Couldn't load that. Try again.",
+        "retry": "Try again",
+        "needsYouCount": "{count, plural, one {# message needs you} other {# messages need you}}",
+        "needsYouSection": "Needs you",
+        "catchUp": "Catch up",
+        "whileYouWereAway": "While you were away:",
+        "whileYouWereAwayTitle": "While you were away",
+        "dismissCatchUp": "Hide catch-up",
+        "summarize": "Summary",
+        "summarizing": "Writing your summary…",
+        "writtenByAi": "Summary written by AI {time}",
+        "byRoom": "By room",
+        "due": "Due {date}",
+        "caughtUpTitle": "You're caught up",
+        "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "removeTag": "Remove tag: {tag}",
+        "taskMade": "Task made",
+        "loopClosed": "Done",
+        "makeTask": "Make a task",
+        "handOff": "Hand off",
+        "findingCoworkers": "Finding a coworker…",
+        "fit": "{fit} fit",
+        "noCoworkerFits": "No Coworker fits this yet.",
+        "createTask": "Create a task",
+        "editTags": "Edit tags",
+        "editTagsTitle": "What this message is",
+        "editTagsNote": "Your correction applies for everyone in the room.",
+        "taskDue": "Due {date}",
+        "taskSource": "From the chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
+          "escalation": "{count, plural, one {# escalation} other {# escalations}}",
+          "urgent": "{count, plural, one {# urgent} other {# urgent}}",
+          "blocker": "{count, plural, one {# blocker} other {# blockers}}",
+          "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
+          "commitment": "{count, plural, one {# commitment} other {# commitments}}",
+          "workRequest": "{count, plural, one {# work request} other {# work requests}}",
+          "question": "{count, plural, one {# question} other {# questions}}",
+          "fyi": "{count, plural, one {# FYI} other {# FYI}}",
+          "chitChat": "{count, plural, one {# chat} other {# chats}}"
+        },
+        "Sections": {
+          "needsYou": "Needs you",
+          "decisions": "Decisions",
+          "openLoops": "Open loops",
+          "highlights": "Highlights"
+        },
+        "Chips": {
+          "needsYou": "Needs you",
+          "escalation": "Escalation",
+          "urgent": "Urgent",
+          "blocker": "Blocker",
+          "decisionMade": "Decision",
+          "needsDecision": "Needs a decision",
+          "commitment": "Commitment",
+          "commitmentDue": "Commitment · due {date}",
+          "workRequest": "Work request"
+        },
+        "Tags": {
+          "question": "Asks someone a question",
+          "needsDecision": "Needs a decision",
+          "decisionMade": "Decision made",
+          "commitment": "Commitment",
+          "blocker": "Blocker",
+          "urgent": "Urgent",
+          "escalation": "Escalation",
+          "workRequest": "Work request",
+          "fyi": "FYI",
+          "chitChat": "Chit-chat"
+        },
+        "Decisions": {
+          "open": "Decisions",
+          "title": "Decisions",
+          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "loadOlder": "Load older",
+          "note": "Collected by Jev. Remove a wrong one from its message."
+        }
       }
     },
     "Drive": {
