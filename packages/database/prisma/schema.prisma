@@ -1539,6 +1539,7 @@ model Job {
 
   events             JobEvent[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   purchase JobPurchase?
 
@@ -2852,6 +2853,12 @@ model SokoBotDelegation {
   lastSeenEventId String?
   lastSeenEventAt DateTime?
 
+  /// What the bot will do once this work completes ("give the findings to
+  /// Alex"). The events sync hands it back on the wake that reports the result.
+  followUp       String?
+  /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
+  followUpTurnId String? @db.Uuid
+
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
@@ -2976,10 +2983,19 @@ model SokoBotSchedule {
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
 
+  /// The Task or Job this schedule follows. Core removes the schedule once
+  /// that work finishes; the result itself wakes the bot through the events sync.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  jobId  String?
+  job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
   runs SokoBotScheduleRun[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
+  @@index([taskId])
+  @@index([jobId])
   @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
@@ -3147,6 +3163,7 @@ model Task {
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")

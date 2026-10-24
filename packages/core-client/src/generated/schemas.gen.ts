@@ -3717,6 +3717,18 @@ export const SokoBotDelegationSchema = {
                 'null'
             ]
         },
+        followUp: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUpTurnId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',

@@ -85,7 +85,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v30");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
@@ -130,10 +130,47 @@ describe("versions", () => {
     );
   });
 
-  it("lets v30 read Jev's mail triage and ask Jev itself, and is the default", () => {
+  it("lets v31 wait on delegated work with follow-up plans and read contact kind, relationship and reply state", () => {
+    const v30 = getSokoBotVersion("v30");
+    const v31 = getSokoBotVersion("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(v31.model).toBe(v30.model);
+    expect(v31.skills).toHaveLength(v30.skills.length);
+    expect(v31.skills).toContain("jev-triage");
+    expect(v31.skills).toContain("long-and-chained-work-follow-ups");
+    expect(v31.skills).toContain("team-contacts-relationships");
+    expect(v31.skills).not.toContain("long-and-chained-work");
+    expect(v31.skills).not.toContain("team-contacts");
+    const prompt = composeSystemPrompt(v31);
+    expect(prompt).toContain("is a follow-up plan, not a schedule");
+    expect(prompt).toContain("`followUp`");
+    expect(prompt).toContain("pass `taskId` or `jobId`");
+    expect(prompt).toContain("one-time schedules remove themselves");
+    expect(prompt).not.toContain(
+      'Check-ins, reminders, monitoring, and "tell me when" are schedules',
+    );
+    expect(prompt).toContain("Never turn down a job because it is big");
+    expect(prompt).toContain('replyStates: ["NO_REPLY"]');
+    expect(prompt).toContain("`kind` ORGANIZATION");
+    expect(prompt).toContain("CONTACT is the default");
+    expect(composeSystemPrompt(v30)).not.toContain("followUp");
+    // Everything else stays v30's.
+    expect(
+      v31.systemPrompt.replace(
+        /- "When X is done[\s\S]*?remove themselves\./,
+        "",
+      ),
+    ).toBe(
+      v30.systemPrompt.replace(
+        /- Check-ins, reminders, monitoring[^\n]*work is done\./,
+        "",
+      ),
+    );
+  });
+
+  it("lets v30 read Jev's mail triage and ask Jev itself", () => {
     const v29 = getSokoBotVersion("v29");
     const v30 = getSokoBotVersion("v30");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v30");
     expect(v30.skills).toEqual([...v29.skills, "jev-triage"]);
     expect(v30.model).toBe(v29.model);
     expect(v30.systemPrompt).toBe(v29.systemPrompt);

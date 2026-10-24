@@ -102,7 +102,10 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
-import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
+import {
+  systemScheduleRoute,
+  withOwnScheduleTools,
+} from "@/lib/soko-bot/system-routes";
 import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
@@ -1757,6 +1760,11 @@ export class SokoBotControlPlane {
     ) {
       throw new SokoBotValidationError("Invalid schedule turn reservation");
     }
+    if (input.ownScheduleId && !input.scheduleReservation) {
+      throw new SokoBotValidationError(
+        "Only a schedule run may manage its own schedule",
+      );
+    }
     if (
       input.adminScheduleReservation &&
       (source !== "ADMIN_RETRY" ||
@@ -2171,7 +2179,9 @@ export class SokoBotControlPlane {
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
-        : routeCapabilities) as readonly SokoBotCapability[],
+        : input.ownScheduleId
+          ? withOwnScheduleTools(routeCapabilities)
+          : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +
@@ -2448,6 +2458,23 @@ export class SokoBotControlPlane {
                 lastSeenEventAt: occurrence.delegationEventAt,
               },
             });
+          }
+          if (occurrence.followUpDelegationIds?.length) {
+            const claimed = await tx.sokoBotDelegation.updateMany({
+              where: {
+                id: { in: occurrence.followUpDelegationIds },
+                followUp: { not: null },
+                followUpTurnId: null,
+                turn: { sokoBotId: bot.id, workspaceId: input.workspaceId },
+              },
+              data: { followUpTurnId: created.id },
+            });
+            // Another turn took a plan first; the next tick rebuilds the
+            // message without it rather than running it twice.
+            if (claimed.count !== occurrence.followUpDelegationIds.length)
+              throw new SokoBotBusyError(
+                "A follow-up plan in this batch was already handed over",
+              );
           }
           if (occurrence.taskCursorAt) {
             await tx.sokoBotTaskWatch.upsert({
