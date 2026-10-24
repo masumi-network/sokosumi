@@ -18,7 +18,7 @@ export const v31: SokoBotVersion = {
   summary:
     "v30 that waits on delegated work with a follow-up plan instead of a schedule or a polling run, ends its own schedules, and reads contact kind, relationship, and reply state.",
   releaseNote:
-    'When you say "when Hannah is done, give it to Alex", I now hand it over the moment she finishes, without reminders piling up. In contacts I tell people from companies and shared inboxes, and I point out who has not replied.',
+    "Three things are new. Your mail is sorted the same way every time: urgent first, notable in a line each, the rest only as a count, and between briefings I only interrupt you for urgent mail. When you ask me to pass someone's finished work on to someone else, I hand it over the moment it is done, without reminders piling up. And in your contacts I tell people apart from companies and shared inboxes, and point out who has not replied.",
   systemPrompt: v30.systemPrompt.replace(V30_FOLLOW_UPS, V31_FOLLOW_UPS),
   skills: v30.skills.map((skill) =>
     skill === "long-and-chained-work"

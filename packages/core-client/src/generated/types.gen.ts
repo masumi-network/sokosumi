@@ -4300,6 +4300,24 @@ export type DriveRecentsDriveFileItem = {
      * Latest activity timestamp (blob uploadedAt)
      */
     activityAt: Date;
+    /**
+     * Files catalog id, for the file detail view. Null until the catalog has adopted this blob.
+     */
+    resourceId: string | null;
+    /**
+     * What kind of document this is, when one is known.
+     */
+    category: {
+        labelId: string;
+        displayName: string;
+    } | null;
+    /**
+     * Tags on this file, automatic or confirmed. Labels a person removed are never listed.
+     */
+    tags: Array<{
+        labelId: string;
+        displayName: string;
+    }>;
 };
 
 export type DriveRecentsTaskOutputItem = {
@@ -32164,6 +32182,10 @@ export type GetDriveRecentsData = {
          */
         q?: string;
         /**
+         * Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs, tables and contacts have no labels and are left out.
+         */
+        tags?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -32210,6 +32232,21 @@ export type GetDriveRecentsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

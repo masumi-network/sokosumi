@@ -2054,6 +2054,7 @@ export const patchDriveFoldersRename = <ThrowOnError extends boolean = false>(op
  * Returns a flat, activity-sorted file list (newest first) with cursor pagination.
  * Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.
  * For people, the first page starts with the workspace's pinned Contacts entry (kind `contacts`) unless a search excludes it.
+ * Drive files carry their catalog id and labels; `tags` narrows the list to Drive files carrying any of the given labels.
  */
 export const getDriveRecents = <ThrowOnError extends boolean = false>(options: Options<GetDriveRecentsData, ThrowOnError>): RequestResult<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError> => (options.client ?? client).get<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError>({
     responseTransformer: getDriveRecentsResponseTransformer,
