@@ -376,8 +376,14 @@ export async function getChatCatchUpSummary(
       .slice(0, MAX_ITEMS_PER_SECTION)
       .map(({ message, bucket, room }) => toItem(message, room, bucket, names));
 
+  // A question still unread is already under "needs you"; listing it again
+  // as an open loop would only repeat it.
+  const unreadIds = new Set(bucketed.map(({ message }) => message.id));
   const openLoops = loops
-    .filter((loop: ChatSignalListItem) => roomById.has(loop.room.id))
+    .filter(
+      (loop: ChatSignalListItem) =>
+        roomById.has(loop.room.id) && !unreadIds.has(loop.message.id),
+    )
     .slice(0, MAX_ITEMS_PER_SECTION)
     .map((loop) =>
       toItem(

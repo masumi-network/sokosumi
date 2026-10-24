@@ -1,7 +1,13 @@
 "use client";
 
 import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
-import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
+import {
+  CheckCheck,
+  Inbox,
+  Loader2,
+  MessagesSquare,
+  Sunrise,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -15,14 +21,20 @@ import {
 import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
-import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CATCH_UP_PATH,
+  CHAT_THREADS_PATH,
+} from "@/app/chat/utils/chat-route-base";
 import { useMarkFeatureSeen } from "@/app/components/sidebar/components/feature-badges";
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "@/app/components/sidebar/components/sidebar-feature-label";
 import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
-import { RowCountMark } from "@/components/chat/mention-count-pill";
+import {
+  NeedsYouPill,
+  RowCountMark,
+} from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   resolveUnreadThreadsAttention,
@@ -145,6 +157,14 @@ export function ChatUnreadNavRows({
     dismissSheetOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link;
 
   const threadsActive = pathname === CHAT_THREADS_PATH;
+  const catchUpActive = pathname === CHAT_CATCH_UP_PATH;
+  const tSignals = useTranslations("App.Channels.Signals");
+  // Everything waiting on the reader, across the rooms they have not muted.
+  const needsYouTotal = rooms.reduce(
+    (sum, room) =>
+      room.mutedAt == null ? sum + (room.unreadNeedsYouCount ?? 0) : sum,
+    0,
+  );
   const hasCount = threadCount > 0;
   const [isMarking, startMarking] = useTransition();
   // Every desktop row, at zero too: the panel then says the reader is caught
@@ -242,6 +262,48 @@ export function ChatUnreadNavRows({
 
   return (
     <SidebarMenu className="gap-0" aria-label={t("label")}>
+      <SidebarMenuItem className="relative">
+        {catchUpActive ? <SidebarRailSelectionBar /> : null}
+        <SidebarMenuButton
+          asChild
+          isActive={catchUpActive}
+          tooltip={tSignals("catchUp")}
+        >
+          {wrapLink(
+            <Link
+              href={CHAT_CATCH_UP_PATH}
+              aria-current={catchUpActive ? "page" : undefined}
+              className={THREADS_ROW_CLASS}
+              data-testid="chat-catch-up-row"
+            >
+              <SidebarRowSlot>
+                <Sunrise className="size-4" aria-hidden />
+              </SidebarRowSlot>
+              <span
+                className={cn(
+                  SIDEBAR_ROW_LABEL_CLASS,
+                  needsYouTotal > 0 && "text-foreground font-semibold",
+                )}
+              >
+                {tSignals("catchUp")}
+              </span>
+              {needsYouTotal > 0 ? (
+                <>
+                  <span className="sr-only">
+                    {tSignals("needsYouCount", { count: needsYouTotal })}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="group-data-[collapsible=icon]:hidden flex size-7 shrink-0 items-center justify-center"
+                  >
+                    <NeedsYouPill count={needsYouTotal} />
+                  </span>
+                </>
+              ) : null}
+            </Link>,
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
       <SidebarMenuItem className="relative">
         <div className="relative">
           {rail ? <RailAttentionPill variant={rail} /> : null}
