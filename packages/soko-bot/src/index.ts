@@ -100,6 +100,7 @@ export {
   sokoBotContactIdInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotEvaluateWithJevInputSchema,
   sokoBotGenerateImageInputSchema,
   sokoBotGetImageInputSchema,
   sokoBotHireAgentInputSchema,

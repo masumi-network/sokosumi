@@ -92,6 +92,8 @@ const {
   dispatchChatRoomMentionMock,
   serializableTransactionMock,
   turnUpdateManyMock,
+  turnUpdateMock,
+  jevToolMock,
   workspaceFindFirstMock,
   availabilityMock,
   applyGuardedTaskStatusUpdateMock,
@@ -209,6 +211,8 @@ const {
   dispatchChatRoomMentionMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
+  turnUpdateMock: vi.fn(),
+  jevToolMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
   applyGuardedTaskStatusUpdateMock: vi.fn(),
@@ -384,6 +388,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
+      update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
@@ -415,6 +420,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
+}));
+vi.mock("@/lib/soko-bot/jev-tool", () => ({
+  evaluateWithJevForBot: jevToolMock,
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
@@ -2279,7 +2287,12 @@ describe("SokoBotRuntimeService authorization", () => {
 
     const [{ where }] = transactionToolCallCountMock.mock.calls[0];
     expect(where.capability.in).toEqual(
-      expect.arrayContaining(["get_task_status", "search_inbox", "read_table"]),
+      expect.arrayContaining([
+        "get_task_status",
+        "search_inbox",
+        "read_table",
+        "evaluate_with_jev",
+      ]),
     );
     for (const notARead of [
       "write_table_rows",
@@ -2897,6 +2910,51 @@ describe("SokoBotRuntimeService authorization", () => {
         expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
       },
     );
+
+    it("asks Jev for the bot and books the call as turn overhead", async () => {
+      sharedTurn("evaluate_with_jev", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      const result = {
+        answers: [{ key: "q", type: "boolean", probability: 0.8 }],
+        unanswered: [],
+        note: "guide",
+      };
+      jevToolMock.mockResolvedValue({ result, costUsd: 0.000_25 });
+      const input = {
+        state: "Payout failed",
+        questions: [{ key: "q", question: "Money?" }],
+      };
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev",
+          input,
+        }),
+      ).resolves.toEqual(result);
+      expect(jevToolMock).toHaveBeenCalledWith(input);
+      expect(turnUpdateMock).toHaveBeenCalledWith({
+        where: { id: SCOPE.turnId },
+        data: { overheadCostUsdMicros: { increment: 250n } },
+      });
+    });
+
+    it("tells the bot to judge itself when Jev is down", async () => {
+      sharedTurn("evaluate_with_jev", PROJECT_BOT);
+      jevToolMock.mockRejectedValue(new Error("timeout"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev_down",
+          input: { state: "x", questions: [{ key: "q", question: "Yes?" }] },
+        }),
+      ).rejects.toThrow("Jev is unavailable right now");
+      expect(turnUpdateMock).not.toHaveBeenCalled();
+    });
 
     it("finds Coworkers without the member's own assignments", async () => {
       sharedTurn("find_coworkers", PROJECT_BOT);

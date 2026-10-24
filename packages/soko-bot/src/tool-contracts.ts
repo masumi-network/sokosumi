@@ -411,6 +411,57 @@ export const sokoBotReadEmailInputSchema = z.object({
   messageId: z.string(),
 });
 
+/** Short enough to stay a cheap judgement, long enough for a page of mail. */
+const JEV_STATE_MAX = 12_000;
+const jevKeySchema = z
+  .string()
+  .regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/, "letters, digits and _, max 40");
+
+export const sokoBotEvaluateWithJevInputSchema = z
+  .object({
+    /** What Jev judges: plain text, or JSON as a string (parsed when valid). */
+    state: z.string().trim().min(1).max(JEV_STATE_MAX),
+    questions: z
+      .array(
+        z
+          .object({
+            key: jevKeySchema,
+            /** What to judge, about which item; yes/no unless options are given. */
+            question: z.string().trim().min(1).max(1_000),
+            /** Named options with what each means; makes it a choice. */
+            options: z
+              .array(
+                z
+                  .object({
+                    name: jevKeySchema,
+                    criteria: z.string().trim().min(1).max(500),
+                  })
+                  .strict(),
+              )
+              .min(2)
+              .max(8)
+              .optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(10),
+  })
+  .strict()
+  .superRefine((input, ctx) => {
+    const keys = input.questions.map((question) => question.key);
+    if (new Set(keys).size !== keys.length)
+      ctx.addIssue({ code: "custom", message: "question keys must be unique" });
+    for (const question of input.questions) {
+      const names = question.options?.map((option) => option.name) ?? [];
+      if (new Set(names).size !== names.length)
+        ctx.addIssue({
+          code: "custom",
+          message: `option names of ${question.key} must be unique`,
+        });
+    }
+  });
+
 export const sokoBotListCalendarEventsInputSchema = z.object({
   /** ISO start of the window; default now. */
   from: z.string().datetime().optional(),
@@ -696,6 +747,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
+  evaluate_with_jev: sokoBotEvaluateWithJevInputSchema,
   list_calendar_events: sokoBotListCalendarEventsInputSchema,
   refresh_context: emptyInputSchema,
   find_coworkers: sokoBotSearchInputSchema,
@@ -831,6 +883,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   search_inbox:
     "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Never send mail; you can only read.",
   read_email: "Read one email in full by provider and messageId.",
+  evaluate_with_jev:
+    "Ask Jev, a fast judging model, up to 10 typed questions about a short state (text, or JSON as a string, up to 12,000 characters) and get probabilities back. A question without options is yes/no and returns the probability of yes; one with 2–8 named options (each with criteria saying what it means) returns the chosen option and every option's probability. Use it to judge many items the same way: triage mail, tag a list, yes/no checks over rows. Give each item a key in the state and name it in its question. Cheap and read-only; the answers are a guide, not facts.",
   list_calendar_events:
     "The owner's calendar events in a time window across connected calendars. Default window: now to +7 days.",
   refresh_context: "Read immutable Context snapshot for current turn.",
