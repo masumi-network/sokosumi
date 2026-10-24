@@ -1621,6 +1621,21 @@
         "searchAgents": {
           "label": "Search",
           "subtitle": "Specialized agents"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Your Soko Bot",
+          "placeholder": "Ask {name}…",
+          "sendFailed": "Could not send your message. Please try again.",
+          "awaitingInput": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "recentTitle": "Recent chats",
+          "recentEmpty": "No chats yet. Ask {name} anything, or start with a suggestion.",
+          "suggestionsLabel": "Suggestions",
+          "suggestions": {
+            "today": "What needs me today?",
+            "inbox": "Summarise my inbox",
+            "week": "Plan my week"
+          }
         }
       },
       "SokoBot": {
@@ -7751,18 +7766,23 @@
         "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
-        "title": "Meet your Soko Bot",
+        "title": "Your own assistant",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "Your personal assistant in Sokosumi.",
+        "description": "A Soko Bot is an AI assistant that works for you in Sokosumi. Tell it what you need in plain words and it takes care of it.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
-        "submit": "Create Soko Bot",
+        "submit": "Create my Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
         "spendNotice": "Uses your credits. Set a daily limit in its settings.",
-        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings."
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings.",
+        "exampleDelegate": "Turns “research our top 5 competitors” into a Task for the right Coworker and follows up until it’s done.",
+        "exampleBrief": "Sends you a short morning brief from your inbox and calendar.",
+        "exampleMemory": "Remembers your goals and preferences, so you don’t repeat yourself.",
+        "examplesLabel": "What it can do for you",
+        "nameIntro": "First, give it a name."
       },
       "Memory": {
         "title": "Memory",

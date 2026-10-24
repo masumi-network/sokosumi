@@ -38,6 +38,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAskCoworkerInputSchema,
+  sokoBotEvaluateWithJevInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
@@ -190,6 +191,7 @@ import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   persistedToolResult,
   sanitizePersistedValue,
@@ -361,7 +363,7 @@ export function sokoBotToolCallLimit(turn: {
 const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
   SOKO_BOT_CAPABILITIES.filter(
     (capability) =>
-      /^(get|list|read|search|find)_|^(refresh_context|preview_result)$/.test(
+      /^(get|list|read|search|find)_|^(refresh_context|preview_result|evaluate_with_jev)$/.test(
         capability,
       ) && !SOKO_BOT_SANDBOX_CAPABILITIES.some((tool) => tool === capability),
   );
@@ -5450,6 +5452,27 @@ export class SokoBotRuntimeService {
           );
         }
         return fetchInboxMessage(integration, parsed.messageId);
+      }
+      case "evaluate_with_jev": {
+        const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);
+        let evaluation: Awaited<ReturnType<typeof evaluateWithJevForBot>>;
+        try {
+          evaluation = await evaluateWithJevForBot(parsed);
+        } catch {
+          throw new SokoBotRuntimeValidationError(
+            "Jev is unavailable right now; judge these yourself.",
+          );
+        }
+        // Jev is overhead like routing: on the turn's total, not billed.
+        await prisma.sokoBotTurn.update({
+          where: { id: authorized.turn.id },
+          data: {
+            overheadCostUsdMicros: {
+              increment: BigInt(Math.round(evaluation.costUsd * 1_000_000)),
+            },
+          },
+        });
+        return evaluation.result;
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(
