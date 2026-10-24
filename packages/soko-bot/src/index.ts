@@ -35,6 +35,7 @@ export {
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
@@ -42,6 +43,7 @@ export {
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
+  type SokoBotTurnSignals,
   type TurnClassification,
   unattendedHireOverCeilingRefusal,
   unattendedSecondHireRefusal,
@@ -98,6 +100,7 @@ export {
   sokoBotContactIdInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotEvaluateWithJevInputSchema,
   sokoBotGenerateImageInputSchema,
   sokoBotGetImageInputSchema,
   sokoBotHireAgentInputSchema,
@@ -138,5 +141,6 @@ export {
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
   type SokoBotVersion,
+  versionShowsResultCards,
 } from "./versions/index.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";

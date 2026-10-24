@@ -524,6 +524,10 @@ export type ChatRoomMessage = {
      * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
      */
     skills?: Array<ChatRoomMessageSkill>;
+    /**
+     * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+     */
+    signal?: ChatMessageSignal | null;
 };
 
 export type ChatResultDescriptor = {
@@ -721,6 +725,66 @@ export type ChatRoomMessageSkill = {
     url: string;
 };
 
+export type ChatMessageSignal = {
+    /**
+     * Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message.
+     */
+    tags: Array<ChatSignalTag>;
+    /**
+     * Jev's probability per tag, as it answered.
+     */
+    probabilities: {
+        question?: number;
+        needsDecision?: number;
+        commitment?: number;
+        blocker?: number;
+        decisionMade?: number;
+        fyi?: number;
+        urgent?: number;
+        chitChat?: number;
+        workRequest?: number;
+        escalation?: number;
+    };
+    /**
+     * Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.
+     */
+    addressedUserIds: Array<string>;
+    /**
+     * When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.
+     */
+    commitmentDueAt: Date | null;
+    /**
+     * When a reader closed this open loop, by making a Task of it or dismissing it.
+     */
+    loopClosedAt: Date | null;
+    loopTaskId: string | null;
+    /**
+     * Tags a reader corrected by hand.
+     */
+    correctedTags: Array<ChatSignalTag>;
+};
+
+/**
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ */
+export const ChatSignalTag = {
+    QUESTION: 'question',
+    NEEDS_DECISION: 'needsDecision',
+    COMMITMENT: 'commitment',
+    BLOCKER: 'blocker',
+    DECISION_MADE: 'decisionMade',
+    FYI: 'fyi',
+    URGENT: 'urgent',
+    CHIT_CHAT: 'chitChat',
+    WORK_REQUEST: 'workRequest',
+    ESCALATION: 'escalation'
+} as const;
+
+/**
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ */
+export type ChatSignalTag = typeof ChatSignalTag[keyof typeof ChatSignalTag];
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -878,6 +942,8 @@ export type SokoBotDelegation = {
     error: string | null;
     taskId: string | null;
     jobId: string | null;
+    followUp?: string | null;
+    followUpTurnId?: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -2759,6 +2825,10 @@ export type ChatRoom = {
      */
     unreadMentionCount: number;
     /**
+     * Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.
+     */
+    unreadNeedsYouCount?: number;
+    /**
      * Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.
      */
     starredAt: Date | null;
@@ -3000,6 +3070,10 @@ export type ChatRoomPinnedMessageListItem = {
          * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
          */
         skills?: Array<ChatRoomMessageSkill>;
+        /**
+         * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+         */
+        signal?: ChatMessageSignal | null;
     } | null;
 };
 
@@ -3378,6 +3452,129 @@ export type CreateChatRoomFileUploadSessionRequest = {
     size: number;
 };
 
+export type ChatSignalListItem = {
+    /**
+     * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
+     */
+    kind: 'needsYou' | 'question' | 'decision' | 'commitment';
+    room: {
+        id: string;
+        name: string;
+        kind: 'channel' | 'direct';
+    };
+    message: ChatRoomMessage;
+    dueAt: Date | null;
+};
+
+export type ChatCatchUpSummary = {
+    /**
+     * `all` or the room id.
+     */
+    scope: string;
+    unreadTaggedCount: number;
+    counts: Array<{
+        bucket: ChatCatchUpBucket;
+        count: number;
+    }>;
+    /**
+     * A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.
+     */
+    headline: string | null;
+    rooms: Array<{
+        roomId: string;
+        roomName: string;
+        line: string;
+    }>;
+    generatedAt: Date | null;
+    needsYou: Array<ChatCatchUpItem>;
+    decisions: Array<ChatCatchUpItem>;
+    openLoops: Array<ChatCatchUpItem>;
+    highlights: Array<ChatCatchUpItem>;
+};
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export const ChatCatchUpBucket = {
+    NEEDS_YOU: 'needsYou',
+    ESCALATION: 'escalation',
+    URGENT: 'urgent',
+    BLOCKER: 'blocker',
+    DECISION_MADE: 'decisionMade',
+    NEEDS_DECISION: 'needsDecision',
+    COMMITMENT: 'commitment',
+    WORK_REQUEST: 'workRequest',
+    QUESTION: 'question',
+    FYI: 'fyi',
+    CHIT_CHAT: 'chitChat'
+} as const;
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export type ChatCatchUpBucket = typeof ChatCatchUpBucket[keyof typeof ChatCatchUpBucket];
+
+export type ChatCatchUpItem = {
+    messageId: string;
+    roomId: string;
+    roomName: string;
+    roomKind: 'channel' | 'direct';
+    parentMessageId: string | null;
+    senderName: string;
+    excerpt: string;
+    bucket: ChatCatchUpBucket;
+    createdAt: Date;
+    dueAt: Date | null;
+};
+
+export type ChatRoomCatchUp = {
+    /**
+     * Unread top-level messages from others, tagged or not.
+     */
+    unreadCount: number;
+    /**
+     * How many of those Jev has read; the rest are too short or still waiting.
+     */
+    taggedCount: number;
+    buckets: Array<{
+        bucket: ChatCatchUpBucket;
+        count: number;
+        /**
+         * Oldest first, so a jump lands on the first one.
+         */
+        messageIds: Array<string>;
+    }>;
+};
+
+export type ChatSignalCorrectionRequest = {
+    tag: ChatSignalTag;
+    /**
+     * Whether the tag applies to the message, as the reader sees it.
+     */
+    applies: boolean;
+};
+
+export type ChatSignalLoopRequest = {
+    /**
+     * True closes the open loop; false reopens it.
+     */
+    closed: boolean;
+    /**
+     * The Task the loop was made into, when closing it so.
+     */
+    taskId?: string | null;
+};
+
+export type ChatSignalRoutingSuggestion = {
+    coworkerId: string;
+    name: string;
+    caption: string | null;
+    /**
+     * Jev's probability that this Coworker can do the request.
+     */
+    fit: number;
+};
+
 export type ChatSkillCatalogItem = {
     /**
      * skills.sh id: owner/repo/skill.
@@ -3471,7 +3668,9 @@ export type ContactList = {
     kind: 'manual' | 'smart';
     smartFilter: {
         search?: string;
-        stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+        stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+        kind?: 'PERSON' | 'ORGANIZATION';
+        replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
         ownerUserId?: string;
         ownedByMe?: boolean;
         listIds?: Array<string>;
@@ -3488,6 +3687,7 @@ export type ContactList = {
     count: number;
     createdByUserId: string | null;
     createdBySokoBotId: string | null;
+    createdAutomatically: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -3516,6 +3716,7 @@ export type Contact = {
     summary: string | null;
     whyInteresting: string | null;
     stage: ContactStage;
+    kind: ContactKind;
     owner: ContactPerson | null;
     nextStep: string | null;
     followUpAt: string | null;
@@ -3526,6 +3727,12 @@ export type Contact = {
     firstContactAt: Date | null;
     lastContactAt: Date | null;
     interactionCount: number;
+    lastInboundAt: Date | null;
+    awaitingReplySince: Date | null;
+    /**
+     * Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.
+     */
+    replyState: ContactReplyState | null;
     createdByUserId: string | null;
     createdBySokoBotId: string | null;
     mergedIntoId: string | null;
@@ -3539,22 +3746,41 @@ export type Contact = {
 };
 
 export const ContactStage = {
+    CONTACT: 'CONTACT',
     PROSPECT: 'PROSPECT',
     LEAD: 'LEAD',
     ACTIVE: 'ACTIVE',
+    CUSTOMER: 'CUSTOMER',
     PARTNER: 'PARTNER',
     INVESTOR: 'INVESTOR',
-    CUSTOMER: 'CUSTOMER',
+    VENDOR: 'VENDOR',
+    ADVISOR: 'ADVISOR',
+    COMMUNITY: 'COMMUNITY',
+    PRESS: 'PRESS',
+    FRIEND: 'FRIEND',
     DORMANT: 'DORMANT'
 } as const;
 
 export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
+
+export const ContactKind = { PERSON: 'PERSON', ORGANIZATION: 'ORGANIZATION' } as const;
+
+export type ContactKind = typeof ContactKind[keyof typeof ContactKind];
 
 export type ContactPerson = {
     id: string;
     name: string;
     image: string | null;
 };
+
+export const ContactReplyState = {
+    AWAITING_REPLY: 'AWAITING_REPLY',
+    NO_REPLY: 'NO_REPLY',
+    IN_CONVERSATION: 'IN_CONVERSATION',
+    REPLIED: 'REPLIED'
+} as const;
+
+export type ContactReplyState = typeof ContactReplyState[keyof typeof ContactReplyState];
 
 export type ContactChannel = {
     id: string;
@@ -3599,6 +3825,7 @@ export type ContactListRef = {
     id: string;
     name: string;
     color: ContactListColor;
+    addedAutomatically: boolean;
 };
 
 export type ContactKnownBy = ContactPerson & {
@@ -24961,6 +25188,662 @@ export type PostChatsRoomsByIdFilesResponses = {
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
 
+export type GetChatsSignalsNeedsYouData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/signals/needs-you';
+};
+
+export type GetChatsSignalsNeedsYouErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsNeedsYouError = GetChatsSignalsNeedsYouErrors[keyof GetChatsSignalsNeedsYouErrors];
+
+export type GetChatsSignalsNeedsYouResponses = {
+    /**
+     * Unread messages that need the viewer
+     */
+    200: {
+        data: Array<ChatSignalListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
+
+export type GetChatsSignalsOpenLoopsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/signals/open-loops';
+};
+
+export type GetChatsSignalsOpenLoopsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsOpenLoopsError = GetChatsSignalsOpenLoopsErrors[keyof GetChatsSignalsOpenLoopsErrors];
+
+export type GetChatsSignalsOpenLoopsResponses = {
+    /**
+     * The viewer's open loops
+     */
+    200: {
+        data: Array<ChatSignalListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsOpenLoopsResponse = GetChatsSignalsOpenLoopsResponses[keyof GetChatsSignalsOpenLoopsResponses];
+
+export type GetChatsSignalsSummaryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * One room's summary; across every unmuted room without it.
+         */
+        roomId?: string;
+    };
+    url: '/chats/signals/summary';
+};
+
+export type GetChatsSignalsSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsSummaryError = GetChatsSignalsSummaryErrors[keyof GetChatsSignalsSummaryErrors];
+
+export type GetChatsSignalsSummaryResponses = {
+    /**
+     * Catch-up summary
+     */
+    200: {
+        data: ChatCatchUpSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsSummaryResponse = GetChatsSignalsSummaryResponses[keyof GetChatsSignalsSummaryResponses];
+
+export type GetChatsSignalsRoomsByIdCatchUpData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/signals/rooms/{id}/catch-up';
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpError = GetChatsSignalsRoomsByIdCatchUpErrors[keyof GetChatsSignalsRoomsByIdCatchUpErrors];
+
+export type GetChatsSignalsRoomsByIdCatchUpResponses = {
+    /**
+     * Room catch-up
+     */
+    200: {
+        data: ChatRoomCatchUp;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdCatchUpResponse = GetChatsSignalsRoomsByIdCatchUpResponses[keyof GetChatsSignalsRoomsByIdCatchUpResponses];
+
+export type GetChatsSignalsRoomsByIdDecisionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * The last message id of the previous page (`nextCursor`).
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/signals/rooms/{id}/decisions';
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsError = GetChatsSignalsRoomsByIdDecisionsErrors[keyof GetChatsSignalsRoomsByIdDecisionsErrors];
+
+export type GetChatsSignalsRoomsByIdDecisionsResponses = {
+    /**
+     * Decisions in the room
+     */
+    200: {
+        data: Array<ChatRoomMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsRoomsByIdDecisionsResponse = GetChatsSignalsRoomsByIdDecisionsResponses[keyof GetChatsSignalsRoomsByIdDecisionsResponses];
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsData = {
+    body?: ChatSignalCorrectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/corrections';
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message has no signal
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsError = PutChatsSignalsMessagesByMessageIdCorrectionsErrors[keyof PutChatsSignalsMessagesByMessageIdCorrectionsErrors];
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsResponses = {
+    /**
+     * Corrected message
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdCorrectionsResponse = PutChatsSignalsMessagesByMessageIdCorrectionsResponses[keyof PutChatsSignalsMessagesByMessageIdCorrectionsResponses];
+
+export type PutChatsSignalsMessagesByMessageIdLoopData = {
+    body?: ChatSignalLoopRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/loop';
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message has no signal, or Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopError = PutChatsSignalsMessagesByMessageIdLoopErrors[keyof PutChatsSignalsMessagesByMessageIdLoopErrors];
+
+export type PutChatsSignalsMessagesByMessageIdLoopResponses = {
+    /**
+     * Updated message
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSignalsMessagesByMessageIdLoopResponse = PutChatsSignalsMessagesByMessageIdLoopResponses[keyof PutChatsSignalsMessagesByMessageIdLoopResponses];
+
+export type GetChatsSignalsMessagesByMessageIdRoutingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/signals/messages/{messageId}/routing';
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingError = GetChatsSignalsMessagesByMessageIdRoutingErrors[keyof GetChatsSignalsMessagesByMessageIdRoutingErrors];
+
+export type GetChatsSignalsMessagesByMessageIdRoutingResponses = {
+    /**
+     * Routing suggestions
+     */
+    200: {
+        data: Array<ChatSignalRoutingSuggestion>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsMessagesByMessageIdRoutingResponse = GetChatsSignalsMessagesByMessageIdRoutingResponses[keyof GetChatsSignalsMessagesByMessageIdRoutingResponses];
+
 export type SearchChatSkillsData = {
     body?: never;
     path?: never;
@@ -25611,7 +26494,9 @@ export type PostContactListsData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
             listIds?: Array<string>;
@@ -25890,7 +26775,9 @@ export type PatchContactListsByIdData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            stages?: Array<'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT'>;
+            stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
+            kind?: 'PERSON' | 'ORGANIZATION';
+            replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
             listIds?: Array<string>;
@@ -26199,6 +27086,8 @@ export type GetContactsData = {
         limit?: number;
         search?: string;
         stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
         /**
@@ -26325,7 +27214,8 @@ export type PostContactsData = {
         location?: string | null;
         summary?: string | null;
         whyInteresting?: string | null;
-        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
         ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
@@ -26495,6 +27385,8 @@ export type GetContactsExportCsvData = {
         limit?: number;
         search?: string;
         stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
         /**
@@ -27124,7 +28016,8 @@ export type PatchContactsByIdData = {
         location?: string | null;
         summary?: string | null;
         whyInteresting?: string | null;
-        stage?: 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'PARTNER' | 'INVESTOR' | 'CUSTOMER' | 'DORMANT';
+        stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+        kind?: 'PERSON' | 'ORGANIZATION';
         ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
@@ -36749,6 +37642,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             showRoomUnreadCount: boolean;
             /**
+             * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
+             */
+            tagDirectMessages?: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -36777,6 +37674,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
+        /**
+         * Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.
+         */
+        tagDirectMessages?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -36881,6 +37782,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
+            /**
+             * Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.
+             */
+            tagDirectMessages?: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */

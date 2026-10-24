@@ -125,6 +125,10 @@ export const sokoBotDelegationSchema = z
     error: z.string().nullable(),
     taskId: z.string().nullable(),
     jobId: z.string().nullable(),
+    /** What the bot will do once this work completes; null when none. */
+    followUp: z.string().nullable().optional(),
+    /** The turn that carried the plan out, once the work completed. */
+    followUpTurnId: z.string().nullable().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })

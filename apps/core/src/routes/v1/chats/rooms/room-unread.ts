@@ -5,7 +5,7 @@ import {
   CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
   chatRoomSchema,
 } from "@/schemas/chat-room.schema";
-
+import { getChatRoomNeedsYouCounts } from "@/services/chat-signal-views.service";
 import {
   type ChatRoomWithMembers,
   chatRoomMessageInclude,
@@ -578,18 +578,23 @@ export async function roomSidebarPayload(
   tx: Prisma.TransactionClient,
   extras: RoomSidebarPayloadExtras = {},
 ) {
-  const [unreadCounts, unreadMentionCounts, organization] = await Promise.all([
-    getChatRoomUnreadCounts([room.id], userId, tx),
-    extras.unreadMentionCount === undefined
-      ? getChatRoomUnreadMentionCounts([room.id], userId, tx)
-      : Promise.resolve(undefined),
-    extras.loadOrganizationName && room.organizationId
-      ? tx.organization.findUnique({
-          where: { id: room.organizationId },
-          select: { name: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  const [unreadCounts, unreadMentionCounts, needsYouCounts, organization] =
+    await Promise.all([
+      getChatRoomUnreadCounts([room.id], userId, tx),
+      extras.unreadMentionCount === undefined
+        ? getChatRoomUnreadMentionCounts([room.id], userId, tx)
+        : Promise.resolve(undefined),
+      // A room just read answers with zero, like its mention badge.
+      extras.unreadMentionCount === 0
+        ? Promise.resolve(new Map<string, number>())
+        : getChatRoomNeedsYouCounts([room.id], userId, tx),
+      extras.loadOrganizationName && room.organizationId
+        ? tx.organization.findUnique({
+            where: { id: room.organizationId },
+            select: { name: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
   return chatRoomSchema.parse(
     await mapChatRoomWithSidebarFlags(room, userId, tx, {
@@ -601,6 +606,7 @@ export async function roomSidebarPayload(
       )),
       unreadMentionCount:
         extras.unreadMentionCount ?? unreadMentionCounts?.get(room.id) ?? 0,
+      unreadNeedsYouCount: needsYouCounts.get(room.id) ?? 0,
       activeOrganizationId: extras.activeOrganizationId,
       organizationName: extras.loadOrganizationName
         ? (organization?.name ?? null)

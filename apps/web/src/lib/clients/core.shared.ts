@@ -39,6 +39,7 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
   GetCoworkersData,
@@ -125,6 +126,8 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PutChatsSignalsMessagesByMessageIdCorrectionsData,
+  PutChatsSignalsMessagesByMessageIdLoopData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
@@ -220,6 +223,12 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
+  getChatsSignalsNeedsYou as coreGetChatsSignalsNeedsYou,
+  getChatsSignalsOpenLoops as coreGetChatsSignalsOpenLoops,
+  getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
+  getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
+  getChatsSignalsSummary as coreGetChatsSignalsSummary,
   getChatsThreadsEarlier as coreGetChatsThreadsEarlier,
   getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
@@ -445,6 +454,8 @@ import {
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   putChatsRoomsStarred as corePutChatsRoomsStarred,
+  putChatsSignalsMessagesByMessageIdCorrections as corePutChatsSignalsMessagesByMessageIdCorrections,
+  putChatsSignalsMessagesByMessageIdLoop as corePutChatsSignalsMessagesByMessageIdLoop,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -1079,6 +1090,110 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch pinned messages",
+    );
+  }
+
+  async function getChatNeedsYou() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetChatsSignalsNeedsYou({ client, cache: "no-store" }),
+      "Failed to fetch messages that need you",
+    );
+  }
+
+  async function getChatOpenLoops() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetChatsSignalsOpenLoops({ client, cache: "no-store" }),
+      "Failed to fetch open loops",
+    );
+  }
+
+  async function getChatCatchUpSummary(roomId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsSummary({
+          client,
+          query: roomId ? { roomId } : undefined,
+          cache: "no-store",
+        }),
+      "Failed to fetch the catch-up summary",
+    );
+  }
+
+  async function getChatRoomCatchUp(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsRoomsByIdCatchUp({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch the room catch-up",
+    );
+  }
+
+  async function getChatRoomDecisions(
+    id: string,
+    query?: GetChatsSignalsRoomsByIdDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsRoomsByIdDecisions({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch decisions",
+    );
+  }
+
+  async function correctChatMessageSignal(
+    messageId: string,
+    body: PutChatsSignalsMessagesByMessageIdCorrectionsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsSignalsMessagesByMessageIdCorrections({
+          client,
+          path: { messageId },
+          body,
+        }),
+      "Failed to correct the message tag",
+    );
+  }
+
+  async function setChatMessageSignalLoop(
+    messageId: string,
+    body: PutChatsSignalsMessagesByMessageIdLoopData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsSignalsMessagesByMessageIdLoop({
+          client,
+          path: { messageId },
+          body,
+        }),
+      "Failed to update the open loop",
+    );
+  }
+
+  async function getChatMessageRoutingSuggestions(messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsMessagesByMessageIdRouting({
+          client,
+          path: { messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch routing suggestions",
     );
   }
 
@@ -5777,6 +5892,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
+    getChatNeedsYou,
+    getChatOpenLoops,
+    getChatCatchUpSummary,
+    getChatRoomCatchUp,
+    getChatRoomDecisions,
+    correctChatMessageSignal,
+    setChatMessageSignalLoop,
+    getChatMessageRoutingSuggestions,
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,

@@ -14,7 +14,7 @@ describe("result preview bot support", () => {
     expect(composeSystemPrompt(getSokoBotVersion("v24"))).not.toContain(
       "# Chat result previews",
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v28");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
     expect(
       composeSystemPrompt(getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID)),
     ).toContain("# Chat result previews");

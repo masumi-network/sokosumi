@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import {
+  CONTACT_CHANNEL_TYPES,
   type CONTACT_SORT_FIELDS,
   CORE_API_ERROR_KINDS,
   type ContactChannelType,
@@ -19,6 +20,8 @@ import { resolveTableActor } from "@/helpers/data-table";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
+import { isNonPersonName } from "@/lib/contacts/classify";
+import { contactReplyState, replyStateWhere } from "@/lib/contacts/reply-state";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -90,7 +93,10 @@ const CONTACT_INCLUDE = {
   channels: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
   owner: { select: { id: true, name: true, image: true } },
   listMemberships: {
-    select: { list: { select: { id: true, name: true, color: true } } },
+    select: {
+      addedAutomatically: true,
+      list: { select: { id: true, name: true, color: true } },
+    },
     orderBy: { addedAt: "asc" },
   },
 } satisfies Prisma.ContactInclude;
@@ -138,6 +144,7 @@ function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
     summary: row.summary,
     whyInteresting: row.whyInteresting,
     stage: row.stage,
+    kind: row.kind,
     owner: row.owner,
     nextStep: row.nextStep,
     followUpAt: isoDate(row.followUpAt),
@@ -146,6 +153,9 @@ function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
     firstContactAt: row.firstContactAt,
     lastContactAt: row.lastContactAt,
     interactionCount: row.interactionCount,
+    lastInboundAt: row.lastInboundAt,
+    awaitingReplySince: row.awaitingReplySince,
+    replyState: contactReplyState(row),
     createdByUserId: row.createdByUserId,
     createdBySokoBotId: row.createdBySokoBotId,
     mergedIntoId: row.mergedIntoId,
@@ -167,6 +177,7 @@ function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
     lists: row.listMemberships.map((membership) => ({
       ...membership.list,
       color: listColor(membership.list.color),
+      addedAutomatically: membership.addedAutomatically,
     })),
     knownBy,
   };
@@ -351,6 +362,7 @@ interface ContactFieldData {
   followUpAt?: Date | null;
   avatarUrl?: string | null;
   stage?: z.infer<typeof contactFieldsSchema>["stage"];
+  kind?: z.infer<typeof contactFieldsSchema>["kind"];
   customFields?: Prisma.InputJsonObject;
 }
 
@@ -359,6 +371,7 @@ function fieldData(input: FieldsInput): ContactFieldData {
   const data: ContactFieldData = {};
   if (input.name !== undefined) data.name = input.name;
   if (input.stage !== undefined) data.stage = input.stage;
+  if (input.kind !== undefined) data.kind = input.kind;
   for (const field of FILLABLE_FIELDS) {
     const value = input[field];
     if (value === undefined || field === "followUpAt") continue;
@@ -691,13 +704,32 @@ export async function removeContactChannel(
   return loadContactDto(tx, contactId);
 }
 
-/** First and last contact and the count always follow the interactions. */
+/**
+ * First and last contact, the count and the reply fields always follow the
+ * interactions. A meeting (BOTH) counts as hearing from them; undirected
+ * notes say nothing about who is waiting.
+ */
 async function refreshDerivedFields(tx: Tx, contactId: string) {
-  const aggregate = await tx.contactInteraction.aggregate({
-    where: { contactId },
+  const [aggregate, inbound] = await Promise.all([
+    tx.contactInteraction.aggregate({
+      where: { contactId },
+      _min: { occurredAt: true },
+      _max: { occurredAt: true },
+      _count: { _all: true },
+    }),
+    tx.contactInteraction.aggregate({
+      where: { contactId, direction: { in: ["IN", "BOTH"] } },
+      _max: { occurredAt: true },
+    }),
+  ]);
+  const lastInboundAt = inbound._max.occurredAt;
+  const waiting = await tx.contactInteraction.aggregate({
+    where: {
+      contactId,
+      direction: "OUT",
+      ...(lastInboundAt ? { occurredAt: { gt: lastInboundAt } } : {}),
+    },
     _min: { occurredAt: true },
-    _max: { occurredAt: true },
-    _count: { _all: true },
   });
   await tx.contact.update({
     where: { id: contactId },
@@ -705,6 +737,8 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
       firstContactAt: aggregate._min.occurredAt,
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
+      lastInboundAt,
+      awaitingReplySince: waiting._min.occurredAt,
     },
   });
 }
@@ -865,6 +899,7 @@ export async function mergeContacts(
       contactId: winnerId,
       addedByUserId: membership.addedByUserId,
       addedBySokoBotId: membership.addedBySokoBotId,
+      addedAutomatically: membership.addedAutomatically,
       addedAt: membership.addedAt,
     })),
     skipDuplicates: true,
@@ -907,9 +942,14 @@ export async function mergeContacts(
     );
     fill = { ...fill, ...extra };
   }
+  // A winner still on the default takes the first stage someone chose.
+  const stage =
+    winner.stage === "CONTACT"
+      ? live.find((loser) => loser.stage !== "CONTACT")?.stage
+      : undefined;
   await tx.contact.update({
     where: { id: winnerId },
-    data: { ...fill, version: { increment: 1 } },
+    data: { ...fill, ...(stage ? { stage } : {}), version: { increment: 1 } },
   });
   await refreshDerivedFields(tx, winnerId);
   await recordActivity(tx, actor, winnerId, "MERGED", {
@@ -1019,6 +1059,11 @@ export function contactFilterWhere(
     });
   }
   if (filter.stages) and.push({ stage: { in: filter.stages } });
+  if (filter.kind) and.push({ kind: filter.kind });
+  if (filter.replyStates)
+    and.push({
+      OR: filter.replyStates.map((state) => replyStateWhere(state, now)),
+    });
   if (filter.ownerUserId) and.push({ ownerUserId: filter.ownerUserId });
   if (filter.ownedByMe) and.push({ ownerUserId: actor.userId });
   if (filter.listIds)
@@ -1316,11 +1361,16 @@ export async function captureContactInteraction(
     teammateUserId: string;
   },
 ): Promise<UpsertContactResult & { interactionCreated: boolean }> {
+  // "Praxis", "Office" or "Acme GmbH" writing as itself is an
+  // organization or shared inbox, not a person.
+  const kind =
+    input.name && isNonPersonName(input.name) ? "ORGANIZATION" : undefined;
   const upserted = await upsertContact(
     tx,
     actor,
     {
       name: input.name,
+      kind,
       organization: input.organization,
       role: input.role,
       channels: input.channels,
@@ -1336,12 +1386,21 @@ export async function captureContactInteraction(
     input.name !== current.name &&
     isPlaceholderName(current.name, current.channels)
   ) {
+    // A real name arriving is worth judging the person again.
     await tx.contact.update({
       where: { id: current.id },
-      data: { name: input.name, version: { increment: 1 } },
+      data: {
+        name: input.name,
+        ...(kind ? { kind } : {}),
+        classifiedAt: null,
+        version: { increment: 1 },
+      },
     });
     await recordActivity(tx, actor, current.id, "UPDATED", {
       name: { before: current.name, after: input.name },
+      ...(kind && current.kind !== kind
+        ? { kind: { before: current.kind, after: kind } }
+        : {}),
     });
     changed = true;
   }
@@ -1419,4 +1478,74 @@ export async function enrichContactFields(
       ),
     );
   return filled;
+}
+
+/** Fields people changed by hand on a contact, from its history. */
+export async function personEditedFields(
+  tx: Tx,
+  contactId: string,
+): Promise<Set<string>> {
+  const edits = await tx.contactActivity.findMany({
+    where: { contactId, kind: "UPDATED", sokoBotId: null },
+    select: { changes: true },
+  });
+  return new Set(
+    edits.flatMap((edit) => Object.keys(jsonObject(edit.changes))),
+  );
+}
+
+/** Whether a contact's name is only what one of its addresses made of it. */
+export function hasPlaceholderName(contact: {
+  name: string;
+  channels: readonly { type: string; value: string }[];
+}): boolean {
+  return isPlaceholderName(
+    contact.name,
+    contact.channels.flatMap((channel) => {
+      const type = CONTACT_CHANNEL_TYPES.find((item) => item === channel.type);
+      return type ? [{ type, value: channel.value }] : [];
+    }),
+  );
+}
+
+/**
+ * Applies the background classifier's kind, name and stage (already checked
+ * by `classificationChanges`), records each with its source, and marks the
+ * contact classified either way. Returns the fields it changed.
+ */
+export async function applyContactClassification(
+  tx: Tx,
+  actor: ContactActor,
+  id: string,
+  changes: {
+    kind?: "PERSON" | "ORGANIZATION";
+    name?: string;
+    stage?: z.infer<typeof contactFieldsSchema>["stage"];
+  },
+  provenance: { method: string },
+): Promise<string[]> {
+  const contact = await requireWritableContact(tx, actor, id);
+  const diff = changedFields(contact, changes);
+  const changed = Object.keys(diff);
+  await tx.contact.update({
+    where: { id },
+    data: {
+      ...(changed.length ? { ...changes, version: { increment: 1 } } : {}),
+      classifiedAt: new Date(),
+    },
+  });
+  if (changed.length)
+    await recordActivity(
+      tx,
+      actor,
+      id,
+      "UPDATED",
+      Object.fromEntries(
+        Object.entries(diff).map(([field, change]) => [
+          field,
+          { ...change, source: provenance.method },
+        ]),
+      ),
+    );
+  return changed;
 }

@@ -1621,6 +1621,21 @@
         "searchAgents": {
           "label": "Search",
           "subtitle": "Specialized agents"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Your Soko Bot",
+          "placeholder": "Ask {name}…",
+          "sendFailed": "Could not send your message. Please try again.",
+          "awaitingInput": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "recentTitle": "Recent chats",
+          "recentEmpty": "No chats yet. Ask {name} anything, or start with a suggestion.",
+          "suggestionsLabel": "Suggestions",
+          "suggestions": {
+            "today": "What needs me today?",
+            "inbox": "Summarise my inbox",
+            "week": "Plan my week"
+          }
         }
       },
       "SokoBot": {
@@ -5915,7 +5930,11 @@
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
-        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
+        "tagDirectMessagesTitle": "Sort my direct messages",
+        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
+        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -7491,6 +7510,87 @@
         "you": "You",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
+      },
+      "Signals": {
+        "error": "Couldn't load that. Try again.",
+        "retry": "Try again",
+        "needsYouCount": "{count, plural, one {# message needs you} other {# messages need you}}",
+        "needsYouSection": "Needs you",
+        "catchUp": "Catch up",
+        "whileYouWereAway": "While you were away:",
+        "whileYouWereAwayTitle": "While you were away",
+        "dismissCatchUp": "Hide catch-up",
+        "summarize": "Summary",
+        "summarizing": "Writing your summary…",
+        "writtenByAi": "Summary written by AI {time}",
+        "byRoom": "By room",
+        "due": "Due {date}",
+        "caughtUpTitle": "You're caught up",
+        "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "removeTag": "Remove tag: {tag}",
+        "taskMade": "Task made",
+        "loopClosed": "Done",
+        "makeTask": "Make a task",
+        "handOff": "Hand off",
+        "findingCoworkers": "Finding a coworker…",
+        "fit": "{fit} fit",
+        "noCoworkerFits": "No Coworker fits this yet.",
+        "createTask": "Create a task",
+        "editTags": "Edit tags",
+        "editTagsTitle": "What this message is",
+        "editTagsNote": "Your correction applies for everyone in the room.",
+        "taskDue": "Due {date}",
+        "taskSource": "From the chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
+          "escalation": "{count, plural, one {# escalation} other {# escalations}}",
+          "urgent": "{count, plural, one {# urgent} other {# urgent}}",
+          "blocker": "{count, plural, one {# blocker} other {# blockers}}",
+          "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
+          "commitment": "{count, plural, one {# commitment} other {# commitments}}",
+          "workRequest": "{count, plural, one {# work request} other {# work requests}}",
+          "question": "{count, plural, one {# question} other {# questions}}",
+          "fyi": "{count, plural, one {# FYI} other {# FYI}}",
+          "chitChat": "{count, plural, one {# chat} other {# chats}}"
+        },
+        "Sections": {
+          "needsYou": "Needs you",
+          "decisions": "Decisions",
+          "openLoops": "Open loops",
+          "highlights": "Highlights"
+        },
+        "Chips": {
+          "needsYou": "Needs you",
+          "escalation": "Escalation",
+          "urgent": "Urgent",
+          "blocker": "Blocker",
+          "decisionMade": "Decision",
+          "needsDecision": "Needs a decision",
+          "commitment": "Commitment",
+          "commitmentDue": "Commitment · due {date}",
+          "workRequest": "Work request"
+        },
+        "Tags": {
+          "question": "Asks someone a question",
+          "needsDecision": "Needs a decision",
+          "decisionMade": "Decision made",
+          "commitment": "Commitment",
+          "blocker": "Blocker",
+          "urgent": "Urgent",
+          "escalation": "Escalation",
+          "workRequest": "Work request",
+          "fyi": "FYI",
+          "chitChat": "Chit-chat"
+        },
+        "Decisions": {
+          "open": "Decisions",
+          "title": "Decisions",
+          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "loadOlder": "Load older",
+          "note": "Collected by Jev. Remove a wrong one from its message."
+        }
       }
     },
     "Drive": {
@@ -7759,18 +7859,23 @@
         "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
-        "title": "Meet your Soko Bot",
+        "title": "Your own assistant",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "Your personal assistant in Sokosumi.",
+        "description": "A Soko Bot is an AI assistant that works for you in Sokosumi. Tell it what you need in plain words and it takes care of it.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
-        "submit": "Create Soko Bot",
+        "submit": "Create my Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
         "spendNotice": "Uses your credits. Set a daily limit in its settings.",
-        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings."
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings.",
+        "exampleDelegate": "Turns “research our top 5 competitors” into a Task for the right Coworker and follows up until it’s done.",
+        "exampleBrief": "Sends you a short morning brief from your inbox and calendar.",
+        "exampleMemory": "Remembers your goals and preferences, so you don’t repeat yourself.",
+        "examplesLabel": "What it can do for you",
+        "nameIntro": "First, give it a name."
       },
       "Memory": {
         "title": "Memory",
@@ -8519,12 +8624,18 @@
         "description": "Everyone your team knows, with every way to reach them."
       },
       "stages": {
+        "CONTACT": "Contact",
+        "FRIEND": "Friend",
         "PROSPECT": "Prospect",
         "LEAD": "Lead",
         "ACTIVE": "Active",
+        "CUSTOMER": "Customer",
         "PARTNER": "Partner",
         "INVESTOR": "Investor",
-        "CUSTOMER": "Customer",
+        "VENDOR": "Vendor",
+        "ADVISOR": "Advisor",
+        "COMMUNITY": "Community",
+        "PRESS": "Press",
         "DORMANT": "Dormant"
       },
       "channelTypes": {
@@ -8551,10 +8662,10 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
+        "noReply": "No reply",
         "followUps": "Follow-ups due",
         "recent": "Recently added",
-        "stale": "Stale 90+ days",
-        "prospects": "Prospects"
+        "stale": "Stale 90+ days"
       },
       "emptyViews": {
         "all": "No contacts yet.",
@@ -8562,8 +8673,8 @@
         "followUps": "No follow-ups are due. Nice work.",
         "recent": "Nobody was added in the last two weeks.",
         "stale": "Everyone has been in touch within the last 90 days.",
-        "prospects": "No prospects yet. Add someone you'd like to meet and say why.",
-        "list": "This list is empty. Select people in All contacts and add them here."
+        "list": "This list is empty. Select people in All contacts and add them here.",
+        "noReply": "Everyone the team wrote to answered, or it has been less than a week."
       },
       "rail": {
         "label": "Contact lists",
@@ -8574,20 +8685,22 @@
         "editList": "Edit list",
         "deleteList": "Delete list",
         "noLists": "No lists yet.",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "autoList": "Made automatically from your contacts"
       },
       "columns": {
         "name": "Name",
         "organization": "Organization",
         "role": "Role",
-        "stage": "Stage",
+        "stage": "Relationship",
         "lists": "Lists",
         "channels": "Channels",
         "owner": "Owner",
         "lastContact": "Last contact",
         "knownBy": "Known by",
         "followUp": "Follow-up",
-        "updated": "Updated"
+        "email": "Email",
+        "reply": "Reply"
       },
       "grid": {
         "label": "Contacts",
@@ -8599,7 +8712,11 @@
         "selectRow": "Select {name}",
         "resizeColumn": "Resize {column}",
         "keys": "Arrow keys move between cells. Enter on a name opens the person; on other cells it edits. F2 edits the name. Escape cancels.",
-        "loadMore": "Load more"
+        "loadMore": "Load more",
+        "copyEmail": "Copy {email}",
+        "emailCopied": "Email copied",
+        "waitingDays": "{days, plural, =0 {today} other {#d}}",
+        "addedAutomatically": "Added to {list} automatically"
       },
       "toolbar": {
         "search": "Search contacts",
@@ -8608,7 +8725,9 @@
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
         "add": "Add contact",
-        "more": "More actions"
+        "more": "More actions",
+        "filter": "Filter",
+        "kind": "Type"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -8851,8 +8970,31 @@
           "nextStep": "next step",
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
-          "customFields": "custom fields"
-        }
+          "customFields": "custom fields",
+          "kind": "type"
+        },
+        "markOrganization": "Mark as organization",
+        "markPerson": "Mark as person",
+        "waitingSince": "Since {date}, no answer yet",
+        "heardFrom": "Last heard from them {when}",
+        "automatic": "Automatic",
+        "classifier": "Automatic classification"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Sales",
+        "relationships": "Relationships",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "No reply",
+        "AWAITING_REPLY": "Awaiting reply",
+        "IN_CONVERSATION": "In conversation",
+        "REPLIED": "Replied"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organization or shared inbox"
       }
     }
   },

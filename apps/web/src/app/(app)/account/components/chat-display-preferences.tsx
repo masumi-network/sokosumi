@@ -1,28 +1,33 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
-import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
+import { ChatPreferenceSwitch } from "./chat-preference-switch";
 
 interface ChatDisplayPreferencesProps {
   showRoomUnreadCount: boolean;
+  tagDirectMessages: boolean;
 }
 
-type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
+async function updateUser(
+  fields: Parameters<typeof authClient.updateUser>[0],
+): Promise<void> {
+  const result = await authClient.updateUser(fields);
+  if (result.error) {
+    throw new Error(result.error.message ?? "update_failed");
+  }
+}
 
 /**
  * Chat display preferences, as a recessive card nested in the notification card.
  *
  * It is a card and not a row of that card's grid, because the grid answers what
  * Sokosumi tells a reader about and where each of those things reaches them.
- * This preference changes no delivery at all: it changes what the reader sees
+ * These preferences change no delivery at all: they change what the reader sees
  * in a sidebar they already have open, so a row of that grid would misreport
- * what it does.
+ * what they do.
  *
  * It reads quieter than its host on purpose. It keeps the host's ground so it
  * does not stand out as a second surface, and a border alone says where it
@@ -31,54 +36,11 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
  * it.
  */
 export function ChatDisplayPreferences({
-  showRoomUnreadCount: initialShowRoomUnreadCount,
+  showRoomUnreadCount,
+  tagDirectMessages,
 }: ChatDisplayPreferencesProps) {
   const t = useTranslations("App.Account.ChatDisplay");
-  const switchId = useId();
-  const [showRoomUnreadCount, setShowRoomUnreadCount] = useState(
-    initialShowRoomUnreadCount,
-  );
-  const [isSaving, setIsSaving] = useState(false);
-
-  function handleToggle(nextValue: boolean) {
-    if (isSaving) {
-      return;
-    }
-
-    const previous = showRoomUnreadCount;
-    setShowRoomUnreadCount(nextValue);
-    setIsSaving(true);
-
-    // The value goes back on the chain rather than inside the toast, so it is
-    // put back whether or not the toast renders its error, and never after the
-    // flag that re-enables the switch. The sibling notification card orders its
-    // write the same way.
-    const updatePromise = Promise.resolve()
-      // The switch says "show"; the stored field says "hide" (ADR-0038), so
-      // that every reader's false means shown.
-      .then(() => authClient.updateUser({ hideRoomUnreadCount: !nextValue }))
-      .then((result: UpdateUserResult) => {
-        if (result.error) {
-          throw new Error(result.error.message ?? "update_failed");
-        }
-      })
-      .catch((error: unknown) => {
-        setShowRoomUnreadCount(previous);
-        throw error;
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
-
-    toast.promise(updatePromise, {
-      loading: t("loading"),
-      success: () =>
-        nextValue
-          ? t("roomUnreadCountEnabledSuccess")
-          : t("roomUnreadCountDisabledSuccess"),
-      error: () => t("error"),
-    });
-  }
+  const messages = { loading: t("loading"), error: t("error") };
 
   return (
     // `rounded-lg` is one step under the host card's `rounded-xl`. The two do
@@ -101,23 +63,31 @@ export function ChatDisplayPreferences({
           <h2>{t("title")}</h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-0.5">
-            <Label htmlFor={switchId} className="text-sm font-normal">
-              {t("roomUnreadCountTitle")}
-            </Label>
-            <p className="text-muted-foreground text-xs">
-              {t("roomUnreadCountDescription")}
-            </p>
-          </div>
-          <Switch
-            id={switchId}
-            checked={showRoomUnreadCount}
-            disabled={isSaving}
-            onCheckedChange={handleToggle}
-          />
-        </div>
+      <CardContent className="flex flex-col gap-4 px-4">
+        <ChatPreferenceSwitch
+          title={t("roomUnreadCountTitle")}
+          description={t("roomUnreadCountDescription")}
+          initialValue={showRoomUnreadCount}
+          // The switch says "show"; the stored field says "hide" (ADR-0038),
+          // so that every reader's false means shown.
+          save={(value) => updateUser({ hideRoomUnreadCount: !value })}
+          messages={{
+            ...messages,
+            enabled: t("roomUnreadCountEnabledSuccess"),
+            disabled: t("roomUnreadCountDisabledSuccess"),
+          }}
+        />
+        <ChatPreferenceSwitch
+          title={t("tagDirectMessagesTitle")}
+          description={t("tagDirectMessagesDescription")}
+          initialValue={tagDirectMessages}
+          save={(value) => updateUser({ tagDirectMessages: value })}
+          messages={{
+            ...messages,
+            enabled: t("tagDirectMessagesEnabledSuccess"),
+            disabled: t("tagDirectMessagesDisabledSuccess"),
+          }}
+        />
       </CardContent>
     </Card>
   );

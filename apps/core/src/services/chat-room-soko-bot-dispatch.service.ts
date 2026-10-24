@@ -9,6 +9,7 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 
 import {
+  buildDirectMessagePrompt,
   buildRoomMentionPrompt,
   loadRoomContextMessages,
   roomMessagePromptText,
@@ -191,9 +192,9 @@ export async function runSokoBotMentionDispatch(params: {
       error,
     });
 
-  // Directs are the bot's own conversation: the control plane already
-  // rehydrates recent turns, so the message goes through as typed. Channel
-  // mentions carry the surrounding room context like coworker mentions do.
+  // Every mention carries the conversation right above it, as coworker
+  // mentions do. In a direct chat that is the bot's own posts too: inbox
+  // checks and briefings are messages there, not turns the owner started.
   const threadRootId = mention.message.parentMessageId;
   // Inside the guard: this reads the room, and a read that throws once left
   // the placeholder above streaming for ever while the mention was marked
@@ -207,20 +208,21 @@ export async function runSokoBotMentionDispatch(params: {
       ),
       mention.message.content,
     );
+    const contextMessages = await loadRoomContextMessages({
+      roomId: mention.message.roomId,
+      messageId: mention.message.id,
+      createdAt: mention.message.createdAt,
+      threadRootId,
+    });
     message =
       mention.message.room.kind === "direct"
-        ? said
+        ? buildDirectMessagePrompt({ content: said, contextMessages })
         : buildRoomMentionPrompt({
             roomName: mention.message.room.name ?? "chat",
             senderName: mention.message.senderUser?.name ?? "A teammate",
             content: said,
             isThreadReply: threadRootId != null,
-            contextMessages: await loadRoomContextMessages({
-              roomId: mention.message.roomId,
-              messageId: mention.message.id,
-              createdAt: mention.message.createdAt,
-              threadRootId,
-            }),
+            contextMessages,
           });
   } catch (error) {
     await failPlaceholder(error);

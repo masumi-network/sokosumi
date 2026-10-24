@@ -61,6 +61,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_integrations",
   "search_inbox",
   "read_email",
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
@@ -188,6 +189,8 @@ const DIRECT_READ_CAPABILITIES = [
   "list_integrations",
   "search_inbox",
   "read_email",
+  // Asks Jev typed questions about text the bot passes in; changes nothing.
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "list_project_social_accounts",
@@ -451,6 +454,16 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
   /** The write route Jev leaned toward but was not sure of; reads only. */
   unsureRoute?: SokoBotRoute;
+  /** Jev's soft reads of a typed message: hints for context, never gates. */
+  signals?: SokoBotTurnSignals;
+}
+
+/** Probabilities, 0–1, that a typed message does each of these. */
+export interface SokoBotTurnSignals {
+  refersToEarlier: number;
+  statesPreference: number;
+  aboutMail: number;
+  aboutTasks: number;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

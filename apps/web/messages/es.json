@@ -1621,6 +1621,21 @@
         "searchAgents": {
           "label": "Buscar",
           "subtitle": "Agentes especializados"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Tu Soko Bot",
+          "placeholder": "Pregunta a {name}…",
+          "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
+          "awaitingInput": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "recentTitle": "Chats recientes",
+          "recentEmpty": "Aún no hay chats. Pregunta a {name} lo que quieras o empieza con una sugerencia.",
+          "suggestionsLabel": "Sugerencias",
+          "suggestions": {
+            "today": "¿Qué necesita mi atención hoy?",
+            "inbox": "Resume mi bandeja de entrada",
+            "week": "Planifica mi semana"
+          }
         }
       },
       "SokoBot": {
@@ -5879,7 +5894,11 @@
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
-        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado"
+        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
+        "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
+        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
+        "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
       "BillingDetails": {
         "title": "Información de facturación",
@@ -7491,6 +7510,87 @@
         "you": "Tú",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
+      },
+      "Signals": {
+        "error": "No se pudo cargar. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "needsYouCount": "{count, plural, one {# mensaje te espera} other {# mensajes te esperan}}",
+        "needsYouSection": "Te esperan",
+        "catchUp": "Ponerse al día",
+        "whileYouWereAway": "Mientras no estabas:",
+        "whileYouWereAwayTitle": "Mientras no estabas",
+        "dismissCatchUp": "Ocultar resumen",
+        "summarize": "Resumen",
+        "summarizing": "Escribiendo tu resumen…",
+        "writtenByAi": "Resumen escrito por IA {time}",
+        "byRoom": "Por sala",
+        "due": "Vence {date}",
+        "caughtUpTitle": "Estás al día",
+        "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
+        "removeTag": "Quitar etiqueta: {tag}",
+        "taskMade": "Tarea creada",
+        "loopClosed": "Hecho",
+        "makeTask": "Crear una tarea",
+        "handOff": "Delegar",
+        "findingCoworkers": "Buscando un Coworker…",
+        "fit": "{fit} de ajuste",
+        "noCoworkerFits": "Ningún Coworker encaja todavía.",
+        "createTask": "Crear una tarea",
+        "editTags": "Editar etiquetas",
+        "editTagsTitle": "Qué es este mensaje",
+        "editTagsNote": "Tu corrección vale para todos en la sala.",
+        "taskDue": "Vence {date}",
+        "taskSource": "Del chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
+          "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
+          "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
+          "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
+          "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
+          "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
+          "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
+          "question": "{count, plural, one {# pregunta} other {# preguntas}}",
+          "fyi": "{count, plural, one {# aviso} other {# avisos}}",
+          "chitChat": "{count, plural, one {# charla} other {# charlas}}"
+        },
+        "Sections": {
+          "needsYou": "Te esperan",
+          "decisions": "Decisiones",
+          "openLoops": "Pendientes",
+          "highlights": "Destacados"
+        },
+        "Chips": {
+          "needsYou": "Te espera",
+          "escalation": "Escalada",
+          "urgent": "Urgente",
+          "blocker": "Bloqueo",
+          "decisionMade": "Decisión",
+          "needsDecision": "Necesita una decisión",
+          "commitment": "Compromiso",
+          "commitmentDue": "Compromiso · vence {date}",
+          "workRequest": "Encargo"
+        },
+        "Tags": {
+          "question": "Hace una pregunta a alguien",
+          "needsDecision": "Necesita una decisión",
+          "decisionMade": "Decisión tomada",
+          "commitment": "Compromiso",
+          "blocker": "Bloqueo",
+          "urgent": "Urgente",
+          "escalation": "Escalada",
+          "workRequest": "Encargo",
+          "fyi": "Aviso",
+          "chitChat": "Charla"
+        },
+        "Decisions": {
+          "open": "Decisiones",
+          "title": "Decisiones",
+          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "loadOlder": "Cargar anteriores",
+          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+        }
       }
     },
     "Drive": {
@@ -7759,18 +7859,23 @@
         "description": "El Asistente personal no está habilitado en este entorno. Vuelve a intentarlo más tarde."
       },
       "Create": {
-        "title": "Conoce a tu Soko Bot",
+        "title": "Tu propio asistente",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Tu asistente personal en Sokosumi.",
+        "description": "Un Soko Bot es un asistente de IA que trabaja para ti en Sokosumi. Dile lo que necesitas con tus propias palabras y él se encarga.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
-        "submit": "Crear Soko Bot",
+        "submit": "Crear mi Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
         "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
-        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes."
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes.",
+        "exampleDelegate": "Convierte «investiga a nuestros 5 principales competidores» en una tarea para el Coworker adecuado y hace seguimiento hasta que esté hecha.",
+        "exampleBrief": "Te envía cada mañana un breve resumen de tu bandeja de entrada y tu calendario.",
+        "exampleMemory": "Recuerda tus objetivos y preferencias para que no tengas que repetirte.",
+        "examplesLabel": "Lo que puede hacer por ti",
+        "nameIntro": "Primero, ponle un nombre."
       },
       "Memory": {
         "title": "Memoria",
@@ -8519,12 +8624,18 @@
         "description": "Todas las personas que conoce tu equipo, con cada forma de contactarlas."
       },
       "stages": {
+        "CONTACT": "Contacto",
+        "FRIEND": "Amigo",
         "PROSPECT": "Prospecto",
         "LEAD": "Lead",
         "ACTIVE": "Activo",
+        "CUSTOMER": "Cliente",
         "PARTNER": "Socio",
         "INVESTOR": "Inversor",
-        "CUSTOMER": "Cliente",
+        "VENDOR": "Proveedor",
+        "ADVISOR": "Asesor",
+        "COMMUNITY": "Comunidad",
+        "PRESS": "Prensa",
         "DORMANT": "Inactivo"
       },
       "channelTypes": {
@@ -8551,10 +8662,10 @@
       "presets": {
         "all": "Todos los contactos",
         "mine": "Mis contactos",
+        "noReply": "Sin respuesta",
         "followUps": "Seguimientos pendientes",
         "recent": "Añadidos recientemente",
-        "stale": "Sin contacto en 90+ días",
-        "prospects": "Prospectos"
+        "stale": "Sin contacto en 90+ días"
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
@@ -8562,8 +8673,8 @@
         "followUps": "No hay seguimientos pendientes. Buen trabajo.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
         "stale": "Habéis hablado con todos en los últimos 90 días.",
-        "prospects": "Todavía no hay prospectos. Añade a alguien a quien te gustaría conocer y explica por qué.",
-        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
+        "noReply": "Todos a quienes el equipo escribió han respondido, o aún no ha pasado una semana."
       },
       "rail": {
         "label": "Listas de contactos",
@@ -8574,20 +8685,22 @@
         "editList": "Editar lista",
         "deleteList": "Eliminar lista",
         "noLists": "Todavía no hay listas.",
-        "import": "Importar desde una tabla"
+        "import": "Importar desde una tabla",
+        "autoList": "Creada automáticamente a partir de tus contactos"
       },
       "columns": {
         "name": "Nombre",
         "organization": "Organización",
         "role": "Cargo",
-        "stage": "Etapa",
+        "stage": "Relación",
         "lists": "Listas",
         "channels": "Canales",
         "owner": "Responsable",
         "lastContact": "Último contacto",
         "knownBy": "Lo conocen",
         "followUp": "Seguimiento",
-        "updated": "Actualizado"
+        "email": "Correo",
+        "reply": "Respuesta"
       },
       "grid": {
         "label": "Contactos",
@@ -8599,7 +8712,11 @@
         "selectRow": "Seleccionar a {name}",
         "resizeColumn": "Cambiar el ancho de {column}",
         "keys": "Las flechas mueven entre celdas. Intro sobre un nombre abre a la persona; en otras celdas, edita. F2 edita el nombre. Escape cancela.",
-        "loadMore": "Cargar más"
+        "loadMore": "Cargar más",
+        "copyEmail": "Copiar {email}",
+        "emailCopied": "Correo copiado",
+        "waitingDays": "{days, plural, =0 {hoy} other {# d}}",
+        "addedAutomatically": "Añadido a {list} automáticamente"
       },
       "toolbar": {
         "search": "Buscar contactos",
@@ -8608,7 +8725,9 @@
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
         "add": "Añadir contacto",
-        "more": "Más acciones"
+        "more": "Más acciones",
+        "filter": "Filtrar",
+        "kind": "Tipo"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -8851,8 +8970,31 @@
           "nextStep": "el próximo paso",
           "followUpAt": "el seguimiento",
           "avatarUrl": "la foto",
-          "customFields": "los campos propios"
-        }
+          "customFields": "los campos propios",
+          "kind": "tipo"
+        },
+        "markOrganization": "Marcar como organización",
+        "markPerson": "Marcar como persona",
+        "waitingSince": "Desde el {date}, sin respuesta",
+        "heardFrom": "Última noticia suya {when}",
+        "automatic": "Automático",
+        "classifier": "Clasificación automática"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Ventas",
+        "relationships": "Relaciones",
+        "status": "Estado"
+      },
+      "replyStates": {
+        "NO_REPLY": "Sin respuesta",
+        "AWAITING_REPLY": "Esperando respuesta",
+        "IN_CONVERSATION": "En conversación",
+        "REPLIED": "Respondió"
+      },
+      "kinds": {
+        "PERSON": "Persona",
+        "ORGANIZATION": "Organización o buzón compartido"
       }
     }
   },

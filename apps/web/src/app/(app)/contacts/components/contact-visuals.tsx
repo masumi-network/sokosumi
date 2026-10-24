@@ -1,16 +1,29 @@
 "use client";
 import type {
   ContactChannelType,
+  ContactKind,
   ContactListColor,
   ContactPerson,
+  ContactReplyState,
   ContactStage,
 } from "@sokosumi/core-client";
-import { AtSign, Globe, Mail, MessageCircle, Phone, Send } from "lucide-react";
+import {
+  AtSign,
+  Building2,
+  Globe,
+  Mail,
+  MessageCircle,
+  Phone,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ComponentProps, ComponentType } from "react";
 import {
+  daysSince,
   initials,
   LIST_COLOR_DOT,
+  REPLY_DOT,
   STAGE_DOT,
 } from "@/app/contacts/contacts-view";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,16 +100,33 @@ export function ChannelIcon({
   );
 }
 
-/** A contact's initials in a neutral circle. */
+/**
+ * A contact's initials in a neutral circle; an organization or shared inbox
+ * gets a building in a rounded square instead, so it never passes for a person.
+ */
 export function ContactAvatar({
   name,
   src,
+  kind = "PERSON",
   className,
 }: {
   name: string;
   src?: string | null;
+  kind?: ContactKind;
   className?: string;
 }) {
+  if (kind === "ORGANIZATION")
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "bg-quinary text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md",
+          className,
+        )}
+      >
+        <Building2 className="size-3.5" />
+      </span>
+    );
   return (
     <Avatar aria-hidden className={cn("size-6", className)}>
       {src ? <AvatarImage src={src} alt="" /> : null}
@@ -177,17 +207,72 @@ export function StageChip({ stage }: { stage: ContactStage }) {
   );
 }
 
+/**
+ * A list a contact is on. `automatic` marks one the classifier chose, so a
+ * person can tell it from their own and undo it.
+ */
 export function ListChip({
   name,
   color,
+  automatic = false,
 }: {
   name: string;
   color: ContactListColor;
+  automatic?: boolean;
 }) {
+  const t = useTranslations("App.Contacts.grid");
   return (
-    <span className="border-border text-foreground inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs whitespace-nowrap">
+    <span
+      title={automatic ? t("addedAutomatically", { list: name }) : undefined}
+      className={cn(
+        "text-foreground inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs whitespace-nowrap",
+        automatic ? "border-dashed" : "border-border",
+      )}
+    >
       <Dot className={LIST_COLOR_DOT[color]} />
       <span className="truncate">{name}</span>
+      {automatic ? (
+        <>
+          <Sparkles
+            aria-hidden
+            className="text-muted-foreground size-3 shrink-0"
+          />
+          <span className="sr-only">
+            {t("addedAutomatically", { list: name })}
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * Where the team's latest outreach stands. Waiting states say for how long;
+ * the dot is the only color, and only unanswered states take a warm one.
+ */
+export function ReplyChip({
+  state,
+  since,
+  now,
+}: {
+  state: ContactReplyState;
+  since: Date | string | null;
+  now: Date;
+}) {
+  const t = useTranslations("App.Contacts");
+  const waiting =
+    since && (state === "NO_REPLY" || state === "AWAITING_REPLY")
+      ? daysSince(since, now)
+      : null;
+  return (
+    <span className="bg-quinary text-foreground inline-flex h-6 max-w-full items-center gap-1.5 rounded-full px-2 text-xs whitespace-nowrap">
+      <Dot className={REPLY_DOT[state]} />
+      <span className="truncate">{t(`replyStates.${state}`)}</span>
+      {waiting !== null ? (
+        <span className="text-muted-foreground tabular-nums">
+          {t("grid.waitingDays", { days: waiting })}
+        </span>
+      ) : null}
     </span>
   );
 }

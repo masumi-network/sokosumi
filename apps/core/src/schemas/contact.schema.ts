@@ -4,7 +4,9 @@ import {
   CONTACT_CHANNEL_TYPES,
   CONTACT_INTERACTION_CHANNELS,
   CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_KINDS,
   CONTACT_LIST_COLORS,
+  CONTACT_REPLY_STATES,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
   calendarDateSchema,
@@ -16,6 +18,10 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 export const contactStageSchema = z
   .enum(CONTACT_STAGES)
   .openapi("ContactStage");
+export const contactKindSchema = z.enum(CONTACT_KINDS).openapi("ContactKind");
+export const contactReplyStateSchema = z
+  .enum(CONTACT_REPLY_STATES)
+  .openapi("ContactReplyState");
 export const contactChannelTypeSchema = z
   .enum(CONTACT_CHANNEL_TYPES)
   .openapi("ContactChannelType");
@@ -42,7 +48,13 @@ export const contactChannelSchema = z
   .openapi("ContactChannel");
 
 const contactListRefSchema = z
-  .object({ id: z.uuid(), name: z.string(), color: contactListColorSchema })
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    color: contactListColorSchema,
+    /** Put there by the background classifier, not by a person or a bot. */
+    addedAutomatically: z.boolean(),
+  })
   .openapi("ContactListRef");
 
 export const contactKnownBySchema = personSchema
@@ -62,6 +74,7 @@ export const contactSchema = z
     summary: z.string().nullable(),
     whyInteresting: z.string().nullable(),
     stage: contactStageSchema,
+    kind: contactKindSchema,
     owner: z.union([personSchema, z.null()]),
     nextStep: z.string().nullable(),
     followUpAt: calendarDateSchema
@@ -72,6 +85,12 @@ export const contactSchema = z
     firstContactAt: dateTimeSchema.nullable(),
     lastContactAt: dateTimeSchema.nullable(),
     interactionCount: z.int(),
+    lastInboundAt: dateTimeSchema.nullable(),
+    awaitingReplySince: dateTimeSchema.nullable(),
+    replyState: z.union([contactReplyStateSchema, z.null()]).openapi({
+      description:
+        "Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.",
+    }),
     createdByUserId: z.string().nullable(),
     createdBySokoBotId: z.string().nullable(),
     mergedIntoId: z.uuid().nullable(),
@@ -178,6 +197,7 @@ export const contactListSchema = z
     count: z.int(),
     createdByUserId: z.string().nullable(),
     createdBySokoBotId: z.string().nullable(),
+    createdAutomatically: z.boolean(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -210,6 +230,8 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
   stage: contactStageSchema.optional(),
+  kind: contactKindSchema.optional(),
+  replyState: contactReplyStateSchema.optional(),
   ownerUserId: z.string().min(1).max(200).optional(),
   ownedByMe: booleanQuery,
   listId: z.uuid().optional().openapi({

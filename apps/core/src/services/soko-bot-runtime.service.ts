@@ -38,6 +38,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAskCoworkerInputSchema,
+  sokoBotEvaluateWithJevInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
@@ -190,12 +191,14 @@ import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   persistedToolResult,
   sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
@@ -361,7 +364,7 @@ export function sokoBotToolCallLimit(turn: {
 const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
   SOKO_BOT_CAPABILITIES.filter(
     (capability) =>
-      /^(get|list|read|search|find)_|^(refresh_context|preview_result)$/.test(
+      /^(get|list|read|search|find)_|^(refresh_context|preview_result|evaluate_with_jev)$/.test(
         capability,
       ) && !SOKO_BOT_SANDBOX_CAPABILITIES.some((tool) => tool === capability),
   );
@@ -547,6 +550,47 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
+}
+
+/**
+ * A schedule run gets update/delete for its own schedule even when the turn
+ * that wrote the schedule had no schedule tools (an owner-made one). Those
+ * extra tools reach that schedule only.
+ */
+async function requireOwnScheduleScope(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  capability: SokoBotCapability,
+  rawInput: unknown,
+) {
+  if (
+    !(OWN_SCHEDULE_CAPABILITIES as readonly SokoBotCapability[]).includes(
+      capability,
+    )
+  )
+    return;
+  const run = await tx.sokoBotScheduleRun.findUnique({
+    where: { turnId },
+    select: {
+      schedule: { select: { id: true, name: true, capabilityNames: true } },
+    },
+  });
+  if (!run || run.schedule.capabilityNames.includes(capability)) return;
+  const ref = (
+    capability === "update_schedule"
+      ? updateScheduleInputSchema
+      : scheduleIdInputSchema
+  ).safeParse(rawInput);
+  const own =
+    ref.success &&
+    (ref.data.scheduleId
+      ? ref.data.scheduleId === run.schedule.id
+      : ref.data.scheduleName?.trim().toLowerCase() ===
+        run.schedule.name.trim().toLowerCase());
+  if (!own)
+    throw new SokoBotRuntimeValidationError(
+      `This run may only change its own schedule "${run.schedule.name}" (${run.schedule.id})`,
+    );
 }
 
 function sellerProposalHash(
@@ -3372,6 +3416,7 @@ export class SokoBotRuntimeService {
           outcome: result.status,
           lastSeenStatus: result.status,
           taskId: result.id,
+          followUp: input.followUp,
         },
       });
       {
@@ -3754,6 +3799,7 @@ export class SokoBotRuntimeService {
           outcome: updated.status,
           lastSeenStatus: updated.status,
           taskId: updated.id,
+          followUp: input.followUp,
         },
       });
       {
@@ -5451,6 +5497,27 @@ export class SokoBotRuntimeService {
         }
         return fetchInboxMessage(integration, parsed.messageId);
       }
+      case "evaluate_with_jev": {
+        const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);
+        let evaluation: Awaited<ReturnType<typeof evaluateWithJevForBot>>;
+        try {
+          evaluation = await evaluateWithJevForBot(parsed);
+        } catch {
+          throw new SokoBotRuntimeValidationError(
+            "Jev is unavailable right now; judge these yourself.",
+          );
+        }
+        // Jev is overhead like routing: on the turn's total, not billed.
+        await prisma.sokoBotTurn.update({
+          where: { id: authorized.turn.id },
+          data: {
+            overheadCostUsdMicros: {
+              increment: BigInt(Math.round(evaluation.costUsd * 1_000_000)),
+            },
+          },
+        });
+        return evaluation.result;
+      }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(
           input.input,
@@ -5560,6 +5627,13 @@ export class SokoBotRuntimeService {
               false,
               input.capability,
             );
+            if (authorized.turn.source === "SCHEDULE")
+              await requireOwnScheduleScope(
+                tx,
+                authorized.turn.id,
+                input.capability,
+                input.input,
+              );
             const {
               actingUserId: userId,
               workspaceId,
@@ -5927,7 +6001,7 @@ export class SokoBotRuntimeService {
       }
       let resultingEntityId: string | null = null;
       if (decision.toolName === "hire_agent") {
-        const hire = parseHireAgentInput(proposal);
+        const { followUp, ...hire } = parseHireAgentInput(proposal);
         const existingDelegation = await prisma.sokoBotDelegation.findUnique({
           where: {
             turnId_toolCallId: {
@@ -6016,6 +6090,7 @@ export class SokoBotRuntimeService {
                     action: "hire_agent",
                     outcome: "processing",
                     error: marker,
+                    followUp,
                   },
                 });
               }

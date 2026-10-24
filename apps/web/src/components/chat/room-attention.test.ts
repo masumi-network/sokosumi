@@ -19,6 +19,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -33,6 +34,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 2,
       mentionCount: 2,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -48,6 +50,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -64,6 +67,7 @@ describe("resolveRoomAttention", () => {
       bold: false,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -78,6 +82,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -93,6 +98,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 7,
     });
   });
@@ -108,6 +114,7 @@ describe("resolveRoomAttention", () => {
       bold: false,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -124,6 +131,7 @@ describe("resolveRoomAttention", () => {
       bold: false,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -143,6 +151,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 2,
       mentionCount: 2,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -158,6 +167,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 9,
     });
   });
@@ -174,6 +184,7 @@ describe("resolveRoomAttention", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -218,6 +229,7 @@ describe("resolveRoomAttention with the channel half", () => {
       bold: false,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -235,6 +247,7 @@ describe("resolveRoomAttention with the channel half", () => {
       bold: true,
       badgeCount: 1,
       mentionCount: 1,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -261,6 +274,7 @@ describe("resolveRoomAttention with the channel half", () => {
       bold: true,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 2,
     });
   });
@@ -289,6 +303,7 @@ describe("resolveRoomAttention with the channel half", () => {
       bold: false,
       badgeCount: 0,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -348,6 +363,7 @@ describe("resolveRoomAttention in a Direct of two", () => {
       bold: true,
       badgeCount: 5,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 5,
     });
   });
@@ -364,6 +380,7 @@ describe("resolveRoomAttention in a Direct of two", () => {
       bold: true,
       badgeCount: 5,
       mentionCount: 0,
+      needsYouCount: 0,
       unreadTextCount: 0,
     });
   });
@@ -396,6 +413,7 @@ describe("roomAttentionAfterRead", () => {
       channelUnreadCount: 0,
       threadUnreadCount: 3,
       unreadMentionCount: 0,
+      unreadNeedsYouCount: 0,
       markedUnread: false,
     });
   });
@@ -419,6 +437,7 @@ describe("roomAttentionAfterRead", () => {
       channelUnreadCount: 0,
       threadUnreadCount: 0,
       unreadMentionCount: 0,
+      unreadNeedsYouCount: 0,
       markedUnread: false,
     });
   });
@@ -587,5 +606,60 @@ describe("roomUnreadReads", () => {
         }),
       ),
     ).toEqual({ readRoom: false, lookThreads: false });
+  });
+});
+
+describe("resolveRoomAttention with chat signals", () => {
+  it("draws the needs-you pill in place of the @ pill and the count", () => {
+    const attention = resolveRoomAttention({
+      unreadCount: 4,
+      unreadMentionCount: 1,
+      unreadNeedsYouCount: 2,
+      showUnreadCount: true,
+    });
+    expect(attention).toMatchObject({
+      bold: true,
+      needsYouCount: 2,
+      mentionCount: 0,
+      unreadTextCount: 0,
+      badgeCount: 3,
+    });
+  });
+
+  it("bolds a room whose only unread asks the reader something", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 0,
+        channelUnreadCount: 0,
+        unreadMentionCount: 0,
+        unreadNeedsYouCount: 1,
+      }).bold,
+    ).toBe(true);
+  });
+
+  it("goes quiet in a muted room, and after reading", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 1,
+        unreadMentionCount: 0,
+        unreadNeedsYouCount: 1,
+        isMuted: true,
+      }).needsYouCount,
+    ).toBe(0);
+    expect(
+      roomAttentionAfterRead({
+        unreadCount: 1,
+        unreadMentionCount: 0,
+        unreadNeedsYouCount: 1,
+      }).unreadNeedsYouCount,
+    ).toBe(0);
+  });
+
+  it("marks a closed section as a mention when a room needs the reader", () => {
+    expect(
+      resolveSectionAttention([
+        { unreadCount: 1, unreadMentionCount: 0, unreadNeedsYouCount: 1 },
+      ]),
+    ).toBe("mention");
   });
 });

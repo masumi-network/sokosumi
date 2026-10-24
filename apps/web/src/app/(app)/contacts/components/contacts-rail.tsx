@@ -5,13 +5,13 @@ import {
   Check,
   ChevronDown,
   Clock,
-  FileSpreadsheet,
   Hourglass,
   ListFilter,
   type LucideIcon,
+  MailQuestion,
   MoreHorizontal,
   Plus,
-  Telescope,
+  Sparkles,
   UserRound,
   Users,
 } from "lucide-react";
@@ -37,10 +37,10 @@ import { Dot } from "./contact-visuals";
 const PRESET_ICONS: Record<ContactPreset, LucideIcon> = {
   all: Users,
   mine: UserRound,
+  noReply: MailQuestion,
   followUps: CalendarClock,
   recent: Clock,
   stale: Hourglass,
-  prospects: Telescope,
 };
 
 const ROW =
@@ -53,10 +53,9 @@ interface Props {
   onNewList: () => void;
   onEditList: (list: ContactList) => void;
   onDeleteList: (list: ContactList) => void;
-  onImport: () => void;
 }
 
-/** Smart presets, then the team's lists, then import. */
+/** Smart presets, then the team's lists. */
 export function ContactsRail({
   view,
   onViewChange,
@@ -64,7 +63,6 @@ export function ContactsRail({
   onNewList,
   onEditList,
   onDeleteList,
-  onImport,
 }: Props) {
   const t = useTranslations("App.Contacts");
   return (
@@ -137,6 +135,11 @@ export function ContactsRail({
                       aria-label={t("rail.smartList")}
                       className="size-3.5 shrink-0"
                     />
+                  ) : list.createdAutomatically ? (
+                    <Sparkles
+                      aria-label={t("rail.autoList")}
+                      className="size-3.5 shrink-0"
+                    />
                   ) : null}
                   <span className="text-muted-foreground ms-auto text-xs tabular-nums transition-opacity group-focus-within/list:opacity-0 group-hover/list:opacity-0">
                     {list.count}
@@ -176,17 +179,6 @@ export function ContactsRail({
           </p>
         ) : null}
       </section>
-      <button
-        type="button"
-        onClick={onImport}
-        className={cn(
-          ROW,
-          "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-        )}
-      >
-        <FileSpreadsheet aria-hidden className="size-4 shrink-0" />
-        <span className="truncate">{t("rail.import")}</span>
-      </button>
     </nav>
   );
 }
