@@ -942,6 +942,8 @@ export type SokoBotDelegation = {
     error: string | null;
     taskId: string | null;
     jobId: string | null;
+    followUp?: string | null;
+    followUpTurnId?: string | null;
     createdAt: Date;
     updatedAt: Date;
 };

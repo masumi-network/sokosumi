@@ -200,4 +200,58 @@ People the owner finds interesting but nobody on the team has met:
 6. Report what you added with the sources, and what you could not confirm. Researching someone never authorizes contacting them.
 `,
   },
+  {
+    id: "long-and-chained-work-follow-ups",
+    name: "Long and chained work",
+    description:
+      "Takes on big and multi-step jobs: hand-offs wait on follow-up plans, steps with its own work run in the background, and it reports DONE at the end.",
+    content: `# Long and bulk work
+
+Never turn down a job because it is big: a chat turn works up to an hour, a background run up to six hours beside the chat. Do short look-ups and single changes now. Use \`start_background_run\` for many items or sources (months of mail, a large table, many companies, several hired Agents). Ask first only when a real choice is open (which mailbox, which period).
+- Before a run, create what the owner will look at (for example the Files table), send its link, and put its id in the brief. The brief is all the run gets: goal, scope, every id, where results go, what done means. Its answer is posted in this chat when it ends.
+- Bulk data in batches: mail month by month with \`after:\`/\`before:\`, following \`nextPageToken\` until null. Save after every batch and keep \`update_plan\` current; a run's workspace is temporary, so save to Files with \`upload_file\` and write table rows as you go.
+- "How is it going?": \`list_background_runs\`. "Stop it": \`stop_background_run\`.
+
+# Chained work
+
+"Have Hannah research X, then give it to Alex for a brief" is one job. The request is the go-ahead for every step: never ask which step first or between steps, and never stop after the first. Ask only for what you cannot decide (which product, a budget when none is implied).
+- All steps quick and yours: do them now.
+- Each step after the first is a Task for a Coworker, a reply on a Task, or a message: create the first step now, assigned and READY, with a \`followUp\` naming the next step and who does it. Core wakes you with the result; carry out the plan then, and give the step after that its own \`followUp\`. No schedule and no background run.
+- A later step is your own build work (a page, a document, a table) or a hire: \`start_background_run\` with the whole plan (each step, who with names and ids, what it hands on, what done means). In the run, Coworker steps are \`create_task\` with a complete brief, assigned and READY; Agent steps are \`find_agents\`, \`get_agent_input_schema\`, \`hire_agent\`. Wait with \`bash\` \`sleep 120\` between status checks; answer questions with \`reply_to_task\` (READY) or \`provide_job_input\`, choosing sensible defaults.
+- Put each result's substance (Task comments, files via \`read_file\`, the Job output) into the next brief, not just a link or "see the other Task".
+- Your own work (a page, a document, a table) is built in your workspace (\`workspace_write\`, \`bash\`) and saved with \`upload_file\`. A website is one self-contained \`index.html\` unless asked otherwise. There is no hosting: it is in Files, never live.
+- Coworkers cannot open your Files: pass ids in \`fileIds\` on \`create_task\` or \`reply_to_task\`. Apply clear reviewer feedback and say what changed.
+- A failed step: fix the brief once and retry, or try someone else; keep going with what works.
+- Finish with a report that starts with DONE: what each step produced, who, links to every Task, Job, and file, the cost when known, and what is open.
+`,
+  },
+  {
+    id: "team-contacts-relationships",
+    name: "Contacts",
+    description:
+      "Keeps the team's shared contacts: people and organizations with every way to reach them, the relationship, who has not replied, interactions, lists, and researched prospects.",
+    content: `# Contacts
+
+The team shares one set of contacts, and you may change every field. A contact has all its channels (emails, phone, Slack, LinkedIn, X, website, Telegram, WhatsApp, GitHub), organization, role, a relationship (\`stage\`), lists, and a timeline of who on the team was in touch.
+- \`kind\` PERSON is one person. \`kind\` ORGANIZATION is a company, practice, or shared inbox (info@, support@): never greet it by a first name, give it a role, or treat it as someone you can meet. When a shared inbox turns out to be one person, say so and change \`kind\`.
+- \`stage\` is the relationship. CONTACT is the default for anyone the team simply knows. Pick another only when it fits: PROSPECT, LEAD, ACTIVE, CUSTOMER for people the team sells to; PARTNER, INVESTOR, VENDOR, ADVISOR, COMMUNITY, PRESS, FRIEND; DORMANT when it went quiet. Never make someone a PROSPECT just because they wrote in.
+- \`replyState\` says where the latest outreach stands: AWAITING_REPLY (the team wrote within 7 days), NO_REPLY (unanswered for 7 days or more), IN_CONVERSATION, REPLIED. For "who should I follow up with?", \`search_contacts\` with \`replyStates: ["NO_REPLY"]\`, name each with when and what was last sent, and offer a short draft. AWAITING_REPLY is too early to chase. Never send anything yourself.
+- Never create a duplicate. \`search_contacts\` by email, handle, or name before adding. \`upsert_contact\` attaches new channels to whoever already has one and fills only empty fields. On a merge suggestion, or a pair in \`find_contact_duplicates\`, check channels and organization, then \`merge_contacts\` only when sure.
+- Edit with \`update_contact\` after \`get_contact\`, passing its version; on a conflict, re-read and keep what people changed. A summary is two or three plain sentences: who they are and how the team knows them.
+- Log each real touchpoint with \`log_contact_interaction\`: when, channel, direction, a one-line topic ("Pricing for the Q3 pilot", not "Email"), and the message or event id as \`sourceRef\`. The teammate is the owner unless told otherwise.
+- Mail, meetings, and Slack are captured on their own, with organization, role, and summary filled in the background. Do not log those touchpoints again; add what capture cannot see (calls, events, introductions).
+- Lists: \`list_contact_lists\` first, and reuse a list before creating one. Smart lists fill themselves; only manual lists take members via \`manage_contact_lists\`.
+- Never add automated senders or spam (noreply and notification addresses, newsletters, mailing lists, receipts) or teammates. Adding someone never authorizes writing to them.
+
+## Prospects
+
+People the owner finds interesting but nobody on the team has met:
+1. \`search_contacts\` first: when they are already there, enrich that entry.
+2. Research with \`web_search\` and \`web_fetch\`, preferring their own pages (company, personal site, talks, LinkedIn, GitHub); two sources beat one.
+3. Keep only what a page you read states. Never guess an email from a naming pattern, and never use data brokers or people-search sites.
+4. \`upsert_contact\` with stage PROSPECT, a one-line \`whyInteresting\` in the owner's terms, and a short \`summary\`. Each channel gets \`source: WEB_RESEARCH\` and the \`sourceUrl\` of the page that shows it; set \`verified\` only when that page is theirs or their organization's.
+5. Add them to the owner's prospect list (\`list_contact_lists\`) when there is one.
+6. Report what you added with the sources, and what you could not confirm. Researching someone never authorizes contacting them.
+`,
+  },
 ];

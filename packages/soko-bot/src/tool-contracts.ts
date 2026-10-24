@@ -85,6 +85,13 @@ export const sokoBotAgentIdInputSchema = z
   .object({ agentId: z.string().min(1) })
   .strict();
 
+/**
+ * What the bot does once delegated work completes ("give Hannah's findings to
+ * Alex as a Task"). Core keeps it with the delegation and hands it back on the
+ * wake that reports the result, so waiting needs no schedule and no polling.
+ */
+export const sokoBotFollowUpSchema = z.string().trim().min(1).max(2_000);
+
 export const sokoBotCreateTaskInputSchema = z
   .object({
     triggeringTaskId: z.string().min(1).optional(),
@@ -97,6 +104,7 @@ export const sokoBotCreateTaskInputSchema = z
     status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
+    followUp: sokoBotFollowUpSchema.optional(),
   })
   .strict();
 
@@ -135,6 +143,7 @@ export const sokoBotAssignTaskInputSchema = z
     coworkerId: z.string().min(1).optional(),
     assignToOwner: z.literal(true).optional(),
     ready: z.boolean().default(true),
+    followUp: sokoBotFollowUpSchema.optional(),
   })
   .strict()
   .refine(
@@ -186,6 +195,7 @@ export const sokoBotHireAgentInputSchema = z
     maxCredits: z.number().positive(),
     projectId: z.string().uuid().nullable().optional(),
     name: z.string().trim().min(1).max(160).optional(),
+    followUp: sokoBotFollowUpSchema.optional(),
   })
   .strict();
 
@@ -224,10 +234,17 @@ export const sokoBotCreateScheduleInputSchema = z
     runAt: z.string().datetime({ offset: true }).optional(),
     timezone: timezoneSchema,
     prompt: z.string().trim().min(1).max(4_000),
+    /** The Task this schedule watches; Core deletes the schedule once it finishes. */
+    taskId: z.string().min(1).optional(),
+    /** The Job this schedule watches; Core deletes the schedule once it finishes. */
+    jobId: z.string().min(1).optional(),
   })
   .strict()
   .refine((value) => Boolean(value.cronExpression) !== Boolean(value.runAt), {
     message: "Give either cronExpression (recurring) or runAt (once)",
+  })
+  .refine((value) => !(value.taskId && value.jobId), {
+    message: "Link a schedule to one Task or one Job, not both",
   });
 
 /** Schedules are addressed by id or by their exact name; names are what models copy reliably. */
@@ -891,13 +908,13 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
-    "Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description.",
+    'Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED ("give the findings to Alex as a Task for a one-page brief"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it.',
   update_task:
     "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
     "Archive a Task the owner could archive in the app: their own, or a public Task of their organization. Pass the exact updatedAt from list_tasks or get_task_status as expectedUpdatedAt; no separate read is needed. One Task per call: to archive several, list them once and call archive_task for all of them in the same step. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template; cancel another one first with reply_to_task status CANCELED when the owner wants it gone. Report success only from the archive result.",
   assign_task:
-    "Assign a Task to an available Coworker (coworkerId), or to the owner with assignToOwner: true, and optionally make it READY.",
+    "Assign a Task to an available Coworker (coworkerId), or to the owner with assignToOwner: true, and optionally make it READY. followUp: what you will do once the work is COMPLETED, as on create_task.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   list_tasks:
@@ -912,7 +929,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer; `closest` then shows the nearest listings, which do related work, not this. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
-    "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",
+    "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated. followUp: what you will do once the work is COMPLETED, as on create_task.",
   get_job_status:
     "Read a marketplace Agent Job: status, the input it was hired with, the input it is waiting for (inputRequest with eventId and fields), its result text, error, files, links, and url.",
   provide_job_input:
@@ -923,11 +940,11 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_schedules:
     "List your follow-up schedules: recurring (cron) ones and one-time ones (`runOnce`), with when each runs next.",
   create_schedule:
-    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check.",
+    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule.",
   update_schedule:
     "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
   delete_schedule:
-    "Remove a follow-up schedule once its work is done or the owner no longer wants it. Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
+    "Remove a follow-up schedule once its work is done or the owner no longer wants it; a run of a schedule may always remove its own. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
 } as const satisfies Record<SokoBotCapability, string>;
 
 export function isSokoBotDecisionTarget(
