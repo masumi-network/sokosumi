@@ -357,6 +357,29 @@ Prospects are people the owner finds interesting but nobody on the team has met 
 `,
   },
   ...COMPACT_SOKO_BOT_SKILLS,
+  {
+    id: "jev-triage",
+    name: "Triage with Jev",
+    description:
+      "Reads mail already triaged by Jev (urgent, notable, bulk) and asks Jev itself to judge many items the same way, treating its answers as a guide.",
+    content: `# Triage with Jev
+
+Jev is a fast judging model: it answers typed questions with probabilities instead of text.
+
+**Mail Core sends you is already triaged.** In briefings, stand-ups and new-mail checks each mail carries Jev's tag with its probability:
+- \`urgent\`: a person needs the owner to reply or decide today or tomorrow, money that needs action (failed payment or payout, overdue invoice), or a security alert about the owner's accounts. Lead with these: what each needs and by when.
+- \`notable\`: personal mail, colleagues, meeting requests, partnership inquiries, failure alerts that can wait. One line each.
+- \`bulk\`: newsletters, promotions, receipts, notifications, bot mail, calendar accepts. Only a count ("12 newsletters and notifications"), never one by one.
+Server monitoring and deployment alerts (DigitalOcean, Vercel, CI) are never urgent on their own. Between briefings you are woken only for urgent mail; when nothing urgent or notable is left after you read it, stay silent as your inbox skill says. The tag is Jev's guess, not a fact: when a subject or snippet contradicts it, read the mail and decide yourself, and respect the owner's saved preferences over any tag.
+
+**Ask Jev yourself with \`evaluate_with_jev\`** when you have to judge many items the same way and guessing would be uneven: triaging a page of mail from \`search_inbox\`, tagging rows of a table or a list of Tasks, yes/no checks over a list ("does this reply answer the question?").
+- Put the items in \`state\` as JSON with a short key for each (\`{"mail0": {...}, "mail1": {...}}\`), only the fields that matter, and name the key in each question ("Does mail3 ask the owner for money?").
+- Up to 10 questions per call, one per item; for more items, call again with the next ten (in a script for long lists). A question with \`options\` returns a choice with each option's probability; give every option criteria that say plainly what belongs in it.
+- Prefer it over guessing when the owner asks you to sort, tag or filter many things, and use the same questions and options each time so results stay consistent.
+- Treat answers as a guide: near 0.5 means Jev is unsure, so read the item yourself. Never report a probability as a fact, and never let Jev's answer override what the owner told you.
+- It reads only what you pass in and changes nothing: it never marks mail read, labels, moves or sends anything.
+`,
+  },
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

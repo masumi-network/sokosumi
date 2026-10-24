@@ -135,6 +135,17 @@ describe("Soko Bot route capability ceilings", () => {
     }
   });
 
+  it("lets every owner route ask Jev, and keeps it off bot-to-bot turns", () => {
+    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
+      expect(capabilities as readonly string[]).toContain("evaluate_with_jev");
+    expect(
+      limitSokoBotWrites(SOKO_BOT_ROUTE_CAPABILITIES.DELEGATE_TASK, []),
+    ).toContain("evaluate_with_jev");
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[]).not.toContain(
+      "evaluate_with_jev",
+    );
+  });
+
   it("grants archive only on task mutation routes", () => {
     for (const route of ["MANAGE_WORK", "DELEGATE_TASK"] as const) {
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain("archive_task");

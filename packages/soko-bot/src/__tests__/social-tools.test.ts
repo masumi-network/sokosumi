@@ -188,7 +188,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v29");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v30");
   });
 
   it("describes every provider's publishing rules", () => {
