@@ -26,7 +26,7 @@ interface SokoBotHomeProps {
 
 /**
  * `/` for a user with a personal Soko Bot: a composer that talks to the bot,
- * the user's recent requests to it, and a few starters. The conversation
+ * four action cards that prefill it, and the user's recent requests. The conversation
  * itself lives in the bot's Direct, which every send and row opens.
  */
 export async function SokoBotHome({
@@ -49,35 +49,38 @@ export async function SokoBotHome({
       botName={botName}
       roomId={roomId}
       header={
-        <div className="flex flex-col items-center gap-3 px-4 pb-6 text-center">
-          <BotFace bot={bot} ownerId={ownerId} className="size-14" />
-          <div>
-            <h1 className="text-foreground text-xl font-medium tracking-tight">
+        <div className="flex flex-col gap-4 px-4 pb-5 md:px-5">
+          <div className="flex items-center gap-2.5">
+            <BotFace bot={bot} ownerId={ownerId} className="size-7" />
+            <span className="text-muted-foreground text-sm font-medium">
               {botName}
-            </h1>
-            <p className="text-muted-foreground text-sm">{t("intro")}</p>
+            </span>
           </div>
+          <h1 className="text-foreground text-2xl font-light tracking-tight text-balance md:text-4xl">
+            {t("heading")}
+          </h1>
         </div>
       }
     >
-      <div className="flex flex-col gap-6 px-3 pt-3 md:px-5">
-        {awaitingInput > 0 ? (
-          <Link
-            href="/tasks"
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1.5 self-start rounded-md px-4 text-sm outline-none transition-colors focus-visible:ring-2"
-          >
-            {t("awaitingInput", { count: awaitingInput })}
-            <ArrowRight aria-hidden className="size-3.5" />
-          </Link>
-        ) : null}
-
+      <div className="flex flex-col gap-6 px-3 pt-8 md:px-5">
         <section aria-labelledby="soko-bot-home-recent">
-          <h2
-            id="soko-bot-home-recent"
-            className="text-muted-foreground px-4 pb-1 text-sm font-medium"
-          >
-            {t("recentTitle")}
-          </h2>
+          <div className="flex items-baseline justify-between gap-4 px-4 pb-1">
+            <h2
+              id="soko-bot-home-recent"
+              className="text-muted-foreground text-sm font-medium"
+            >
+              {t("recentTitle")}
+            </h2>
+            {awaitingInput > 0 ? (
+              <Link
+                href="/tasks"
+                className="text-primary hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm outline-none transition-colors focus-visible:ring-2"
+              >
+                {t("awaitingInput", { count: awaitingInput })}
+                <ArrowRight aria-hidden className="size-3.5" />
+              </Link>
+            ) : null}
+          </div>
           {recentChats.length > 0 && roomId ? (
             <ul>
               {recentChats.map((chat) => (
