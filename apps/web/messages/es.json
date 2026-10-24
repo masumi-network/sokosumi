@@ -1621,6 +1621,21 @@
         "searchAgents": {
           "label": "Buscar",
           "subtitle": "Agentes especializados"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Tu Soko Bot",
+          "placeholder": "Pregunta a {name}…",
+          "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
+          "awaitingInput": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "recentTitle": "Chats recientes",
+          "recentEmpty": "Aún no hay chats. Pregunta a {name} lo que quieras o empieza con una sugerencia.",
+          "suggestionsLabel": "Sugerencias",
+          "suggestions": {
+            "today": "¿Qué necesita mi atención hoy?",
+            "inbox": "Resume mi bandeja de entrada",
+            "week": "Planifica mi semana"
+          }
         }
       },
       "SokoBot": {

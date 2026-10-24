@@ -1621,6 +1621,21 @@
         "searchAgents": {
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Dein Soko Bot",
+          "placeholder": "Frag {name}…",
+          "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
+          "awaitingInput": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+          "recentTitle": "Letzte Chats",
+          "recentEmpty": "Noch keine Chats. Frag {name} etwas oder starte mit einem Vorschlag.",
+          "suggestionsLabel": "Vorschläge",
+          "suggestions": {
+            "today": "Was braucht heute meine Aufmerksamkeit?",
+            "inbox": "Fasse meinen Posteingang zusammen",
+            "week": "Plane meine Woche"
+          }
         }
       },
       "SokoBot": {
