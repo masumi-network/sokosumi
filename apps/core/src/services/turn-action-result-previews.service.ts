@@ -4,6 +4,7 @@ import {
   CHAT_RESULT_PREVIEW_LIMIT,
   type ChatResultReference,
   chatResultReferenceSchema,
+  versionShowsResultCards,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -54,11 +55,7 @@ export async function prepareTurnActionResultPreviews(
     (turn.askedByUserId && turn.askedByUserId !== actingUserId)
   )
     return;
-  if (
-    !(await resolveSokoBotVersion(turn.versionId)).skills.includes(
-      "chat-result-previews",
-    )
-  )
+  if (!versionShowsResultCards(await resolveSokoBotVersion(turn.versionId)))
     return;
   const calls = await tx.sokoBotToolCall.findMany({
     where: { turnId, status: "COMPLETED" },

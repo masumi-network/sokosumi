@@ -1,3 +1,5 @@
+import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
+
 /**
  * Skills are reusable instruction modules a version can include. Keep each
  * one self-contained; a version lists them by id and the runtime appends
@@ -354,6 +356,7 @@ Prospects are people the owner finds interesting but nobody on the team has met 
 6. Report what you added with the sources, and say what you could not confirm. Researching someone never authorizes contacting them.
 `,
   },
+  ...COMPACT_SOKO_BOT_SKILLS,
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

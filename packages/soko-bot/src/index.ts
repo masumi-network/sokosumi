@@ -140,5 +140,6 @@ export {
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
   type SokoBotVersion,
+  versionShowsResultCards,
 } from "./versions/index.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
