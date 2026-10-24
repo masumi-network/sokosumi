@@ -1,0 +1,274 @@
+// ---------------------------------------------------------------------------
+// Contacts: one shared set of people per workspace (docs/contacts/design.md).
+//
+// Channel uniqueness, merges, list counts and the derived contact fields
+// (first/last contact, interaction count, known by) are enforced here rather
+// than in Files tables, so two writers can never give one address to two
+// people.
+// ---------------------------------------------------------------------------
+
+/// What a contact is to the team; `CONTACT` is the plain default and the
+/// sales steps only apply to people the team sells to.
+enum ContactStage {
+  PROSPECT
+  LEAD
+  ACTIVE
+  PARTNER
+  INVESTOR
+  CUSTOMER
+  DORMANT
+  CONTACT
+  VENDOR
+  ADVISOR
+  COMMUNITY
+  PRESS
+  FRIEND
+}
+
+/// A person, or an organization or shared inbox (a practice's `info@`).
+enum ContactKind {
+  PERSON
+  ORGANIZATION
+}
+
+enum ContactChannelType {
+  EMAIL
+  PHONE
+  SLACK
+  LINKEDIN
+  X
+  WEBSITE
+  TELEGRAM
+  WHATSAPP
+  GITHUB
+  OTHER
+}
+
+enum ContactChannelSource {
+  MANUAL
+  EMAIL
+  CALENDAR
+  SLACK
+  WEB_RESEARCH
+  IMPORT
+  OTHER
+}
+
+enum ContactInteractionChannel {
+  EMAIL
+  MEETING
+  SLACK
+  CALL
+  MANUAL
+  OTHER
+}
+
+enum ContactInteractionDirection {
+  IN
+  OUT
+  BOTH
+}
+
+enum ContactActivityKind {
+  CREATED
+  UPDATED
+  CHANNEL_ADDED
+  CHANNEL_REMOVED
+  MERGED
+  ARCHIVED
+  UNARCHIVED
+}
+
+/// A person across channels. `firstContactAt`, `lastContactAt` and
+/// `interactionCount` are derived from `ContactInteraction` and written only by
+/// Core, in the transaction that changes an interaction. A merged contact keeps
+/// its row as a tombstone (`mergedIntoId` + `archivedAt`).
+model Contact {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  workspaceId        String       @db.Uuid
+  workspace          Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name               String
+  organization       String?
+  role               String?
+  location           String?
+  /// About text, usually written by a Soko Bot.
+  summary            String?
+  whyInteresting     String?
+  stage              ContactStage @default(CONTACT)
+  kind               ContactKind  @default(PERSON)
+  ownerUserId        String?
+  owner              User?        @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  nextStep           String?
+  followUpAt         DateTime?    @db.Date
+  avatarUrl          String?
+  customFields       Json         @default("{}")
+  firstContactAt     DateTime?
+  lastContactAt      DateTime?
+  interactionCount   Int          @default(0)
+  /// Latest interaction from them (IN or BOTH); derived like the above.
+  lastInboundAt      DateTime?
+  /// First outreach (OUT) since they last wrote; null once they answer.
+  awaitingReplySince DateTime?
+  /// When the background enrichment last looked at this contact; `null`
+  /// queues it (new, or given a new channel by capture).
+  enrichedAt         DateTime?
+  /// When the background pass last judged kind, name, stage and lists;
+  /// `null` asks for it once more.
+  classifiedAt       DateTime?
+  mergedIntoId       String?      @db.Uuid
+  mergedInto         Contact?     @relation("ContactMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom         Contact[]    @relation("ContactMerge")
+  createdByUserId    String?
+  /// Soko Bot that created the contact, kept after the bot is gone.
+  createdBySokoBotId String?      @db.Uuid
+  /// Optimistic concurrency for edits; derived fields do not bump it.
+  version            Int          @default(1)
+  archivedAt         DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  channels        ContactChannel[]
+  interactions    ContactInteraction[]
+  listMemberships ContactListMember[]
+  activities      ContactActivity[]
+
+  @@index([workspaceId, archivedAt, updatedAt, id])
+  @@index([workspaceId, lastContactAt])
+  @@index([workspaceId, name])
+  @@index([mergedIntoId])
+  @@index([ownerUserId])
+  @@index([workspaceId, enrichedAt])
+  @@index([workspaceId, awaitingReplySince])
+  @@map("contact")
+}
+
+/// One way to reach a contact. `value` is normalized by Core (lowercased
+/// email, E.164 phone when parseable, canonical URL or handle, Slack
+/// `TEAM:USER`), so the unique key catches the same address written twice.
+model ContactChannel {
+  id          String               @id @default(uuid(7)) @db.Uuid
+  workspaceId String               @db.Uuid
+  contactId   String               @db.Uuid
+  contact     Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type        ContactChannelType
+  value       String
+  label       String?
+  isPrimary   Boolean              @default(false)
+  source      ContactChannelSource @default(MANUAL)
+  sourceUrl   String?
+  verified    Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+
+  @@unique([workspaceId, type, value])
+  @@index([contactId])
+  @@map("contact_channel")
+}
+
+/// One touchpoint with a contact and the teammate who had it. `sourceRef` is
+/// the provider's message or event id, so capturing the same message twice
+/// writes one row.
+model ContactInteraction {
+  id          String                       @id @default(uuid(7)) @db.Uuid
+  workspaceId String                       @db.Uuid
+  contactId   String                       @db.Uuid
+  contact     Contact                      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?                        @relation("ContactInteractionUser", fields: [userId], references: [id], onDelete: SetNull)
+  sokoBotId   String?                      @db.Uuid
+  sokoBot     SokoBot?                     @relation("ContactInteractionSokoBot", fields: [sokoBotId], references: [id], onDelete: SetNull)
+  occurredAt  DateTime
+  channel     ContactInteractionChannel
+  direction   ContactInteractionDirection?
+  summary     String
+  sourceRef   String?
+  sourceUrl   String?
+  createdAt   DateTime                     @default(now())
+
+  @@unique([workspaceId, channel, sourceRef])
+  @@index([contactId, occurredAt])
+  @@index([contactId, userId])
+  @@index([userId])
+  @@index([sokoBotId])
+  @@map("contact_interaction")
+}
+
+/// A named, shared list. `smartFilter` null is a manual list; otherwise it is
+/// a saved contact filter evaluated on read. `nameKey` is the lowercased name,
+/// so names are unique per workspace regardless of case.
+model ContactList {
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  workspaceId          String              @db.Uuid
+  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name                 String
+  nameKey              String
+  color                String
+  description          String?
+  smartFilter          Json?
+  createdByUserId      String?
+  createdBySokoBotId   String?             @db.Uuid
+  /// Made by the background classifier, not by a person or a bot's turn.
+  createdAutomatically Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  members              ContactListMember[]
+
+  @@unique([workspaceId, nameKey])
+  @@map("contact_list")
+}
+
+model ContactListMember {
+  listId             String      @db.Uuid
+  list               ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contactId          String      @db.Uuid
+  contact            Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  addedByUserId      String?
+  addedBySokoBotId   String?     @db.Uuid
+  /// Put there by the background classifier; people can see and undo it.
+  addedAutomatically Boolean     @default(false)
+  addedAt            DateTime    @default(now())
+
+  @@id([listId, contactId])
+  @@index([contactId])
+  @@map("contact_list_member")
+}
+
+/// Who changed what on a contact: a person (`userId`) or a Soko Bot
+/// (`sokoBotId`, with the member it acted for in `userId`).
+model ContactActivity {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  workspaceId String              @db.Uuid
+  contactId   String              @db.Uuid
+  contact     Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId      String?
+  sokoBotId   String?             @db.Uuid
+  kind        ContactActivityKind
+  /// `{ field: { before, after } }` for edits; a short detail otherwise.
+  changes     Json                @default("{}")
+  createdAt   DateTime            @default(now())
+
+  @@index([contactId, createdAt, id])
+  @@map("contact_activity")
+}
+
+/// Where automatic capture stands for one connected integration. `cursor`
+/// holds, per source (sent mail, answered mail, calendar, Slack), the forward
+/// position (`since`) and the backward 12-month backfill position
+/// (`backfillUntil`, `pageToken`), written after every page so an interrupted
+/// run resumes where it stopped. Removing the integration removes it; a
+/// reconnect starts a fresh backfill.
+model ContactCaptureState {
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  integrationId       String             @unique @db.Uuid
+  integration         SokoBotIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  /// The oldest moment the backfill reaches.
+  backfillFloor       DateTime
+  backfillCompletedAt DateTime?
+  cursor              Json               @default("{}")
+  lastRunAt           DateTime?
+  lastError           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([lastRunAt])
+  @@map("contact_capture_state")
+}

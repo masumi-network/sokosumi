@@ -8,8 +8,10 @@ import {
   Edit3,
   Folder,
   MoreHorizontal,
+  Pin,
   Table2,
   Trash2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -103,6 +105,7 @@ function toDriveFileItem(
 function recentsItemKey(item: DriveRecentsItem): string {
   if (item.kind === "drive-file") return item.pathname;
   if (item.kind === "table") return item.tableId;
+  if (item.kind === "contacts") return "contacts";
   return item.taskFileId;
 }
 
@@ -140,8 +143,17 @@ export function DriveRecentsPanel({
   workspaceIdRef.current = activeOrganizationId;
   const trimmedSearchQuery = searchQuery.trim();
 
+  // The workspace's contacts are one pinned entry, above the days.
+  const contactsEntry = items.find(
+    (item): item is DriveRecentsItem & { kind: "contacts" } =>
+      item.kind === "contacts",
+  );
   const dayGroups = useMemo(
-    () => buildDriveRecentsDayGroups(items, locale),
+    () =>
+      buildDriveRecentsDayGroups(
+        items.filter((item) => item.kind !== "contacts"),
+        locale,
+      ),
     [items, locale],
   );
 
@@ -319,6 +331,63 @@ export function DriveRecentsPanel({
       }
     >
       <div className={cn(viewMode === "grid" ? "py-1" : "py-2")}>
+        {contactsEntry ? (
+          <section className="mb-4">
+            <ul className={driveRecentsDayItemsClass(viewMode)}>
+              <li>
+                <Link
+                  href="/contacts"
+                  className={cn(
+                    driveItemArticleClass(viewMode),
+                    "focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
+                  )}
+                >
+                  <div className={driveItemBodyClass(viewMode)}>
+                    <div
+                      className={cn(
+                        driveItemIconWellClass(viewMode),
+                        "bg-primary-quinary rounded-lg",
+                      )}
+                    >
+                      <Users
+                        aria-hidden
+                        className={cn(
+                          "text-primary",
+                          viewMode === "grid" ? "size-4" : "size-5",
+                        )}
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className={driveItemNameClass()}>
+                          {t("contactsEntryName")}
+                        </span>
+                        <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
+                          <Pin aria-hidden className="size-3" />
+                          {t("contactsEntryPinned")}
+                        </span>
+                      </span>
+                      <div className={driveItemMetaMobileClass(viewMode)}>
+                        <span>
+                          {t("contactsEntryCount", {
+                            count: contactsEntry.contactCount,
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={driveItemMetaDesktopClass(viewMode)}>
+                      <span>
+                        {t("contactsEntryCount", {
+                          count: contactsEntry.contactCount,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            </ul>
+          </section>
+        ) : null}
         {dayGroups.map((group) => (
           <section key={group.key} className="mb-4">
             <div className="text-muted-foreground px-4 pb-2 text-xs font-medium capitalize">
@@ -470,6 +539,8 @@ export function DriveRecentsPanel({
                     </li>
                   );
                 }
+
+                if (item.kind === "contacts") return null;
 
                 if (item.kind === "table") {
                   const activityLabel = formatActivityAt(

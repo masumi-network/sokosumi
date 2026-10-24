@@ -1,4 +1,4 @@
-import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
+import { NewTaskButton } from "@/app/components/new-task-button.client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { EmptyState } from "@/components/common/empty-state";
 import type { TaskStatus } from "@/lib/types/core-dto";
@@ -50,10 +50,7 @@ export function TaskListView({
           {footer ? <div className="py-3">{footer}</div> : null}
         </div>
       ) : (
-        <EmptyState
-          description={labels.emptyList}
-          action={<NewTaskEmptyAction />}
-        />
+        <EmptyState description={labels.emptyList} action={<NewTaskButton />} />
       )}
     </div>
   );

@@ -1,4 +1,6 @@
+import type { SokoBotInboxMessage } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MailTriageTag } from "@/lib/soko-bot/mail-triage";
 
 const {
   botFindManyMock,
@@ -9,7 +11,7 @@ const {
   fetchInboxMock,
   proactiveGateMock,
   startTurnMock,
-  checkMailImportanceMock,
+  triageMailMock,
   logSetMock,
   logEmitMock,
   sweepMock,
@@ -23,7 +25,7 @@ const {
   fetchInboxMock: vi.fn(),
   proactiveGateMock: vi.fn(),
   startTurnMock: vi.fn(),
-  checkMailImportanceMock: vi.fn(),
+  triageMailMock: vi.fn(),
   logSetMock: vi.fn(),
   logEmitMock: vi.fn(),
 }));
@@ -50,8 +52,9 @@ vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
 }));
-vi.mock("@/lib/soko-bot/mail-importance", () => ({
-  checkMailImportance: checkMailImportanceMock,
+vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/mail-triage")>()),
+  triageMail: triageMailMock,
 }));
 
 import { SokoBotIngestSyncService } from "./soko-bot-ingest.service";
@@ -63,6 +66,14 @@ function run() {
     abortSignal: new AbortController().signal,
     shouldContinue: () => true,
   });
+}
+
+function tagAll(mail: SokoBotInboxMessage[], tag: MailTriageTag | null) {
+  return mail.map((message) => ({
+    message,
+    tag,
+    probability: tag ? 0.9 : null,
+  }));
 }
 
 function setUp() {
@@ -101,8 +112,9 @@ function setUp() {
   ]);
   startTurnMock.mockResolvedValue({ turnId: "t", status: "COMPLETED" });
   const log = { set: logSetMock, emit: logEmitMock };
-  checkMailImportanceMock.mockImplementation(async ({ mail }) => ({
-    important: mail,
+  triageMailMock.mockImplementation(async ({ mail }) => ({
+    mail: tagAll(mail, "URGENT"),
+    failed: false,
     log,
   }));
 }
@@ -148,20 +160,21 @@ describe("soko-bot ingest when the daily limit is spent", () => {
   });
 
   it.each([
-    ["no mail is important", []],
-    ["the importance check failed", null],
+    ["no mail is urgent", "NOTABLE" as const],
+    ["Jev is unavailable", null],
   ])(
     "does not wake the bot when %s, and moves past the mail",
-    async (_, important) => {
+    async (_, tag) => {
       proactiveGateMock.mockResolvedValue({
         ok: true,
         usedToday: 3,
         limit: 20,
       });
-      checkMailImportanceMock.mockResolvedValue({
-        important,
+      triageMailMock.mockImplementation(async ({ mail }) => ({
+        mail: tagAll(mail, tag),
+        failed: tag === null,
         log: { set: logSetMock, emit: logEmitMock },
-      });
+      }));
       expect((await run()).skipped).toBe(1);
       expect(startTurnMock).not.toHaveBeenCalled();
       expect(logSetMock).toHaveBeenCalledWith({ outcome: "quiet" });
@@ -178,7 +191,72 @@ describe("soko-bot ingest when the daily limit is spent", () => {
     },
   );
 
-  it("reads the last 24 hours for the morning briefing, without the importance check", async () => {
+  it("wakes for urgent mail and shows notable mail with it, bulk as a count", async () => {
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
+    fetchInboxMock.mockResolvedValue(
+      ["Payout failed", "Coffee next week?", "Weekly digest"].map(
+        (subject, index) => ({
+          provider: "gmail",
+          id: `m${index}`,
+          threadId: null,
+          receivedAt: `2026-09-30T12:0${index}:00.000Z`,
+          subject,
+          from: "a@b.c",
+          to: [],
+          snippet: "",
+          unread: true,
+          labels: [],
+        }),
+      ),
+    );
+    const tags = new Map<string, MailTriageTag>([
+      ["Payout failed", "URGENT"],
+      ["Coffee next week?", "NOTABLE"],
+      ["Weekly digest", "BULK"],
+    ]);
+    triageMailMock.mockImplementation(async ({ mail }) => ({
+      mail: mail.map((message: SokoBotInboxMessage) => ({
+        message,
+        tag: tags.get(message.subject) ?? null,
+        probability: 0.9,
+      })),
+      failed: false,
+      log: { set: logSetMock, emit: logEmitMock },
+    }));
+    expect((await run()).deltas).toBe(1);
+    expect(triageMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "delta" }),
+    );
+    const message: string = startTurnMock.mock.calls[0][0].message;
+    expect(message).toMatch(/Jev triaged as urgent/);
+    expect(message).toContain("`Nothing new worth flagging.`");
+    expect(message.indexOf("Payout failed")).toBeLessThan(
+      message.indexOf("Coffee next week?"),
+    );
+    expect(message).toContain("### Bulk (1)\n- a@b.c");
+    expect(message).not.toContain("Weekly digest");
+  });
+
+  it("still briefs every mail, untagged, when Jev is unavailable", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-30T13:00:00.000Z") });
+    scheduleFindFirstMock.mockResolvedValue(null);
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
+    triageMailMock.mockImplementation(async ({ mail }) => ({
+      mail: tagAll(mail, null),
+      failed: true,
+      log: { set: logSetMock, emit: logEmitMock },
+    }));
+    try {
+      expect((await run()).briefings).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+    const message = startTurnMock.mock.calls[0][0].message;
+    expect(message).toContain("### Not triaged (1)");
+    expect(message).toContain("Invoice");
+  });
+
+  it("reads the last 24 hours for the morning briefing, triaged, whatever the tags", async () => {
     vi.useFakeTimers({ now: new Date("2026-09-30T13:00:00.000Z") });
     scheduleFindFirstMock.mockResolvedValue(null);
     proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 3, limit: 20 });
@@ -193,8 +271,16 @@ describe("soko-bot ingest when the daily limit is spent", () => {
         since: new Date("2026-09-29T13:00:00.000Z"),
       }),
     );
-    expect(checkMailImportanceMock).not.toHaveBeenCalled();
-    expect(startTurnMock.mock.calls[0][0].message).toContain("Invoice");
+    expect(triageMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sokoBotId: "bot-1", source: "briefing" }),
+    );
+    const message = startTurnMock.mock.calls[0][0].message;
+    expect(message).toContain("### Urgent (1)");
+    expect(message).toContain("Invoice");
+    expect(logSetMock).toHaveBeenCalledWith({
+      outcome: "woke",
+      turn: { id: "t" },
+    });
   });
 });
 

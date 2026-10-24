@@ -16,6 +16,11 @@ import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  MAIL_TRIAGE_GUIDE,
+  triagedMailLines,
+  triageMail,
+} from "@/lib/soko-bot/mail-triage";
+import {
   foreignTasksBlock,
   memoryTasks,
   tasksIn,
@@ -25,6 +30,7 @@ import {
   rhythmTaskScope,
 } from "@/lib/soko-bot/rhythm-task-scope";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
+import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   activityStats,
   activityStatsLines,
@@ -42,6 +48,7 @@ import {
 } from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
+const STANDUP_MAIL_LIMIT = 40;
 const STALE_RUNNING_MS = 24 * HOUR_MS;
 const UNANSWERED_MS = 4 * HOUR_MS;
 const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
@@ -534,24 +541,39 @@ export async function buildSystemBeatMessage(input: {
         );
       }
       lines.push("");
+      lines.push(
+        ...(await calendarPeopleBlock({
+          workspaceId: bot.workspaceId,
+          attendees: events.slice(0, 15).flatMap((event) => event.attendees),
+          timeZone: bot.ingestTimezone,
+        }).catch(() => [])),
+      );
     }
     const mail: SokoBotInboxMessage[] = [];
     for (const integration of await activeIntegrationsForBot(bot.id, "email")) {
       mail.push(
         ...(await fetchInboxMessages(integration, {
           since: new Date(now.getTime() - 24 * HOUR_MS),
-          limit: 40,
+          limit: STANDUP_MAIL_LIMIT,
         }).catch(() => [])),
       );
     }
     if (mail.length > 0) {
-      lines.push("## Mail (last 24h)");
-      for (const message of mail.slice(0, 40)) {
-        lines.push(
-          `- from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${message.provider}:${message.id}]`,
-        );
-      }
-      lines.push("");
+      const triage = await triageMail({
+        sokoBotId: bot.id,
+        mail: mail.slice(0, STANDUP_MAIL_LIMIT),
+        source: "standup",
+      });
+      triage.log.emit();
+      lines.push(
+        `The mail below is from the last 24 hours. ${MAIL_TRIAGE_GUIDE}`,
+        "",
+        ...triagedMailLines({
+          timeZone: bot.ingestTimezone,
+          mail: triage.mail,
+          limit: STANDUP_MAIL_LIMIT,
+        }),
+      );
     }
   }
   {

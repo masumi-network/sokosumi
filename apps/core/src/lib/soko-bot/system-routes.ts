@@ -1,6 +1,7 @@
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import type { PresetRoute } from "./classifier";
 
@@ -146,4 +147,20 @@ export function inheritedScheduleRoute(
     capabilities,
     sandbox: capabilities.some(isSokoBotSandboxCapability),
   };
+}
+
+/**
+ * A run of a schedule the bot or owner wrote may always change or remove that
+ * schedule, so "check until it is done" can end itself. The runtime limits
+ * these extra tools to the run's own schedule.
+ */
+export const OWN_SCHEDULE_CAPABILITIES = [
+  "update_schedule",
+  "delete_schedule",
+] as const satisfies readonly SokoBotCapability[];
+
+export function withOwnScheduleTools(
+  capabilities: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  return [...new Set([...capabilities, ...OWN_SCHEDULE_CAPABILITIES])];
 }

@@ -84,6 +84,14 @@ describe("contextPacketScope", () => {
       OR: [
         { chatMention: { message: { roomId: "room-1" } } },
         { parentTurnId: { not: null }, destinationRoomId: "room-1" },
+        // So is what a briefing, inbox check or schedule published there.
+        {
+          chatMentionId: null,
+          destinationRoomId: "room-1",
+          deliveries: {
+            some: { purpose: "FINAL", status: "PUBLISHED", roomId: "room-1" },
+          },
+        },
       ],
     });
     // Only the asker may answer a decision, so the packet shows only theirs.

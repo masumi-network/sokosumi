@@ -1,4 +1,8 @@
-import type { SokoBotRoute, TurnClassification } from "@sokosumi/soko-bot";
+import type {
+  SokoBotRoute,
+  SokoBotTurnSignals,
+  TurnClassification,
+} from "@sokosumi/soko-bot";
 
 import type { RouteEvaluation } from "@/lib/soko-bot/classifier";
 
@@ -10,6 +14,7 @@ export function jevRoute(
     confirmsPending?: number;
     withdrawsPending?: number;
     probability?: number;
+    signals?: Partial<SokoBotTurnSignals>;
   } = {},
 ): RouteEvaluation {
   const scope = options.writeScope ?? "WORK";
@@ -29,6 +34,12 @@ export function jevRoute(
       ...(options.withdrawsPending === undefined
         ? {}
         : { withdrawsPending: { probability: options.withdrawsPending } }),
+      ...Object.fromEntries(
+        Object.entries(options.signals ?? {}).map(([key, probability]) => [
+          key,
+          { probability },
+        ]),
+      ),
     },
     usage: { inputTokens: 300, outputTokens: 20 },
     providerMetadata: { gateway: { cost: "0.00001" } },

@@ -152,7 +152,9 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables DataTable[]
+  dataTables   DataTable[]
+  contacts     Contact[]
+  contactLists ContactList[]
 
   calendarRevision Int @default(0)
 
@@ -808,12 +810,12 @@ model SocialPost {
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
 
   /// Social provider key, e.g. "x".
-  provider String
-  text     String
+  provider     String
+  text         String
   /// Optional comment posted once after the post, on networks Composio supports.
   firstComment String?
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
-  media    Json   @default("[]")
+  media        Json    @default("[]")
 
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
@@ -883,7 +885,7 @@ model SocialPostPublishAttempt {
   actorUserId     String?
   startedAt       DateTime  @default(now())
   finishedAt      DateTime?
-  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked" | "project_closed"
   outcome         String?
   /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
   errorKind       String?
@@ -1538,6 +1540,7 @@ model Job {
 
   events             JobEvent[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   purchase JobPurchase?
 
@@ -2177,6 +2180,7 @@ model SokoBotIntegration {
   cursor                   Json?
   lastIngestAt             DateTime?
   lastErrorAt              DateTime?
+  contactCaptureState      ContactCaptureState?
 
   @@unique([sokoBotId, provider])
   @@index([status])
@@ -2239,6 +2243,7 @@ enum SokoBotToolCallStatus {
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
 model SokoBot {
+  contactInteractions  ContactInteraction[]     @relation("ContactInteractionSokoBot")
   eventInbox           SokoBotEventInbox[]      @relation("EventInboxBot")
   designatedEventInbox SokoBotEventInbox[]      @relation("EventInboxHandler")
   taskActionClaims     SokoBotTaskActionClaim[]
@@ -2906,6 +2911,12 @@ model SokoBotDelegation {
   lastSeenEventId String?
   lastSeenEventAt DateTime?
 
+  /// What the bot will do once this work completes ("give the findings to
+  /// Alex"). The events sync hands it back on the wake that reports the result.
+  followUp       String?
+  /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
+  followUpTurnId String? @db.Uuid
+
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
@@ -3030,10 +3041,19 @@ model SokoBotSchedule {
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
 
+  /// The Task or Job this schedule follows. Core removes the schedule once
+  /// that work finishes; the result itself wakes the bot through the events sync.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  jobId  String?
+  job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
   runs SokoBotScheduleRun[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
+  @@index([taskId])
+  @@index([jobId])
   @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
@@ -3201,6 +3221,7 @@ model Task {
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -4198,6 +4219,7 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
+  messageSignals   ChatMessageSignal[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
@@ -4369,6 +4391,7 @@ model ChatRoomMessage {
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
+  signal               ChatMessageSignal?
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -4820,6 +4843,10 @@ model TableColumn {
   options     Json      @default("[]")
   position    Int
   version     Int       @default(1)
+  /// Display width in pixels, shared by everyone on the table; null uses the type's default.
+  width       Int?
+  /// Wrap long values onto more lines; null uses the type's default.
+  wrap        Boolean?
 
   @@index([tableId, position])
   @@map("table_column")

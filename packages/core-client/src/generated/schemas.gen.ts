@@ -2144,6 +2144,17 @@ export const ChatRoomMessageSchema = {
             },
             maxItems: 3,
             description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+        },
+        signal: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatMessageSignal'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
         }
     },
     required: [
@@ -2856,6 +2867,140 @@ export const ChatRoomMessageSkillSchema = {
         'description',
         'url'
     ]
+} as const;
+
+export const ChatMessageSignalSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags that apply: Jev\'s probability at or above the threshold, with readers\' corrections on top. A guide for sorting and highlighting; it never hides a message.'
+        },
+        probabilities: {
+            type: 'object',
+            properties: {
+                question: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                needsDecision: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                commitment: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                blocker: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                decisionMade: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                fyi: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                urgent: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                chitChat: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                workRequest: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                escalation: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                }
+            },
+            description: 'Jev\'s probability per tag, as it answered.'
+        },
+        addressedUserIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.'
+        },
+        commitmentDueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.'
+        },
+        loopClosedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a reader closed this open loop, by making a Task of it or dismissing it.'
+        },
+        loopTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        correctedTags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags a reader corrected by hand.'
+        }
+    },
+    required: [
+        'tags',
+        'probabilities',
+        'addressedUserIds',
+        'commitmentDueAt',
+        'loopClosedAt',
+        'loopTaskId',
+        'correctedTags'
+    ]
+} as const;
+
+export const ChatSignalTagSchema = {
+    type: 'string',
+    enum: [
+        'question',
+        'needsDecision',
+        'commitment',
+        'blocker',
+        'decisionMade',
+        'fyi',
+        'urgent',
+        'chitChat',
+        'workRequest',
+        'escalation'
+    ],
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -3575,6 +3720,18 @@ export const SokoBotDelegationSchema = {
             ]
         },
         jobId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUp: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUpTurnId: {
             type: [
                 'string',
                 'null'
@@ -10067,6 +10224,13 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
+        unreadNeedsYouCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.',
+            example: 1
+        },
         starredAt: {
             type: [
                 'string',
@@ -10842,6 +11006,17 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     },
                     maxItems: 3,
                     description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+                },
+                signal: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/ChatMessageSignal'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
                 }
             },
             required: [
@@ -12262,6 +12437,370 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const ChatSignalListItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'needsYou',
+                'question',
+                'decision',
+                'commitment'
+            ],
+            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
+        },
+        room: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'channel',
+                        'direct'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        message: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'room',
+        'message',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatCatchUpSummarySchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            description: '`all` or the room id.'
+        },
+        unreadTaggedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        counts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count'
+                ]
+            }
+        },
+        headline: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.'
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    roomId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    roomName: {
+                        type: 'string'
+                    },
+                    line: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'roomId',
+                    'roomName',
+                    'line'
+                ]
+            }
+        },
+        generatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        needsYou: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        decisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        openLoops: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        highlights: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        }
+    },
+    required: [
+        'scope',
+        'unreadTaggedCount',
+        'counts',
+        'headline',
+        'rooms',
+        'generatedAt',
+        'needsYou',
+        'decisions',
+        'openLoops',
+        'highlights'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'decisionMade',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatRoomCatchUpSchema = {
+    type: 'object',
+    properties: {
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread top-level messages from others, tagged or not.'
+        },
+        taggedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'How many of those Jev has read; the rest are too short or still waiting.'
+        },
+        buckets: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    messageIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'Oldest first, so a jump lands on the first one.'
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count',
+                    'messageIds'
+                ]
+            }
+        }
+    },
+    required: [
+        'unreadCount',
+        'taggedCount',
+        'buckets'
+    ]
+} as const;
+
+export const ChatSignalCorrectionRequestSchema = {
+    type: 'object',
+    properties: {
+        tag: {
+            $ref: '#/components/schemas/ChatSignalTag'
+        },
+        applies: {
+            type: 'boolean',
+            description: 'Whether the tag applies to the message, as the reader sees it.'
+        }
+    },
+    required: [
+        'tag',
+        'applies'
+    ]
+} as const;
+
+export const ChatSignalLoopRequestSchema = {
+    type: 'object',
+    properties: {
+        closed: {
+            type: 'boolean',
+            description: 'True closes the open loop; false reopens it.'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Task the loop was made into, when closing it so.'
+        }
+    },
+    required: [
+        'closed'
+    ]
+} as const;
+
+export const ChatSignalRoutingSuggestionSchema = {
+    type: 'object',
+    properties: {
+        coworkerId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        fit: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            description: 'Jev\'s probability that this Coworker can do the request.'
+        }
+    },
+    required: [
+        'coworkerId',
+        'name',
+        'caption',
+        'fit'
+    ]
+} as const;
+
 export const ChatSkillCatalogItemSchema = {
     type: 'object',
     properties: {
@@ -12520,6 +13059,996 @@ export const CompleteComposioCallbackRequestSchema = {
     required: [
         'connectionId',
         'sessionUri'
+    ]
+} as const;
+
+export const ContactListSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        color: {
+            $ref: '#/components/schemas/ContactListColor'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'manual',
+                'smart'
+            ]
+        },
+        smartFilter: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        search: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        stages: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                enum: [
+                                    'CONTACT',
+                                    'PROSPECT',
+                                    'LEAD',
+                                    'ACTIVE',
+                                    'CUSTOMER',
+                                    'PARTNER',
+                                    'INVESTOR',
+                                    'VENDOR',
+                                    'ADVISOR',
+                                    'COMMUNITY',
+                                    'PRESS',
+                                    'FRIEND',
+                                    'DORMANT'
+                                ]
+                            },
+                            minItems: 1,
+                            maxItems: 13
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'PERSON',
+                                'ORGANIZATION'
+                            ]
+                        },
+                        replyStates: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                enum: [
+                                    'AWAITING_REPLY',
+                                    'NO_REPLY',
+                                    'IN_CONVERSATION',
+                                    'REPLIED'
+                                ]
+                            },
+                            minItems: 1,
+                            maxItems: 4
+                        },
+                        ownerUserId: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        ownedByMe: {
+                            type: 'boolean'
+                        },
+                        listIds: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            minItems: 1,
+                            maxItems: 20
+                        },
+                        knownByUserId: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        knownByMe: {
+                            type: 'boolean'
+                        },
+                        lastContactAfter: {
+                            type: 'string',
+                            format: 'date-time'
+                        },
+                        lastContactBefore: {
+                            type: 'string',
+                            format: 'date-time'
+                        },
+                        lastContactOlderThanDays: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 3650
+                        },
+                        createdWithinDays: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 3650
+                        },
+                        followUpDue: {
+                            type: 'boolean'
+                        },
+                        hasChannel: {
+                            type: 'string',
+                            enum: [
+                                'EMAIL',
+                                'PHONE',
+                                'SLACK',
+                                'LINKEDIN',
+                                'X',
+                                'WEBSITE',
+                                'TELEGRAM',
+                                'WHATSAPP',
+                                'GITHUB',
+                                'OTHER'
+                            ]
+                        },
+                        hasInteractions: {
+                            type: 'boolean'
+                        }
+                    },
+                    additionalProperties: false
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        count: {
+            type: 'integer'
+        },
+        createdByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdBySokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAutomatically: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'color',
+        'description',
+        'kind',
+        'smartFilter',
+        'count',
+        'createdByUserId',
+        'createdBySokoBotId',
+        'createdAutomatically',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const ContactListColorSchema = {
+    type: 'string',
+    enum: [
+        'gray',
+        'red',
+        'orange',
+        'amber',
+        'green',
+        'teal',
+        'blue',
+        'indigo',
+        'violet',
+        'pink'
+    ]
+} as const;
+
+export const ContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        role: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        location: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        whyInteresting: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        stage: {
+            $ref: '#/components/schemas/ContactStage'
+        },
+        kind: {
+            $ref: '#/components/schemas/ContactKind'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        nextStep: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUpAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-02'
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        customFields: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        firstContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        interactionCount: {
+            type: 'integer'
+        },
+        lastInboundAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        awaitingReplySince: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        replyState: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactReplyState'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.'
+        },
+        createdByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdBySokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        mergedIntoId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        channels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactChannel'
+            }
+        },
+        lists: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactListRef'
+            }
+        },
+        knownBy: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactKnownBy'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'organization',
+        'role',
+        'location',
+        'summary',
+        'whyInteresting',
+        'stage',
+        'kind',
+        'owner',
+        'nextStep',
+        'followUpAt',
+        'avatarUrl',
+        'customFields',
+        'firstContactAt',
+        'lastContactAt',
+        'interactionCount',
+        'lastInboundAt',
+        'awaitingReplySince',
+        'replyState',
+        'createdByUserId',
+        'createdBySokoBotId',
+        'mergedIntoId',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'channels',
+        'lists',
+        'knownBy'
+    ]
+} as const;
+
+export const ContactStageSchema = {
+    type: 'string',
+    enum: [
+        'CONTACT',
+        'PROSPECT',
+        'LEAD',
+        'ACTIVE',
+        'CUSTOMER',
+        'PARTNER',
+        'INVESTOR',
+        'VENDOR',
+        'ADVISOR',
+        'COMMUNITY',
+        'PRESS',
+        'FRIEND',
+        'DORMANT'
+    ]
+} as const;
+
+export const ContactKindSchema = {
+    type: 'string',
+    enum: [
+        'PERSON',
+        'ORGANIZATION'
+    ]
+} as const;
+
+export const ContactPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
+export const ContactReplyStateSchema = {
+    type: 'string',
+    enum: [
+        'AWAITING_REPLY',
+        'NO_REPLY',
+        'IN_CONVERSATION',
+        'REPLIED'
+    ]
+} as const;
+
+export const ContactChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        type: {
+            $ref: '#/components/schemas/ContactChannelType'
+        },
+        value: {
+            type: 'string'
+        },
+        label: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        isPrimary: {
+            type: 'boolean'
+        },
+        source: {
+            $ref: '#/components/schemas/ContactChannelSource'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        verified: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'type',
+        'value',
+        'label',
+        'isPrimary',
+        'source',
+        'sourceUrl',
+        'verified',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactChannelTypeSchema = {
+    type: 'string',
+    enum: [
+        'EMAIL',
+        'PHONE',
+        'SLACK',
+        'LINKEDIN',
+        'X',
+        'WEBSITE',
+        'TELEGRAM',
+        'WHATSAPP',
+        'GITHUB',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactChannelSourceSchema = {
+    type: 'string',
+    enum: [
+        'MANUAL',
+        'EMAIL',
+        'CALENDAR',
+        'SLACK',
+        'WEB_RESEARCH',
+        'IMPORT',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactListRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        color: {
+            $ref: '#/components/schemas/ContactListColor'
+        },
+        addedAutomatically: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'color',
+        'addedAutomatically'
+    ]
+} as const;
+
+export const ContactKnownBySchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ContactPerson'
+        },
+        {
+            type: 'object',
+            properties: {
+                interactionCount: {
+                    type: 'integer'
+                },
+                lastInteractionAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'interactionCount',
+                'lastInteractionAt'
+            ]
+        }
+    ]
+} as const;
+
+export const ContactUpsertResultSchema = {
+    type: 'object',
+    properties: {
+        contact: {
+            $ref: '#/components/schemas/Contact'
+        },
+        created: {
+            type: 'boolean'
+        },
+        changed: {
+            type: 'boolean'
+        },
+        mergeSuggestion: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactMergeSuggestion'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'contact',
+        'created',
+        'changed',
+        'mergeSuggestion'
+    ]
+} as const;
+
+export const ContactMergeSuggestionSchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            enum: [
+                'shared_channel',
+                'same_name'
+            ]
+        },
+        contactIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        }
+    },
+    required: [
+        'reason',
+        'contactIds'
+    ]
+} as const;
+
+export const ContactDuplicateGroupSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Contact'
+            }
+        }
+    },
+    required: [
+        'name',
+        'contacts'
+    ]
+} as const;
+
+export const ContactImportResultSchema = {
+    type: 'object',
+    properties: {
+        rows: {
+            type: 'integer'
+        },
+        created: {
+            type: 'integer'
+        },
+        updated: {
+            type: 'integer'
+        },
+        unchanged: {
+            type: 'integer'
+        },
+        skipped: {
+            type: 'integer'
+        },
+        listsCreated: {
+            type: 'integer'
+        },
+        mergeSuggestions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMergeSuggestion'
+            }
+        }
+    },
+    required: [
+        'rows',
+        'created',
+        'updated',
+        'unchanged',
+        'skipped',
+        'listsCreated',
+        'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactDetailSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Contact'
+        },
+        {
+            type: 'object',
+            properties: {
+                recentInteractions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ContactInteraction'
+                    }
+                },
+                mergeSuggestions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ContactMergeSuggestion'
+                    }
+                }
+            },
+            required: [
+                'recentInteractions',
+                'mergeSuggestions'
+            ]
+        }
+    ]
+} as const;
+
+export const ContactInteractionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        contactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        occurredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        channel: {
+            $ref: '#/components/schemas/ContactInteractionChannel'
+        },
+        direction: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactInteractionDirection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        summary: {
+            type: 'string'
+        },
+        sourceRef: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sokoBot: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactSokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'contactId',
+        'occurredAt',
+        'channel',
+        'direction',
+        'summary',
+        'sourceRef',
+        'sourceUrl',
+        'user',
+        'sokoBot',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactInteractionChannelSchema = {
+    type: 'string',
+    enum: [
+        'EMAIL',
+        'MEETING',
+        'SLACK',
+        'CALL',
+        'MANUAL',
+        'OTHER'
+    ]
+} as const;
+
+export const ContactInteractionDirectionSchema = {
+    type: 'string',
+    enum: [
+        'IN',
+        'OUT',
+        'BOTH'
+    ]
+} as const;
+
+export const ContactSokoBotSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const ContactInteractionResultSchema = {
+    type: 'object',
+    properties: {
+        interaction: {
+            $ref: '#/components/schemas/ContactInteraction'
+        },
+        created: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'interaction',
+        'created'
+    ]
+} as const;
+
+export const ContactActivitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            $ref: '#/components/schemas/ContactActivityKind'
+        },
+        changes: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sokoBot: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'changes',
+        'user',
+        'sokoBot',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactActivityKindSchema = {
+    type: 'string',
+    enum: [
+        'CREATED',
+        'UPDATED',
+        'CHANNEL_ADDED',
+        'CHANNEL_REMOVED',
+        'MERGED',
+        'ARCHIVED',
+        'UNARCHIVED'
     ]
 } as const;
 
@@ -13413,6 +14942,9 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTableItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsContactsItem'
         }
     ],
     discriminator: {
@@ -13420,7 +14952,8 @@ export const DriveRecentsItemSchema = {
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
             'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
-            table: '#/components/schemas/DriveRecentsTableItem'
+            table: '#/components/schemas/DriveRecentsTableItem',
+            contacts: '#/components/schemas/DriveRecentsContactsItem'
         }
     }
 } as const;
@@ -13598,6 +15131,48 @@ export const DriveRecentsTableItemSchema = {
         'name',
         'activityAt',
         'projectId'
+    ]
+} as const;
+
+export const DriveRecentsContactsItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contacts'
+            ],
+            example: 'contacts',
+            description: 'The workspace\'s one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.'
+        },
+        name: {
+            type: 'string',
+            example: 'Contacts'
+        },
+        pinned: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        contactCount: {
+            type: 'integer',
+            example: 128,
+            description: 'Live contacts (not archived or merged)'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest change to any contact, or now when there are none'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'pinned',
+        'contactCount',
+        'activityAt'
     ]
 } as const;
 
@@ -14520,7 +16095,8 @@ export const TableColumnSchema = {
                 'url',
                 'email',
                 'single_select',
-                'multiple_select'
+                'multiple_select',
+                'last_updated'
             ]
         },
         options: {
@@ -14532,6 +16108,18 @@ export const TableColumnSchema = {
             },
             maxItems: 100,
             default: []
+        },
+        width: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        wrap: {
+            type: [
+                'boolean',
+                'null'
+            ]
         },
         tableId: {
             type: 'string',
@@ -14548,6 +16136,8 @@ export const TableColumnSchema = {
         'id',
         'name',
         'type',
+        'width',
+        'wrap',
         'tableId',
         'position',
         'version'
@@ -19306,6 +20896,13 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        scheduledSocialPostCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.',
+            example: 0
+        },
         closingAt: {
             type: [
                 'string',
@@ -23382,6 +24979,7 @@ export const SocialPostLastAttemptSchema = {
                 'missed',
                 'connection_inactive',
                 'authorization_revoked',
+                'project_closed',
                 null
             ]
         },
@@ -31297,6 +32895,11 @@ export const TransactionHistoryTaskItemSchema = {
             type: 'string',
             description: 'Task event that carries the charge',
             example: 'evt_123'
+        },
+        taskArchived: {
+            type: 'boolean',
+            description: 'Whether the task is archived. An archived task cannot be opened, so clients should not link to it.',
+            example: false
         }
     },
     required: [
@@ -31309,7 +32912,8 @@ export const TransactionHistoryTaskItemSchema = {
         'owner',
         'kind',
         'taskId',
-        'taskEventId'
+        'taskEventId',
+        'taskArchived'
     ]
 } as const;
 
@@ -31536,6 +33140,30 @@ export const TransactionHistoryTopUpItemSchema = {
             ],
             description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.',
             example: 'STRIPE_TOPUP'
+        },
+        refundedJobId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Job this refund top up refunded, for deep-linking. Null for any other top up, or when the job no longer exists.',
+            example: 'job_123'
+        },
+        refundedAgentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Agent that ran the refunded job, for deep-linking. Null when `refundedJobId` is null.',
+            example: 'agent_123'
+        },
+        refundedTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.',
+            example: 'tsk_123'
         }
     },
     required: [
@@ -31547,7 +33175,10 @@ export const TransactionHistoryTopUpItemSchema = {
         'projectId',
         'owner',
         'kind',
-        'bucketSource'
+        'bucketSource',
+        'refundedJobId',
+        'refundedAgentId',
+        'refundedTaskId'
     ]
 } as const;
 

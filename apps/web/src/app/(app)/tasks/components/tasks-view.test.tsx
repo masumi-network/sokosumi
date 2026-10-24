@@ -2,7 +2,7 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn } from "@/app/tasks/actions";
@@ -12,6 +12,7 @@ import type {
 } from "@/app/tasks/types/task-board";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
@@ -19,6 +20,7 @@ import { TasksView } from "./tasks-view";
 const {
   dndContextPropsSpy,
   openCreateTaskMock,
+  openNewTaskWizardMock,
   pushMock,
   refreshMock,
   replaceMock,
@@ -26,6 +28,7 @@ const {
 } = vi.hoisted(() => ({
   dndContextPropsSpy: vi.fn(),
   openCreateTaskMock: vi.fn(),
+  openNewTaskWizardMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -147,6 +150,11 @@ vi.mock("./task-card", () => ({
   TaskCard: ({ compact }: { compact: boolean }) => (
     <div data-testid="board-overlay" data-compact={compact} />
   ),
+}));
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => ({
+    openNewTaskWizard: openNewTaskWizardMock,
+  }),
 }));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: ({
@@ -317,6 +325,27 @@ it("applies Display density to board and list and restores the saved preference"
   );
   expect(document.cookie).toContain("tasks_density=normal");
   document.cookie = "tasks_density=; max-age=0; path=/";
+});
+
+it("gates the toolbar New task button on the page's seat check, not the layout's", async () => {
+  openNewTaskWizardMock.mockClear();
+  const user = userEvent.setup();
+  // The layout still says no seat; the page's fresher check says yes.
+  const { unmount } = render(
+    <OrganizationSeatContext value={false}>
+      {boardView([TASK])}
+    </OrganizationSeatContext>,
+  );
+  await user.click(screen.getByRole("button", { name: "newTask" }));
+  expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+  unmount();
+
+  render(
+    <OrganizationSeatContext value={true}>
+      {cloneElement(boardView([TASK]), { canCreateTask: false })}
+    </OrganizationSeatContext>,
+  );
+  expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
 });
 
 /** Drives the board's real drop handler with the event dnd-kit would emit. */

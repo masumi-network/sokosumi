@@ -1464,7 +1464,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Top up",
           "unattributed": "Other"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interaction} other {# interactions}}",
+        "sokoBotTurnsList": "{name}'s interactions"
       },
       "Export": {
         "button": "Export CSV",
@@ -1619,6 +1621,21 @@
         "searchAgents": {
           "label": "Search",
           "subtitle": "Specialized agents"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "intro": "Your Soko Bot",
+          "placeholder": "Ask {name}…",
+          "sendFailed": "Could not send your message. Please try again.",
+          "awaitingInput": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "recentTitle": "Recent chats",
+          "recentEmpty": "No chats yet. Ask {name} anything, or start with a suggestion.",
+          "suggestionsLabel": "Suggestions",
+          "suggestions": {
+            "today": "What needs me today?",
+            "inbox": "Summarise my inbox",
+            "week": "Plan my week"
+          }
         }
       },
       "SokoBot": {
@@ -2997,6 +3014,7 @@
           "dialog": {
             "title": "Close project?",
             "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "scheduledPostsWarning": "{count, plural, one {# scheduled post will be canceled.} other {# scheduled posts will be canceled.}}",
             "reasonLabel": "Reason (optional)",
             "reasonPlaceholder": "Why is this project closing?",
             "confirm": "Close project",
@@ -3873,7 +3891,8 @@
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
           "social": "Social Scheduling",
-          "ads": "Ads"
+          "ads": "Ads",
+          "contacts": "Contacts"
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -5918,7 +5937,11 @@
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
-        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
+        "tagDirectMessagesTitle": "Sort my direct messages",
+        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
+        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -6971,6 +6994,10 @@
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",
+      "SectionLimit": {
+        "showMore": "Show {count} more",
+        "showLess": "Show less"
+      },
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
@@ -7490,6 +7517,87 @@
         "you": "You",
         "description": "Send yourself notes and to-dos. Only you can see them.",
         "exclusive": "Self-chat cannot include other recipients."
+      },
+      "Signals": {
+        "error": "Couldn't load that. Try again.",
+        "retry": "Try again",
+        "needsYouCount": "{count, plural, one {# message needs you} other {# messages need you}}",
+        "needsYouSection": "Needs you",
+        "catchUp": "Catch up",
+        "whileYouWereAway": "While you were away:",
+        "whileYouWereAwayTitle": "While you were away",
+        "dismissCatchUp": "Hide catch-up",
+        "summarize": "Summary",
+        "summarizing": "Writing your summary…",
+        "writtenByAi": "Summary written by AI {time}",
+        "byRoom": "By room",
+        "due": "Due {date}",
+        "caughtUpTitle": "You're caught up",
+        "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "removeTag": "Remove tag: {tag}",
+        "taskMade": "Task made",
+        "loopClosed": "Done",
+        "makeTask": "Make a task",
+        "handOff": "Hand off",
+        "findingCoworkers": "Finding a coworker…",
+        "fit": "{fit} fit",
+        "noCoworkerFits": "No Coworker fits this yet.",
+        "createTask": "Create a task",
+        "editTags": "Edit tags",
+        "editTagsTitle": "What this message is",
+        "editTagsNote": "Your correction applies for everyone in the room.",
+        "taskDue": "Due {date}",
+        "taskSource": "From the chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# question for you} other {# questions for you}}",
+          "escalation": "{count, plural, one {# escalation} other {# escalations}}",
+          "urgent": "{count, plural, one {# urgent} other {# urgent}}",
+          "blocker": "{count, plural, one {# blocker} other {# blockers}}",
+          "decisionMade": "{count, plural, one {# decision} other {# decisions}}",
+          "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
+          "commitment": "{count, plural, one {# commitment} other {# commitments}}",
+          "workRequest": "{count, plural, one {# work request} other {# work requests}}",
+          "question": "{count, plural, one {# question} other {# questions}}",
+          "fyi": "{count, plural, one {# FYI} other {# FYI}}",
+          "chitChat": "{count, plural, one {# chat} other {# chats}}"
+        },
+        "Sections": {
+          "needsYou": "Needs you",
+          "decisions": "Decisions",
+          "openLoops": "Open loops",
+          "highlights": "Highlights"
+        },
+        "Chips": {
+          "needsYou": "Needs you",
+          "escalation": "Escalation",
+          "urgent": "Urgent",
+          "blocker": "Blocker",
+          "decisionMade": "Decision",
+          "needsDecision": "Needs a decision",
+          "commitment": "Commitment",
+          "commitmentDue": "Commitment · due {date}",
+          "workRequest": "Work request"
+        },
+        "Tags": {
+          "question": "Asks someone a question",
+          "needsDecision": "Needs a decision",
+          "decisionMade": "Decision made",
+          "commitment": "Commitment",
+          "blocker": "Blocker",
+          "urgent": "Urgent",
+          "escalation": "Escalation",
+          "workRequest": "Work request",
+          "fyi": "FYI",
+          "chitChat": "Chit-chat"
+        },
+        "Decisions": {
+          "open": "Decisions",
+          "title": "Decisions",
+          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "loadOlder": "Load older",
+          "note": "Collected by Jev. Remove a wrong one from its message."
+        }
       }
     },
     "Drive": {
@@ -7735,7 +7843,10 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table"
+      "tableKind": "Table",
+      "contactsEntryName": "Contacts",
+      "contactsEntryCount": "{count, plural, =1 {1 contact} other {# contacts}}",
+      "contactsEntryPinned": "Pinned"
     },
     "SokoBot": {
       "Metadata": {
@@ -7747,18 +7858,23 @@
         "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
-        "title": "Meet your Soko Bot",
+        "title": "Your own assistant",
         "successTitle": "Meet {name}",
         "successHint": "Opening your chat…",
-        "description": "Your personal assistant in Sokosumi.",
+        "description": "A Soko Bot is an AI assistant that works for you in Sokosumi. Tell it what you need in plain words and it takes care of it.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
-        "submit": "Create Soko Bot",
+        "submit": "Create my Soko Bot",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
         "spendNotice": "Uses your credits. Set a daily limit in its settings.",
-        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings."
+        "spendNoticeOrganization": "Uses your organization's credits. Set a daily limit in its settings.",
+        "exampleDelegate": "Turns “research our top 5 competitors” into a Task for the right Coworker and follows up until it’s done.",
+        "exampleBrief": "Sends you a short morning brief from your inbox and calendar.",
+        "exampleMemory": "Remembers your goals and preferences, so you don’t repeat yourself.",
+        "examplesLabel": "What it can do for you",
+        "nameIntro": "First, give it a name."
       },
       "Memory": {
         "title": "Memory",
@@ -8357,10 +8473,16 @@
       "yes": "Yes",
       "no": "No",
       "cellHistory": "History and sources: {column}",
+      "openLink": "Open link: {column}",
+      "wrapText": "Wrap text",
+      "fitColumn": "Fit width to content",
+      "resizeColumn": "Resize {column}. Drag, or press the left and right arrow keys. Double-click to fit the content.",
+      "gridKeys": "Arrow keys and Tab move between cells. Enter or typing edits a cell, Escape cancels, and Enter saves. Alt+Enter opens a link, Alt+Shift+H shows the cell history.",
       "discard": "Discard draft",
       "editColumn": "Edit column",
       "addColumn": "Add column",
       "columnDescription": "Descriptions help people and agents understand values. Column IDs stay stable.",
+      "lastUpdatedHint": "Fills itself with the time each row last changed.",
       "columnConflictReview": "This table changed while you were saving. Review the latest columns before saving again.",
       "reloadLatest": "Reload latest",
       "reviewLatest": "Review complete",
@@ -8429,7 +8551,8 @@
         "url": "URL",
         "email": "Email",
         "single_select": "Single select",
-        "multiple_select": "Multiple select"
+        "multiple_select": "Multiple select",
+        "last_updated": "Last updated"
       },
       "archived": "Archived",
       "active": "Active",
@@ -8456,7 +8579,8 @@
         "csvRows": "CSV files can contain up to 10,000 data rows.",
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
-        "csvWidth": "Every CSV row must have the same number of columns."
+        "csvWidth": "Every CSV row must have the same number of columns.",
+        "layout": "Column layout wasn't saved and was reset. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -8492,6 +8616,385 @@
       "manage": "Manage projects",
       "current": "(current)",
       "searching": "Searching projects..."
+    },
+    "Contacts": {
+      "Metadata": {
+        "title": "Contacts",
+        "description": "Everyone your team knows, with every way to reach them."
+      },
+      "stages": {
+        "CONTACT": "Contact",
+        "FRIEND": "Friend",
+        "PROSPECT": "Prospect",
+        "LEAD": "Lead",
+        "ACTIVE": "Active",
+        "CUSTOMER": "Customer",
+        "PARTNER": "Partner",
+        "INVESTOR": "Investor",
+        "VENDOR": "Vendor",
+        "ADVISOR": "Advisor",
+        "COMMUNITY": "Community",
+        "PRESS": "Press",
+        "DORMANT": "Dormant"
+      },
+      "channelTypes": {
+        "EMAIL": "Email",
+        "PHONE": "Phone",
+        "SLACK": "Slack",
+        "LINKEDIN": "LinkedIn",
+        "X": "X",
+        "WEBSITE": "Website",
+        "TELEGRAM": "Telegram",
+        "WHATSAPP": "WhatsApp",
+        "GITHUB": "GitHub",
+        "OTHER": "Other"
+      },
+      "sources": {
+        "MANUAL": "Added by hand",
+        "EMAIL": "From email",
+        "CALENDAR": "From calendar",
+        "SLACK": "From Slack",
+        "WEB_RESEARCH": "From web research",
+        "IMPORT": "Imported",
+        "OTHER": "Other source"
+      },
+      "presets": {
+        "all": "All contacts",
+        "mine": "My contacts",
+        "noReply": "No reply",
+        "followUps": "Follow-ups due",
+        "recent": "Recently added",
+        "stale": "Stale 90+ days"
+      },
+      "emptyViews": {
+        "all": "No contacts yet.",
+        "mine": "You don't own any contacts yet. Set yourself as owner on the people you look after.",
+        "followUps": "No follow-ups are due. Nice work.",
+        "recent": "Nobody was added in the last two weeks.",
+        "stale": "Everyone has been in touch within the last 90 days.",
+        "list": "This list is empty. Select people in All contacts and add them here.",
+        "noReply": "Everyone the team wrote to answered, or it has been less than a week."
+      },
+      "rail": {
+        "label": "Contact lists",
+        "lists": "Lists",
+        "newList": "New list",
+        "smartList": "Smart list",
+        "listMenu": "Options for {name}",
+        "editList": "Edit list",
+        "deleteList": "Delete list",
+        "noLists": "No lists yet.",
+        "import": "Import from a table",
+        "autoList": "Made automatically from your contacts"
+      },
+      "columns": {
+        "name": "Name",
+        "organization": "Organization",
+        "role": "Role",
+        "stage": "Relationship",
+        "lists": "Lists",
+        "channels": "Channels",
+        "owner": "Owner",
+        "lastContact": "Last contact",
+        "knownBy": "Known by",
+        "followUp": "Follow-up",
+        "email": "Email",
+        "reply": "Reply"
+      },
+      "grid": {
+        "label": "Contacts",
+        "noOwner": "No owner",
+        "openContact": "Open {name}",
+        "knownByLabel": "Known by {names}",
+        "due": "Due",
+        "selectAll": "Select all contacts",
+        "selectRow": "Select {name}",
+        "resizeColumn": "Resize {column}",
+        "keys": "Arrow keys move between cells. Enter on a name opens the person; on other cells it edits. F2 edits the name. Escape cancels.",
+        "loadMore": "Load more",
+        "copyEmail": "Copy {email}",
+        "emailCopied": "Email copied",
+        "waitingDays": "{days, plural, =0 {today} other {#d}}",
+        "addedAutomatically": "Added to {list} automatically"
+      },
+      "toolbar": {
+        "search": "Search contacts",
+        "searchPlaceholder": "Search name, company, email…",
+        "me": "Me",
+        "clearFilter": "Clear {filter} filter",
+        "export": "Export CSV",
+        "add": "Add contact",
+        "more": "More actions",
+        "filter": "Filter",
+        "kind": "Type"
+      },
+      "bulk": {
+        "label": "Selected contacts",
+        "selected": "{count} selected",
+        "addToList": "Add to list",
+        "removeFromList": "Remove from list",
+        "setStage": "Set stage",
+        "setOwner": "Set owner",
+        "merge": "Merge",
+        "clear": "Clear selection",
+        "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
+        "addedToList": "{count, plural, =1 {Added 1 contact to {list}} other {Added # contacts to {list}}}",
+        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}"
+      },
+      "errors": {
+        "versionConflict": "Someone changed this contact a moment ago. We loaded their version; try your edit again.",
+        "saveFailed": "That didn't save. Try again.",
+        "exportFailed": "The export didn't finish. Try again.",
+        "loadTitle": "Contacts didn't load",
+        "load": "Check your connection and try again."
+      },
+      "count": "{count, plural, =0 {No people} =1 {1 person} other {# people}}",
+      "showing": "Showing {shown} of {total}",
+      "loading": "Loading contacts",
+      "retry": "Try again",
+      "noMatchesTitle": "Nobody here",
+      "noMatches": "No contacts match these filters.",
+      "clearFilters": "Clear filters",
+      "merged": "Merged into {name}",
+      "deleteList": {
+        "title": "Delete {name}?",
+        "description": "The list goes away for the whole team. The people on it stay in Contacts.",
+        "cancel": "Cancel",
+        "confirm": "Delete list"
+      },
+      "listDialog": {
+        "createTitle": "New list",
+        "editTitle": "Edit list",
+        "description": "Lists are shared with your whole team. A person can be on as many as you like.",
+        "name": "Name",
+        "namePlaceholder": "Investors, Berlin meetup…",
+        "nameRequired": "Give the list a name.",
+        "color": "Color",
+        "colors": {
+          "gray": "Gray",
+          "red": "Red",
+          "orange": "Orange",
+          "amber": "Amber",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "indigo": "Indigo",
+          "violet": "Violet",
+          "pink": "Pink"
+        },
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Optional. What the list is for.",
+        "failed": "The list didn't save. Try again.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create list"
+      },
+      "addDialog": {
+        "title": "Add contact",
+        "description": "A name, a way to reach them, or both. If your team already knows them, we'll point you to that contact.",
+        "name": "Name",
+        "organization": "Organization",
+        "role": "Role",
+        "channels": "Ways to reach them",
+        "channelType": "Channel {index} type",
+        "channelValue": "Channel {index}",
+        "removeChannel": "Remove channel {index}",
+        "addChannel": "Add another",
+        "placeholders": {
+          "EMAIL": "name@company.com",
+          "PHONE": "+49 151 2345678",
+          "SLACK": "TEAMID:USERID",
+          "LINKEDIN": "linkedin.com/in/name",
+          "X": "@handle",
+          "WEBSITE": "company.com",
+          "TELEGRAM": "@handle",
+          "WHATSAPP": "+49 151 2345678",
+          "GITHUB": "github.com/name",
+          "OTHER": "Anything else"
+        },
+        "prospect": "This is a prospect",
+        "prospectHint": "Someone you haven't talked to yet but would like to.",
+        "whyInteresting": "Why interesting",
+        "whyPlaceholder": "What makes them worth meeting?",
+        "nameOrChannel": "Add a name or a way to reach them.",
+        "channelTaken": "Someone on your team already has this person in Contacts.",
+        "openExisting": "Open contact",
+        "failed": "The contact didn't save. Try again.",
+        "cancel": "Cancel",
+        "submit": "Add contact"
+      },
+      "mergeDialog": {
+        "title": "{count, plural, =2 {Merge 2 contacts} other {Merge # contacts}}",
+        "description": "Pick the one to keep. Everything from the others moves onto it: channels, timeline and lists. Empty fields are filled from them.",
+        "keep": "Keep",
+        "noDetails": "No role or organization",
+        "interactions": "{count, plural, =0 {No interactions} =1 {1 interaction} other {# interactions}}",
+        "failed": "The merge didn't finish. Nothing changed.",
+        "cancel": "Cancel",
+        "submit": "Merge"
+      },
+      "importDialog": {
+        "title": "Import from a table",
+        "description": "Bring people in from a table in Files. Rows that match someone by email or name update that contact.",
+        "doneDescription": "Your contacts are up to date.",
+        "chooseTable": "Table",
+        "columnCount": "{count, plural, =1 {1 column} other {# columns}}",
+        "noTables": "There are no tables in Files yet.",
+        "mapColumns": "Match columns",
+        "mapHint": "We guessed from the column names. Skip anything you don't need.",
+        "required": "(required)",
+        "skipColumn": "Skip",
+        "fields": {
+          "name": "Name",
+          "organization": "Organization",
+          "role": "Role",
+          "location": "Location",
+          "email": "Email",
+          "phone": "Phone",
+          "linkedin": "LinkedIn",
+          "x": "X",
+          "website": "Website",
+          "github": "GitHub",
+          "telegram": "Telegram",
+          "summary": "About",
+          "whyInteresting": "Why interesting",
+          "nextStep": "Next step",
+          "firstContactAt": "First contact",
+          "lists": "Lists"
+        },
+        "result": {
+          "created": "Added",
+          "updated": "Updated",
+          "unchanged": "Already up to date",
+          "skipped": "Skipped",
+          "listsCreated": "{count, plural, =1 {Created 1 list from the tags} other {Created # lists from the tags}}"
+        },
+        "importing": "Importing… This can take a minute for large tables.",
+        "nameRequired": "Choose the column that holds names.",
+        "failed": "The import didn't finish. Try again.",
+        "cancel": "Cancel",
+        "submit": "Import",
+        "done": "Done"
+      },
+      "empty": {
+        "title": "Your team's contacts live here",
+        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "connect": "Connect {name}",
+        "connected": "{name} connected",
+        "connectFailed": "That connection didn't start. Try again.",
+        "manageConnections": "Manage connections",
+        "addByHand": "Add someone",
+        "import": "Import from a table"
+      },
+      "panel": {
+        "loading": "Loading contact",
+        "notFoundTitle": "Contact not found",
+        "notFound": "It may have been merged or archived.",
+        "retry": "Try again",
+        "name": "Name",
+        "roleAt": " at ",
+        "noRole": "No role or organization yet",
+        "addedBy": "Added by {name} {when}",
+        "addedByBot": "Added by Soko Bot {when}",
+        "someone": "a teammate",
+        "menu": "Contact options",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "archive": "Archive contact",
+        "archived": "{name} archived",
+        "changeStage": "Stage: {stage}. Change stage",
+        "changeOwner": "Owner: {owner}. Change owner",
+        "changeLists": "Change lists",
+        "addToList": "Add to a list",
+        "manualLists": "Lists",
+        "noManualLists": "No lists yet.",
+        "empty": "Add…",
+        "location": "Location",
+        "nextStepTitle": "Next step",
+        "nextStep": "Next step",
+        "nextStepPlaceholder": "What happens next?",
+        "noFollowUp": "No date",
+        "about": "About",
+        "summary": "Summary",
+        "summaryPlaceholder": "Who they are and how you know them.",
+        "whyInteresting": "Why interesting",
+        "whyPlaceholder": "Why the team should care.",
+        "duplicate": "This looks like the same person as",
+        "reviewMerge": "Review and merge",
+        "channels": "Channels",
+        "addChannel": "Add channel",
+        "channelSource": "{type}, {source}",
+        "verified": "verified",
+        "primary": "Primary",
+        "openSource": "Open where this was found",
+        "copyChannel": "Copy {value}",
+        "removeChannel": "Remove {value}",
+        "noChannels": "No way to reach them yet.",
+        "channelType": "Channel type",
+        "channelValue": "Address",
+        "add": "Add",
+        "timeline": "Timeline",
+        "interactionCount": "{count, plural, =1 {1 interaction} other {# interactions}}",
+        "noInteractions": "No interactions yet. Mail, meetings and Slack messages with this person show up here.",
+        "sokoBot": "Soko Bot",
+        "interactionChannels": {
+          "EMAIL": "Email",
+          "MEETING": "Meeting",
+          "SLACK": "Slack",
+          "CALL": "Call",
+          "MANUAL": "Note",
+          "OTHER": "Other"
+        },
+        "source": "Source",
+        "showMore": "Show more",
+        "activityTitle": "Activity",
+        "activity": {
+          "CREATED": "{who} added this contact",
+          "UPDATED": "{who} changed {fields}",
+          "CHANNEL_ADDED": "{who} added a channel",
+          "CHANNEL_REMOVED": "{who} removed a channel",
+          "MERGED": "{who} merged {names} into this contact",
+          "ARCHIVED": "{who} archived this contact",
+          "UNARCHIVED": "{who} restored this contact"
+        },
+        "fields": {
+          "name": "name",
+          "organization": "organization",
+          "role": "role",
+          "location": "location",
+          "summary": "summary",
+          "whyInteresting": "why interesting",
+          "stage": "stage",
+          "ownerUserId": "owner",
+          "nextStep": "next step",
+          "followUpAt": "follow-up",
+          "avatarUrl": "photo",
+          "customFields": "custom fields",
+          "kind": "type"
+        },
+        "markOrganization": "Mark as organization",
+        "markPerson": "Mark as person",
+        "waitingSince": "Since {date}, no answer yet",
+        "heardFrom": "Last heard from them {when}",
+        "automatic": "Automatic",
+        "classifier": "Automatic classification"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Sales",
+        "relationships": "Relationships",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "No reply",
+        "AWAITING_REPLY": "Awaiting reply",
+        "IN_CONVERSATION": "In conversation",
+        "REPLIED": "Replied"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organization or shared inbox"
+      }
     }
   },
   "Share": {

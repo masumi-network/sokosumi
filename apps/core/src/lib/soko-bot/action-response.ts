@@ -30,6 +30,11 @@ export const ACTION_LABELS: Record<string, string> = {
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
   ask_coworker: "Asked a Coworker",
+  upsert_contact: "Saved contact",
+  update_contact: "Updated contact",
+  log_contact_interaction: "Logged a contact interaction",
+  merge_contacts: "Merged contacts",
+  manage_contact_lists: "Updated contact list",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
@@ -70,6 +75,28 @@ const TABLE_CAPABILITIES = new Set([
   "write_table_rows",
   "update_table_columns",
 ]);
+
+const CONTACT_CAPABILITIES = new Set([
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+]);
+
+/** The contact or list a contacts receipt names, from its stored result. */
+function contactTarget(result: unknown): string {
+  const named = z
+    .union([
+      z.object({ contact: z.object({ name: z.string().min(1) }) }),
+      z.object({ name: z.string().min(1) }),
+    ])
+    .safeParse(result);
+  if (!named.success) return "";
+  return linkText(
+    "contact" in named.data ? named.data.contact.name : named.data.name,
+  );
+}
 
 const SOCIAL_POST_CAPABILITIES = new Set([
   "create_social_post",
@@ -138,6 +165,8 @@ function actionTarget(
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (CONTACT_CAPABILITIES.has(call.capability))
+    return contactTarget(call.result);
   if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
     const post = z
       .object({ projectId: z.string().min(1) })

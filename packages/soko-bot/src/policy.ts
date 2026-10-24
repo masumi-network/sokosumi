@@ -49,9 +49,19 @@ export const SOKO_BOT_CAPABILITIES = [
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
   "list_integrations",
   "search_inbox",
   "read_email",
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
@@ -190,9 +200,15 @@ const DIRECT_READ_CAPABILITIES = [
   "get_image",
   "list_tables",
   "read_table",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
   "list_integrations",
   "search_inbox",
   "read_email",
+  // Asks Jev typed questions about text the bot passes in; changes nothing.
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
   "list_project_social_accounts",
@@ -232,6 +248,19 @@ const SCHEDULE_CAPABILITIES = [
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
+/**
+ * The workspace's shared contacts: people, their channels, interactions and
+ * lists. Every member sees them, so they are writes, but nothing leaves
+ * Sokosumi — web research may fill them, as the prospects feature asks.
+ */
+const CONTACT_WRITE_CAPABILITIES = [
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+] as const satisfies readonly SokoBotCapability[];
+
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
@@ -246,6 +275,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  ...CONTACT_WRITE_CAPABILITIES,
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
@@ -407,6 +437,7 @@ export function capabilitiesForClassification(
       "create_table",
       "write_table_rows",
       "update_table_columns",
+      ...CONTACT_WRITE_CAPABILITIES,
     ],
     INTEGRATION: ["run_integration_tool"],
     // A post's media must be in Files first; images sent in chat get there
@@ -441,6 +472,16 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
   /** The write route Jev leaned toward but was not sure of; reads only. */
   unsureRoute?: SokoBotRoute;
+  /** Jev's soft reads of a typed message: hints for context, never gates. */
+  signals?: SokoBotTurnSignals;
+}
+
+/** Probabilities, 0–1, that a typed message does each of these. */
+export interface SokoBotTurnSignals {
+  refersToEarlier: number;
+  statesPreference: number;
+  aboutMail: number;
+  aboutTasks: number;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

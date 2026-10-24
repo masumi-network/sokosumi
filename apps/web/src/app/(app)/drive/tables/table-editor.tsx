@@ -24,6 +24,7 @@ import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Clock,
   GripVertical,
   MoreHorizontal,
   Plus,
@@ -33,6 +34,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import {
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useCallback,
@@ -42,6 +44,21 @@ import {
   useState,
 } from "react";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
+import {
+  GRID_HEAD_CHROME,
+  GRID_ROW_BACKGROUND,
+  GRID_ROW_CHROME,
+  GRID_ROW_NUMBER,
+  GRID_SCROLL_CONTAINER,
+  GRID_STICKY_FIRST_COLUMN,
+  GRID_STICKY_ROW_NUMBER,
+} from "@/components/data-grid/grid-classes";
+import {
+  fitGridColumn,
+  ROW_NUMBER_WIDTH,
+} from "@/components/data-grid/grid-layout";
+import { useGridFocus } from "@/components/data-grid/use-grid-focus";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +84,6 @@ import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
-  TableCell as TableCellShell,
   TableHead,
   TableHeader,
   TableRow as TableRowShell,
@@ -78,8 +94,9 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
-import { TableCell } from "./table-cell";
+import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
+import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import {
   parseTableInput,
@@ -87,6 +104,7 @@ import {
   tableHistoryText,
   tableValueText,
 } from "./table-value";
+import { useColumnLayout } from "./use-column-layout";
 
 /**
  * Toolbar controls: 40px where a finger lands, and the 32px the Files toolbar
@@ -102,9 +120,6 @@ import {
  */
 const EDITOR_TOOLBAR_CONTROL = "h-10 md:h-8";
 const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
-
-/** The primitive drops a checkbox cell's trailing padding; this grid needs room. */
-const SELECT_CELL = "ps-3 [&:has([role=checkbox])]:pr-4";
 
 interface ReorderItem {
   kind: "column" | "row";
@@ -162,7 +177,9 @@ function ReorderHandle({
   listeners,
   axis,
   onMove,
+  className,
 }: {
+  className?: string;
   label: string;
   listeners: DraggableSyntheticListeners;
   axis: "x" | "y";
@@ -185,14 +202,17 @@ function ReorderHandle({
       {...listeners}
       onKeyDown={handleKeyDown}
       aria-label={label}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md outline-none focus-visible:ring-2 active:cursor-grabbing"
+      className={cn(
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md outline-none focus-visible:ring-2 active:cursor-grabbing",
+        className,
+      )}
     >
       <GripVertical aria-hidden className="size-4" />
     </button>
   );
 }
 
-/** Two lines, with a toggle only when the text is longer than that. */
+/** One line, with a toggle only when the text is longer than that. */
 function TableDescription({ text }: { text: string }) {
   const t = useTranslations("App.Tables");
   const id = useId();
@@ -214,7 +234,7 @@ function TableDescription({ text }: { text: string }) {
       <p
         ref={ref}
         id={id}
-        className={cn("text-muted-foreground", !expanded && "line-clamp-2")}
+        className={cn("text-muted-foreground", !expanded && "line-clamp-1")}
       >
         {text}
       </p>
@@ -401,11 +421,31 @@ function TableWorkspace({
     queryFn: () => dataTableService.agents(),
     enabled: dialog === "enrich",
   });
-  const columns = definition.visibleColumnIds?.length
-    ? table.columns.filter((column) =>
-        definition.visibleColumnIds?.includes(column.id),
-      )
-    : table.columns;
+  // A Last updated column holds no stored value: nothing to filter or fill.
+  const writableColumns = table.columns.filter(
+    (column) => column.type !== "last_updated",
+  );
+  const columnLayout = useColumnLayout(table);
+  const columns = (
+    definition.visibleColumnIds?.length
+      ? table.columns.filter((column) =>
+          definition.visibleColumnIds?.includes(column.id),
+        )
+      : table.columns
+  ).map(columnLayout.withLayout);
+  const gridWidth = columns.reduce(
+    (total, column) => total + columnWidth(column),
+    ROW_NUMBER_WIDTH,
+  );
+  const grid = useRef<HTMLTableElement>(null);
+  const { gridId, cellProps } = useGridFocus(
+    displayedRows.map((row) => row.id),
+    columns.map((column) => column.id),
+  );
+  function handleFit(columnId: string) {
+    const width = fitGridColumn(grid.current, columnId);
+    if (width !== null) columnLayout.setWidth(columnId, width);
+  }
   async function refresh() {
     await Promise.all([
       cache.invalidateQueries({ queryKey: ["table-rows", table.id] }),
@@ -500,7 +540,11 @@ function TableWorkspace({
       });
       output.push(
         ...page.rows.map((row) =>
-          columns.map((column) => row.values[column.id]),
+          columns.map((column) =>
+            column.type === "last_updated"
+              ? new Date(row.updatedAt).toISOString()
+              : row.values[column.id],
+          ),
         ),
       );
       next = page.nextCursor ?? undefined;
@@ -891,7 +935,14 @@ function TableWorkspace({
           </AlertDescription>
         </Alert>
       )}
-      <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
+      <div
+        className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}
+        style={
+          {
+            "--sheet-sticky": `${ROW_NUMBER_WIDTH + (columns[0] ? columnWidth(columns[0]) : 0)}px`,
+          } as CSSProperties
+        }
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={sameKindCollision}
@@ -904,19 +955,29 @@ function TableWorkspace({
           }}
         >
           {/* Bounded to the viewport on both axes, so the horizontal scrollbar
-          and the sticky header stay in reach on a tall table. */}
+          and the sticky header stay in reach on a tall table. Fixed layout:
+          every column is exactly its saved width, whatever its content. The
+          scroll padding keeps a focused cell clear of the sticky header and
+          the sticky first columns. */}
           <Table
-            className="border-collapse"
-            containerClassName="max-h-[80dvh] overscroll-x-contain"
+            ref={grid}
+            role="grid"
+            aria-describedby={`${gridId}-keys`}
+            className="table-fixed border-separate border-spacing-0"
+            style={{ width: gridWidth }}
+            containerClassName={cn("max-h-[80dvh]", GRID_SCROLL_CONTAINER)}
           >
             <caption className="sr-only">{table.title}</caption>
-            <TableHeader className="bg-card-background sticky top-0 z-10">
+            <colgroup>
+              <col style={{ width: ROW_NUMBER_WIDTH }} />
+              {columns.map((column) => (
+                <col key={column.id} style={{ width: columnWidth(column) }} />
+              ))}
+            </colgroup>
+            <TableHeader className="bg-card-background sticky top-0 z-20">
               <TableRowShell className="hover:bg-transparent">
-                <TableHead className={cn("w-px", SELECT_CELL)}>
-                  <div className="flex items-center gap-1">
-                    {canMoveRows && (
-                      <span aria-hidden className="size-7 shrink-0" />
-                    )}
+                <TableHead className="bg-card-background sticky start-0 z-10 border-e border-b px-0">
+                  <div className="flex items-center justify-center">
                     <Checkbox
                       aria-label={t("selectAll")}
                       checked={
@@ -936,7 +997,7 @@ function TableWorkspace({
                     />
                   </div>
                 </TableHead>
-                {columns.map((column) => (
+                {columns.map((column, columnIndex) => (
                   <Reorderable
                     key={column.id}
                     item={{ kind: "column", id: column.id }}
@@ -946,86 +1007,141 @@ function TableWorkspace({
                       <TableHead
                         ref={ref}
                         scope="col"
+                        data-column={column.id}
                         className={cn(
-                          "min-w-48 border-s px-3",
+                          "group/head bg-card-background relative border-e border-b ps-2 pe-3",
+                          columnIndex === 0 && GRID_STICKY_FIRST_COLUMN,
                           isDragging && "opacity-50",
                           isOver && "bg-muted",
                         )}
                       >
-                        <div className="flex items-center gap-1">
-                          {!table.archivedAt && (
-                            <ReorderHandle
-                              label={t("reorderColumn", {
-                                column: column.name,
-                              })}
-                              listeners={listeners}
-                              axis="x"
-                              onMove={(step) =>
-                                handleColumnStep(column.id, step)
-                              }
+                        <div className="relative flex min-w-0 items-center gap-1">
+                          {column.type === "last_updated" && (
+                            <Clock
+                              aria-hidden
+                              className="text-muted-foreground size-3.5 shrink-0"
                             />
                           )}
-                          <span className="truncate" title={column.description}>
+                          <span
+                            data-fit
+                            className="text-muted-foreground min-w-0 flex-1 truncate"
+                            title={column.description || column.name}
+                          >
                             {column.name}
                           </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hit-area ms-auto size-7 shrink-0"
-                                aria-label={t("columnMenu", {
+                          {/* Over the end of the name with a pointer, where it
+                          shows only on hover; beside it on touch, where it
+                          always shows. */}
+                          <div
+                            className={cn(
+                              "bg-card-background flex shrink-0 items-center pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
+                              GRID_HEAD_CHROME,
+                            )}
+                          >
+                            {!table.archivedAt && (
+                              <ReorderHandle
+                                label={t("reorderColumn", {
                                   column: column.name,
                                 })}
-                              >
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem
-                                onClick={() => setColumn(column)}
-                              >
-                                {t("editColumn")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleColumnStep(column.id, -1)}
-                              >
-                                {t("moveLeft")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleColumnStep(column.id, 1)}
-                              >
-                                {t("moveRight")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDefinition({
-                                    ...definition,
-                                    sort: {
-                                      columnId: column.id,
-                                      direction: "asc",
-                                    },
-                                  })
+                                listeners={listeners}
+                                axis="x"
+                                onMove={(step) =>
+                                  handleColumnStep(column.id, step)
                                 }
-                              >
-                                {t("sortAscending")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDefinition({
-                                    ...definition,
-                                    sort: {
-                                      columnId: column.id,
-                                      direction: "desc",
-                                    },
-                                  })
-                                }
-                              >
-                                {t("sortDescending")}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              />
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground size-10 shrink-0 md:size-8"
+                                  aria-label={t("columnMenu", {
+                                    column: column.name,
+                                  })}
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem
+                                  onClick={() => setColumn(column)}
+                                >
+                                  {t("editColumn")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleColumnStep(column.id, -1)
+                                  }
+                                >
+                                  {t("moveLeft")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleColumnStep(column.id, 1)}
+                                >
+                                  {t("moveRight")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDefinition({
+                                      ...definition,
+                                      sort: {
+                                        columnId: column.id,
+                                        direction: "asc",
+                                      },
+                                    })
+                                  }
+                                >
+                                  {t("sortAscending")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDefinition({
+                                      ...definition,
+                                      sort: {
+                                        columnId: column.id,
+                                        direction: "desc",
+                                      },
+                                    })
+                                  }
+                                >
+                                  {t("sortDescending")}
+                                </DropdownMenuItem>
+                                {!table.archivedAt && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuCheckboxItem
+                                      checked={cellWrap(column) !== "clip"}
+                                      onCheckedChange={(checked) =>
+                                        columnLayout.setWrap(column.id, checked)
+                                      }
+                                    >
+                                      {t("wrapText")}
+                                    </DropdownMenuCheckboxItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleFit(column.id)}
+                                    >
+                                      {t("fitColumn")}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
+                        {!table.archivedAt && (
+                          <ColumnResizeHandle
+                            label={t("resizeColumn", { column: column.name })}
+                            width={columnWidth(column)}
+                            onPreview={(width) =>
+                              columnLayout.preview(column.id, width)
+                            }
+                            onResize={(width) =>
+                              columnLayout.setWidth(column.id, width)
+                            }
+                            onFit={() => handleFit(column.id)}
+                          />
+                        )}
                       </TableHead>
                     )}
                   </Reorderable>
@@ -1033,7 +1149,7 @@ function TableWorkspace({
               </TableRowShell>
             </TableHeader>
             <TableBody>
-              {displayedRows.map((row) => (
+              {displayedRows.map((row, rowIndex) => (
                 <Reorderable
                   key={row.id}
                   item={{ kind: "row", id: row.id }}
@@ -1043,7 +1159,7 @@ function TableWorkspace({
                     <TableRowShell
                       ref={ref}
                       className={cn(
-                        "hover:bg-card-background-hover",
+                        "group/row hover:bg-card-background-hover",
                         isDragging && "opacity-50",
                         isOver && "bg-muted",
                       )}
@@ -1051,48 +1167,75 @@ function TableWorkspace({
                         selected.includes(row.id) ? "selected" : undefined
                       }
                     >
-                      {/* Top-aligned with the first control in the row: a
-                      `long_text` column makes rows uneven, and a centred
-                      checkbox floats in the middle of a tall band. The `h-10`
-                      matches that control's height. */}
-                      <TableCellShell
-                        className={cn("w-px py-1 align-top", SELECT_CELL)}
+                      <th
+                        scope="row"
+                        className={cn(
+                          GRID_ROW_BACKGROUND,
+                          GRID_STICKY_ROW_NUMBER,
+                          "border-e border-b p-0 align-top font-normal",
+                        )}
                       >
-                        <div className="flex h-10 items-center gap-1">
-                          {canMoveRows && (
-                            <ReorderHandle
-                              label={t("reorderRow")}
-                              listeners={listeners}
-                              axis="y"
-                              onMove={(step) => handleRowStep(row.id, step)}
+                        <div className="relative h-8">
+                          <span
+                            className={cn(
+                              "text-muted-foreground absolute inset-0 flex items-center justify-center text-xs tabular-nums",
+                              selected.length ? "opacity-0" : GRID_ROW_NUMBER,
+                            )}
+                          >
+                            {rowIndex + 1}
+                          </span>
+                          <div
+                            className={cn(
+                              "absolute inset-0 flex items-center justify-center gap-1",
+                              !selected.length && GRID_ROW_CHROME,
+                            )}
+                          >
+                            {canMoveRows ? (
+                              <ReorderHandle
+                                label={t("reorderRow")}
+                                listeners={listeners}
+                                axis="y"
+                                onMove={(step) => handleRowStep(row.id, step)}
+                              />
+                            ) : (
+                              <span aria-hidden className="size-7 shrink-0" />
+                            )}
+                            <Checkbox
+                              aria-label={t("selectRow")}
+                              checked={selected.includes(row.id)}
+                              onCheckedChange={(checked) =>
+                                setSelected(
+                                  checked
+                                    ? [...selected, row.id]
+                                    : selected.filter((id) => id !== row.id),
+                                )
+                              }
                             />
-                          )}
-                          <Checkbox
-                            aria-label={t("selectRow")}
-                            checked={selected.includes(row.id)}
-                            onCheckedChange={(checked) =>
-                              setSelected(
-                                checked
-                                  ? [...selected, row.id]
-                                  : selected.filter((id) => id !== row.id),
-                              )
-                            }
-                          />
+                          </div>
                         </div>
-                      </TableCellShell>
-                      {columns.map((column) => (
-                        <TableCellShell
-                          key={column.id}
-                          // The shared cell is `whitespace-nowrap align-middle`,
-                          // which is right for a read-only grid and wrong for
-                          // this one: a cell error is prose, and it painted
-                          // 283px past the cell and over the next column. Rows
-                          // are also uneven once a `long_text` column exists,
-                          // so controls line up on the row's top edge rather
-                          // than floating mid-band.
-                          className="border-s p-1 align-top whitespace-normal"
-                        >
+                      </th>
+                      {columns.map((column, columnIndex) => {
+                        const grid = {
+                          ...cellProps(rowIndex, columnIndex),
+                          className:
+                            columnIndex === 0
+                              ? cn(
+                                  GRID_ROW_BACKGROUND,
+                                  GRID_STICKY_FIRST_COLUMN,
+                                )
+                              : undefined,
+                        };
+                        return column.type === "last_updated" ? (
+                          <TableUpdatedCell
+                            key={column.id}
+                            {...grid}
+                            row={row}
+                            columnId={column.id}
+                          />
+                        ) : (
                           <TableCell
+                            key={column.id}
+                            {...grid}
                             column={column}
                             row={row}
                             onEditingChange={(editing) =>
@@ -1125,14 +1268,17 @@ function TableWorkspace({
                               setDialog("history");
                             }}
                           />
-                        </TableCellShell>
-                      ))}
+                        );
+                      })}
                     </TableRowShell>
                   )}
                 </Reorderable>
               ))}
             </TableBody>
           </Table>
+          <p id={`${gridId}-keys`} hidden>
+            {t("gridKeys")}
+          </p>
           <DragOverlay dropAnimation={null}>
             {dragLabel !== null && (
               <div className="bg-background max-w-64 cursor-grabbing truncate rounded-md border px-3 py-1.5 text-sm shadow-md">
@@ -1299,7 +1445,7 @@ function TableWorkspace({
                   }}
                 >
                   <option value="">{t("noFilter")}</option>
-                  {table.columns.map((column) => (
+                  {writableColumns.map((column) => (
                     <option value={column.id} key={column.id}>
                       {column.name}
                     </option>
@@ -1561,7 +1707,7 @@ function TableWorkspace({
                 <legend className="mb-2 text-sm font-medium">
                   {t("outputColumns")}
                 </legend>
-                {table.columns.map((column) => (
+                {writableColumns.map((column) => (
                   <label
                     key={column.id}
                     className="flex items-center gap-2 text-sm"

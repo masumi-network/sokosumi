@@ -42,6 +42,14 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: false,
   },
+  // Whether Jev may read this person's person-to-person Directs (chat
+  // signals). Off until they turn it on; a Direct is read only when every
+  // human in it did.
+  tagDirectMessages: {
+    type: "boolean",
+    required: false,
+    defaultValue: false,
+  },
   logo: {
     type: "string",
     required: false,
