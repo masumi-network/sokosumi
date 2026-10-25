@@ -693,8 +693,6 @@ async function TaskDetailActionsSlot({
       labels={{
         edit: t("actions.edit"),
         archive: t("actions.archive"),
-        confirmArchive: t("actions.confirmArchive"),
-        confirmArchiveDescription: t("actions.confirmArchiveDescription"),
         archiveError: t("actions.archiveError"),
         reopenToReady: t("actions.reopenToReady"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),

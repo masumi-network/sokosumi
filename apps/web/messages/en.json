@@ -1611,7 +1611,8 @@
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
           "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours"
+          "trendDown": "{count} fewer than the previous 24 hours",
+          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1823,8 +1824,6 @@
         "actions": {
           "edit": "Edit",
           "archive": "Archive",
-          "confirmArchive": "Archive this task?",
-          "confirmArchiveDescription": "This hides the task from your list, including any scheduled runs linked to it. In-progress runs must finish or be canceled first. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
           "reopenToReadyTitle": "Reopen task",
@@ -7847,10 +7846,7 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table",
-      "contactsEntryName": "Contacts",
-      "contactsEntryCount": "{count, plural, =1 {1 contact} other {# contacts}}",
-      "contactsEntryPinned": "Pinned"
+      "tableKind": "Table"
     },
     "SokoBot": {
       "Metadata": {
@@ -8599,7 +8595,10 @@
         "over": "{item} is over {target}.",
         "dropped": "{item} moved to the place of {target}.",
         "cancelled": "Moving {item} was cancelled."
-      }
+      },
+      "contactsName": "Contacts",
+      "contactsPinned": "Pinned",
+      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

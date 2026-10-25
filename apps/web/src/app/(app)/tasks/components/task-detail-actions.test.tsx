@@ -541,8 +541,6 @@ function buildTaskListItem(
 const labels = {
   edit: "Edit",
   archive: "Archive",
-  confirmArchive: "Confirm archive",
-  confirmArchiveDescription: "Are you sure?",
   archiveError: "Archive error",
   reopenToReady: "Reopen to Ready",
   reopenToReadyTitle: "Reopen task",
@@ -874,8 +872,6 @@ describe("TaskDetailActions", () => {
       isReadOnly: true,
     });
 
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: labels.archive }));
     await user.click(screen.getByRole("button", { name: labels.archive }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
@@ -1953,7 +1949,7 @@ describe("TaskDetailActions", () => {
     ).toBe(3);
   });
 
-  it("archives the task from the confirmation dialog", async () => {
+  it("archives straight from the overflow menu without confirming", async () => {
     const user = userEvent.setup();
     const deleteTaskMock = vi.mocked(deleteTask);
     deleteTaskMock.mockResolvedValue({ taskId: "task-1" });
@@ -1963,18 +1959,11 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: labels.archive }));
 
-    expect(
-      await screen.findByRole("heading", { name: labels.confirmArchive }),
-    ).toBeVisible();
-
-    await user.click(
-      screen.getAllByRole("button", { name: labels.archive }).at(-1)!,
-    );
-
     await waitFor(() => {
       expect(deleteTaskMock).toHaveBeenCalledWith({ taskId: "task-1" });
       expect(pushMock).toHaveBeenCalledWith("/tasks");
     });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("keeps desktop submenu behavior for mark as actions", async () => {

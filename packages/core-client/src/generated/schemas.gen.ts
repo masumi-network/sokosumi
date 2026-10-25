@@ -14941,9 +14941,6 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTableItem'
-        },
-        {
-            $ref: '#/components/schemas/DriveRecentsContactsItem'
         }
     ],
     discriminator: {
@@ -14951,8 +14948,7 @@ export const DriveRecentsItemSchema = {
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
             'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
-            table: '#/components/schemas/DriveRecentsTableItem',
-            contacts: '#/components/schemas/DriveRecentsContactsItem'
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -15182,48 +15178,6 @@ export const DriveRecentsTableItemSchema = {
         'name',
         'activityAt',
         'projectId'
-    ]
-} as const;
-
-export const DriveRecentsContactsItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'contacts'
-            ],
-            example: 'contacts',
-            description: 'The workspace\'s one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.'
-        },
-        name: {
-            type: 'string',
-            example: 'Contacts'
-        },
-        pinned: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        },
-        contactCount: {
-            type: 'integer',
-            example: 128,
-            description: 'Live contacts (not archived or merged)'
-        },
-        activityAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Latest change to any contact, or now when there are none'
-        }
-    },
-    required: [
-        'kind',
-        'name',
-        'pinned',
-        'contactCount',
-        'activityAt'
     ]
 } as const;
 

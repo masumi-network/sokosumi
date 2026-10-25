@@ -4278,9 +4278,7 @@ export type DriveRecentsItem = ({
     kind: 'task-output';
 } & DriveRecentsTaskOutputItem) | ({
     kind: 'table';
-} & DriveRecentsTableItem) | ({
-    kind: 'contacts';
-} & DriveRecentsContactsItem);
+} & DriveRecentsTableItem);
 
 export type DriveRecentsDriveFileItem = {
     /**
@@ -4391,23 +4389,6 @@ export type DriveRecentsTableItem = {
      * Parent project ID, or null
      */
     projectId: string | null;
-};
-
-export type DriveRecentsContactsItem = {
-    /**
-     * The workspace's one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.
-     */
-    kind: 'contacts';
-    name: string;
-    pinned: true;
-    /**
-     * Live contacts (not archived or merged)
-     */
-    contactCount: number;
-    /**
-     * Latest change to any contact, or now when there are none
-     */
-    activityAt: Date;
 };
 
 export type FileSelectionTokenResponse = {
@@ -32189,7 +32170,7 @@ export type GetDriveRecentsData = {
          */
         q?: string;
         /**
-         * Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs, tables and contacts have no labels and are left out.
+         * Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs and tables have no labels and are left out.
          */
         tags?: string;
         /**

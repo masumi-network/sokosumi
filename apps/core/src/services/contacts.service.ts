@@ -1320,18 +1320,6 @@ const CAPTURE_CHANNEL_SOURCE = {
   NonNullable<ChannelInput["source"]>
 >;
 
-/** The figures the pinned Contacts entry in Files shows. */
-export async function contactsDriveEntry(
-  workspaceId: string,
-): Promise<{ contactCount: number; activityAt: Date }> {
-  const where = { workspaceId, mergedIntoId: null, archivedAt: null };
-  const [contactCount, latest] = await prisma.$transaction([
-    prisma.contact.count({ where }),
-    prisma.contact.aggregate({ where, _max: { updatedAt: true } }),
-  ]);
-  return { contactCount, activityAt: latest._max.updatedAt ?? new Date() };
-}
-
 /** Whether `name` is only what `contactNameFromChannel` made of an address. */
 function isPlaceholderName(
   name: string,

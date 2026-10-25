@@ -21,9 +21,7 @@ const {
   prismaFileResourceFindManyMock,
   listMock,
   listDataTablesMock,
-  contactsDriveEntryMock,
 } = vi.hoisted(() => ({
-  contactsDriveEntryMock: vi.fn(),
   workspaceRepositoryMock: {
     resolveWorkspaceForContext: vi.fn(),
   },
@@ -43,10 +41,6 @@ vi.mock("@/helpers/data-table", () => ({
     actorKind: "user",
   })),
   listDataTables: listDataTablesMock,
-}));
-
-vi.mock("@/services/contacts.service", () => ({
-  contactsDriveEntry: contactsDriveEntryMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
@@ -147,10 +141,6 @@ function createRecentsApp(
 describe("GET /v1/drive/recents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    contactsDriveEntryMock.mockResolvedValue({
-      contactCount: 12,
-      activityAt: new Date("2026-08-01T09:00:00.000Z"),
-    });
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
       userId: "user_123",
@@ -200,32 +190,10 @@ describe("GET /v1/drive/recents", () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.data).toHaveLength(3);
-    expect(body.data[0]).toEqual({
-      kind: "contacts",
-      name: "Contacts",
-      pinned: true,
-      contactCount: 12,
-      activityAt: "2026-08-01T09:00:00.000Z",
-    });
-    expect(body.data[1].kind).toBe("task-output");
-    expect(body.data[2].kind).toBe("drive-file");
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0].kind).toBe("task-output");
+    expect(body.data[1].kind).toBe("drive-file");
     expect(body.meta.pagination.nextCursor).toBeNull();
-    expect(contactsDriveEntryMock).toHaveBeenCalledWith("ws_personal");
-  });
-
-  it("pins the Contacts entry only on the first page and for a matching search", async () => {
-    const app = createRecentsApp();
-    const matching = await (
-      await app.request("/?scope=me&limit=20&q=Cont")
-    ).json();
-    expect(matching.data[0].kind).toBe("contacts");
-    const other = await (
-      await app.request("/?scope=me&limit=20&q=report")
-    ).json();
-    expect(
-      other.data.some((item: { kind: string }) => item.kind === "contacts"),
-    ).toBe(false);
   });
 
   it("includes recently changed tables, filtered by the search", async () => {
@@ -287,8 +255,7 @@ describe("GET /v1/drive/recents", () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.data).toHaveLength(3);
-    expect(body.data[0].kind).toBe("contacts");
+    expect(body.data).toHaveLength(2);
     expect(body.meta.pagination.nextCursor).toBeTruthy();
   });
 
@@ -333,9 +300,8 @@ describe("GET /v1/drive/recents", () => {
     expect(firstResponse.status).toBe(200);
 
     const firstBody = await firstResponse.json();
-    expect(firstBody.data).toHaveLength(2);
-    expect(firstBody.data[0].kind).toBe("contacts");
-    expect(firstBody.data[1].name).toBe("file-0.pdf");
+    expect(firstBody.data).toHaveLength(1);
+    expect(firstBody.data[0].name).toBe("file-0.pdf");
     expect(firstBody.meta.pagination.nextCursor).toBeTruthy();
 
     const secondResponse = await app.request(
