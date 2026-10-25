@@ -279,6 +279,10 @@ columns, not more margin: lay settings and cards out in a grid (`md:grid-cols-2`
 may cap its own line length (`max-w-prose`), and a centered **empty state** message is fine
 inside a full-width panel.
 
+- **Entry page:** the home (`/`) is the one page that is not a working surface. Like a chat
+  app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
+  little above the middle of the screen, prompt chips, then a quiet list with no panel or
+  borders.
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).

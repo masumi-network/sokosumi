@@ -1,10 +1,8 @@
 import type { TaskActivitySummary } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { BotFace } from "@/app/soko-bots/components/bot-face";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { cn } from "@/lib/utils";
 
 import { SokoBotHomeComposer } from "./soko-bot-home-composer.client";
 import type { SokoBotHomeTask } from "./soko-bot-home-data";
@@ -28,8 +26,9 @@ interface SokoBotHomeProps {
 }
 
 /**
- * `/` for a user with a personal Soko Bot: a composer that talks to the bot,
- * then what the team got done in the last day. The conversation itself lives
+ * `/` for a user with a personal Soko Bot, laid out as an entry page: the bot
+ * and a greeting over a centered composer, a few things to ask, and a quiet
+ * list of what the team moved in the last day. The conversation itself lives
  * in the bot's Direct, which every send opens.
  */
 export async function SokoBotHome({
@@ -67,94 +66,87 @@ export async function SokoBotHome({
     : [];
   const awaitingInput = summary?.awaitingInput ?? 0;
 
+  const suggestions = [
+    t("suggestions.catchUp"),
+    t("suggestions.teamWins"),
+    t("suggestions.planTomorrow"),
+  ];
+
   return (
     <SokoBotHomeComposer
       sokoBotId={bot.id}
       botName={botName}
       roomId={roomId}
+      suggestions={suggestions}
       header={
-        <div className="flex flex-col gap-4 px-4 pb-5 md:px-5">
-          <div className="flex items-center gap-2.5">
-            <BotFace bot={bot} ownerId={ownerId} className="size-7" />
-            <span className="text-muted-foreground text-sm font-medium">
-              {botName}
-            </span>
-          </div>
-          <h1 className="text-foreground text-2xl font-light tracking-tight text-balance md:text-4xl">
+        <div className="flex flex-col items-center gap-5 text-center">
+          <BotFace bot={bot} ownerId={ownerId} className="size-12" />
+          <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
             {userName ? t("headingWithName", { name: userName }) : t("heading")}
           </h1>
         </div>
       }
+      attention={
+        awaitingInput > 0 ? (
+          <Link
+            href="/tasks"
+            className="bg-primary-quinary text-primary hover:bg-primary-quaternary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
+          >
+            <span aria-hidden className="bg-primary size-1.5 rounded-full" />
+            {tStats("awaiting", { count: awaitingInput })}
+          </Link>
+        ) : null
+      }
     >
-      <section
-        aria-labelledby="soko-bot-home-day"
-        className="px-3 pt-10 md:px-5"
-      >
-        {/* The Files and Schedules list: a soft panel of bordered rows. */}
-        <div
-          className={cn(DRIVE_SURFACE_PANEL_CLASS, "flex flex-col gap-2 p-2")}
+      <section aria-labelledby="soko-bot-home-day">
+        <h2
+          id="soko-bot-home-day"
+          className="text-foreground px-3 pb-2 text-sm font-medium"
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2 pt-1">
-            <h2
-              id="soko-bot-home-day"
-              className="text-foreground text-sm font-medium"
-            >
-              {tStats("recent")}
-              {stats.length > 0 ? (
-                <span className="text-muted-foreground font-normal">
-                  {" "}
-                  · {stats.join(" · ")}
-                </span>
-              ) : null}
-            </h2>
-            {awaitingInput > 0 ? (
-              <Link
-                href="/tasks"
-                className="text-primary hover:text-foreground focus-visible:ring-ring rounded-md text-sm font-medium outline-none transition-colors focus-visible:ring-2"
-              >
-                {tStats("awaiting", { count: awaitingInput })}
-              </Link>
-            ) : null}
-          </div>
-          {teamTasks.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {teamTasks.map((task) => (
-                <li key={task.id}>
-                  <Link
-                    href={`/tasks/${encodeURIComponent(task.id)}`}
-                    className="bg-background hover:bg-card-background-hover focus-visible:ring-ring flex min-w-0 items-center gap-4 rounded-lg border border-border px-4 py-3 outline-none transition-colors focus-visible:ring-2"
+          {tStats("recent")}
+          {stats.length > 0 ? (
+            <span className="text-muted-foreground font-normal">
+              {" "}
+              · {stats.join(" · ")}
+            </span>
+          ) : null}
+        </h2>
+        {teamTasks.length > 0 ? (
+          <ul className="flex flex-col">
+            {teamTasks.map((task) => (
+              <li key={task.id}>
+                <Link
+                  href={`/tasks/${encodeURIComponent(task.id)}`}
+                  className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2"
+                >
+                  <TaskStatusBadge
+                    status={task.status}
+                    label={tStatus(task.status)}
+                    showLabel={false}
+                    className="border-0 bg-transparent p-0"
+                  />
+                  <span className="text-foreground min-w-0 flex-1 truncate text-sm">
+                    {task.name}
+                  </span>
+                  <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
+                    {task.who}
+                  </span>
+                  <time
+                    dateTime={task.updatedAt.toISOString()}
+                    title={format.dateTime(task.updatedAt, "dateTimeMedium")}
+                    className="text-muted-foreground shrink-0 text-end text-sm whitespace-nowrap tabular-nums"
                   >
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-foreground line-clamp-1 text-sm font-medium">
-                        {task.name}
-                      </span>
-                      <span className="text-muted-foreground truncate text-xs">
-                        {task.who ? `${task.who} · ` : null}
-                        <time
-                          dateTime={task.updatedAt.toISOString()}
-                          title={format.dateTime(
-                            task.updatedAt,
-                            "dateTimeMedium",
-                          )}
-                        >
-                          {format.relativeTime(task.updatedAt, { now })}
-                        </time>
-                      </span>
-                    </div>
-                    <TaskStatusBadge
-                      status={task.status}
-                      label={tStatus(task.status)}
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-2 py-6 text-center text-sm">
-              {t("quietDay", { name: botName })}
-            </p>
-          )}
-        </div>
+                    {format.relativeTime(task.updatedAt, { now })}
+                  </time>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground px-3 py-2 text-sm">
+            {t("quietDay", { name: botName })}
+          </p>
+        )}
       </section>
     </SokoBotHomeComposer>
   );
