@@ -2261,7 +2261,14 @@
           "marketing": "Marketing",
           "social": "Social Media",
           "seo": "SEO",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "presentations": "Präsentationen",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Medienbearbeitung",
+          "communication": "Kommunikation",
+          "finance": "Finanzen",
+          "qa": "Review & QA"
         }
       }
     },
