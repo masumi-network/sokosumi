@@ -8671,19 +8671,13 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
-        "noReply": "No reply",
-        "followUps": "Follow-ups due",
-        "recent": "Recently added",
-        "stale": "Stale 90+ days"
+        "recent": "Recently added"
       },
       "emptyViews": {
         "all": "No contacts yet.",
-        "mine": "You don't own any contacts yet. Set yourself as owner on the people you look after.",
-        "followUps": "No follow-ups are due. Nice work.",
+        "mine": "Nobody you own or have talked to yet.",
         "recent": "Nobody was added in the last two weeks.",
-        "stale": "Everyone has been in touch within the last 90 days.",
-        "list": "This list is empty. Select people in All contacts and add them here.",
-        "noReply": "Everyone the team wrote to answered, or it has been less than a week."
+        "list": "This list is empty. Select people in All contacts and add them here."
       },
       "views": {
         "label": "Contact views",
@@ -8708,6 +8702,7 @@
         "lists": "Lists",
         "channels": "Channels",
         "owner": "Owner",
+        "firstContact": "First contact",
         "lastContact": "Last contact",
         "knownBy": "Known by",
         "followUp": "Follow-up",

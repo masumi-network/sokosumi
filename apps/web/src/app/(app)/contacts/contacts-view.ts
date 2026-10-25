@@ -7,15 +7,13 @@ import type {
   ContactStage,
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
+import { isUuidString } from "@/lib/utils/uuid";
 
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
   all: {},
   mine: { mine: "true" },
-  noReply: { replyState: "NO_REPLY" },
-  followUps: { followUpDue: "true" },
   recent: { createdWithinDays: 14 },
-  stale: { lastContactOlderThanDays: 90 },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
@@ -60,9 +58,13 @@ export interface ContactView {
 
 /** The `GET /contacts` query for a view; a toolbar filter narrows its preset. */
 export function contactQuery(view: ContactView): ContactQuery {
+  // A view that is neither a preset nor a list id, like a link to a removed
+  // tab, shows everyone instead of failing.
   const preset = isContactPreset(view.view)
     ? CONTACT_PRESETS[view.view]
-    : { listId: view.view };
+    : isUuidString(view.view)
+      ? { listId: view.view }
+      : {};
   const query: ContactQuery = { ...preset, sort: view.sort };
   query.direction = view.direction;
   const search = view.search.trim();

@@ -8671,19 +8671,13 @@
       "presets": {
         "all": "Todos los contactos",
         "mine": "Mis contactos",
-        "noReply": "Sin respuesta",
-        "followUps": "Seguimientos pendientes",
-        "recent": "Añadidos recientemente",
-        "stale": "Sin contacto en 90+ días"
+        "recent": "Añadidos recientemente"
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
-        "mine": "Todavía no eres responsable de ningún contacto. Asígnate a las personas de las que te ocupas.",
-        "followUps": "No hay seguimientos pendientes. Buen trabajo.",
+        "mine": "Todavía nadie de quien seas responsable o con quien hayas hablado.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
-        "stale": "Habéis hablado con todos en los últimos 90 días.",
-        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
-        "noReply": "Todos a quienes el equipo escribió han respondido, o aún no ha pasado una semana."
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
       },
       "views": {
         "label": "Vistas de contactos",
@@ -8708,6 +8702,7 @@
         "lists": "Listas",
         "channels": "Canales",
         "owner": "Responsable",
+        "firstContact": "Primer contacto",
         "lastContact": "Último contacto",
         "knownBy": "Lo conocen",
         "followUp": "Seguimiento",
