@@ -78,6 +78,23 @@ export function contactQuery(view: ContactView): ContactQuery {
   return query;
 }
 
+/** The rows Core's `search` would keep, judged on the client: name, organization or any channel value. */
+export function matchesContactSearch(
+  contact: {
+    name: string;
+    organization: string | null;
+    channels: ContactChannel[];
+  },
+  search: string,
+): boolean {
+  const needle = search.trim().toLowerCase();
+  return [
+    contact.name,
+    contact.organization,
+    ...contact.channels.map((channel) => channel.value),
+  ].some((value) => value?.toLowerCase().includes(needle));
+}
+
 /** Ascending reads naturally for text, newest-first for dates. */
 export function defaultDirection(sort: ContactSort): "asc" | "desc" {
   return sort === "name" || sort === "organization" || sort === "stage"

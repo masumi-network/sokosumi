@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useDeferredValue, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
 import {
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
@@ -29,6 +30,7 @@ import {
   coreErrorOf,
   defaultDirection,
   isContactPreset,
+  matchesContactSearch,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -53,6 +55,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { cn } from "@/lib/utils";
@@ -130,7 +133,12 @@ export function ContactsWorkspace({
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
   const returnFocus = useRef<HTMLElement | null>(null);
-  const deferredSearch = useDeferredValue(search);
+  // Core searches once per pause in typing; meanwhile every keystroke filters
+  // the rows already on screen, so the table answers as you type.
+  const [debouncedSearch] = useDebounce(
+    search,
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
@@ -139,13 +147,18 @@ export function ContactsWorkspace({
   const query = contactQuery({
     view,
     organization,
-    search: deferredSearch,
+    search: debouncedSearch,
     ...filters,
     sort,
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
-  const contacts = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
+  const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
+  const searchPending = search !== debouncedSearch || rows.isPlaceholderData;
+  const contacts =
+    searchPending && search.trim()
+      ? loaded.filter((contact) => matchesContactSearch(contact, search))
+      : loaded;
   const total = rows.data?.pages[0]?.total ?? 0;
   const viewList = lists.data?.find((list) => list.id === view) ?? null;
   const filtered =
@@ -391,7 +404,7 @@ export function ContactsWorkspace({
         ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
-            {rows.isPending ? (
+            {rows.isPending || (searchPending && contacts.length === 0) ? (
               <div className="grid gap-2 p-4" role="status">
                 <span className="sr-only">{t("loading")}</span>
                 {Array.from({ length: 8 }, (_, index) => (

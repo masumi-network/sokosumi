@@ -263,14 +263,16 @@ export function ContactsBulkBar({
   const removable = viewList
     ? [viewList, ...manual.filter((list) => list.id !== viewList.id)]
     : manual;
-  const action = cn(CONTROL, "hover:bg-tertiary hover:text-background");
+  // The filter row's own height and buttons, on one line: selecting a row
+  // swaps the controls in place instead of growing the header.
+  const action = cn(CONTROL, "shrink-0");
   return (
     <div
       role="toolbar"
       aria-label={t("bulk.label")}
-      className="bg-foreground text-background flex w-full flex-wrap items-center gap-1 rounded-lg p-1 ps-3"
+      className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      <span className="me-2 text-sm font-medium tabular-nums">
+      <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
         {t("bulk.selected", { count })}
       </span>
       <DropdownMenu>
@@ -366,7 +368,7 @@ export function ContactsBulkBar({
         size="icon"
         variant="ghost"
         aria-label={t("bulk.clear")}
-        className="hover:bg-tertiary hover:text-background ms-auto size-10 md:size-8"
+        className="hit-area size-10 shrink-0 md:size-8"
         onClick={onClear}
       >
         <X aria-hidden className="size-4" />
