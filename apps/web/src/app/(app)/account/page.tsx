@@ -11,6 +11,7 @@ import { type ReactNode, Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import DefaultLoading from "@/components/default-loading";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { AUTO_DETECT_VALUE } from "@/i18n/locales";
 import { parseTimeFormat, TIME_FORMAT_COOKIE_NAME } from "@/i18n/time-format";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
@@ -18,6 +19,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
 import { userService } from "@/lib/services/user.service";
+import { cn } from "@/lib/utils";
 
 import { AccountSettings } from "./components/account-settings";
 
@@ -94,7 +96,7 @@ async function AccountPageContent() {
   return (
     <div className="content-in min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
-      <div className="mx-auto max-w-4xl px-4">
+      <div className={cn(HOLDER_CLASS, "p-3")}>
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
           billingDetails={billingDetails}

@@ -10,7 +10,12 @@ import {
 import { getChatCatchUpSummaryAction } from "@/app/chat/signal-actions";
 import { CatchUpSummaryBody } from "@/components/chat/signals/catch-up-summary-body";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
  * The reader's "while you were away" across every room they have not muted:
@@ -39,39 +44,45 @@ export function CatchUpView() {
     data.highlights.length === 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-4">
+    <div className="flex w-full flex-col gap-4 pb-4">
       <ChatUnreadViewHeader title={t("whileYouWereAwayTitle")} />
-      {data ? (
-        empty ? (
-          <ChatCaughtUp
-            title={t("caughtUpTitle")}
-            description={t("caughtUpDescription")}
-          />
-        ) : (
-          <CatchUpSummaryBody summary={data} showRooms />
-        )
-      ) : isError ? (
-        <div className="flex flex-col items-start gap-2">
-          <p className="text-muted-foreground text-sm">{t("error")}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={isFetching}
-            onClick={() => void refetch()}
-          >
-            {t("retry")}
-          </Button>
+      <div className={HOLDER_CLASS}>
+        <div className={cn(HOLDER_ITEM_CLASS, "p-4 md:p-5")}>
+          {data ? (
+            empty ? (
+              <ChatCaughtUp
+                title={t("caughtUpTitle")}
+                description={t("caughtUpDescription")}
+              />
+            ) : (
+              <CatchUpSummaryBody summary={data} showRooms />
+            )
+          ) : isError ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-muted-foreground text-sm">{t("error")}</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={isFetching}
+                onClick={() => void refetch()}
+              >
+                {t("retry")}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2" aria-busy>
+              <span className="sr-only">{t("summarizing")}</span>
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-4/5" />
+              <Skeleton className="mt-4 h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="flex flex-col gap-2" aria-busy>
-          <span className="sr-only">{t("summarizing")}</span>
-          <Skeleton className="h-5 w-full" />
-          <Skeleton className="h-5 w-4/5" />
-          <Skeleton className="mt-4 h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      )}
-      <p className="text-muted-foreground text-xs text-pretty">{t("aiNote")}</p>
+        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
+          {t("aiNote")}
+        </p>
+      </div>
     </div>
   );
 }
