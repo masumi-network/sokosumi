@@ -3714,6 +3714,7 @@ export type ContactListColor = typeof ContactListColor[keyof typeof ContactListC
 
 export type Contact = {
     id: string;
+    score: ContactScore | null;
     name: string;
     organization: string | null;
     role: string | null;
@@ -3747,6 +3748,19 @@ export type Contact = {
     channels: Array<ContactChannel>;
     lists: Array<ContactListRef>;
     knownBy: Array<ContactKnownBy>;
+};
+
+export type ContactScore = {
+    /**
+     * How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.
+     */
+    familiarity: number;
+    /**
+     * How much they matter to the reader, 0–100; null until judged.
+     */
+    importance: number | null;
+    importanceSource: 'JEV' | 'SOKO_BOT' | 'MANUAL' | null;
+    importanceReason: string | null;
 };
 
 export const ContactStage = {
@@ -27095,7 +27109,7 @@ export type GetContactsData = {
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts';
@@ -27395,7 +27409,7 @@ export type GetContactsExportCsvData = {
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts/export.csv';
@@ -29211,6 +29225,127 @@ export type DeleteContactsByIdInteractionsByInteractionIdResponses = {
 };
 
 export type DeleteContactsByIdInteractionsByInteractionIdResponse = DeleteContactsByIdInteractionsByInteractionIdResponses[keyof DeleteContactsByIdInteractionsByInteractionIdResponses];
+
+export type PutContactsByIdImportanceData = {
+    body?: {
+        importance: number | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/importance';
+};
+
+export type PutContactsByIdImportanceErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid importance
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceError = PutContactsByIdImportanceErrors[keyof PutContactsByIdImportanceErrors];
+
+export type PutContactsByIdImportanceResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
 
 export type GetContactsByIdActivityData = {
     body?: never;

@@ -207,6 +207,40 @@ export function Dot({ className }: { className: string }) {
   );
 }
 
+/**
+ * A 0–100 score as a short bar and its number, in the accent color. Null
+ * reads as a dash: not judged yet.
+ */
+export function ScoreMeter({
+  value,
+  label,
+}: {
+  value: number | null;
+  label: string;
+}) {
+  if (value === null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value}
+      className="inline-flex items-center gap-2"
+    >
+      <span className="bg-quinary h-1.5 w-14 overflow-hidden rounded-full">
+        <span
+          className="bg-primary block h-full rounded-full"
+          style={{ width: `${value}%` }}
+        />
+      </span>
+      <span className="text-muted-foreground w-6 text-xs tabular-nums">
+        {value}
+      </span>
+    </span>
+  );
+}
+
 export function StageChip({ stage }: { stage: ContactStage }) {
   const t = useTranslations("App.Contacts.stages");
   return (

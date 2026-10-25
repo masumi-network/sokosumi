@@ -34,6 +34,8 @@ export const CONTACT_SORTS = [
   "firstContactAt",
   "createdAt",
   "updatedAt",
+  "familiarity",
+  "importance",
 ] as const satisfies readonly ContactQuery["sort"][];
 
 export type ContactSort = (typeof CONTACT_SORTS)[number];
@@ -91,6 +93,28 @@ export function matchesContactSearch(
     contact.organization,
     ...contact.channels.map((channel) => channel.value),
   ].some((value) => value?.toLowerCase().includes(needle));
+}
+
+/**
+ * The importance a person picks from the menu, highest first. Jev's scores
+ * fall between them; the menu shows the nearest.
+ */
+export const IMPORTANCE_LEVELS = [
+  { id: "veryHigh", value: 90 },
+  { id: "high", value: 70 },
+  { id: "medium", value: 50 },
+  { id: "low", value: 25 },
+  { id: "minimal", value: 5 },
+] as const;
+
+export function nearestImportanceLevel(
+  importance: number,
+): (typeof IMPORTANCE_LEVELS)[number] {
+  return IMPORTANCE_LEVELS.reduce((best, level) =>
+    Math.abs(level.value - importance) < Math.abs(best.value - importance)
+      ? level
+      : best,
+  );
 }
 
 /** Ascending reads naturally for text, newest-first for dates. */

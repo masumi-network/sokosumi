@@ -13273,6 +13273,16 @@ export const ContactSchema = {
             type: 'string',
             format: 'uuid'
         },
+        score: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactScore'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         name: {
             type: 'string'
         },
@@ -13443,6 +13453,7 @@ export const ContactSchema = {
     },
     required: [
         'id',
+        'score',
         'name',
         'organization',
         'role',
@@ -13471,6 +13482,51 @@ export const ContactSchema = {
         'channels',
         'lists',
         'knownBy'
+    ]
+} as const;
+
+export const ContactScoreSchema = {
+    type: 'object',
+    properties: {
+        familiarity: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            description: 'How well the reader knows them, 0–100, from the reader\'s own interactions: how many, whether they answer, meetings, how recent.'
+        },
+        importance: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100,
+            description: 'How much they matter to the reader, 0–100; null until judged.'
+        },
+        importanceSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'JEV',
+                'SOKO_BOT',
+                'MANUAL',
+                null
+            ]
+        },
+        importanceReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'familiarity',
+        'importance',
+        'importanceSource',
+        'importanceReason'
     ]
 } as const;
 

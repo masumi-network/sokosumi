@@ -8706,7 +8706,9 @@
         "knownBy": "Bekannt mit",
         "followUp": "Follow-up",
         "email": "E-Mail",
-        "reply": "Antwort"
+        "reply": "Antwort",
+        "importance": "Wichtigkeit",
+        "familiarity": "Vertrautheit"
       },
       "grid": {
         "label": "Kontakte",
@@ -8999,7 +9001,29 @@
         "PERSON": "Person",
         "ORGANIZATION": "Organisation oder Sammelpostfach"
       },
-      "title": "Kontakte"
+      "title": "Kontakte",
+      "importance": {
+        "veryHigh": "Sehr wichtig",
+        "high": "Wichtig",
+        "medium": "Etwas wichtig",
+        "low": "Weniger wichtig",
+        "minimal": "Nicht wichtig",
+        "auto": "Jev entscheiden lassen",
+        "change": "Ändern, wie wichtig die Person für dich ist",
+        "byJev": "Von Jev eingeschätzt",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Von dir gesetzt",
+        "byBot": "Von deinem Soko Bot gesetzt",
+        "notYet": "Noch nicht eingeschätzt",
+        "familiarityHint": "Aus deinen eigenen E-Mails und Meetings mit der Person",
+        "reasons": {
+          "decides": "entscheidet mit",
+          "value": "kann deine Arbeit voranbringen",
+          "active": "laufendes Geschäft",
+          "close": "enge Beziehung",
+          "noise": "wirkt automatisiert oder unpersönlich"
+        }
+      }
     }
   },
   "Share": {

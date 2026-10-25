@@ -13,7 +13,9 @@ import {
 import {
   type ContactSort,
   channelLabel,
+  IMPORTANCE_LEVELS,
   isFollowUpDue,
+  nearestImportanceLevel,
   primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
@@ -49,6 +51,7 @@ import {
   Dot,
   ListChip,
   ReplyChip,
+  ScoreMeter,
   StageChip,
 } from "./contact-visuals";
 import { useStageOptions } from "./contacts-toolbar";
@@ -58,6 +61,8 @@ type ColumnId =
   | "name"
   | "email"
   | "organization"
+  | "importance"
+  | "familiarity"
   | "stage"
   | "reply"
   | "firstContact"
@@ -73,6 +78,8 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "name", width: 220, sort: "name" },
   { id: "email", width: 240 },
   { id: "organization", width: 170, sort: "organization" },
+  { id: "importance", width: 128, sort: "importance" },
+  { id: "familiarity", width: 128, sort: "familiarity" },
   { id: "stage", width: 128, sort: "stage" },
   { id: "reply", width: 184 },
   { id: "firstContact", width: 132, sort: "firstContactAt" },
@@ -132,6 +139,11 @@ interface Props {
     fields: ContactFields,
     optimistic?: Partial<Contact>,
   ) => Promise<boolean>;
+  /** Sets how much a contact matters to the reader; null lets Jev judge. */
+  onImportance: (
+    contact: Contact,
+    importance: number | null,
+  ) => Promise<boolean>;
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
@@ -148,6 +160,7 @@ export function ContactsGrid({
   onOpen,
   onOrganization,
   onUpdate,
+  onImportance,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -172,6 +185,13 @@ export function ContactsGrid({
   );
   const today = new Date();
   const stageChoices = useStageOptions();
+  const importanceChoices = [
+    ...IMPORTANCE_LEVELS.map((level) => ({
+      value: String(level.value),
+      label: t(`importance.${level.id}`),
+    })),
+    { value: "", label: t("importance.auto") },
+  ];
   const [copied, setCopied] = useState<string | null>(null);
 
   function copyEmail(id: string, email: string) {
@@ -351,6 +371,41 @@ export function ContactsGrid({
             </span>
           ),
         };
+      case "importance": {
+        const importance = contact.score?.importance ?? null;
+        return {
+          text: importance === null ? "" : String(importance),
+          edit: {
+            kind: "choice",
+            value:
+              importance === null || contact.score?.importanceSource === "JEV"
+                ? ""
+                : String(nearestImportanceLevel(importance).value),
+            choices: importanceChoices,
+            onSave: (value) =>
+              onImportance(contact, value ? Number(value) : null),
+          },
+          node: (
+            <span data-fit title={contact.score?.importanceReason ?? undefined}>
+              <ScoreMeter value={importance} label={t("columns.importance")} />
+            </span>
+          ),
+        };
+      }
+      case "familiarity": {
+        const familiarity = contact.score?.familiarity ?? null;
+        return {
+          text: familiarity === null ? "" : String(familiarity),
+          node: (
+            <span data-fit title={t("importance.familiarityHint")}>
+              <ScoreMeter
+                value={familiarity}
+                label={t("columns.familiarity")}
+              />
+            </span>
+          ),
+        };
+      }
       case "stage":
         return {
           text: t(`stages.${contact.stage}`),

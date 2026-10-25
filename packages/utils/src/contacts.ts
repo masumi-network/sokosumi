@@ -95,6 +95,9 @@ export const CONTACT_SORT_FIELDS = [
   "firstContactAt",
   "createdAt",
   "updatedAt",
+  /** The reader's own scores; see `contact_score`. */
+  "familiarity",
+  "importance",
 ] as const;
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];

@@ -26,6 +26,7 @@ import {
   postContactsByIdChannels,
   postContactsImport,
   postContactsMerge,
+  putContactsByIdImportance,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
@@ -51,6 +52,16 @@ export const contactsService = {
       await getContactsOrganizations({
         ...options(),
         query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
+  },
+  /** How much a contact matters to the reader; null lets Jev judge it. */
+  async setImportance(id: string, importance: number | null) {
+    return (
+      await putContactsByIdImportance({
+        ...options(),
+        path: { id },
+        body: { importance },
       })
     ).data.data;
   },

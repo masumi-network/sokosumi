@@ -8706,7 +8706,9 @@
         "knownBy": "Known by",
         "followUp": "Follow-up",
         "email": "Email",
-        "reply": "Reply"
+        "reply": "Reply",
+        "importance": "Importance",
+        "familiarity": "Familiarity"
       },
       "grid": {
         "label": "Contacts",
@@ -8999,7 +9001,29 @@
         "PERSON": "Person",
         "ORGANIZATION": "Organization or shared inbox"
       },
-      "title": "Contacts"
+      "title": "Contacts",
+      "importance": {
+        "veryHigh": "Very important",
+        "high": "Important",
+        "medium": "Somewhat important",
+        "low": "Not very important",
+        "minimal": "Not important",
+        "auto": "Let Jev decide",
+        "change": "Change how important they are to you",
+        "byJev": "Judged by Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Set by you",
+        "byBot": "Set by your Soko Bot",
+        "notYet": "Not judged yet",
+        "familiarityHint": "From your own emails and meetings with them",
+        "reasons": {
+          "decides": "decision maker",
+          "value": "could move your work forward",
+          "active": "live business",
+          "close": "close relationship",
+          "noise": "looks automated or not personal"
+        }
+      }
     }
   },
   "Share": {

@@ -64,9 +64,29 @@ export const contactKnownBySchema = personSchema
   })
   .openapi("ContactKnownBy");
 
+export const contactScoreSchema = z
+  .object({
+    familiarity: z.int().min(0).max(100).openapi({
+      description:
+        "How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.",
+    }),
+    importance: z.int().min(0).max(100).nullable().openapi({
+      description:
+        "How much they matter to the reader, 0–100; null until judged.",
+    }),
+    importanceSource: z.enum(["JEV", "SOKO_BOT", "MANUAL"]).nullable(),
+    importanceReason: z.string().nullable().openapi({
+      description:
+        "Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.",
+    }),
+  })
+  .openapi("ContactScore");
+
 export const contactSchema = z
   .object({
     id: z.uuid(),
+    /** The reader's own scores; null for someone they never met. */
+    score: z.union([contactScoreSchema, z.null()]),
     name: z.string(),
     organization: z.string().nullable(),
     role: z.string().nullable(),
