@@ -114,10 +114,21 @@ describe("SokoBotHome", () => {
         name: 'headingWithName:{"name":"Alice"}',
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Joseph")).toBeTruthy();
+    expect(screen.getByTestId("bot-face")).toBeTruthy();
     expect(
       screen.getByPlaceholderText('placeholder:{"name":"Joseph"}'),
     ).toBeTruthy();
+  });
+
+  it("puts a suggested prompt in the composer to edit or send", async () => {
+    await renderHome();
+    fireEvent.click(
+      screen.getByRole("button", { name: "suggestions.catchUp" }),
+    );
+    expect(
+      (screen.getByLabelText("composer") as HTMLTextAreaElement).value,
+    ).toBe("suggestions.catchUp");
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it("greets without a name when the account has none", async () => {
