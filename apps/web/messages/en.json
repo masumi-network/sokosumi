@@ -2260,7 +2260,14 @@
           "marketing": "Marketing",
           "social": "Social media",
           "seo": "SEO",
-          "operations": "Operations"
+          "operations": "Operations",
+          "presentations": "Presentations",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Media editing",
+          "communication": "Communication",
+          "finance": "Finance",
+          "qa": "Review & QA"
         }
       }
     },

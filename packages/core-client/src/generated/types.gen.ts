@@ -1729,7 +1729,14 @@ export const TaskTagId = {
     MARKETING: 'marketing',
     SOCIAL: 'social',
     SEO: 'seo',
-    OPERATIONS: 'operations'
+    OPERATIONS: 'operations',
+    PRESENTATIONS: 'presentations',
+    DASHBOARDS: 'dashboards',
+    MONITORING: 'monitoring',
+    MEDIA: 'media',
+    COMMUNICATION: 'communication',
+    FINANCE: 'finance',
+    QA: 'qa'
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
