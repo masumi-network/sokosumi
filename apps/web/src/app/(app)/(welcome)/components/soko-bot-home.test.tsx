@@ -138,6 +138,22 @@ describe("SokoBotHome", () => {
     expect(row.textContent).toContain("2h");
   });
 
+  it("counts long work in hours", async () => {
+    await renderHome({
+      summary: {
+        since: new Date(),
+        completed: 0,
+        awaitingInput: 0,
+        createdByOtherHumans: 0,
+        workedMinutes: 7200,
+        previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+      },
+    });
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
+      'workedHours:{"hours":120}',
+    );
+  });
+
   it("says so when nothing moved", async () => {
     await renderHome({ teamTasks: [], summary: null });
     expect(screen.getByText('quietDay:{"name":"Joseph"}')).toBeTruthy();

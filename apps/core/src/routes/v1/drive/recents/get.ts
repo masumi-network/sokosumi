@@ -42,7 +42,6 @@ import {
   driveRecentsQuerySchema,
 } from "@/schemas/drive-recents.schema";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
-import { contactsDriveEntry } from "@/services/contacts.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -52,7 +51,6 @@ const route = withCoworkerContextHeaderParameters(
       "List recent Drive files and task/agent outputs for the active workspace.",
       "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
       "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles and, for people, live tables.",
-      "For people, the first page starts with the workspace's pinned Contacts entry (kind `contacts`) unless a search excludes it.",
       "Drive files carry their catalog id and labels; `tags` narrows the list to Drive files carrying any of the given labels.",
     ].join("\n"),
     tags: ["Drive"],
@@ -206,15 +204,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : {}),
     });
 
-    // The contacts set is one pinned entry per workspace, not a file: it heads
-    // the first page and matches a search for its name.
-    const contacts =
-      tableActor &&
-      !cursor &&
-      !driveFilePathnames &&
-      (!searchQuery || "contacts".includes(searchQuery.toLowerCase()))
-        ? await contactsDriveEntry(workspaceContext.workspaceId)
-        : null;
     const catalog = await findDriveRecentsCatalogEntries({
       workspaceId: workspaceContext.workspaceId,
       scope,
@@ -222,23 +211,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         item.kind === "drive-file" ? [item.pathname] : [],
       ),
     });
-    const pageItems = page.items.map((item) =>
+    const items = page.items.map((item) =>
       item.kind === "drive-file"
         ? { ...item, ...catalog.get(item.pathname) }
         : item,
     );
-    const items = contacts
-      ? [
-          {
-            kind: "contacts" as const,
-            name: "Contacts",
-            pinned: true as const,
-            ...contacts,
-          },
-          ...pageItems,
-        ]
-      : pageItems;
-
     const paginationMeta: CursorPaginationMeta = {
       cursor: cursor ?? null,
       limit: take,

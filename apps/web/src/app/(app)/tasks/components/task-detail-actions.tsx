@@ -33,6 +33,7 @@ import {
   SquareMinus,
   SquareMousePointer,
   SquarePlus,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,16 +47,6 @@ import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only"
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -104,8 +95,6 @@ import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 interface TaskDetailActionsLabels {
   edit: string;
   archive: string;
-  confirmArchive: string;
-  confirmArchiveDescription: string;
   archiveError: string;
   reopenToReady: string;
   reopenToReadyTitle: string;
@@ -204,7 +193,6 @@ export function TaskDetailActions({
     useTransition();
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
-  const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
@@ -457,7 +445,6 @@ export function TaskDetailActions({
       try {
         await deleteTask({ taskId });
         markTaskArchived(taskId);
-        setIsOpen(false);
         router.push("/tasks");
       } catch (error) {
         console.error("Failed to archive task", error);
@@ -569,6 +556,24 @@ export function TaskDetailActions({
 
   return (
     <div className="flex items-center gap-2">
+      {canArchiveTask ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-10 md:size-8"
+          aria-label={labels.archive}
+          title={labels.archive}
+          disabled={actionsDisabled}
+          onClick={handleArchive}
+        >
+          {isArchivePending ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Trash2 className="size-4" aria-hidden />
+          )}
+        </Button>
+      ) : null}
       {canMutateTask && taskVisibility !== "PRIVATE" ? (
         <TaskShareButton
           task={{ id: taskId, share }}
@@ -946,7 +951,7 @@ export function TaskDetailActions({
             {canArchiveTask ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
-                onSelect={() => setIsOpen(true)}
+                onSelect={handleArchive}
               >
                 <Archive className="size-4" aria-hidden />
                 {labels.archive}
@@ -954,30 +959,6 @@ export function TaskDetailActions({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
-
-      {canArchiveTask ? (
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{labels.confirmArchive}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {labels.confirmArchiveDescription}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isArchivePending}>
-                {tApp("cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleArchive}
-                loading={isArchivePending}
-              >
-                {labels.archive}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       ) : null}
 
       <TaskReopenToReadyDialog

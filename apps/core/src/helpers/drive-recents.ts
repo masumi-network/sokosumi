@@ -39,9 +39,6 @@ function recentsItemId(item: DriveRecentsItem): string {
   if (item.kind === "table") {
     return item.tableId;
   }
-  if (item.kind === "contacts") {
-    return "contacts";
-  }
   return item.taskFileId;
 }
 

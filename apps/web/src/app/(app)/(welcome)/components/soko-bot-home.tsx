@@ -53,9 +53,13 @@ export async function SokoBotHome({
         summary.completed > 0
           ? tStats("completed", { count: summary.completed })
           : null,
-        summary.workedMinutes > 0
-          ? tStats("worked", { minutes: summary.workedMinutes })
-          : null,
+        summary.workedMinutes >= 60
+          ? tStats("workedHours", {
+              hours: Math.round(summary.workedMinutes / 60),
+            })
+          : summary.workedMinutes > 0
+            ? tStats("worked", { minutes: summary.workedMinutes })
+            : null,
         summary.createdByOtherHumans > 0
           ? tStats("byTeammates", { count: summary.createdByOtherHumans })
           : null,
@@ -93,17 +97,20 @@ export async function SokoBotHome({
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2 pt-1">
             <h2
               id="soko-bot-home-day"
-              className="text-muted-foreground text-xs font-medium"
+              className="text-foreground text-sm font-medium"
             >
               {tStats("recent")}
               {stats.length > 0 ? (
-                <span className="text-foreground"> · {stats.join(" · ")}</span>
+                <span className="text-muted-foreground font-normal">
+                  {" "}
+                  · {stats.join(" · ")}
+                </span>
               ) : null}
             </h2>
             {awaitingInput > 0 ? (
               <Link
                 href="/tasks"
-                className="text-primary hover:text-foreground focus-visible:ring-ring rounded-md text-xs font-medium outline-none transition-colors focus-visible:ring-2"
+                className="text-primary hover:text-foreground focus-visible:ring-ring rounded-md text-sm font-medium outline-none transition-colors focus-visible:ring-2"
               >
                 {tStats("awaiting", { count: awaitingInput })}
               </Link>
