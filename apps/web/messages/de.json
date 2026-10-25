@@ -8671,19 +8671,13 @@
       "presets": {
         "all": "Alle Kontakte",
         "mine": "Meine Kontakte",
-        "noReply": "Keine Antwort",
-        "followUps": "Fällige Follow-ups",
-        "recent": "Neu hinzugefügt",
-        "stale": "Über 90 Tage still"
+        "recent": "Neu hinzugefügt"
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
-        "mine": "Du bist noch für keinen Kontakt zuständig. Trage dich als Zuständige:r bei den Menschen ein, um die du dich kümmerst.",
-        "followUps": "Keine Follow-ups fällig. Gut gemacht.",
+        "mine": "Noch niemand, den du betreust oder mit dem du gesprochen hast.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
-        "stale": "Mit allen gab es in den letzten 90 Tagen Kontakt.",
-        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
-        "noReply": "Alle, denen das Team geschrieben hat, haben geantwortet, oder es ist noch keine Woche her."
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
       },
       "views": {
         "label": "Kontaktansichten",
@@ -8708,6 +8702,7 @@
         "lists": "Listen",
         "channels": "Kanäle",
         "owner": "Zuständig",
+        "firstContact": "Erster Kontakt",
         "lastContact": "Letzter Kontakt",
         "knownBy": "Bekannt mit",
         "followUp": "Follow-up",

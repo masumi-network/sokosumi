@@ -62,6 +62,7 @@ type ColumnId =
   | "organization"
   | "stage"
   | "reply"
+  | "firstContact"
   | "lastContact"
   | "lists"
   | "knownBy"
@@ -77,6 +78,7 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "organization", width: 170, sort: "organization" },
   { id: "stage", width: 128, sort: "stage" },
   { id: "reply", width: 184 },
+  { id: "firstContact", width: 132, sort: "firstContactAt" },
   { id: "lastContact", width: 124, sort: "lastContactAt" },
   { id: "lists", width: 180 },
   { id: "knownBy", width: 104 },
@@ -441,6 +443,26 @@ export function ContactsGrid({
             <span className="text-muted-foreground">—</span>
           ),
         };
+      case "firstContact": {
+        const first = contact.firstContactAt
+          ? format.dateTime(new Date(contact.firstContactAt), {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : "";
+        return {
+          text: first,
+          node: (
+            <span
+              data-fit
+              className="text-muted-foreground truncate tabular-nums"
+            >
+              {first || "—"}
+            </span>
+          ),
+        };
+      }
       case "lastContact":
         return {
           text: relative(contact.lastContactAt),

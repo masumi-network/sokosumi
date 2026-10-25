@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONTACT_PRESET_IDS,
   CONTACT_STAGES,
   type ContactView,
   channelHref,
@@ -42,21 +43,13 @@ describe("contactQuery", () => {
     expect(contactQuery(base)).not.toHaveProperty("organization");
   });
 
-  it("maps each rail preset to the documented query params", () => {
+  it("maps each preset tab to the documented query params", () => {
+    expect(CONTACT_PRESET_IDS).toEqual(["all", "mine", "recent"]);
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
       mine: "true",
     });
-    expect(contactQuery({ ...base, view: "followUps" })).toMatchObject({
-      followUpDue: "true",
-    });
     expect(contactQuery({ ...base, view: "recent" })).toMatchObject({
       createdWithinDays: 14,
-    });
-    expect(contactQuery({ ...base, view: "stale" })).toMatchObject({
-      lastContactOlderThanDays: 90,
-    });
-    expect(contactQuery({ ...base, view: "noReply" })).toMatchObject({
-      replyState: "NO_REPLY",
     });
     expect(contactQuery(base)).toEqual({
       sort: "updatedAt",
@@ -65,7 +58,11 @@ describe("contactQuery", () => {
   });
 
   it("treats any other view as a list id", () => {
-    expect(contactQuery({ ...base, view: "list-1" }).listId).toBe("list-1");
+    const listId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f";
+    expect(contactQuery({ ...base, view: listId }).listId).toBe(listId);
+    expect(contactQuery({ ...base, view: "stale" })).not.toHaveProperty(
+      "listId",
+    );
   });
 
   it("narrows the view with the toolbar filters", () => {
