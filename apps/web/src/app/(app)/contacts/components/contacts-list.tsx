@@ -45,6 +45,7 @@ export function ContactsList({
                 <ContactAvatar
                   name={contact.name}
                   src={contact.avatarUrl}
+                  email={email}
                   kind={contact.kind}
                   className="size-8"
                 />

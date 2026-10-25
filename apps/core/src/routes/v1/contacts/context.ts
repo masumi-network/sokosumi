@@ -24,6 +24,7 @@ export function contactQueryOptions(
   return {
     filter: {
       search: query.search,
+      organization: query.organization,
       stages: query.stage ? [query.stage] : undefined,
       kind: query.kind,
       replyStates: query.replyState ? [query.replyState] : undefined,

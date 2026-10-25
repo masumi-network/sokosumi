@@ -327,7 +327,8 @@
       "social": "Programación social",
       "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos",
-      "catch-up": "Ponerse al día"
+      "catch-up": "Ponerse al día",
+      "contacts": "Contactos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -8684,17 +8685,20 @@
         "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
         "noReply": "Todos a quienes el equipo escribió han respondido, o aún no ha pasado una semana."
       },
-      "rail": {
-        "label": "Listas de contactos",
+      "views": {
+        "label": "Vistas de contactos",
         "lists": "Listas",
         "newList": "Nueva lista",
         "smartList": "Lista inteligente",
-        "listMenu": "Opciones de {name}",
         "editList": "Editar lista",
         "deleteList": "Eliminar lista",
         "noLists": "Todavía no hay listas.",
         "import": "Importar desde una tabla",
-        "autoList": "Creada automáticamente a partir de tus contactos"
+        "autoList": "Creada automáticamente a partir de tus contactos",
+        "companies": "Empresas",
+        "findCompany": "Buscar una empresa…",
+        "noCompanies": "No se encontraron empresas.",
+        "clearCompany": "Mostrar todas las empresas"
       },
       "columns": {
         "name": "Nombre",
@@ -8724,7 +8728,8 @@
         "copyEmail": "Copiar {email}",
         "emailCopied": "Correo copiado",
         "waitingDays": "{days, plural, =0 {hoy} other {# d}}",
-        "addedAutomatically": "Añadido a {list} automáticamente"
+        "addedAutomatically": "Añadido a {list} automáticamente",
+        "filterCompany": "Mostrar personas de {name}"
       },
       "toolbar": {
         "search": "Buscar contactos",
@@ -9003,7 +9008,8 @@
       "kinds": {
         "PERSON": "Persona",
         "ORGANIZATION": "Organización o buzón compartido"
-      }
+      },
+      "title": "Contactos"
     }
   },
   "Share": {

@@ -128,6 +128,8 @@ interface Props {
   direction: "asc" | "desc";
   onSort: (sort: ContactSort) => void;
   onOpen: (id: string) => void;
+  /** Shows only the people at this organization. */
+  onOrganization: (organization: string) => void;
   onUpdate: (
     contact: Contact,
     fields: ContactFields,
@@ -148,6 +150,7 @@ export function ContactsGrid({
   direction,
   onSort,
   onOpen,
+  onOrganization,
   onUpdate,
   hasMore,
   loadingMore,
@@ -251,6 +254,7 @@ export function ContactsGrid({
               <ContactAvatar
                 name={contact.name}
                 src={contact.avatarUrl}
+                email={primaryEmail(contact.channels)}
                 kind={contact.kind}
               />
               <button
@@ -331,18 +335,31 @@ export function ContactsGrid({
           ),
         };
       case "organization":
+        return {
+          text: contact.organization ?? "",
+          edit: textEdit(contact, "organization"),
+          node: contact.organization ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              data-fit
+              title={t("grid.filterCompany", { name: contact.organization })}
+              onMouseDown={keepCellFocus}
+              onClick={() =>
+                contact.organization && onOrganization(contact.organization)
+              }
+              className="hover:decoration-foreground min-w-0 cursor-pointer truncate text-start underline decoration-transparent underline-offset-4 transition-colors"
+            >
+              {contact.organization}
+            </button>
+          ) : null,
+        };
       case "role":
         return {
           text: contact[column] ?? "",
           edit: textEdit(contact, column),
           node: (
-            <span
-              data-fit
-              className={cn(
-                "truncate",
-                column === "role" && "text-muted-foreground",
-              )}
-            >
+            <span data-fit className="text-muted-foreground truncate">
               {contact[column]}
             </span>
           ),

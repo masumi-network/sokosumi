@@ -9,6 +9,7 @@ import {
   getContactsByIdInteractions,
   getContactsDuplicates,
   getContactsExportCsv,
+  getContactsOrganizations,
   getOrganizationsByIdMembers,
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
@@ -43,6 +44,10 @@ export const contactsService = {
       nextCursor: data.meta.pagination.nextCursor,
       total: data.meta.pagination.total,
     };
+  },
+  /** The organizations contacts work at, biggest first. */
+  async organizations() {
+    return (await getContactsOrganizations({ ...options() })).data.data;
   },
   async get(id: string) {
     return (await getContactsById({ ...options(), path: { id } })).data.data;

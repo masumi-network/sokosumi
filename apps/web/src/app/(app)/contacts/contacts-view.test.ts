@@ -18,6 +18,7 @@ import {
 
 const base: ContactView = {
   view: "all",
+  organization: null,
   search: "",
   stage: null,
   replyState: null,
@@ -29,6 +30,17 @@ const base: ContactView = {
 };
 
 describe("contactQuery", () => {
+  it("narrows to one company inside any view", () => {
+    expect(
+      contactQuery({
+        ...base,
+        view: "mine",
+        organization: "Cardano Foundation",
+      }),
+    ).toMatchObject({ ownedByMe: "true", organization: "Cardano Foundation" });
+    expect(contactQuery(base)).not.toHaveProperty("organization");
+  });
+
   it("maps each rail preset to the documented query params", () => {
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
       ownedByMe: "true",

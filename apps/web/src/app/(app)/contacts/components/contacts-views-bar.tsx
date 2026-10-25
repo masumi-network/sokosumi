@@ -1,0 +1,276 @@
+"use client";
+import type { ContactList } from "@sokosumi/core-client";
+import {
+  Building2,
+  Check,
+  ChevronDown,
+  ListFilter,
+  Plus,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import {
+  CONTACT_PRESET_IDS,
+  isContactPreset,
+  LIST_COLOR_DOT,
+} from "@/app/contacts/contacts-view";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { Dot } from "./contact-visuals";
+
+interface Props {
+  view: string;
+  onViewChange: (view: string) => void;
+  lists: ContactList[];
+  onNewList: () => void;
+  onEditList: (list: ContactList) => void;
+  onDeleteList: (list: ContactList) => void;
+  organization: string | null;
+  organizations: { name: string; count: number }[];
+  onOrganizationChange: (organization: string | null) => void;
+}
+
+/** The presets as tabs, then the team's lists and the companies as menus. */
+export function ContactsViewsBar({
+  view,
+  onViewChange,
+  lists,
+  onNewList,
+  onEditList,
+  onDeleteList,
+  organization,
+  organizations,
+  onOrganizationChange,
+}: Props) {
+  const t = useTranslations("App.Contacts");
+  return (
+    <nav
+      aria-label={t("views.label")}
+      className="flex min-w-0 flex-wrap items-center gap-2"
+    >
+      <Tabs
+        value={isContactPreset(view) ? view : ""}
+        onValueChange={onViewChange}
+        className="max-w-full min-w-0"
+      >
+        <TabsList
+          className={cn(
+            SEGMENTED_TABS_LIST_CLASS_NAME,
+            "max-w-full justify-start overflow-x-auto",
+          )}
+        >
+          {CONTACT_PRESET_IDS.map((preset) => (
+            <TabsTrigger
+              key={preset}
+              value={preset}
+              className={cn(SEGMENTED_TAB_TRIGGER_CLASS_NAME, "shrink-0")}
+            >
+              {t(`presets.${preset}`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      <ListsMenu
+        view={view}
+        onViewChange={onViewChange}
+        lists={lists}
+        onNewList={onNewList}
+        onEditList={onEditList}
+        onDeleteList={onDeleteList}
+      />
+      <CompaniesMenu
+        organization={organization}
+        organizations={organizations}
+        onChange={onOrganizationChange}
+      />
+    </nav>
+  );
+}
+
+function ListsMenu({
+  view,
+  onViewChange,
+  lists,
+  onNewList,
+  onEditList,
+  onDeleteList,
+}: Pick<
+  Props,
+  | "view"
+  | "onViewChange"
+  | "lists"
+  | "onNewList"
+  | "onEditList"
+  | "onDeleteList"
+>) {
+  const t = useTranslations("App.Contacts");
+  const current = lists.find((list) => list.id === view) ?? null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant={current ? "secondary" : "outline"}
+          size="sm"
+          className="h-10 max-w-64 md:h-8"
+        >
+          {current ? <Dot className={LIST_COLOR_DOT[current.color]} /> : null}
+          <span className="truncate">{current?.name ?? t("views.lists")}</span>
+          <ChevronDown aria-hidden className="size-4 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuLabel>{t("views.lists")}</DropdownMenuLabel>
+        {lists.map((list) => (
+          <DropdownMenuItem key={list.id} onClick={() => onViewChange(list.id)}>
+            <Dot className={LIST_COLOR_DOT[list.color]} />
+            <span className="truncate">{list.name}</span>
+            {list.kind === "smart" ? (
+              <ListFilter
+                aria-label={t("views.smartList")}
+                className="size-3.5 shrink-0"
+              />
+            ) : list.createdAutomatically ? (
+              <Sparkles
+                aria-label={t("views.autoList")}
+                className="size-3.5 shrink-0"
+              />
+            ) : null}
+            <span className="text-muted-foreground ms-auto text-xs tabular-nums">
+              {list.count}
+            </span>
+            {list.id === view ? (
+              <Check aria-hidden className="size-4 shrink-0" />
+            ) : null}
+          </DropdownMenuItem>
+        ))}
+        {lists.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-1.5 text-sm">
+            {t("views.noLists")}
+          </p>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onNewList}>
+          <Plus aria-hidden className="size-4" />
+          {t("views.newList")}
+        </DropdownMenuItem>
+        {current ? (
+          <>
+            <DropdownMenuItem onClick={() => onEditList(current)}>
+              {t("views.editList")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDeleteList(current)}
+            >
+              {t("views.deleteList")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function CompaniesMenu({
+  organization,
+  organizations,
+  onChange,
+}: {
+  organization: string | null;
+  organizations: Props["organizations"];
+  onChange: (organization: string | null) => void;
+}) {
+  const t = useTranslations("App.Contacts");
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant={organization ? "secondary" : "outline"}
+            size="sm"
+            className={cn(
+              "h-10 max-w-64 md:h-8",
+              organization && "rounded-e-none",
+            )}
+          >
+            <Building2 aria-hidden className="size-4 shrink-0" />
+            <span className="truncate">
+              {organization ?? t("views.companies")}
+            </span>
+            <ChevronDown aria-hidden className="size-4 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-72 p-0">
+          <Command>
+            <CommandInput placeholder={t("views.findCompany")} />
+            <CommandList>
+              <CommandEmpty>{t("views.noCompanies")}</CommandEmpty>
+              <CommandGroup>
+                {organizations.map((company) => (
+                  <CommandItem
+                    key={company.name}
+                    value={company.name}
+                    onSelect={() => {
+                      onChange(company.name);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{company.name}</span>
+                    <span className="text-muted-foreground ms-auto text-xs tabular-nums">
+                      {company.count}
+                    </span>
+                    {company.name === organization ? (
+                      <Check aria-hidden className="size-4 shrink-0" />
+                    ) : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {organization ? (
+        <Button
+          variant="secondary"
+          size="icon"
+          className="hit-area size-10 rounded-s-none border-s-0 md:size-8"
+          aria-label={t("views.clearCompany")}
+          onClick={() => onChange(null)}
+        >
+          <X aria-hidden className="size-4" />
+        </Button>
+      ) : null}
+    </div>
+  );
+}

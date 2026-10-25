@@ -258,6 +258,7 @@ function PanelBody({
         <ContactAvatar
           name={contact.name}
           src={contact.avatarUrl}
+          email={email}
           kind={contact.kind}
           className="size-14 [&_[data-slot=avatar-fallback]]:text-base [&_svg]:size-6"
         />

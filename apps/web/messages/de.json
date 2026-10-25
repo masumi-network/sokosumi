@@ -327,7 +327,8 @@
       "social": "Social-Planung",
       "ads": "Ads",
       "evaluations": "Modellvergleiche",
-      "catch-up": "Aufholen"
+      "catch-up": "Aufholen",
+      "contacts": "Kontakte"
     },
     "Jobs": {
       "StatusBadge": {
@@ -8684,17 +8685,20 @@
         "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
         "noReply": "Alle, denen das Team geschrieben hat, haben geantwortet, oder es ist noch keine Woche her."
       },
-      "rail": {
-        "label": "Kontaktlisten",
+      "views": {
+        "label": "Kontaktansichten",
         "lists": "Listen",
         "newList": "Neue Liste",
         "smartList": "Intelligente Liste",
-        "listMenu": "Optionen für {name}",
         "editList": "Liste bearbeiten",
         "deleteList": "Liste löschen",
         "noLists": "Noch keine Listen.",
         "import": "Aus einer Tabelle importieren",
-        "autoList": "Automatisch aus deinen Kontakten erstellt"
+        "autoList": "Automatisch aus deinen Kontakten erstellt",
+        "companies": "Firmen",
+        "findCompany": "Firma suchen …",
+        "noCompanies": "Keine Firmen gefunden.",
+        "clearCompany": "Alle Firmen zeigen"
       },
       "columns": {
         "name": "Name",
@@ -8724,7 +8728,8 @@
         "copyEmail": "{email} kopieren",
         "emailCopied": "E-Mail-Adresse kopiert",
         "waitingDays": "{days, plural, =0 {heute} other {# T.}}",
-        "addedAutomatically": "Automatisch zu {list} hinzugefügt"
+        "addedAutomatically": "Automatisch zu {list} hinzugefügt",
+        "filterCompany": "Personen bei {name} zeigen"
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
@@ -9003,7 +9008,8 @@
       "kinds": {
         "PERSON": "Person",
         "ORGANIZATION": "Organisation oder Sammelpostfach"
-      }
+      },
+      "title": "Kontakte"
     }
   },
   "Share": {

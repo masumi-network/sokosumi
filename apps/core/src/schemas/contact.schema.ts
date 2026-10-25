@@ -226,9 +226,19 @@ const booleanQuery = z.enum(["true", "false"]).optional();
 const positiveDays = z.coerce.number().int().min(1).max(3650).optional();
 
 /** `GET /contacts` and the CSV export: a contact filter spelled as query params. */
+export const contactOrganizationSchema = z
+  .object({
+    name: z.string().openapi({ example: "Cardano Foundation" }),
+    count: z.int().openapi({ example: 61, description: "Live contacts" }),
+  })
+  .openapi("ContactOrganization");
+
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
+  organization: z.string().trim().min(1).max(200).optional().openapi({
+    description: "Only people at this organization, matched whatever its case.",
+  }),
   stage: contactStageSchema.optional(),
   kind: contactKindSchema.optional(),
   replyState: contactReplyStateSchema.optional(),

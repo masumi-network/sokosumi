@@ -19,6 +19,7 @@ import type { z } from "zod";
 import { resolveTableActor } from "@/helpers/data-table";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { literalSubstringPattern } from "@/helpers/project-activity";
 import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import { isNonPersonName } from "@/lib/contacts/classify";
 import { contactReplyState, replyStateWhere } from "@/lib/contacts/reply-state";
@@ -1058,6 +1059,10 @@ export function contactFilterWhere(
       ],
     });
   }
+  if (filter.organization)
+    and.push({
+      organization: { equals: filter.organization, mode: "insensitive" },
+    });
   if (filter.stages) and.push({ stage: { in: filter.stages } });
   if (filter.kind) and.push({ kind: filter.kind });
   if (filter.replyStates)
@@ -1182,6 +1187,31 @@ export async function listContacts(
     total,
     nextCursor: rows.length > options.limit ? (page.at(-1)?.id ?? null) : null,
   };
+}
+
+/**
+ * The organizations the workspace's live contacts work at, biggest first.
+ * Spellings that differ only in case or spacing count as one, named by the
+ * most common spelling.
+ */
+export async function listContactOrganizations(
+  actor: ContactActor,
+  options: { search?: string; limit: number },
+): Promise<{ name: string; count: number }[]> {
+  const search = options.search
+    ? PrismaRaw.sql`AND organization ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\'`
+    : PrismaRaw.empty;
+  return prisma.$queryRaw<{ name: string; count: number }[]>`
+    SELECT mode() WITHIN GROUP (ORDER BY organization) AS name,
+      count(*)::int AS count
+    FROM contact
+    WHERE "workspaceId" = ${actor.workspaceId}::uuid
+      AND "mergedIntoId" IS NULL AND "archivedAt" IS NULL
+      AND btrim(coalesce(organization, '')) <> '' ${search}
+    GROUP BY lower(btrim(organization))
+    ORDER BY count DESC, name ASC
+    LIMIT ${options.limit}
+  `;
 }
 
 /** Every match, for export; bounded so one request cannot load a city. */

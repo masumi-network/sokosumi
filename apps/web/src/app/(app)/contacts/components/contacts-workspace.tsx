@@ -62,13 +62,13 @@ import { ContactPanel } from "./contact-panel";
 import { ContactsEmptyState } from "./contacts-empty-state";
 import { ContactsGrid } from "./contacts-grid";
 import { ContactsList } from "./contacts-list";
-import { ContactsRail, ContactsViewPicker } from "./contacts-rail";
 import {
   type ContactFilterKey,
   type ContactFilters,
   ContactsBulkBar,
   ContactsFilterBar,
 } from "./contacts-toolbar";
+import { ContactsViewsBar } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate } from "./use-contact-update";
@@ -76,6 +76,7 @@ import {
   CONTACT_LISTS_KEY,
   refreshContacts,
   useContactLists,
+  useContactOrganizations,
   useContactRows,
   useTeammates,
 } from "./use-contacts-data";
@@ -87,7 +88,7 @@ type Dialog =
   | { kind: "deleteList"; list: ContactList }
   | { kind: "merge"; contacts: Contact[] };
 
-/** The Contacts tab: lists on the left, the grid, and the person panel. */
+/** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
   connectOffers,
 }: {
@@ -101,6 +102,7 @@ export function ContactsWorkspace({
     parseAsString.withDefault("all"),
   );
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [organization, setOrganization] = useQueryState("company");
   const [stage, setStage] = useQueryState(
     "stage",
     parseAsStringLiteral(CONTACT_STAGES),
@@ -132,9 +134,11 @@ export function ContactsWorkspace({
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
+  const organizations = useContactOrganizations();
   const filters: ContactFilters = { stage, replyState, kind, owner, knownBy };
   const query = contactQuery({
     view,
+    organization,
     search: deferredSearch,
     ...filters,
     sort,
@@ -144,7 +148,8 @@ export function ContactsWorkspace({
   const contacts = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
   const total = rows.data?.pages[0]?.total ?? 0;
   const viewList = lists.data?.find((list) => list.id === view) ?? null;
-  const filtered = !!search.trim() || Object.values(filters).some(Boolean);
+  const filtered =
+    !!search.trim() || !!organization || Object.values(filters).some(Boolean);
   const setFilter: Record<
     ContactFilterKey,
     (value: string | null) => Promise<unknown>
@@ -157,6 +162,7 @@ export function ContactsWorkspace({
   };
   function clearFilters() {
     void setSearch(null);
+    void setOrganization(null);
     for (const set of Object.values(setFilter)) void set(null);
   }
   const selectedContacts = contacts.filter((contact) =>
@@ -169,6 +175,10 @@ export function ContactsWorkspace({
 
   function changeView(next: string) {
     void setView(next === "all" ? null : next);
+    setSelected([]);
+  }
+  function changeOrganization(next: string | null) {
+    void setOrganization(next);
     setSelected([]);
   }
   function handleSort(next: ContactSort) {
@@ -249,112 +259,28 @@ export function ContactsWorkspace({
     }
   }
 
-  const heading = isContactPreset(view)
-    ? t(`presets.${view}`)
-    : (viewList?.name ?? t("presets.all"));
   const workspaceEmpty =
     !rows.isPending && total === 0 && view === "all" && !filtered;
 
-  const rail = (
-    <ContactsRail
-      view={view}
-      onViewChange={changeView}
-      lists={lists.data ?? []}
-      onNewList={() => setDialog({ kind: "list" })}
-      onEditList={(list) => setDialog({ kind: "list", list })}
-      onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-    />
-  );
-
   return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-[13rem_minmax(0,1fr)]">
-      <aside className="hidden lg:block">
-        <div className="sticky top-0">{rail}</div>
-      </aside>
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-col gap-3">
-        <header className="flex flex-wrap items-center gap-2">
-          <div className="me-2 flex min-w-0 items-baseline gap-2">
-            <h1 className="truncate text-lg leading-tight font-semibold tracking-tight">
-              {heading}
-            </h1>
-            <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
-              {rows.isPending ? null : t("count", { count: total })}
-            </span>
+        <header className="flex min-w-0 items-start gap-2">
+          <h1 className="sr-only">{t("title")}</h1>
+          <div className="min-w-0 flex-1">
+            <ContactsViewsBar
+              view={view}
+              onViewChange={changeView}
+              lists={lists.data ?? []}
+              onNewList={() => setDialog({ kind: "list" })}
+              onEditList={(list) => setDialog({ kind: "list", list })}
+              onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
+              organization={organization}
+              organizations={organizations.data ?? []}
+              onOrganizationChange={changeOrganization}
+            />
           </div>
-          <div className="order-3 flex w-full min-w-0 flex-wrap items-center gap-2 xl:order-2 xl:w-auto xl:flex-1">
-            <div className="min-w-0 flex-1 sm:w-48 sm:flex-none lg:hidden">
-              <ContactsViewPicker
-                view={view}
-                onViewChange={changeView}
-                lists={lists.data ?? []}
-                onNewList={() => setDialog({ kind: "list" })}
-              />
-            </div>
-            {selected.length ? (
-              <ContactsBulkBar
-                count={selected.length}
-                lists={lists.data ?? []}
-                viewList={viewList?.kind === "manual" ? viewList : null}
-                teammates={teammates}
-                onAddToList={(list) =>
-                  void bulk(
-                    () =>
-                      contactsService.changeMembers(list.id, { add: selected }),
-                    t("bulk.addedToList", {
-                      count: selected.length,
-                      list: list.name,
-                    }),
-                  )
-                }
-                onRemoveFromList={(list) =>
-                  void bulk(
-                    async () => {
-                      await contactsService.changeMembers(list.id, {
-                        remove: selected,
-                      });
-                      if (view === list.id) setSelected([]);
-                    },
-                    t("bulk.removedFromList", {
-                      count: selected.length,
-                      list: list.name,
-                    }),
-                  )
-                }
-                onStage={(next: ContactStage) =>
-                  bulkUpdate({ stage: next }, {})
-                }
-                onOwner={(userId) =>
-                  bulkUpdate(
-                    { ownerUserId: userId },
-                    {
-                      owner:
-                        teammates.find((person) => person.id === userId) ??
-                        null,
-                    },
-                  )
-                }
-                onMerge={() =>
-                  setDialog({ kind: "merge", contacts: selectedContacts })
-                }
-                onClear={() => setSelected([])}
-              />
-            ) : (
-              <ContactsFilterBar
-                search={search}
-                onSearch={(value) => {
-                  void setSearch(value || null);
-                  setSelected([]);
-                }}
-                filters={filters}
-                onFilter={(key, value) => {
-                  void setFilter[key](value);
-                  setSelected([]);
-                }}
-                teammates={teammates}
-              />
-            )}
-          </div>
-          <div className="order-2 ms-auto flex items-center gap-1 xl:order-3">
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               size="sm"
               variant="primary"
@@ -383,16 +309,81 @@ export function ContactsWorkspace({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setDialog({ kind: "import" })}>
                   <FileSpreadsheet aria-hidden className="size-4" />
-                  {t("rail.import")}
+                  {t("views.import")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
                   <ListPlus aria-hidden className="size-4" />
-                  {t("rail.newList")}
+                  {t("views.newList")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {selected.length ? (
+            <ContactsBulkBar
+              count={selected.length}
+              lists={lists.data ?? []}
+              viewList={viewList?.kind === "manual" ? viewList : null}
+              teammates={teammates}
+              onAddToList={(list) =>
+                void bulk(
+                  () =>
+                    contactsService.changeMembers(list.id, { add: selected }),
+                  t("bulk.addedToList", {
+                    count: selected.length,
+                    list: list.name,
+                  }),
+                )
+              }
+              onRemoveFromList={(list) =>
+                void bulk(
+                  async () => {
+                    await contactsService.changeMembers(list.id, {
+                      remove: selected,
+                    });
+                    if (view === list.id) setSelected([]);
+                  },
+                  t("bulk.removedFromList", {
+                    count: selected.length,
+                    list: list.name,
+                  }),
+                )
+              }
+              onStage={(next: ContactStage) => bulkUpdate({ stage: next }, {})}
+              onOwner={(userId) =>
+                bulkUpdate(
+                  { ownerUserId: userId },
+                  {
+                    owner:
+                      teammates.find((person) => person.id === userId) ?? null,
+                  },
+                )
+              }
+              onMerge={() =>
+                setDialog({ kind: "merge", contacts: selectedContacts })
+              }
+              onClear={() => setSelected([])}
+            />
+          ) : (
+            <ContactsFilterBar
+              search={search}
+              onSearch={(value) => {
+                void setSearch(value || null);
+                setSelected([]);
+              }}
+              filters={filters}
+              onFilter={(key, value) => {
+                void setFilter[key](value);
+                setSelected([]);
+              }}
+              teammates={teammates}
+            />
+          )}
+          <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
+            {rows.isPending ? null : t("count", { count: total })}
+          </span>
+        </div>
         {viewList?.description ? (
           <p className="text-muted-foreground -mt-1 truncate text-sm">
             {viewList.description}
@@ -463,6 +454,7 @@ export function ContactsWorkspace({
                     direction={direction ?? defaultDirection(sort)}
                     onSort={handleSort}
                     onOpen={open}
+                    onOrganization={changeOrganization}
                     onUpdate={update}
                     hasMore={!!hasNextPage}
                     loadingMore={isFetchingNextPage}
