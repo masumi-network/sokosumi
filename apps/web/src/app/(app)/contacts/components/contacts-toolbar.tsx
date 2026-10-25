@@ -51,7 +51,6 @@ export interface ContactFilters {
   replyState: ContactReplyState | null;
   kind: ContactKind | null;
   /** `me` or a member's user id. */
-  /** `me` or a member's user id. */
   knownBy: string | null;
 }
 
@@ -102,8 +101,9 @@ export function useStageOptions(): FilterOption[] {
 }
 
 /**
- * Search, one Filter menu and the filters in force as removable chips, on a
- * single row: the chrome stays one line high however many filters exist.
+ * Search, one Filter menu, `menus` beside it and the filters in force as
+ * removable chips, on a single row: the chrome stays one line high however
+ * many filters exist.
  */
 export function ContactsFilterBar({
   search,
@@ -111,12 +111,14 @@ export function ContactsFilterBar({
   filters,
   onFilter,
   teammates,
+  menus: extraMenus,
 }: {
   search: string;
   onSearch: (value: string) => void;
   filters: ContactFilters;
   onFilter: (key: ContactFilterKey, value: string | null) => void;
   teammates: Teammate[];
+  menus?: ReactNode;
 }) {
   const t = useTranslations("App.Contacts");
   const stageOptions = useStageOptions();
@@ -167,7 +169,7 @@ export function ContactsFilterBar({
           placeholder={t("toolbar.searchPlaceholder")}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          className={cn(CONTROL, "ps-9")}
+          className={cn(CONTROL, "border-control-border bg-background ps-9")}
         />
       </div>
       <DropdownMenu>
@@ -201,6 +203,7 @@ export function ContactsFilterBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      {extraMenus}
       {active.map((menu) => {
         const value = menu.options.find(
           (option) => option.value === filters[menu.key],

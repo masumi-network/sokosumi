@@ -48,6 +48,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Dot } from "./contact-visuals";
 
+/** The Filter menu's trigger, so the row reads as one set of controls. */
+const TRIGGER = "h-10 gap-1.5 font-normal md:h-8";
+const CHEVRON = "text-muted-foreground size-3.5 shrink-0";
+
 interface Props {
   view: string;
   onViewChange: (view: string) => void;
@@ -63,8 +67,41 @@ interface Props {
   onCompanySearch: (search: string) => void;
 }
 
-/** The presets as tabs, then the team's lists and the companies as menus. */
-export function ContactsViewsBar({
+/** The presets as tabs, at the top of the page. */
+export function ContactsPresetTabs({
+  view,
+  onViewChange,
+}: Pick<Props, "view" | "onViewChange">) {
+  const t = useTranslations("App.Contacts");
+  return (
+    <Tabs
+      value={isContactPreset(view) ? view : ""}
+      onValueChange={onViewChange}
+      className="max-w-full min-w-0"
+    >
+      <TabsList
+        aria-label={t("views.label")}
+        className={cn(
+          SEGMENTED_TABS_LIST_CLASS_NAME,
+          "w-fit max-w-full justify-start overflow-x-auto",
+        )}
+      >
+        {CONTACT_PRESET_IDS.map((preset) => (
+          <TabsTrigger
+            key={preset}
+            value={preset}
+            className={cn(SEGMENTED_TAB_TRIGGER_CLASS_NAME, "shrink-0")}
+          >
+            {t(`presets.${preset}`)}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+}
+
+/** The team's lists and the companies as menus, beside the Filter menu. */
+export function ContactsViewMenus({
   view,
   onViewChange,
   lists,
@@ -76,34 +113,8 @@ export function ContactsViewsBar({
   onOrganizationChange,
   onCompanySearch,
 }: Props) {
-  const t = useTranslations("App.Contacts");
   return (
-    <nav
-      aria-label={t("views.label")}
-      className="flex min-w-0 flex-wrap items-center gap-2"
-    >
-      <Tabs
-        value={isContactPreset(view) ? view : ""}
-        onValueChange={onViewChange}
-        className="max-w-full min-w-0"
-      >
-        <TabsList
-          className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
-            "max-w-full justify-start overflow-x-auto",
-          )}
-        >
-          {CONTACT_PRESET_IDS.map((preset) => (
-            <TabsTrigger
-              key={preset}
-              value={preset}
-              className={cn(SEGMENTED_TAB_TRIGGER_CLASS_NAME, "shrink-0")}
-            >
-              {t(`presets.${preset}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+    <>
       <ListsMenu
         view={view}
         onViewChange={onViewChange}
@@ -118,7 +129,7 @@ export function ContactsViewsBar({
         onChange={onOrganizationChange}
         onSearch={onCompanySearch}
       />
-    </nav>
+    </>
   );
 }
 
@@ -146,11 +157,11 @@ function ListsMenu({
         <Button
           variant={current ? "secondary" : "outline"}
           size="sm"
-          className="h-10 max-w-64 md:h-8"
+          className={cn(TRIGGER, "max-w-64")}
         >
           {current ? <Dot className={LIST_COLOR_DOT[current.color]} /> : null}
           <span className="truncate">{current?.name ?? t("views.lists")}</span>
-          <ChevronDown aria-hidden className="size-4 shrink-0" />
+          <ChevronDown aria-hidden className={CHEVRON} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
@@ -238,7 +249,8 @@ function CompaniesMenu({
             variant={organization ? "secondary" : "outline"}
             size="sm"
             className={cn(
-              "h-10 max-w-64 md:h-8",
+              TRIGGER,
+              "max-w-64",
               organization && "rounded-e-none",
             )}
           >
@@ -246,7 +258,7 @@ function CompaniesMenu({
             <span className="truncate">
               {organization ?? t("views.companies")}
             </span>
-            <ChevronDown aria-hidden className="size-4 shrink-0" />
+            <ChevronDown aria-hidden className={CHEVRON} />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-0">
