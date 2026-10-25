@@ -342,7 +342,8 @@
       "memory": "Memory",
       "social": "Social Scheduling",
       "ads": "Ads",
-      "evaluations": "Model evaluations"
+      "evaluations": "Model evaluations",
+      "catch-up": "Catch up"
     },
     "Jobs": {
       "StatusBadge": {

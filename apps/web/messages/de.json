@@ -326,7 +326,8 @@
       "memory": "Gedächtnis",
       "social": "Social-Planung",
       "ads": "Ads",
-      "evaluations": "Modellvergleiche"
+      "evaluations": "Modellvergleiche",
+      "catch-up": "Aufholen"
     },
     "Jobs": {
       "StatusBadge": {
