@@ -48,13 +48,11 @@ import {
   ContactAvatar,
   Dot,
   ListChip,
-  PersonAvatar,
   ReplyChip,
   StageChip,
 } from "./contact-visuals";
 import { useStageOptions } from "./contacts-toolbar";
 import type { ContactFields } from "./use-contact-update";
-import type { Teammate } from "./use-contacts-data";
 
 type ColumnId =
   | "name"
@@ -66,7 +64,6 @@ type ColumnId =
   | "lastContact"
   | "lists"
   | "knownBy"
-  | "owner"
   | "followUp"
   | "role"
   | "channels";
@@ -82,7 +79,6 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "lastContact", width: 124, sort: "lastContactAt" },
   { id: "lists", width: 180 },
   { id: "knownBy", width: 104 },
-  { id: "owner", width: 150 },
   { id: "followUp", width: 116 },
   { id: "role", width: 160 },
   { id: "channels", width: 112 },
@@ -123,7 +119,6 @@ function useColumnWidths() {
 interface Props {
   contacts: Contact[];
   lists: ContactList[];
-  teammates: Teammate[];
   selected: string[];
   onSelectedChange: (ids: string[]) => void;
   sort: ContactSort;
@@ -145,7 +140,6 @@ interface Props {
 
 export function ContactsGrid({
   contacts,
-  teammates,
   selected,
   onSelectedChange,
   sort,
@@ -211,15 +205,6 @@ export function ContactsGrid({
       timeZone: "UTC",
     });
   }
-
-  const ownerChoices = [
-    { value: "", label: t("grid.noOwner") },
-    ...teammates.map((person) => ({
-      value: person.id,
-      label: person.name,
-      icon: <PersonAvatar person={person} />,
-    })),
-  ];
 
   function textEdit(
     contact: Contact,
@@ -418,31 +403,6 @@ export function ContactsGrid({
           ),
         };
       }
-      case "owner":
-        return {
-          text: contact.owner?.name ?? "",
-          edit: {
-            kind: "choice",
-            value: contact.owner?.id ?? "",
-            choices: ownerChoices,
-            onSave: (value) => {
-              const person = teammates.find((item) => item.id === value);
-              return onUpdate(
-                contact,
-                { ownerUserId: value || null },
-                { owner: person ?? null },
-              );
-            },
-          },
-          node: contact.owner ? (
-            <span data-fit className="flex min-w-0 items-center gap-2">
-              <PersonAvatar person={contact.owner} />
-              <span className="truncate">{contact.owner.name}</span>
-            </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          ),
-        };
       case "firstContact": {
         const first = contact.firstContactAt
           ? format.dateTime(new Date(contact.firstContactAt), {

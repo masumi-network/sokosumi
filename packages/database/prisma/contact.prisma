@@ -96,8 +96,6 @@ model Contact {
   whyInteresting     String?
   stage              ContactStage @default(CONTACT)
   kind               ContactKind  @default(PERSON)
-  ownerUserId        String?
-  owner              User?        @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   nextStep           String?
   followUpAt         DateTime?    @db.Date
   avatarUrl          String?
@@ -136,7 +134,6 @@ model Contact {
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
   @@index([mergedIntoId])
-  @@index([ownerUserId])
   @@index([workspaceId, enrichedAt])
   @@index([workspaceId, awaitingReplySince])
   @@map("contact")

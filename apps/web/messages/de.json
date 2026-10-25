@@ -8675,7 +8675,7 @@
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
-        "mine": "Noch niemand, den du betreust oder mit dem du gesprochen hast.",
+        "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
         "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
       },
@@ -8701,7 +8701,6 @@
         "stage": "Beziehung",
         "lists": "Listen",
         "channels": "Kanäle",
-        "owner": "Zuständig",
         "firstContact": "Erster Kontakt",
         "lastContact": "Letzter Kontakt",
         "knownBy": "Bekannt mit",
@@ -8711,7 +8710,6 @@
       },
       "grid": {
         "label": "Kontakte",
-        "noOwner": "Niemand zuständig",
         "openContact": "{name} öffnen",
         "knownByLabel": "Bekannt mit {names}",
         "due": "Fällig",
@@ -8742,7 +8740,6 @@
         "selected": "{count} ausgewählt",
         "addToList": "Zu Liste hinzufügen",
         "removeFromList": "Aus Liste entfernen",
-        "setOwner": "Zuständigkeit setzen",
         "merge": "Zusammenführen",
         "clear": "Auswahl aufheben",
         "updated": "{count, plural, =1 {1 Kontakt aktualisiert} other {# Kontakte aktualisiert}}",
@@ -8911,7 +8908,6 @@
         "archive": "Kontakt archivieren",
         "archived": "{name} archiviert",
         "changeStage": "Phase: {stage}. Phase ändern",
-        "changeOwner": "Zuständig: {owner}. Zuständigkeit ändern",
         "changeLists": "Listen ändern",
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",

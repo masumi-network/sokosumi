@@ -25,7 +25,6 @@ const base: ContactView = {
   stage: null,
   replyState: null,
   kind: null,
-  owner: null,
   knownBy: null,
   sort: "updatedAt",
   direction: "desc",
@@ -39,14 +38,14 @@ describe("contactQuery", () => {
         view: "mine",
         company: "Cardano Foundation",
       }),
-    ).toMatchObject({ mine: "true", company: "Cardano Foundation" });
+    ).toMatchObject({ knownByMe: "true", company: "Cardano Foundation" });
     expect(contactQuery(base)).not.toHaveProperty("company");
   });
 
   it("maps each preset tab to the documented query params", () => {
     expect(CONTACT_PRESET_IDS).toEqual(["all", "mine", "recent"]);
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
-      mine: "true",
+      knownByMe: "true",
     });
     expect(contactQuery({ ...base, view: "recent" })).toMatchObject({
       createdWithinDays: 14,
@@ -71,18 +70,16 @@ describe("contactQuery", () => {
         ...base,
         search: "  ada ",
         stage: "LEAD",
-        owner: "me",
         knownBy: "user-2",
       }),
     ).toMatchObject({
       search: "ada",
       stage: "LEAD",
-      ownedByMe: "true",
       knownByUserId: "user-2",
     });
-    expect(
-      contactQuery({ ...base, owner: "user-3", knownBy: "me" }),
-    ).toMatchObject({ ownerUserId: "user-3", knownByMe: "true" });
+    expect(contactQuery({ ...base, knownBy: "me" })).toMatchObject({
+      knownByMe: "true",
+    });
     expect(
       contactQuery({
         ...base,

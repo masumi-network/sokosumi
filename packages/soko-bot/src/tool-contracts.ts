@@ -878,7 +878,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   upsert_contact:
     "Add a person, or enrich the one who already has one of these channels: missing channels are attached and only empty fields are filled, never overwritten. Give a name and/or channels (normalized for you); mark where you found researched details with source WEB_RESEARCH and sourceUrl, and verified only when you confirmed them. Answers with the contact, whether it was created, and a merge suggestion when the channels belong to two people. Never add automated senders (noreply, notifications, newsletters).",
   update_contact:
-    "Change a contact you have read: any field (name, kind PERSON or ORGANIZATION, organization, role, location, summary, whyInteresting, stage, ownerUserId, nextStep, followUpAt as YYYY-MM-DD, avatarUrl, customFields), add or remove channels, or archive it. Pass the version from get_contact; on a conflict read it again and keep what people changed. Null clears a field.",
+    "Change a contact you have read: any field (name, kind PERSON or ORGANIZATION, organization, role, location, summary, whyInteresting, stage, nextStep, followUpAt as YYYY-MM-DD, avatarUrl, customFields), add or remove channels, or archive it. Pass the version from get_contact; on a conflict read it again and keep what people changed. Null clears a field.",
   log_contact_interaction:
     "Record that the owner (or you for them) was in touch with a contact: when, the channel (EMAIL, MEETING, SLACK, CALL, MANUAL, OTHER), the direction and one line on what it was about. Pass sourceRef (the message or event id) when there is one, so the same message is never logged twice. First contact, last contact and the count update themselves.",
   merge_contacts:

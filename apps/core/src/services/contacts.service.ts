@@ -92,7 +92,6 @@ export async function inContactTransaction<T>(
 
 const CONTACT_INCLUDE = {
   channels: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
-  owner: { select: { id: true, name: true, image: true } },
   listMemberships: {
     select: {
       addedAutomatically: true,
@@ -111,7 +110,6 @@ const FILLABLE_FIELDS = [
   "location",
   "summary",
   "whyInteresting",
-  "ownerUserId",
   "nextStep",
   "followUpAt",
   "avatarUrl",
@@ -146,7 +144,6 @@ function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
     whyInteresting: row.whyInteresting,
     stage: row.stage,
     kind: row.kind,
-    owner: row.owner,
     nextStep: row.nextStep,
     followUpAt: isoDate(row.followUpAt),
     avatarUrl: row.avatarUrl,
@@ -288,30 +285,6 @@ async function recordActivity(
   });
 }
 
-async function requireWorkspaceMember(
-  tx: Tx,
-  workspaceId: string,
-  userId: string,
-) {
-  const workspace = await tx.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { userId: true, organizationId: true },
-  });
-  const member = workspace?.organizationId
-    ? await tx.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId,
-            organizationId: workspace.organizationId,
-          },
-        },
-        select: { id: true },
-      })
-    : workspace?.userId === userId;
-  if (!member)
-    throw unprocessableEntity("The owner must be a member of this workspace");
-}
-
 export interface NormalizedChannel {
   type: ContactChannelType;
   value: string;
@@ -358,7 +331,6 @@ interface ContactFieldData {
   location?: string | null;
   summary?: string | null;
   whyInteresting?: string | null;
-  ownerUserId?: string | null;
   nextStep?: string | null;
   followUpAt?: Date | null;
   avatarUrl?: string | null;
@@ -501,8 +473,6 @@ export async function upsertContact(
   options: { defaultChannelSource?: ChannelInput["source"] } = {},
 ): Promise<UpsertContactResult> {
   const channels = normalizeChannels(input.channels);
-  if (input.ownerUserId)
-    await requireWorkspaceMember(tx, actor.workspaceId, input.ownerUserId);
   const taken = channels.length
     ? await tx.contactChannel.findMany({
         where: {
@@ -604,8 +574,6 @@ export async function updateContact(
 ): Promise<ContactDto> {
   const contact = await requireWritableContact(tx, actor, id);
   if (contact.version !== input.version) throw versionConflict();
-  if (input.ownerUserId)
-    await requireWorkspaceMember(tx, actor.workspaceId, input.ownerUserId);
   const data = fieldData(input);
   const changes = changedFields(contact, data);
   if (!Object.keys(changes).length) return loadContactDto(tx, id);
@@ -1064,15 +1032,6 @@ export function contactFilterWhere(
   if (filter.replyStates)
     and.push({
       OR: filter.replyStates.map((state) => replyStateWhere(state, now)),
-    });
-  if (filter.ownerUserId) and.push({ ownerUserId: filter.ownerUserId });
-  if (filter.ownedByMe) and.push({ ownerUserId: actor.userId });
-  if (filter.mine)
-    and.push({
-      OR: [
-        { ownerUserId: actor.userId },
-        { interactions: { some: { userId: actor.userId } } },
-      ],
     });
   if (filter.listIds)
     and.push({ listMemberships: { some: { listId: { in: filter.listIds } } } });

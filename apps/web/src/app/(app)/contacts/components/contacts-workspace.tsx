@@ -123,7 +123,6 @@ export function ContactsWorkspace({
     "kind",
     parseAsStringLiteral(CONTACT_KINDS),
   );
-  const [owner, setOwner] = useQueryState("owner");
   const [knownBy, setKnownBy] = useQueryState("knownBy");
   const [sort, setSort] = useQueryState(
     "sort",
@@ -148,7 +147,7 @@ export function ContactsWorkspace({
   const { teammates } = useTeammates();
   const lists = useContactLists();
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, owner, knownBy };
+  const filters: ContactFilters = { stage, replyState, kind, knownBy };
   const query = contactQuery({
     view,
     company,
@@ -175,7 +174,6 @@ export function ContactsWorkspace({
     stage: (value) => setStage(value as ContactStage | null),
     replyState: (value) => setReplyState(value as ContactReplyState | null),
     kind: (value) => setKind(value as ContactKind | null),
-    owner: setOwner,
     knownBy: setKnownBy,
   };
   function clearFilters() {
@@ -232,20 +230,6 @@ export function ContactsWorkspace({
       await refreshContacts(cache);
     }
   }
-  function bulkUpdate(
-    fields: Parameters<typeof update>[1],
-    optimistic: Partial<Contact>,
-  ) {
-    const targets = selectedContacts;
-    void Promise.all(
-      targets.map((contact) => update(contact, fields, optimistic)),
-    ).then((results) => {
-      const saved = results.filter(Boolean).length;
-      if (saved) toast.success(t("bulk.updated", { count: saved }));
-      void refreshContacts(cache);
-    });
-  }
-
   async function handleExport() {
     setExporting(true);
     try {
@@ -344,7 +328,6 @@ export function ContactsWorkspace({
               count={selected.length}
               lists={lists.data ?? []}
               viewList={viewList?.kind === "manual" ? viewList : null}
-              teammates={teammates}
               onAddToList={(list) =>
                 void bulk(
                   () =>
@@ -367,15 +350,6 @@ export function ContactsWorkspace({
                     count: selected.length,
                     list: list.name,
                   }),
-                )
-              }
-              onOwner={(userId) =>
-                bulkUpdate(
-                  { ownerUserId: userId },
-                  {
-                    owner:
-                      teammates.find((person) => person.id === userId) ?? null,
-                  },
                 )
               }
               onMerge={() =>
@@ -465,7 +439,6 @@ export function ContactsWorkspace({
                   <ContactsGrid
                     contacts={contacts}
                     lists={lists.data ?? []}
-                    teammates={teammates}
                     selected={selected}
                     onSelectedChange={setSelected}
                     sort={sort}

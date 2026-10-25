@@ -292,13 +292,11 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         version: contact.version,
         stage: "PARTNER",
         followUpAt: "2026-11-02",
-        ownerUserId: bob,
       }),
     );
     expect(updated).toMatchObject({
       stage: "PARTNER",
       followUpAt: "2026-11-02",
-      owner: { id: bob, name: "Bob" },
       version: contact.version + 1,
     });
     await expect(
@@ -312,14 +310,6 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       status: 409,
       cause: { kind: "contact_version_conflict" },
     });
-    await expect(
-      inContactTransaction((tx) =>
-        updateContact(tx, asAlice, contact.id, {
-          version: updated.version,
-          ownerUserId: outsider,
-        }),
-      ),
-    ).rejects.toMatchObject({ status: 422 });
 
     const activity = await listContactActivity(asAlice, contact.id, {
       limit: 10,
@@ -525,14 +515,13 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     await inContactTransaction((tx) => deleteContactList(tx, asAlice, list.id));
   });
 
-  it("filters by stage, owner, follow-up, staleness, channel and search", async () => {
+  it("filters by stage, who knows them, follow-up, staleness, channel and search", async () => {
     const now = Date.now();
     const days = (count: number) =>
       new Date(now - count * 86_400_000).toISOString();
     const stale = await create(asAlice, {
       name: "Filter Stale",
       stage: "INVESTOR",
-      ownerUserId: alice,
       followUpAt: "2020-01-01",
       channels: [{ type: "GITHUB", value: "https://github.com/FilterStale" }],
     });
@@ -550,7 +539,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           .filter((name) => name.startsWith("Filter")),
       );
     expect(await query({ stages: ["INVESTOR"] })).toEqual(["Filter Stale"]);
-    expect(await query({ ownedByMe: true })).toEqual(["Filter Stale"]);
+    expect(await query({ knownByMe: true })).toEqual(["Filter Stale"]);
     expect(await query({ followUpDue: true })).toEqual(["Filter Stale"]);
     expect(await query({ lastContactOlderThanDays: 90 })).toEqual([
       "Filter Stale",

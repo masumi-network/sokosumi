@@ -13141,17 +13141,6 @@ export const ContactListSchema = {
                             minItems: 1,
                             maxItems: 4
                         },
-                        ownerUserId: {
-                            type: 'string',
-                            minLength: 1,
-                            maxLength: 200
-                        },
-                        ownedByMe: {
-                            type: 'boolean'
-                        },
-                        mine: {
-                            type: 'boolean'
-                        },
                         listIds: {
                             type: 'array',
                             items: {
@@ -13323,16 +13312,6 @@ export const ContactSchema = {
         kind: {
             $ref: '#/components/schemas/ContactKind'
         },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ContactPerson'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
         nextStep: {
             type: [
                 'string',
@@ -13472,7 +13451,6 @@ export const ContactSchema = {
         'whyInteresting',
         'stage',
         'kind',
-        'owner',
         'nextStep',
         'followUpAt',
         'avatarUrl',
@@ -13520,29 +13498,6 @@ export const ContactKindSchema = {
     enum: [
         'PERSON',
         'ORGANIZATION'
-    ]
-} as const;
-
-export const ContactPersonSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'image'
     ]
 } as const;
 
@@ -13688,6 +13643,29 @@ export const ContactKnownBySchema = {
                 'lastInteractionAt'
             ]
         }
+    ]
+} as const;
+
+export const ContactPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
     ]
 } as const;
 

@@ -19,7 +19,6 @@ const contact = (overrides: Partial<Contact>): Contact => ({
   whyInteresting: null,
   stage: "LEAD",
   kind: "PERSON",
-  owner: null,
   nextStep: null,
   followUpAt: null,
   avatarUrl: null,
@@ -99,7 +98,6 @@ describe("ContactsFilterBar", () => {
           stage: null,
           replyState: "NO_REPLY",
           kind: null,
-          owner: null,
           knownBy: null,
         }}
         onFilter={onFilter}
