@@ -1,6 +1,6 @@
 "use client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Table2 } from "lucide-react";
+import { Pin, Table2, Users } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -17,6 +17,7 @@ import {
 } from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { contactsService } from "@/lib/services/contacts.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { tableError } from "./table-value";
@@ -44,6 +45,12 @@ export function TableList({
     // up; the cached page stays on screen meanwhile instead of a loader.
     staleTime: 0,
     placeholderData: keepPreviousData,
+  });
+  const contacts = useQuery({
+    queryKey: ["contacts-count", workspaceId],
+    queryFn: () => contactsService.list({ limit: 1 }),
+    enabled: !archived,
+    staleTime: 0,
   });
   if (query.isPending) return <DriveListSkeleton viewMode="list" />;
   return (
@@ -83,6 +90,49 @@ export function TableList({
       {/* A table is a Files item, so it wears the Files item row: the same
       helpers the drive cards use, not a lookalike. */}
       <div className={driveItemsListClass("list")}>
+        {!archived && (
+          <Link
+            href="/contacts"
+            className={cn(
+              driveItemArticleClass("list"),
+              "focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
+            )}
+          >
+            <div className={driveItemBodyClass("list")}>
+              <div
+                className={cn(
+                  driveItemIconWellClass("list"),
+                  "bg-primary-quinary rounded-lg",
+                )}
+              >
+                <Users aria-hidden className="text-primary size-5" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex min-w-0 items-center gap-2">
+                  <h3 className={driveItemNameClass()}>{t("contactsName")}</h3>
+                  <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
+                    <Pin aria-hidden className="size-3" />
+                    {t("contactsPinned")}
+                  </span>
+                </span>
+                {contacts.data && (
+                  <div className={driveItemMetaMobileClass("list")}>
+                    <span>
+                      {t("contactsCount", { count: contacts.data.total })}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {contacts.data && (
+                <div className={driveItemMetaDesktopClass("list")}>
+                  <span>
+                    {t("contactsCount", { count: contacts.data.total })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Link>
+        )}
         {query.data?.items.map((table) => (
           <Link
             href={`/drive/tables/${table.id}`}

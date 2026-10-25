@@ -811,8 +811,5 @@ function recentsItemKey(item: DriveRecentsItem): string {
   if (item.kind === "table") {
     return `table:${item.tableId}`;
   }
-  if (item.kind === "contacts") {
-    return "contacts";
-  }
   return `task-output:${item.taskFileId}`;
 }

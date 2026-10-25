@@ -1611,7 +1611,8 @@
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
           "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores"
+          "trendDown": "{count} menos que en las 24 horas anteriores",
+          "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1822,8 +1823,6 @@
         "actions": {
           "edit": "Editar",
           "archive": "Archivar",
-          "confirmArchive": "¿Archivar esta tarea?",
-          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista, incluidas las ejecuciones programadas vinculadas. Las ejecuciones en curso deben terminar o cancelarse primero. No se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
           "reopenToReadyTitle": "Reabrir tarea",
@@ -7840,10 +7839,7 @@
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
       },
-      "tableKind": "Tabla",
-      "contactsEntryName": "Contactos",
-      "contactsEntryCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
-      "contactsEntryPinned": "Fijado"
+      "tableKind": "Tabla"
     },
     "SokoBot": {
       "Metadata": {
@@ -8592,7 +8588,10 @@
         "over": "{item} está sobre {target}.",
         "dropped": "{item} se movió al lugar de {target}.",
         "cancelled": "Se canceló mover {item}."
-      }
+      },
+      "contactsName": "Contactos",
+      "contactsPinned": "Fijado",
+      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
