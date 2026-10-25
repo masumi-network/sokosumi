@@ -116,7 +116,7 @@ export function SokoBotHomeComposer({
 
   return (
     <div className="flex min-h-full w-full min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-1 flex-col pt-8 pb-8 md:pt-[10dvh]">
+      <div className="flex w-full min-w-0 flex-1 flex-col pt-4 pb-8 md:pt-8">
         {header}
         <RoomComposer
           ref={composerRef}

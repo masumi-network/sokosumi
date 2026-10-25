@@ -48,9 +48,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
+import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
 import { ContactListDialog } from "./contact-list-dialog";
 import { ContactPanel } from "./contact-panel";
@@ -393,77 +398,81 @@ export function ContactsWorkspace({
             {viewList.description}
           </p>
         ) : null}
-        <div className="bg-card-background min-w-0 overflow-hidden rounded-xl border">
-          {rows.isPending ? (
-            <div className="grid gap-2 p-4" role="status">
-              <span className="sr-only">{t("loading")}</span>
-              {Array.from({ length: 8 }, (_, index) => (
-                <Skeleton key={index} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : rows.error ? (
-            <EmptyState
-              title={t("errors.loadTitle")}
-              description={coreErrorOf(rows.error).message ?? t("errors.load")}
-              action={
-                <Button variant="outline" onClick={() => void rows.refetch()}>
-                  {t("retry")}
-                </Button>
-              }
-            />
-          ) : workspaceEmpty ? (
-            <ContactsEmptyState
-              offers={connectOffers}
-              onAdd={() => setDialog({ kind: "add" })}
-              onImport={() => setDialog({ kind: "import" })}
-            />
-          ) : contacts.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title={t("noMatchesTitle")}
-              description={
-                filtered ? t("noMatches") : t(`emptyViews.${viewKey(view)}`)
-              }
-              action={
-                filtered ? (
-                  <Button variant="outline" onClick={clearFilters}>
-                    {t("clearFilters")}
+        <div className={cn(HOLDER_CLASS, "min-w-0")}>
+          <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
+            {rows.isPending ? (
+              <div className="grid gap-2 p-4" role="status">
+                <span className="sr-only">{t("loading")}</span>
+                {Array.from({ length: 8 }, (_, index) => (
+                  <Skeleton key={index} className="h-8 w-full" />
+                ))}
+              </div>
+            ) : rows.error ? (
+              <EmptyState
+                title={t("errors.loadTitle")}
+                description={
+                  coreErrorOf(rows.error).message ?? t("errors.load")
+                }
+                action={
+                  <Button variant="outline" onClick={() => void rows.refetch()}>
+                    {t("retry")}
                   </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <>
-              <div className="md:hidden">
-                <ContactsList
-                  contacts={contacts}
-                  onOpen={open}
-                  hasMore={!!hasNextPage}
-                  loadingMore={isFetchingNextPage}
-                  onLoadMore={loadMore}
-                  footer={t("showing", { shown: contacts.length, total })}
-                />
-              </div>
-              <div className="hidden md:block">
-                <ContactsGrid
-                  contacts={contacts}
-                  lists={lists.data ?? []}
-                  teammates={teammates}
-                  selected={selected}
-                  onSelectedChange={setSelected}
-                  sort={sort}
-                  direction={direction ?? defaultDirection(sort)}
-                  onSort={handleSort}
-                  onOpen={open}
-                  onUpdate={update}
-                  hasMore={!!hasNextPage}
-                  loadingMore={isFetchingNextPage}
-                  onLoadMore={loadMore}
-                  footer={t("showing", { shown: contacts.length, total })}
-                />
-              </div>
-            </>
-          )}
+                }
+              />
+            ) : workspaceEmpty ? (
+              <ContactsEmptyState
+                offers={connectOffers}
+                onAdd={() => setDialog({ kind: "add" })}
+                onImport={() => setDialog({ kind: "import" })}
+              />
+            ) : contacts.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title={t("noMatchesTitle")}
+                description={
+                  filtered ? t("noMatches") : t(`emptyViews.${viewKey(view)}`)
+                }
+                action={
+                  filtered ? (
+                    <Button variant="outline" onClick={clearFilters}>
+                      {t("clearFilters")}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <div className="md:hidden">
+                  <ContactsList
+                    contacts={contacts}
+                    onOpen={open}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <ContactsGrid
+                    contacts={contacts}
+                    lists={lists.data ?? []}
+                    teammates={teammates}
+                    selected={selected}
+                    onSelectedChange={setSelected}
+                    sort={sort}
+                    direction={direction ?? defaultDirection(sort)}
+                    onSort={handleSort}
+                    onOpen={open}
+                    onUpdate={update}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
