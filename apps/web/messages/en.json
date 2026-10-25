@@ -342,7 +342,8 @@
       "memory": "Memory",
       "social": "Social Scheduling",
       "ads": "Ads",
-      "evaluations": "Model evaluations"
+      "evaluations": "Model evaluations",
+      "catch-up": "Catch up"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1629,7 +1630,12 @@
           "headingWithName": "What's next, {name}?",
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
-          "quietDay": "Nothing moved yet. Ask {name} to start something."
+          "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "suggestions": {
+            "catchUp": "Catch me up",
+            "teamWins": "What did we finish?",
+            "planTomorrow": "Plan tomorrow"
+          }
         }
       },
       "SokoBot": {

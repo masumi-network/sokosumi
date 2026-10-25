@@ -326,7 +326,8 @@
       "memory": "Memoria",
       "social": "Programación social",
       "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos"
+      "evaluations": "Evaluaciones de modelos",
+      "catch-up": "Ponerse al día"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1629,7 +1630,12 @@
           "headingWithName": "¿Qué sigue, {name}?",
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
-          "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo."
+          "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "suggestions": {
+            "catchUp": "Ponme al día",
+            "teamWins": "¿Qué terminamos?",
+            "planTomorrow": "Planificar mañana"
+          }
         }
       },
       "SokoBot": {

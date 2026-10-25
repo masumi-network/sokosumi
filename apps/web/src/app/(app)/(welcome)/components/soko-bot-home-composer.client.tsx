@@ -41,6 +41,10 @@ interface SokoBotHomeComposerProps {
   /** The bot's Direct when it exists; created on first send otherwise. */
   roomId: string | null;
   header: ReactNode;
+  /** Prompts a click puts in the composer, to edit or send. */
+  suggestions: string[];
+  /** What needs the reader, shown before the prompts. */
+  attention: ReactNode;
   /** What the team did in the last day, below the composer. */
   children: ReactNode;
 }
@@ -55,6 +59,8 @@ export function SokoBotHomeComposer({
   botName,
   roomId,
   header,
+  suggestions,
+  attention,
   children,
 }: SokoBotHomeComposerProps) {
   const t = useTranslations("App.Chat.Landing.SokoBotHome");
@@ -114,29 +120,51 @@ export function SokoBotHomeComposer({
     });
   }
 
+  function suggest(prompt: string) {
+    setValue(prompt);
+    composerRef.current?.focus();
+  }
+
   return (
-    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col">
-      <div className="flex w-full min-w-0 flex-1 flex-col pt-4 pb-8 md:pt-8">
+    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+      {/* The composer sits a little above the middle of the screen, as on a
+          chat entry page; the day's list starts below the fold's edge. */}
+      <div className="flex w-full max-w-3xl flex-col gap-8 pt-[14dvh] md:pt-[22dvh]">
         {header}
-        <RoomComposer
-          ref={composerRef}
-          roomId={roomId ?? undefined}
-          value={value}
-          onValueChange={setValue}
-          mentions={NO_MENTIONS}
-          onSelectedKeysChange={() => {}}
-          showMentionShortcut={false}
-          placeholder={t("placeholder", { name: botName })}
-          attachments={attachments}
-          onAttachmentsChange={setAttachments}
-          onSubmit={handleSubmit}
-          isSending={isSending}
-          sendDisabled={isRoomComposerEmpty(value, attachments)}
-          skills={skills}
-          onSkillsChange={setSkills}
-        />
-        {children}
+        <div className="flex flex-col gap-4">
+          <RoomComposer
+            ref={composerRef}
+            roomId={roomId ?? undefined}
+            value={value}
+            onValueChange={setValue}
+            mentions={NO_MENTIONS}
+            onSelectedKeysChange={() => {}}
+            showMentionShortcut={false}
+            placeholder={t("placeholder", { name: botName })}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            onSubmit={handleSubmit}
+            isSending={isSending}
+            sendDisabled={isRoomComposerEmpty(value, attachments)}
+            skills={skills}
+            onSkillsChange={setSkills}
+          />
+          <div className="flex flex-wrap justify-center gap-2">
+            {attention}
+            {suggestions.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => suggest(prompt)}
+                className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex h-8 items-center rounded-full border px-3 text-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+      <div className="w-full max-w-3xl pt-16 pb-10">{children}</div>
     </div>
   );
 }
