@@ -13154,6 +13154,9 @@ export const ContactListSchema = {
                         ownedByMe: {
                             type: 'boolean'
                         },
+                        mine: {
+                            type: 'boolean'
+                        },
                         listIds: {
                             type: 'array',
                             items: {

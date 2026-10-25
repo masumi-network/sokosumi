@@ -38,13 +38,13 @@ describe("contactQuery", () => {
         view: "mine",
         organization: "Cardano Foundation",
       }),
-    ).toMatchObject({ ownedByMe: "true", organization: "Cardano Foundation" });
+    ).toMatchObject({ mine: "true", organization: "Cardano Foundation" });
     expect(contactQuery(base)).not.toHaveProperty("organization");
   });
 
   it("maps each rail preset to the documented query params", () => {
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
-      ownedByMe: "true",
+      mine: "true",
     });
     expect(contactQuery({ ...base, view: "followUps" })).toMatchObject({
       followUpDue: "true",

@@ -3681,6 +3681,7 @@ export type ContactList = {
         replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
         ownerUserId?: string;
         ownedByMe?: boolean;
+        mine?: boolean;
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
@@ -26497,6 +26498,7 @@ export type PostContactListsData = {
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
+            mine?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -26779,6 +26781,7 @@ export type PatchContactListsByIdData = {
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
             ownerUserId?: string;
             ownedByMe?: boolean;
+            mine?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -27094,6 +27097,10 @@ export type GetContactsData = {
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
         /**
+         * The caller's people: owned by them, or someone they have had an interaction with.
+         */
+        mine?: 'true' | 'false';
+        /**
          * A manual or smart list; a smart list applies its filter.
          */
         listId?: string;
@@ -27396,6 +27403,10 @@ export type GetContactsExportCsvData = {
         replyState?: ContactReplyState;
         ownerUserId?: string;
         ownedByMe?: 'true' | 'false';
+        /**
+         * The caller's people: owned by them, or someone they have had an interaction with.
+         */
+        mine?: 'true' | 'false';
         /**
          * A manual or smart list; a smart list applies its filter.
          */

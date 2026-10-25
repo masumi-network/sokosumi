@@ -244,6 +244,10 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   replyState: contactReplyStateSchema.optional(),
   ownerUserId: z.string().min(1).max(200).optional(),
   ownedByMe: booleanQuery,
+  mine: booleanQuery.openapi({
+    description:
+      "The caller's people: owned by them, or someone they have had an interaction with.",
+  }),
   listId: z.uuid().optional().openapi({
     description: "A manual or smart list; a smart list applies its filter.",
   }),

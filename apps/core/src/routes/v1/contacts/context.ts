@@ -30,6 +30,7 @@ export function contactQueryOptions(
       replyStates: query.replyState ? [query.replyState] : undefined,
       ownerUserId: query.ownerUserId,
       ownedByMe: flag(query.ownedByMe),
+      mine: flag(query.mine),
       knownByUserId: query.knownByUserId,
       knownByMe: flag(query.knownByMe),
       lastContactAfter: query.lastContactAfter,
