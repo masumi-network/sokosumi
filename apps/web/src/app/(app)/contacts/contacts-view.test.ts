@@ -11,6 +11,7 @@ import {
   guessImportMapping,
   initials,
   isFollowUpDue,
+  matchesContactSearch,
   primaryEmail,
   STAGE_DOT,
   sortChannels,
@@ -18,6 +19,7 @@ import {
 
 const base: ContactView = {
   view: "all",
+  organization: null,
   search: "",
   stage: null,
   replyState: null,
@@ -29,6 +31,17 @@ const base: ContactView = {
 };
 
 describe("contactQuery", () => {
+  it("narrows to one company inside any view", () => {
+    expect(
+      contactQuery({
+        ...base,
+        view: "mine",
+        organization: "Cardano Foundation",
+      }),
+    ).toMatchObject({ ownedByMe: "true", organization: "Cardano Foundation" });
+    expect(contactQuery(base)).not.toHaveProperty("organization");
+  });
+
   it("maps each rail preset to the documented query params", () => {
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
       ownedByMe: "true",
@@ -222,5 +235,20 @@ describe("helpers", () => {
       lists: "4",
       summary: "5",
     });
+  });
+});
+
+describe("matchesContactSearch", () => {
+  const ada = {
+    name: "Ada Lovelace",
+    organization: "Analytical Engines",
+    channels: [{ value: "ada@engines.test" }],
+  } as Parameters<typeof matchesContactSearch>[0];
+
+  it("matches name, organization or a channel, whatever the case", () => {
+    expect(matchesContactSearch(ada, "LOVE")).toBe(true);
+    expect(matchesContactSearch(ada, " engines ")).toBe(true);
+    expect(matchesContactSearch(ada, "ada@")).toBe(true);
+    expect(matchesContactSearch(ada, "babbage")).toBe(false);
   });
 });

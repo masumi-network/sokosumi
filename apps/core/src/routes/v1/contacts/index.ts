@@ -9,6 +9,7 @@ import mountExport from "./export.js";
 import mountGet from "./get.js";
 import mountImport from "./import.js";
 import mountMerge from "./merge.js";
+import mountOrganizations from "./organizations.js";
 import mountPost from "./post.js";
 
 const app = new OpenAPIHonoWithAuth({
@@ -22,6 +23,7 @@ mountPost(app);
 mountExport(app);
 mountMerge(app);
 mountImport(app);
+mountOrganizations(app);
 mountGetContact(app);
 mountPatch(app);
 mountArchive(app);

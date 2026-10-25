@@ -203,6 +203,38 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     expect(archivedList.meta.pagination.total).toBe(1);
   });
 
+  it("counts organizations as one whatever their case, and filters by one", async () => {
+    for (const [name, organization] of [
+      ["Ada Org", "Analytical Engines"],
+      ["Charles Org", "analytical engines "],
+      ["Lone Org", "50% Solo_Co"],
+    ])
+      await call("POST", "/contacts", { name, organization });
+
+    const organizations = (
+      await (await call("GET", "/contacts/organizations?search=engines")).json()
+    ).data;
+    expect(organizations).toEqual([{ name: expect.any(String), count: 2 }]);
+    // `%` and `_` in a search are literal, not wildcards.
+    const literal = (
+      await (
+        await call("GET", "/contacts/organizations?search=50%25%20S")
+      ).json()
+    ).data;
+    expect(literal).toEqual([{ name: "50% Solo_Co", count: 1 }]);
+    expect(
+      (await (await strangerCall("GET", "/contacts/organizations")).json())
+        .data,
+    ).toEqual([]);
+
+    const people = await (
+      await call("GET", "/contacts?organization=ANALYTICAL%20ENGINES&sort=name")
+    ).json();
+    expect(
+      people.data.map((contact: { name: string }) => contact.name),
+    ).toEqual(["Ada Org", "Charles Org"]);
+  });
+
   it("hides one workspace's contacts and lists from another", async () => {
     const created = await call("POST", "/contacts", {
       name: "Private To Member",

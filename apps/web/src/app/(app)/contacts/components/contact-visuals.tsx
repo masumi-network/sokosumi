@@ -7,6 +7,7 @@ import type {
   ContactReplyState,
   ContactStage,
 } from "@sokosumi/core-client";
+import gravatarUrl from "gravatar-url";
 import {
   AtSign,
   Building2,
@@ -104,17 +105,26 @@ export function ChannelIcon({
  * A contact's initials in a neutral circle; an organization or shared inbox
  * gets a building in a rounded square instead, so it never passes for a person.
  */
+/**
+ * A person's photo: the one saved on the contact, else their Gravatar, else
+ * their initials. Gravatar answers 404 for an address it does not know, so
+ * the initials show instead of a generic face.
+ */
 export function ContactAvatar({
   name,
   src,
+  email,
   kind = "PERSON",
   className,
 }: {
   name: string;
   src?: string | null;
+  email?: string | null;
   kind?: ContactKind;
   className?: string;
 }) {
+  const photo =
+    src ?? (email ? gravatarUrl(email, { size: 80, default: "404" }) : null);
   if (kind === "ORGANIZATION")
     return (
       <span
@@ -129,7 +139,7 @@ export function ContactAvatar({
     );
   return (
     <Avatar aria-hidden className={cn("size-6", className)}>
-      {src ? <AvatarImage src={src} alt="" /> : null}
+      {photo ? <AvatarImage src={photo} alt="" /> : null}
       <AvatarFallback className="bg-quinary text-muted-foreground text-2xs font-medium">
         {initials(name)}
       </AvatarFallback>

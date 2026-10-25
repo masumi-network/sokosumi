@@ -343,7 +343,8 @@
       "social": "Social Scheduling",
       "ads": "Ads",
       "evaluations": "Model evaluations",
-      "catch-up": "Catch up"
+      "catch-up": "Catch up",
+      "contacts": "Contacts"
     },
     "Jobs": {
       "StatusBadge": {
@@ -8684,17 +8685,20 @@
         "list": "This list is empty. Select people in All contacts and add them here.",
         "noReply": "Everyone the team wrote to answered, or it has been less than a week."
       },
-      "rail": {
-        "label": "Contact lists",
+      "views": {
+        "label": "Contact views",
         "lists": "Lists",
         "newList": "New list",
         "smartList": "Smart list",
-        "listMenu": "Options for {name}",
         "editList": "Edit list",
         "deleteList": "Delete list",
         "noLists": "No lists yet.",
         "import": "Import from a table",
-        "autoList": "Made automatically from your contacts"
+        "autoList": "Made automatically from your contacts",
+        "companies": "Companies",
+        "findCompany": "Find a company…",
+        "noCompanies": "No companies found.",
+        "clearCompany": "Show every company"
       },
       "columns": {
         "name": "Name",
@@ -8724,7 +8728,8 @@
         "copyEmail": "Copy {email}",
         "emailCopied": "Email copied",
         "waitingDays": "{days, plural, =0 {today} other {#d}}",
-        "addedAutomatically": "Added to {list} automatically"
+        "addedAutomatically": "Added to {list} automatically",
+        "filterCompany": "Show people at {name}"
       },
       "toolbar": {
         "search": "Search contacts",
@@ -9003,7 +9008,8 @@
       "kinds": {
         "PERSON": "Person",
         "ORGANIZATION": "Organization or shared inbox"
-      }
+      },
+      "title": "Contacts"
     }
   },
   "Share": {

@@ -44,6 +44,8 @@ export type ContactSort = (typeof CONTACT_SORTS)[number];
 export interface ContactView {
   /** A preset id, or a list's id. */
   view: string;
+  /** People at this organization only. */
+  organization: string | null;
   search: string;
   stage: ContactStage | null;
   replyState: ContactReplyState | null;
@@ -65,6 +67,7 @@ export function contactQuery(view: ContactView): ContactQuery {
   query.direction = view.direction;
   const search = view.search.trim();
   if (search) query.search = search;
+  if (view.organization) query.organization = view.organization;
   if (view.stage) query.stage = view.stage;
   if (view.replyState) query.replyState = view.replyState;
   if (view.kind) query.kind = view.kind;
@@ -73,6 +76,23 @@ export function contactQuery(view: ContactView): ContactQuery {
   if (view.knownBy === "me") query.knownByMe = "true";
   else if (view.knownBy) query.knownByUserId = view.knownBy;
   return query;
+}
+
+/** The rows Core's `search` would keep, judged on the client: name, organization or any channel value. */
+export function matchesContactSearch(
+  contact: {
+    name: string;
+    organization: string | null;
+    channels: ContactChannel[];
+  },
+  search: string,
+): boolean {
+  const needle = search.trim().toLowerCase();
+  return [
+    contact.name,
+    contact.organization,
+    ...contact.channels.map((channel) => channel.value),
+  ].some((value) => value?.toLowerCase().includes(needle));
 }
 
 /** Ascending reads naturally for text, newest-first for dates. */

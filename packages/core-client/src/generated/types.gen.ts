@@ -3675,6 +3675,7 @@ export type ContactList = {
     kind: 'manual' | 'smart';
     smartFilter: {
         search?: string;
+        organization?: string;
         stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
         kind?: 'PERSON' | 'ORGANIZATION';
         replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -3865,6 +3866,14 @@ export type ContactImportResult = {
     skipped: number;
     listsCreated: number;
     mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactOrganization = {
+    name: string;
+    /**
+     * Live contacts
+     */
+    count: number;
 };
 
 export type ContactDetail = Contact & {
@@ -26482,6 +26491,7 @@ export type PostContactListsData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
+            organization?: string;
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -26763,6 +26773,7 @@ export type PatchContactListsByIdData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
+            organization?: string;
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -27073,6 +27084,10 @@ export type GetContactsData = {
          */
         limit?: number;
         search?: string;
+        /**
+         * Only people at this organization, matched whatever its case.
+         */
+        organization?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
@@ -27372,6 +27387,10 @@ export type GetContactsExportCsvData = {
          */
         limit?: number;
         search?: string;
+        /**
+         * Only people at this organization, matched whatever its case.
+         */
+        organization?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
@@ -27876,6 +27895,111 @@ export type PostContactsImportResponses = {
 };
 
 export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
+
+export type GetContactsOrganizationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        limit?: number;
+    };
+    url: '/contacts/organizations';
+};
+
+export type GetContactsOrganizationsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsOrganizationsError = GetContactsOrganizationsErrors[keyof GetContactsOrganizationsErrors];
+
+export type GetContactsOrganizationsResponses = {
+    /**
+     * Organizations
+     */
+    200: {
+        data: Array<ContactOrganization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsOrganizationsResponse = GetContactsOrganizationsResponses[keyof GetContactsOrganizationsResponses];
 
 export type GetContactsByIdData = {
     body?: never;

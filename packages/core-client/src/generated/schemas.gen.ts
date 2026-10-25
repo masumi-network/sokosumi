@@ -13097,6 +13097,11 @@ export const ContactListSchema = {
                             minLength: 1,
                             maxLength: 200
                         },
+                        organization: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
                         stages: {
                             type: 'array',
                             items: {
@@ -13798,6 +13803,25 @@ export const ContactImportResultSchema = {
         'skipped',
         'listsCreated',
         'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactOrganizationSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'Cardano Foundation'
+        },
+        count: {
+            type: 'integer',
+            example: 61,
+            description: 'Live contacts'
+        }
+    },
+    required: [
+        'name',
+        'count'
     ]
 } as const;
 
