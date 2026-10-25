@@ -97,6 +97,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
+function emptyColumnHiddenCountById(): Record<KanbanColumnId, number> {
+  return Object.fromEntries(
+    KANBAN_COLUMNS.map((column) => [column.id, 0]),
+  ) as Record<KanbanColumnId, number>;
+}
+
 function emptyColumnNextCursorById(): Record<KanbanColumnId, string | null> {
   return Object.fromEntries(
     KANBAN_COLUMNS.map((column) => [column.id, null]),
@@ -305,6 +311,17 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
+  // Tasks past the first page of each column: its header counts them too.
+  const columnHiddenCountById =
+    tasksPageResult.mode === "list"
+      ? emptyColumnHiddenCountById()
+      : (Object.fromEntries(
+          tasksPageResult.columnPages.map(([columnId, page]) => [
+            columnId,
+            page.nextCursor ? Math.max(0, page.total - page.tasks.length) : 0,
+          ]),
+        ) as Record<KanbanColumnId, number>);
+
   const coworkerOptions = await coworkerOptionsPromise;
   const canCreateTask =
     await organizationSeatService.hasAssignedSeat(activeOrganizationId);
@@ -341,6 +358,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         initialTab={initialTab}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
+        columnHiddenCountById={columnHiddenCountById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
