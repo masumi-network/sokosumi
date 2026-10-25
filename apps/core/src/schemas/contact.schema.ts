@@ -236,8 +236,9 @@ export const contactOrganizationSchema = z
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
-  organization: z.string().trim().min(1).max(200).optional().openapi({
-    description: "Only people at this organization, matched whatever its case.",
+  company: z.string().trim().min(1).max(200).optional().openapi({
+    description:
+      "Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.",
   }),
   stage: contactStageSchema.optional(),
   kind: contactKindSchema.optional(),

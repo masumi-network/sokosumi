@@ -15,7 +15,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/organizations",
     tags: ["Contacts"],
     description:
-      "The organizations the workspace's contacts work at, with how many each, biggest first. Pass a name as `organization` to the contact list to see its people.",
+      "The companies the workspace's contacts work at, with how many each, biggest first. Spellings of one company and colleagues on its email domain count as one. Pass a name as `company` to the contact list to see its people.",
     request: {
       query: z.object({
         search: z.string().trim().min(1).max(200).optional(),

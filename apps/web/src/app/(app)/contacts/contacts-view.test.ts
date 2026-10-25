@@ -20,7 +20,7 @@ import {
 
 const base: ContactView = {
   view: "all",
-  organization: null,
+  company: null,
   search: "",
   stage: null,
   replyState: null,
@@ -37,10 +37,10 @@ describe("contactQuery", () => {
       contactQuery({
         ...base,
         view: "mine",
-        organization: "Cardano Foundation",
+        company: "Cardano Foundation",
       }),
-    ).toMatchObject({ mine: "true", organization: "Cardano Foundation" });
-    expect(contactQuery(base)).not.toHaveProperty("organization");
+    ).toMatchObject({ mine: "true", company: "Cardano Foundation" });
+    expect(contactQuery(base)).not.toHaveProperty("company");
   });
 
   it("maps each preset tab to the documented query params", () => {

@@ -56,8 +56,11 @@ interface Props {
   onEditList: (list: ContactList) => void;
   onDeleteList: (list: ContactList) => void;
   organization: string | null;
+  /** The biggest companies, or Core's matches for the menu's search. */
   organizations: { name: string; count: number }[];
   onOrganizationChange: (organization: string | null) => void;
+  /** What the Companies menu's search box says; Core searches every company. */
+  onCompanySearch: (search: string) => void;
 }
 
 /** The presets as tabs, then the team's lists and the companies as menus. */
@@ -71,6 +74,7 @@ export function ContactsViewsBar({
   organization,
   organizations,
   onOrganizationChange,
+  onCompanySearch,
 }: Props) {
   const t = useTranslations("App.Contacts");
   return (
@@ -112,6 +116,7 @@ export function ContactsViewsBar({
         organization={organization}
         organizations={organizations}
         onChange={onOrganizationChange}
+        onSearch={onCompanySearch}
       />
     </nav>
   );
@@ -205,16 +210,29 @@ function CompaniesMenu({
   organization,
   organizations,
   onChange,
+  onSearch,
 }: {
   organization: string | null;
   organizations: Props["organizations"];
   onChange: (organization: string | null) => void;
+  onSearch: (search: string) => void;
 }) {
   const t = useTranslations("App.Contacts");
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  function changeSearch(next: string) {
+    setSearch(next);
+    onSearch(next);
+  }
   return (
     <div className="flex items-center">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) changeSearch("");
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             variant={organization ? "secondary" : "outline"}
@@ -232,8 +250,13 @@ function CompaniesMenu({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-0">
-          <Command>
-            <CommandInput placeholder={t("views.findCompany")} />
+          {/* Core searches all companies; the list shows its answer as is. */}
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={t("views.findCompany")}
+              value={search}
+              onValueChange={changeSearch}
+            />
             <CommandList>
               <CommandEmpty>{t("views.noCompanies")}</CommandEmpty>
               <CommandGroup>
@@ -244,6 +267,7 @@ function CompaniesMenu({
                     onSelect={() => {
                       onChange(company.name);
                       setOpen(false);
+                      changeSearch("");
                     }}
                   >
                     <span className="truncate">{company.name}</span>

@@ -8742,7 +8742,6 @@
         "selected": "{count} seleccionados",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
-        "setStage": "Cambiar etapa",
         "setOwner": "Cambiar responsable",
         "merge": "Fusionar",
         "clear": "Quitar selección",

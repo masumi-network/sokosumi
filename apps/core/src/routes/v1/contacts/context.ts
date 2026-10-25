@@ -24,7 +24,6 @@ export function contactQueryOptions(
   return {
     filter: {
       search: query.search,
-      organization: query.organization,
       stages: query.stage ? [query.stage] : undefined,
       kind: query.kind,
       replyStates: query.replyState ? [query.replyState] : undefined,
@@ -42,6 +41,7 @@ export function contactQueryOptions(
       hasInteractions: flag(query.hasInteractions),
     },
     listId: query.listId,
+    company: query.company,
     archived: query.archived === "true",
     sort: query.sort,
     direction: query.direction,

@@ -46,8 +46,13 @@ export const contactsService = {
     };
   },
   /** The organizations contacts work at, biggest first. */
-  async organizations() {
-    return (await getContactsOrganizations({ ...options() })).data.data;
+  async organizations(search?: string) {
+    return (
+      await getContactsOrganizations({
+        ...options(),
+        query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
   },
   async get(id: string) {
     return (await getContactsById({ ...options(), path: { id } })).data.data;
