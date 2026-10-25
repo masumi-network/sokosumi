@@ -73,6 +73,24 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 
 vi.mock("@/helpers/user-workspaces", () => ({ getUserWorkspace }));
 
+const funding = vi.hoisted(() => ({
+  spendable: 100,
+  requireFunding: vi.fn(),
+  BillingError: class extends Error {},
+}));
+
+vi.mock("@/helpers/subscription", () => ({
+  buildCreditsPayload: async () => ({
+    spendable: funding.spendable,
+    subscription: null,
+  }),
+}));
+
+vi.mock("@/services/soko-bot-billing.service", () => ({
+  requireSokoBotTurnFunding: funding.requireFunding,
+  SokoBotBillingAccessError: funding.BillingError,
+}));
+
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 
 import {
@@ -86,6 +104,7 @@ import {
   finishCmoAccountsStep,
   hasActiveCmoSubscription,
   isCmoAppUrl,
+  keepCalendarWork,
   listCmoChannels,
   mergeBrandVisual,
   parseCmoUpdates,
@@ -95,6 +114,7 @@ import {
   revertCmoUpdate,
   saveCmoStrategy,
   startCmoOnboarding,
+  withoutDashes,
 } from "./cmo.service";
 
 const strategy = {
@@ -524,6 +544,18 @@ describe("learning state", () => {
       "still learning",
     );
   });
+
+  it("says out of credits instead of starting a turn that would stop", async () => {
+    cmoFindUnique.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("FAILED", 3));
+    funding.requireFunding.mockRejectedValueOnce(
+      new funding.BillingError("no"),
+    );
+    await expect(retryCmoOnboarding("user-1")).rejects.toThrow(
+      "out of credits",
+    );
+    expect(startTurn).not.toHaveBeenCalled();
+  });
 });
 
 describe("listCmoChannels", () => {
@@ -591,6 +623,13 @@ describe("research feed", () => {
         site,
       )?.label,
     ).toBe("Searching “Linear competitors”");
+    expect(
+      describeCmoStep(
+        "web_search",
+        { query: '"Products" OR Plausible  analytics' },
+        site,
+      )?.label,
+    ).toBe("Searching “Products Plausible analytics”");
     expect(describeCmoStep("save_brand_brain", {}, site)?.kind).toBe("brain");
     expect(describeCmoStep("read_memory", {}, site)).toBeNull();
   });
@@ -604,9 +643,13 @@ describe("brand visual", () => {
         colors: ["#ff6a00"],
         fonts: ["Inter"],
         siteName: "Acme",
+        images: ["https://acme.io/hero.jpg"],
       },
       "https://blob/icon.png",
-      { url: "https://blob/design.md", content: "Primary: `#6400FF`" },
+      {
+        url: "https://blob/design.md",
+        content: "Primary: `#6400FF` Accent: `#6a05ff`",
+      },
     );
     expect(visual).toEqual({
       logoUrl: "https://acme.io/logo.svg",
@@ -614,6 +657,72 @@ describe("brand visual", () => {
       fonts: ["Inter"],
       siteName: "Acme",
       designMdUrl: "https://blob/design.md",
+      images: ["https://acme.io/hero.jpg"],
+    });
+  });
+});
+
+describe("keepCalendarWork", () => {
+  const entry = (id: string, date: string, title: string, draft?: string) => ({
+    id,
+    date,
+    channel: "linkedin",
+    title,
+    format: "post",
+    status: "idea" as const,
+    ...(draft ? { draft } : {}),
+  });
+
+  it("gives a kept entry its draft back", () => {
+    const kept = keepCalendarWork(
+      [entry("a", "2026-11-02", "Customer story", "Full text")],
+      [entry("a", "2026-11-02", "Customer story")],
+    );
+    expect(kept[0]?.draft).toBe("Full text");
+  });
+
+  it("drops a stale draft when the piece was rewritten", () => {
+    const kept = keepCalendarWork(
+      [entry("a", "2026-11-02", "Customer story", "Full text")],
+      [entry("a", "2026-11-02", "A new angle")],
+    );
+    expect(kept[0]?.draft).toBeUndefined();
+  });
+
+  it("shows a moved piece once", () => {
+    const kept = keepCalendarWork(
+      [entry("a", "2026-11-04", "Launch day", "Text")],
+      [
+        entry("a", "2026-11-04", "Launch day", "Text"),
+        entry("a2", "2026-11-07", "Launch day", "Text"),
+        entry("b", "2026-11-05", "Something else"),
+      ],
+    );
+    expect(kept.map((item) => item.id)).toEqual(["a2", "b"]);
+  });
+
+  it("keeps a series that repeats a title with new words", () => {
+    const kept = keepCalendarWork(
+      [entry("a", "2026-11-04", "Tip of the week", "Tip one")],
+      [
+        entry("a", "2026-11-04", "Tip of the week", "Tip one"),
+        entry("b", "2026-11-11", "Tip of the week", "Tip two"),
+      ],
+    );
+    expect(kept.map((item) => item.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("withoutDashes", () => {
+  it("rewrites em and en dashes, keeps number ranges", () => {
+    expect(
+      withoutDashes({
+        hook: "Fresh bread — every morning",
+        list: ["Open 7–11", "Soft – and warm"],
+      }),
+    ).toEqual({
+      hook: "Fresh bread, every morning",
+      list: ["Open 7-11", "Soft, and warm"],
     });
   });
 });
@@ -636,6 +745,23 @@ describe("startCmoOnboarding", () => {
       ...data,
     }));
     startTurn.mockResolvedValue({ turnId: "turn-1" });
+  });
+
+  it("refuses before hiring when the payer has no credits", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Me",
+      organizationId: null,
+    });
+    funding.spendable = 0;
+    try {
+      await expect(startCmoOnboarding(input)).rejects.toThrow("out of credits");
+      expect(projectCreate).not.toHaveBeenCalled();
+      expect(startTurn).not.toHaveBeenCalled();
+    } finally {
+      funding.spendable = 100;
+    }
   });
 
   it("hires Cuso into the organization the person chose, under its name", async () => {

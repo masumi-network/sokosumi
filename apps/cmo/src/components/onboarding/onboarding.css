@@ -420,6 +420,15 @@ body:has(.ob) .site-header {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/*
+ * The field's frame draws the focus ring (:focus-within); a transparent
+ * outline on the input keeps one ring, which forced-colors mode still shows.
+ */
+.ob-url input:focus-visible,
+.ob-inline-input:focus-visible {
+  outline: 2px solid transparent;
+}
+
 .ob-url input {
   flex: 1;
   padding: 0;
@@ -905,7 +914,8 @@ body:has(.ob) .site-header {
 
 .ob-plan-summary {
   margin: 0;
-  font-size: clamp(20px, 2.4vw, 24px);
+  max-width: 680px;
+  font-size: clamp(18px, 2vw, 21px);
   line-height: 1.25;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -1793,4 +1803,158 @@ body:has(.ob) .site-header {
 
 .ob-plans-mock {
   margin-top: 32px;
+}
+
+/* Cuso writing or changing the plan while it stays on screen */
+.ob-writing {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ob-line));
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.ob-writing > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.ob-writing-title {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+
+.ob-writing .ob-note {
+  margin: 0;
+}
+
+.ob-drafted-channels {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ob-drafted-icons {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--muted);
+}
+
+/* The founder's correction and Cuso's answer under the Brand Brain */
+.ob-exchange {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.ob-exchange .ob-note {
+  margin: 0;
+}
+
+.ob-channel-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ob-channel-link:hover span:first-child {
+  text-decoration: underline;
+}
+
+/* A day reads "9" in the week grid, "Mon 9 Nov" in the phone list */
+.ob-day-long {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .ob-day-short {
+    display: none;
+  }
+
+  .ob-day-long {
+    display: inline;
+  }
+
+  .ob-brand-look {
+    justify-items: start;
+  }
+
+  .ob-swatches {
+    padding-left: 6px;
+  }
+}
+
+/* Drafts as the reader sees them */
+.draft-text p,
+.draft-text ul {
+  margin: 0 0 10px;
+}
+
+.draft-text ul {
+  padding-left: 18px;
+}
+
+.draft-text .draft-heading {
+  margin-top: 14px;
+  font-weight: 600;
+}
+
+.draft-text > :first-child {
+  margin-top: 0;
+}
+
+/* The site's own photos in the account previews */
+img.sl-card-image {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+}
+
+.si-photo {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: var(--ob-tint);
+}
+
+.si-photo img,
+.sa-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Instagram's grid shows the picture; the hook is in the caption. */
+.si-photo span {
+  display: none;
+}
+
+.sa-photo {
+  position: relative;
+  overflow: hidden;
+}
+
+.sa-photo span {
+  position: relative;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 15px;
+}
+
+.ob-input-lg {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 15px;
 }

@@ -11,6 +11,7 @@ import {
   vividColors,
 } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
+import { plainText } from "../draft-text";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -19,6 +20,7 @@ export type ShowcaseKind =
   | "x"
   | "linkedin"
   | "instagram"
+  | "facebook"
   | "ad"
   | "newsletter"
   | "seo";
@@ -27,6 +29,7 @@ const ORDER: ShowcaseKind[] = [
   "x",
   "linkedin",
   "instagram",
+  "facebook",
   "ad",
   "newsletter",
   "seo",
@@ -43,6 +46,7 @@ function showcaseKind(
   if (channel === "x" || channel === "twitter") return "x";
   if (channel === "linkedin") return "linkedin";
   if (channel === "instagram") return "instagram";
+  if (channel === "facebook") return "facebook";
   return null;
 }
 
@@ -63,16 +67,39 @@ export function showcaseEntries(
   return groups;
 }
 
-const LABELED_LINE = /^(?:subject|headline|title)\s*:\s*(.+)$/im;
+/** "Subject: …", also as "**Subject:** …" or "# Subject: …". */
+const LABELED_LINE =
+  /^[#*\s]*(?:subject(?: line)?|headline|title)\**\s*:\s*\**\s*(.+?)\**\s*$/im;
 
-/** A draft's "Subject:" or "Headline:" line, which Cuso writes for mail and ads. */
-function labeled(entry: Entry): string | null {
-  return LABELED_LINE.exec(entry.draft ?? "")?.[1]?.trim() ?? null;
+/** "Subject: Launch day" → "Launch day"; other text as it is. */
+export function withoutLabel(value: string): string {
+  return LABELED_LINE.exec(value)?.[1]?.trim() ?? value;
 }
 
+/** The headline a reader sees first: the draft's "Subject:" line, the hook or the title. */
+function headline(entry: Entry): string {
+  return withoutLabel(
+    LABELED_LINE.exec(entry.draft ?? "")?.[0] ?? entry.hook ?? entry.title,
+  );
+}
+
+const squash = (value: string) => value.toLowerCase().replace(/\W+/g, "");
+
+/**
+ * The body the reader sees: the labeled line and a first line that only
+ * repeats the subject or title are left out, so neither shows twice.
+ */
 function text(entry: Entry): string {
-  const body = entry.draft?.replace(LABELED_LINE, "").trim();
-  return body || entry.hook || entry.brief || entry.title;
+  const heading = headline(entry);
+  const lines = plainText(entry.draft?.replace(LABELED_LINE, "") ?? "")
+    .split("\n")
+    .filter((line, index) => index > 0 || squash(line) !== squash(heading));
+  const body = lines.join("\n").trim();
+  const hook = entry.hook ? withoutLabel(entry.hook) : undefined;
+  const fallback = [hook, entry.brief, entry.title].find(
+    (line) => line && squash(line) !== squash(heading),
+  );
+  return body || fallback || entry.title;
 }
 
 function handle(overview: CmoOverview): string {
@@ -143,6 +170,29 @@ export function Showcases({ overview }: { overview: CmoOverview }) {
   );
 }
 
+/** A shared link as networks show it: the site's photo, else a brand block. */
+function LinkCard({
+  image,
+  title,
+  site,
+}: {
+  image: string | undefined;
+  title: string;
+  site: string;
+}) {
+  return (
+    <div className="sl-card">
+      {image ? (
+        <img className="sl-card-image" src={image} alt="" loading="lazy" />
+      ) : (
+        <div className="sl-card-image" />
+      )}
+      <span>{title}</span>
+      <small>{site}</small>
+    </div>
+  );
+}
+
 function Frame({
   channel,
   label,
@@ -175,6 +225,10 @@ function Showcase({
   const name = businessDisplayName(overview);
   const at = handle(overview);
   const first = entries[0] as Entry;
+  // The site's own photos stand in for the images Cuso makes after approval.
+  const images = overview.brandVisual?.images ?? [];
+  const photo = (index: number) =>
+    images.length ? images[index % images.length] : undefined;
   switch (kind) {
     case "x":
       return (
@@ -201,7 +255,7 @@ function Showcase({
     case "linkedin":
       return (
         <Frame channel="linkedin" label="Your LinkedIn feed">
-          {entries.slice(0, 2).map((entry) => (
+          {entries.slice(0, 2).map((entry, index) => (
             <div key={entry.id} className="sl-post">
               <div className="sl-head">
                 <BusinessMark overview={overview} size={36} />
@@ -211,11 +265,33 @@ function Showcase({
                 </div>
               </div>
               <p className="sl-text">{text(entry)}</p>
-              <div className="sl-card">
-                <div className="sl-card-image" />
-                <span>{entry.title}</span>
-                <small>{host(overview.websiteUrl)}</small>
+              <LinkCard
+                image={photo(index)}
+                title={entry.title}
+                site={host(overview.websiteUrl)}
+              />
+            </div>
+          ))}
+        </Frame>
+      );
+    case "facebook":
+      return (
+        <Frame channel="facebook" label="Your Facebook page">
+          {entries.slice(0, 2).map((entry, index) => (
+            <div key={entry.id} className="sl-post">
+              <div className="sl-head">
+                <BusinessMark overview={overview} size={36} />
+                <div>
+                  <p className="sl-name">{name}</p>
+                  <p className="sl-sub">{when(entry)}</p>
+                </div>
               </div>
+              <p className="sl-text">{text(entry)}</p>
+              <LinkCard
+                image={photo(index + 1)}
+                title={entry.title}
+                site={host(overview.websiteUrl)}
+              />
             </div>
           ))}
         </Frame>
@@ -231,15 +307,28 @@ function Showcase({
             </div>
           </div>
           <div className="si-grid">
-            {entries.slice(0, 9).map((entry, index) => (
-              <div
-                key={entry.id}
-                className={`si-tile t${index % 3}`}
-                title={entry.title}
-              >
-                <span>{entry.hook ?? entry.title}</span>
-              </div>
-            ))}
+            {entries.slice(0, 9).map((entry, index) => {
+              // A grid never shows the same photo twice.
+              const image = images[index];
+              return image ? (
+                <div
+                  key={entry.id}
+                  className="si-tile si-photo"
+                  title={entry.title}
+                >
+                  <img src={image} alt="" loading="lazy" />
+                  <span>{entry.hook ?? entry.title}</span>
+                </div>
+              ) : (
+                <div
+                  key={entry.id}
+                  className={`si-tile t${index % 3}`}
+                  title={entry.title}
+                >
+                  <span>{entry.hook ?? entry.title}</span>
+                </div>
+              );
+            })}
           </div>
         </Frame>
       );
@@ -255,8 +344,9 @@ function Showcase({
               </div>
             </div>
             <p className="sl-text">{text(first)}</p>
-            <div className="sa-visual">
-              <span>{labeled(first) ?? first.hook ?? first.title}</span>
+            <div className={photo(0) ? "sa-visual sa-photo" : "sa-visual"}>
+              {photo(0) ? <img src={photo(0)} alt="" loading="lazy" /> : null}
+              <span>{headline(first)}</span>
             </div>
             <div className="sa-cta">
               <span>{host(overview.websiteUrl)}</span>
@@ -273,9 +363,7 @@ function Showcase({
               <BusinessMark overview={overview} size={24} />
               <strong>{name}</strong>
             </p>
-            <p className="sn-subject">
-              {labeled(first) ?? first.hook ?? first.title}
-            </p>
+            <p className="sn-subject">{headline(first)}</p>
             <div className="sn-rule" />
             <p className="sn-body">{text(first)}</p>
           </div>

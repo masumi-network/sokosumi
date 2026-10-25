@@ -20,6 +20,7 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
+import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { BusinessMark, businessDisplayName } from "../business-mark";
@@ -144,11 +145,7 @@ export function webOriginOf(overview: CmoOverview): string {
 /** Starter replies for the moment the owner is in. */
 function suggestions(overview: CmoOverview): string[] {
   if (overview.strategy && !overview.strategyApprovedAt) {
-    return [
-      "Post more on LinkedIn",
-      "Fewer posts, more depth",
-      "Push the launch harder",
-    ];
+    return changeIdeas(overview).slice(0, 3);
   }
   if (overview.strategyApprovedAt) {
     return [
@@ -172,7 +169,10 @@ export function CmoApp({
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [view, setView] = useState<View>(initialView);
-  const [upNextOpen, setUpNextOpen] = useState(true);
+  // An empty Up next would take a quarter of the screen to say so.
+  const [upNextOpen, setUpNextOpen] = useState(
+    initialOverview.upNext.length > 0,
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerLayout = useDrawerLayout();
   const [draft, setDraft] = useState("");

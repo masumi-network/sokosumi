@@ -97,6 +97,9 @@ export const cmoBrandVisualSchema = z
     fonts: z.array(z.string()),
     siteName: z.union([z.string(), z.null()]),
     designMdUrl: z.union([z.string(), z.null()]),
+    images: z
+      .array(z.string())
+      .describe("Photos from the site, og:image first, for post previews."),
   })
   .openapi("CmoBrandVisual");
 

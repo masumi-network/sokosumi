@@ -39,33 +39,80 @@ export function entryReadiness(
     : "soon";
 }
 
-export interface CalendarDay {
-  /** YYYY-MM-DD, or null for the blank cells before the 1st. */
-  date: string | null;
-  day: number | null;
-  entries: Entry[];
+const DAY_MS = 86_400_000;
+
+function utcDate(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`);
 }
 
-/** The month as Monday-first weeks, with each day's entries. */
-export function monthGrid(month: string, calendar: Entry[]): CalendarDay[] {
-  const [year, monthIndex] = month.split("-").map(Number) as [number, number];
-  const first = new Date(Date.UTC(year, monthIndex - 1, 1));
-  const days = new Date(Date.UTC(year, monthIndex, 0)).getUTCDate();
-  const leading = (first.getUTCDay() + 6) % 7;
-  const cells: CalendarDay[] = Array.from({ length: leading }, () => ({
-    date: null,
-    day: null,
-    entries: [],
-  }));
-  for (let day = 1; day <= days; day++) {
-    const date = `${month}-${String(day).padStart(2, "0")}`;
-    cells.push({
-      date,
-      day,
-      entries: calendar.filter((entry) => entry.date === date),
-    });
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** A plan day as people read it: { day: "numeric", month: "short" } → "9 Nov". */
+export function formatDay(
+  iso: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return utcDate(iso).toLocaleDateString("en-GB", {
+    ...options,
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * Monday-first weeks from the first entry's week to the last entry's, at
+ * least four and at most six. A plan starting on 27 October runs into
+ * November, so weeks, not a calendar month, frame it.
+ */
+export function planWeeks(
+  calendar: Pick<Entry, "date">[],
+): { start: string; days: string[] }[] {
+  const dates = calendar.map((entry) => entry.date).sort();
+  const first = dates[0] ?? isoDay(new Date());
+  const last = dates.at(-1) ?? first;
+  const start = utcDate(first);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  const weeks: { start: string; days: string[] }[] = [];
+  for (
+    let cursor = start.getTime();
+    weeks.length < 4 || cursor <= utcDate(last).getTime();
+    cursor += 7 * DAY_MS
+  ) {
+    const days = Array.from({ length: 7 }, (_, index) =>
+      isoDay(new Date(cursor + index * DAY_MS)),
+    );
+    weeks.push({ start: days[0] ?? "", days });
+    if (weeks.length >= 6) break;
   }
-  return cells;
+  return weeks;
+}
+
+/** "27 Oct to 21 Nov": the days the plan covers. */
+export function planRange(calendar: Pick<Entry, "date">[]): string | null {
+  const dates = calendar.map((entry) => entry.date).sort();
+  const first = dates[0];
+  const last = dates.at(-1);
+  if (!first || !last) return null;
+  const short = { day: "numeric", month: "short" } as const;
+  return `${formatDay(first, short)} to ${formatDay(last, short)}`;
+}
+
+/** Social posts a week across the plan, which is what a CMO tier limits. */
+export function socialPostsPerWeek(calendar: Entry[]): number {
+  const social = calendar.filter(
+    (entry) =>
+      (SOCIAL_PROVIDERS as readonly string[]).includes(entry.channel) &&
+      entry.status !== "skipped",
+  );
+  if (social.length === 0) return 0;
+  const dates = social.map((entry) => entry.date).sort();
+  const days =
+    (utcDate(dates.at(-1) ?? "").getTime() -
+      utcDate(dates[0] ?? "").getTime()) /
+      DAY_MS +
+    1;
+  return social.length / Math.ceil(days / 7);
 }
 
 /** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */

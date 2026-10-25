@@ -26,10 +26,12 @@ import {
   type BrandVisual,
   brandColors,
   brandFontName,
+  distinctColors,
   readBrandVisual,
 } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
+import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
@@ -71,17 +73,26 @@ export const cmoBrandVisualSchema = z.object({
   fonts: z.array(z.string().max(80)).max(4),
   siteName: z.string().max(120).nullable(),
   designMdUrl: z.string().url().nullable(),
+  images: z.array(z.string().url()).max(8).default([]),
 });
 export type CmoBrandVisual = z.infer<typeof cmoBrandVisualSchema>;
 
 export function parseCmoBrandVisual(value: unknown): CmoBrandVisual | null {
   const parsed = cmoBrandVisualSchema.safeParse(value);
   if (!parsed.success) return null;
-  // Rows saved before the font filter tightened still carry fallbacks.
+  // Rows saved before the filters tightened still carry fallbacks, icon
+  // fonts, near-repeat colours and raw entities.
   const fonts = parsed.data.fonts
     .map(brandFontName)
     .filter((font): font is string => font !== null);
-  return { ...parsed.data, fonts: [...new Set(fonts)] };
+  return {
+    ...parsed.data,
+    colors: distinctColors(parsed.data.colors),
+    fonts: [...new Set(fonts)],
+    siteName: parsed.data.siteName
+      ? decodeEntities(parsed.data.siteName)
+      : null,
+  };
 }
 
 const DESIGN_MD_POLL_MS = 3_000;
@@ -102,8 +113,11 @@ async function generateProjectDesignMd(
     apiKey: env.MASUMI_DESIGN_MD_API_KEY,
     apiUrl: env.MASUMI_DESIGN_MD_API_URL,
   });
-  // Onboarding stores a full URL (CmoOnboardingRequest validates it).
-  let result = await client.submit({ url: websiteUrl });
+  // The homepage describes the brand; an entered subpage ("/pages/about")
+  // named the file after that page.
+  let result = await client.submit({
+    url: new URL("/", websiteUrl).toString(),
+  });
   const deadline = Date.now() + DESIGN_MD_BUDGET_MS;
   while (
     result.isOk() &&
@@ -113,19 +127,27 @@ async function generateProjectDesignMd(
     await new Promise((resolve) => setTimeout(resolve, DESIGN_MD_POLL_MS));
     result = await client.pollJob(result.value.jobId);
   }
-  if (result.isErr() || result.value.status !== "done") return null;
+  if (result.isErr() || result.value.status !== "done") {
+    console.warn("CMO DESIGN.md not generated", {
+      projectId,
+      reason: result.isErr() ? result.error.type : result.value.status,
+    });
+    return null;
+  }
   const done = result.value;
+  const extractionId =
+    done.extractionId === null ? null : String(done.extractionId);
   const stored = await uploadDesignMdContent({
     content: done.designMd,
     owner: { kind: "project", id: projectId },
-    extractionId: String(done.extractionId),
+    extractionId,
   });
   if (!stored) return null;
   await prisma.project.update({
     where: { id: projectId },
     data: {
       designMdUrl: stored,
-      designMdExtractionId: String(done.extractionId),
+      designMdExtractionId: extractionId,
     },
   });
   return { url: stored, content: done.designMd };
@@ -171,10 +193,11 @@ export function mergeBrandVisual(
   const designColors = designMd ? brandColors(designMd.content, 5) : [];
   return {
     logoUrl: site.logoUrl ?? iconUrl,
-    colors: [...new Set([...designColors, ...site.colors])].slice(0, 5),
+    colors: distinctColors([...designColors, ...site.colors]).slice(0, 5),
     fonts: site.fonts,
     siteName: site.siteName,
     designMdUrl: designMd?.url ?? null,
+    images: site.images,
   };
 }
 
@@ -281,10 +304,43 @@ export async function chooseCmoMockPlan(
   });
 }
 
+/** What the founder reads when a step cannot start for lack of credits. */
+export const CMO_OUT_OF_CREDITS = "You're out of credits";
+
+/**
+ * Before hiring: whether the payer can fund Cuso's first turn, so research
+ * never starts only to stop on credits.
+ */
+async function canFundFirstTurn(input: {
+  userId: string;
+  organizationId: string | null;
+}): Promise<boolean> {
+  const credits = await buildCreditsPayload({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    referenceId: input.organizationId ?? input.userId,
+    tx: prisma,
+  });
+  return credits.spendable >= getEnv().SOKO_BOT_MIN_TURN_CREDITS;
+}
+
 async function startCmoTurn(
   hire: Pick<CmoHire, "userId" | "workspaceId" | "sokoBotId">,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
+  // The founder pressed the button and sees the refusal there, so the
+  // control plane's out-of-credits chat notice would only repeat it.
+  const { requireSokoBotTurnFunding, SokoBotBillingAccessError } = await import(
+    "@/services/soko-bot-billing.service"
+  );
+  try {
+    await requireSokoBotTurnFunding(hire.userId, hire.sokoBotId);
+  } catch (error) {
+    if (error instanceof SokoBotBillingAccessError) {
+      throw new CmoConflictError(CMO_OUT_OF_CREDITS);
+    }
+    throw error;
+  }
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
@@ -315,7 +371,7 @@ function onboardingMessage(input: {
     "Learn the business. Read the website (home, about, products, pricing, blog), search for the company, its competitors and its existing marketing and social profiles, then save the Brand Brain with save_brand_brain. Write down only what you found.",
     "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
     "If you could not confirm what they sell, to whom, and the offer, end with two or three short questions; otherwise end with one plain sentence on what stood out.",
-    "The Brand Brain card is your report: do not call report_update, and never mention tool limits or what you may not do this turn.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
   ].join("\n");
 }
 
@@ -452,7 +508,15 @@ export function describeCmoStep(
   if (capability === "web_search" && typeof fields.query === "string") {
     return {
       kind: "search",
-      label: `Searching “${clip(fields.query.replace(/site:\S+/g, "").trim(), 60)}”`,
+      label: `Searching “${clip(
+        fields.query
+          .replace(/site:\S+/g, "")
+          .replace(/["“”]/g, "")
+          .replace(/(^|\s)(?:OR|AND)(?=\s|$)/g, " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+        60,
+      )}”`,
       url: null,
     };
   }
@@ -682,6 +746,14 @@ export async function startCmoOnboarding(input: {
   const workspace = await getUserWorkspace(input.userId, {
     id: input.workspaceId,
   });
+  if (
+    !(await canFundFirstTurn({
+      userId: input.userId,
+      organizationId: workspace.organizationId ?? null,
+    }))
+  ) {
+    throw new CmoConflictError(CMO_OUT_OF_CREDITS);
+  }
   const businessName =
     workspace.kind === "organization"
       ? workspace.name
@@ -785,18 +857,25 @@ export async function requestCmoStrategy(input: {
   });
   return startCmoTurn(hire, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
-    message: [
-      `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-      `Their main goal, in their words: ${hire.goals}`,
-      input.note
-        ? `Change request from the owner: ${input.note}\nKeep what still works, change what they asked, and list each difference in changes.`
-        : "",
-      "",
-      "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet. Save the whole strategy with save_strategy: an exact day-by-day calendar (date, time, channel, format, hook, why), full drafts for every entry in the first week, the why for the plan and for each channel, and previews (an ad, an SEO article and a newsletter in the brand's voice, plus one post).",
-      "Do not create Social posts or images yet; that starts after the owner approves.",
-      "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update.",
-    ]
-      .filter(Boolean)
+    message: (input.note
+      ? [
+          `Change ${hire.businessName}'s marketing strategy. The owner asked: ${input.note}`,
+          "",
+          "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time, hook and draft. To move a piece, change the date on the same id; never add a copy. A new or rewritten piece gets a full draft. List each difference in changes, in plain words.",
+          "Save the whole strategy with save_strategy.",
+        ]
+      : [
+          `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+          `Their main goal, in their words: ${hire.goals}`,
+          "",
+          "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
+          "Save in two passes so the owner sees the plan grow: first call save_strategy as soon as the plan stands (summary, why, goals, channels, and the exact day-by-day calendar with date, time, channel, format, title, hook, brief and why, no drafts yet); then write the full draft of every entry and the previews (an ad, an SEO article, a newsletter and one post, in the brand's voice) and call save_strategy again with the whole strategy.",
+        ]
+    )
+      .concat([
+        "Do not create Social posts or images yet; that starts after the owner approves.",
+        "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
+      ])
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
@@ -868,6 +947,68 @@ function withHiddenCalendar(
   );
 }
 
+function sameTitle(left: string, right: string): boolean {
+  const squash = (text: string) => text.toLowerCase().replace(/\W+/g, "");
+  return squash(left) === squash(right);
+}
+
+/**
+ * Guards a bot's save against the two ways a revision loses work: an entry
+ * kept under the same id and title without its draft gets the draft back,
+ * and an entry left in its old slot while a copy moved to a new day is
+ * dropped, so a moved piece shows once.
+ */
+export function keepCalendarWork(
+  previous: CmoStrategy["calendar"],
+  incoming: CmoStrategy["calendar"],
+): CmoStrategy["calendar"] {
+  const before = new Map(previous.map((entry) => [entry.id, entry]));
+  const withDrafts = incoming.map((entry) => {
+    const old = before.get(entry.id);
+    return !entry.draft && old?.draft && sameTitle(old.title, entry.title)
+      ? { ...entry, draft: old.draft }
+      : entry;
+  });
+  return withDrafts.filter((entry) => {
+    const old = before.get(entry.id);
+    const untouched = old?.date === entry.date;
+    if (!untouched) return true;
+    const moved = withDrafts.some(
+      (other) =>
+        other !== entry &&
+        other.channel === entry.channel &&
+        other.date !== entry.date &&
+        sameTitle(other.title, entry.title) &&
+        // A series ("Tip of the week") repeats the title, not the words.
+        ((!!other.hook && other.hook === entry.hook) ||
+          (!!other.draft && other.draft === entry.draft)) &&
+        before.get(other.id)?.date !== other.date,
+    );
+    return !moved;
+  });
+}
+
+const DASH = /\s*[—–]\s*/g;
+
+/**
+ * Cuso's copy goes out under the brand's name; em and en dashes read as AI
+ * writing. Number ranges ("3–5") keep a plain hyphen.
+ */
+export function withoutDashes<T>(value: T): T {
+  if (typeof value === "string") {
+    return value
+      .replace(/(\d)\s*[—–]\s*(\d)/g, "$1-$2")
+      .replace(DASH, ", ") as T;
+  }
+  if (Array.isArray(value)) return value.map(withoutDashes) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, withoutDashes(item)]),
+    ) as T;
+  }
+  return value;
+}
+
 const strategyHistorySchema = z.array(
   z.object({
     savedAt: z.string(),
@@ -896,16 +1037,17 @@ export async function saveCmoStrategy(
   const current = await prisma.cmoHire.findUnique({ where });
   if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
   const previous = options.turnId ? parseCmoStrategy(current.strategy) : null;
-  const stored = previous
+  const merged = previous
     ? {
         ...parsed,
         calendar: withHiddenCalendar(
           previous.calendar,
-          parsed.calendar,
+          keepCalendarWork(previous.calendar, parsed.calendar),
           options.now ?? new Date(),
         ),
       }
     : parsed;
+  const stored = options.turnId ? withoutDashes(merged) : merged;
   const history = current.strategy
     ? [
         {

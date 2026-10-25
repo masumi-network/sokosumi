@@ -8,12 +8,12 @@ import { useState, useTransition } from "react";
 import {
   channelLabel,
   entryReadiness,
+  planRange,
   SOCIAL_PROVIDERS,
 } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
 import { ChannelIcon } from "../channel-icon";
 import { MockPlanTable } from "../mock-plans";
-import { formatMonth } from "./cards";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -82,7 +82,7 @@ export function StrategyPage({ overview }: PageProps) {
         </section>
       </div>
       <section className="panel">
-        <h3>{formatMonth(strategy.month)}</h3>
+        <h3>{planRange(strategy.calendar) ?? "Calendar"}</h3>
         <CalendarLegend />
         <div className="cal-scroll">
           <MonthCalendar strategy={strategy} big connected={connected} />
@@ -102,20 +102,31 @@ export function ResultsPage({
 }: PageProps & { openUpdate: (id: string) => void }) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
   const { posts } = overview;
+  // Pieces Cuso has written that are not Social posts yet count as drafts too.
+  const writtenInPlan = (overview.strategy?.calendar ?? []).filter(
+    (entry) =>
+      entry.draft &&
+      !entry.socialPostId &&
+      entry.status !== "published" &&
+      entry.status !== "skipped",
+  ).length;
+  const connected = overview.channels.some(
+    (channel) => channel.status.toUpperCase() === "ACTIVE",
+  );
   return (
     <div className="page-body">
       <div className="grid4">
         <Kpi label="Published" value={posts.published} />
         <Kpi label="Scheduled" value={posts.scheduled} />
-        <Kpi label="Drafts" value={posts.draft} />
+        <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
       <section className="panel">
         <h3>Reach and clicks</h3>
         <p className="muted">
-          The connected providers report no reach or click numbers to Sokosumi
-          yet, so there is nothing to chart. Cuso says the same in each weekly
-          report instead of guessing.
+          {connected
+            ? "Your networks haven't reported reach or clicks yet, so there is nothing to chart. Cuso says so in each weekly report instead of guessing."
+            : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
         </p>
       </section>
       <section className="panel">

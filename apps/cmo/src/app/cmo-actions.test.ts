@@ -51,8 +51,36 @@ describe("onboard", () => {
     expect(state).toEqual({
       attempt: 1,
       websiteUrl: "not a site",
+      launch: "",
       errors: { websiteUrl: "Enter a website, like acme.com." },
     });
+  });
+
+  it("asks what launches and passes it on with the goal", async () => {
+    const data = form("acme.io");
+    data.set("goals", "Launch something");
+    const missing = await onboard(EMPTY, data);
+    expect(missing.errors.launch).toBeDefined();
+    expect(startCmoOnboarding).not.toHaveBeenCalled();
+
+    data.set("launch", "our iOS app, on 12 November");
+    await onboard(EMPTY, data);
+    expect(startCmoOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          goals: "Launch something: our iOS app, on 12 November",
+        }),
+      }),
+    );
+  });
+
+  it("links to top up when Core refuses for credits", async () => {
+    startCmoOnboarding.mockResolvedValue({
+      error: { message: "You're out of credits" },
+    });
+    const state = await onboard(EMPTY, form("acme.io"));
+    expect(state.errors.form).toContain("out of credits");
+    expect(state.topUpUrl).toMatch(/\/billing$/);
   });
 
   it("says so when Core refuses, keeping the answers", async () => {

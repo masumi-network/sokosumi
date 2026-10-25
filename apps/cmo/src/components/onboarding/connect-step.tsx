@@ -112,7 +112,7 @@ export function ConnectStep({
               ) : (
                 <button
                   type="button"
-                  className="ob-button ob-button-quiet"
+                  className="ob-button"
                   disabled={pending !== null}
                   onClick={() => connect(provider)}
                 >
@@ -141,7 +141,11 @@ export function ConnectStep({
       <div className="ob-footer">
         <button
           type="button"
-          className="ob-button ob-button-lg"
+          className={
+            allConnected
+              ? "ob-button ob-button-lg"
+              : "ob-button ob-button-lg ob-button-quiet"
+          }
           disabled={continuing}
           onClick={() =>
             startContinuing(async () => {

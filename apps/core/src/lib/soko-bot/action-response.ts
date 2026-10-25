@@ -493,6 +493,27 @@ async function cmoReportedByCard(
   return reports > 0;
 }
 
+/**
+ * Whether a Cuso turn saved his Brand Brain or strategy. Those writes carry
+ * no action receipt, so without this a correction he applied would end on
+ * "Nothing was changed in this turn."
+ */
+async function cmoSavedRecord(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  cmo: boolean,
+): Promise<boolean> {
+  if (!cmo) return false;
+  const saves = await tx.sokoBotToolCall.count({
+    where: {
+      turnId,
+      capability: { in: ["save_brand_brain", "save_strategy"] },
+      status: "COMPLETED",
+    },
+  });
+  return saves > 0;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -819,7 +840,7 @@ export async function buildActionResponse(
           ]
             .filter(Boolean)
             .join("\n\n") || "Nothing to add."
-        : actionRequested
+        : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
           ? "Nothing was changed in this turn."
           : answerText,
   };

@@ -852,6 +852,27 @@ describe("authoritative action responses", () => {
     expect(personal.answerText).toContain("Created social post");
   });
 
+  it("keeps Cuso's answer after he saved the Brand Brain", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v1",
+    });
+    db.sokoBotToolCall.count.mockImplementation(
+      async (args: { where: { capability: unknown } }) =>
+        JSON.stringify(args.where.capability).includes("save_brand_brain")
+          ? 1
+          : 0,
+    );
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Updated: your audience is CTOs now.",
+      true,
+    );
+    expect(response.answerText).toBe("Updated: your audience is CTOs now.");
+  });
+
   it("never posts raw observations to a CMO (Cuso) chat", async () => {
     const read = receipt({
       capability: "list_project_social_accounts",

@@ -94,7 +94,9 @@ export default async function AuthLayout({
           </div>
           <AuthLayoutFooter />
         </div>
-        <AuthBackground />
+        {/* Signing in for another product: Sokosumi's own pitch and customer
+            logos would read as a detour, so the form stands alone. */}
+        {carriesOAuthRequest ? null : <AuthBackground />}
       </div>
     </ClientMessageBoundary>
   );

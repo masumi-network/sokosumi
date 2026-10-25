@@ -23,6 +23,7 @@ import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
+import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 
@@ -46,7 +47,10 @@ export interface OnboardFormState {
   /** Counts submits, so the form remounts with the values below. */
   attempt: number;
   websiteUrl: string;
-  errors: { websiteUrl?: string; form?: string };
+  launch?: string;
+  errors: { websiteUrl?: string; launch?: string; form?: string };
+  /** Out of credits: where to top up before starting again. */
+  topUpUrl?: string;
 }
 
 /**
@@ -58,9 +62,19 @@ export async function onboard(
   formData: FormData,
 ): Promise<OnboardFormState> {
   const typed = String(formData.get("websiteUrl") ?? "").trim();
-  const goals = String(formData.get("goals") ?? "").trim();
+  const goal = String(formData.get("goals") ?? "").trim();
+  const launch = String(formData.get("launch") ?? "").trim();
   const workspaceId = String(formData.get("workspaceId") ?? "");
-  const result = { attempt: previous.attempt + 1, websiteUrl: typed };
+  const result = { attempt: previous.attempt + 1, websiteUrl: typed, launch };
+  // A launch goal says what launches and when, or Cuso has to guess.
+  const launching = /^launch/i.test(goal);
+  if (launching && !launch) {
+    return {
+      ...result,
+      errors: { launch: "Say what you're launching and when." },
+    };
+  }
+  const goals = launching ? `${goal}: ${launch}` : goal;
 
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
@@ -76,6 +90,15 @@ export async function onboard(
     body: { workspaceId, websiteUrl, goals },
   });
   if (error) {
+    if (/credits/i.test(errorText(error, ""))) {
+      return {
+        ...result,
+        errors: {
+          form: "You're out of credits. Top up on Sokosumi, then press Start again.",
+        },
+        topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
+      };
+    }
     return { ...result, errors: { form: "That did not work. Try again." } };
   }
   revalidatePath("/");

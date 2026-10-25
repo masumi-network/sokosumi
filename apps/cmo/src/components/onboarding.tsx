@@ -27,6 +27,8 @@ export const GOALS = [
   { label: "Launch something", Icon: Rocket },
 ] as const;
 
+const LAUNCH = "Launch something";
+
 const NEXT = [
   "Cuso studies your site, market and competitors",
   "You check your Brand Brain",
@@ -55,8 +57,11 @@ export function Onboarding({ workspace, onboard }: OnboardingProps) {
   });
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
-  const [goal, setGoal] = useState<string>(GOALS[0].label);
+  const [goal, setGoal] = useState<string>(
+    state.launch ? LAUNCH : GOALS[0].label,
+  );
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
+  const launchErrorId = errors.launch ? "ob-launch-error" : undefined;
 
   return (
     <div className="ob">
@@ -81,6 +86,19 @@ export function Onboarding({ workspace, onboard }: OnboardingProps) {
           {errors.form ? (
             <p className="ob-alert" role="alert" tabIndex={-1}>
               {errors.form}
+              {state.topUpUrl ? (
+                <>
+                  {" "}
+                  <a
+                    className="ob-link"
+                    href={state.topUpUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Top up
+                  </a>
+                </>
+              ) : null}
             </p>
           ) : null}
           <label className="ob-field">
@@ -122,6 +140,27 @@ export function Onboarding({ workspace, onboard }: OnboardingProps) {
             </div>
             <input type="hidden" name="goals" value={goal} />
           </fieldset>
+          {goal === LAUNCH ? (
+            <label className="ob-field">
+              <span className="ob-label">
+                What are you launching, and when?
+              </span>
+              <input
+                className="ob-input ob-input-lg"
+                name="launch"
+                required
+                placeholder="e.g. our iOS app, on 12 November"
+                defaultValue={state.launch}
+                aria-invalid={errors.launch ? true : undefined}
+                aria-describedby={launchErrorId}
+              />
+            </label>
+          ) : null}
+          {errors.launch ? (
+            <p id={launchErrorId} className="ob-alert">
+              {errors.launch}
+            </p>
+          ) : null}
           {workspace.kind === "organization" ? (
             <p className="ob-lede">
               Cuso works in {workspace.name} and uses its plan and credits.

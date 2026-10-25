@@ -65,6 +65,26 @@ export function mockPlanById(id: string | null): MockPlan | null {
   return MOCK_PLANS.find((plan) => plan.id === id) ?? null;
 }
 
+/**
+ * The smallest tier that runs the approved plan: enough social channels,
+ * posts a week, and ad and article drafts when the plan has them. The
+ * biggest tier when none is big enough.
+ */
+export function fittingMockPlan(need: {
+  channels: number;
+  postsPerWeek: number;
+  drafts: boolean;
+}): MockPlan {
+  return (
+    MOCK_PLANS.find(
+      (plan) =>
+        plan.channels >= need.channels &&
+        plan.postsPerWeek >= Math.ceil(need.postsPerWeek) &&
+        (!need.drafts || plan.adAndArticleDrafts),
+    ) ?? (MOCK_PLANS.at(-1) as MockPlan)
+  );
+}
+
 /** The plan's feature lines, in the order the table shows them. */
 export function mockPlanFeatures(plan: MockPlan): string[] {
   return [

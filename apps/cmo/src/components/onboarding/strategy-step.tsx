@@ -14,70 +14,30 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import {
+  channelLabel,
+  formatDay,
+  planRange,
+  planWeeks,
+  SOCIAL_PROVIDERS,
+} from "../../lib/calendar";
+import { changeIdeas } from "../../lib/change-ideas";
 import { ChannelIcon } from "../channel-icon";
+import { DraftText } from "../draft-text";
 import { Clamp } from "./clamp";
-import { Showcases } from "./showcases";
+import { Refusal } from "./refusal";
+import { Showcases, withoutLabel } from "./showcases";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
-const DAY_MS = 86_400_000;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function utcDate(iso: string): Date {
-  return new Date(`${iso}T00:00:00Z`);
+function runs(channel: string): boolean {
+  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel);
 }
-
-function isoDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-/** Monday-first weeks from the first entry's week, at least four. */
-export function planWeeks(
-  calendar: Entry[],
-): { start: string; days: string[] }[] {
-  const dates = calendar.map((entry) => entry.date).sort();
-  const first = dates[0] ?? isoDay(new Date());
-  const last = dates.at(-1) ?? first;
-  const start = utcDate(first);
-  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
-  const weeks: { start: string; days: string[] }[] = [];
-  for (
-    let cursor = start.getTime();
-    weeks.length < 4 || cursor <= utcDate(last).getTime();
-    cursor += 7 * DAY_MS
-  ) {
-    const days = Array.from({ length: 7 }, (_, index) =>
-      isoDay(new Date(cursor + index * DAY_MS)),
-    );
-    weeks.push({ start: days[0] ?? "", days });
-    if (weeks.length >= 6) break;
-  }
-  return weeks;
-}
-
-function formatDay(iso: string, options: Intl.DateTimeFormatOptions): string {
-  return utcDate(iso).toLocaleDateString("en-GB", {
-    ...options,
-    timeZone: "UTC",
-  });
-}
-
-function readiness(channel: string): "runs" | "soon" {
-  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel)
-    ? "runs"
-    : "soon";
-}
-
-const CHANGE_IDEAS = [
-  "Fewer posts, more depth",
-  "More LinkedIn, less X",
-  "Lead with our newest product",
-  "A more playful voice",
-];
 
 interface StrategyStepProps {
   overview: CmoOverview;
@@ -87,7 +47,8 @@ interface StrategyStepProps {
 
 /**
  * The strategy, so a founder can decide to hire Cuso from it: the why, every
- * day of the next four weeks, and what their accounts will look like.
+ * day of the next four weeks, and what their accounts will look like. While
+ * Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function StrategyStep({
   overview,
@@ -110,43 +71,81 @@ export function StrategyStep({
   }, [strategy.calendar]);
   const [open, setOpen] = useState<Entry | null>(null);
   const [note, setNote] = useState("");
+  const [asked, setAsked] = useState<string | null>(null);
   const [changing, startChanging] = useTransition();
   const [approving, startApproving] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const dates = strategy.calendar.map((entry) => entry.date).sort();
-  const first = dates[0];
-  const end = dates.at(-1);
+  const input = useRef<HTMLInputElement>(null);
+  const work = overview.work;
+  const writing = work?.kind === "strategy" && work.status === "running";
   const pieces = strategy.calendar.length;
   const drafted = strategy.calendar.filter((entry) => entry.draft).length;
+  const stopped =
+    work?.kind === "strategy" &&
+    work.status === "failed" &&
+    (asked !== null || drafted < pieces);
+  const busy = writing || changing;
+  const range = planRange(strategy.calendar);
   const changes = strategy.changes ?? [];
+  const running = strategy.channels.filter((channel) => runs(channel.channel));
+  const drafts = strategy.channels.filter((channel) => !runs(channel.channel));
 
   function requestChange(text: string) {
     const request = text.trim();
     if (!request) return;
     startChanging(async () => {
-      setRefusal(await onChange(request));
-      setNote("");
+      const refused = await onChange(request);
+      setRefusal(refused);
+      if (!refused) {
+        setAsked(request);
+        setNote("");
+      }
     });
   }
 
   return (
     <section className="ob-strategy">
       <header className="ob-plan-head">
-        <p className="ob-eyebrow">
-          Your strategy
-          {first && end
-            ? ` · ${formatDay(first, { day: "numeric", month: "short" })} to ${formatDay(end, { day: "numeric", month: "short" })}`
-            : ""}
-        </p>
+        <p className="ob-eyebrow">Your strategy{range ? ` · ${range}` : ""}</p>
         <h1 className="ob-plan-summary">{strategy.summary}</h1>
         <p className="ob-plan-stats">
           <span>{pieces} pieces</span>
           <span>{strategy.channels.length} channels</span>
-          <span>{drafted} written out in full</span>
+          <span>
+            {drafted === pieces
+              ? "All written out in full"
+              : `${drafted} of ${pieces} written out in full`}
+          </span>
         </p>
       </header>
 
-      {changes.length > 0 ? (
+      {writing ? (
+        <div className="ob-writing" role="status">
+          <Loader2 size={16} className="ob-spin" aria-hidden="true" />
+          <div>
+            <p className="ob-writing-title">
+              {asked
+                ? "Cuso is changing your plan"
+                : drafted < pieces
+                  ? `Cuso is writing every piece in full: ${drafted} of ${pieces} done`
+                  : "Cuso is finishing your plan"}
+            </p>
+            <p className="ob-note">
+              {asked
+                ? `You asked: “${asked}”. The plan below updates when he's done, in about two minutes.`
+                : "Look around; the plan fills in as he writes."}
+            </p>
+          </div>
+        </div>
+      ) : stopped ? (
+        <p className="ob-alert" role="alert">
+          {asked
+            ? "That change didn't go through. Ask again below."
+            : "Cuso stopped before every piece was written. Ask him below to finish the plan."}
+        </p>
+      ) : null}
+
+      {changes.length > 0 && !writing ? (
         <motion.div
           className="ob-changed"
           initial={{ opacity: 0, y: -6 }}
@@ -217,18 +216,14 @@ export function StrategyStep({
 
       <h2 className="ob-section">Channels</h2>
       <div className="ob-channel-grid">
-        {strategy.channels.map((channel) => (
+        {running.map((channel) => (
           <article key={channel.channel} className="ob-channel-card">
             <div className="ob-channel-top">
               <ChannelIcon channel={channel.channel} size={20} />
               <span className="ob-channel-name">
                 {channelLabel(channel.channel)}
               </span>
-              <span className={`ob-tag ${readiness(channel.channel)}`}>
-                {readiness(channel.channel) === "runs"
-                  ? "Cuso posts"
-                  : "Coming soon"}
-              </span>
+              <span className="ob-tag runs">Cuso posts</span>
             </div>
             <Clamp
               lines={1}
@@ -242,6 +237,22 @@ export function StrategyStep({
           </article>
         ))}
       </div>
+      {drafts.length > 0 ? (
+        <p className="ob-note ob-drafted-channels">
+          <span className="ob-drafted-icons" aria-hidden="true">
+            {drafts.map((channel) => (
+              <ChannelIcon
+                key={channel.channel}
+                channel={channel.channel}
+                size={14}
+              />
+            ))}
+          </span>
+          Cuso also writes your{" "}
+          {drafts.map((channel) => channelLabel(channel.channel)).join(", ")}{" "}
+          pieces. You publish those yourself for now.
+        </p>
+      ) : null}
 
       <h2 className="ob-section">Day by day</h2>
       <div className="ob-weeks">
@@ -256,6 +267,7 @@ export function StrategyStep({
             <div className="ob-days">
               {week.days.map((day) => {
                 const entries = byDay.get(day) ?? [];
+                const dayNumber = formatDay(day, { day: "numeric" });
                 return (
                   <div
                     key={day}
@@ -264,10 +276,19 @@ export function StrategyStep({
                     }
                   >
                     <span className="ob-day-n">
-                      {formatDay(day, { day: "numeric" })}
-                      {formatDay(day, { day: "numeric" }) === "1"
-                        ? ` ${formatDay(day, { month: "short" })}`
-                        : ""}
+                      <span className="ob-day-short">
+                        {dayNumber}
+                        {dayNumber === "1"
+                          ? ` ${formatDay(day, { month: "short" })}`
+                          : ""}
+                      </span>
+                      <span className="ob-day-long">
+                        {formatDay(day, {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
                     </span>
                     {entries.map((entry) => (
                       <button
@@ -288,7 +309,7 @@ export function StrategyStep({
                           ) : null}
                         </span>
                         <span className="ob-entry-title">
-                          {entry.hook ?? entry.title}
+                          {withoutLabel(entry.hook ?? entry.title)}
                         </span>
                       </button>
                     ))}
@@ -315,17 +336,18 @@ export function StrategyStep({
         </p>
         <div className="ob-change-row">
           <input
+            ref={input}
             className="ob-input"
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="e.g. “Post less on X and add a weekly customer story”"
+            placeholder="e.g. “Add a weekly customer story”"
             aria-label="What should Cuso change?"
-            disabled={changing}
+            disabled={busy}
           />
           <button
             type="submit"
             className="ob-button ob-button-quiet"
-            disabled={changing || !note.trim()}
+            disabled={busy || !note.trim()}
           >
             {changing ? (
               <Loader2 size={14} className="ob-spin" aria-hidden="true" />
@@ -334,24 +356,23 @@ export function StrategyStep({
           </button>
         </div>
         <div className="ob-chips">
-          {CHANGE_IDEAS.map((idea) => (
+          {changeIdeas(overview).map((idea) => (
             <button
               key={idea}
               type="button"
               className="ob-chip ob-chip-button"
-              disabled={changing}
-              onClick={() => requestChange(idea)}
+              disabled={busy}
+              onClick={() => {
+                setNote(idea);
+                input.current?.focus();
+              }}
             >
               {idea}
             </button>
           ))}
         </div>
         {refusal ? (
-          <p className="ob-note" role="alert">
-            {/credits/i.test(refusal)
-              ? "You're out of credits. Top up on Sokosumi, then try again."
-              : refusal}
-          </p>
+          <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
         ) : null}
       </form>
 
@@ -364,11 +385,17 @@ export function StrategyStep({
         <button
           type="button"
           className="ob-button ob-button-lg"
-          disabled={approving || changing}
+          disabled={approving || busy}
           onClick={() => startApproving(onApprove)}
         >
-          {approving ? "Approving…" : "Approve strategy"}
-          <ArrowRight size={16} aria-hidden="true" />
+          {approving
+            ? "Approving…"
+            : writing
+              ? asked
+                ? "Cuso is changing it"
+                : "Cuso is still writing"
+              : "Approve strategy"}
+          {writing ? null : <ArrowRight size={16} aria-hidden="true" />}
         </button>
       </div>
 
@@ -388,12 +415,19 @@ function EntryDrawer({
   entry: Entry;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <>
-      <motion.button
-        type="button"
+      {/* The drawer's Close button is its one control; the scrim only catches clicks. */}
+      <motion.div
         className="ob-scrim"
-        aria-label="Close"
+        aria-hidden="true"
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -433,13 +467,17 @@ function EntryDrawer({
         </p>
         <h3 className="ob-drawer-title">{entry.title}</h3>
         {entry.draft ? (
-          <div className="ob-draft">{entry.draft}</div>
+          <div className="ob-draft">
+            <DraftText text={entry.draft} title={entry.title} />
+          </div>
         ) : (
           <>
-            {entry.hook ? <p className="ob-hook">“{entry.hook}”</p> : null}
+            {entry.hook ? (
+              <p className="ob-hook">“{withoutLabel(entry.hook)}”</p>
+            ) : null}
             {entry.brief ? <p>{entry.brief}</p> : null}
             <p className="ob-note">
-              Cuso writes the full piece a few days before it goes out.
+              Cuso writes the full piece before it goes out.
             </p>
           </>
         )}

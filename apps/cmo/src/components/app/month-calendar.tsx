@@ -1,6 +1,11 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { calendarKind, entryReadiness, monthGrid } from "../../lib/calendar";
+import {
+  calendarKind,
+  entryReadiness,
+  formatDay,
+  planWeeks,
+} from "../../lib/calendar";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 
@@ -43,12 +48,13 @@ export function CalendarLegend() {
   );
 }
 
+/** The plan's weeks, Monday first, from its first day to its last. */
 export function MonthCalendar({
   strategy,
   big = false,
   connected = [],
 }: MonthCalendarProps) {
-  const cells = monthGrid(strategy.month, strategy.calendar);
+  const days = planWeeks(strategy.calendar).flatMap((week) => week.days);
   return (
     <div className={big ? "cal big" : "cal"}>
       {WEEKDAYS.map((day, index) => (
@@ -56,29 +62,29 @@ export function MonthCalendar({
           {day}
         </span>
       ))}
-      {cells.map((cell, index) =>
-        cell.date ? (
-          <span key={cell.date} className="d">
-            {big ? <span className="n">{cell.day}</span> : null}
-            {cell.entries.map((entry) =>
-              big ? (
+      {days.map((date, index) => {
+        const entries = strategy.calendar.filter(
+          (entry) => entry.date === date,
+        );
+        const dayNumber = formatDay(date, { day: "numeric" });
+        return (
+          <span key={date} className={entries.length ? "d" : "d blank"}>
+            {big ? (
+              <span className="n">
+                {dayNumber === "1" || index === 0
+                  ? formatDay(date, { day: "numeric", month: "short" })
+                  : dayNumber}
+              </span>
+            ) : null}
+            {entries.map((entry) => {
+              const note =
+                READINESS_NOTES[entryReadiness(entry.channel, connected)];
+              return big ? (
                 <span key={entry.id} className="entry-chip" title={entry.title}>
                   <i className={`k ${calendarKind(entry)}`} />
                   <span>
                     {entry.title}
-                    {READINESS_NOTES[
-                      entryReadiness(entry.channel, connected)
-                    ] ? (
-                      <span className="note">
-                        {" "}
-                        ·{" "}
-                        {
-                          READINESS_NOTES[
-                            entryReadiness(entry.channel, connected)
-                          ]
-                        }
-                      </span>
-                    ) : null}
+                    {note ? <span className="note"> · {note}</span> : null}
                   </span>
                 </span>
               ) : (
@@ -87,13 +93,11 @@ export function MonthCalendar({
                   className={`k ${calendarKind(entry)}`}
                   title={entry.title}
                 />
-              ),
-            )}
+              );
+            })}
           </span>
-        ) : (
-          <span key={`blank-${index}`} className="d blank" />
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }

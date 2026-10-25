@@ -3,7 +3,8 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
 
-import { channelLabel } from "../../lib/calendar";
+import { channelLabel, planRange } from "../../lib/calendar";
+import { mockPlanById } from "../../lib/mock-plans";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -168,10 +169,10 @@ export function BrandBrainCard({
           <dt>Voice</dt>
           <dd>{brandBrain.voice.tone}</dd>
           <dt>Audience</dt>
-          <dd>{brandBrain.audience.join(", ") || "Not found yet"}</dd>
+          <dd>{joinLines(brandBrain.audience) || "Not found yet"}</dd>
           <dt>Competitors</dt>
           <dd>
-            {brandBrain.competitors.map((c) => c.name).join(", ") ||
+            {joinLines(brandBrain.competitors.map((c) => c.name)) ||
               "Not found yet"}
           </dd>
         </dl>
@@ -209,7 +210,12 @@ export function StrategyCard({
   return (
     <div className={approved ? "card" : "card highlight"}>
       <div className="ch">
-        <b>Strategy for {formatMonth(strategy.month)}</b>
+        <b>
+          Your strategy
+          {planRange(strategy.calendar)
+            ? ` · ${planRange(strategy.calendar)}`
+            : ""}
+        </b>
         <span className="sp" />
         <button
           type="button"
@@ -326,7 +332,7 @@ export function SubscribeCard({
             : "Cuso starts scheduling and publishing once the business has an active plan. Until then everything stays a draft."}
         </p>
         <span className="note">
-          Plan: {overview.billing.plan ?? "none"} · Credits:{" "}
+          Plan: {planName(overview)} · Credits:{" "}
           <span className="num">
             {Math.floor(overview.billing.availableCredits)}
           </span>
@@ -556,12 +562,18 @@ export function UpdateCard({
   );
 }
 
-export function formatMonth(month: string): string {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+/** Lines Cuso wrote as sentences, joined without stray full stops. */
+export function joinLines(lines: string[]): string {
+  return lines
+    .map((line) => line.trim().replace(/[.;,]+$/, ""))
+    .filter(Boolean)
+    .join("; ");
+}
+
+/** The active tier as its name reads ("Growth"), or "none". */
+export function planName(overview: CmoOverview): string {
+  const plan = mockPlanById(overview.mockPlan)?.name ?? overview.billing.plan;
+  return plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "none";
 }
 
 function formatTime(at: Date | string): string {

@@ -44,6 +44,7 @@
   --mark-linkedin: #0a66c2;
   --mark-facebook: #0866ff;
   --mark-youtube: #ff0000;
+  --mark-bluesky: #1185fe;
   --mark-tiktok-cyan: #25f4ee;
   --mark-tiktok-red: #fe2c55;
   --mark-instagram-1: #ffd600;
@@ -114,10 +115,12 @@ body {
   max-width: 560px;
 }
 
-.hero-mascot {
+/* Small on a phone, so the copy and both buttons fit on the first screen. */
+.hero .hero-mascot {
   order: -1;
   justify-self: center;
-  width: min(280px, 70vw);
+  width: min(170px, 45vw);
+  margin-bottom: 0;
 }
 
 @media (min-width: 900px) {
@@ -126,9 +129,10 @@ body {
     gap: 48px;
   }
 
-  .hero-mascot {
+  .hero .hero-mascot {
     order: 0;
     width: min(480px, 100%);
+    margin-bottom: 48px;
   }
 }
 
@@ -1359,6 +1363,12 @@ textarea {
 
 .composer:focus-within {
   border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* The composer's frame draws the ring; forced-colors mode still shows this one. */
+.composer textarea:focus-visible {
+  outline: 2px solid transparent;
 }
 
 .composer textarea {

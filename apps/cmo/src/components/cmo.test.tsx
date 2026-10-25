@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   calendarKind,
   entryReadiness,
-  monthGrid,
+  planRange,
+  planWeeks,
   relativeDay,
+  socialPostsPerWeek,
 } from "../lib/calendar";
 import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
@@ -155,14 +157,34 @@ describe("Onboarding", () => {
 });
 
 describe("calendar", () => {
-  it("lays the month out Monday first", () => {
-    const cells = monthGrid("2026-10", strategy.calendar);
-    // 1 October 2026 is a Thursday: three blank cells first.
-    expect(cells.slice(0, 3).every((cell) => cell.date === null)).toBe(true);
-    expect(cells[3]?.date).toBe("2026-10-01");
+  it("frames a plan that runs into the next month by its own weeks", () => {
+    const calendar = [{ date: "2026-10-27" }, { date: "2026-11-21" }];
+    const weeks = planWeeks(calendar);
+    // 27 October 2026 is a Tuesday: the first week starts Monday the 26th.
+    expect(weeks[0]?.start).toBe("2026-10-26");
+    expect(weeks.at(-1)?.days).toContain("2026-11-21");
+    expect(planRange(calendar)).toBe("27 Oct to 21 Nov");
+  });
+
+  it("counts social posts a week, not website or newsletter pieces", () => {
+    const entry = (date: string, channel: string) => ({
+      id: `${date}-${channel}`,
+      date,
+      channel,
+      title: "Piece",
+      format: "post",
+      status: "idea" as const,
+    });
     expect(
-      cells.find((cell) => cell.date === "2026-10-05")?.entries,
-    ).toHaveLength(1);
+      socialPostsPerWeek([
+        entry("2026-10-27", "linkedin"),
+        entry("2026-10-29", "x"),
+        entry("2026-11-03", "linkedin"),
+        entry("2026-11-05", "newsletter"),
+        entry("2026-11-10", "instagram"),
+        entry("2026-11-20", "linkedin"),
+      ]),
+    ).toBeCloseTo(5 / 4);
   });
 
   it("marks ads, newsletters and articles apart from posts", () => {
@@ -392,7 +414,8 @@ describe("pages", () => {
       />,
     );
     expect(html).toContain("Drafts");
-    expect(html).toContain("report no reach or click numbers");
+    expect(html).toContain("once you connect an account");
+    expect(html).not.toContain("Sokosumi");
   });
 
   it("marks connected accounts and offers to connect the rest", () => {

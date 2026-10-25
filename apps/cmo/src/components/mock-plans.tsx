@@ -17,12 +17,18 @@ const euros = new Intl.NumberFormat("en", {
 
 interface MockPlanTableProps {
   current: string | null;
+  /** The tier to recommend, such as the one the approved plan needs. */
+  recommended?: string;
   /** Activates the tier; the refusal, if any. */
   choose: (planId: string) => Promise<string | null>;
 }
 
 /** CMO's tiers with a monthly or yearly price; choosing one needs no checkout. */
-export function MockPlanTable({ current, choose }: MockPlanTableProps) {
+export function MockPlanTable({
+  current,
+  recommended,
+  choose,
+}: MockPlanTableProps) {
   const [interval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +65,16 @@ export function MockPlanTable({ current, choose }: MockPlanTableProps) {
       <div className="mp-grid">
         {MOCK_PLANS.map((plan) => {
           const active = plan.id === current;
+          const isRecommended = recommended
+            ? plan.id === recommended
+            : plan.recommended === true;
           const price = interval === "monthly" ? plan.monthly : plan.yearly;
           return (
             <article
               key={plan.id}
               className={[
                 "mp-plan",
-                plan.recommended ? "featured" : "",
+                isRecommended ? "featured" : "",
                 active ? "active" : "",
               ].join(" ")}
             >
@@ -73,7 +82,7 @@ export function MockPlanTable({ current, choose }: MockPlanTableProps) {
                 <h3>{plan.name}</h3>
                 {active ? (
                   <span className="mp-badge current">Your plan</span>
-                ) : plan.recommended ? (
+                ) : isRecommended ? (
                   <span className="mp-badge">Recommended</span>
                 ) : null}
               </header>
@@ -90,9 +99,7 @@ export function MockPlanTable({ current, choose }: MockPlanTableProps) {
               <button
                 type="button"
                 className={
-                  plan.recommended && !active
-                    ? "mp-choose primary"
-                    : "mp-choose"
+                  isRecommended && !active ? "mp-choose primary" : "mp-choose"
                 }
                 disabled={active || pending !== null}
                 onClick={() => pick(plan.id)}

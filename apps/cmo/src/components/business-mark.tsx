@@ -23,9 +23,12 @@ export function businessDisplayName(overview: CmoOverview): string {
 export function BusinessMark({
   overview,
   size = 28,
+  wide = false,
 }: {
   overview: CmoOverview;
   size?: number;
+  /** Where room allows, a wordmark keeps its shape instead of a square. */
+  wide?: boolean;
 }) {
   const logo = overview.brandVisual?.logoUrl ?? overview.projectLogo;
   const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
@@ -37,7 +40,16 @@ export function BusinessMark({
         alt=""
         width={size}
         height={size}
-        style={{ width: size, height: size }}
+        style={
+          wide
+            ? {
+                width: "auto",
+                height: size,
+                minWidth: size,
+                maxWidth: size * 4,
+              }
+            : { width: size, height: size }
+        }
       />
     );
   }

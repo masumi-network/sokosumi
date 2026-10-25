@@ -227,6 +227,7 @@ import {
 import {
   CmoNotFoundError,
   cmoExecutionRefusal,
+  parseCmoStrategy,
   reportCmoUpdate,
   saveCmoBrandBrain,
   saveCmoStrategy,
@@ -4044,12 +4045,15 @@ export class SokoBotRuntimeService {
               .strategy,
             { turnId: authorized.turn.id },
           );
+          const calendar = parseCmoStrategy(saved.strategy)?.calendar ?? [];
           return {
             targetId: saved.id,
             result: {
               saved: "strategy",
               approved: saved.strategyApprovedAt !== null,
               updatedAt: saved.strategyUpdatedAt?.toISOString(),
+              entries: calendar.length,
+              drafted: calendar.filter((entry) => entry.draft).length,
             },
           };
         }

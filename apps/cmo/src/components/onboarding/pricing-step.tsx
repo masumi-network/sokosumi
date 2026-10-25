@@ -15,8 +15,10 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState, useTransition } from "react";
 
-import { mockPlanById } from "../../lib/mock-plans";
+import { calendarKind, socialPostsPerWeek } from "../../lib/calendar";
+import { fittingMockPlan, mockPlanById } from "../../lib/mock-plans";
 import { MockPlanTable } from "../mock-plans";
+import { strategySocialChannels } from "./connect-step";
 
 const PAID = ["starter", "standard", "pro"] as const;
 const RECOMMENDED = "standard";
@@ -70,6 +72,43 @@ export function PricingStep({
   }, [checkingOut, subscribed, onRefresh]);
 
   const subscribeUrl = `${overview.subscribeUrl}?tab=subscription`;
+  const channels = strategySocialChannels(overview).length;
+  const postsPerWeek = socialPostsPerWeek(overview.strategy?.calendar ?? []);
+  // Website, newsletter and ad pieces need a tier with article and ad drafts.
+  const drafts = (overview.strategy?.calendar ?? []).some(
+    (entry) => calendarKind(entry) !== "post",
+  );
+  const fit = fittingMockPlan({ channels, postsPerWeek, drafts });
+  const connected = overview.channels.some(
+    (channel) => channel.status.toUpperCase() === "ACTIVE",
+  );
+  const start = (
+    <div className="ob-footer">
+      <button
+        type="button"
+        className={
+          subscribed
+            ? "ob-button ob-button-lg"
+            : "ob-button ob-button-lg ob-button-quiet"
+        }
+        disabled={starting}
+        onClick={() => startStarting(onStart)}
+      >
+        {starting
+          ? "Starting…"
+          : subscribed
+            ? "Start Cuso"
+            : "Start without a plan for now"}
+        {subscribed ? <ArrowRight size={16} aria-hidden="true" /> : null}
+      </button>
+      {subscribed ? null : (
+        <p className="ob-note">
+          Without a plan Cuso keeps your strategy and checks in, but doesn't
+          schedule posts.
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <section className="ob-pricing">
@@ -86,12 +125,20 @@ export function PricingStep({
         <>
           <p className="ob-lede">
             {subscribed
-              ? `${mockPlanById(overview.mockPlan)?.name ?? "Your"} plan is active. Cuso starts posting on your schedule.`
-              : "Every plan includes Cuso's daily posting, a weekly review and a fresh strategy each month."}
+              ? `${mockPlanById(overview.mockPlan)?.name ?? "Your"} is active. ${
+                  connected
+                    ? "Cuso writes and schedules your posts from today."
+                    : "Cuso writes your posts from today and starts posting once you connect an account."
+                }`
+              : postsPerWeek > 0
+                ? `Your strategy has about ${formatRate(postsPerWeek)} posts a week on ${channels} ${channels === 1 ? "network" : "networks"}${drafts ? ", plus articles and emails" : ""}. ${fit.name} covers that.`
+                : "Every plan includes Cuso's daily posting, a weekly review and a fresh strategy each month."}
           </p>
+          {subscribed ? start : null}
           <div className="ob-plans-mock">
             <MockPlanTable
               current={overview.mockPlan}
+              recommended={fit.id}
               choose={onChooseMockPlan}
             />
           </div>
@@ -184,27 +231,12 @@ export function PricingStep({
         </p>
       ) : null}
 
-      <div className="ob-footer">
-        <button
-          type="button"
-          className={subscribed ? "ob-button ob-button-lg" : "ob-button-text"}
-          disabled={starting}
-          onClick={() => startStarting(onStart)}
-        >
-          {starting
-            ? "Starting…"
-            : subscribed
-              ? "Start Cuso"
-              : "Start without a plan for now"}
-          {subscribed ? <ArrowRight size={16} aria-hidden="true" /> : null}
-        </button>
-        {subscribed ? null : (
-          <p className="ob-note">
-            Without a plan Cuso keeps your strategy and checks in, but doesn't
-            schedule posts.
-          </p>
-        )}
-      </div>
+      {subscribed && overview.mockBilling ? null : start}
     </section>
   );
+}
+
+/** 3.5 reads "3.5", 3 reads "3". */
+function formatRate(rate: number): string {
+  return String(Math.round(rate * 2) / 2);
 }

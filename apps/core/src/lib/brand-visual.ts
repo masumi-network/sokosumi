@@ -1,5 +1,7 @@
 import { ssrfSafeFetch } from "@sokosumi/net";
 
+import { decodeEntities } from "@/lib/open-graph-html";
+
 /** What a brand looks like, read from its website. */
 export interface BrandVisual {
   /** An image that reads as the brand: the site's logo or best icon. */
@@ -10,6 +12,8 @@ export interface BrandVisual {
   fonts: string[];
   /** The site's own name, from og:site_name or the title. */
   siteName: string | null;
+  /** Photos from the site (og:image first), for post previews. */
+  images: string[];
 }
 
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
@@ -119,11 +123,39 @@ export function brandColors(css: string, limit = 5): string[] {
   )) {
     add(normalizeHex(match[1] ?? ""), 5);
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([hex]) => hex)
-    .slice(0, limit);
+  return distinctColors(
+    [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([hex]) => hex),
+  ).slice(0, limit);
 }
+
+function rgb(hex: string): [number, number, number] {
+  return [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)) as [
+    number,
+    number,
+    number,
+  ];
+}
+
+/**
+ * Colours in order, without near repeats: three navies a few shades apart
+ * read as one brand colour.
+ */
+export function distinctColors(colors: string[], minDistance = 48): string[] {
+  const kept: string[] = [];
+  for (const color of colors) {
+    const [r, g, b] = rgb(color);
+    const near = kept.some((other) => {
+      const [r2, g2, b2] = rgb(other);
+      return Math.hypot(r - r2, g - g2, b - b2) < minDistance;
+    });
+    if (!near) kept.push(color);
+  }
+  return kept;
+}
+
+/** Code and icon faces say nothing about how a brand reads. */
+const NOT_A_BRAND_FONT =
+  /mono|menlo|monaco|consolas|courier|awesome|icon|glyph|symbol|emoji|dashicons|material/i;
 
 /**
  * A family as people name it, or null when it says nothing about the brand:
@@ -139,6 +171,7 @@ export function brandFontName(raw: string): string | null {
     .replace(/_/g, " ")
     .trim();
   if (!/^[A-Za-z][\w -]*$/.test(name) || /fallback/i.test(name)) return null;
+  if (NOT_A_BRAND_FONT.test(name)) return null;
   return GENERIC_FONTS.has(name.toLowerCase()) ? null : name;
 }
 
@@ -185,6 +218,61 @@ export function findLogo(html: string, base: string): string | null {
   return href ? absolute(href, base) : null;
 }
 
+const NOT_A_PHOTO =
+  /logo|icon|avatar|badge|sprite|pixel|tracking|placeholder|spinner|loader|\.svg(?:$|\?)|\.gif(?:$|\?)/i;
+
+/**
+ * Photos that show the business: og:image, then the page's own large images
+ * (logos, icons, badges and tracking pixels left out). Best effort.
+ */
+export function findImages(html: string, base: string, limit = 6): string[] {
+  const found: string[] = [];
+  const add = (src: string | null) => {
+    const url = src ? absolute(decodeEntities(src), base) : null;
+    if (url && !NOT_A_PHOTO.test(url) && !found.includes(url)) found.push(url);
+  };
+  add(metaContent(html, "og:image") ?? metaContent(html, "twitter:image"));
+  for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
+    if (found.length >= limit) break;
+    const tag = match[0];
+    const width = Number(attr(tag, "width") ?? "0");
+    const hint = `${attr(tag, "alt") ?? ""} ${attr(tag, "class") ?? ""}`;
+    if ((width > 0 && width < 200) || NOT_A_PHOTO.test(hint)) continue;
+    add(attr(tag, "src") ?? attr(tag, "data-src"));
+  }
+  return found.slice(0, limit);
+}
+
+/**
+ * The business's name, from og:site_name or the title. A title often names
+ * the page too ("About Us – Tartine Bakery"); the part that matches the
+ * domain wins, else the first.
+ */
+export function siteNameFrom(html: string, base: string): string | null {
+  const ogName = metaContent(html, "og:site_name");
+  if (ogName) return decodeEntities(ogName).trim() || null;
+  const title = /<title[^>]*>([^<]{1,600})<\/title>/i.exec(html)?.[1];
+  if (!title) return null;
+  const parts = decodeEntities(title)
+    .split(/\s[|·–—:-]\s/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const squash = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const brand = squash(
+    new URL(base).hostname.replace(/^www\./, "").split(".")[0] ?? "",
+  );
+  const named = brand
+    ? parts.find((part) => {
+        const squashed = squash(part);
+        return (
+          squashed.length > 0 &&
+          (squashed.includes(brand) || brand.includes(squashed))
+        );
+      })
+    : undefined;
+  return named ?? parts[0] ?? null;
+}
+
 async function fetchText(url: string, maxBytes: number): Promise<string> {
   const response = await ssrfSafeFetch(url, {
     headers: HEADERS,
@@ -196,9 +284,10 @@ async function fetchText(url: string, maxBytes: number): Promise<string> {
 }
 
 /**
- * Reads the brand's look from its homepage: logo, colours from its CSS (the
- * page's own styles plus up to two of its stylesheets) and theme-color, and
- * fonts. Best effort and SSRF-guarded; never throws.
+ * Reads the brand's look from its homepage, or from the page entered when
+ * the homepage does not load: logo, colours from its CSS (the page's own
+ * styles plus up to two of its stylesheets) and theme-color, fonts and
+ * photos. Best effort and SSRF-guarded; never throws.
  */
 export async function readBrandVisual(rawUrl: string): Promise<BrandVisual> {
   const empty: BrandVisual = {
@@ -206,18 +295,28 @@ export async function readBrandVisual(rawUrl: string): Promise<BrandVisual> {
     colors: [],
     fonts: [],
     siteName: null,
+    images: [],
   };
-  let page: URL;
+  let entered: URL;
   try {
-    page = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    entered = new URL(
+      /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`,
+    );
   } catch {
     return empty;
   }
+  let page = new URL("/", entered);
   let html: string;
   try {
     html = await fetchText(page.toString(), MAX_PAGE_BYTES);
   } catch {
-    return empty;
+    if (page.toString() === entered.toString()) return empty;
+    page = entered;
+    try {
+      html = await fetchText(page.toString(), MAX_PAGE_BYTES);
+    } catch {
+      return empty;
+    }
   }
   const inline = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)]
     .map((match) => match[1] ?? "")
@@ -241,17 +340,12 @@ export async function readBrandVisual(rawUrl: string): Promise<BrandVisual> {
   const colors = brandColors(css);
   return {
     logoUrl: findLogo(html, page.toString()),
-    colors: [
+    colors: distinctColors([
       ...(themeColor && !isNeutral(themeColor) ? [themeColor] : []),
-      ...colors.filter((color) => color !== themeColor),
-    ].slice(0, 5),
+      ...colors,
+    ]).slice(0, 5),
     fonts: brandFonts(css),
-    siteName:
-      metaContent(html, "og:site_name") ??
-      /<title[^>]*>([^<]{1,80})<\/title>/i
-        .exec(html)?.[1]
-        ?.split(/\s[|·–—-]\s/)[0]
-        ?.trim() ??
-      null,
+    siteName: siteNameFrom(html, page.toString()),
+    images: findImages(html, page.toString()),
   };
 }

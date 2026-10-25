@@ -28000,6 +28000,13 @@ export const CmoBrandVisualSchema = {
                     type: 'null'
                 }
             ]
+        },
+        images: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Photos from the site, og:image first, for post previews.'
         }
     },
     required: [
@@ -28007,7 +28014,8 @@ export const CmoBrandVisualSchema = {
         'colors',
         'fonts',
         'siteName',
-        'designMdUrl'
+        'designMdUrl',
+        'images'
     ]
 } as const;
 

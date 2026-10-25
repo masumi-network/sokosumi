@@ -68,9 +68,9 @@ const STEPS: { id: OnboardingStep; label: string }[] = [
 export function onboardingStep(overview: CmoOverview): OnboardingStep {
   const work = overview.work;
   if (!overview.brandBrain) return "research";
-  if (work?.kind === "strategy" && work.status === "running") return "planning";
+  // Once a plan exists it stays on screen while Cuso writes or changes it.
   if (!overview.strategy) {
-    return work?.kind === "strategy" && work.status === "failed"
+    return work?.kind === "strategy" && work.status !== "done"
       ? "planning"
       : "brain";
   }

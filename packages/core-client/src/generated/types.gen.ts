@@ -8017,6 +8017,10 @@ export type CmoBrandVisual = {
     fonts: Array<string>;
     siteName: string | null;
     designMdUrl: string | null;
+    /**
+     * Photos from the site, og:image first, for post previews.
+     */
+    images: Array<string>;
 };
 
 export type CmoRoutine = {

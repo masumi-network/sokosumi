@@ -16,6 +16,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import { CusoCursor } from "./cuso-cursor";
+import { Refusal } from "./refusal";
 
 type Work = NonNullable<CmoOverview["work"]>;
 type Step = Work["steps"][number];
@@ -60,15 +61,27 @@ const PLANNING_PHASES = [
   { kinds: ["strategy"], label: "Four weeks, day by day" },
 ] as const;
 
+/**
+ * A phase is done once a later one has started, even when Cuso skipped it
+ * (no channels to check), so no step stays unticked behind the active one.
+ */
 function phaseState(
   steps: Step[],
-  kinds: readonly string[],
+  phases: readonly { kinds: readonly string[] }[],
+  index: number,
   running: boolean,
-  isLast: boolean,
 ): "done" | "now" | "next" {
-  const mine = steps.filter((step) => kinds.includes(step.kind));
+  const touched = (at: number) =>
+    steps.filter((step) => phases[at]?.kinds.includes(step.kind));
+  const mine = touched(index);
+  const laterStarted = phases
+    .slice(index + 1)
+    .some((_, offset) => touched(index + 1 + offset).length > 0);
+  if (laterStarted) return "done";
   if (mine.some((step) => step.status === "running")) return "now";
-  if (mine.length > 0) return isLast && running ? "now" : "done";
+  if (mine.length > 0) {
+    return index === phases.length - 1 && running ? "now" : "done";
+  }
   return "next";
 }
 
@@ -119,17 +132,19 @@ export function ResearchStep({
                 ? "Cuso is planning your month"
                 : `Cuso is studying ${site}`}
         </h1>
-        <p className="ob-lede">
-          {noCredits
-            ? "You're out of credits. Top up on Sokosumi, then try again."
-            : status === "failed"
+        {noCredits ? (
+          <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
+        ) : (
+          <p className="ob-lede">
+            {status === "failed"
               ? "Nothing was lost. Try again and Cuso starts over."
               : asked
                 ? "Answer below and he finishes your Brand Brain."
                 : planning
-                  ? "Every day of the next four weeks: what goes out, where, when, and why."
+                  ? "Every day of the next four weeks: what goes out, where, when, and why. The plan opens in about a minute, then fills in as he writes each piece."
                   : "Your site, your market and your competitors. This takes about a minute and a half."}
-        </p>
+          </p>
+        )}
         {running ? (
           <p className="ob-elapsed" aria-live="polite">
             <Loader2 size={14} className="ob-spin" aria-hidden="true" />
@@ -140,12 +155,7 @@ export function ResearchStep({
         ) : null}
         <ol className="ob-phases">
           {phases.map((phase, index) => {
-            const state = phaseState(
-              steps,
-              phase.kinds,
-              running,
-              index === phases.length - 1,
-            );
+            const state = phaseState(steps, phases, index, running);
             return (
               <li key={phase.label} className={`ob-phase ${state}`}>
                 <span className="ob-phase-dot" aria-hidden="true">
@@ -160,7 +170,9 @@ export function ResearchStep({
             );
           })}
         </ol>
-        {status === "failed" ? <RetryButton onRetry={onRetry} /> : null}
+        {status === "failed" ? (
+          <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
+        ) : null}
         {asked ? <QuestionReply question={asked} onReply={onReply} /> : null}
       </div>
 
@@ -220,7 +232,13 @@ export function ResearchStep({
   );
 }
 
-function RetryButton({ onRetry }: { onRetry: () => Promise<string | null> }) {
+function RetryButton({
+  onRetry,
+  topUpUrl,
+}: {
+  onRetry: () => Promise<string | null>;
+  topUpUrl: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -237,13 +255,7 @@ function RetryButton({ onRetry }: { onRetry: () => Promise<string | null> }) {
       >
         {pending ? "Starting…" : "Try again"}
       </button>
-      {refusal ? (
-        <p className="ob-note" role="alert">
-          {/credits/i.test(refusal)
-            ? "You're out of credits. Top up on Sokosumi, then try again."
-            : refusal}
-        </p>
-      ) : null}
+      {refusal ? <Refusal text={refusal} topUpUrl={topUpUrl} /> : null}
     </div>
   );
 }

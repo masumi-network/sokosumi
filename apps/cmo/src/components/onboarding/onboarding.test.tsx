@@ -2,12 +2,13 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { planWeeks } from "../../lib/calendar";
 import { strategySocialChannels } from "./connect-step";
 import { onboardingStep } from "./flow";
 import { PricingStep } from "./pricing-step";
 import { ResearchStep } from "./research-step";
 import { showcaseEntries } from "./showcases";
-import { planWeeks, StrategyStep } from "./strategy-step";
+import { StrategyStep } from "./strategy-step";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 
@@ -87,6 +88,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       fonts: ["Inter"],
       siteName: "Acme",
       designMdUrl: null,
+      images: [],
     },
     projectLogo: null,
     accountsDoneAt: null,
@@ -138,9 +140,9 @@ describe("onboarding steps", () => {
     expect(
       onboardingStep(overview({ strategy: null, work: running("strategy") })),
     ).toBe("planning");
-    // A change request re-plans: the strategy steps back to planning.
+    // A change request keeps the plan on screen while Cuso rewrites it.
     expect(onboardingStep(overview({ work: running("strategy") }))).toBe(
-      "planning",
+      "strategy",
     );
     expect(onboardingStep(overview())).toBe("strategy");
     expect(onboardingStep(overview({ strategyApprovedAt: new Date() }))).toBe(
@@ -311,7 +313,7 @@ describe("pricing", () => {
       />,
     );
     expect(html).toContain("Your plan");
-    expect(html).toContain("Growth plan is active");
+    expect(html).toContain("Growth is active");
     expect(html).toContain("Start Cuso");
   });
 

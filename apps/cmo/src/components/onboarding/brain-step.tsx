@@ -14,6 +14,7 @@ import { useState, useTransition } from "react";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
+import { Refusal } from "./refusal";
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
 
@@ -36,12 +37,36 @@ function channelKey(name: string, url?: string): string {
     "facebook",
     "youtube",
     "tiktok",
+    "github",
+    "bluesky",
+    "mastodon",
+    "threads",
+    "discord",
   ]) {
     if (text.includes(key)) return key;
   }
+  if (/bsky\.app/.test(text)) return "bluesky";
   if (/\bx\b|twitter|x\.com/.test(text)) return "x";
-  if (/newsletter|email/.test(text)) return "newsletter";
+  if (/newsletter|email|substack/.test(text)) return "newsletter";
+  if (/blog/.test(text)) return "blog";
   return "website";
+}
+
+function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "https://x.com/plausiblehq" → "@plausiblehq"; a site → its host. */
+function handleOf(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    const first = parsed.pathname.split("/").filter(Boolean).at(-1);
+    if (!first || /^(company|in|channel|c|user)$/.test(first)) return host;
+    return first.startsWith("@") ? first : `@${first}`;
+  } catch {
+    return url;
+  }
 }
 
 interface BrainStepProps {
@@ -60,17 +85,28 @@ export function BrainStep({
 }: BrainStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const visual = overview.brandVisual;
-  const updating = overview.botStatus === "RUNNING";
   const [correction, setCorrection] = useState("");
+  const [sent, setSent] = useState<{
+    text: string;
+    /** Cuso's last message when it was sent; a new one is his answer. */
+    after: string | null;
+  } | null>(null);
   const [sending, startSending] = useTransition();
   const [planning, startPlanning] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const lastWord = [...messages].reverse().find((message) => message.fromCuso);
+  // A correction is applied once Cuso answers after it; until then the
+  // founder sees what they asked for and that he is on it.
+  const answered =
+    sent !== null && lastWord !== undefined && lastWord.id !== sent.after;
+  const fixing = sending || (sent !== null && !answered);
+  // Right after research Cuso is still wrapping up his turn for a few seconds.
+  const finishing = !fixing && overview.botStatus === "RUNNING";
 
   return (
     <section className="ob-brain">
       <motion.div className="ob-brand-hero" {...reveal(0)}>
-        <BusinessMark overview={overview} size={56} />
+        <BusinessMark overview={overview} size={56} wide />
         <div className="ob-brand-id">
           <p className="ob-eyebrow">Brand Brain</p>
           <h1 className="ob-title">{businessDisplayName(overview)}</h1>
@@ -80,7 +116,7 @@ export function BrainStep({
             target="_blank"
             rel="noreferrer"
           >
-            {overview.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+            {new URL(overview.websiteUrl).hostname.replace(/^www\./, "")}
             <ExternalLink size={12} aria-hidden="true" />
           </a>
         </div>
@@ -192,7 +228,19 @@ export function BrainStep({
                   <ChannelIcon
                     channel={channelKey(channel.name, channel.url)}
                   />
-                  <span>{channel.name}</span>
+                  {channel.url ? (
+                    <a
+                      className="ob-channel-link"
+                      href={channel.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>{capitalized(channel.name)}</span>
+                      <span className="ob-note">{handleOf(channel.url)}</span>
+                    </a>
+                  ) : (
+                    <span>{capitalized(channel.name)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -208,10 +256,14 @@ export function BrainStep({
           const text = correction.trim();
           if (!text) return;
           startSending(async () => {
-            await onCorrect(
-              `Correction to the Brand Brain: ${text}. Update it with save_brand_brain.`,
-            );
-            setCorrection("");
+            setSent({ text, after: lastWord?.id ?? null });
+            try {
+              await onCorrect(`Fix in my Brand Brain: ${text}`);
+              setCorrection("");
+            } catch {
+              setSent(null);
+              setRefusal("That didn't send. Try again.");
+            }
           });
         }}
       >
@@ -222,14 +274,14 @@ export function BrainStep({
           onChange={(event) => setCorrection(event.target.value)}
           placeholder="Something off? Tell Cuso, e.g. “we sell to CTOs, not founders”"
           aria-label="Correct the Brand Brain"
-          disabled={sending || updating}
+          disabled={fixing}
         />
         <button
           type="submit"
           className="ob-button ob-button-quiet"
-          disabled={sending || updating || !correction.trim()}
+          disabled={fixing || !correction.trim()}
         >
-          {sending || updating ? (
+          {fixing ? (
             <>
               <Loader2 size={14} className="ob-spin" aria-hidden="true" />
               Updating
@@ -239,8 +291,15 @@ export function BrainStep({
           )}
         </button>
       </motion.form>
-      {updating && lastWord ? null : lastWord && !updating ? (
-        <p className="ob-note ob-cuso-said">Cuso: {lastWord.content}</p>
+      {sent ? (
+        <div className="ob-exchange" aria-live="polite">
+          <p className="ob-note">You: {sent.text}</p>
+          <p className="ob-note ob-cuso-said">
+            {answered && lastWord
+              ? `Cuso: ${lastWord.content}`
+              : "Cuso is updating your Brand Brain. This takes about half a minute."}
+          </p>
+        </div>
       ) : null}
 
       <div className="ob-footer">
@@ -250,22 +309,29 @@ export function BrainStep({
         <button
           type="button"
           className="ob-button ob-button-lg"
-          disabled={planning || updating}
+          disabled={planning || fixing || finishing}
           onClick={() =>
             startPlanning(async () => {
               setRefusal(await onPlan());
             })
           }
         >
-          {planning ? "Starting…" : "Looks right, plan my month"}
-          <ArrowRight size={16} aria-hidden="true" />
+          {planning ? (
+            "Starting…"
+          ) : fixing || finishing ? (
+            <>
+              <Loader2 size={16} className="ob-spin" aria-hidden="true" />
+              {fixing ? "Cuso is updating" : "Cuso is finishing up"}
+            </>
+          ) : (
+            <>
+              Looks right, plan my month
+              <ArrowRight size={16} aria-hidden="true" />
+            </>
+          )}
         </button>
         {refusal ? (
-          <p className="ob-note" role="alert">
-            {/credits/i.test(refusal)
-              ? "You're out of credits. Top up on Sokosumi, then try again."
-              : refusal}
-          </p>
+          <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
         ) : null}
       </div>
     </section>
