@@ -173,6 +173,8 @@ interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
   columnNextCursorById: Record<KanbanColumnId, string | null>;
+  /** Tasks past the loaded pages of each column, counted in its header. */
+  columnHiddenCountById: Record<KanbanColumnId, number>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -230,6 +232,7 @@ export function TasksView({
   tasks,
   listNextCursor: initialListNextCursor,
   columnNextCursorById: initialColumnNextCursorById,
+  columnHiddenCountById: initialColumnHiddenCountById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
   projectOptions,
@@ -292,6 +295,9 @@ export function TasksView({
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
+  const [columnHiddenById, setColumnHiddenById] = useState(
+    initialColumnHiddenCountById,
+  );
   const [listCursor, setListCursor] = useState<string | null>(
     initialListNextCursor,
   );
@@ -370,6 +376,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -398,6 +405,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -430,6 +438,7 @@ export function TasksView({
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
+      setColumnHiddenById(initialColumnHiddenCountById);
       setListCursor(initialListNextCursor);
       listCursorRef.current = initialListNextCursor;
       setLoadingColumnIds(new Set());
@@ -672,6 +681,12 @@ export function TasksView({
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
+        setColumnHiddenById((prev) => ({
+          ...prev,
+          [columnId]: nextCursor
+            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
+            : 0,
+        }));
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: nextCursor,
@@ -911,6 +926,7 @@ export function TasksView({
                   <KanbanBoard
                     tasks={items}
                     columns={columns}
+                    columnHiddenCountById={columnHiddenById}
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
@@ -964,6 +980,7 @@ export function TasksView({
               <KanbanBoard
                 tasks={items}
                 columns={columns}
+                columnHiddenCountById={columnHiddenById}
                 columnFooterById={columnFooterById}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}

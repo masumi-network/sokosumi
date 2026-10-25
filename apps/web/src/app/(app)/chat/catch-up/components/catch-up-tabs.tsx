@@ -16,10 +16,7 @@ export async function CatchUpTabs({
 }) {
   const t = await getTranslations("App.Channels.Signals.CatchUpTabs");
   return (
-    <nav
-      aria-label={t("label")}
-      className="mx-auto flex w-full max-w-3xl gap-1 pb-4"
-    >
+    <nav aria-label={t("label")} className="flex w-full gap-1 pb-4">
       {TABS.map((tab) => (
         <Link
           key={tab.id}

@@ -129,9 +129,9 @@ describe("SokoBotHome", () => {
 
   it("shows what the team did in the last day, each Task linked", async () => {
     await renderHome();
-    expect(
-      screen.getByText('completed:{"count":3} · worked:{"minutes":45}'),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
+      'completed:{"count":3} · worked:{"minutes":45}',
+    );
     const row = screen.getByRole("link", { name: /Research EU marketplaces/ });
     expect(row.getAttribute("href")).toBe("/tasks/task-1");
     expect(row.textContent).toContain("Hannah");
