@@ -5,7 +5,6 @@ import { NameSetup } from "../components/name-setup";
 import { OrganizationSetup } from "../components/organization-setup";
 import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
-import { SignedOut } from "../components/signed-out";
 import { WorkspaceGate } from "../components/workspace-gate";
 
 const getSession = vi.fn();
@@ -14,6 +13,12 @@ const getUsersByIdSignUp = vi.fn();
 const getUsersByIdWorkspaces = vi.fn();
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`redirect ${url}`);
+  },
+}));
 
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
 
@@ -95,10 +100,15 @@ describe("CMO home page", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the signed-out page without a session, without asking Core", async () => {
+  // Without a session the proxy serves the waitlist site; what reaches the
+  // page (an error, a stale cookie) goes to the unlinked /login.
+  it("sends a visitor without a session to /login, without asking Core", async () => {
     getSession.mockResolvedValue(null);
 
-    expect((await render()).type).toBe(SignedOut);
+    await expect(render()).rejects.toThrow("redirect /login");
+    await expect(render("state_mismatch")).rejects.toThrow(
+      "redirect /login?error=state_mismatch",
+    );
     expect(getUsersByIdWorkspaces).not.toHaveBeenCalled();
   });
 
@@ -315,7 +325,7 @@ describe("CMO home page", () => {
     ["reading the person", 401],
     ["reading the person", 403],
   ])(
-    "shows the signed-out page when Core refuses the token %s (%i)",
+    "sends the person to /login when Core refuses the token %s (%i)",
     async (call, status) => {
       const refused = {
         error: { error: "Unauthorized" },
@@ -328,19 +338,9 @@ describe("CMO home page", () => {
         getUsersById.mockResolvedValue(refused);
       }
 
-      const page = await render();
-
-      expect(page.type).toBe(SignedOut);
-      expect(page.props).toMatchObject({ error: "signed_out" });
+      await expect(render()).rejects.toThrow(
+        "redirect /login?error=signed_out",
+      );
     },
   );
-
-  it("does not show a gate error as a sign-in failure after signing out elsewhere", async () => {
-    getSession.mockResolvedValue(null);
-
-    const page = await render("workspace_failed");
-
-    expect(page.type).toBe(SignedOut);
-    expect(page.props).toMatchObject({ error: undefined });
-  });
 });

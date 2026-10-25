@@ -4,6 +4,7 @@ import {
   getUsersByIdWorkspaces,
 } from "@sokosumi/core-client";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { CmoApp } from "../components/app/cmo-app";
 import { NameSetup } from "../components/name-setup";
@@ -12,7 +13,6 @@ import { OnboardingFlow } from "../components/onboarding/flow";
 import { OrganizationSetup } from "../components/organization-setup";
 import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
-import { SignedOut } from "../components/signed-out";
 import {
   ORGANIZATION_STEP,
   WORKSPACE_FAILED_ERROR,
@@ -23,7 +23,7 @@ import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { asSignedInPersonInPage } from "../lib/core";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
-import { createAccount, signIn, signOut } from "./actions";
+import { signOut } from "./actions";
 import {
   approveStrategy,
   chooseMockPlan,
@@ -99,19 +99,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const error = first(params.error);
   const step = first(params.step);
-  const signedOut = (signedOutError: string | undefined) => (
-    <SignedOut
-      error={signedOutError}
-      createAccount={createAccount}
-      signIn={signIn}
-    />
-  );
+  // Signed out, the home page is the waitlist site (the proxy serves it);
+  // sign-in errors and expired sessions go to the unlinked /login.
+  const signedOut = (signedOutError: string | undefined): never =>
+    redirect(
+      signedOutError
+        ? `/login?error=${encodeURIComponent(signedOutError)}`
+        : "/login",
+    );
 
-  if (!session) {
-    // A choice made in a tab that was signed out elsewhere is not a sign-in
-    // failure.
-    return signedOut(error === WORKSPACE_FAILED_ERROR ? undefined : error);
-  }
+  if (!session) return signedOut(error);
 
   const asPerson = await asSignedInPersonInPage(requestHeaders);
   const { data, response } = await getUsersByIdWorkspaces({
