@@ -321,24 +321,6 @@ body:has(.ob) .site-header {
   font-size: 13px;
 }
 
-.ob-icon-button {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.ob-icon-button:hover {
-  background: var(--surface);
-  color: var(--foreground);
-}
-
 .ob-input,
 .ob-inline-input {
   width: 100%;
@@ -969,12 +951,6 @@ body:has(.ob) .site-header {
   text-wrap: pretty;
 }
 
-.ob-why-small {
-  margin-top: 16px;
-  padding: 12px 14px;
-  font-size: 13px;
-}
-
 .ob-facts {
   display: grid;
   gap: 12px;
@@ -1176,65 +1152,6 @@ body:has(.ob) .site-header {
   .ob-day-blank {
     display: none;
   }
-}
-
-.ob-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  border: 0;
-  background: rgb(0 0 0 / 0.24);
-  cursor: default;
-}
-
-.ob-drawer {
-  position: fixed;
-  top: 8px;
-  right: 8px;
-  bottom: 8px;
-  z-index: 41;
-  width: min(480px, calc(100vw - 16px));
-  padding: 20px 22px;
-  overflow-y: auto;
-  border: 1px solid var(--ob-line);
-  border-radius: 16px;
-  background: var(--background);
-  box-shadow: 0 24px 48px rgb(0 0 0 / 0.16);
-}
-
-.ob-drawer-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-
-.ob-when {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.ob-drawer-title {
-  margin: 8px 0 14px;
-  font-size: 20px;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.ob-draft {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--ob-tint);
-  border: 1px solid var(--ob-line);
-  white-space: pre-wrap;
-  line-height: 1.6;
-}
-
-.ob-hook {
-  font-size: 16px;
-  font-weight: 500;
 }
 
 .ob-change {
@@ -1890,25 +1807,6 @@ body:has(.ob) .site-header {
   .ob-swatches {
     padding-left: 6px;
   }
-}
-
-/* Drafts as the reader sees them */
-.draft-text p,
-.draft-text ul {
-  margin: 0 0 10px;
-}
-
-.draft-text ul {
-  padding-left: 18px;
-}
-
-.draft-text .draft-heading {
-  margin-top: 14px;
-  font-weight: 600;
-}
-
-.draft-text > :first-child {
-  margin-top: 0;
 }
 
 /* The site's own photos in the account previews */

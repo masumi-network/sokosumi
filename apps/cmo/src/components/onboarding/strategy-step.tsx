@@ -4,17 +4,15 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import {
   ArrowRight,
   Check,
-  Clock,
   Lightbulb,
   Loader2,
   Sparkles,
   Target,
   Users,
   Wand2,
-  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 
 import {
   channelLabel,
@@ -25,7 +23,7 @@ import {
 } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { ChannelIcon } from "../channel-icon";
-import { DraftText } from "../draft-text";
+import { EntrySheet } from "../entry-sheet";
 import { Clamp } from "./clamp";
 import { Refusal } from "./refusal";
 import { Showcases, withoutLabel } from "./showcases";
@@ -401,93 +399,9 @@ export function StrategyStep({
 
       <AnimatePresence>
         {open ? (
-          <EntryDrawer entry={open} onClose={() => setOpen(null)} />
+          <EntrySheet entry={open} onClose={() => setOpen(null)} />
         ) : null}
       </AnimatePresence>
     </section>
-  );
-}
-
-function EntryDrawer({
-  entry,
-  onClose,
-}: {
-  entry: Entry;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <>
-      {/* The drawer's Close button is its one control; the scrim only catches clicks. */}
-      <motion.div
-        className="ob-scrim"
-        aria-hidden="true"
-        onClick={onClose}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      />
-      <motion.aside
-        className="ob-drawer"
-        role="dialog"
-        aria-label={entry.title}
-        initial={{ x: 40, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: 40, opacity: 0 }}
-        transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] as const }}
-      >
-        <div className="ob-drawer-head">
-          <ChannelIcon channel={entry.channel} size={18} />
-          <span>
-            {channelLabel(entry.channel)} · {entry.format}
-          </span>
-          <button
-            type="button"
-            className="ob-icon-button"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <p className="ob-note ob-when">
-          <Clock size={13} aria-hidden="true" />
-          {formatDay(entry.date, {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
-          {entry.time ? ` at ${entry.time}` : ""}
-        </p>
-        <h3 className="ob-drawer-title">{entry.title}</h3>
-        {entry.draft ? (
-          <div className="ob-draft">
-            <DraftText text={entry.draft} title={entry.title} />
-          </div>
-        ) : (
-          <>
-            {entry.hook ? (
-              <p className="ob-hook">“{withoutLabel(entry.hook)}”</p>
-            ) : null}
-            {entry.brief ? <p>{entry.brief}</p> : null}
-            <p className="ob-note">
-              Cuso writes the full piece before it goes out.
-            </p>
-          </>
-        )}
-        {entry.why ? (
-          <div className="ob-why ob-why-small">
-            <Lightbulb size={15} aria-hidden="true" />
-            <p>{entry.why}</p>
-          </div>
-        ) : null}
-      </motion.aside>
-    </>
   );
 }

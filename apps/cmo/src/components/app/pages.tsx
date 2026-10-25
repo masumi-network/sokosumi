@@ -5,17 +5,11 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import {
-  channelLabel,
-  entryReadiness,
-  planRange,
-  SOCIAL_PROVIDERS,
-} from "../../lib/calendar";
+import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
 import { ChannelIcon } from "../channel-icon";
 import { MockPlanTable } from "../mock-plans";
 import { ExpandableText } from "./expandable-text";
-import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
 interface PageProps {
   overview: CmoOverview;
@@ -27,71 +21,6 @@ function Empty({ children }: { children: React.ReactNode }) {
     <div className="empty">
       <span className="shape" aria-hidden="true" />
       <span>{children}</span>
-    </div>
-  );
-}
-
-export function StrategyPage({ overview }: PageProps) {
-  const strategy = overview.strategy;
-  const connected = overview.channels
-    .filter((channel) => channel.status === "ACTIVE")
-    .map((channel) => channel.provider);
-  if (!strategy) {
-    return <Empty>Cuso is still writing the strategy.</Empty>;
-  }
-  return (
-    <div className="page-body">
-      <p>{strategy.summary}</p>
-      <div className="grid2">
-        <section className="panel">
-          <h3>Goal</h3>
-          <ul className="plain">
-            {strategy.goals.map((goal) => (
-              <li key={goal}>{goal}</li>
-            ))}
-          </ul>
-        </section>
-        <section className="panel">
-          <h3>Positioning</h3>
-          <p>{strategy.positioning ?? "Not set yet."}</p>
-        </section>
-        <section className="panel">
-          <h3>Audience</h3>
-          <p>{strategy.audience ?? "Not set yet."}</p>
-        </section>
-        <section className="panel">
-          <h3>Channels</h3>
-          <ul className="plain">
-            {strategy.channels.map((channel) => {
-              const readiness = entryReadiness(channel.channel, connected);
-              return (
-                <li key={channel.channel}>
-                  <b>{channelLabel(channel.channel)}</b>{" "}
-                  {readiness === "ready" ? (
-                    <span className="tag ok">Running</span>
-                  ) : readiness === "connect" ? (
-                    <span className="tag warn">Connect to run</span>
-                  ) : (
-                    <span className="tag">Coming soon</span>
-                  )}{" "}
-                  <span className="note">{channel.cadence}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      </div>
-      <section className="panel">
-        <h3>{planRange(strategy.calendar) ?? "Calendar"}</h3>
-        <CalendarLegend />
-        <div className="cal-scroll">
-          <MonthCalendar strategy={strategy} big connected={connected} />
-        </div>
-      </section>
-      <p className="note">
-        Everything here changes by talking to Cuso. You approve this page once;
-        Cuso runs it from then on.
-      </p>
     </div>
   );
 }

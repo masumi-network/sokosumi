@@ -23,6 +23,7 @@ import {
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import {
@@ -40,8 +41,8 @@ import {
   type ConnectChannel,
   ResultsPage,
   SettingsPage,
-  StrategyPage,
 } from "./pages";
+import { StrategyPage } from "./strategy-page";
 import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
@@ -71,7 +72,6 @@ const VIEWS = [
   ["channels", "Channels", Share2],
   ["settings", "Settings", Settings],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
-export type View = (typeof VIEWS)[number][0];
 
 export interface CmoAppActions {
   loadState: () => Promise<{
@@ -169,6 +169,19 @@ export function CmoApp({
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [view, setView] = useState<View>(initialView);
+  // Each page has its own address, so reload, Back and new tabs land on it.
+  const go = useCallback((next: View) => {
+    setView(next);
+    if (window.location.pathname !== VIEW_PATHS[next]) {
+      window.history.pushState(null, "", VIEW_PATHS[next]);
+    }
+  }, []);
+  useEffect(() => {
+    const onPop = () =>
+      setView(viewFromPath(window.location.pathname) ?? "chat");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   // An empty Up next would take a quarter of the screen to say so.
   const [upNextOpen, setUpNextOpen] = useState(
     initialOverview.upNext.length > 0,
@@ -181,10 +194,12 @@ export function CmoApp({
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
-  // A connection redirect lands on /?step=connect; keep the address clean.
+  // A connection redirect lands on /?step=connect; show the page's own address.
   useEffect(() => {
-    if (window.location.search) window.history.replaceState(null, "", "/");
-  }, []);
+    if (window.location.search) {
+      window.history.replaceState(null, "", VIEW_PATHS[initialView]);
+    }
+  }, [initialView]);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
@@ -213,12 +228,15 @@ export function CmoApp({
     }
   }, [threadLength, view]);
 
-  const compose = useCallback((text: string) => {
-    setView("chat");
-    setDrawerOpen(false);
-    setDraft(text);
-    window.setTimeout(() => input.current?.focus(), 0);
-  }, []);
+  const compose = useCallback(
+    (text: string) => {
+      go("chat");
+      setDrawerOpen(false);
+      setDraft(text);
+      window.setTimeout(() => input.current?.focus(), 0);
+    },
+    [go],
+  );
 
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
@@ -229,7 +247,7 @@ export function CmoApp({
       return result.error;
     },
     compose,
-    open: (target) => setView(target),
+    open: (target) => go(target),
   };
 
   function send(event: React.FormEvent) {
@@ -244,7 +262,7 @@ export function CmoApp({
   }
 
   function openUpdate(id: string) {
-    setView("chat");
+    go("chat");
     setHighlight(id);
     window.setTimeout(
       () =>
@@ -285,16 +303,21 @@ export function CmoApp({
         </div>
         <div className="nav">
           {VIEWS.map(([id, label, Icon]) => (
-            <button
+            <a
               key={id}
-              type="button"
+              href={VIEW_PATHS[id]}
               className={view === id ? "active" : ""}
               aria-current={view === id ? "page" : undefined}
-              onClick={() => setView(id)}
+              onClick={(event) => {
+                // A modified click opens the page in a new tab as usual.
+                if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+                event.preventDefault();
+                go(id);
+              }}
             >
               <Icon size={16} aria-hidden="true" />
               <span>{label}</span>
-            </button>
+            </a>
           ))}
         </div>
         <div className="grow" />
@@ -446,7 +469,7 @@ export function CmoApp({
           <div className="scroll">
             <div className="page-wide">
               {view === "strategy" ? (
-                <StrategyPage overview={overview} compose={compose} />
+                <StrategyPage overview={overview} />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}

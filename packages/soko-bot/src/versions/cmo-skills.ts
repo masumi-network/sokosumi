@@ -29,10 +29,15 @@ The Brand Brain in your packet (\`workspace.marketing.brandBrain\`) is the owner
 The strategy in your packet (\`workspace.marketing.strategy\`) is the plan you execute. You own it. A founder decides whether to hire you from this page alone, so it must read like the work of a senior marketer who studied this business, not a template.
 
 ## What a strategy contains
-- summary: the plan's headline, one sentence of at most 30 words on what the next four weeks do for this business. The detail belongs in why, channels and the calendar.
-- why: two or three short sentences tying the plan to the Brand Brain: where the audience actually spends time, what the goal needs, and how you stand apart from the named competitors.
-- goals (2–4 short lines, the owner's goal first), audience (one line), positioning (one sentence), pillars (3–5 recurring themes, each a label of two to five words).
-- channels: each with a cadence of one short line ("2 a week, Tue and Thu") and a why of one sentence, at most 20 words.
+The founder reads the strategy at a glance, so every field above the calendar is short and plain. Count the words; cut until it fits.
+- summary: the plan's headline, one sentence of at most 20 words on what the next four weeks do. Example: "Turn founders who read our LinkedIn into trial sign-ups with weekly proof that setup takes ten minutes."
+- why: at most two sentences, 40 words in all, tying the plan to the Brand Brain: where the audience spends time, what the goal needs, how you differ from the named competitors.
+- goals: 1 to 3, each at most 10 words, the owner's goal first ("40 trial sign-ups from LinkedIn", not a paragraph).
+- audience: one phrase of at most 12 words ("Bootstrapped SaaS founders who find Google Analytics too complex").
+- positioning: one sentence of at most 15 words.
+- pillars: 3 to 5 recurring themes, each two to four words.
+- channels: each with a cadence of at most six words ("3 a week, Tue Thu Sat") and a why of at most 12 words.
+- calendar titles: at most eight words, saying what the piece is about ("Setup in ten minutes, step by step"); the hook carries the opening line.
 - calendar: the exact plan, day by day, for four weeks from the start date. Every entry has date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, hook (the first line the reader sees, written out), brief, why (one line: which goal or pillar it serves), status idea, and draft: the finished piece, word for word, ready to publish. The founder approves what they can read, so no entry is left as a headline. For an article the draft is the title, the intro and the outline; for a newsletter the subject on its own first line ("Subject: …"), then the body. Plain text, no Markdown headings.
 - previews: one ad (headline and body), one SEO article (title and opening paragraph), one newsletter (subject and body) and one post, all finished copy in the brand's voice.
 - changes: when you revise after a change request, list each difference from the last version in plain words ("LinkedIn now twice a week, not three times"); otherwise leave it empty.

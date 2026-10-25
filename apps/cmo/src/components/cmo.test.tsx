@@ -12,6 +12,7 @@ import {
 } from "../lib/calendar";
 import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
+import { VIEW_PATHS, viewFromPath } from "../lib/views";
 import {
   LearningCard,
   learningSteps,
@@ -20,6 +21,7 @@ import {
 } from "./app/cards";
 import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
+import { StrategyPage } from "./app/strategy-page";
 import { Onboarding } from "./onboarding";
 
 const strategy: NonNullable<CmoOverview["strategy"]> = {
@@ -405,6 +407,36 @@ describe("cards", () => {
 });
 
 describe("pages", () => {
+  it("gives every page its own address", () => {
+    expect(viewFromPath("/")).toBe("chat");
+    expect(viewFromPath("/brand-brain")).toBe("brain");
+    expect(viewFromPath("/strategy/")).toBe("strategy");
+    expect(viewFromPath("/brain")).toBeNull();
+    expect(VIEW_PATHS.settings).toBe("/settings");
+  });
+
+  it("reads the strategy as one headline, the main goal and the weeks", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          strategy: {
+            ...strategy,
+            goals: ["40 trial sign-ups", "A second goal"],
+            why: "Founders read LinkedIn.",
+          },
+        })}
+      />,
+    );
+    expect(html).toContain(strategy.summary);
+    expect(html).toContain("40 trial sign-ups");
+    expect(html).toContain("Week 1");
+    expect(html).toContain("Why we built it");
+    // The other goals and the reasoning wait behind "Why this plan".
+    expect(html.indexOf("A second goal")).toBeGreaterThan(
+      html.indexOf("Why this plan"),
+    );
+  });
+
   it("shows real post counts and no invented reach", () => {
     const html = renderToStaticMarkup(
       <ResultsPage
