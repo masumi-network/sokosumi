@@ -24,9 +24,22 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({
-  loadMoreProjects: mocks.load,
-  loadPinnedProjects: mocks.loadPinned,
+vi.mock("@/lib/project-scope-list.client", () => ({
+  // The two Route Handler reads, as the old action calls the tests assert.
+  fetchScopeList: (
+    path: string,
+    expectedScope: { userId: string; organizationId: string | null },
+  ) => {
+    if (path.startsWith("/api/project-scope/pinned")) {
+      return mocks.loadPinned({ expectedScope });
+    }
+    const query = new URL(path, "http://test").searchParams.get("q");
+    return mocks.load({
+      cursor: null,
+      query: query ?? undefined,
+      expectedScope,
+    });
+  },
 }));
 
 import {
@@ -124,20 +137,21 @@ describe("useScopeProjects", () => {
             resolveSearch = resolve;
           })
         : Promise.resolve({
-            projects: [project("a-1", "Alpha")],
-            nextCursor: null,
+            projects: [project("a-1", "Alpha"), project("farm-1", "Farm")],
+            nextCursor: "page-2",
           }),
     );
     const { result, rerender } = renderHook(
       ({ search }) => useScopeProjects({ search, selectedProjectId: null }),
       { wrapper: wrapper(), initialProps: { search: "" } },
     );
-    await waitFor(() => expect(result.current.all).toHaveLength(1));
+    await waitFor(() => expect(result.current.all).toHaveLength(2));
     expect(result.current.isSearchPending).toBe(false);
 
     rerender({ search: "far" });
-    // The pause in typing has not ended.
+    // The pause in typing has not ended; the loaded rows answer meanwhile.
     expect(result.current.isSearchPending).toBe(true);
+    expect(result.current.all.map(({ id }) => id)).toEqual(["farm-1"]);
 
     await waitFor(
       () =>
@@ -146,10 +160,10 @@ describe("useScopeProjects", () => {
         ),
       DEBOUNCE_WAIT,
     );
-    // Core is asked: the rows shown are still the last page's.
+    // Core is asked: the loaded matches stay until it answers.
     expect(result.current.isPending).toBe(false);
     expect(result.current.isSearchPending).toBe(true);
-    expect(result.current.all.map(({ id }) => id)).toEqual(["a-1"]);
+    expect(result.current.all.map(({ id }) => id)).toEqual(["farm-1"]);
 
     resolveSearch({ projects: [project("far-1", "Far")], nextCursor: null });
     await waitFor(() => expect(result.current.isSearchPending).toBe(false));
