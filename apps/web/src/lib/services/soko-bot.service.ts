@@ -191,13 +191,22 @@ export const sokoBotService = {
     return response.data;
   },
 
-  /** Null when there is no bot, integrations are off, or nothing is missing. */
-  async getConnectPromptState(): Promise<SokoBotConnectPromptState | null> {
+  /**
+   * Null when there is no bot, integrations are off, or nothing is missing.
+   * `untilAnyConnected` also hides it once any integration is connected.
+   */
+  async getConnectPromptState({
+    untilAnyConnected = false,
+  }: {
+    untilAnyConnected?: boolean;
+  } = {}): Promise<SokoBotConnectPromptState | null> {
     const [bot, { configured, integrations }] = await Promise.all([
       this.getMine(),
       this.listIntegrations(),
     ]);
     if (!bot || !configured) return null;
+    if (untilAnyConnected && integrations.some((i) => i.status === "ACTIVE"))
+      return null;
     const offers = connectOffers(integrations);
     return offers.length > 0
       ? { botId: bot.id, botName: bot.name ?? "Soko Bot", offers }

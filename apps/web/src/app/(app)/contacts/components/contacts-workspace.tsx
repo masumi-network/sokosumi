@@ -71,7 +71,7 @@ import {
   ContactsBulkBar,
   ContactsFilterBar,
 } from "./contacts-toolbar";
-import { ContactsViewsBar } from "./contacts-views-bar";
+import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
@@ -271,18 +271,7 @@ export function ContactsWorkspace({
         <header className="flex min-w-0 items-start gap-2">
           <h1 className="sr-only">{t("title")}</h1>
           <div className="min-w-0 flex-1">
-            <ContactsViewsBar
-              view={view}
-              onViewChange={changeView}
-              lists={lists.data ?? []}
-              onNewList={() => setDialog({ kind: "list" })}
-              onEditList={(list) => setDialog({ kind: "list", list })}
-              onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-              organization={company}
-              organizations={organizations.data ?? []}
-              onCompanySearch={setCompanySearch}
-              onOrganizationChange={changeOrganization}
-            />
+            <ContactsPresetTabs view={view} onViewChange={changeView} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <Button
@@ -371,6 +360,22 @@ export function ContactsWorkspace({
                 setSelected([]);
               }}
               teammates={teammates}
+              menus={
+                <ContactsViewMenus
+                  view={view}
+                  onViewChange={changeView}
+                  lists={lists.data ?? []}
+                  onNewList={() => setDialog({ kind: "list" })}
+                  onEditList={(list) => setDialog({ kind: "list", list })}
+                  onDeleteList={(list) =>
+                    setDialog({ kind: "deleteList", list })
+                  }
+                  organization={company}
+                  organizations={organizations.data ?? []}
+                  onCompanySearch={setCompanySearch}
+                  onOrganizationChange={changeOrganization}
+                />
+              }
             />
           )}
           <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">

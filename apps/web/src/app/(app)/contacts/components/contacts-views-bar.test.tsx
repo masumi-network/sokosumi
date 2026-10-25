@@ -2,7 +2,7 @@ import type { ContactList } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ContactsViewsBar } from "./contacts-views-bar";
+import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -40,11 +40,16 @@ function renderBar(view = "all", organization: string | null = null) {
     onOrganizationChange: vi.fn(),
     onCompanySearch: vi.fn(),
   };
-  render(<ContactsViewsBar {...props} />);
+  render(
+    <>
+      <ContactsPresetTabs {...props} />
+      <ContactsViewMenus {...props} />
+    </>,
+  );
   return props;
 }
 
-describe("ContactsViewsBar", () => {
+describe("ContactsPresetTabs and ContactsViewMenus", () => {
   it("switches presets from the tabs", async () => {
     const props = renderBar();
     expect(screen.getByRole("tab", { name: "presets.all" })).toHaveAttribute(
