@@ -8706,7 +8706,9 @@
         "knownBy": "Lo conocen",
         "followUp": "Seguimiento",
         "email": "Correo",
-        "reply": "Respuesta"
+        "reply": "Respuesta",
+        "importance": "Importancia",
+        "familiarity": "Cercanía"
       },
       "grid": {
         "label": "Contactos",
@@ -8999,7 +9001,29 @@
         "PERSON": "Persona",
         "ORGANIZATION": "Organización o buzón compartido"
       },
-      "title": "Contactos"
+      "title": "Contactos",
+      "importance": {
+        "veryHigh": "Muy importante",
+        "high": "Importante",
+        "medium": "Algo importante",
+        "low": "Poco importante",
+        "minimal": "Sin importancia",
+        "auto": "Que decida Jev",
+        "change": "Cambiar lo importante que es para ti",
+        "byJev": "Valorado por Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Definido por ti",
+        "byBot": "Definido por tu Soko Bot",
+        "notYet": "Aún sin valorar",
+        "familiarityHint": "Según tus propios correos y reuniones con esta persona",
+        "reasons": {
+          "decides": "toma decisiones",
+          "value": "puede impulsar tu trabajo",
+          "active": "negocio en curso",
+          "close": "relación cercana",
+          "noise": "parece automático o impersonal"
+        }
+      }
     }
   },
   "Share": {

@@ -74,7 +74,7 @@ import {
 import { ContactsViewsBar } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
-import { useContactUpdate } from "./use-contact-update";
+import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_LISTS_KEY,
   refreshContacts,
@@ -100,6 +100,7 @@ export function ContactsWorkspace({
   const t = useTranslations("App.Contacts");
   const cache = useQueryClient();
   const update = useContactUpdate();
+  const setImportance = useImportanceUpdate();
   const [view, setView] = useQueryState(
     "list",
     parseAsString.withDefault("all"),
@@ -447,6 +448,7 @@ export function ContactsWorkspace({
                     onOpen={open}
                     onOrganization={changeOrganization}
                     onUpdate={update}
+                    onImportance={setImportance}
                     hasMore={!!hasNextPage}
                     loadingMore={isFetchingNextPage}
                     onLoadMore={loadMore}

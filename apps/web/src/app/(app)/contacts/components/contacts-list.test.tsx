@@ -19,6 +19,7 @@ const contact = (overrides: Partial<Contact>): Contact => ({
   whyInteresting: null,
   stage: "LEAD",
   kind: "PERSON",
+  score: null,
   nextStep: null,
   followUpAt: null,
   avatarUrl: null,

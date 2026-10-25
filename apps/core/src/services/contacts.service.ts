@@ -34,6 +34,12 @@ import type {
   contactMergeSuggestionSchema,
   contactSchema,
 } from "@/schemas/contact.schema";
+import {
+  type ContactScoreDto,
+  readerScores,
+  refreshContactFamiliarity,
+  setContactImportance,
+} from "@/services/contact-scores.service";
 
 type Tx = Prisma.TransactionClient;
 type ContactDto = z.input<typeof contactSchema>;
@@ -133,8 +139,13 @@ function toInputJson(value: Record<string, unknown>): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(value));
 }
 
-function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
+function toContactDto(
+  row: ContactRow,
+  knownBy: KnownByDto[],
+  score: ContactScoreDto | null,
+): ContactDto {
   return {
+    score,
     id: row.id,
     name: row.name,
     organization: row.organization,
@@ -227,23 +238,32 @@ async function knownByFor(
   return result;
 }
 
+/** `readerUserId` adds that teammate's own scores; without one, none. */
 export async function contactDtos(
   rows: ContactRow[],
   tx: Tx = prisma,
+  readerUserId?: string,
 ): Promise<ContactDto[]> {
-  const knownBy = await knownByFor(
-    rows.map((row) => row.id),
-    tx,
+  const ids = rows.map((row) => row.id);
+  const [knownBy, scores] = await Promise.all([
+    knownByFor(ids, tx),
+    readerUserId ? readerScores(tx, readerUserId, ids) : null,
+  ]);
+  return rows.map((row) =>
+    toContactDto(row, knownBy.get(row.id) ?? [], scores?.get(row.id) ?? null),
   );
-  return rows.map((row) => toContactDto(row, knownBy.get(row.id) ?? []));
 }
 
-async function loadContactDto(tx: Tx, id: string): Promise<ContactDto> {
+async function loadContactDto(
+  tx: Tx,
+  id: string,
+  readerUserId?: string,
+): Promise<ContactDto> {
   const row = await tx.contact.findUniqueOrThrow({
     where: { id },
     include: CONTACT_INCLUDE,
   });
-  const [dto] = await contactDtos([row], tx);
+  const [dto] = await contactDtos([row], tx, readerUserId);
   if (!dto) throw notFound("Contact not found");
   return dto;
 }
@@ -509,7 +529,7 @@ export async function upsertContact(
       channels: channels.map(({ type, value }) => `${type}:${value}`),
     });
     return {
-      contact: await loadContactDto(tx, contact.id),
+      contact: await loadContactDto(tx, contact.id, actor.userId),
       created: true,
       changed: true,
       mergeSuggestion: null,
@@ -549,7 +569,7 @@ export async function upsertContact(
       });
   }
   return {
-    contact: await loadContactDto(tx, contact.id),
+    contact: await loadContactDto(tx, contact.id, actor.userId),
     created: false,
     changed,
     mergeSuggestion:
@@ -576,14 +596,14 @@ export async function updateContact(
   if (contact.version !== input.version) throw versionConflict();
   const data = fieldData(input);
   const changes = changedFields(contact, data);
-  if (!Object.keys(changes).length) return loadContactDto(tx, id);
+  if (!Object.keys(changes).length) return loadContactDto(tx, id, actor.userId);
   const updated = await tx.contact.updateMany({
     where: { id, version: input.version },
     data: { ...data, version: { increment: 1 } },
   });
   if (updated.count !== 1) throw versionConflict();
   await recordActivity(tx, actor, id, "UPDATED", changes);
-  return loadContactDto(tx, id);
+  return loadContactDto(tx, id, actor.userId);
 }
 
 export async function setContactArchived(
@@ -603,7 +623,7 @@ export async function setContactArchived(
     });
     await recordActivity(tx, actor, id, archived ? "ARCHIVED" : "UNARCHIVED");
   }
-  return loadContactDto(tx, id);
+  return loadContactDto(tx, id, actor.userId);
 }
 
 /** Adds one channel; a channel the contact already has is returned as is. */
@@ -637,7 +657,7 @@ export async function addContactChannel(
       channels: [`${channel.type}:${channel.value}`],
     });
   }
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 export async function removeContactChannel(
@@ -670,7 +690,7 @@ export async function removeContactChannel(
   await recordActivity(tx, actor, contactId, "CHANNEL_REMOVED", {
     channels: [`${channel.type}:${channel.value}`],
   });
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 /**
@@ -679,6 +699,7 @@ export async function removeContactChannel(
  * notes say nothing about who is waiting.
  */
 async function refreshDerivedFields(tx: Tx, contactId: string) {
+  await refreshContactFamiliarity(tx, { contactId });
   const [aggregate, inbound] = await Promise.all([
     tx.contactInteraction.aggregate({
       where: { contactId },
@@ -795,7 +816,7 @@ export async function removeContactInteraction(
   });
   if (!removed.count) throw notFound("Interaction not found");
   await refreshDerivedFields(tx, contactId);
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 /**
@@ -928,7 +949,7 @@ export async function mergeContacts(
     movedChannels: movedChannels.count,
     movedInteractions: movedInteractions.count,
   });
-  return loadContactDto(tx, winnerId);
+  return loadContactDto(tx, winnerId, actor.userId);
 }
 
 /** Mail providers whose domain names no company, for the SQL below. */
@@ -1133,6 +1154,8 @@ function contactOrderBy(
       ? "asc"
       : "desc");
   const nullable = sort === "organization" || sort.endsWith("ContactAt");
+  if (sort === "familiarity" || sort === "importance")
+    throw new Error("Score sorts are ordered by listContactsByScore");
   return [
     nullable ? { [sort]: { sort: dir, nulls: "last" } } : { [sort]: dir },
     { id: dir },
@@ -1144,6 +1167,8 @@ export async function listContacts(
   options: ListContactsOptions,
 ): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
   const where = await contactListWhere(actor, options);
+  if (options.sort === "familiarity" || options.sort === "importance")
+    return listContactsByScore(actor, options, where);
   const [rows, total] = await prisma.$transaction([
     prisma.contact.findMany({
       where,
@@ -1156,9 +1181,58 @@ export async function listContacts(
   ]);
   const page = rows.slice(0, options.limit);
   return {
-    items: await contactDtos(page),
+    items: await contactDtos(page, prisma, actor.userId),
     total,
     nextCursor: rows.length > options.limit ? (page.at(-1)?.id ?? null) : null,
+  };
+}
+
+/**
+ * A page ordered by the reader's own score, which lives per teammate in
+ * `contact_score` and so cannot be a Prisma order. Matching ids come first,
+ * then SQL orders them; the cursor is the last contact id, as elsewhere.
+ * Contacts the reader never scored come last.
+ */
+async function listContactsByScore(
+  actor: ContactActor,
+  options: ListContactsOptions,
+  where: Prisma.ContactWhereInput,
+): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
+  const ids = (
+    await prisma.contact.findMany({ where, select: { id: true } })
+  ).map((row) => row.id);
+  const column =
+    options.sort === "importance"
+      ? PrismaRaw.sql`s.importance`
+      : PrismaRaw.sql`s.familiarity`;
+  const direction =
+    options.direction === "asc" ? PrismaRaw.sql`ASC` : PrismaRaw.sql`DESC`;
+  const ordered = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT c.id FROM unnest(${ids}::uuid[]) AS c(id)
+    LEFT JOIN contact_score s
+      ON s."contactId" = c.id AND s."userId" = ${actor.userId}
+    ORDER BY ${column} ${direction} NULLS LAST, c.id ${direction}
+  `;
+  const start = options.cursor
+    ? ordered.findIndex((row) => row.id === options.cursor) + 1
+    : 0;
+  const pageIds = ordered
+    .slice(start, start + options.limit)
+    .map((row) => row.id);
+  const rows = await prisma.contact.findMany({
+    where: { id: { in: pageIds } },
+    include: CONTACT_INCLUDE,
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return {
+    items: await contactDtos(
+      pageIds.flatMap((id) => byId.get(id) ?? []),
+      prisma,
+      actor.userId,
+    ),
+    total: ids.length,
+    nextCursor:
+      start + options.limit < ordered.length ? (pageIds.at(-1) ?? null) : null,
   };
 }
 
@@ -1297,12 +1371,32 @@ export async function allContacts(
   return items.slice(0, max);
 }
 
+/**
+ * Sets how much a contact matters to the caller: by hand, or by their Soko
+ * Bot when one acts. Null hands it back to Jev.
+ */
+export async function setReaderImportance(
+  tx: Tx,
+  actor: ContactActor,
+  id: string,
+  importance: number | null,
+): Promise<ContactDto> {
+  await setContactImportance(tx, {
+    workspaceId: actor.workspaceId,
+    userId: actor.userId,
+    contactId: id,
+    importance,
+    source: actor.sokoBotId ? "SOKO_BOT" : "MANUAL",
+  });
+  return loadContactDto(tx, id, actor.userId);
+}
+
 export async function getContactDetail(
   actor: ContactActor,
   id: string,
 ): Promise<ContactDetailDto> {
   await requireContactRow(prisma, actor, id);
-  const contact = await loadContactDto(prisma, id);
+  const contact = await loadContactDto(prisma, id, actor.userId);
   const recent = await prisma.contactInteraction.findMany({
     where: { contactId: id },
     include: INTERACTION_INCLUDE,
@@ -1501,7 +1595,7 @@ export async function captureContactInteraction(
     changed,
     contact:
       logged.created || changed
-        ? await loadContactDto(tx, current.id)
+        ? await loadContactDto(tx, current.id, actor.userId)
         : current,
     interactionCreated: logged.created,
   };

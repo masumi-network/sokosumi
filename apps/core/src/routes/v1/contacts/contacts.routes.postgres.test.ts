@@ -19,7 +19,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+const askJev = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/soko-bot/jev", () => ({ askJev }));
+
 const { default: contactsRouter } = await import("./index.js");
+const { judgeWorkspaceImportance } = await import(
+  "@/services/contact-scores.service"
+);
 const { default: contactListsRouter } = await import(
   "../contact-lists/index.js"
 );
@@ -279,6 +285,90 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     expect(mine.data.map((contact: { name: string }) => contact.name)).toEqual([
       "Mine Talked",
     ]);
+  });
+
+  it("scores familiarity from my interactions and importance from Jev or me", async () => {
+    const post = async (name: string) =>
+      (await (await call("POST", "/contacts", { name })).json()).data.contact;
+    const close = await post("Score Close");
+    const once = await post("Score Once");
+    const now = Date.now();
+    for (let day = 0; day < 6; day++)
+      await call("POST", `/contacts/${close.id}/interactions`, {
+        occurredAt: new Date(now - day * 86_400_000).toISOString(),
+        channel: day % 2 ? "MEETING" : "EMAIL",
+        direction: day % 2 ? "BOTH" : "IN",
+        summary: `Touchpoint ${day}`,
+      });
+    await call("POST", `/contacts/${once.id}/interactions`, {
+      occurredAt: new Date(now - 300 * 86_400_000).toISOString(),
+      channel: "EMAIL",
+      direction: "OUT",
+      summary: "Cold intro",
+    });
+
+    const read = async (id: string) =>
+      (await (await call("GET", `/contacts/${id}`)).json()).data.score;
+    const closeScore = await read(close.id);
+    const onceScore = await read(once.id);
+    expect(closeScore.familiarity).toBeGreaterThan(60);
+    expect(onceScore.familiarity).toBeLessThan(10);
+    expect(closeScore.importance).toBeNull();
+
+    askJev.mockResolvedValue(
+      new Map([
+        ["decides", 0.9],
+        ["value", 0.9],
+        ["active", 0.8],
+        ["close", 0.2],
+        ["noise", 0],
+      ]),
+    );
+    const stats = { judged: 0, failed: 0 };
+    await judgeWorkspaceImportance({
+      workspaceId,
+      budget: 10,
+      stats,
+      shouldContinue: () => true,
+    });
+    expect(stats.failed).toBe(0);
+    expect(stats.judged).toBeGreaterThanOrEqual(2);
+    expect(await read(close.id)).toMatchObject({
+      importance: 81,
+      importanceSource: "JEV",
+      importanceReason: "decides,value,active",
+    });
+
+    const set = await call("PUT", `/contacts/${once.id}/importance`, {
+      importance: 95,
+    });
+    expect((await set.json()).data.score).toMatchObject({
+      importance: 95,
+      importanceSource: "MANUAL",
+    });
+    // A new interaction asks Jev again, but never over a score I set.
+    await call("POST", `/contacts/${once.id}/interactions`, {
+      occurredAt: new Date(now).toISOString(),
+      channel: "EMAIL",
+      summary: "Follow-up",
+    });
+    await judgeWorkspaceImportance({
+      workspaceId,
+      budget: 10,
+      stats,
+      shouldContinue: () => true,
+    });
+    expect((await read(once.id)).importance).toBe(95);
+
+    const sorted = await (
+      await call("GET", "/contacts?sort=importance&search=Score")
+    ).json();
+    expect(
+      sorted.data.map((contact: { name: string }) => contact.name),
+    ).toEqual(["Score Once", "Score Close"]);
+    expect(
+      (await (await strangerCall("GET", `/contacts/${close.id}`)).json()).data,
+    ).toBeUndefined();
   });
 
   it("hides one workspace's contacts and lists from another", async () => {

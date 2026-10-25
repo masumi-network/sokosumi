@@ -98,6 +98,7 @@ const CONTACT = {
   channels: [],
   lists: [],
   knownBy: [],
+  score: null,
 };
 
 function request(path: string, init: RequestInit = {}) {

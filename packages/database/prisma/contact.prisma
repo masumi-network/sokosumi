@@ -127,6 +127,7 @@ model Contact {
 
   channels        ContactChannel[]
   interactions    ContactInteraction[]
+  scores          ContactScore[]
   listMemberships ContactListMember[]
   activities      ContactActivity[]
 
@@ -268,4 +269,44 @@ model ContactCaptureState {
 
   @@index([lastRunAt])
   @@map("contact_capture_state")
+}
+
+/// Who set a contact's importance for one person.
+enum ContactImportanceSource {
+  /// Judged by Jev from the contact and that person's interactions.
+  JEV
+  /// Set by that person's Soko Bot.
+  SOKO_BOT
+  /// Set by the person.
+  MANUAL
+}
+
+/// How well one teammate knows a contact, and how much it matters to them.
+/// Personal: two teammates see different scores for the same contact.
+model ContactScore {
+  id                      String                   @id @default(uuid(7)) @db.Uuid
+  workspaceId             String                   @db.Uuid
+  contactId               String                   @db.Uuid
+  contact                 Contact                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId                  String
+  user                    User                     @relation("ContactScoreUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// 0–100 from this teammate's own interactions: how many, whether the
+  /// contact answers, meetings, and how recent. Recomputed, never set.
+  familiarity             Int                      @default(0)
+  /// 0–100: how much this contact matters to this teammate. Null until judged.
+  importance              Int?
+  importanceSource        ContactImportanceSource?
+  /// Why Jev judged it so: comma-separated keys (decides, value, active,
+  /// close) or "noise".
+  importanceReason        String?
+  importanceJudgedAt      DateTime?
+  /// This teammate's interactions with the contact when Jev last judged; a
+  /// higher count asks again.
+  importanceJudgedAtCount Int                      @default(0)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  @@unique([contactId, userId])
+  @@index([workspaceId, userId])
+  @@map("contact_score")
 }
