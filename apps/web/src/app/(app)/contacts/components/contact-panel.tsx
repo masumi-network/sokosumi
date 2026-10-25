@@ -52,7 +52,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -433,58 +432,6 @@ function PanelBody({
                 }
               >
                 <GroupedRadioItems options={stageOptions} />
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </Property>
-        <Property label={t("columns.owner")}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={t("panel.changeOwner", {
-                  owner: contact.owner?.name ?? t("grid.noOwner"),
-                })}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm outline-none focus-visible:ring-2"
-              >
-                {contact.owner ? (
-                  <>
-                    <PersonAvatar person={contact.owner} />
-                    <span className="truncate">{contact.owner.name}</span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">
-                    {t("grid.noOwner")}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56">
-              <DropdownMenuRadioGroup
-                value={contact.owner?.id ?? ""}
-                onValueChange={(id) =>
-                  void save(
-                    { ownerUserId: id || null },
-                    {
-                      owner:
-                        teammates.find((person) => person.id === id) ?? null,
-                    },
-                  )
-                }
-              >
-                <DropdownMenuRadioItem value="">
-                  {t("grid.noOwner")}
-                </DropdownMenuRadioItem>
-                {teammates.map((person) => (
-                  <DropdownMenuRadioItem
-                    key={person.id}
-                    value={person.id}
-                    className="gap-2"
-                  >
-                    <PersonAvatar person={person} />
-                    {person.name}
-                  </DropdownMenuRadioItem>
-                ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -261,11 +261,10 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     ]);
   });
 
-  it("counts as mine whoever I own or have talked to", async () => {
+  it("lists the people I have talked to as mine", async () => {
     const post = async (body: object) =>
       (await (await call("POST", "/contacts", body)).json()).data.contact;
     const talked = await post({ name: "Mine Talked" });
-    await post({ name: "Mine Owned", ownerUserId: member });
     await post({ name: "Not Mine" });
     const logged = await call("POST", `/contacts/${talked.id}/interactions`, {
       occurredAt: new Date().toISOString(),
@@ -275,10 +274,9 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     expect(logged.status).toBe(201);
 
     const mine = await (
-      await call("GET", "/contacts?mine=true&search=Mine&sort=name")
+      await call("GET", "/contacts?knownByMe=true&search=Mine&sort=name")
     ).json();
     expect(mine.data.map((contact: { name: string }) => contact.name)).toEqual([
-      "Mine Owned",
       "Mine Talked",
     ]);
   });

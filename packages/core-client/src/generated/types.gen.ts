@@ -3678,9 +3678,6 @@ export type ContactList = {
         stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
         kind?: 'PERSON' | 'ORGANIZATION';
         replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-        ownerUserId?: string;
-        ownedByMe?: boolean;
-        mine?: boolean;
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
@@ -3725,7 +3722,6 @@ export type Contact = {
     whyInteresting: string | null;
     stage: ContactStage;
     kind: ContactKind;
-    owner: ContactPerson | null;
     nextStep: string | null;
     followUpAt: string | null;
     avatarUrl: string | null;
@@ -3774,12 +3770,6 @@ export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
 export const ContactKind = { PERSON: 'PERSON', ORGANIZATION: 'ORGANIZATION' } as const;
 
 export type ContactKind = typeof ContactKind[keyof typeof ContactKind];
-
-export type ContactPerson = {
-    id: string;
-    name: string;
-    image: string | null;
-};
 
 export const ContactReplyState = {
     AWAITING_REPLY: 'AWAITING_REPLY',
@@ -3839,6 +3829,12 @@ export type ContactListRef = {
 export type ContactKnownBy = ContactPerson & {
     interactionCount: number;
     lastInteractionAt: Date | null;
+};
+
+export type ContactPerson = {
+    id: string;
+    name: string;
+    image: string | null;
 };
 
 export type ContactUpsertResult = {
@@ -26494,9 +26490,6 @@ export type PostContactListsData = {
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-            ownerUserId?: string;
-            ownedByMe?: boolean;
-            mine?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -26776,9 +26769,6 @@ export type PatchContactListsByIdData = {
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-            ownerUserId?: string;
-            ownedByMe?: boolean;
-            mine?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -27091,12 +27081,6 @@ export type GetContactsData = {
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
-        ownerUserId?: string;
-        ownedByMe?: 'true' | 'false';
-        /**
-         * The caller's people: owned by them, or someone they have had an interaction with.
-         */
-        mine?: 'true' | 'false';
         /**
          * A manual or smart list; a smart list applies its filter.
          */
@@ -27223,7 +27207,6 @@ export type PostContactsData = {
         whyInteresting?: string | null;
         stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
         kind?: 'PERSON' | 'ORGANIZATION';
-        ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
         avatarUrl?: string | null;
@@ -27398,12 +27381,6 @@ export type GetContactsExportCsvData = {
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
-        ownerUserId?: string;
-        ownedByMe?: 'true' | 'false';
-        /**
-         * The caller's people: owned by them, or someone they have had an interaction with.
-         */
-        mine?: 'true' | 'false';
         /**
          * A manual or smart list; a smart list applies its filter.
          */
@@ -28138,7 +28115,6 @@ export type PatchContactsByIdData = {
         whyInteresting?: string | null;
         stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
         kind?: 'PERSON' | 'ORGANIZATION';
-        ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
         avatarUrl?: string | null;

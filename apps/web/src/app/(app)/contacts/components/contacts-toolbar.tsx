@@ -51,7 +51,6 @@ export interface ContactFilters {
   replyState: ContactReplyState | null;
   kind: ContactKind | null;
   /** `me` or a member's user id. */
-  owner: string | null;
   /** `me` or a member's user id. */
   knownBy: string | null;
 }
@@ -152,7 +151,6 @@ export function ContactsFilterBar({
         label: t(`kinds.${kind}`),
       })),
     },
-    { key: "owner", label: t("columns.owner"), options: people },
     { key: "knownBy", label: t("columns.knownBy"), options: people },
   ];
   const active = menus.filter((menu) => filters[menu.key]);
@@ -237,10 +235,8 @@ export function ContactsBulkBar({
   count,
   lists,
   viewList,
-  teammates,
   onAddToList,
   onRemoveFromList,
-  onOwner,
   onMerge,
   onClear,
 }: {
@@ -248,10 +244,8 @@ export function ContactsBulkBar({
   lists: ContactList[];
   /** The manual list on screen, offered first for removal. */
   viewList: ContactList | null;
-  teammates: Teammate[];
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
-  onOwner: (userId: string | null) => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
@@ -312,28 +306,6 @@ export function ContactsBulkBar({
               ) : null}
             </Fragment>
           ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" className={action}>
-            {t("bulk.setOwner")}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {teammates.map((person) => (
-            <DropdownMenuItem
-              key={person.id}
-              onClick={() => onOwner(person.id)}
-            >
-              <PersonAvatar person={person} />
-              {person.name}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onOwner(null)}>
-            {t("grid.noOwner")}
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Button

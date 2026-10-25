@@ -8675,7 +8675,7 @@
       },
       "emptyViews": {
         "all": "No contacts yet.",
-        "mine": "Nobody you own or have talked to yet.",
+        "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
         "recent": "Nobody was added in the last two weeks.",
         "list": "This list is empty. Select people in All contacts and add them here."
       },
@@ -8701,7 +8701,6 @@
         "stage": "Relationship",
         "lists": "Lists",
         "channels": "Channels",
-        "owner": "Owner",
         "firstContact": "First contact",
         "lastContact": "Last contact",
         "knownBy": "Known by",
@@ -8711,7 +8710,6 @@
       },
       "grid": {
         "label": "Contacts",
-        "noOwner": "No owner",
         "openContact": "Open {name}",
         "knownByLabel": "Known by {names}",
         "due": "Due",
@@ -8742,7 +8740,6 @@
         "selected": "{count} selected",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
-        "setOwner": "Set owner",
         "merge": "Merge",
         "clear": "Clear selection",
         "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
@@ -8911,7 +8908,6 @@
         "archive": "Archive contact",
         "archived": "{name} archived",
         "changeStage": "Stage: {stage}. Change stage",
-        "changeOwner": "Owner: {owner}. Change owner",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
         "manualLists": "Lists",

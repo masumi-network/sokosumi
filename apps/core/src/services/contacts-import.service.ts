@@ -256,7 +256,6 @@ const CSV_HEADER = [
   "Website",
   "Other channels",
   "Lists",
-  "Owner",
   "Known by",
   "First contact",
   "Last contact",
@@ -305,7 +304,6 @@ export async function exportContactsCsv(
         .filter((entry) => !known.has(entry.type))
         .map((entry) => `${entry.type.toLowerCase()}: ${entry.value}`),
       contact.lists.map((list) => list.name),
-      contact.owner?.name ?? "",
       contact.knownBy.map((person) => person.name),
       isoString(contact.firstContactAt),
       isoString(contact.lastContactAt),

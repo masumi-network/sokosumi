@@ -8675,7 +8675,7 @@
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
-        "mine": "Todavía nadie de quien seas responsable o con quien hayas hablado.",
+        "mine": "Todavía nadie con quien hayas hablado. Aquí aparece cada persona a la que escribes o con quien te reúnes.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
         "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
       },
@@ -8701,7 +8701,6 @@
         "stage": "Relación",
         "lists": "Listas",
         "channels": "Canales",
-        "owner": "Responsable",
         "firstContact": "Primer contacto",
         "lastContact": "Último contacto",
         "knownBy": "Lo conocen",
@@ -8711,7 +8710,6 @@
       },
       "grid": {
         "label": "Contactos",
-        "noOwner": "Sin responsable",
         "openContact": "Abrir {name}",
         "knownByLabel": "Lo conocen {names}",
         "due": "Pendiente",
@@ -8742,7 +8740,6 @@
         "selected": "{count} seleccionados",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
-        "setOwner": "Cambiar responsable",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
@@ -8911,7 +8908,6 @@
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
-        "changeOwner": "Responsable: {owner}. Cambiar responsable",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",

@@ -12,7 +12,7 @@ import { isUuidString } from "@/lib/utils/uuid";
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
   all: {},
-  mine: { mine: "true" },
+  mine: { knownByMe: "true" },
   recent: { createdWithinDays: 14 },
 } satisfies Record<string, Partial<ContactQuery>>;
 
@@ -49,8 +49,6 @@ export interface ContactView {
   replyState: ContactReplyState | null;
   kind: ContactKind | null;
   /** `me` or a member's user id. */
-  owner: string | null;
-  /** `me` or a member's user id. */
   knownBy: string | null;
   sort: ContactSort;
   direction: "asc" | "desc";
@@ -73,8 +71,6 @@ export function contactQuery(view: ContactView): ContactQuery {
   if (view.stage) query.stage = view.stage;
   if (view.replyState) query.replyState = view.replyState;
   if (view.kind) query.kind = view.kind;
-  if (view.owner === "me") query.ownedByMe = "true";
-  else if (view.owner) query.ownerUserId = view.owner;
   if (view.knownBy === "me") query.knownByMe = "true";
   else if (view.knownBy) query.knownByUserId = view.knownBy;
   return query;

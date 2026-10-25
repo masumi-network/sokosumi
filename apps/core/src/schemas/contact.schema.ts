@@ -75,7 +75,6 @@ export const contactSchema = z
     whyInteresting: z.string().nullable(),
     stage: contactStageSchema,
     kind: contactKindSchema,
-    owner: z.union([personSchema, z.null()]),
     nextStep: z.string().nullable(),
     followUpAt: calendarDateSchema
       .nullable()
@@ -243,12 +242,6 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   stage: contactStageSchema.optional(),
   kind: contactKindSchema.optional(),
   replyState: contactReplyStateSchema.optional(),
-  ownerUserId: z.string().min(1).max(200).optional(),
-  ownedByMe: booleanQuery,
-  mine: booleanQuery.openapi({
-    description:
-      "The caller's people: owned by them, or someone they have had an interaction with.",
-  }),
   listId: z.uuid().optional().openapi({
     description: "A manual or smart list; a smart list applies its filter.",
   }),
