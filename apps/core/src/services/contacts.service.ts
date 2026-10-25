@@ -1059,10 +1059,6 @@ export function contactFilterWhere(
       ],
     });
   }
-  if (filter.organization)
-    and.push({
-      organization: { equals: filter.organization, mode: "insensitive" },
-    });
   if (filter.stages) and.push({ stage: { in: filter.stages } });
   if (filter.kind) and.push({ kind: filter.kind });
   if (filter.replyStates)
@@ -1124,6 +1120,8 @@ type ContactSortField = (typeof CONTACT_SORT_FIELDS)[number];
 export interface ListContactsOptions {
   filter: ContactFilter;
   listId?: string;
+  /** People at the company this name belongs to, by any spelling. */
+  company?: string;
   archived?: boolean;
   sort: ContactSortField;
   direction?: "asc" | "desc";
@@ -1134,9 +1132,18 @@ export interface ListContactsOptions {
 /** Live contacts matching a filter and, optionally, a manual or smart list. */
 export async function contactListWhere(
   actor: ContactActor,
-  options: Pick<ListContactsOptions, "filter" | "listId" | "archived">,
+  options: Pick<
+    ListContactsOptions,
+    "filter" | "listId" | "company" | "archived"
+  >,
 ): Promise<Prisma.ContactWhereInput> {
   const and = contactFilterWhere(actor, options.filter);
+  if (options.company)
+    and.push({
+      id: {
+        in: await contactCompanyMemberIds(actor.workspaceId, options.company),
+      },
+    });
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
       where: { id: options.listId, workspaceId: actor.workspaceId },
@@ -1197,28 +1204,117 @@ export async function listContacts(
 }
 
 /**
- * The organizations the workspace's live contacts work at, biggest first.
- * Spellings that differ only in case or spacing count as one, named by the
- * most common spelling.
+ * Free mail and internet-provider domains. Many unrelated people share them,
+ * so an address there says nothing about where someone works.
+ */
+const SHARED_MAIL_DOMAIN =
+  "^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|gmx|web|t-online|bluewin|aon|chello|hin|proton|protonmail|pm|aol|mail|yandex|freenet|posteo|mailbox|arcor|vodafone|online|a1|sunrise|orange|free|wanadoo|libero|tiscali|seznam|wp|o2|qq|163|naver)\\.";
+
+/**
+ * Which company each live contact of a workspace belongs to, as a CTE ending
+ * in `assigned (id, raw, org, key, cluster_org)`.
+ *
+ * People write one company many ways ("House of Communication", "House of
+ * Communications", "House of Communication / Serviceplan Group"), so the name
+ * alone splits it. An email domain is the stronger signal: a domain whose
+ * named people mostly use one name, or names that contain it ("Acme",
+ * "Acme Ltd"), is that company, and its people join it when their own name is
+ * empty or resembles that one. Domains whose people
+ * use the same name are one company. Names compare as lowercase letters and
+ * digits only. Everyone else is grouped by name.
+ */
+function contactCompaniesCte(workspaceId: string) {
+  return PrismaRaw.sql`
+    WITH live AS (
+      SELECT c.id, c.organization AS raw,
+        nullif(regexp_replace(lower(coalesce(c.organization, '')), '[^[:alnum:]]+', '', 'g'), '') AS org
+      FROM contact c
+      WHERE c."workspaceId" = ${workspaceId}::uuid
+        AND c."mergedIntoId" IS NULL AND c."archivedAt" IS NULL
+    ), domains AS (
+      SELECT DISTINCT l.id, lower(split_part(ch.value, '@', 2)) AS domain
+      FROM live l
+      JOIN contact_channel ch ON ch."contactId" = l.id AND ch.type = 'EMAIL'
+      WHERE lower(split_part(ch.value, '@', 2)) !~ ${SHARED_MAIL_DOMAIN}
+    ), domain_names AS (
+      SELECT d.domain, l.org, count(*) AS n
+      FROM domains d JOIN live l USING (id)
+      WHERE l.org IS NOT NULL
+      GROUP BY 1, 2
+    ), top_names AS (
+      SELECT DISTINCT ON (domain) domain, org
+      FROM domain_names
+      ORDER BY domain, n DESC, length(org), org
+    ), company_domains AS (
+      SELECT t.domain, t.org
+      FROM top_names t JOIN domain_names dn ON dn.domain = t.domain
+      GROUP BY t.domain, t.org
+      HAVING 2 * coalesce(sum(dn.n) FILTER (
+        WHERE position(t.org IN dn.org) > 0 OR position(dn.org IN t.org) > 0
+      ), 0) > sum(dn.n)
+    ), canonical AS (
+      SELECT domain, org, min(domain) OVER (PARTITION BY org) AS canonical
+      FROM company_domains
+    ), by_email AS (
+      SELECT DISTINCT ON (d.id) d.id, cd.canonical AS domain, cd.org
+      FROM domains d
+      JOIN canonical cd USING (domain)
+      JOIN live l ON l.id = d.id
+      WHERE l.org IS NULL
+        OR position(cd.org IN l.org) > 0 OR position(l.org IN cd.org) > 0
+      ORDER BY d.id, cd.canonical
+    ), by_name AS (
+      SELECT DISTINCT ON (org) org, canonical AS domain
+      FROM canonical ORDER BY org, canonical
+    ), assigned AS (
+      SELECT l.id, l.raw, l.org,
+        coalesce('d:' || e.domain, 'd:' || n.domain, 'n:' || l.org) AS key,
+        coalesce(e.org, l.org) AS cluster_org
+      FROM live l
+      LEFT JOIN by_email e ON e.id = l.id
+      LEFT JOIN by_name n ON n.org = l.org
+    )
+  `;
+}
+
+/**
+ * The companies the workspace's live contacts work at, biggest first, each
+ * named by its most common spelling. `search` matches any spelling.
  */
 export async function listContactOrganizations(
   actor: ContactActor,
   options: { search?: string; limit: number },
 ): Promise<{ name: string; count: number }[]> {
   const search = options.search
-    ? PrismaRaw.sql`AND organization ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\'`
+    ? PrismaRaw.sql`HAVING bool_or(raw ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')`
     : PrismaRaw.empty;
   return prisma.$queryRaw<{ name: string; count: number }[]>`
-    SELECT mode() WITHIN GROUP (ORDER BY organization) AS name,
+    ${contactCompaniesCte(actor.workspaceId)}
+    SELECT mode() WITHIN GROUP (ORDER BY raw) FILTER (WHERE org = cluster_org) AS name,
       count(*)::int AS count
-    FROM contact
-    WHERE "workspaceId" = ${actor.workspaceId}::uuid
-      AND "mergedIntoId" IS NULL AND "archivedAt" IS NULL
-      AND btrim(coalesce(organization, '')) <> '' ${search}
-    GROUP BY lower(btrim(organization))
+    FROM assigned
+    WHERE key IS NOT NULL
+    GROUP BY key
+    ${search}
     ORDER BY count DESC, name ASC
     LIMIT ${options.limit}
   `;
+}
+
+/** The live contacts at the company `name` belongs to, by any spelling. */
+async function contactCompanyMemberIds(
+  workspaceId: string,
+  name: string,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    ${contactCompaniesCte(workspaceId)}
+    SELECT id FROM assigned
+    WHERE key IN (
+      SELECT key FROM assigned
+      WHERE org = regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g')
+    )
+  `;
+  return rows.map((row) => row.id);
 }
 
 /** Every match, for export; bounded so one request cannot load a city. */

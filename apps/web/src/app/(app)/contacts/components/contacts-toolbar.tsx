@@ -240,7 +240,6 @@ export function ContactsBulkBar({
   teammates,
   onAddToList,
   onRemoveFromList,
-  onStage,
   onOwner,
   onMerge,
   onClear,
@@ -252,13 +251,11 @@ export function ContactsBulkBar({
   teammates: Teammate[];
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
-  onStage: (stage: ContactStage) => void;
   onOwner: (userId: string | null) => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
   const t = useTranslations("App.Contacts");
-  const stageOptions = useStageOptions();
   const manual = lists.filter((list) => list.kind === "manual");
   const removable = viewList
     ? [viewList, ...manual.filter((list) => list.id !== viewList.id)]
@@ -315,21 +312,6 @@ export function ContactsBulkBar({
               ) : null}
             </Fragment>
           ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" className={action}>
-            {t("bulk.setStage")}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
-          <DropdownMenuRadioGroup
-            value=""
-            onValueChange={(value) => onStage(value as ContactStage)}
-          >
-            <GroupedRadioItems options={stageOptions} />
-          </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       <DropdownMenu>

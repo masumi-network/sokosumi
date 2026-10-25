@@ -203,18 +203,28 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     expect(archivedList.meta.pagination.total).toBe(1);
   });
 
-  it("counts organizations as one whatever their case, and filters by one", async () => {
-    for (const [name, organization] of [
-      ["Ada Org", "Analytical Engines"],
-      ["Charles Org", "analytical engines "],
-      ["Lone Org", "50% Solo_Co"],
-    ])
-      await call("POST", "/contacts", { name, organization });
+  it("groups a company's spellings and email domain, and filters by it", async () => {
+    const people: [string, string | null, string][] = [
+      ["Ada Org", "Analytical Engines", "ada@engines.test"],
+      ["Babbage Org", "Analytical Engines", "babbage@engines.test"],
+      ["Charles Org", "analytical engines ", "charles@other.test"],
+      ["Grace Org", "Analytical Engines Ltd", "grace@engines.test"],
+      ["Hopper Org", null, "hopper@engines.test"],
+      ["Navy Org", "US Navy", "navy@gmail.com"],
+      ["Free Org", null, "free@gmail.com"],
+      ["Lone Org", "50% Solo_Co", "lone@solo.test"],
+    ];
+    for (const [name, organization, email] of people)
+      await call("POST", "/contacts", {
+        name,
+        organization,
+        channels: [{ type: "EMAIL", value: email }],
+      });
 
-    const organizations = (
+    const companies = (
       await (await call("GET", "/contacts/organizations?search=engines")).json()
     ).data;
-    expect(organizations).toEqual([{ name: expect.any(String), count: 2 }]);
+    expect(companies).toEqual([{ name: "Analytical Engines", count: 5 }]);
     // `%` and `_` in a search are literal, not wildcards.
     const literal = (
       await (
@@ -227,12 +237,28 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
         .data,
     ).toEqual([]);
 
-    const people = await (
-      await call("GET", "/contacts?organization=ANALYTICAL%20ENGINES&sort=name")
+    for (const company of ["ANALYTICAL ENGINES", "Analytical Engines Ltd"]) {
+      const at = await (
+        await call(
+          "GET",
+          `/contacts?company=${encodeURIComponent(company)}&sort=name`,
+        )
+      ).json();
+      expect(at.data.map((contact: { name: string }) => contact.name)).toEqual([
+        "Ada Org",
+        "Babbage Org",
+        "Charles Org",
+        "Grace Org",
+        "Hopper Org",
+      ]);
+    }
+    // A free-mail domain makes nobody colleagues.
+    const navy = await (
+      await call("GET", "/contacts?company=US%20Navy")
     ).json();
-    expect(
-      people.data.map((contact: { name: string }) => contact.name),
-    ).toEqual(["Ada Org", "Charles Org"]);
+    expect(navy.data.map((contact: { name: string }) => contact.name)).toEqual([
+      "Navy Org",
+    ]);
   });
 
   it("counts as mine whoever I own or have talked to", async () => {

@@ -331,8 +331,6 @@ export const contactFilterSchema = z
   .object({
     /** Name, organization or any channel value. */
     search: z.string().trim().min(1).max(200).optional(),
-    /** Works at this organization; the name matches whatever its case. */
-    organization: z.string().trim().min(1).max(200).optional(),
     stages: z
       .array(z.enum(CONTACT_STAGES))
       .min(1)

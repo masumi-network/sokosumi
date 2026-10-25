@@ -38,6 +38,7 @@ function renderBar(view = "all", organization: string | null = null) {
       { name: "Draper University", count: 4 },
     ],
     onOrganizationChange: vi.fn(),
+    onCompanySearch: vi.fn(),
   };
   render(<ContactsViewsBar {...props} />);
   return props;
@@ -65,7 +66,7 @@ describe("ContactsViewsBar", () => {
     );
   });
 
-  it("filters by a company found by name, and clears it", async () => {
+  it("asks Core to search companies, and filters by the one picked", async () => {
     const props = renderBar();
     await userEvent.click(
       screen.getByRole("button", { name: /views.companies/ }),
@@ -74,7 +75,7 @@ describe("ContactsViewsBar", () => {
       screen.getByPlaceholderText("views.findCompany"),
       "draper",
     );
-    expect(screen.queryByText("Cardano Foundation")).toBeNull();
+    expect(props.onCompanySearch).toHaveBeenLastCalledWith("draper");
     await userEvent.click(screen.getByText("Draper University"));
     expect(props.onOrganizationChange).toHaveBeenCalledWith(
       "Draper University",

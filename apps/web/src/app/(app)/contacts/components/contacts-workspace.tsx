@@ -105,7 +105,12 @@ export function ContactsWorkspace({
     parseAsString.withDefault("all"),
   );
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [organization, setOrganization] = useQueryState("company");
+  const [company, setCompany] = useQueryState("company");
+  const [companySearch, setCompanySearch] = useState("");
+  const [debouncedCompanySearch] = useDebounce(
+    companySearch.trim(),
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
   const [stage, setStage] = useQueryState(
     "stage",
     parseAsStringLiteral(CONTACT_STAGES),
@@ -142,11 +147,11 @@ export function ContactsWorkspace({
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
-  const organizations = useContactOrganizations();
+  const organizations = useContactOrganizations(debouncedCompanySearch);
   const filters: ContactFilters = { stage, replyState, kind, owner, knownBy };
   const query = contactQuery({
     view,
-    organization,
+    company,
     search: debouncedSearch,
     ...filters,
     sort,
@@ -162,7 +167,7 @@ export function ContactsWorkspace({
   const total = rows.data?.pages[0]?.total ?? 0;
   const viewList = lists.data?.find((list) => list.id === view) ?? null;
   const filtered =
-    !!search.trim() || !!organization || Object.values(filters).some(Boolean);
+    !!search.trim() || !!company || Object.values(filters).some(Boolean);
   const setFilter: Record<
     ContactFilterKey,
     (value: string | null) => Promise<unknown>
@@ -175,7 +180,7 @@ export function ContactsWorkspace({
   };
   function clearFilters() {
     void setSearch(null);
-    void setOrganization(null);
+    void setCompany(null);
     for (const set of Object.values(setFilter)) void set(null);
   }
   const selectedContacts = contacts.filter((contact) =>
@@ -191,7 +196,7 @@ export function ContactsWorkspace({
     setSelected([]);
   }
   function changeOrganization(next: string | null) {
-    void setOrganization(next);
+    void setCompany(next);
     setSelected([]);
   }
   function handleSort(next: ContactSort) {
@@ -288,8 +293,9 @@ export function ContactsWorkspace({
               onNewList={() => setDialog({ kind: "list" })}
               onEditList={(list) => setDialog({ kind: "list", list })}
               onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-              organization={organization}
+              organization={company}
               organizations={organizations.data ?? []}
+              onCompanySearch={setCompanySearch}
               onOrganizationChange={changeOrganization}
             />
           </div>
@@ -363,7 +369,6 @@ export function ContactsWorkspace({
                   }),
                 )
               }
-              onStage={(next: ContactStage) => bulkUpdate({ stage: next }, {})}
               onOwner={(userId) =>
                 bulkUpdate(
                   { ownerUserId: userId },

@@ -3675,7 +3675,6 @@ export type ContactList = {
     kind: 'manual' | 'smart';
     smartFilter: {
         search?: string;
-        organization?: string;
         stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
         kind?: 'PERSON' | 'ORGANIZATION';
         replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -26492,7 +26491,6 @@ export type PostContactListsData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            organization?: string;
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -26775,7 +26773,6 @@ export type PatchContactListsByIdData = {
         description?: string | null;
         smartFilter?: {
             search?: string;
-            organization?: string;
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
@@ -27088,9 +27085,9 @@ export type GetContactsData = {
         limit?: number;
         search?: string;
         /**
-         * Only people at this organization, matched whatever its case.
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
          */
-        organization?: string;
+        company?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
@@ -27395,9 +27392,9 @@ export type GetContactsExportCsvData = {
         limit?: number;
         search?: string;
         /**
-         * Only people at this organization, matched whatever its case.
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
          */
-        organization?: string;
+        company?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;

@@ -13097,11 +13097,6 @@ export const ContactListSchema = {
                             minLength: 1,
                             maxLength: 200
                         },
-                        organization: {
-                            type: 'string',
-                            minLength: 1,
-                            maxLength: 200
-                        },
                         stages: {
                             type: 'array',
                             items: {

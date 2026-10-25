@@ -1608,7 +1608,7 @@ export const postContactsImport = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * The organizations the workspace's contacts work at, with how many each, biggest first. Pass a name as `organization` to the contact list to see its people.
+ * The companies the workspace's contacts work at, with how many each, biggest first. Spellings of one company and colleagues on its email domain count as one. Pass a name as `company` to the contact list to see its people.
  */
 export const getContactsOrganizations = <ThrowOnError extends boolean = false>(options?: Options<GetContactsOrganizationsData, ThrowOnError>): RequestResult<GetContactsOrganizationsResponses, GetContactsOrganizationsErrors, ThrowOnError> => (options?.client ?? client).get<GetContactsOrganizationsResponses, GetContactsOrganizationsErrors, ThrowOnError>({
     responseTransformer: getContactsOrganizationsResponseTransformer,

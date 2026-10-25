@@ -42,8 +42,8 @@ export type ContactSort = (typeof CONTACT_SORTS)[number];
 export interface ContactView {
   /** A preset id, or a list's id. */
   view: string;
-  /** People at this organization only. */
-  organization: string | null;
+  /** People at this company only, by any spelling or its email domain. */
+  company: string | null;
   search: string;
   stage: ContactStage | null;
   replyState: ContactReplyState | null;
@@ -69,7 +69,7 @@ export function contactQuery(view: ContactView): ContactQuery {
   query.direction = view.direction;
   const search = view.search.trim();
   if (search) query.search = search;
-  if (view.organization) query.organization = view.organization;
+  if (view.company) query.company = view.company;
   if (view.stage) query.stage = view.stage;
   if (view.replyState) query.replyState = view.replyState;
   if (view.kind) query.kind = view.kind;

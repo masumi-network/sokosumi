@@ -43,10 +43,12 @@ export function useContactLists() {
   });
 }
 
-export function useContactOrganizations() {
+/** The biggest companies, or Core's matches for `search` among all of them. */
+export function useContactOrganizations(search: string) {
   return useQuery({
-    queryKey: CONTACT_ORGANIZATIONS_KEY,
-    queryFn: () => contactsService.organizations(),
+    queryKey: [...CONTACT_ORGANIZATIONS_KEY, search],
+    queryFn: () => contactsService.organizations(search || undefined),
+    placeholderData: (previous) => previous,
   });
 }
 
