@@ -17,6 +17,11 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* Entrances: fast out of the gate, then a long settle, so a dialog is
+     already moving on the first frame. The browser's `ease` starts slow,
+     which reads as lag on something that should answer a click. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+
   /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
      rem, so it follows the root size with Dynamic Type like the rest of the
      scale. */

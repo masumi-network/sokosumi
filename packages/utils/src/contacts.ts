@@ -348,6 +348,12 @@ export const contactFilterSchema = z
     ownerUserId: z.string().min(1).max(200).optional(),
     /** Owned by whoever reads the list. */
     ownedByMe: z.boolean().optional(),
+    /**
+     * The reader's people: owned by them, or someone they have had an
+     * interaction with. Few contacts have an owner, so owning alone leaves
+     * "my contacts" empty for most people.
+     */
+    mine: z.boolean().optional(),
     /** On any of these manual lists. */
     listIds: z.array(z.uuid()).min(1).max(20).optional(),
     knownByUserId: z.string().min(1).max(200).optional(),

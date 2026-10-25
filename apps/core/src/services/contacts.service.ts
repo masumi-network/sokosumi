@@ -1071,6 +1071,13 @@ export function contactFilterWhere(
     });
   if (filter.ownerUserId) and.push({ ownerUserId: filter.ownerUserId });
   if (filter.ownedByMe) and.push({ ownerUserId: actor.userId });
+  if (filter.mine)
+    and.push({
+      OR: [
+        { ownerUserId: actor.userId },
+        { interactions: { some: { userId: actor.userId } } },
+      ],
+    });
   if (filter.listIds)
     and.push({ listMemberships: { some: { listId: { in: filter.listIds } } } });
   if (filter.knownByUserId)

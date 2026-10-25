@@ -11,7 +11,7 @@ import type { ContactQuery } from "@/lib/services/contacts.client";
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
   all: {},
-  mine: { ownedByMe: "true" },
+  mine: { mine: "true" },
   noReply: { replyState: "NO_REPLY" },
   followUps: { followUpDue: "true" },
   recent: { createdWithinDays: 14 },
