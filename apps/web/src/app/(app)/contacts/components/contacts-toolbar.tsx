@@ -169,7 +169,6 @@ export function ContactsFilterBar({
           placeholder={t("toolbar.searchPlaceholder")}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          // The buttons' edge: the icon and placeholder already name the box.
           className={cn(CONTROL, "border-control-border bg-background ps-9")}
         />
       </div>
