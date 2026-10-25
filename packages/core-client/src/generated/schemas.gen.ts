@@ -6747,7 +6747,14 @@ export const TaskTagIdSchema = {
         'marketing',
         'social',
         'seo',
-        'operations'
+        'operations',
+        'presentations',
+        'dashboards',
+        'monitoring',
+        'media',
+        'communication',
+        'finance',
+        'qa'
     ]
 } as const;
 
