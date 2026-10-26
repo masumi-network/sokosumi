@@ -18,6 +18,7 @@ export const MIN_RULE_PROBABILITY = 0.7;
 /** One call tags a whole briefing's mail; 40 mails took about a second. */
 const TIMEOUT_MS = 15_000;
 const FIELD_LENGTH = 300;
+const TRIAGE_BATCH_SIZE = 25;
 /** What the owner already heard today, so a repeating alert stays quiet. */
 const FLAGGED_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const MAX_FLAGGED_POSTS = 6;
@@ -163,17 +164,36 @@ export async function triageMail(input: {
   const owner = input.mail.length
     ? await ownerMailContext(input.sokoBotId)
     : { preferences: [], rules: [], alreadyFlaggedToday: [] };
-  const result = input.mail.length
-    ? await tagMailWithJev(input.mail, owner)
-    : { mail: [], costUsd: 0 };
-  const mail =
-    result?.mail ??
-    input.mail.map((message) => ({
-      message,
-      tag: null,
-      probability: null,
-      matchesRule: false,
-    }));
+  // A busy hour is asked in batches: one call per batch keeps each Jev
+  // request small, and a failed batch leaves only its own mail untagged.
+  const batches = await Promise.all(
+    Array.from(
+      { length: Math.ceil(input.mail.length / TRIAGE_BATCH_SIZE) },
+      (_, index) =>
+        input.mail.slice(
+          index * TRIAGE_BATCH_SIZE,
+          (index + 1) * TRIAGE_BATCH_SIZE,
+        ),
+    ).map(async (batch) => ({
+      batch,
+      result: await tagMailWithJev(batch, owner),
+    })),
+  );
+  const mail = batches.flatMap(
+    ({ batch, result }) =>
+      result?.mail ??
+      batch.map((message) => ({
+        message,
+        tag: null,
+        probability: null,
+        matchesRule: false,
+      })),
+  );
+  const failed = batches.some(({ result }) => result === null);
+  const costUsd = batches.reduce(
+    (sum, { result }) => sum + (result?.costUsd ?? 0),
+    0,
+  );
   const count = (tag: MailTriageTag) =>
     mail.filter((item) => item.tag === tag).length;
   log.set({
@@ -187,8 +207,8 @@ export async function triageMail(input: {
       notable: count("NOTABLE"),
       bulk: count("BULK"),
       matchesRule: mail.filter((item) => item.matchesRule).length,
-      failed: result === null,
-      costUsd: result?.costUsd ?? 0,
+      failed,
+      costUsd,
       preferences: owner.preferences.length,
       alreadyFlagged: owner.alreadyFlaggedToday.length,
       tags: mail.map((item) => ({
@@ -205,7 +225,7 @@ export async function triageMail(input: {
       })),
     },
   });
-  return { mail, failed: result === null, log };
+  return { mail, failed, log };
 }
 
 /**
