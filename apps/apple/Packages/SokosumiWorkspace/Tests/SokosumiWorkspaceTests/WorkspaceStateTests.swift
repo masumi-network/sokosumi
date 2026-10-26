@@ -963,7 +963,7 @@ struct WorkspaceStateTests {
 
   @Test func selectRoomPersistsAndOpensTranscript() async throws {
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, _, _, defaults) = try ephemeralState([
+    let (state, _, transport, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"])),
@@ -984,6 +984,9 @@ struct WorkspaceStateTests {
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.openRoom.room.timeline.messages.map(\.content) == ["hi"])
+    // A room picked in the sidebar opens at its Unread divider.
+    let pages = transport.paths.filter { $0.contains("/messages") }
+    #expect(!pages.isEmpty && pages.allSatisfy { $0.contains("openAtUnread=true") })
   }
 
   @Test func selectRoomNilKeepsOpenTranscript() async throws {
@@ -2879,6 +2882,8 @@ extension WorkspaceStateTests {
     #expect(state.selectedRoomId == "destination")
     #expect(state.openRoom.messageJump?.messageId == "target")
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+    // The link's target comes before the Unread divider: the room opens on its newest page.
+    #expect(transport.paths.allSatisfy { !$0.contains("openAtUnread") })
   }
 
   @Test func chatLinkRoomSwitchIsSupersededNotUnavailable() async throws {

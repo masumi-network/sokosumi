@@ -5147,21 +5147,45 @@ Built from spec SOK-1481, ticket SOK-1484, not mirrored from web. Opening a room
 - `TranscriptSession.isAtEnd` is false on every open and close and after any jump. The room's list reports `!scroll.showsJumpToLatest(anchored:)` per visit (`RoomTimelineView`), the state that hides Jump to latest.
 - `OpenRoomSession.isAtEnd` adds two holds: a message navigation in flight (`openLinkTarget`, `openMessage`, `openMessageReply` run in `holdingReads`) and a room jump the list has not taken yet. Reaching the end, and a navigation settling, run the workspace's read sync.
 - `RoomReadAttention.readIfNeeded` takes `atEnd`. Away from the end the room is not read, whatever arrives and whatever the scene phase; an open Thread is still Looked. Back at the end the room reads once; scrolling down again to content already read sends nothing.
-- Rooms still open at the bottom, so a room that opens at its end is read on open as before. Where a room opens at the Unread divider is SOK-1486.
+- A room with nothing unread opens at its end and is read on open as before. A room that opens at its Unread divider (04b, SOK-1486) reads nothing on open: the list reports the end as it mounts, before it moves to the divider, so `TranscriptSession.run` sets the Transcript away from the end where it asks the list to place the divider.
 
 ### Tests
 
 - `RoomReadAttentionTests`: `onlyTheEndOfTheTranscriptReadsTheRoom`, `awayFromTheEndTheOpenThreadIsLookedButTheRoomIsNotRead`.
 - `TranscriptSessionTests.everyOpenStartsAwayFromTheEndAndAJumpLeavesIt`.
-- `OpenRoomSessionTests`: `reachingTheEndSyncsTheRead`, `anExplicitTargetHoldsTheReadUntilTheReaderIsBackAtTheEnd`, `aRoomLinkReadsOnceItsNavigationSettles`.
+- `OpenRoomSessionTests`: `reachingTheEndSyncsTheRead`, `anExplicitTargetHoldsTheReadUntilTheReaderIsBackAtTheEnd`, `aRoomLinkReadsOnceItsNavigationSettles`, `openingAtTheDividerReadsNothing` (fails with the `run` line removed).
 - `WorkspaceRealtimeTests.aLiveMessageWhileScrolledUpWaitsForTheEnd`. The workspace suites have no list, so `keepRoomListAtTheEnd` stands in for one that mounts at the bottom.
 
 ### Verification
 
 From `apps/apple`:
-- `swift test --package-path Packages/SokosumiChat`: **1343 tests in 150 suites passed**; `Packages/SokosumiWorkspace`: **206 tests in 4 suites passed**.
+- `swift test --package-path Packages/SokosumiChat`: **1353 tests in 151 suites passed** (after merging SOK-1486); `Packages/SokosumiWorkspace`: **206 tests in 4 suites passed**.
 - `xcodebuild … build`: **BUILD SUCCEEDED**. `xcodebuild test … -enableCodeCoverage NO`: **2,137 tests, 2,136 passed, 1 failed**: `NativeWindowTests/SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` (Vision read the row as "AL YoU"). It fails the same way on the integration base `f69937351`, so it is not caused by this change.
 - `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0`: **Build complete**.
 - `mint run swiftformat --lint .`: **0/646 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 643 files**.
 
 Unverified: the running app was not launched, so the list's report at the end, and a room left halfway staying bold, were not checked live.
+## 04b — a room opens at its Unread divider (SOK-1486)
+
+Built from spec SOK-1481's acceptance list, not from web's code. Core's part is SOK-1482 (`openAtUnread` and `meta.pagination.firstUnreadMessageId` on `GET /chats/rooms/{id}/messages`); Apple's `openapi.json` already carried that operation. The read-at-the-end rule is SOK-1484's.
+
+### Behaviour
+
+- `RoomTimeline.reset(..., opensAtUnread:)`: a room's first page asks for `openAtUnread=true`; a Thread never does. The first page's `firstUnreadMessageId` is the visit's divider. Later pages, read responses and realtime never change it; opening a room again asks afresh.
+- Core answers either the newest page or, for an older divider, a window of up to 33 rows. `listRoomMessages` tells them apart by size: `firstUnread != nil && count < min(total, limit)`. A window fetches the plain newest page in the same load, and both land together, the window as a page of the past, so the gap row (04a) joins them and no history anchor is set. Jump to latest then only scrolls.
+- `TranscriptSession.placesUnreadDivider` is set when that first page lands with a divider. The list's mount task puts the divider's row at a third of the viewport (`UnitPoint(y: 1/3)`, then the settle correction older pages use) and stops following the latest message. A jump or covered mark replaces a placement still waiting.
+- A Message link or notification (`openRoomLink` with a message) selects the room with `atUnreadDivider: false`: the plain newest page, the target lands, and the divider draws when its message is loaded.
+- `unreadDividerRowId(in:)`: the divider sits above its message, or, once that message is a tombstone the list leaves out, above the next loaded message after it; with none, it goes. Edits change nothing.
+- Look: `UnreadDividerRow`, a 1 pt accent hairline with a trailing "New" in the accent, no count; a day pill above the same message sits on the line. VoiceOver reads a separator: SwiftUI has no separator role, so an `NSViewRepresentable` reports AppKit's splitter named "New messages". Both strings are in `ChatUnreadDivider.xcstrings` (en, de, es).
+
+### Tests
+
+- `UnreadDividerTests` (SokosumiChat, transcript-session level): the open-at-unread request and divider on the newest page; an older divider's window joined to the newest page through the gap row with Jump to latest; the divider fixed across a realtime arrival, an own post, an edit and a later page naming none; deletion moving it, then removing it; a new visit asking afresh; explicit targets winning; an unloaded divider message drawing nothing; no Room unread; a Thread never asking.
+- `WorkspaceStateTests`: a sidebar pick sends `openAtUnread=true`; a chat link does not.
+- `NativeWindowTests/UnreadDividerPlacementTests`: 100 tall rows, divider on message 60; the separator settles between 25 % and 42 % of the visible height, with read rows above. The window ignores the mouse and rows hold their hover chrome (`withoutRowHover`). The render is attached to the result.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1346 tests in 151 suites) and `Packages/SokosumiWorkspace` (205 tests in 4 suites) passed; `xcodebuild test … -only-testing` for `UnreadDividerPlacementTests` (3 iterations), `TranscriptScrollingTests` and `RoomOlderPageTests` (3 iterations) passed; `swift build --package-path Packages/SokosumiChat --triple arm64-apple-ios17.0` built; SwiftFormat and strict SwiftLint clean. The full app suite was not run.
+
+Unverified: the running app against a real Core, the day pill sharing the divider's row on screen, dark appearance, and VoiceOver itself.

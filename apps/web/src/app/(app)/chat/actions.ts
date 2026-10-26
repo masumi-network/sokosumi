@@ -34,6 +34,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
+  type ChatRoomMessagesPage,
   type ChatUnreadRoomRead,
   chatRoomService,
 } from "@/lib/services/chat-room.service";
@@ -887,12 +888,7 @@ export async function sendRoomMessageAction(
 export async function listRoomMessagesAction(
   roomId: string,
   options?: { cursor?: string; around?: string; limit?: number },
-): Promise<
-  RoomActionResult<{
-    messages: ChatRoomMessage[];
-    nextCursor: string | null;
-  }>
-> {
+): Promise<RoomActionResult<ChatRoomMessagesPage>> {
   try {
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,

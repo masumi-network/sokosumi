@@ -122,14 +122,15 @@ public final class OpenRoomSession: ObservableObject {
 
   /// Opens `chatRoom` for `userId` in the workspace `organizationId`: its first page loads, a coworker stream still
   /// running reconnects and recovery starts. Reopening the open room keeps its live health and a Thread overview
-  /// request for it; opening any other room drops both.
-  public func open(_ chatRoom: Components.Schemas.ChatRoom, userId: String, organizationId: String?) {
+  /// request for it; opening any other room drops both. A room opens at its Unread divider unless an explicit target
+  /// (a Message link or notification) is about to land it elsewhere.
+  public func open(_ chatRoom: Components.Schemas.ChatRoom, userId: String, organizationId: String?, atUnreadDivider: Bool = true) {
     let reopening = room.timeline.roomId == chatRoom.id
     resetVisit(keepingOverviewFor: chatRoom.id)
     directStream.reset(room: chatRoom, userId: userId, organizationId: organizationId)
     realtimeHealthy = reopening && realtimeHealthy
     pins.reset(roomId: chatRoom.id)
-    room.open(roomId: chatRoom.id)
+    room.open(roomId: chatRoom.id, atUnreadDivider: atUnreadDivider)
     let generation = room.timeline.generation
     room.load(.initial)
     resumeStream()

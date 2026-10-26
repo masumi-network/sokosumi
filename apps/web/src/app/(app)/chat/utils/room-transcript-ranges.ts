@@ -14,6 +14,8 @@ export interface RoomTranscriptPage {
   messages: ChatRoomMessage[];
   /** Null when Core has nothing older than this page. */
   nextCursor: string | null;
+  /** Where the Unread divider belongs; absent on older pages (SOK-1481). */
+  firstUnreadMessageId?: string | null;
 }
 
 /** Position of a message in reading order: createdAt, then id. */

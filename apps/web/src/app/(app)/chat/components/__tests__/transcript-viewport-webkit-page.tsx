@@ -18,6 +18,7 @@ import {
   type TranscriptPosition,
   TranscriptViewport,
 } from "@/app/chat/components/transcript-viewport";
+import { UnreadDivider } from "@/app/chat/components/unread-divider";
 import type { RoomReader } from "@/app/chat/hooks/use-room-read-receipts";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,13 +54,14 @@ const READERS: RoomReader[] = [1, 2, 3].map((index) => ({
   lastReadAt: new Date(Date.UTC(2026, 0, 1, 1, index)),
 }));
 
-function message(index: number): ChatRoomMessage {
+function message(index: number, prefix = "msg"): ChatRoomMessage {
   return {
-    id: `msg-${String(index).padStart(3, "0")}`,
+    id: `${prefix}-${String(index).padStart(3, "0")}`,
     roomId: "room-1",
     parentMessageId: null,
-    content: `Message ${index}`,
-    createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)),
+    content: `${prefix === "msg" ? "Message" : "Window"} ${index}`,
+    // A divider window sits a day before the newest page.
+    createdAt: new Date(Date.UTC(2026, 0, prefix === "msg" ? 1 : 0, 0, index)),
     deletedAt: null,
     editedAt: null,
     pinnedAt: null,
@@ -114,6 +116,82 @@ function renderRow(row: RoomTranscriptRenderRow): ReactNode {
         {row.message.content}
       </p>
     </article>
+  );
+}
+
+/**
+ * `?divider`: a room opened at its Unread divider far back in history. Core's
+ * window (3 read messages, then 30 from the first unread) joined to the
+ * newest page through a gap row, the way rooms-client merges them.
+ */
+export const DIVIDER_MESSAGE_ID = "win-003";
+const WINDOW_ROWS = 33;
+
+const DIVIDER_ROWS: RoomTranscriptRenderRow[] = [
+  { kind: "boundary", cursorMessageId: "win-000", isGap: false },
+  ...Array.from(
+    { length: WINDOW_ROWS },
+    (_, index): RoomTranscriptRenderRow => ({
+      kind: "message",
+      // Read messages as tall as real ones with a name and avatar, so the
+      // three above the divider can fill a third of the screen.
+      message:
+        index < 3
+          ? {
+              ...message(index, "win"),
+              content: `Window ${index}\nread\nread`,
+            }
+          : message(index, "win"),
+      previousMessage: undefined,
+      dayPreviousMessage: undefined,
+    }),
+  ),
+  { kind: "boundary", cursorMessageId: "msg-000", isGap: true },
+  ...ROWS,
+];
+
+const DIVIDER_POSITION: TranscriptPosition = {
+  anchorId: DIVIDER_MESSAGE_ID,
+  anchorCreatedAt: message(3, "win").createdAt.getTime(),
+  offset: 0,
+  viewportShare: 1 / 3,
+  atLiveEdge: false,
+  visibleMessageIds: [],
+};
+
+function DividerRoom() {
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  return (
+    <RoomShellLayout
+      rootClassName="flex h-[600px] min-h-0 min-w-0 flex-col overflow-hidden"
+      reserveDesktopHeader={false}
+      listScrollerRef={setScroller}
+      listContent={
+        <TranscriptViewport
+          ref={() => {}}
+          scroller={scroller}
+          rows={DIVIDER_ROWS}
+          initialPosition={DIVIDER_POSITION}
+          renderRow={(row) =>
+            row.kind === "boundary" ? (
+              <div
+                className="h-10"
+                data-testid={row.isGap ? "gap-row" : "older-row"}
+              />
+            ) : (
+              <>
+                {row.message.id === DIVIDER_MESSAGE_ID ? (
+                  <UnreadDivider dayLabel={null} />
+                ) : null}
+                {renderRow(row)}
+              </>
+            )
+          }
+          holdOffBottom={false}
+        />
+      }
+      composer={null}
+    />
   );
 }
 
@@ -313,13 +391,13 @@ createRoot(host).render(
   >
     <TooltipProvider>
       <CatchError>
-        <Room />
+        {window.location.search === "?divider" ? <DividerRoom /> : <Room />}
       </CatchError>
     </TooltipProvider>
   </NextIntlClientProvider>,
 );
 
-if (window.location.search !== "?behavior")
+if (window.location.search === "")
   void walk().then((result) => {
     document.body.dataset.walk = JSON.stringify(result);
   });

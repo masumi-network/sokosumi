@@ -425,6 +425,24 @@ struct OpenRoomSessionTests {
     #expect(atEndWhenSynced == [true, false, false, true], "Back at the end, the room reads.")
   }
 
+  /// The list reports the end as it mounts, before it moves to the Unread divider: a room that opens at its divider
+  /// reads nothing on open, while one with nothing unread still reads with its first page.
+  @Test(arguments: [("m1", false), (nil, true)])
+  func openingAtTheDividerReadsNothing(firstUnread: String?, readsOnOpen: Bool) async throws {
+    var atEndWhenSynced: [Bool] = []
+    var atEnd: () -> Bool = { false }
+    let session = try connected(TestTransport([
+      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Unread", sender: ada)], nextCursor: nil,
+                                 firstUnreadMessageId: .some(firstUnread)))
+    ]), synced: { atEndWhenSynced.append(atEnd()) })
+    atEnd = { session.isAtEnd }
+    session.open(room(testRoomId), userId: "me", organizationId: nil, atUnreadDivider: true)
+    session.room.setAtEnd(true)
+    _ = await session.room.loadTask?.value
+    #expect(session.room.placesUnreadDivider == !readsOnOpen)
+    #expect(atEndWhenSynced == [readsOnOpen], "The first page's read sync finds the room at its end only without a divider.")
+  }
+
   /// A link without a message still holds the read through the first page, then releases it.
   @Test func aRoomLinkReadsOnceItsNavigationSettles() async throws {
     var atEndWhenSynced: [Bool] = []
