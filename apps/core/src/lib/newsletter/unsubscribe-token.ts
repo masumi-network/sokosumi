@@ -1,18 +1,15 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { badRequest } from "@/helpers/error";
 
+import {
+  newsletterTokenSignature,
+  verifyNewsletterTokenSignature,
+} from "./token";
+
 interface NewsletterUnsubscribeClaims {
   newsletterId: string;
   subscriberId: string;
-}
-
-function signature(payload: string, secret: string): string {
-  return createHmac("sha256", secret)
-    .update("newsletter-unsubscribe\0")
-    .update(payload)
-    .digest("base64url");
 }
 
 export function signNewsletterUnsubscribeToken(
@@ -20,7 +17,7 @@ export function signNewsletterUnsubscribeToken(
   secret: string,
 ): string {
   const payload = `v1.${claims.newsletterId}.${claims.subscriberId}`;
-  return `${payload}.${signature(payload, secret)}`;
+  return `${payload}.${newsletterTokenSignature(payload, "unsubscribe", secret)}`;
 }
 
 export function verifyNewsletterUnsubscribeToken(
@@ -39,12 +36,13 @@ export function verifyNewsletterUnsubscribeToken(
   ) {
     throw badRequest("Invalid unsubscribe token");
   }
-  const expected = signature(`v1.${newsletterId}.${subscriberId}`, secret);
-  const actualBytes = Buffer.from(given);
-  const expectedBytes = Buffer.from(expected);
   if (
-    actualBytes.length !== expectedBytes.length ||
-    !timingSafeEqual(actualBytes, expectedBytes)
+    !verifyNewsletterTokenSignature(
+      `v1.${newsletterId}.${subscriberId}`,
+      given,
+      "unsubscribe",
+      secret,
+    )
   ) {
     throw badRequest("Invalid unsubscribe token");
   }
