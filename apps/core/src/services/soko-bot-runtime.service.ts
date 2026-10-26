@@ -2023,6 +2023,19 @@ export class SokoBotRuntimeService {
     const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS.handle_social_comment.parse(
       input.input,
     );
+    // As with the plan: only the owner's own turns act in the brand's name,
+    // and a cancelled or paused turn acts on nothing.
+    if (
+      authorized.askedByKind === "ASSISTANT" ||
+      authorized.askedByKind === "TEAMMATE"
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only the owner's turns answer comments in the brand's name",
+      );
+    }
+    await prisma.$transaction((tx) =>
+      this.requireMutationAuthority(tx, authorized, false, input.capability),
+    );
     const hire = await this.cmoHireOf(authorized);
     try {
       if (parsed.action !== "reply") {
