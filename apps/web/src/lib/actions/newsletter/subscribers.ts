@@ -57,7 +57,7 @@ export const addNewsletterSubscriber = withSession<
     const subscriber = await newsletterService.addSubscriber(projectId, {
       ...parsed.data,
       name: parsed.data.name || null,
-      consent: true,
+      consent: "CONFIRMED",
     });
     revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(subscriber));
@@ -105,7 +105,7 @@ export const importNewsletterSubscribers = withSession<
       );
     const summary = await newsletterService.importSubscribers(projectId, {
       csv: parsed.data.csv,
-      consent: true,
+      consent: "CONFIRMED",
     });
     revalidatePath("/newsletter/subscribers");
     return toActionResult(ok(summary));

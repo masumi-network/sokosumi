@@ -23306,15 +23306,20 @@ export const AddNewsletterSubscriberRequestSchema = {
             maxLength: 200
         },
         consent: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
+            $ref: '#/components/schemas/NewsletterConsent'
         }
     },
     required: [
         'email',
         'consent'
+    ]
+} as const;
+
+export const NewsletterConsentSchema = {
+    type: 'string',
+    enum: [
+        'CONFIRMED',
+        'ASK'
     ]
 } as const;
 
@@ -23329,6 +23334,18 @@ export const NewsletterImportResultSchema = {
             type: 'integer',
             minimum: 0,
             description: 'Valid rows skipped because the email already exists in the newsletter or CSV.'
+        },
+        skippedUnsubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedBounced: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingConfirmation: {
+            type: 'integer',
+            minimum: 0
         },
         invalid: {
             type: 'array',
@@ -23354,6 +23371,9 @@ export const NewsletterImportResultSchema = {
     required: [
         'imported',
         'skippedExisting',
+        'skippedUnsubscribed',
+        'skippedBounced',
+        'pendingConfirmation',
         'invalid'
     ]
 } as const;
@@ -23366,14 +23386,77 @@ export const ImportNewsletterSubscribersRequestSchema = {
             maxLength: 5000000
         },
         consent: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
+            $ref: '#/components/schemas/NewsletterConsent'
         }
     },
     required: [
         'csv',
+        'consent'
+    ]
+} as const;
+
+export const NewsletterAddFromContactsResultSchema = {
+    type: 'object',
+    properties: {
+        added: {
+            type: 'integer',
+            minimum: 0
+        },
+        alreadySubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedUnsubscribed: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedBounced: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedNoEmail: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingConfirmation: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'added',
+        'alreadySubscribed',
+        'skippedUnsubscribed',
+        'skippedBounced',
+        'skippedNoEmail',
+        'pendingConfirmation'
+    ]
+} as const;
+
+export const AddNewsletterSubscribersFromContactsRequestSchema = {
+    type: 'object',
+    properties: {
+        contactIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 1000
+        },
+        listIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 20
+        },
+        consent: {
+            $ref: '#/components/schemas/NewsletterConsent'
+        }
+    },
+    required: [
         'consent'
     ]
 } as const;
