@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +13,7 @@ const {
   socialPostFindManyMock,
   socialPostCountMock,
   socialPostUpdateManyMock,
+  queueSlotFindManyMock,
   transactionMock,
   queryRawMock,
   resolveXSubscriptionTypeMock,
@@ -24,6 +26,7 @@ const {
   socialPostFindManyMock: vi.fn(),
   socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
+  queueSlotFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
   resolveXSubscriptionTypeMock: vi.fn(),
@@ -36,6 +39,7 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
     $queryRaw: queryRawMock,
     project: { findFirst: projectFindFirstMock },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
@@ -185,6 +189,148 @@ describe("social posts service", () => {
     socialPostFindFirstMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  describe("queue uses the scheduling path", () => {
+    beforeEach(() => {
+      transactionMock.mockImplementation(
+        (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+          callback({ ...prisma }),
+      );
+      queueSlotFindManyMock.mockResolvedValue([
+        {
+          id: "slot-1",
+          name: "Morning",
+          weekday: 3,
+          minutesFromMidnight: 9 * 60,
+          timezone: "Europe/Zurich",
+        },
+      ]);
+      socialPostFindManyMock.mockResolvedValue([]);
+    });
+
+    const queueInput = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+    };
+
+    it.each(["closingAt", "closedAt"] as const)(
+      "rejects queueing when the Project has %s",
+      async (field) => {
+        projectFindFirstMock.mockResolvedValue({
+          id: PROJECT_ID,
+          [field]: NOW,
+        });
+        const { queueSocialPost } = await import("./social-queue.service");
+
+        await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+          status: 409,
+          message: expect.stringContaining("closing or closed Project"),
+        });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
+      "queues %s with scheduling's approval and timezone rules",
+      async (status) => {
+        socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+        const { queueSocialPost } = await import("./social-queue.service");
+        await queueSocialPost(queueInput);
+        expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+          where: { id: POST_ID, revision: 0 },
+          data: expect.objectContaining({
+            status:
+              status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+            scheduledAt: new Date("2026-09-16T07:00:00Z"),
+            timezone: "Europe/Zurich",
+            socialConnectionId: SOCIAL_CONNECTION_ID,
+            revision: { increment: 1 },
+          }),
+        });
+      },
+    );
+
+    it.each(["disconnected", "needs_reconnect"])(
+      "rejects an unhealthy %s connection",
+      async (status) => {
+        socialConnectionFindFirstMock.mockResolvedValue({
+          ...activeConnection,
+          status,
+        });
+        const { queueSocialPost } = await import("./social-queue.service");
+        await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+          status: 409,
+        });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { stored: null, refreshed: "Premium", accepted: true },
+      { stored: "Premium", refreshed: "None", accepted: false },
+    ])(
+      "validates queued long X posts after refreshing $stored to $refreshed",
+      async ({ stored, refreshed, accepted }) => {
+        socialPostFindFirstMock.mockResolvedValue({
+          ...draftPost,
+          text: "x".repeat(5000),
+        });
+        socialConnectionFindFirstMock.mockResolvedValue({
+          ...activeConnection,
+          subscriptionType: stored,
+        });
+        resolveXSubscriptionTypeMock.mockResolvedValue(refreshed);
+        const { queueSocialPost } = await import("./social-queue.service");
+
+        const result = queueSocialPost(queueInput);
+
+        if (accepted) {
+          await result;
+          expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+            where: { id: POST_ID, revision: 0 },
+            data: expect.objectContaining({
+              status: "SCHEDULED",
+              scheduledAt: new Date("2026-09-16T07:00:00Z"),
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+            }),
+          });
+        } else {
+          await expect(result).rejects.toMatchObject({
+            status: 400,
+            message: "Text must be at most 280 characters for X",
+          });
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        }
+      },
+    );
+
+    it("rejects stale revisions", async () => {
+      const { queueSocialPost } = await import("./social-queue.service");
+      await expect(
+        queueSocialPost({ ...queueInput, revision: 42 }),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "social_post_revision_conflict" },
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("enforces the destination network's media requirements", async () => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider: "instagram",
+      });
+      const { queueSocialPost } = await import("./social-queue.service");
+      await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 
   it.each([

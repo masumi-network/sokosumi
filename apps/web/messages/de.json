@@ -2631,7 +2631,9 @@
           "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
-          "tooLong": "Die Textlänge überschreitet das Limit."
+          "tooLong": "Die Textlänge überschreitet das Limit.",
+          "addToQueue": "Zur Warteschlange",
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2660,7 +2662,8 @@
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
-          "duplicated": "Entwurf erstellt."
+          "duplicated": "Entwurf erstellt.",
+          "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}"
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2925,7 +2928,34 @@
           "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
           "later": "Später"
         },
-        "moreActions": "Beitragsaktionen"
+        "moreActions": "Beitragsaktionen",
+        "queue": {
+          "title": "Beitragswarteschlange",
+          "hint": "Benannte wöchentliche Zeiten. „Zur Warteschlange“ nimmt die nächste freie.",
+          "empty": "Noch keine Warteschlangenzeiten.",
+          "emptyHint": "Füge eine wöchentliche Zeit hinzu. Danach kannst du Beiträge in die Warteschlange legen.",
+          "add": "Zeit hinzufügen",
+          "save": "Warteschlange speichern",
+          "name": "Name",
+          "weekday": "Tag",
+          "time": "Uhrzeit",
+          "timezone": "Zeitzone",
+          "remove": "{name} entfernen",
+          "toasts": {
+            "saved": "Warteschlange gespeichert.",
+            "empty": "Warteschlange geleert.",
+            "failed": "Warteschlangenzeiten konnten nicht gespeichert werden. Versuche es erneut."
+          },
+          "weekdays": {
+            "0": "Sonntag",
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag"
+          }
+        }
       },
       "Detail": {
         "back": "Zurück zu Projekten",

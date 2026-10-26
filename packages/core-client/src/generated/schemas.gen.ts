@@ -26386,6 +26386,132 @@ export const ScheduleSocialPostRequestSchema = {
     ]
 } as const;
 
+export const QueueSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const SocialQueueSlotsSchema = {
+    type: 'object',
+    properties: {
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Zurich'
+        },
+        slots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialQueueSlot'
+            }
+        }
+    },
+    required: [
+        'timezone',
+        'slots'
+    ]
+} as const;
+
+export const SocialQueueSlotSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 40,
+            example: 'Tuesday morning'
+        },
+        weekday: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 6,
+            example: 2
+        },
+        minutesFromMidnight: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 1439,
+            example: 540
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'weekday',
+        'minutesFromMidnight',
+        'timezone'
+    ]
+} as const;
+
+export const ReplaceSocialQueueSlotsRequestSchema = {
+    type: 'object',
+    properties: {
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        },
+        slots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialQueueSlotWrite'
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'timezone',
+        'slots'
+    ]
+} as const;
+
+export const SocialQueueSlotWriteSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 40
+        },
+        weekday: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 6
+        },
+        minutesFromMidnight: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 1439
+        }
+    },
+    required: [
+        'name',
+        'weekday',
+        'minutesFromMidnight'
+    ]
+} as const;
+
 export const ApproveSocialPostRequestSchema = {
     type: 'object',
     properties: {

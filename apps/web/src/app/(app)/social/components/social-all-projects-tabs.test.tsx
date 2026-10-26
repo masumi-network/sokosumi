@@ -107,6 +107,30 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("Calendar panel")).toBeVisible();
   });
 
+  it("reaches every tab with the keyboard and keeps the new-post action reachable", async () => {
+    const user = userEvent.setup();
+    renderTabs("?tab=accounts");
+
+    await user.tab();
+    expect(
+      screen.getByRole("tab", { name: "sections.accounts" }),
+    ).toHaveFocus();
+    for (const name of [
+      "sections.calendar",
+      "sections.drafts",
+      "sections.attention",
+      "sections.statistics",
+      "sections.accounts",
+    ]) {
+      await user.keyboard("{ArrowRight}");
+      const tab = screen.getByRole("tab", { name });
+      expect(tab).toHaveFocus();
+      expect(tab).toHaveAttribute("aria-selected", "true");
+    }
+    await user.tab();
+    expect(screen.getByRole("button", { name: "New post" })).toHaveFocus();
+  });
+
   it("shows every project's posts on the calendar without asking for a project", () => {
     renderTabs();
 
@@ -121,8 +145,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(tablist).toHaveClass(
       "w-fit",
       "bg-card-background",
-      "max-sm:justify-start",
-      "max-sm:overflow-x-auto",
+      "max-md:justify-start",
     );
     expect(tablist).not.toHaveClass("min-h-11", "flex-1");
     expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");

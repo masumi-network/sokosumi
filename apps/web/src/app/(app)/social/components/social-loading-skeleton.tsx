@@ -28,7 +28,7 @@ export function SocialLoadingSkeleton({ label }: { label: string }) {
       {tab === "calendar" ? <CalendarPane /> : null}
       {tab === "drafts" ? <DraftsPane /> : null}
       {tab === "attention" ? <ListPane /> : null}
-      {tab === "accounts" ? <AccountsPane /> : null}
+      {tab === "accounts" ? <SocialAccountsSkeleton /> : null}
       {tab === "statistics" ? <StatisticsPane /> : null}
     </SocialLoadingChrome>
   );
@@ -174,7 +174,7 @@ function ListPane() {
   );
 }
 
-function AccountsPane() {
+export function SocialAccountsSkeleton() {
   return (
     <ul className="divide-y rounded-lg border pt-2">
       {Array.from({ length: 3 }, (_, row) => (

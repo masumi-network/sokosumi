@@ -115,6 +115,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     selectedPostResult,
     calendarResult,
     sokoBot,
+    queueSlots,
   ] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map(async (section) => {
@@ -154,6 +155,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         return { failed: true as const, calendar: null };
       }),
     sokoBotService.getMine().catch(() => null),
+    projectService.listSocialQueueSlots(project.id).catch(() => null),
   ]);
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
@@ -208,6 +210,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               <ProjectSocialAccounts
                 projectId={project.id}
                 connections={connections}
+                queueSlots={queueSlots ?? undefined}
                 connectDisabled={Boolean(project.closingAt || project.closedAt)}
               />
             }
@@ -228,7 +231,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             accountCount={managedAccountCount}
             managedConnections={connections}
             affectedPosts={affectedPosts}
-            accountsFailed={accountsFailed}
+            accountsFailed={accountsFailed || queueSlots === null}
             calendarFailed={calendarFailed}
             connections={activeConnections}
             failedSections={SECTION_ORDER.filter(
@@ -240,6 +243,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 pages[index].nextCursor,
               ]),
             )}
+            queueSlots={queueSlots?.slots}
             posts={posts}
             projectId={project.id}
             requestedPostId={query.postId}

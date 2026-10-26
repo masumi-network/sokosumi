@@ -5,6 +5,7 @@ import {
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
   type SocialPostStatus,
+  type SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
@@ -107,6 +108,7 @@ import { SocialPostStatistics } from "./social-post-statistics";
 import { getSocialReconnections } from "./social-reconnection";
 
 interface ProjectSocialPostsProps {
+  queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
   /** The project's Social accounts, shown as the last tab when given. */
@@ -292,6 +294,7 @@ export function ProjectSocialPosts({
   calendarFailed = false,
   connections,
   posts: initialPosts,
+  queueSlots,
   failedSections = [],
   nextCursors,
   projectId,
@@ -1156,13 +1159,13 @@ export function ProjectSocialPosts({
             }
           }}
         >
-          <div className="flex flex-row items-center justify-between gap-3">
+          <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <TabsList
                 aria-label={t("title")}
                 className={cn(
                   SEGMENTED_TABS_LIST_CLASS_NAME,
-                  "app-scrollbar w-fit min-w-0 max-w-full max-sm:justify-start max-sm:overflow-x-auto",
+                  "w-fit min-w-0 max-w-full max-md:h-auto max-md:flex-wrap max-md:justify-start",
                 )}
               >
                 {tabs.map((candidate) => {
@@ -1176,7 +1179,10 @@ export function ProjectSocialPosts({
                   return (
                     <TabsTrigger
                       key={candidate}
-                      className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                      className={cn(
+                        SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                        "max-md:flex-none",
+                      )}
                       data-testid={`social-posts-tab-${candidate}`}
                       value={candidate}
                     >
@@ -1463,6 +1469,7 @@ export function ProjectSocialPosts({
       {composerMode ? (
         <SocialPostComposerDialog
           connections={connections}
+          queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);

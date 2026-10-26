@@ -2631,7 +2631,9 @@
           "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
-          "tooLong": "Text length is over the limit."
+          "tooLong": "Text length is over the limit.",
+          "addToQueue": "Add to queue",
+          "queueEmptyHint": "Add queue times in accounts."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2660,7 +2662,8 @@
           "publishFailed": "Publishing failed: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
-          "duplicated": "Draft created."
+          "duplicated": "Draft created.",
+          "queued": "{count, plural, one {Added to the queue.} other {# posts added to the queue.}}"
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -2925,7 +2928,34 @@
           "retryDescription": "{count, plural, one {Your account is reconnected. Retry # failed post?} other {Your account is reconnected. Retry # failed posts?}}",
           "later": "Later"
         },
-        "moreActions": "Post actions"
+        "moreActions": "Post actions",
+        "queue": {
+          "title": "Posting queue",
+          "hint": "Named weekly times. Add to queue uses the next free one.",
+          "empty": "No queue times yet.",
+          "emptyHint": "Add a weekly time, then use Add to queue on a post.",
+          "add": "Add time",
+          "save": "Save queue",
+          "name": "Name",
+          "weekday": "Day",
+          "time": "Time",
+          "timezone": "Time zone",
+          "remove": "Remove {name}",
+          "toasts": {
+            "saved": "Queue saved.",
+            "empty": "Queue cleared.",
+            "failed": "Could not save queue times. Try again."
+          },
+          "weekdays": {
+            "0": "Sunday",
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday"
+          }
+        }
       },
       "Detail": {
         "back": "Back to projects",

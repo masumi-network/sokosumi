@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProjectSocialConnection } from "@sokosumi/core-client";
+import type {
+  ProjectSocialConnection,
+  SocialQueueSlots,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Link2,
@@ -12,8 +15,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { SocialAccountsSkeleton } from "@/app/social/components/social-loading-skeleton";
 import { EmptyState } from "@/components/common/empty-state";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
@@ -47,9 +51,11 @@ import {
   useComposioConnection,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import { ProjectSocialQueueSlots } from "./social-posts/project-social-queue-slots";
 import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
+  queueSlots?: SocialQueueSlots;
   connections: ProjectSocialConnection[];
   projectId: string;
   /** Closing or closed projects cannot add or replace accounts. */
@@ -138,6 +144,7 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  queueSlots,
   connectDisabled = false,
   reconnections,
   onReconnected,
@@ -161,7 +168,12 @@ export function ProjectSocialAccounts({
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
-  const isBusy = pendingAction !== null;
+  const [refreshing, startRefresh] = useTransition();
+  const isBusy = pendingAction !== null || refreshing;
+
+  function refreshAccounts(): void {
+    startRefresh(() => router.refresh());
+  }
 
   useMountEffect(() => {
     isMountedRef.current = true;
@@ -263,7 +275,7 @@ export function ProjectSocialAccounts({
     // Replacing disconnects the old account when it starts, so the list is
     // stale however the flow ended.
     if (action === "replace" || outcome.kind === "connected") {
-      router.refresh();
+      refreshAccounts();
     }
     finishAction();
   }
@@ -355,7 +367,7 @@ export function ProjectSocialAccounts({
           message: t("warning.providerRevocationFailed"),
         });
       }
-      router.refresh();
+      refreshAccounts();
     } catch {
       showFeedback({ kind: "error", message: t("errors.disconnect") });
     } finally {
@@ -400,7 +412,7 @@ export function ProjectSocialAccounts({
     if (!disconnected) return;
 
     await startOAuth("connect", undefined, connection.provider);
-    router.refresh();
+    refreshAccounts();
   }
 
   function requestConfirmation(
@@ -570,7 +582,13 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {listedConnections.length > 0 ? (
+      {refreshing || (isBusy && listedConnections.length === 0) ? (
+        <div role="status" aria-busy="true" aria-label={postsT("loading")}>
+          <div aria-hidden>
+            <SocialAccountsSkeleton />
+          </div>
+        </div>
+      ) : listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
           {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
@@ -741,6 +759,13 @@ export function ProjectSocialAccounts({
           />
         </div>
       )}
+
+      {queueSlots ? (
+        <ProjectSocialQueueSlots
+          projectId={projectId}
+          queueSlots={queueSlots}
+        />
+      ) : null}
 
       <AlertDialog
         open={pendingConfirmation !== null}
