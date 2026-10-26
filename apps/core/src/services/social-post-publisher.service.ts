@@ -27,8 +27,13 @@ import {
 } from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
-import { projectExecutorUserId } from "@/services/project-social-connections.service";
+import {
+  projectExecutorUserId,
+  requireLockedOpenProject,
+  requireScopedProject,
+} from "@/services/project-social-connections.service";
 import {
   getSocialPost,
   type SocialPostSummary,
@@ -48,6 +53,8 @@ const SETTLEMENT_RESERVE_MS = 20_000;
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
+const PROJECT_CLOSED_ERROR =
+  "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
   "Coworker scheduling access was revoked. A workspace member must reschedule this post.";
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
@@ -103,6 +110,7 @@ type PublisherPostRecord = Prisma.SocialPostGetPayload<{
 interface ClaimedPost {
   id: string;
   projectId: string;
+  workspaceId: string;
   provider: string;
   text: string;
   firstComment: string | null;
@@ -149,8 +157,9 @@ function leaseData(now: Date, leaseToken: string) {
 async function settle(
   post: ClaimedPost,
   data: Prisma.SocialPostUncheckedUpdateManyInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<boolean> {
-  const result = await prisma.socialPost.updateMany({
+  const result = await tx.socialPost.updateMany({
     where: { id: post.id, leaseToken: post.leaseToken },
     data: {
       ...data,
@@ -170,6 +179,35 @@ async function settle(
   return true;
 }
 
+/** Serialize retry scheduling with close, just like a manual schedule. */
+async function settleRetry(
+  post: ClaimedPost,
+  data: Prisma.SocialPostUncheckedUpdateManyInput,
+): Promise<AttemptOutcome> {
+  return serializableTransaction(async (tx) => {
+    try {
+      await requireLockedOpenProject(tx, post, {
+        closedMessage: PROJECT_CLOSED_ERROR,
+      });
+    } catch (error) {
+      if (!(error instanceof HTTPException) || error.status !== 409)
+        throw error;
+      const settled = await settle(
+        post,
+        {
+          status: "FAILED",
+          lastError: PROJECT_CLOSED_ERROR,
+          attemptCount: data.attemptCount,
+        },
+        tx,
+      );
+      return settled ? "failed" : "skipped";
+    }
+    const settled = await settle(post, data, tx);
+    return settled ? "retried" : "skipped";
+  }, "Project changed while retrying a Social post");
+}
+
 async function nextAttemptNumber(postId: string): Promise<number> {
   const { _max } = await prisma.socialPostPublishAttempt.aggregate({
     where: { socialPostId: postId },
@@ -181,7 +219,11 @@ async function nextAttemptNumber(postId: string): Promise<number> {
 async function recordSkippedAttempt(
   post: ClaimedPost,
   options: AttemptOptions,
-  outcome: "missed" | "connection_inactive" | "authorization_revoked",
+  outcome:
+    | "missed"
+    | "connection_inactive"
+    | "authorization_revoked"
+    | "project_closed",
   now: Date,
 ): Promise<void> {
   await prisma.socialPostPublishAttempt.create({
@@ -196,6 +238,40 @@ async function recordSkippedAttempt(
     },
     select: { id: true },
   });
+}
+
+async function checkProjectPublishingAccess(
+  post: ClaimedPost,
+  options: AttemptOptions,
+  attemptId?: string,
+): Promise<AttemptOutcome | null> {
+  try {
+    await requireScopedProject(post, {
+      requireOpen: true,
+      closedMessage: PROJECT_CLOSED_ERROR,
+    });
+    return null;
+  } catch (error) {
+    if (
+      !(error instanceof HTTPException) ||
+      ![404, 409].includes(error.status)
+    ) {
+      throw error;
+    }
+    if (attemptId) {
+      await prisma.socialPostPublishAttempt.update({
+        where: { id: attemptId },
+        data: { finishedAt: new Date(), outcome: "project_closed" },
+      });
+    } else {
+      await recordSkippedAttempt(post, options, "project_closed", new Date());
+    }
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: PROJECT_CLOSED_ERROR,
+    });
+    return settled ? "failed" : "skipped";
+  }
 }
 
 async function settleAuthorizationRevoked(
@@ -291,14 +367,13 @@ async function attemptPublish(
         case "failed_transient": {
           const backoff = RETRY_BACKOFF_MS[post.attemptCount];
           if (backoff === undefined) break;
-          const settled = await settle(post, {
+          return settleRetry(post, {
             status: "SCHEDULED",
             nextAttemptAt: new Date(previous.finishedAt.getTime() + backoff),
             attemptCount: post.attemptCount + 1,
             lastError:
               previous.providerOutcome ?? "Publishing failed temporarily",
           });
-          return settled ? "retried" : "skipped";
         }
         case "failed_permanent": {
           const settled = await settle(post, {
@@ -330,6 +405,13 @@ async function attemptPublish(
           });
           return settled ? "failed" : "skipped";
         }
+        case "project_closed": {
+          const settled = await settle(post, {
+            status: "FAILED",
+            lastError: PROJECT_CLOSED_ERROR,
+          });
+          return settled ? "failed" : "skipped";
+        }
       }
     }
     const settled = await settle(post, {
@@ -338,6 +420,9 @@ async function attemptPublish(
     });
     return settled ? "failed" : "skipped";
   }
+
+  const projectOutcome = await checkProjectPublishingAccess(post, options);
+  if (projectOutcome) return projectOutcome;
 
   if (
     post.attemptCount > 0 &&
@@ -426,6 +511,12 @@ async function attemptPublish(
       attempt.id,
     );
     if (accessOutcome) return accessOutcome;
+    const projectOutcome = await checkProjectPublishingAccess(
+      post,
+      options,
+      attempt.id,
+    );
+    if (projectOutcome) return projectOutcome;
     published = await publishSocialPostToProvider({
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
@@ -464,19 +555,21 @@ async function attemptPublish(
         externalId: null,
       },
     });
-    const settled = await settle(
-      post,
-      retrying
-        ? {
-            status: "SCHEDULED",
-            nextAttemptAt: retryAt,
-            attemptCount,
-            lastError: classified.summary,
-          }
-        : { status: "FAILED", lastError: classified.summary, attemptCount },
-    );
+    if (retrying) {
+      return settleRetry(post, {
+        status: "SCHEDULED",
+        nextAttemptAt: retryAt,
+        attemptCount,
+        lastError: classified.summary,
+      });
+    }
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: classified.summary,
+      attemptCount,
+    });
     if (!settled) return "skipped";
-    return retrying ? "retried" : "failed";
+    return "failed";
   }
 
   const finishedAt = new Date();
@@ -540,6 +633,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       OR: [
         {
           status: "SCHEDULED",
+          project: { closingAt: null, closedAt: null },
           AND: {
             OR: [
               { scheduledByCoworkerId: { not: null } },
@@ -566,6 +660,9 @@ async function claimDuePost(): Promise<ClaimResult> {
       id: candidate.id,
       status: candidate.status,
       revision: candidate.revision,
+      ...(candidate.status === "SCHEDULED"
+        ? { project: { closingAt: null, closedAt: null } }
+        : {}),
     },
     data: { ...leaseData(now, leaseToken), revision: { increment: 1 } },
   });
@@ -574,6 +671,7 @@ async function claimDuePost(): Promise<ClaimResult> {
     post: {
       id: candidate.id,
       projectId: candidate.projectId,
+      workspaceId: candidate.workspaceId,
       provider: candidate.provider,
       text: candidate.text,
       firstComment: candidate.firstComment,
@@ -645,65 +743,77 @@ export async function publishDueSocialPosts(
 export async function publishSocialPostNow(
   input: PublishSocialPostNowInput,
 ): Promise<SocialPostSummary> {
-  const post = await prisma.socialPost.findFirst({
-    where: {
-      id: input.postId,
-      projectId: input.projectId,
-      workspaceId: input.workspaceId,
-    },
-    include: publisherInclude,
-  });
-  if (!post) {
-    throw notFound("Social post not found");
-  }
-  if (!PUBLISH_NOW_STATUSES.includes(post.status)) {
-    throw conflict("This post cannot be published now");
-  }
-  if (post.revision !== input.revision) {
-    throw conflict(REVISION_CONFLICT_MESSAGE);
-  }
-  if (post.status === "DRAFT") {
-    if (!post.socialConnection) {
-      throw badRequest("A social connection is required to publish a post");
-    }
-    if (post.socialConnection.status !== "active") {
-      throw conflict("Social connection is not active");
-    }
-  }
-  if (isSocialPostProvider(post.provider)) {
-    const media = parseSocialPostMedia(post.media, post.id);
-    const mediaRequirement = socialPostMediaRequirementMessage(post.provider);
-    if (
-      mediaRequirement &&
-      !socialPostMeetsMediaRequirement(post.provider, media)
-    ) {
-      throw badRequest(mediaRequirement);
-    }
-  }
+  const { post, now, leaseToken } = await serializableTransaction(
+    async (tx) => {
+      await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_ERROR,
+      });
+      const post = await tx.socialPost.findFirst({
+        where: {
+          id: input.postId,
+          projectId: input.projectId,
+          workspaceId: input.workspaceId,
+        },
+        include: publisherInclude,
+      });
+      if (!post) {
+        throw notFound("Social post not found");
+      }
+      if (!PUBLISH_NOW_STATUSES.includes(post.status)) {
+        throw conflict("This post cannot be published now");
+      }
+      if (post.revision !== input.revision) {
+        throw conflict(REVISION_CONFLICT_MESSAGE);
+      }
+      if (post.status === "DRAFT") {
+        if (!post.socialConnection) {
+          throw badRequest("A social connection is required to publish a post");
+        }
+        if (post.socialConnection.status !== "active") {
+          throw conflict("Social connection is not active");
+        }
+      }
+      if (isSocialPostProvider(post.provider)) {
+        const media = parseSocialPostMedia(post.media, post.id);
+        const mediaRequirement = socialPostMediaRequirementMessage(
+          post.provider,
+        );
+        if (
+          mediaRequirement &&
+          !socialPostMeetsMediaRequirement(post.provider, media)
+        ) {
+          throw badRequest(mediaRequirement);
+        }
+      }
 
-  const now = new Date();
-  const leaseToken = randomUUID();
-  const claimed = await prisma.socialPost.updateMany({
-    where: { id: post.id, revision: input.revision },
-    data: {
-      ...leaseData(now, leaseToken),
-      scheduledAt: now,
-      scheduledByUserId: input.userId,
-      scheduledByCoworkerId: null,
-      attemptCount: 0,
-      nextAttemptAt: null,
-      lastError: null,
-      revision: { increment: 1 },
+      const now = new Date();
+      const leaseToken = randomUUID();
+      const claimed = await tx.socialPost.updateMany({
+        where: { id: post.id, revision: input.revision },
+        data: {
+          ...leaseData(now, leaseToken),
+          scheduledAt: now,
+          scheduledByUserId: input.userId,
+          scheduledByCoworkerId: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          lastError: null,
+          revision: { increment: 1 },
+        },
+      });
+      if (claimed.count === 0) {
+        throw conflict(REVISION_CONFLICT_MESSAGE);
+      }
+      return { post, now, leaseToken };
     },
-  });
-  if (claimed.count === 0) {
-    throw conflict(REVISION_CONFLICT_MESSAGE);
-  }
+    "Project changed while publishing a Social post",
+  );
 
   await attemptPublish(
     {
       id: post.id,
       projectId: post.projectId,
+      workspaceId: post.workspaceId,
       provider: post.provider,
       text: post.text,
       firstComment: post.firstComment,

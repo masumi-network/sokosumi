@@ -33,6 +33,7 @@ import {
 } from "@/helpers/shared-soko-bot-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { toChatMessageSignalDto } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
@@ -197,6 +198,21 @@ export const chatRoomMessageInclude = {
       replies: { where: { deletedAt: null } },
     },
   },
+  // One row per message: Jev's tags, corrections oldest first.
+  signal: {
+    select: {
+      state: true,
+      probabilities: true,
+      addressedUserIds: true,
+      commitmentDueAt: true,
+      loopClosedAt: true,
+      loopTaskId: true,
+      corrections: {
+        select: { tag: true, applies: true },
+        orderBy: { updatedAt: "asc" },
+      },
+    },
+  },
 } as const satisfies Prisma.ChatRoomMessageInclude;
 
 export type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
@@ -232,6 +248,8 @@ export interface MapChatRoomAttentionOptions {
   /** The room's unread Threads for the sidebar, capped, with the true count. */
   unreadThreads?: ChatRoomUnreadThreads;
   unreadMentionCount?: number;
+  /** Unread messages Jev read as asking the viewer something. */
+  unreadNeedsYouCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
   mutedAt?: Date | null;
@@ -281,6 +299,7 @@ export function mapChatRoom(
       unreadThreadMentionCount: 0,
     },
     unreadMentionCount = 0,
+    unreadNeedsYouCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
     mutedAt = null,
@@ -327,6 +346,7 @@ export function mapChatRoom(
     unreadThreadMentionCount: unreadThreads.unreadThreadMentionCount,
     unreadThreads: unreadThreads.threads,
     unreadMentionCount,
+    unreadNeedsYouCount,
     starredAt,
     pinnedMessageCount,
     mutedAt,
@@ -558,6 +578,7 @@ export async function mapChatRoomWithSidebarFlags(
     threadUnreadCount?: number;
     unreadThreads?: ChatRoomUnreadThreads;
     unreadMentionCount?: number;
+    unreadNeedsYouCount?: number;
     activeOrganizationId?: string | null;
     organizationName?: string | null;
   } = {},
@@ -582,6 +603,7 @@ export async function mapChatRoomWithSidebarFlags(
     threadUnreadCount: attention.threadUnreadCount,
     unreadThreads: attention.unreadThreads,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
+    unreadNeedsYouCount: attention.unreadNeedsYouCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
     mutedAt: flags?.mutedAt ?? null,
@@ -672,7 +694,10 @@ function mapThreadRepliers(
 }
 
 export function mapChatRoomMessage(
-  message: ChatRoomMessageWithSender,
+  // `signal` is optional so a message read without it maps as untagged.
+  message: Omit<ChatRoomMessageWithSender, "signal"> & {
+    signal?: ChatRoomMessageWithSender["signal"];
+  },
   currentUserId?: string,
   /**
    * The viewer's unread replies under this parent. Passed in rather than
@@ -741,6 +766,7 @@ export function mapChatRoomMessage(
           reactedByCurrentUser: reaction.reactedByCurrentUser,
           reactors: reaction.reactors,
         })),
+    signal: isDeleted ? null : toChatMessageSignalDto(message.signal ?? null),
     threadReplyCount: message._count.replies,
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,

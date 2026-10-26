@@ -229,6 +229,82 @@ describe("action lines the owner reads", () => {
     );
   });
 
+  it("says a comment that completed a Task completed it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "reply_to_task",
+        result: { id: "task-one", status: "COMPLETED", statusChanged: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "TOKEN2049 form",
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Completed task [TOKEN2049 form](/tasks/task-one).",
+    );
+  });
+
+  it("names the contacts and lists a bot changed", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "contact-a",
+        toolCallId: "call-a",
+        capability: "upsert_contact",
+        targetId: "contact-one",
+        effectEventId: null,
+        result: { contact: { name: "Nina [Acme] Keller" }, created: true },
+      }),
+      receipt({
+        id: "contact-b",
+        toolCallId: "call-b",
+        capability: "upsert_contact",
+        targetId: "contact-two",
+        effectEventId: null,
+        result: { contact: { name: "Tom Berger" }, created: false },
+      }),
+      receipt({
+        id: "list-a",
+        toolCallId: "call-c",
+        capability: "manage_contact_lists",
+        targetId: "list-one",
+        effectEventId: null,
+        result: { id: "list-one", name: "Investors", count: 2 },
+      }),
+      receipt({
+        id: "log-a",
+        toolCallId: "call-d",
+        capability: "log_contact_interaction",
+        targetId: "contact-one",
+        effectEventId: null,
+        result: { interaction: { id: "i1" }, created: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      [
+        "Saved contact (2×): Nina \\[Acme\\] Keller, Tom Berger.",
+        "Updated contact list Investors.",
+        "Logged a contact interaction.",
+      ].join("\n"),
+    );
+    for (const capability of [
+      "upsert_contact",
+      "update_contact",
+      "log_contact_interaction",
+      "merge_contacts",
+      "manage_contact_lists",
+    ])
+      expect(ACTION_CAPABILITIES.has(capability)).toBe(true);
+  });
+
   it("links an uploaded file to its page, not to the public blob", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({
@@ -387,6 +463,20 @@ describe("authoritative action responses", () => {
     ])
       expect(parseActionNarrativeText(text)).toEqual(narrative);
     expect(parseActionNarrativeText("No JSON here.")).toBeNull();
+  });
+
+  it("keeps a narrative that cites more reads than it can show", () => {
+    const ids = Array.from({ length: 12 }, (_, index) => `call_${index}`);
+    const parsed = parseActionNarrativeText(
+      JSON.stringify({
+        kind: "REPORT",
+        message: "This week in numbers.",
+        question: null,
+        observationToolCallIds: ids,
+      }),
+    );
+    expect(parsed?.message).toBe("This week in numbers.");
+    expect(parsed?.observationToolCallIds).toEqual(ids.slice(0, 8));
   });
 
   it("names created and assigned tasks from the stored task", async () => {

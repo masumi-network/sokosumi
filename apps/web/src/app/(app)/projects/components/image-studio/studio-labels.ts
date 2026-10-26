@@ -92,6 +92,18 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     failedBody: failureBodies(t),
     failedBodyUnreported: t("failedBodyUnreported"),
     failedDetails: t("failedDetails"),
+    studioMode: t("studioMode"),
+    modeImage: t("modeImage"),
+    modeVideo: t("modeVideo"),
+    videoComposerTitle: t("videoComposerTitle"),
+    videoPromptPlaceholder: t("videoPromptPlaceholder"),
+    generateVideo: t("generateVideo"),
+    videoLength: t("videoLength"),
+    videoFollowsImage: t("videoFollowsImage"),
+    videoNeedsProject: t("videoNeedsProject"),
+    animate: t("animate"),
+    animating: t("animating"),
+    stopAnimating: t("stopAnimating"),
   };
 }
 

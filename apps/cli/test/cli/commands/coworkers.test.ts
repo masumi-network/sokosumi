@@ -13,6 +13,9 @@ function clientWith(response: unknown): CoreHttpClient {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => response as T,
   };
 }
@@ -68,6 +71,9 @@ test("coworkers register creates and connects the coworker to the selected works
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -127,6 +133,9 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({}) as T,
   };
 
@@ -183,6 +192,9 @@ test("API key failure keeps the created Coworker ID for recovery", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({}) as T,
   };
 
@@ -223,6 +235,9 @@ test("coworkers register rejects Mainnet before any Core request", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -253,6 +268,9 @@ test("coworkers connect rejects Mainnet before any Core request", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -288,6 +306,9 @@ test("coworkers register requires a selected member Workspace", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -337,6 +358,9 @@ test("pending workspace access returns the created Coworker without minting a ke
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -398,6 +422,9 @@ test("coworkers connect grants access to an existing Coworker", async () => {
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -496,6 +523,9 @@ for (const subcommand of ["provision", "register"] as const) {
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async () => {
           throw new Error("Unexpected PATCH");
         },
@@ -579,6 +609,9 @@ for (const [label, vendor, message] of [
       put: async () => {
         throw new Error("Unexpected PUT");
       },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
+      },
       patch: async () => {
         throw new Error("Unexpected PATCH");
       },
@@ -619,6 +652,9 @@ test("coworkers register rejects a missing vendor ID before Core request", async
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -652,6 +688,9 @@ test("coworkers register blocks when no organization workspace exists", async ()
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -697,6 +736,9 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -735,6 +777,9 @@ test("coworkers register requires --vendor-id and does not create a Vendor", asy
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -786,6 +831,9 @@ test("coworkers update patches the coworker and returns it", async () => {
     post: async <T>() => ({ data: {} }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
@@ -872,6 +920,9 @@ test("coworkers api-key mints a key and returns the full token", async () => {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -899,6 +950,9 @@ test("coworkers update sends the mapped multi-field payload", async () => {
     post: async <T>() => ({ data: {} }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
@@ -941,6 +995,9 @@ test("coworkers update omits an empty name", async () => {
     post: async <T>() => ({ data: {} }) as T,
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>(_path: string, requestBody: unknown) => {
       body = requestBody as Record<string, unknown>;
@@ -1011,6 +1068,9 @@ test("coworkers register --create-api-key mints and returns the key", async () =
     },
     put: async () => {
       throw new Error("Unexpected PUT");
+    },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };

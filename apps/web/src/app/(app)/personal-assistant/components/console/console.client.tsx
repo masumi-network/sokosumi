@@ -51,6 +51,7 @@ import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
+import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
@@ -238,7 +239,7 @@ export function SokoBotConsole({
     <SokoBotTargetContext.Provider value={botId}>
       <AssistantSeedContext.Provider value={seed}>
         <AssistantImageContext.Provider value={bot.avatarImageUrl}>
-          <div className="w-full space-y-6 px-4 py-4 lg:px-6">
+          <div className="w-full space-y-6 py-2">
             <header className="flex flex-wrap items-center gap-5 py-2">
               <AssistantAvatar size="lg" className="ring-ring-halo ring-4" />
               <div className="min-w-0 flex-1 space-y-1">
@@ -329,7 +330,10 @@ export function SokoBotConsole({
             <div
               className={
                 isAdvanced
-                  ? "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]"
+                  ? cn(
+                      HOLDER_CLASS,
+                      "grid items-start gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_24rem]",
+                    )
                   : "grid items-start gap-6"
               }
             >
@@ -596,6 +600,7 @@ export function SokoBotConsole({
                       <FollowBoardToggle
                         initial={bot.followWholeBoard ?? false}
                       />
+                      <MailAutoReadToggle initial={bot.mailAutoRead ?? false} />
                       {canManage ? (
                         <div className="space-y-2">
                           <p className="text-sm font-medium">

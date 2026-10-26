@@ -121,7 +121,7 @@ The web app uses the shared Biome configuration from the repo root. See [shared 
 
 #### Environment Variables
 
-**Critical**: Never use `process.env` directly in web app code.
+Do not read `process.env` directly in web app code.
 
 - **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
@@ -512,7 +512,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

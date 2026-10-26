@@ -30,15 +30,22 @@ import {
 } from "@/helpers/pagination";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
   socialPostStatisticsSchema,
 } from "@/schemas/social-post-statistics.schema";
+import {
+  requireLockedOpenProject,
+  requireScopedProject,
+} from "@/services/project-social-connections.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
+const PROJECT_CLOSED_MESSAGE =
+  "Cannot schedule or approve Social posts in a closing or closed Project";
 
 const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -329,19 +336,6 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       record.socialConnection !== null &&
       record.socialConnection.status !== "active",
   };
-}
-
-async function requireScopedProject(
-  input: ProjectScope,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const project = await tx.project.findFirst({
-    where: { id: input.projectId, workspaceId: input.workspaceId },
-    select: { id: true },
-  });
-  if (!project) {
-    throw notFound("Project not found");
-  }
 }
 
 async function requireScopedPost(
@@ -638,7 +632,7 @@ export async function getSocialPost(
   input: GetSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   return mapSocialPost(await requireScopedPost(input, tx));
 }
 
@@ -646,12 +640,24 @@ export async function createSocialPost(
   input: CreateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
+  if (input.scheduledAt && tx === prisma) {
+    return serializableTransaction(
+      (tx) => createSocialPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
   if (input.coworkerId && input.sokoBotId) {
     throw badRequest(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  await requireScopedProject(input, tx);
+  if (input.scheduledAt) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  } else {
+    await requireScopedProject(input, { client: tx });
+  }
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
@@ -714,8 +720,19 @@ export async function updateSocialPost(
   input: UpdateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => updateSocialPost(input, tx),
+      "Project changed while editing a Social post",
+    );
+  }
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
+  if (post.status === "SCHEDULED") {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  }
   if (!EDITABLE_STATUSES.includes(post.status)) {
     throw conflict("This post can no longer be edited");
   }
@@ -822,7 +839,15 @@ export async function scheduleSocialPost(
   input: ScheduleSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => scheduleSocialPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
   const post = await requireScopedPost(input, tx);
   if (!SCHEDULABLE_STATUSES.includes(post.status)) {
     throw conflict("This post can no longer be scheduled");
@@ -871,7 +896,7 @@ export async function cancelSocialPost(
   input: CancelSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status === "CANCELED") {
     return mapSocialPost(post);
@@ -900,7 +925,15 @@ export async function approveSocialPost(
   input: ApproveSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => approveSocialPost(input, tx),
+      "Project changed while approving a Social post",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
   const post = await requireScopedPost(input, tx);
   if (post.status !== "NEEDS_APPROVAL") {
     throw conflict("Only a post that needs approval can be approved");
@@ -940,7 +973,7 @@ export async function rejectSocialPost(
   input: RejectSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status !== "NEEDS_APPROVAL") {
     throw conflict("Only a post that needs approval can be rejected");
@@ -964,7 +997,7 @@ export async function duplicateSocialPost(
   input: DuplicateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   const source = await requireScopedPost(input, tx);
   if (!DUPLICATABLE_STATUSES.includes(source.status)) {
     throw conflict(
@@ -1010,7 +1043,19 @@ export async function recycleSocialAccountPost(
   input: RecycleSocialAccountPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (input.delayDays && tx === prisma) {
+    return serializableTransaction(
+      (tx) => recycleSocialAccountPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
+  if (input.delayDays) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  } else {
+    await requireScopedProject(input, { client: tx });
+  }
   const accountPost = await tx.socialAccountPost.findFirst({
     where: {
       id: input.accountPostId,

@@ -106,6 +106,10 @@ the theme, and for media UI, where the ground really is theme-independent, the
 `--border` and `--input` are two roles, not one value. `--border` is the quiet
 divider at 1.61 against the page. `--input` is the control boundary at 3.0,
 which is what WCAG 2.2 SC 1.4.11 asks of a non-text control.
+That 3:1 is for fields, whose edge is the only thing that marks them. A
+labelled control (outline button, toggle, trigger, option card) is named by its
+label or icon, so it takes the soft `--control-border` instead, the brand's
+outline weight. Never put `border-input` on a button.
 
 ### 3. No hex, rgb, hsl or oklch literals in components
 

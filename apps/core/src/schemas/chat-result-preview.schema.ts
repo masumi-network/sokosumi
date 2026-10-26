@@ -94,6 +94,13 @@ export const chatResultAvailableSchema = z
     timezone: z.string().max(100).nullable().default(null),
     recurrence: z.string().max(200).nullable().default(null),
     question: z.string().max(4000).nullable().default(null),
+    // Labelled values, such as the input an Agent was hired with.
+    details: z
+      .array(
+        z.object({ label: z.string().max(200), value: z.string().max(500) }),
+      )
+      .max(8)
+      .default([]),
     outputs: z.array(outputSchema).max(12).default([]),
     // Nullable objects stay inline (`type: ["object", "null"]`): the Apple
     // client's swift-openapi-generator drops any property whose schema has a

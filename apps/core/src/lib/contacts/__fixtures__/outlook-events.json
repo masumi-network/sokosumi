@@ -1,0 +1,54 @@
+{
+  "value": [
+    {
+      "id": "AAMkEVT1",
+      "subject": "Contract review",
+      "isCancelled": false,
+      "isAllDay": false,
+      "showAs": "busy",
+      "start": { "dateTime": "2026-10-15T14:00:00.0000000", "timeZone": "UTC" },
+      "end": { "dateTime": "2026-10-15T15:00:00.0000000", "timeZone": "UTC" },
+      "responseStatus": { "response": "organizer" },
+      "organizer": {
+        "emailAddress": {
+          "name": "Patrick Tobler",
+          "address": "patrick@yellowhouse.gmbh"
+        }
+      },
+      "attendees": [
+        {
+          "type": "required",
+          "status": { "response": "accepted" },
+          "emailAddress": {
+            "name": "Ana Silva",
+            "address": "ana.silva@lawfirm.pt"
+          }
+        },
+        {
+          "type": "resource",
+          "status": { "response": "accepted" },
+          "emailAddress": {
+            "name": "Room Lisbon",
+            "address": "room.lisbon@yellowhouse.gmbh"
+          }
+        },
+        {
+          "type": "optional",
+          "status": { "response": "declined" },
+          "emailAddress": { "name": "Rui Costa", "address": "rui@lawfirm.pt" }
+        }
+      ],
+      "webLink": "https://outlook.office365.com/owa/?itemid=AAMkEVT1"
+    },
+    {
+      "id": "AAMkEVT2",
+      "subject": "Out of office",
+      "isCancelled": false,
+      "isAllDay": false,
+      "showAs": "oof",
+      "start": { "dateTime": "2026-10-16T08:00:00.0000000", "timeZone": "UTC" },
+      "end": { "dateTime": "2026-10-16T17:00:00.0000000", "timeZone": "UTC" },
+      "attendees": []
+    }
+  ]
+}

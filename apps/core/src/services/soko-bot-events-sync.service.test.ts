@@ -65,6 +65,7 @@ import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 
 import {
   buildEventMessage,
+  followUpPlans,
   SokoBotEventsSyncService,
   sokoBotEventClientTurnId,
 } from "./soko-bot-events-sync.service";
@@ -103,11 +104,33 @@ function taskDelegation(
         comment: string;
         createdAt: Date;
         userId?: string;
+        sokoBotId?: string;
       }[],
     },
     job: null,
     turn,
+    followUp: null as string | null,
+    followUpTurnId: null as string | null,
   };
+}
+
+function plannedDelegation(
+  id: string,
+  status: string,
+  followUp: string,
+  followUpTurnId: string | null = null,
+) {
+  const delegation = taskDelegation(id, "READY", status);
+  delegation.task.id = "task_shared";
+  delegation.task.events = [
+    {
+      id: `event_${status}`,
+      comment: "Findings: A, B, C.",
+      createdAt: new Date("2026-10-23T10:00:00Z"),
+      userId: "user_2",
+    },
+  ];
+  return { ...delegation, followUp, followUpTurnId };
 }
 
 describe("SokoBotEventsSyncService", () => {
@@ -338,6 +361,26 @@ describe("SokoBotEventsSyncService", () => {
     expect(delegationUpdateMock).toHaveBeenCalledOnce();
   });
 
+  it("does not wake the bot for a status change it made itself", async () => {
+    const delegation = taskDelegation("a", "DRAFT", "COMPLETED");
+    delegation.task.events = [
+      {
+        id: "event-1",
+        comment: "Closed at the owner's request",
+        createdAt: new Date(),
+        sokoBotId: turn.sokoBotId,
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledOnce();
+  });
+
   it("wakes the bot for a Task whose background run has ended", async () => {
     delegationFindManyMock.mockResolvedValue([
       {
@@ -494,9 +537,11 @@ describe("SokoBotEventsSyncService", () => {
       },
     ]);
     await new SokoBotEventsSyncService().syncDelegatedWork(input);
-    expect(startTurnMock.mock.calls[0]?.[0].message).toContain(
-      'Job "Agent job" (id job_1) is now COMPLETED',
-    );
+    const message = startTurnMock.mock.calls[0]?.[0].message;
+    expect(message).toContain('Job "Agent job" (id job_1) is now COMPLETED');
+    expect(message).toContain("Read each Job with get_job_status");
+    expect(message).toContain("provide_job_input");
+    expect(message).not.toContain("Read each Task");
   });
 
   it.each([
@@ -656,5 +701,86 @@ describe("SokoBotEventsSyncService", () => {
       sokoBotEventClientTurnId([{ ...change, eventId: "event-two" }]),
     );
     expect(sokoBotEventClientTurnId([change])).toHaveLength(70);
+  });
+
+  it("hands a follow-up plan over on the wake that reports completion", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give the findings to Alex."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).toContain(
+      "Follow-up plans you attached to this work:",
+    );
+    expect(call.message).toContain('Your plan: "Give the findings to Alex."');
+    expect(call.message).toContain("Latest comment: Findings: A, B, C.");
+    expect(call.eventBatch[0].followUpDelegationIds).toEqual(["d1"]);
+  });
+
+  it("shows a plan as pending, without claiming it, while the work waits", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "INPUT_REQUIRED", "Give the findings to Alex."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).toContain("Your plan for when it completes");
+    expect(call.eventBatch[0].followUpDelegationIds).toBeUndefined();
+  });
+
+  it("never repeats a plan another turn already carried out", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex.", "turn_before"),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    expect(call.message).not.toContain("Give it to Alex.");
+    expect(call.eventBatch[0].followUpDelegationIds).toBeUndefined();
+  });
+
+  it("claims plans of every delegation on the Task once, on one occurrence", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex."),
+      plannedDelegation("d2", "COMPLETED", "Tell the owner."),
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const call = startTurnMock.mock.calls[0]![0];
+    const claims = call.eventBatch.flatMap(
+      (occurrence: { followUpDelegationIds?: string[] }) =>
+        occurrence.followUpDelegationIds ?? [],
+    );
+    expect(claims.sort()).toEqual(["d1", "d2"]);
+    expect(call.message).toContain('"Give it to Alex." and "Tell the owner."');
+  });
+
+  it("defers, rather than fails, when another turn took the plan first", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      plannedDelegation("d1", "COMPLETED", "Give it to Alex."),
+    ]);
+    startTurnMock.mockRejectedValue(new SokoBotBusyError("handed over"));
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+    expect(result).toMatchObject({ woken: 0, deferred: 1, failed: 0 });
+  });
+
+  it("settles plans by kind: a failed Task can still be restarted, a failed Job cannot", () => {
+    const base = {
+      delegationId: "d1",
+      entityId: "e1",
+      name: "Work",
+      from: "READY",
+      note: null,
+      followUp: "Next step.",
+    };
+    const plan = (kind: "TASK" | "JOB", to: string) =>
+      followUpPlans([{ ...base, kind, to }])[0];
+    expect(plan("TASK", "COMPLETED").due).toBe(true);
+    expect(plan("TASK", "CANCELED").due).toBe(true);
+    expect(plan("TASK", "FAILED").due).toBe(false);
+    expect(plan("JOB", "FAILED").due).toBe(true);
+    expect(plan("JOB", "AWAITING_INPUT").due).toBe(false);
+    expect(
+      buildEventMessage([{ ...base, kind: "JOB", to: "FAILED" }]),
+    ).toContain('your plan "Next step." will not run');
   });
 });

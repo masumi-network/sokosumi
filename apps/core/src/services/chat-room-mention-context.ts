@@ -81,6 +81,20 @@ export function buildRoomMentionPrompt(params: {
   return `CONTEXT (last ${params.contextMessages.length} messages in #${params.roomName}):\n${contextLines.join("\n")}\n\n${messageBlock}`;
 }
 
+/**
+ * A direct chat with an assistant, prefixed with what was said there last:
+ * the assistant's own briefings and inbox posts included, so "stop telling me
+ * about these" has something to point at.
+ */
+export function buildDirectMessagePrompt(params: {
+  content: string;
+  contextMessages: readonly RoomContextMessage[];
+}): string {
+  if (params.contextMessages.length === 0) return params.content;
+  const contextLines = params.contextMessages.map(formatContextLine);
+  return `CONTEXT (last ${params.contextMessages.length} messages in this chat):\n${contextLines.join("\n")}\n\nNew message:\n${params.content}`;
+}
+
 export async function loadRoomContextMessages(params: {
   roomId: string;
   messageId: string;

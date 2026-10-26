@@ -28,6 +28,9 @@ function clientWith(response: unknown): CoreHttpClient {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async () => {
       throw new Error("Identity lookup must not write");
     },

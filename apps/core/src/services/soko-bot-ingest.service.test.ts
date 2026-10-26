@@ -7,11 +7,20 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({}));
 
+import type { SokoBotInboxMessage } from "@sokosumi/soko-bot";
+import type { TriagedMail } from "@/lib/soko-bot/mail-triage";
 import {
   briefingDue,
   buildIngestMessage,
   localClock,
 } from "./soko-bot-ingest.service";
+
+const urgent = (message: SokoBotInboxMessage): TriagedMail => ({
+  message,
+  tag: "URGENT",
+  probability: 0.9,
+  matchesRule: false,
+});
 
 describe("soko-bot ingest", () => {
   it("reads the local clock in the bot's timezone", () => {
@@ -44,7 +53,7 @@ describe("soko-bot ingest", () => {
       kind: "briefing",
       timeZone: "Europe/Berlin",
       mail: [
-        {
+        urgent({
           provider: "gmail",
           id: "m1",
           threadId: null,
@@ -55,7 +64,7 @@ describe("soko-bot ingest", () => {
           receivedAt: "2026-08-26T05:00:00Z",
           unread: true,
           labels: [],
-        },
+        }),
       ],
       events: [
         {
@@ -76,9 +85,86 @@ describe("soko-bot ingest", () => {
     expect(message).toContain("Morning briefing");
     expect(message).toContain("Standup");
     expect(message).toContain("[googlecalendar:e1]");
+    expect(message).toContain("triaged by Jev");
+    expect(message).toContain("a guide, not a fact");
     expect(message).toContain(
-      "**Contract draft** — Can you review by Friday? [gmail:m1]",
+      "**Contract draft** — Can you review by Friday? [gmail:m1] · urgent 90%",
     );
+  });
+
+  it("puts the people from Contacts between the calendar and the mail", () => {
+    const message = buildIngestMessage({
+      kind: "briefing",
+      timeZone: "UTC",
+      mail: [
+        urgent({
+          provider: "gmail",
+          id: "m1",
+          threadId: null,
+          from: "ana@example.com",
+          to: [],
+          subject: "Hello",
+          snippet: "",
+          receivedAt: "2026-08-26T05:00:00Z",
+          unread: false,
+          labels: [],
+        }),
+      ],
+      events: [
+        {
+          provider: "googlecalendar",
+          id: "e1",
+          title: "Pilot kickoff",
+          startsAt: "2026-08-26T07:00:00Z",
+          endsAt: null,
+          allDay: false,
+          location: null,
+          attendees: ["nina@acme.com"],
+          organizer: null,
+          description: null,
+          link: null,
+        },
+      ],
+      people: [
+        "## People on your calendar (from Contacts)",
+        "- Nina Keller — CEO @ Acme · known by Bob (2)",
+        "",
+      ],
+    });
+    const calendar = message.indexOf("## Calendar");
+    const people = message.indexOf("## People on your calendar");
+    const mail = message.indexOf("## Mail");
+    expect(calendar).toBeLessThan(people);
+    expect(people).toBeLessThan(mail);
+  });
+
+  it("tells the bot to act on mail a saved rule matches", () => {
+    const message = buildIngestMessage({
+      kind: "delta",
+      timeZone: "UTC",
+      mail: [
+        {
+          ...urgent({
+            provider: "gmail",
+            id: "inv",
+            threadId: null,
+            from: "billing@acme.com",
+            to: [],
+            subject: "Invoice 42",
+            snippet: "",
+            receivedAt: "2026-08-26T05:00:00Z",
+            unread: true,
+            labels: [],
+          }),
+          tag: "BULK",
+          matchesRule: true,
+        },
+      ],
+      events: [],
+    });
+    expect(message).toContain("`save_email_attachment`");
+    expect(message).toContain("Matches a saved rule");
+    expect(message).toContain("[gmail:inv]");
   });
 
   it("says so when a delta packet is empty", () => {

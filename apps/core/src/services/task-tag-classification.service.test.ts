@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import {
   classifyFixtureTaskTags,
   classifyPendingTaskTags,
@@ -47,6 +48,7 @@ const task = {
   tagClassificationAttempts: 0,
   tagClassificationState: "pending",
   tagClassificationLease: null,
+  updatedAt: new Date("2026-01-02T03:04:05.000Z"),
   automaticTags: ["writing"],
   manualTags: ["design"],
   rejectedTags: ["research"],
@@ -113,6 +115,7 @@ describe("classifyPendingTaskTags", () => {
           tagClassificationAttempts: true,
           tagClassificationState: true,
           tagClassificationLease: true,
+          updatedAt: true,
         },
       }),
     );
@@ -133,6 +136,7 @@ describe("classifyPendingTaskTags", () => {
         tagClassificationLease: expect.any(String),
         tagClassificationAttempts: { increment: 1 },
         tagClassificationAvailableAt: expect.any(Date),
+        updatedAt: task.updatedAt,
       },
     });
     expect(updateManyMock.mock.calls[1]![0]).toEqual({
@@ -147,7 +151,8 @@ describe("classifyPendingTaskTags", () => {
         automaticTags: ["research"],
         tagClassificationState: "complete",
         tagClassificationLease: null,
-        tagVocabularyVersion: 1,
+        tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+        updatedAt: task.updatedAt,
       },
     });
     expect(classifyMock).toHaveBeenCalledExactlyOnceWith(
@@ -210,6 +215,7 @@ describe("classifyPendingTaskTags", () => {
           tagClassificationState: attempts === 0 ? "pending" : "failed",
           tagClassificationLease: null,
           tagClassificationAvailableAt: expect.any(Date),
+          updatedAt: task.updatedAt,
         },
       });
       expect(classifyMock).toHaveBeenCalledTimes(1);
@@ -262,7 +268,11 @@ describe("classifyPendingTaskTags", () => {
         tagClassificationLease: "expired-lease",
         tagClassificationAvailableAt: { lte: expect.any(Date) },
       },
-      data: { tagClassificationState: "failed", tagClassificationLease: null },
+      data: {
+        tagClassificationState: "failed",
+        tagClassificationLease: null,
+        updatedAt: task.updatedAt,
+      },
     });
     expect(classifyMock).not.toHaveBeenCalled();
   });
@@ -477,6 +487,7 @@ describe("historical tag backfill", () => {
         tagClassificationAttempts: true,
         tagClassificationState: true,
         tagClassificationLease: true,
+        updatedAt: true,
       },
     });
     expect(updateManyMock.mock.calls[0]![0].where.id).toBe(task.id);

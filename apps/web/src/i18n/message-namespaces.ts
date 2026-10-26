@@ -35,6 +35,16 @@ export const AUTH_MESSAGE_PATHS = [
   "App.Error",
 ] as const;
 
+/** `/setup/assistant`: setup's bag plus the Soko Bot create form it reuses. */
+export const SETUP_ASSISTANT_MESSAGE_PATHS = [
+  ...AUTH_MESSAGE_PATHS,
+  "App.SokoBot.Create",
+  "App.SokoBot.Chat",
+  "App.SokoBot.Avatar",
+  // The optional mail and calendar connect step reuses the chat card's copy.
+  "App.Chat.SokoBot",
+] as const;
+
 /**
  * App shell chrome for nested Soko Bot/Admin providers.
  * Widened beyond the minimal sketch where sidebar/header overlays need keys.
@@ -71,7 +81,13 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Coworkers",
   "App.Developer",
   "App.MCP",
+  // Admin and Soko Bot routes render `TaskDetailView`, whose client pieces
+  // read these task namespaces.
   "App.Tasks.Detail",
+  "App.Tasks.Filters.statusOptions",
+  "App.Tasks.Priority.levels",
+  "App.Tasks.RunAt.badge",
+  "App.Tasks.Tags",
 ] as const;
 
 /** Default authenticated app bag — all App.* except SokoBot/Admin. */
@@ -89,10 +105,6 @@ export const APP_MESSAGE_PATHS = [
 export const SOKO_BOT_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.SokoBot",
-  "App.Tasks.Filters.statusOptions",
-  "App.Tasks.Priority.levels",
-  "App.Tasks.RunAt.badge",
-  "App.Tasks.Tags",
   "App.Projects.SocialPosts.preview",
 ] as const;
 

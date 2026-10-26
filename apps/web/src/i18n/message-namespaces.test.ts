@@ -36,6 +36,15 @@ describe("message namespaces", () => {
     expect(ADMIN_MESSAGE_PATHS).toContain("WorkspaceGate");
   });
 
+  it("carries task detail client namespaces on the shell bag", () => {
+    // Admin and Soko Bot routes render `TaskDetailView`; its client tag
+    // section renders raw keys like `App.Tasks.Tags.empty` without these.
+    for (const bag of [ADMIN_MESSAGE_PATHS, SOKO_BOT_MESSAGE_PATHS]) {
+      expect(bag).toContain("App.Tasks.Tags");
+      expect(bag).toContain("App.Tasks.Priority.levels");
+    }
+  });
+
   it("builds Soko Bot bag from APP_SHELL + App.SokoBot", () => {
     for (const path of APP_SHELL_MESSAGE_PATHS) {
       expect(SOKO_BOT_MESSAGE_PATHS).toContain(path);

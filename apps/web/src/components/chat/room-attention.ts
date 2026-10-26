@@ -12,6 +12,8 @@ export interface RoomAttentionCounts {
   /** Thread unread: what a Look clears. */
   threadUnreadCount?: number;
   unreadMentionCount: number;
+  /** Unread messages Jev read as asking the reader something (chat signals). */
+  unreadNeedsYouCount?: number;
   markedUnread?: boolean;
 }
 
@@ -64,6 +66,12 @@ export function resolveRoomAttention(options: {
    */
   channelUnreadCount?: number;
   unreadMentionCount: number;
+  /**
+   * Unread messages that ask the reader something: a question or a decision
+   * Jev read as addressed to them. It outranks the `@` pill, because a
+   * mention says the reader was named and this says they are waited on.
+   */
+  unreadNeedsYouCount?: number;
   markedUnread?: boolean;
   isMuted?: boolean;
   showUnreadCount?: boolean;
@@ -80,17 +88,29 @@ export function resolveRoomAttention(options: {
   badgeCount: number;
   /** What the row draws as its `@` pill: the badge, where it counts mentions. */
   mentionCount: number;
+  /** What the row draws as its needs-you pill, in the one-number slot. */
+  needsYouCount: number;
   unreadTextCount: number;
 } {
   // Muted suppression stays one early return, so the count cannot drift from
   // the two fields that already obey it.
   if (options.isMuted === true) {
-    return { bold: false, badgeCount: 0, mentionCount: 0, unreadTextCount: 0 };
+    return {
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      needsYouCount: 0,
+      unreadTextCount: 0,
+    };
   }
 
   const channelUnread = options.channelUnreadCount ?? options.unreadCount;
+  const needsYouCount = options.unreadNeedsYouCount ?? 0;
+  // One number per row: a needs-you pill stands in for the `@` pill too.
   const mentionCount =
-    options.badgeCountsMentions === false ? 0 : options.unreadMentionCount;
+    needsYouCount > 0 || options.badgeCountsMentions === false
+      ? 0
+      : options.unreadMentionCount;
 
   return {
     // A User mention inside a Thread is the one escalation that reaches the
@@ -100,13 +120,17 @@ export function resolveRoomAttention(options: {
     bold:
       channelUnread > 0 ||
       options.unreadMentionCount > 0 ||
+      needsYouCount > 0 ||
       options.markedUnread === true,
-    badgeCount: options.unreadMentionCount,
+    badgeCount: options.unreadMentionCount + needsYouCount,
     mentionCount,
+    needsYouCount,
     // One number per row. A mention pill stands alone: beside it the message
     // count was a second number, and bold already says there is more.
     unreadTextCount:
-      options.showUnreadCount === true && mentionCount === 0
+      options.showUnreadCount === true &&
+      mentionCount === 0 &&
+      needsYouCount === 0
         ? channelUnread
         : 0,
   };
@@ -144,6 +168,7 @@ export function keepRoomUnreadState<T extends RoomUnreadState>(
     unreadThreadMentionCount: held.unreadThreadMentionCount,
     unreadThreads: held.unreadThreads,
     unreadMentionCount: held.unreadMentionCount,
+    unreadNeedsYouCount: held.unreadNeedsYouCount,
     markedUnread: held.markedUnread,
   };
 }
@@ -166,6 +191,7 @@ export function roomAttentionAfterRead(
     channelUnreadCount: 0,
     threadUnreadCount,
     unreadMentionCount: 0,
+    unreadNeedsYouCount: 0,
     markedUnread: false,
   };
 }
@@ -189,6 +215,7 @@ export function resolveSectionAttention(
       unreadCount: room.unreadCount,
       channelUnreadCount: room.channelUnreadCount,
       unreadMentionCount: room.unreadMentionCount,
+      unreadNeedsYouCount: room.unreadNeedsYouCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != null,
     });

@@ -10,6 +10,10 @@
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
+  /** A channel being added already belongs to another contact; `existingContactId` names it. */
+  CONTACT_CHANNEL_TAKEN: "contact_channel_taken",
+  /** The contact changed since it was read; reload and apply the edit again. */
+  CONTACT_VERSION_CONFLICT: "contact_version_conflict",
   /** A coworker must send `X-Context-Organization-Id`: the context user has no personal workspace. */
   CONTEXT_ORGANIZATION_REQUIRED: "context_organization_required",
   INTEGRATION_NOT_CONFIGURED: "integration_not_configured",

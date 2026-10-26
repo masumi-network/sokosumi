@@ -93,6 +93,9 @@ function fixture() {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
   };
   const dependencies: CliDependencies = {
     env: { SOKOSUMI_AUTH_TOKEN: "developer_fixture" },
@@ -466,6 +469,9 @@ for (const kind of [
       put: async () => {
         throw new Error("Unexpected PUT");
       },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
+      },
     };
     await assert.rejects(
       startRuntimeTask({
@@ -547,6 +553,9 @@ for (const kind of [
       },
       put: async () => {
         throw new Error("Unexpected PUT");
+      },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
       },
     };
     await assert.rejects(
