@@ -6,7 +6,12 @@ import {
 } from "@sokosumi/email";
 import { HTTPException } from "hono/http-exception";
 
-import { sendEmail } from "@/clients/email.client";
+import {
+  RESEND_BATCH_MAX_SIZE,
+  type SendEmailInput,
+  sendEmail,
+  sendEmails,
+} from "@/clients/email.client";
 import { getEnv } from "@/config/env";
 import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -158,49 +163,115 @@ export async function subscribeToNewsletter(
   );
 }
 
-/** Shared opt-in email for public signup and authenticated subscriber additions. */
-export async function sendNewsletterConfirmation(
+type ConfirmationSubscriber = Pick<NewsletterSubscriber, "id" | "email"> & {
+  consentAt: Date;
+};
+
+/** Opt-in email for public signup. */
+async function sendNewsletterConfirmation(
   newsletter: Newsletter,
-  subscriber: Pick<NewsletterSubscriber, "id" | "email"> & { consentAt: Date },
+  subscriber: ConfirmationSubscriber,
   locale = "en",
 ) {
   try {
-    const confirmUrl = newsletterPublicUrl("confirm");
-    confirmUrl.searchParams.set(
-      "token",
-      signNewsletterConfirmToken(
-        {
-          newsletterId: newsletter.id,
-          subscriberId: subscriber.id,
-          consentAt: subscriber.consentAt.getTime(),
-        },
-        getEnv().BETTER_AUTH_SECRET,
-      ),
-    );
-    const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
-      newsletterId: newsletter.id,
-      subscriberId: subscriber.id,
-    });
-    const rendered = await renderNewsletterConfirmationEmail({
-      newsletter: {
-        ...newsletter,
-        brand: newsletterBrandSchema.parse(newsletter.brand),
-      },
-      confirmUrl: confirmUrl.href,
-      unsubscribeUrl,
+    const email = await newsletterConfirmationEmail(
+      newsletter,
+      subscriber,
       locale,
-    });
-    await sendEmail({
-      to: subscriber.email,
-      ...rendered,
-      ...newsletterSenderOptions(newsletter),
-      headers,
-      tag: "newsletter-confirmation",
-    });
+    );
+    if (!(await pendingConfirmations(newsletter, [subscriber])).length) return;
+    await sendEmail(email);
   } catch (error) {
     // Provider failures must not expose whether the address needed confirmation.
     captureException(error, { tags: { context: "newsletter_confirmation" } });
   }
+}
+
+/** Same opt-in email for authenticated additions, sent in provider batches. */
+export async function sendNewsletterConfirmations(
+  newsletter: Newsletter,
+  subscribers: ConfirmationSubscriber[],
+  locale = "en",
+) {
+  for (
+    let offset = 0;
+    offset < subscribers.length;
+    offset += RESEND_BATCH_MAX_SIZE
+  ) {
+    try {
+      const batch = subscribers.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+      const emails = await Promise.all(
+        batch.map((subscriber) =>
+          newsletterConfirmationEmail(newsletter, subscriber, locale),
+        ),
+      );
+      const pending = new Set(await pendingConfirmations(newsletter, batch));
+      const send = emails.filter((_, index) => pending.has(batch[index]));
+      if (send.length) await sendEmails(send);
+    } catch (error) {
+      // A failed batch leaves its people pending; later batches still go out.
+      captureException(error, { tags: { context: "newsletter_confirmation" } });
+    }
+  }
+}
+
+/** Re-check right before sending so a concurrent unsubscribe or bounce wins. */
+async function pendingConfirmations<T extends ConfirmationSubscriber>(
+  newsletter: Newsletter,
+  subscribers: T[],
+): Promise<T[]> {
+  const pending = await prisma.newsletterSubscriber.findMany({
+    where: {
+      newsletterId: newsletter.id,
+      newsletter: NEWSLETTER_BETA_SCOPE,
+      status: "PENDING",
+      unsubscribedAt: null,
+      bouncedAt: null,
+      OR: subscribers.map(({ id, consentAt }) => ({ id, consentAt })),
+    },
+    select: { id: true },
+  });
+  const ids = new Set(pending.map(({ id }) => id));
+  return subscribers.filter(({ id }) => ids.has(id));
+}
+
+async function newsletterConfirmationEmail(
+  newsletter: Newsletter,
+  subscriber: ConfirmationSubscriber,
+  locale: string,
+): Promise<SendEmailInput> {
+  const confirmUrl = newsletterPublicUrl("confirm");
+  confirmUrl.searchParams.set(
+    "token",
+    signNewsletterConfirmToken(
+      {
+        newsletterId: newsletter.id,
+        subscriberId: subscriber.id,
+        consentAt: subscriber.consentAt.getTime(),
+      },
+      getEnv().BETTER_AUTH_SECRET,
+    ),
+  );
+  const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
+    newsletterId: newsletter.id,
+    subscriberId: subscriber.id,
+  });
+  const rendered = await renderNewsletterConfirmationEmail({
+    newsletter: {
+      ...newsletter,
+      brand: newsletterBrandSchema.parse(newsletter.brand),
+    },
+    confirmUrl: confirmUrl.href,
+    unsubscribeUrl,
+    locale,
+  });
+  return {
+    to: subscriber.email,
+    ...rendered,
+    ...newsletterSenderOptions(newsletter),
+    headers,
+    tag: "newsletter-confirmation",
+  };
 }
 
 export async function getNewsletterConfirmSubscriber(token: string) {

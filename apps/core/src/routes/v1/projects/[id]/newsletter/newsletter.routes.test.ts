@@ -53,13 +53,18 @@ const m = vi.hoisted(() => ({
   listUpdate: vi.fn(),
   memberCreateMany: vi.fn(),
   sendEmail: vi.fn(),
+  sendEmails: vi.fn(),
   redis: vi.fn(),
   createManyAndReturn: vi.fn(),
   createEvents: vi.fn(),
   eventCreate: vi.fn(),
 }));
 
-vi.mock("@/clients/email.client", () => ({ sendEmail: m.sendEmail }));
+vi.mock("@/clients/email.client", () => ({
+  RESEND_BATCH_MAX_SIZE: 100,
+  sendEmail: m.sendEmail,
+  sendEmails: m.sendEmails,
+}));
 vi.mock("@/lib/redis", () => ({ getRedisClient: () => ({ eval: m.redis }) }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
@@ -173,6 +178,10 @@ function json(method: "POST" | "PUT" | "PATCH", body: unknown): RequestInit {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   };
+}
+
+function sentMails(): { to: string; html: string; tag: string }[] {
+  return m.sendEmails.mock.calls.flatMap(([mails]) => mails);
 }
 
 /** linkNewsletterContacts may also restore list members through raw SQL. */
@@ -453,13 +462,13 @@ describe("newsletter subscribers", () => {
     expect(await response.json()).toMatchObject({
       data: { status: "PENDING", source: "MANUAL" },
     });
-    expect(m.sendEmail).toHaveBeenCalledOnce();
-    const mail = m.sendEmail.mock.calls[0][0];
+    expect(m.sendEmails).toHaveBeenCalledOnce();
+    const [mail] = sentMails();
     expect(mail).toMatchObject({
       to: "ada@example.com",
       tag: "newsletter-confirmation",
     });
-    const token = mail.html.match(/confirm\?token=([^"\s]+)/)?.[1];
+    const token = mail?.html.match(/confirm\?token=([^"\s]+)/)?.[1] ?? "";
     expect(verifyNewsletterConfirmToken(token, "test-secret")).toEqual({
       newsletterId: NEWSLETTER_ID,
       subscriberId: SUBSCRIBER_ID,
@@ -508,7 +517,7 @@ describe("newsletter subscribers", () => {
             : "This person's email bounced; they cannot be subscribed again",
       });
       expect(m.update).not.toHaveBeenCalled();
-      expect(m.sendEmail).not.toHaveBeenCalled();
+      expect(m.sendEmails).not.toHaveBeenCalled();
       expect(relinkQuery()?.sql).toContain('subscriber."contactId" IS NULL');
       expect(relinkQuery()?.sql).toContain(
         "subscriber.status IN ('ACTIVE', 'PENDING')",
@@ -587,7 +596,7 @@ describe("newsletter subscribers", () => {
       ],
       skipDuplicates: true,
     });
-    expect(m.sendEmail).not.toHaveBeenCalled();
+    expect(m.sendEmails).not.toHaveBeenCalled();
   });
 
   it("links the contact that owns the email and preserves their name", async () => {
@@ -1185,12 +1194,12 @@ describe("newsletter subscriber CSV import", () => {
         (row: { status: string }) => row.status === "PENDING",
       ),
     ).toBe(true);
-    expect(m.sendEmail).toHaveBeenCalledExactlyOnceWith(
+    expect(sentMails()).toEqual([
       expect.objectContaining({
         to: "ada@example.com",
         tag: "newsletter-confirmation",
       }),
-    );
+    ]);
     expect(m.update).not.toHaveBeenCalled();
   });
 
@@ -1473,7 +1482,7 @@ describe("newsletter subscribers from contacts", () => {
         ],
       },
     });
-    expect(m.sendEmail).not.toHaveBeenCalled();
+    expect(m.sendEmails).not.toHaveBeenCalled();
   });
 
   it("skips contacts without email and chooses primary email then oldest email", async () => {
@@ -1523,7 +1532,7 @@ describe("newsletter subscribers from contacts", () => {
       },
     });
     expect(m.update).not.toHaveBeenCalled();
-    expect(m.sendEmail).not.toHaveBeenCalled();
+    expect(m.sendEmails).not.toHaveBeenCalled();
   });
 
   it("creates ASK people as pending and confirms each new person once", async () => {
@@ -1545,8 +1554,8 @@ describe("newsletter subscribers from contacts", () => {
         (row: { status: string }) => row.status === "PENDING",
       ),
     ).toBe(true);
-    expect(m.sendEmail).toHaveBeenCalledTimes(3);
-    expect(m.sendEmail.mock.calls.map(([mail]) => mail.to)).toEqual(
+    expect(m.sendEmails).toHaveBeenCalledOnce();
+    expect(sentMails().map((mail) => mail.to)).toEqual(
       people.map((person) => person.channels[0].value),
     );
     expect(m.redis).toHaveBeenCalledWith(
@@ -1563,7 +1572,29 @@ describe("newsletter subscribers from contacts", () => {
     expect(await retry.json()).toMatchObject({
       data: { added: 0, alreadySubscribed: 3, pendingConfirmation: 0 },
     });
-    expect(m.sendEmail).toHaveBeenCalledTimes(3);
+    expect(m.sendEmails).toHaveBeenCalledOnce();
+  });
+
+  it("skips confirmations for people who unsubscribed or bounced before dispatch", async () => {
+    contacts();
+    m.pendingFindMany.mockImplementation(
+      async ({ where }: { where: { OR: { id: string }[] } }) =>
+        where.OR.slice(1).map(({ id }) => ({ id })),
+    );
+    const response = await createApp().request(
+      `${BASE}/subscribers/from-contacts`,
+      json("POST", { listIds: [LIST_ID], consent: "ASK" }),
+    );
+    expect(response.status).toBe(200);
+    expect(m.pendingFindMany.mock.calls[0][0].where).toMatchObject({
+      newsletterId: NEWSLETTER_ID,
+      status: "PENDING",
+      unsubscribedAt: null,
+      bouncedAt: null,
+    });
+    expect(sentMails().map((mail) => mail.to)).toEqual(
+      people.slice(1).map((person) => person.channels[0].value),
+    );
   });
 
   it.each(["ACTIVE", "PENDING"])(
@@ -1590,7 +1621,7 @@ describe("newsletter subscribers from contacts", () => {
         NEWSLETTER_ID,
       ]);
       expect(m.update).not.toHaveBeenCalled();
-      expect(m.sendEmail).not.toHaveBeenCalled();
+      expect(m.sendEmails).not.toHaveBeenCalled();
     },
   );
 
@@ -1706,6 +1737,110 @@ describe("newsletter subscribers from contacts", () => {
     expect(m.transaction).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { status: "UNSUBSCRIBED", contact: { id: CONTACT_ID, mergedIntoId: null } },
+    {
+      status: "BOUNCED",
+      contact: { id: SECOND_CONTACT_ID, mergedIntoId: CONTACT_ID },
+    },
+  ])(
+    "does not re-add a $status person under another email",
+    async (suppressed) => {
+      contacts([{ ...people[0], channels: [{ value: "new@example.com" }] }]);
+      m.findMany.mockResolvedValueOnce([suppressed]);
+      const response = await createApp().request(
+        `${BASE}/subscribers/from-contacts`,
+        json("POST", { contactIds: [CONTACT_ID], consent: "ASK" }),
+      );
+      expect(await response.json()).toMatchObject({
+        data: {
+          added: 0,
+          skippedUnsubscribed: suppressed.status === "UNSUBSCRIBED" ? 1 : 0,
+          skippedBounced: suppressed.status === "BOUNCED" ? 1 : 0,
+          pendingConfirmation: 0,
+        },
+      });
+      expect(m.findMany.mock.calls[0][0].where).toEqual({
+        newsletterId: NEWSLETTER_ID,
+        status: { in: ["UNSUBSCRIBED", "BOUNCED"] },
+        contact: {
+          OR: [
+            { id: { in: [CONTACT_ID] } },
+            { mergedIntoId: { in: [CONTACT_ID] } },
+          ],
+        },
+      });
+      expect(m.createManyAndReturn.mock.calls[0][0].data).toEqual([]);
+      expect(m.sendEmails).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects an unsubscribed person added by hand under another email", async () => {
+    contacts([{ ...people[0], channels: [{ value: "new@example.com" }] }]);
+    m.findMany.mockResolvedValueOnce([
+      {
+        status: "UNSUBSCRIBED",
+        contact: { id: CONTACT_ID, mergedIntoId: null },
+      },
+    ]);
+    m.createManyAndReturn.mockResolvedValue([]);
+    const response = await createApp().request(
+      `${BASE}/subscribers`,
+      json("POST", { email: "new@example.com", consent: "CONFIRMED" }),
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      message: "This person unsubscribed; they cannot be subscribed again",
+    });
+  });
+
+  it("limits ASK to 1,000 people per request before rate limiting or writing", async () => {
+    contacts(
+      Array.from({ length: 1001 }, (_, index) => ({
+        id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        name: `Person ${index}`,
+        channels: [{ value: `person${index}@example.com` }],
+      })),
+    );
+    const fromContacts = await createApp().request(
+      `${BASE}/subscribers/from-contacts`,
+      json("POST", { listIds: [LIST_ID], consent: "ASK" }),
+    );
+    const csv = await createApp().request(
+      `${BASE}/subscribers/import`,
+      json("POST", {
+        csv: `email\n${Array.from({ length: 1001 }, (_, index) => `p${index}@example.com`).join("\n")}`,
+        consent: "ASK",
+      }),
+    );
+    for (const response of [fromContacts, csv]) {
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        message: "Ask them first works for up to 1,000 people at a time",
+      });
+    }
+    expect(m.redis).not.toHaveBeenCalled();
+    expect(m.transaction).not.toHaveBeenCalled();
+  });
+
+  it("sends ASK confirmations in batches of 100 and keeps going after a failed batch", async () => {
+    m.sendEmails.mockRejectedValueOnce(new Error("provider down"));
+    const response = await createApp().request(
+      `${BASE}/subscribers/import`,
+      json("POST", {
+        csv: `email\n${Array.from({ length: 250 }, (_, index) => `p${index}@example.com`).join("\n")}`,
+        consent: "ASK",
+      }),
+    );
+    expect(await response.json()).toMatchObject({
+      data: { imported: 250, pendingConfirmation: 250 },
+    });
+    expect(m.sendEmails.mock.calls.map(([mails]) => mails.length)).toEqual([
+      100, 100, 50,
+    ]);
+    expect(new Set(sentMails().map((mail) => mail.to)).size).toBe(250);
+  });
+
   it.each(["subscribers", "subscribers/import", "subscribers/from-contacts"])(
     "applies the signup rate limit to ASK on %s before writing",
     async (path) => {
@@ -1723,7 +1858,7 @@ describe("newsletter subscribers from contacts", () => {
       expect(response.status).toBe(429);
       expect(response.headers.get("Retry-After")).toBe("600");
       expect(m.transaction).not.toHaveBeenCalled();
-      expect(m.sendEmail).not.toHaveBeenCalled();
+      expect(m.sendEmails).not.toHaveBeenCalled();
     },
   );
 });
