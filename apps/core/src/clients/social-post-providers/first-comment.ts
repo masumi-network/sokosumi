@@ -2,6 +2,7 @@ import {
   type SocialPostProvider,
   socialPostFirstCommentLimit,
   socialPostProviderLabel,
+  socialPostTextLength,
 } from "@sokosumi/utils";
 
 import { deleteComposioToolSession } from "@/clients/composio.client";
@@ -42,6 +43,7 @@ export interface PublishSocialPostFirstCommentInput {
   externalAccountId: string;
   externalId: string;
   text: string;
+  subscriptionType?: string | null;
   signal?: AbortSignal;
 }
 
@@ -106,9 +108,17 @@ export async function publishSocialPostFirstComment(
   input: PublishSocialPostFirstCommentInput,
 ): Promise<void> {
   const tool = socialPostFirstCommentTool(input.provider);
-  const limit = socialPostFirstCommentLimit(input.provider);
+  const limit = socialPostFirstCommentLimit(
+    input.provider,
+    input.subscriptionType,
+  );
   const text = input.text.trim();
-  if (!tool || limit === null || text.length === 0 || text.length > limit) {
+  if (
+    !tool ||
+    limit === null ||
+    text.length === 0 ||
+    socialPostTextLength(input.provider, text) > limit
+  ) {
     return;
   }
   const args = commentArguments({ ...input, text });

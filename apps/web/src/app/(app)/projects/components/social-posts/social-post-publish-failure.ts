@@ -23,6 +23,7 @@ function isPublishFailureKind(kind: string): kind is PublishFailureKind {
 
 export interface PublishFailureSource {
   status: SocialPostStatus;
+  lastError?: string | null;
   lastAttempt?: {
     outcome?: string | null;
     errorKind?: string | null;
@@ -44,6 +45,8 @@ export function publishFailureCopy(
     return t("outcomes.missed");
   }
   const kind = post.lastAttempt?.errorKind;
+  // This message is authored by Core's length guard, without provider error text.
+  if (kind === "text_limit" && post.lastError) return post.lastError;
   if (kind && isPublishFailureKind(kind)) {
     return t(PUBLISH_FAILURE_KIND_COPY[kind]);
   }

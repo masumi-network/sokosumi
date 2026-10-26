@@ -46,6 +46,7 @@ interface AccountPost {
 }
 interface AccountPage {
   accountMetrics: SocialAccountMetric[] | null;
+  subscriptionType: string | null;
   accountError: string | null;
   posts: AccountPost[];
   nextCursor: string | null;
@@ -562,10 +563,11 @@ async function profile(
   switch (context.provider) {
     case "x": {
       const data = await read("TWITTER_USER_LOOKUP_ME", {
-        user_fields: ["public_metrics"],
+        user_fields: ["public_metrics", "subscription_type"],
       });
       if (data?.id !== context.externalAccountId)
         throw new TypeError("Connected identity mismatch");
+      result.subscriptionType = string(data.subscription_type);
       const publicMetrics = record(data.public_metrics);
       result.accountMetrics = counts(
         {
@@ -1167,6 +1169,7 @@ export async function fetchSocialAccountStatisticsPage(
 ): Promise<AccountPage> {
   const result: AccountPage = {
     accountMetrics: null,
+    subscriptionType: null,
     accountError: null,
     posts: [],
     nextCursor: null,
