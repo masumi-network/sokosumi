@@ -29,8 +29,12 @@ import {
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
+
+/** How long a desktop page waits for its sidebar to take over the reads. */
+const SIDEBAR_REGISTRATION_WAIT_MS = 2_000;
 
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
@@ -73,11 +77,22 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     hasLiveMembershipVisibleRoomsPublisher,
     () => false,
   );
-  // The sidebar registers as the reader from an effect, in the same commit
-  // this hook mounts in. Deciding on the first render would start a second
-  // read of the same collection before that registration lands.
+  // The desktop sidebar registers as the reader from an effect, often in a
+  // later streamed commit than this hook's. Reading at once would read the
+  // same collection twice, so on desktop this waits a moment for it; on a
+  // phone there is no sidebar to wait for.
   const [ownershipSettled, setOwnershipSettled] = useState(false);
-  useEffect(() => setOwnershipSettled(true), []);
+  useEffect(() => {
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
+      setOwnershipSettled(true);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOwnershipSettled(true),
+      SIDEBAR_REGISTRATION_WAIT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, []);
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,
