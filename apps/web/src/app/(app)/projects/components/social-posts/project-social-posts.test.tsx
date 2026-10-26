@@ -2104,6 +2104,253 @@ describe("ProjectSocialPosts", () => {
     ).toBe(null);
   });
 
+  it.each(["button", "meta", "ctrl"])(
+    "saves a Studio draft with %s without choosing an account or publishing",
+    async (submit) => {
+      const user = userEvent.setup();
+      writeRememberedComposerAccounts("org_1", PROJECT_ID, ["connection-1"]);
+      writeSocialComposePrefill(PROJECT_ID, {
+        media: [IMAGE_REF],
+        text: "Launch day.",
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+        "?compose=new",
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("button", { name: "X @sokosumi" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        within(dialog).getByRole("button", { name: "Now" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        within(dialog).queryByRole("button", { name: "Post now" }),
+      ).not.toBeInTheDocument();
+      const save = within(dialog).getByRole("button", { name: "Save draft" });
+      expect(save.querySelector("kbd")).toBeInTheDocument();
+
+      if (submit === "button") await user.click(save);
+      else {
+        fireEvent.keyDown(within(dialog).getByLabelText("Text"), {
+          key: "Enter",
+          metaKey: submit === "meta",
+          ctrlKey: submit === "ctrl",
+        });
+      }
+
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          text: "Launch day.",
+          media: [IMAGE_REF],
+          socialConnectionId: null,
+        });
+      });
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
+
+  it("requires an account and an explicit Now choice before publishing from Studio", async () => {
+    const user = userEvent.setup();
+    writeSocialComposePrefill(PROJECT_ID, {
+      media: [IMAGE_REF],
+      text: "Launch day.",
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+      "?compose=new",
+    );
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Now" }));
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(publishProjectSocialPost).toHaveBeenCalledTimes(1);
+    });
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ socialConnectionId: "connection-1" }),
+    );
+  });
+
+  it("schedules from Studio only after choosing a time and an account", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    writeSocialComposePrefill(PROJECT_ID, {
+      media: [IMAGE_REF],
+      text: "Launch day.",
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+      "?compose=new",
+    );
+    const dialog = screen.getByRole("dialog");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeDisabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduledAt: IN_AN_HOUR.toISOString(),
+          socialConnectionId: "connection-1",
+        }),
+      );
+    });
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it.each(["draft", "publish", "schedule"] as const)(
+    "refreshes the X tier for a long Studio caption and respects the explicit %s action",
+    async (action) => {
+      freezeClock();
+      getSubscriptionMock.mockResolvedValue({
+        data: { subscriptionType: "Premium", textLimit: 25000 },
+      });
+      const user = userEvent.setup();
+      const caption = "x".repeat(1000);
+      writeRememberedComposerAccounts("org_1", PROJECT_ID, ["connection-1"]);
+      writeSocialComposePrefill(PROJECT_ID, {
+        media: [IMAGE_REF],
+        text: caption,
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+        "?compose=new",
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(getSubscriptionMock).not.toHaveBeenCalled();
+      expect(within(dialog).getByLabelText("Text")).toHaveValue(caption);
+      expect(
+        within(dialog).getByRole("button", { name: "X @sokosumi" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        within(dialog).getByRole("button", { name: "Now" }),
+      ).toHaveAttribute("aria-pressed", "false");
+
+      await user.click(
+        within(dialog).getByRole("button", { name: "X @sokosumi" }),
+      );
+      await waitFor(() =>
+        expect(
+          within(dialog).getByTestId("social-post-character-count"),
+        ).toHaveTextContent("1000 / 25000"),
+      );
+      expect(getSubscriptionMock).toHaveBeenCalledExactlyOnceWith(
+        PROJECT_ID,
+        "connection-1",
+      );
+      expect(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      ).toBeEnabled();
+      expect(
+        within(dialog).queryByRole("button", { name: "Post now" }),
+      ).not.toBeInTheDocument();
+
+      if (action === "publish") {
+        await user.click(within(dialog).getByRole("button", { name: "Now" }));
+      } else if (action === "schedule") {
+        await pickInAnHour(user, dialog);
+      }
+      fireEvent.keyDown(within(dialog).getByLabelText("Text"), {
+        key: "Enter",
+        ctrlKey: true,
+      });
+
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
+          projectId: PROJECT_ID,
+          text: caption,
+          media: [IMAGE_REF],
+          socialConnectionId: "connection-1",
+          ...(action === "schedule"
+            ? {
+                scheduledAt: IN_AN_HOUR.toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              }
+            : {}),
+        });
+      });
+      if (action === "publish") {
+        await waitFor(() =>
+          expect(publishProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
+            projectId: PROJECT_ID,
+            postId: "post-new",
+            revision: 0,
+          }),
+        );
+      } else {
+        expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      }
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves composer edits when the Studio prefill changes while it is open", async () => {
+    const user = userEvent.setup();
+    writeSocialComposePrefill(PROJECT_ID, {
+      media: [IMAGE_REF],
+      text: "First caption.",
+    });
+    const view = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+      "?compose=new",
+    );
+    const text = within(screen.getByRole("dialog")).getByLabelText("Text");
+    await user.clear(text);
+    await user.type(text, "My edited post.");
+    writeSocialComposePrefill(PROJECT_ID, {
+      media: [IMAGE_REF],
+      text: "Late caption.",
+    });
+    view.rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(text).toHaveValue("My edited post.");
+  });
+
   it("says why Post now is off when the draft is empty", async () => {
     const user = userEvent.setup();
     render(

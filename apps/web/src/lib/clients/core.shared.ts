@@ -425,6 +425,7 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
@@ -3534,6 +3535,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioAssetsByAssetIdCaption(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioAssetsByAssetIdCaption({
+          client,
+          path: { id, assetId },
+        }),
+      "Failed to write a caption",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobs(
     id: string,
     body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
@@ -6259,6 +6275,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getImageStudioState,
     getProjectsByIdImageStudio,
     getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
+    postProjectsByIdImageStudioAssetsByAssetIdCaption,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,

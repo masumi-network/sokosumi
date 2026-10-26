@@ -102,7 +102,12 @@ import {
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
-  | { kind: "create"; media?: SocialPostMediaRef[]; text?: string }
+  | {
+      kind: "create";
+      media?: SocialPostMediaRef[];
+      text?: string;
+      source?: "studio";
+    }
   | { kind: "edit"; post: SocialPost }
   | { kind: "schedule"; post: SocialPost };
 
@@ -162,6 +167,7 @@ export function SocialPostComposerDialog({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const fromStudio = mode.kind === "create" && mode.source === "studio";
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -214,6 +220,7 @@ export function SocialPostComposerDialog({
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
     if (mode.kind === "create") {
+      if (fromStudio) return [];
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
@@ -260,8 +267,12 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+  const [scheduledAt, setScheduledAt] = useState<string | null>(
+    post?.scheduledAt
+      ? toScheduleValue(post.scheduledAt)
+      : fromStudio
+        ? null
+        : "",
   );
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -471,6 +482,7 @@ export function SocialPostComposerDialog({
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
+    scheduledAt === "" &&
     textValid &&
     mediaValid &&
     selectedConnections.length > 0 &&
@@ -746,14 +758,15 @@ export function SocialPostComposerDialog({
 
   /**
    * The one main action, which follows When: a time schedules, "Now" posts,
-   * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
-   * time is all the schedule dialog does, so it never saves a new draft.
+   * and an unchosen time or existing post with no time saves. ⌘/Ctrl+Enter
+   * runs it. Picking a time is all the schedule dialog does, so it never
+   * saves a new draft.
    */
   const canPostNow = mode.kind === "create" && connections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
-    scheduledAt !== "" || isScheduleOnly
+    scheduledAt || isScheduleOnly
       ? "schedule"
-      : canPostNow
+      : canPostNow && scheduledAt === ""
         ? "publish"
         : "save";
   const primaryEnabled =
@@ -939,7 +952,7 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== ""
+        Boolean(scheduledAt)
       : firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||
@@ -1037,7 +1050,7 @@ export function SocialPostComposerDialog({
       cancelLabel={t("composer.dismiss")}
       isDismissDisabled={isBusy}
       onOpenAutoFocus={(event) => {
-        // Straight to the text: the account is already picked.
+        // Straight to the text on desktop; accounts can be picked afterwards.
         if (isScheduleOnly || isMobile) return;
         event.preventDefault();
         textareaRef.current?.focus();

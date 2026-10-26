@@ -32,6 +32,7 @@ import {
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
   startVideoGeneration,
+  writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,12 @@ const EMPTY_STUDIO_STATE: StudioState = {
 
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
+
+interface StudioCaptionDraft {
+  text: string;
+  suggestion?: string;
+  previousText?: string;
+}
 
 /**
  * The studio.
@@ -189,6 +196,9 @@ export function ImageStudio({
   const [creatingProjectFor, setCreatingProjectFor] = useState<
     GenerationRequest[] | null
   >(null);
+  const [captionByAssetId, setCaptionByAssetId] = useState<
+    Record<string, StudioCaptionDraft>
+  >({});
 
   // Video: a second composer over the same gallery, shown only when Core
   // offers a video model.
@@ -328,10 +338,42 @@ export function ImageStudio({
       toast.error(labels.scheduleFailed);
       return;
     }
-    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    const text = captionByAssetId[asset.id]?.text.trim();
+    writeSocialComposePrefill(asset.projectId, {
+      media: [result.value],
+      ...(text ? { text } : {}),
+    });
     router.push(
       `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
     );
+  }
+
+  async function writeCaption(asset: StudioAsset) {
+    const textAtStart = captionByAssetId[asset.id]?.text;
+    const result = await writeStudioAssetCaption({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.writeCaptionFailed);
+      return;
+    }
+    setCaptionByAssetId((current) => {
+      const caption = current[asset.id];
+      // Offer replacements; even clearing the text while waiting is an edit.
+      const preserveText =
+        caption?.text.trim() || caption?.text !== textAtStart;
+      return {
+        ...current,
+        [asset.id]: preserveText
+          ? {
+              ...caption,
+              text: caption?.text ?? "",
+              suggestion: result.value.text,
+            }
+          : { text: result.value.text },
+      };
+    });
   }
 
   /**
@@ -940,6 +982,63 @@ export function ImageStudio({
             }));
             setViewing(null);
             requestAnimationFrame(() => promptRef.current?.focus());
+          }}
+          onWriteCaption={writeCaption}
+          caption={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.text
+              : undefined
+          }
+          captionSuggestion={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.suggestion
+              : undefined
+          }
+          onCaptionSuggestionResolve={(useSuggestion) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => {
+              const caption = current[asset.id];
+              if (caption?.suggestion === undefined) return current;
+              return {
+                ...current,
+                [asset.id]: useSuggestion
+                  ? { text: caption.suggestion, previousText: caption.text }
+                  : { ...caption, suggestion: undefined },
+              };
+            });
+          }}
+          onUndoCaption={
+            lightboxAssets.length === 1 &&
+            captionByAssetId[lightboxAssets[0].id]?.previousText !== undefined
+              ? () => {
+                  const assetId = lightboxAssets[0].id;
+                  setCaptionByAssetId((current) => {
+                    const caption = current[assetId];
+                    if (caption?.previousText === undefined) return current;
+                    return {
+                      ...current,
+                      [assetId]: {
+                        ...caption,
+                        text: caption.previousText,
+                        previousText: undefined,
+                      },
+                    };
+                  });
+                }
+              : undefined
+          }
+          onCaptionChange={(text) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => ({
+              ...current,
+              [asset.id]: {
+                ...current[asset.id],
+                text,
+                previousText: undefined,
+              },
+            }));
           }}
           siblings={state.assets}
         />

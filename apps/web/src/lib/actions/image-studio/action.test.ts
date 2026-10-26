@@ -3,15 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
-import { prepareStudioAssetSocialMedia, startImageGeneration } from "./action";
+import {
+  prepareStudioAssetSocialMedia,
+  startImageGeneration,
+  writeStudioAssetCaption,
+} from "./action";
 
-const { createJob, getSocialMediaMock, toCoreApiActionErrorMock } = vi.hoisted(
-  () => ({
-    createJob: vi.fn(),
-    getSocialMediaMock: vi.fn(),
-    toCoreApiActionErrorMock: vi.fn(),
-  }),
-);
+const {
+  createJob,
+  getSocialMediaMock,
+  toCoreApiActionErrorMock,
+  writeCaptionMock,
+} = vi.hoisted(() => ({
+  createJob: vi.fn(),
+  getSocialMediaMock: vi.fn(),
+  toCoreApiActionErrorMock: vi.fn(),
+  writeCaptionMock: vi.fn(),
+}));
 
 vi.mock("server-only", () => ({}));
 
@@ -39,6 +47,7 @@ vi.mock("@/lib/services/image-studio.service", () => ({
     createJob,
     cancelJob: vi.fn(),
     getSocialMedia: getSocialMediaMock,
+    writeCaption: writeCaptionMock,
   },
 }));
 
@@ -210,5 +219,57 @@ describe("starting image generation", () => {
 
     await expect(startImageGeneration(REQUEST)).rejects.toBe(error);
     expect(createJob).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("writeStudioAssetCaption", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error instanceof Error ? error.message : "Unexpected error",
+    }));
+  });
+
+  it("returns the caption Core wrote", async () => {
+    writeCaptionMock.mockResolvedValue({ text: "Late sun on a red fox." });
+
+    const result = await writeStudioAssetCaption({
+      projectId: "project-1",
+      assetId: "asset-1",
+    });
+
+    expect(writeCaptionMock).toHaveBeenCalledWith("project-1", "asset-1");
+    expect(result).toEqual({
+      ok: true,
+      value: { text: "Late sun on a red fox." },
+    });
+  });
+
+  it("rejects a blank image", async () => {
+    const result = await writeStudioAssetCaption({
+      projectId: "project-1",
+      assetId: "  ",
+    });
+
+    expect(writeCaptionMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Image required" },
+    });
+  });
+
+  it("maps a Core failure", async () => {
+    writeCaptionMock.mockRejectedValue(new Error("gateway down"));
+
+    const result = await writeStudioAssetCaption({
+      projectId: "project-1",
+      assetId: "asset-1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "gateway down" },
+    });
   });
 });

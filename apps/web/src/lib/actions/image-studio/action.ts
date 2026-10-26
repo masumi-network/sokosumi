@@ -199,3 +199,31 @@ export const prepareStudioAssetSocialMedia = withSession<
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
+
+interface WriteCaptionParameters extends AuthenticatedRequest {
+  projectId: string;
+  assetId: string;
+}
+
+export const writeStudioAssetCaption = withSession<
+  WriteCaptionParameters,
+  ActionResultDto<{ text: string }, ActionError>
+>(async ({ projectId, assetId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedAssetId = assetId.trim();
+  if (!normalizedProjectId || !normalizedAssetId) {
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Image required" }),
+    );
+  }
+
+  try {
+    const caption = await imageStudioService.writeCaption(
+      normalizedProjectId,
+      normalizedAssetId,
+    );
+    return toActionResult(ok(caption));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});

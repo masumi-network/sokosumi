@@ -26686,6 +26686,20 @@ export const CancelProjectImageJobResponseSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioCaptionSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {

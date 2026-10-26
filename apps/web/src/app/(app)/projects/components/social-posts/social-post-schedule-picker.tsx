@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-/** The composer's value: a local `yyyy-MM-ddTHH:mm`, or "" when unset. */
+/** Local date/time format shared by the composer and picker. */
 const LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
 const SLOT_MINUTES = 15;
 const MORNING_HOUR = 9;
@@ -32,7 +32,7 @@ export function toScheduleValue(date: Date): string {
   return format(date, LOCAL_FORMAT);
 }
 
-function parseScheduleValue(value: string): Date | null {
+function parseScheduleValue(value: string | null): Date | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
@@ -138,7 +138,8 @@ interface SocialPostSchedulePickerProps {
   onChange: (value: string) => void;
   /** Hours 0–23 from this account's Performance history. Hidden when empty. */
   suggestedHours?: number[];
-  value: string;
+  /** `null` leaves When unchosen; "" explicitly selects Now. */
+  value: string | null;
 }
 
 /**
