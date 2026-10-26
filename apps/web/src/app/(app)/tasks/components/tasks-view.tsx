@@ -202,6 +202,7 @@ interface TasksViewProps {
       all: string;
       scopeLabel: string;
       scopeOwned: string;
+      assignedToMe: string;
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
@@ -886,6 +887,7 @@ export function TasksView({
             <TasksViewToolbarActions
               filters={{
                 activeOrganizationId,
+                userId,
                 coworkerOptions,
                 projectOptions,
                 labels: labels.filters,

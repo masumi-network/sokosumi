@@ -1,7 +1,13 @@
 "use client";
 
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
-import { Building2, CircleDashed, Eye, Sparkles } from "lucide-react";
+import {
+  Building2,
+  CircleDashed,
+  CircleUserRound,
+  Eye,
+  Sparkles,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
@@ -15,10 +21,13 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { Button } from "@/components/ui/button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
+  /** The viewer, for the My tasks toggle; hidden when they are not an option. */
+  userId?: string | null;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -28,6 +37,7 @@ interface TasksViewFiltersProps {
     all: string;
     scopeLabel: string;
     scopeOwned: string;
+    assignedToMe: string;
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
@@ -39,6 +49,7 @@ interface TasksViewFiltersProps {
 
 export function TasksViewFilters({
   activeOrganizationId,
+  userId,
   coworkerOptions,
   projectOptions,
   labels,
@@ -220,13 +231,37 @@ export function TasksViewFilters({
     labels.visibilityPrivate,
   ]);
 
+  const canFilterMine = coworkerOptions.some(
+    (option) => option.kind === "user" && option.id === userId,
+  );
+  const showingMine = canFilterMine && filters.assigneeUserId === userId;
+
   return (
-    <FilterDropdownMenu
-      buttonLabel={labels.title}
-      searchPlaceholder={labels.searchPlaceholder}
-      emptyResultsLabel={labels.emptyResults}
-      sections={sections}
-      showActiveIndicator={showActiveIndicator}
-    />
+    <>
+      {canFilterMine ? (
+        <Button
+          variant={showingMine ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={showingMine}
+          onClick={() =>
+            handleFilterChange({
+              assigneeId: null,
+              assigneeSokoBotId: null,
+              assigneeUserId: showingMine ? null : (userId ?? null),
+            })
+          }
+        >
+          <CircleUserRound aria-hidden className="size-4" />
+          {labels.assignedToMe}
+        </Button>
+      ) : null}
+      <FilterDropdownMenu
+        buttonLabel={labels.title}
+        searchPlaceholder={labels.searchPlaceholder}
+        emptyResultsLabel={labels.emptyResults}
+        sections={sections}
+        showActiveIndicator={showActiveIndicator}
+      />
+    </>
   );
 }

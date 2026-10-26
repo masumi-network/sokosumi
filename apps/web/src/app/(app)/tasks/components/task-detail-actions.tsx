@@ -41,7 +41,10 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
-import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  markTaskArchived,
+  unmarkTaskArchived,
+} from "@/app/tasks/utils/archived-task-ids";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
@@ -62,11 +65,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createTaskAndLink,
   createTaskLink,
-  deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
+import { taskClientService } from "@/lib/services/task.client";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
@@ -187,7 +190,6 @@ export function TaskDetailActions({
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
   const [isStatusPending, startStatusTransition] = useTransition();
-  const [isArchivePending, startArchiveTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
     useTransition();
@@ -440,20 +442,16 @@ export function TaskDetailActions({
     });
   };
 
+  // Leaves for the board at once and archives in the background: the board
+  // already hides the task, and shows it again if the archive fails.
   const handleArchive = () => {
-    startArchiveTransition(async () => {
-      try {
-        await deleteTask({ taskId });
-        markTaskArchived(taskId);
-        router.push("/tasks");
-      } catch (error) {
-        console.error("Failed to archive task", error);
-        toast.error(
-          error instanceof Error && error.message
-            ? error.message
-            : labels.archiveError,
-        );
-      }
+    markTaskArchived(taskId);
+    router.push("/tasks");
+    taskClientService.archive(taskId).catch((error: unknown) => {
+      console.error("Failed to archive task", error);
+      unmarkTaskArchived(taskId);
+      toast.error(labels.archiveError);
+      router.refresh();
     });
   };
 
@@ -549,7 +547,6 @@ export function TaskDetailActions({
 
   const actionsDisabled =
     isStatusPending ||
-    isArchivePending ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
@@ -567,11 +564,7 @@ export function TaskDetailActions({
           disabled={actionsDisabled}
           onClick={handleArchive}
         >
-          {isArchivePending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Trash2 className="size-4" aria-hidden />
-          )}
+          <Trash2 className="size-4" aria-hidden />
         </Button>
       ) : null}
       {canMutateTask && taskVisibility !== "PRIVATE" ? (

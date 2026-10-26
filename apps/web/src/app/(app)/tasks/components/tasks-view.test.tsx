@@ -208,6 +208,7 @@ const labels = {
     all: "All",
     scopeLabel: "Scope",
     scopeOwned: "Owned",
+    assignedToMe: "My tasks",
     scopeWorkspace: "Workspace",
     coworkerLabel: "Coworker",
     statusLabel: "Status",
