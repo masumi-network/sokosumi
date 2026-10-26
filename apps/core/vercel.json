@@ -126,12 +126,20 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/sync/contact-capture",
+      "schedule": "5,20,35,50 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
     },
     {
       "path": "/sync/task-tags",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/sync/chat-message-signals",
+      "schedule": "* * * * *"
     },
     {
       "path": "/sync/social-posts-publish",

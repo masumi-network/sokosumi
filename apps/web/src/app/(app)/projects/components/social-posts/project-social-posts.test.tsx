@@ -35,6 +35,7 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { formatTimezoneLabel } from "@/lib/schedules/timezones";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
@@ -95,6 +96,13 @@ const {
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
+  tryAgain: "Try again",
+  help: "Everything else still works. Check your connection and try again.",
+  "title.drafts": "Couldn't load drafts",
+  "title.attention": "Couldn't load posts that need attention",
+  "title.accounts": "Couldn't load accounts",
+  "title.calendar": "Couldn't load the calendar",
+  "title.post": "Couldn't open that post",
   loadMore: "Load more",
   loadMoreError: "Couldn't load more.",
   loadMoreOffline: "You're offline.",
@@ -269,8 +277,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.missingPost": "Couldn't open this post.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
-  "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
-  "composer.timezone.postZone": "Scheduled as {date} in {zone}.",
+  "composer.timezone.goesOut": "Goes out {date} · {zone}",
+  "composer.timezone.postZone": "Scheduled as {date} · {zone}",
   quickPicks: "Quick picks",
   "quick.inAnHour": "In an hour ({time})",
   "quick.tomorrowMorning": "Tomorrow {time}",
@@ -308,6 +316,7 @@ vi.mock("next-intl", async () => {
   return {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
+    useTimeZone: () => "UTC",
     useTranslations:
       () => (key: string, values?: Record<string, string | number>) => {
         const message = MESSAGES[key] ?? key;
@@ -589,16 +598,6 @@ function freezeClock(now: Date = NOW) {
   vi.setSystemTime(now);
 }
 
-function zoneLabel(timezone: string, at: Date = new Date()): string {
-  const nameFor = (timeZoneName: "longGeneric" | "long") =>
-    new Intl.DateTimeFormat("en", { timeZone: timezone, timeZoneName })
-      .formatToParts(at)
-      .find((part) => part.type === "timeZoneName")?.value;
-  const generic = nameFor("longGeneric");
-  if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
-  return nameFor("long") ?? timezone.replaceAll("_", " ");
-}
-
 async function pickInAnHour(
   user: ReturnType<typeof userEvent.setup>,
   dialog: HTMLElement,
@@ -667,6 +666,7 @@ function render(ui: React.ReactElement, searchParams?: string) {
 describe("ProjectSocialPosts", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     sessionStorage.clear();
     Object.defineProperty(navigator, "onLine", {
       configurable: true,
@@ -1650,6 +1650,49 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
+  it("keeps Social up with a retry when a linked post failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostFailed
+      />,
+    );
+
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    const failed = screen.getByTestId("social-selected-post-load-error");
+    expect(failed).toHaveAttribute("role", "status");
+    expect(within(failed).getByText("Couldn't open that post")).toBeVisible();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Calendar open with a retry when the calendar failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendarFailed
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    const failed = screen.getByTestId("social-calendar-load-error");
+    expect(
+      within(failed).getByText("Couldn't load the calendar"),
+    ).toBeVisible();
+    expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
   it("sizes the tab row like Tasks: content-width pills, action on the right", () => {
     render(
       <ProjectSocialPosts
@@ -1778,6 +1821,30 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps Accounts open with a retry when the list failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        accountsFailed
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+    await openTab(user, "Accounts");
+    const failed = screen.getByTestId("social-accounts-load-error");
+    expect(within(failed).getByText("Couldn't load accounts")).toBeVisible();
+    expect(screen.queryByText("Accounts panel")).not.toBeInTheDocument();
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
   it("opens the tab the URL names", () => {
     renderUi(
       <NuqsTestingAdapter searchParams="?tab=drafts">
@@ -1816,6 +1883,71 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps Drafts open with a retry when the first page failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["drafts"]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const drafts = screen.getByTestId("social-posts-load-error-drafts");
+    expect(within(drafts).getByText("Couldn't load drafts")).toBeVisible();
+    await user.click(within(drafts).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(
+      within(screen.getByTestId("social-posts-section-drafts")).queryByText(
+        "No drafts yet.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the retry above a linked draft when the Drafts list failed", async () => {
+    const user = userEvent.setup();
+    const linked = buildPost({ id: "linked-draft", status: "DRAFT" });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["drafts"]}
+        posts={[linked]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const failed = screen.getByTestId("social-posts-load-error-drafts");
+    expect(failed).toHaveAttribute("role", "status");
+    expect(within(failed).getByText("Couldn't load drafts")).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-posts-drafts-grid")).getAllByRole(
+        "listitem",
+      ),
+    ).not.toHaveLength(0);
+    await user.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Needs attention so a failed first page can retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        failedSections={["attention"]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-load-error-attention");
+    expect(
+      within(attention).getByText("Couldn't load posts that need attention"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
   it("tells an empty tab how it fills", () => {
@@ -4762,10 +4894,13 @@ describe("ProjectSocialPosts", () => {
         createTestFormatter().dateTime(
           new Date("2026-09-10T10:05:00.000Z"),
           "dateTime",
-          { timeZoneName: "short" },
         ),
       ),
     ).toBeVisible();
+    await user.hover(within(row).getByRole("button", { name: "UTC" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Coordinated Universal Time",
+    );
     expect(within(row).queryByText(/10:00/)).not.toBeInTheDocument();
 
     expect(within(row).getByText("3 attempts")).toBeVisible();
@@ -5771,7 +5906,11 @@ describe("ProjectSocialPosts", () => {
   it("names the viewer's time zone and the time a post goes out", async () => {
     freezeClock();
     const user = userEvent.setup();
-    const zone = zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const zone = formatTimezoneLabel(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      "en",
+      NOW,
+    );
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -5787,7 +5926,7 @@ describe("ProjectSocialPosts", () => {
 
     await pickInAnHour(user, dialog);
     expect(line).toHaveTextContent(
-      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, IN_AN_HOUR)}).`,
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")} · ${formatTimezoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, "en", IN_AN_HOUR)}`,
     );
   });
 
@@ -5814,8 +5953,44 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
     ).toHaveTextContent(
-      `in ${zoneLabel(otherZone, SCHEDULED_POST.scheduledAt ?? new Date())}.`,
+      `· ${formatTimezoneLabel(otherZone, "en", SCHEDULED_POST.scheduledAt ?? new Date())}`,
     );
+  });
+
+  it("uses the scheduled season for the composer's Goes out label", async () => {
+    freezeClock(new Date("2026-01-15T12:00:00Z"));
+    const resolved = new Intl.DateTimeFormat().resolvedOptions();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...resolved,
+      timeZone: "Europe/Prague",
+    });
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            timezone: "Europe/Prague",
+            scheduledAt: new Date("2026-10-05T12:00:00Z"),
+          },
+        ]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
+    const label = within(screen.getByRole("dialog")).getByTestId(
+      "social-post-timezone",
+    );
+    expect(label).toHaveTextContent(
+      /Goes out .* · Central European Summer Time \(Prague\)$/,
+    );
+    expect(label).not.toHaveTextContent("Standard Time");
   });
 
   it("schedules from the date and time pickers", async () => {

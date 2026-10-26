@@ -23,16 +23,23 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/image-studio/assets/{assetId}/content",
     description:
-      "Stream one image version's bytes. Authorized per request; the stored object has no publicly readable URL.",
+      "Stream one image or video version's bytes, honouring a Range header. Authorized per request; the stored object has no publicly readable URL.",
     tags: ["Projects"],
     request: {
       params: imageStudioAssetParamsSchema,
     },
     responses: {
       200: {
-        description: "Image bytes",
+        description: "Image or video bytes",
         content: {
           "image/*": { schema: { type: "string", format: "binary" } },
+          "video/*": { schema: { type: "string", format: "binary" } },
+        },
+      },
+      206: {
+        description: "The requested byte range of a video",
+        content: {
+          "video/*": { schema: { type: "string", format: "binary" } },
         },
       },
       401: jsonErrorResponse("Unauthorized"),
@@ -57,11 +64,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       projectId,
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
+      range: c.req.header("range"),
     });
 
-    return c.body(result.stream, 200, {
+    return c.body(result.stream, result.contentRange ? 206 : 200, {
       "content-type": result.contentType,
       "content-length": String(result.size),
+      "accept-ranges": "bytes",
+      ...(result.contentRange ? { "content-range": result.contentRange } : {}),
       // The bytes never change for a given asset, but the *permission* to
       // read them can be revoked at any moment. `no-cache` keeps the browser's
       // copy while forcing it back through this route — which re-checks access

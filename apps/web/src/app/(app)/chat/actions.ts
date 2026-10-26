@@ -131,6 +131,12 @@ function cleanDiscoverability(
   return undefined;
 }
 
+/**
+ * Any tag/path invalidation makes the action response re-render the whole
+ * current page and drops the client router cache, which delays a following
+ * `router.push`. Direct create-or-get skips it when Core returned an existing
+ * room; callers upsert the sidebar client-side either way.
+ */
 async function invalidateSidebarChatList(): Promise<void> {
   const session = await getSession();
   if (!session) {
@@ -258,7 +264,7 @@ export async function createChannelAction(
   }
 
   try {
-    const room = await chatRoomService.createRoom({
+    const { room } = await chatRoomService.createRoom({
       kind: "channel",
       name,
       slug,
@@ -322,15 +328,17 @@ export async function createDirectRoomAction(
   }
 
   try {
-    const room = await chatRoomService.createRoom({
+    const { room, created } = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds,
       coworkerIds,
       sokoBotIds,
     });
-    await invalidateSidebarChatList();
-    revalidatePath("/");
-    revalidatePath("/chat");
+    if (created) {
+      await invalidateSidebarChatList();
+      revalidatePath("/");
+      revalidatePath("/chat");
+    }
     return roomOk(room);
   } catch (error) {
     return roomCatch(error, "Could not start direct message.");
@@ -350,12 +358,14 @@ export async function ensureCoworkerDirectRoomAction(
   }
 
   try {
-    const room = await chatRoomService.createRoom({
+    const { room, created } = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [cleanCoworkerId],
     });
-    await invalidateSidebarChatList();
+    if (created) {
+      await invalidateSidebarChatList();
+    }
     return roomOk(room);
   } catch (error) {
     return roomCatch(error, "Could not ensure coworker direct room.");
@@ -375,13 +385,15 @@ export async function ensureSokoBotDirectRoomAction(
   }
 
   try {
-    const room = await chatRoomService.createRoom({
+    const { room, created } = await chatRoomService.createRoom({
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [],
       sokoBotIds: [cleanSokoBotId],
     });
-    await invalidateSidebarChatList();
+    if (created) {
+      await invalidateSidebarChatList();
+    }
     return roomOk(room);
   } catch (error) {
     return roomCatch(error, "Could not ensure personal assistant direct room.");

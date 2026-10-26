@@ -50,10 +50,13 @@ export function StudioImage({
   className,
   fit = "cover",
   labels,
+  controls = false,
 }: {
   asset: StudioAsset;
   className?: string;
   fit?: "cover" | "contain";
+  /** For a video: playback controls and sound, rather than a muted preview. */
+  controls?: boolean;
   labels: Pick<
     StudioLabels,
     "bytesUnavailable" | "imageUnreadable" | "imageRetry"
@@ -162,6 +165,42 @@ export function StudioImage({
     );
   }
 
+  const src =
+    attempt === 0 && reload === 0
+      ? base
+      : `${base}?reload=${reload}-${attempt}`;
+
+  if (asset.mediaType === "VIDEO") {
+    // A tile previews silently on hover; the lightbox gets real controls.
+    return (
+      <video
+        aria-label={asset.prompt}
+        autoPlay={controls}
+        className={cn(
+          fit === "cover"
+            ? "size-full object-cover"
+            : "max-h-full max-w-full object-contain",
+          className,
+        )}
+        controls={controls}
+        loop={!controls}
+        muted={!controls}
+        onError={handleError}
+        onMouseEnter={
+          controls
+            ? undefined
+            : (event) => void event.currentTarget.play().catch(() => {})
+        }
+        onMouseLeave={
+          controls ? undefined : (event) => event.currentTarget.pause()
+        }
+        playsInline
+        preload="metadata"
+        src={src}
+      />
+    );
+  }
+
   return (
     <img
       alt={asset.prompt}
@@ -177,11 +216,7 @@ export function StudioImage({
       // request — the automatic retry, or a press of "Try again". The route
       // ignores it; the browser does not, which is the point: without it a
       // failed entry is simply served again.
-      src={
-        attempt === 0 && reload === 0
-          ? base
-          : `${base}?reload=${reload}-${attempt}`
-      }
+      src={src}
     />
   );
 }

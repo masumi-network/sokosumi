@@ -46,6 +46,16 @@ vi.mock("@/services/chat-room-message-unfurl.service", () => ({
   scheduleChatRoomMessageUnfurls: scheduleUnfurlsMock,
 }));
 
+const { requeueSignalMock } = vi.hoisted(() => ({
+  requeueSignalMock: vi.fn(),
+}));
+vi.mock("@/services/chat-message-signals.service", () => ({
+  // A promise, as waitUntil is handed one; resetting mocks keeps it so.
+  requeueEditedChatMessageSignal: async (messageId: string) => {
+    requeueSignalMock(messageId);
+  },
+}));
+
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
@@ -198,7 +208,9 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     // untint the reply bar of the message being edited.
     expect(body.data).not.toHaveProperty("threadUnreadReplyCount");
     expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
-    expect(waitUntilMock).toHaveBeenCalledTimes(1);
+    // New words get a new read from Jev.
+    expect(requeueSignalMock).toHaveBeenCalledWith(MESSAGE_ID);
+    expect(waitUntilMock).toHaveBeenCalledTimes(2);
   });
 
   /**

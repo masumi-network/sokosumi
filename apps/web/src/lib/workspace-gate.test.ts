@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   isWorkspaceReady,
+  SETUP_ASSISTANT_PATH,
+  setupAssistantConnectPath,
+  setupAssistantPath,
   WORKSPACE_GATE_PATH,
   workspaceAccessFrom,
   workspaceGatePath,
@@ -26,6 +29,17 @@ describe("workspace-gate", () => {
   it("carries a requested page and its query to the gate", () => {
     expect(workspaceGatePath("/chat/join/abc?ref=mail")).toBe(
       "/setup?next=%2Fchat%2Fjoin%2Fabc%3Fref%3Dmail",
+    );
+  });
+
+  it("ends setup at the assistant step, carrying where the user was going", () => {
+    expect(setupAssistantPath("/")).toBe(SETUP_ASSISTANT_PATH);
+    expect(setupAssistantPath("/chat/join/abc?ref=mail")).toBe(
+      "/setup/assistant?next=%2Fchat%2Fjoin%2Fabc%3Fref%3Dmail",
+    );
+    expect(setupAssistantConnectPath("/")).toBe("/setup/assistant/connect");
+    expect(setupAssistantConnectPath("/tasks")).toBe(
+      "/setup/assistant/connect?next=%2Ftasks",
     );
   });
 

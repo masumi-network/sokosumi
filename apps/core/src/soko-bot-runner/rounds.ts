@@ -13,6 +13,16 @@ export const MAX_KEEP_GOING_ROUNDS = 40;
 /** Stop nudging when less than this is left: the report needs time too. */
 export const MIN_ROUND_TIME_MS = 3 * 60 * 1_000;
 
+/**
+ * A run stops working this long before its deadline and writes its report:
+ * a six-hour YC run was still calling tools when it was cut off, so the owner
+ * got "ran out of time" and none of the work.
+ */
+export const REPORT_RESERVE_MS = 5 * 60 * 1_000;
+
+export const TIME_UP_PROMPT =
+  "Your time or step budget is used up; you cannot call tools any more. Write your final report now from what you have: start it with DONE:, say what you finished, link what you made and saved, and name what is left undone so the owner can pick it up.";
+
 /** "DONE:", also as a heading, in bold or after a check mark. */
 const DONE_PREFIX = /^[\s#>*_\-–—✅✔\uFE0F]*DONE\b[\s*_:–—-]*/iu;
 

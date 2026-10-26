@@ -21,7 +21,7 @@ const {
   fetchQueueStatusMock,
   fetchQueueResultMock,
   cancelQueuedMock,
-  downloadImageMock,
+  downloadMediaMock,
   submitToQueueMock,
   requireProjectAccessMock,
   requireProjectAccessForUserMock,
@@ -39,7 +39,7 @@ const {
   fetchQueueStatusMock: vi.fn(),
   fetchQueueResultMock: vi.fn(),
   cancelQueuedMock: vi.fn(),
-  downloadImageMock: vi.fn(),
+  downloadMediaMock: vi.fn(),
   submitToQueueMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
@@ -48,7 +48,7 @@ const {
 }));
 
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -95,7 +95,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   fetchQueueStatus: fetchQueueStatusMock,
   fetchQueueResult: fetchQueueResultMock,
   cancelQueued: cancelQueuedMock,
-  downloadImage: downloadImageMock,
+  downloadMedia: downloadMediaMock,
   submitToQueue: submitToQueueMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -107,7 +107,7 @@ import {
   reconcileJob,
   recoverUnclaimedReservations,
   requestCancel,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 /** The default model's generate endpoint, from the catalog. */
@@ -199,11 +199,11 @@ describe("completion when the requester has lost access", () => {
       Object.assign(new Error("not found"), { status: 404 }),
     );
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     // No download, no blob write, no version — the three things that used to
     // happen for a user who had been removed from the organization.
-    expect(downloadImageMock).not.toHaveBeenCalled();
+    expect(downloadMediaMock).not.toHaveBeenCalled();
     expect(putMock).not.toHaveBeenCalled();
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -219,9 +219,9 @@ describe("completion when the requester has lost access", () => {
       workspaceId: "workspace-1",
       userId: "user-1",
     });
-    downloadImageMock.mockRejectedValue(new Error("stop here"));
+    downloadMediaMock.mockRejectedValue(new Error("stop here"));
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(requireProjectAccessForUserMock).toHaveBeenCalledWith({
       projectId: "project-1",
@@ -268,21 +268,21 @@ describe("cancellation", () => {
     );
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
     fetchQueueResultMock.mockResolvedValue({
-      kind: "images",
-      images: [{ url: "https://v3b.fal.media/files/a.png" }],
+      kind: "media",
+      media: [{ url: "https://v3b.fal.media/files/a.png" }],
     });
     requireProjectAccessForUserMock.mockResolvedValue({
       projectId: "project-1",
       workspaceId: "workspace-1",
       userId: "user-1",
     });
-    downloadImageMock.mockRejectedValue(new Error("stop after the decision"));
+    downloadMediaMock.mockRejectedValue(new Error("stop after the decision"));
 
     await reconcileJob("job-1");
 
     // Reaching the download at all is the assertion: the job was not treated
     // as over because somebody asked for it to stop.
-    expect(downloadImageMock).toHaveBeenCalled();
+    expect(downloadMediaMock).toHaveBeenCalled();
   });
 });
 
@@ -294,10 +294,10 @@ describe("a download that fails after the provider produced the image", () => {
       workspaceId: "workspace-1",
       userId: "user-1",
     });
-    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    downloadMediaMock.mockRejectedValue(new Error("connection reset"));
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     // The image exists and has been paid for. Marking the job FAILED here
     // offered the person a "free-looking" retry that buys a second one.
@@ -370,11 +370,11 @@ describe("an access check that cannot answer", () => {
     );
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.status === "ORPHANED")).toBe(false);
-    expect(downloadImageMock).not.toHaveBeenCalled();
+    expect(downloadMediaMock).not.toHaveBeenCalled();
     // Left live so a later reconcile can finish it.
     expect(jobUpdateMock).toHaveBeenCalled();
   });

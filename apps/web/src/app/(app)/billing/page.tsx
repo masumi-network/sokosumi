@@ -24,11 +24,13 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
+import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const PLAN_ORDER = [
@@ -130,7 +132,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     if (!isOwnerOrAdmin) {
       return (
         <div className="min-h-full w-full">
-          <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
+          <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
             {personalPlanNotice}
             <Card>
               <CardHeader>
@@ -234,7 +236,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           generalMessage={t("Errors.general")}
           unauthorizedMessage={t("Errors.unauthorized")}
         />
-        <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
+        <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
           {personalPlanNotice}
           {enterpriseContractSummary ? (
             <EnterpriseContractSummary summary={enterpriseContractSummary} />
@@ -352,7 +354,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         generalMessage={t("Errors.general")}
         unauthorizedMessage={t("Errors.unauthorized")}
       />
-      <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <BalanceSection
           title={t("balanceTitle")}
           description={t("balanceDescriptionPersonal")}

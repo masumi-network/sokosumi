@@ -1,15 +1,21 @@
 "use client";
 
-import { MousePointer2 } from "lucide-react";
+import { LayoutTemplate, MousePointer2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   type CarouselApi,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   collectStudioCarouselSlides,
@@ -94,26 +100,59 @@ function TemplateButton({
   );
 }
 
-/** The same starting briefs, beside the composer once there are results. */
-export function StudioTemplateStrip({
+/**
+ * The same starting briefs, one toolbar button away once there are results.
+ *
+ * A popover rather than a row above the composer: the row needed a horizontal
+ * scrollbar, and it sat between the gallery and the prompt on every visit.
+ * Picking one closes the menu and leaves the caret in the prompt.
+ */
+export function StudioTemplateMenu({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  triggerClassName,
+}: TemplatePickerProps & { triggerClassName?: string }) {
+  const [open, setOpen] = useState(false);
+  const pickedRef = useRef(false);
   return (
-    <div
-      aria-label={labels.templates}
-      className="app-scrollbar flex gap-2 overflow-x-auto p-1"
-      role="group"
-    >
-      {STUDIO_TEMPLATES.map((template) => (
-        <TemplateButton
-          key={template.id}
-          label={labels.templateLabels[template.id]}
-          onApplyTemplate={onApplyTemplate}
-          template={template}
-        />
-      ))}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          className={triggerClassName}
+          size="sm"
+          variant="ghost"
+        >
+          <LayoutTemplate aria-hidden />
+          <span className="max-sm:sr-only">{labels.templates}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        aria-label={labels.templates}
+        className="app-scrollbar max-h-[min(28rem,var(--radix-popover-content-available-height))] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
+        onCloseAutoFocus={(event) => {
+          if (!pickedRef.current) return;
+          pickedRef.current = false;
+          event.preventDefault();
+        }}
+      >
+        <div className="grid grid-cols-2 gap-1" role="group">
+          {STUDIO_TEMPLATES.map((template) => (
+            <TemplateButton
+              key={template.id}
+              label={labels.templateLabels[template.id]}
+              onApplyTemplate={(picked) => {
+                pickedRef.current = true;
+                setOpen(false);
+                onApplyTemplate(picked);
+              }}
+              template={template}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

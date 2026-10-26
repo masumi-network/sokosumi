@@ -15,6 +15,7 @@ const {
   socialPostUpdateManyMock,
   queueSlotFindManyMock,
   transactionMock,
+  queryRawMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
@@ -26,12 +27,14 @@ const {
   socialPostUpdateManyMock: vi.fn(),
   queueSlotFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
+  queryRawMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
+    $queryRaw: queryRawMock,
     project: { findFirst: projectFindFirstMock },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
@@ -165,6 +168,10 @@ describe("social posts service", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({ ...prisma }),
+    );
+    queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
     socialPostFindManyMock.mockResolvedValue([draftPost]);
@@ -178,7 +185,7 @@ describe("social posts service", () => {
     beforeEach(() => {
       transactionMock.mockImplementation(
         (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
-          callback(prisma),
+          callback({ ...prisma }),
       );
       queueSlotFindManyMock.mockResolvedValue([
         {
@@ -200,6 +207,23 @@ describe("social posts service", () => {
       revision: 0,
       socialConnectionId: SOCIAL_CONNECTION_ID,
     };
+
+    it.each(["closingAt", "closedAt"] as const)(
+      "rejects queueing when the Project has %s",
+      async (field) => {
+        projectFindFirstMock.mockResolvedValue({
+          id: PROJECT_ID,
+          [field]: NOW,
+        });
+        const { queueSocialPost } = await import("./social-queue.service");
+
+        await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
+          status: 409,
+          message: expect.stringContaining("closing or closed Project"),
+        });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      },
+    );
 
     it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
       "queues %s with scheduling's approval and timezone rules",
@@ -260,6 +284,140 @@ describe("social posts service", () => {
     });
   });
 
+  describe.each(["closingAt", "closedAt"] as const)(
+    "a Project with %s",
+    (field) => {
+      beforeEach(() => {
+        projectFindFirstMock.mockResolvedValue({
+          id: PROJECT_ID,
+          [field]: NOW,
+        });
+      });
+
+      it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
+        "rejects scheduling or rescheduling a %s post",
+        async (status) => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...scheduledPost,
+            status,
+          });
+          const { scheduleSocialPost } = await loadService();
+
+          await expect(
+            scheduleSocialPost({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              postId: POST_ID,
+              revision: 1,
+              scheduledAt: FUTURE,
+            }),
+          ).rejects.toMatchObject({
+            status: 409,
+            message: expect.stringContaining("closing or closed Project"),
+          });
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+          expect(socialConnectionFindFirstMock).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each([null, FUTURE])(
+        "rejects approval with scheduledAt %s",
+        async (scheduledAt) => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...scheduledPost,
+            status: "NEEDS_APPROVAL",
+            scheduledAt,
+          });
+          const { approveSocialPost } = await loadService();
+
+          await expect(
+            approveSocialPost({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              userId: USER_ID,
+              postId: POST_ID,
+              revision: 1,
+            }),
+          ).rejects.toMatchObject({
+            status: 409,
+            message: expect.stringContaining("closing or closed Project"),
+          });
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each([{}, { coworkerId: "cow_123" }, { sokoBotId: "bot_123" }])(
+        "rejects direct scheduled creation by %j",
+        async (actor) => {
+          const { createSocialPost } = await loadService();
+          await expect(
+            createSocialPost({
+              projectId: PROJECT_ID,
+              workspaceId: WORKSPACE_ID,
+              organizationId: null,
+              userId: USER_ID,
+              text: "Hello",
+              scheduledAt: FUTURE,
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+              ...actor,
+            }),
+          ).rejects.toMatchObject({
+            status: 409,
+            message: expect.stringContaining("closing or closed Project"),
+          });
+          expect(socialPostCreateMock).not.toHaveBeenCalled();
+        },
+      );
+
+      it("rejects edits to a scheduled post before changing its retry or scheduling state", async () => {
+        socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+        const { updateSocialPost } = await loadService();
+        await expect(
+          updateSocialPost({
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            organizationId: null,
+            userId: USER_ID,
+            postId: POST_ID,
+            revision: 1,
+            text: "Edited",
+          }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      });
+
+      it("rejects scheduled recycling before creating a duplicate draft", async () => {
+        const { recycleSocialAccountPost } = await loadService();
+        await expect(
+          recycleSocialAccountPost({
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            organizationId: null,
+            userId: USER_ID,
+            accountPostId: "account-post-1",
+            delayDays: 7,
+            timezone: "UTC",
+          }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(socialPostCreateMock).not.toHaveBeenCalled();
+        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      });
+
+      it("still allows saving a draft", async () => {
+        const { createSocialPost } = await loadService();
+        const post = await createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+        });
+        expect(post.status).toBe("DRAFT");
+      });
+    },
+  );
+
   it("rejects a Project outside the current workspace", async () => {
     projectFindFirstMock.mockResolvedValue(null);
     const { listSocialPosts } = await loadService();
@@ -270,7 +428,7 @@ describe("social posts service", () => {
 
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true },
+      select: { id: true, closingAt: true, closedAt: true },
     });
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
@@ -1776,7 +1934,7 @@ describe("social posts service", () => {
       expect(post.revision).toBe(2);
       expect(tx.project.findFirst).toHaveBeenCalledWith({
         where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-        select: { id: true },
+        select: { id: true, closingAt: true, closedAt: true },
       });
       expect(projectFindFirstMock).not.toHaveBeenCalled();
       expect(socialConnectionFindFirstMock).not.toHaveBeenCalled();

@@ -52,30 +52,26 @@ export interface QueuedGeneration {
 /** A request as the composer builds it, before it is aimed at a project. */
 export type GenerationRequest = Omit<QueuedGeneration, "projectId">;
 
-/**
- * A failure this hook has its own wording for.
- *
- * A code rather than a sentence, for the same reason `useStudioState` uses one:
- * Core's message is English, and the page owns the wording so a German or
- * Spanish reader does not get an English string on a translated page. Every
- * other failure falls through to `lastError` and Core's own message, which is
- * the best available description of an unsupported combination or a spend cap.
- */
+/** Localized failure codes; other rejections retain Core's message. */
 export type QueueErrorCode = "unreachable" | "insufficient_credits";
 
+export interface FailedGeneration {
+  request: QueuedGeneration;
+  message: string | null;
+  code: QueueErrorCode | null;
+}
+
 export interface GenerationQueue {
+  failed: FailedGeneration[];
+  retry: (id: string) => void;
+  dismissFailed: (id: string) => void;
   /** Requests not yet accepted by Core, oldest first. */
   queued: QueuedGeneration[];
   /** True while Core is holding the queue back at its concurrency cap. */
   waitingForSlot: boolean;
-  /** The last request that failed for a reason retrying will not fix. */
-  lastError: string | null;
-  /** Set instead of `lastError` when this hook has its own wording for it. */
-  lastErrorCode: QueueErrorCode | null;
   enqueue: (requests: QueuedGeneration[]) => void;
   /** Drops a request that has not been sent yet. */
   remove: (id: string) => void;
-  clearError: () => void;
 }
 
 /**
@@ -90,15 +86,17 @@ const UNREACHABLE: QueueErrorCode = "unreachable";
 export function useGenerationQueue({
   onAccepted,
 }: {
-  /** Fires after Core accepts a request, so the page can go look for it. */
-  onAccepted: () => void;
+  /**
+   * Fires after Core accepts a request, so the page can go look for it.
+   * `remaining` counts the requests still waiting to be sent.
+   */
+  onAccepted: (accepted: { remaining: number }) => void;
 }): GenerationQueue {
   const [queued, setQueued] = useState<QueuedGeneration[]>([]);
   const [waitingForSlot, setWaitingForSlot] = useState(false);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [lastErrorCode, setLastErrorCode] = useState<QueueErrorCode | null>(
-    null,
-  );
+  const [failed, setFailed] = useState<FailedGeneration[]>([]);
+  const failedRef = useRef(failed);
+  failedRef.current = failed;
   /**
    * Bumped to ask the dispatcher to look again after a busy wait.
    *
@@ -116,11 +114,19 @@ export function useGenerationQueue({
    * every send would schedule another pass over the same head of the queue.
    */
   const sendingRef = useRef(false);
+  const uncertainIdsRef = useRef(new Set<string>());
   /** Set while a busy wait is pending, so only one timer exists at a time. */
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Read inside the send without making the dispatcher depend on it. */
   const queuedRef = useRef<QueuedGeneration[]>(queued);
   queuedRef.current = queued;
+  const updateQueued = useCallback(
+    (update: (current: QueuedGeneration[]) => QueuedGeneration[]) => {
+      queuedRef.current = update(queuedRef.current);
+      setQueued(queuedRef.current);
+    },
+    [],
+  );
   /**
    * The callback, held in a ref on purpose.
    *
@@ -182,19 +188,30 @@ export function useGenerationQueue({
 
         if (result.ok) {
           setWaitingForSlot(false);
-          setQueued((current) => current.filter((item) => item.id !== next.id));
-          onAcceptedRef.current();
+          uncertainIdsRef.current.delete(next.id);
+          updateQueued((current) =>
+            current.filter((item) => item.id !== next.id),
+          );
+          onAcceptedRef.current({ remaining: queuedRef.current.length });
           return;
         }
 
         if (result.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
-          // The whole batch goes, not just the head. Core takes the debit in
-          // the same transaction that writes the job row, so this request left
-          // nothing behind — and the next eleven would hit the same wall and
-          // say so eleven times. One sentence, and the queue is empty.
+          // Hold the unsent remainder for a manual retry after a top-up.
+          // Earlier accepted legs must never be bought again.
           setWaitingForSlot(false);
-          setLastErrorCode("insufficient_credits");
-          setQueued([]);
+          const remaining = queuedRef.current;
+          setFailed((current) => [
+            ...current,
+            ...remaining.map((request) => ({
+              request,
+              message: null,
+              code: uncertainIdsRef.current.has(request.id)
+                ? UNREACHABLE
+                : ("insufficient_credits" as const),
+            })),
+          ]);
+          updateQueued(() => []);
           return;
         }
 
@@ -209,46 +226,79 @@ export function useGenerationQueue({
           return;
         }
 
-        // Anything else — an unsupported combination, an hourly spend cap, a
-        // revoked membership — will fail again on every retry, so the request
-        // is dropped and said out loud rather than looping against Core.
+        // Keep the exact purchase intent for a manual retry. An uncertain
+        // outcome must reuse its key even when Core's response was lost.
         setWaitingForSlot(false);
-        setLastError(result.message);
-        setQueued((current) => current.filter((item) => item.id !== next.id));
+        if (result.uncertain) uncertainIdsRef.current.add(next.id);
+        const uncertain = uncertainIdsRef.current.has(next.id);
+        setFailed((current) => [
+          ...current,
+          {
+            request: next,
+            message: uncertain ? null : result.message,
+            code: uncertain ? UNREACHABLE : null,
+          },
+        ]);
+        updateQueued((current) =>
+          current.filter((item) => item.id !== next.id),
+        );
       } catch {
         if (!mountedRef.current) return;
         setWaitingForSlot(false);
-        setLastErrorCode(UNREACHABLE);
-        setQueued((current) => current.filter((item) => item.id !== next.id));
+        uncertainIdsRef.current.add(next.id);
+        setFailed((current) => [
+          ...current,
+          { request: next, message: null, code: UNREACHABLE },
+        ]);
+        updateQueued((current) =>
+          current.filter((item) => item.id !== next.id),
+        );
       } finally {
         sendingRef.current = false;
       }
     })();
-  }, [headId, retryTick]);
+  }, [headId, retryTick, updateQueued]);
 
-  const enqueue = useCallback((requests: QueuedGeneration[]) => {
-    if (requests.length === 0) return;
-    setLastError(null);
-    setLastErrorCode(null);
-    setQueued((current) => [...current, ...requests]);
+  const enqueue = useCallback(
+    (requests: QueuedGeneration[]) => {
+      if (requests.length === 0) return;
+      updateQueued((current) => [...current, ...requests]);
+    },
+    [updateQueued],
+  );
+
+  const remove = useCallback(
+    (id: string) => {
+      updateQueued((current) => current.filter((item) => item.id !== id));
+    },
+    [updateQueued],
+  );
+
+  const dismissFailed = useCallback((id: string) => {
+    failedRef.current = failedRef.current.filter(
+      (item) => item.request.id !== id,
+    );
+    setFailed((current) => current.filter((item) => item.request.id !== id));
   }, []);
 
-  const remove = useCallback((id: string) => {
-    setQueued((current) => current.filter((item) => item.id !== id));
-  }, []);
-
-  const clearError = useCallback(() => {
-    setLastError(null);
-    setLastErrorCode(null);
-  }, []);
+  const retry = useCallback(
+    (id: string) => {
+      const item = failedRef.current.find((item) => item.request.id === id);
+      if (!item) return;
+      // Consume synchronously so a double click cannot enqueue two retries.
+      dismissFailed(id);
+      enqueue([item.request]);
+    },
+    [dismissFailed, enqueue],
+  );
 
   return {
+    failed,
+    retry,
+    dismissFailed,
     queued,
     waitingForSlot,
-    lastError,
-    lastErrorCode,
     enqueue,
     remove,
-    clearError,
   };
 }

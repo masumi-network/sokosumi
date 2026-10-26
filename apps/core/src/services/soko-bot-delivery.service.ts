@@ -38,11 +38,7 @@ function backgroundStopNote(turn: {
 }): string {
   if (!turn.backgroundTitle) return "";
   const how =
-    turn.status === "CANCELLED"
-      ? "was stopped"
-      : turn.errorKind === "turn_deadline_exceeded"
-        ? "ran out of time"
-        : "failed";
+    turn.errorKind === "turn_deadline_exceeded" ? "ran out of time" : "failed";
   return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
 }
 
@@ -73,10 +69,14 @@ export async function enqueueSokoBotDelivery(
   // A background run reports wherever it ends, failure included: the owner
   // was told it would.
   const background = Boolean(turn.parentTurnId);
+  // A stopped run stays quiet: whoever stopped it already said so, and the
+  // note arrived an hour later when the cancellation finally settled.
   const reason = background
-    ? turn.destinationRoomId
-      ? null
-      : "NO_DESTINATION"
+    ? !turn.destinationRoomId
+      ? "NO_DESTINATION"
+      : turn.status === "CANCELLED"
+        ? "CANCELLED"
+        : null
     : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
       : !turn.destinationRoomId

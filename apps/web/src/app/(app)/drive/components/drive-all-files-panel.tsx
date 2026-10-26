@@ -8,9 +8,12 @@ import type {
 } from "@sokosumi/core-client";
 import {
   Bookmark,
+  FolderInput,
+  Link2,
   MoreHorizontal,
   Search,
   SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -23,15 +26,28 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
-import { DriveFileViewer } from "@/app/drive/components/drive-file-viewer";
+import {
+  DriveFileViewer,
+  type DriveFileViewerFile,
+} from "@/app/drive/components/drive-file-viewer";
 import {
   childFolders,
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
+import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
@@ -45,11 +61,10 @@ import { Input } from "@/components/ui/input";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
-  applyMetadataBatch,
   countActiveFileFilters,
   createFileCollection,
-  createSelectionToken,
   decideSuggestion,
+  deleteDriveUploads,
   deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
@@ -152,6 +167,10 @@ export interface DriveAllFilesPanelProps {
    * this tab landed in the store and appeared nowhere.
    */
   reloadToken?: number;
+  /** Opens the link dialog for one uploaded file. */
+  onShareFile?: (item: DriveShareItem) => void;
+  /** Opens the move dialog for the ticked uploads. */
+  onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
 }
 
 interface SearchState {
@@ -179,6 +198,8 @@ export function DriveAllFilesPanel({
   onFolderChange,
   folderActions,
   virtualFolder,
+  onShareFile,
+  onMoveFiles,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -194,7 +215,6 @@ export function DriveAllFilesPanel({
   });
   const [folders, setFolders] = useState<string[]>([]);
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
-  const categories = labels.filter((label) => label.kind === "CATEGORY");
   const [labelsState, setLabelsState] = useState<
     "loading" | "ready" | "failed"
   >("loading");
@@ -218,14 +238,10 @@ export function DriveAllFilesPanel({
    * The name and type ride along with the id, so the viewer can choose how to
    * show it on the first frame.
    */
-  const [openFile, setOpenFile] = useState<{
-    id: string;
-    displayName: string;
-    mimeType: string | null;
-  } | null>(null);
+  const [openFile, setOpenFile] = useState<DriveFileViewerFile | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [state, setState] = useState<SearchState>({
     items: [],
     meta: null,
@@ -321,7 +337,6 @@ export function DriveAllFilesPanel({
           );
         } else {
           setSelectedIds([]);
-          setSelectionToken(null);
         }
       } catch {
         if (controller.signal.aborted) return;
@@ -418,7 +433,6 @@ export function DriveAllFilesPanel({
   // letting one store's rows linger under another store's header.
   useEffect(() => {
     setSelectedIds([]);
-    setSelectionToken(null);
     setState({
       items: [],
       meta: null,
@@ -479,89 +493,6 @@ export function DriveAllFilesPanel({
         : [...current, id];
     });
     lastSelectedIndexRef.current = index;
-    setSelectionToken(null);
-  }
-
-  function selectThisPage() {
-    setSelectedIds(state.items.map((item) => item.id));
-    setSelectionToken(null);
-  }
-
-  async function selectWholeWindow() {
-    const cursor = state.meta?.nextCursor;
-    if (!cursor) {
-      selectThisPage();
-      return;
-    }
-    try {
-      const token = await createSelectionToken({
-        store,
-        windowCursor: cursor,
-      });
-      setSelectionToken(token.token);
-      toast.success(t("bulkWindowSelected", { count: token.count }));
-    } catch {
-      toast.error(t("bulkSelectionExpired"));
-    }
-  }
-
-  async function applyBulk(input: {
-    addTagLabelIds?: string[];
-    removeTagLabelIds?: string[];
-    categoryLabelId?: string | null;
-  }) {
-    if (selectedIds.length === 0 && !selectionToken) return;
-    setBulkBusy(true);
-    try {
-      const byId = new Map(state.items.map((item) => [item.id, item]));
-      const result = await applyMetadataBatch({
-        store,
-        ...(selectionToken
-          ? { selectionToken }
-          : {
-              resourceIds: selectedIds,
-              expectedRevisions: selectedIds.flatMap((id) => {
-                const item = byId.get(id);
-                return item
-                  ? [
-                      {
-                        resourceId: id,
-                        metadataRevision: item.metadataRevision,
-                      },
-                    ]
-                  : [];
-              }),
-            }),
-        ...input,
-      });
-
-      if (result.revisedCount !== null) {
-        toast.warning(t("bulkWindowChanged", { count: result.revisedCount }));
-        setSelectionToken(null);
-        return;
-      }
-
-      const failed = result.outcomes.filter(
-        (outcome) => outcome.status !== "applied",
-      );
-      const applied = result.outcomes.length - failed.length;
-
-      if (failed.length === 0) {
-        toast.success(t("bulkApplied", { count: applied }));
-        setSelectedIds([]);
-      } else {
-        // Keep the rows that failed selected so the reader can retry exactly
-        // those, and say plainly how the batch split.
-        toast.warning(t("bulkPartial", { applied, failed: failed.length }));
-        setSelectedIds(failed.map((outcome) => outcome.resourceId));
-      }
-      setSelectionToken(null);
-      await runSearch({ query: appliedQuery, filters, keepSelection: true });
-    } catch {
-      toast.error(t("bulkError"));
-    } finally {
-      setBulkBusy(false);
-    }
   }
 
   /** What a collection stores: the filters, plus the query that shaped them. */
@@ -727,6 +658,44 @@ export function DriveAllFilesPanel({
    * this space whether or not the reader had done anything, so the first file
    * row sat below the fold on a list of ten files.
    */
+  // Only uploads can be deleted here: task outputs belong to their task.
+  const deletableSelection = state.items.filter(
+    (item) => selectedIds.includes(item.id) && item.pathname !== null,
+  );
+
+  async function deleteSelected() {
+    const targets = deletableSelection;
+    if (targets.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const failedPathnames = await deleteDriveUploads(
+        targets.flatMap((item) => (item.pathname ? [item.pathname] : [])),
+      );
+      const deleted = targets.length - failedPathnames.length;
+      if (failedPathnames.length === 0) {
+        toast.success(t("bulkDeleted", { count: deleted }));
+        setSelectedIds([]);
+      } else {
+        toast.warning(
+          t("bulkDeletePartial", {
+            deleted,
+            failed: failedPathnames.length,
+          }),
+        );
+        // The failed rows stay selected, so trying again is one click.
+        setSelectedIds(
+          targets
+            .filter((item) => failedPathnames.includes(item.pathname ?? ""))
+            .map((item) => item.id),
+        );
+      }
+      setConfirmDeleteOpen(false);
+      await runSearch({ query: appliedQuery, filters, keepSelection: true });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const appliedFacets: { key: string; label: string; remove: () => void }[] = [
     // On a phone the type chips live in the Filters sheet, so the applied
     // types show here instead.
@@ -784,9 +753,7 @@ export function DriveAllFilesPanel({
   ];
 
   const browsing = isBrowsing(appliedQuery, filters);
-  const selectionCount = selectionToken
-    ? (state.meta?.windowCount ?? selectedIds.length)
-    : selectedIds.length;
+  const selectionCount = selectedIds.length;
 
   return (
     <div className="flex flex-col gap-4" data-testid="drive-all-files">
@@ -1118,30 +1085,96 @@ export function DriveAllFilesPanel({
           <span className="text-sm font-medium">
             {t("bulkSelected", { count: selectionCount })}
           </span>
-          {state.meta?.nextCursor && !selectionToken ? (
-            <Button size="sm" variant="ghost" onClick={selectWholeWindow}>
-              {t("bulkSelectAllMatches", {
-                count: state.meta.windowCount,
-              })}
+          {onMoveFiles && deletableSelection.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkBusy}
+              onClick={() =>
+                onMoveFiles(
+                  deletableSelection.flatMap((item) =>
+                    item.pathname
+                      ? [{ pathname: item.pathname, name: item.displayName }]
+                      : [],
+                  ),
+                )
+              }
+            >
+              <FolderInput aria-hidden className="size-4" />
+              {t("bulkMove")}
             </Button>
           ) : null}
-          <DriveBulkCategoryPicker
-            categories={categories}
-            disabled={bulkBusy}
-            onPick={(categoryLabelId) => void applyBulk({ categoryLabelId })}
-          />
+          {onShareFile &&
+          selectedIds.length === 1 &&
+          deletableSelection.length === 1 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                const [file] = deletableSelection;
+                onShareFile({
+                  target: { kind: "file", resourceId: file.id },
+                  name: file.displayName,
+                });
+              }}
+            >
+              <Link2 aria-hidden className="size-4" />
+              {t("bulkShare")}
+            </Button>
+          ) : null}
+          {deletableSelection.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-semantic-destructive"
+              disabled={bulkBusy}
+              onClick={() => setConfirmDeleteOpen(true)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              {t("bulkDelete")}
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="ghost"
             onClick={() => {
               setSelectedIds([]);
-              setSelectionToken(null);
             }}
           >
             {t("bulkClear")}
           </Button>
         </div>
       ) : null}
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("bulkDeleteTitle", { count: deletableSelection.length })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletableSelection.length < selectedIds.length
+                ? t("bulkDeleteDescriptionSkipsTaskFiles")
+                : t("bulkDeleteDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>
+              {t("bulkDeleteCancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              loading={bulkBusy}
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteSelected();
+              }}
+            >
+              {t("bulkDelete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {state.loading ? (
         <DriveListSkeleton viewMode={viewMode} />
@@ -1213,6 +1246,7 @@ export function DriveAllFilesPanel({
                     id: item.id,
                     displayName: item.displayName,
                     mimeType: item.mimeType,
+                    sizeBytes: item.sizeBytes,
                   })
                 }
                 onDismissLabel={(label) => void dismissLabel(item, label.id)}

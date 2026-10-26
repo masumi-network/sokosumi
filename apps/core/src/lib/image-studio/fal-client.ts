@@ -56,7 +56,7 @@ export type FalStatus =
   | { kind: "error"; message: string }
   | { kind: "unreachable"; message: string };
 
-export interface FalImage {
+export interface FalMedia {
   url: string;
   width: number | null;
   height: number | null;
@@ -317,7 +317,7 @@ export async function fetchQueueResult(options: {
   model: string;
   requestId: string;
 }): Promise<
-  | { kind: "images"; images: FalImage[] }
+  | { kind: "media"; media: FalMedia[] }
   | { kind: "pending" }
   | { kind: "error"; message: string }
   | { kind: "unreachable"; message: string }
@@ -348,19 +348,25 @@ export async function fetchQueueResult(options: {
   if (body === null) {
     return { kind: "unreachable", message: "fal returned an unreadable body" };
   }
-  const images = parseImages(body);
-  if (images.length === 0) {
-    return { kind: "error", message: "fal returned no image" };
+  const media = parseMedia(body);
+  if (media.length === 0) {
+    return { kind: "error", message: "fal returned no image or video" };
   }
-  return { kind: "images", images };
+  return { kind: "media", media };
 }
 
-/** Reads the `images[]` array out of a payload without trusting its shape. */
-export function parseImages(payload: unknown): FalImage[] {
+/**
+ * Reads the produced media out of a payload without trusting its shape: an
+ * image model's `images[]`, or a video model's single `video`.
+ */
+export function parseMedia(payload: unknown): FalMedia[] {
   if (typeof payload !== "object" || payload === null) return [];
-  const raw = (payload as { images?: unknown }).images;
-  if (!Array.isArray(raw)) return [];
-  const images: FalImage[] = [];
+  const { images: rawImages, video } = payload as {
+    images?: unknown;
+    video?: unknown;
+  };
+  const raw = Array.isArray(rawImages) ? rawImages : video ? [video] : [];
+  const images: FalMedia[] = [];
   for (const entry of raw) {
     if (typeof entry !== "object" || entry === null) continue;
     const {
@@ -476,7 +482,7 @@ export function isAllowedMediaUrl(candidate: string): boolean {
 }
 
 /**
- * Download a generated image.
+ * Download a generated image or video.
  *
  * Redirects are followed by hand so every hop is re-checked against the
  * allow-list, and the body is read incrementally so the limit is enforced as
@@ -484,9 +490,11 @@ export function isAllowedMediaUrl(candidate: string): boolean {
  * response that lies about `content-length` therefore cannot make Core buffer
  * an unbounded amount.
  */
-export async function downloadImage(
+export async function downloadMedia(
   url: string,
   maxBytes: number,
+  /** What to call the bytes when the host sends no content type. */
+  fallbackContentType = "image/png",
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   let current = url;
   for (let hop = 0; ; hop += 1) {
@@ -544,7 +552,7 @@ export async function downloadImage(
     }
     return {
       bytes,
-      contentType: response.headers.get("content-type") ?? "image/png",
+      contentType: response.headers.get("content-type") ?? fallbackContentType,
     };
   }
 }

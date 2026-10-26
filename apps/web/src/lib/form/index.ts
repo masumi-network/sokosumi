@@ -2,16 +2,23 @@ import type { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
 import type * as z from "zod";
 import type { ZodSchema } from "zod";
 
-type MessageKeysIn<Path extends string> = Path extends string
-  ? MessageKeys<
-      NestedValueOf<IntlMessages, Path>,
-      NestedKeyOf<NestedValueOf<IntlMessages, Path>>
-    >
-  : never;
+// Collect only form namespaces to avoid expanding the full message-key union.
+type FormIntlNamespaceKeys<Messages = IntlMessages> = {
+  [Key in keyof Messages & string]: Messages[Key] extends object
+    ?
+        | (Key extends "Form" ? Key : never)
+        | `${Key}.${FormIntlNamespaceKeys<Messages[Key]>}`
+    : never;
+}[keyof Messages & string];
+
+type MessageKeysIn<Path extends string> = MessageKeys<
+  NestedValueOf<IntlMessages, Path>,
+  NestedKeyOf<NestedValueOf<IntlMessages, Path>>
+>;
 
 type FormData<
   T extends z.infer<ZodSchema>,
-  Path extends `${string}.Form`,
+  Path extends FormIntlNamespaceKeys,
 > = Array<{
   name: keyof T;
   type?: React.HTMLInputTypeAttribute;

@@ -4,6 +4,7 @@ import {
   CHAT_RESULT_PREVIEW_LIMIT,
   type ChatResultReference,
   chatResultReferenceSchema,
+  versionShowsResultCards,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -28,7 +29,10 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   cancel_social_post: "social_post",
   publish_social_post: "social_post",
   generate_image: "studio_job",
+  generate_video: "studio_job",
   upload_file: "file",
+  move_file: "file",
+  save_email_attachment: "file",
   hire_agent: "job",
   provide_job_input: "job",
 };
@@ -54,11 +58,7 @@ export async function prepareTurnActionResultPreviews(
     (turn.askedByUserId && turn.askedByUserId !== actingUserId)
   )
     return;
-  if (
-    !(await resolveSokoBotVersion(turn.versionId)).skills.includes(
-      "chat-result-previews",
-    )
-  )
+  if (!versionShowsResultCards(await resolveSokoBotVersion(turn.versionId)))
     return;
   const calls = await tx.sokoBotToolCall.findMany({
     where: { turnId, status: "COMPLETED" },

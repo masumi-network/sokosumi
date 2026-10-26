@@ -28,6 +28,7 @@ import mountGetProjectImageAssetSocialMedia from "./[id]/image-studio/asset-soci
 import mountGetProjectImageStudio from "./[id]/image-studio/get.js";
 import mountCancelProjectImageJob from "./[id]/image-studio/job-cancel-post.js";
 import mountCreateProjectImageJob from "./[id]/image-studio/jobs-post.js";
+import mountCreateProjectVideoJob from "./[id]/image-studio/video-jobs-post.js";
 import mountDeleteProjectJob from "./[id]/jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./[id]/jobs/post.js";
 import mountGetProjectNeedsAttention from "./[id]/needs-attention/get.js";
@@ -129,6 +130,7 @@ mountDuplicateProjectSocialPost(app);
 mountRecycleSocialAccountPost(app);
 mountGetProjectImageStudio(app);
 mountCreateProjectImageJob(app);
+mountCreateProjectVideoJob(app);
 mountCancelProjectImageJob(app);
 mountGetProjectImageAssetContent(app);
 mountGetProjectImageAssetSocialMedia(app);

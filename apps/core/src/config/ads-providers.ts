@@ -18,3 +18,10 @@ export function isProjectAdProvider(
 ): provider is ProjectAdProvider {
   return Object.hasOwn(PROJECT_AD_PROVIDERS, provider);
 }
+
+/** The Ad provider that uses this Composio toolkit, if any. */
+export function adProviderForToolkit(toolkitSlug: string) {
+  return Object.values(PROJECT_AD_PROVIDERS).find(
+    (provider) => provider.toolkitSlug === toolkitSlug,
+  );
+}

@@ -53,7 +53,7 @@ const {
 }));
 
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -108,7 +108,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   submitToQueue: submitToQueueMock,
-  downloadImage: vi.fn(async () => ({
+  downloadMedia: vi.fn(async () => ({
     bytes: pngBytes(1024, 1024),
     contentType: "image/png",
   })),
@@ -137,7 +137,7 @@ import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   createImageJob,
   failImageJob,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 function pngBytes(width: number, height: number): Uint8Array {
@@ -199,7 +199,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** A job fal has finished, ready for `settleWithImage`. */
+/** A job fal has finished, ready for `settleWithMedia`. */
 function settleableJob(overrides: Record<string, unknown> = {}) {
   return jobRow({
     status: "QUEUED",
@@ -361,7 +361,7 @@ describe("delivering an image is when the money moves", () => {
   it("debits exactly the quote, once", async () => {
     jobFindUniqueMock.mockResolvedValue(settleableJob());
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -382,10 +382,10 @@ describe("delivering an image is when the money moves", () => {
     // A webhook and a poll arriving together. The second settler finds the asset
     // this job already has and returns before any money moves.
     jobFindUniqueMock.mockResolvedValue(settleableJob());
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     assetFindUniqueMock.mockResolvedValue({ id: "asset-1" });
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).toHaveBeenCalledOnce();
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -396,7 +396,7 @@ describe("delivering an image is when the money moves", () => {
       settleableJob({ asset: { id: "asset-1" } }),
     );
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
@@ -413,7 +413,7 @@ describe("delivering an image is when the money moves", () => {
       }),
     );
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     // The image is stored and the job succeeds.
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -434,7 +434,7 @@ describe("delivering an image is when the money moves", () => {
     );
 
     await expect(
-      settleWithImage("job-1", "https://v3b.fal.media/files/a.png"),
+      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
     ).rejects.toThrow("connection terminated");
     expect(assetCreateMock).not.toHaveBeenCalled();
   });
@@ -442,7 +442,7 @@ describe("delivering an image is when the money moves", () => {
   it("stores a free image without inventing a transaction", async () => {
     jobFindUniqueMock.mockResolvedValue(settleableJob({ chargedCents: 0n }));
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(assetCreateMock).toHaveBeenCalledOnce();
@@ -500,7 +500,7 @@ describe("a failed generation moves no money", () => {
       Object.assign(new Error("Project not found"), { status: 404 }),
     );
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const orphaned = jobUpdateManyMock.mock.calls.at(-1)![0].data;
     expect(orphaned.status).toBe("ORPHANED");

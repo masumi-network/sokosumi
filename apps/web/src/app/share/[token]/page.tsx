@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 import { siteConfig } from "@/config/site";
@@ -20,6 +21,7 @@ export async function generateMetadata({
     getTranslations("Share.Jobs.Metadata"),
     getTranslations("Share.Tasks.Metadata"),
   ]);
+  await connection();
   const { token } = await params;
   const resourcePromise = shareService.getPubliclySharedResource(token);
 
@@ -103,6 +105,7 @@ export default async function SharePage({
 }: {
   params: Promise<{ token: string }>;
 }) {
+  await connection();
   const { token } = await params;
   // Deduped with generateMetadata via React cache() in shareService.
   const resource = await shareService.getPubliclySharedResource(token);

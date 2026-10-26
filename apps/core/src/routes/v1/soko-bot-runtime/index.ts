@@ -26,7 +26,8 @@ import {
 const app = new OpenAPIHono<{ Variables: { turn: TurnTokenClaims } }>();
 
 const toolCallSchema = z.object({
-  toolCallId: z.string().min(1).max(200),
+  /** The model's call id; a script in the sandbox may leave it out. */
+  toolCallId: z.string().min(1).max(200).optional(),
   input: z.unknown(),
 });
 const actionSchema = z.object({
@@ -109,7 +110,7 @@ app.post("/turns/:turnId/gateway/language-model", async (c) => {
   });
   return new Response(proxied.body, {
     status: proxied.status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": proxied.contentType },
   });
 });
 

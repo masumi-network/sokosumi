@@ -199,7 +199,8 @@ describe("GET /chats/rooms/{id}", () => {
     // once for host-org membership resolve, once for organizationName
     expect(organizationFindUniqueMock).toHaveBeenCalledTimes(2);
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    // The unread count, and the needs-you count beside it; no Threads read.
+    expect(queryRawUnsafeMock).toHaveBeenCalledTimes(2);
     expect(notificationGroupByMock).toHaveBeenCalledOnce();
     expect(membershipFindManyMock).toHaveBeenCalledOnce();
     expect(readStateFindManyMock).toHaveBeenCalledOnce();
