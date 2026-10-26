@@ -103,6 +103,9 @@ describe("ProjectNewsletterPage", () => {
     expect(mocks.form).toHaveBeenCalledWith(
       expect.objectContaining({ newsletter }),
     );
+    expect(
+      screen.getByRole("link", { name: "Subscribers.title" }),
+    ).toHaveAttribute("href", "/projects/p1/newsletter/subscribers");
   });
 
   it("does not disguise a failed settings read as an empty newsletter", async () => {
