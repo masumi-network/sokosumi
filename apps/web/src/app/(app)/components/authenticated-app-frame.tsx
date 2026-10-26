@@ -11,6 +11,7 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
@@ -84,7 +85,11 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  // In parallel: the sidebar's Social row and the seat gate are both single
+  const enabledSocialProviders =
+    (await userService.getMyWorkspaces())?.workspaces.find(
+      (workspace) => workspace.organizationId === activeOrganizationId,
+    )?.enabledSocialProviders ?? [];
+  // In parallel: the sidebar's Ads row and the seat gate are both single
   // reads the frame already has to finish before it paints nav.
   const [hasAssignedSeat, socialBetaEnabled] = await Promise.all([
     organizationSeatService
@@ -184,7 +189,11 @@ export default async function AuthenticatedAppFrame({
                                 className="flex min-h-full flex-1 flex-col overflow-visible"
                                 data-app-main-inner
                               >
-                                <AppMobileChrome>{children}</AppMobileChrome>
+                                <SocialProviderAvailabilityProvider
+                                  enabledProviders={enabledSocialProviders}
+                                >
+                                  <AppMobileChrome>{children}</AppMobileChrome>
+                                </SocialProviderAvailabilityProvider>
                               </div>
                             </main>
                           </div>

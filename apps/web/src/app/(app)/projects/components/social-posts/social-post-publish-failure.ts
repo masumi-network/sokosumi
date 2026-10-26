@@ -1,4 +1,8 @@
-import type { SocialPostStatus } from "@sokosumi/core-client";
+import {
+  ProjectSocialProvider,
+  type SocialPostStatus,
+} from "@sokosumi/core-client";
+import { socialPostProviderLabel } from "@sokosumi/utils";
 
 /**
  * Lean copy for a Failed or Missed publish: outcome / errorKind first.
@@ -16,6 +20,13 @@ const PUBLISH_FAILURE_KIND_COPY = {
 } as const;
 
 type PublishFailureKind = keyof typeof PUBLISH_FAILURE_KIND_COPY;
+type PublishFailureCopyKey =
+  | (typeof PUBLISH_FAILURE_KIND_COPY)[PublishFailureKind]
+  | "failures.providerComingSoon"
+  | "failures.generic"
+  | "outcomes.authorizationRevoked"
+  | "outcomes.connectionInactive"
+  | "outcomes.missed";
 
 function isPublishFailureKind(kind: string): kind is PublishFailureKind {
   return Object.hasOwn(PUBLISH_FAILURE_KIND_COPY, kind);
@@ -23,6 +34,7 @@ function isPublishFailureKind(kind: string): kind is PublishFailureKind {
 
 export interface PublishFailureSource {
   status: SocialPostStatus;
+  provider?: string;
   lastError?: string | null;
   lastAttempt?: {
     outcome?: string | null;
@@ -32,8 +44,28 @@ export interface PublishFailureSource {
 
 export function publishFailureCopy(
   post: PublishFailureSource,
-  t: (key: string) => string,
+  t: (key: PublishFailureCopyKey, values?: Record<string, string>) => string,
+  formatList: (values: string[]) => string,
+  enabledProviders: readonly ProjectSocialProvider[],
 ): string {
+  const unavailableProvider = post.lastAttempt?.errorKind?.startsWith(
+    "provider_coming_soon:",
+  )
+    ? post.lastAttempt.errorKind.slice("provider_coming_soon:".length)
+    : null;
+  const provider = Object.values(ProjectSocialProvider).find((provider) =>
+    unavailableProvider
+      ? provider === unavailableProvider
+      : post.lastError?.startsWith(
+          `${socialPostProviderLabel(provider)} is coming soon.`,
+        ),
+  );
+  if (provider) {
+    return t("failures.providerComingSoon", {
+      provider: socialPostProviderLabel(provider),
+      providers: formatList(enabledProviders.map(socialPostProviderLabel)),
+    });
+  }
   const outcome = post.lastAttempt?.outcome;
   if (outcome === "authorization_revoked") {
     return t("outcomes.authorizationRevoked");

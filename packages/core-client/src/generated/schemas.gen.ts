@@ -19168,6 +19168,13 @@ export const UserWorkspaceSchema = {
             description: 'Organization website from its metadata, or null for none and for a personal workspace',
             example: 'https://acme.com'
         },
+        enabledSocialProviders: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSocialProvider'
+            },
+            description: 'Social providers enabled for projects owned by this workspace'
+        },
         preferred: {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
@@ -19182,8 +19189,22 @@ export const UserWorkspaceSchema = {
         'slug',
         'logo',
         'websiteUrl',
+        'enabledSocialProviders',
         'preferred'
     ]
+} as const;
+
+export const ProjectSocialProviderSchema = {
+    type: 'string',
+    enum: [
+        'x',
+        'tiktok',
+        'instagram',
+        'linkedin',
+        'facebook',
+        'youtube'
+    ],
+    example: 'x'
 } as const;
 
 export const CreateUserWorkspaceSchema = {
@@ -22999,19 +23020,6 @@ export const ProjectSocialConnectionSchema = {
         'connectedAt',
         'disconnectedAt'
     ]
-} as const;
-
-export const ProjectSocialProviderSchema = {
-    type: 'string',
-    enum: [
-        'x',
-        'tiktok',
-        'instagram',
-        'linkedin',
-        'facebook',
-        'youtube'
-    ],
-    example: 'x'
 } as const;
 
 export const ProjectSocialConnectionSubscriptionSchema = {

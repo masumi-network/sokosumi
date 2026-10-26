@@ -1,3 +1,7 @@
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialPostProviderLabel,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -191,20 +195,21 @@ describe("Social tool contracts", () => {
     expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
   });
 
-  it("describes every provider's publishing rules", () => {
+  it("describes available publishing platforms while retaining all-provider history", () => {
     const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
-    const socialKeys = [
+    for (const key of [
       "list_project_social_accounts",
-      "list_social_posts",
-      "get_social_post",
       "create_social_post",
       "update_social_post",
       "schedule_social_post",
-      "cancel_social_post",
       "publish_social_post",
-    ] as const;
-    for (const key of socialKeys) {
-      expect(descriptions[key]).not.toMatch(/X only/);
+    ] as const) {
+      expect(descriptions[key]).toContain(
+        `Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}.`,
+      );
+      expect(descriptions[key]).toContain("Coming soon");
+      expect(descriptions[key]).toContain("enabledProviders");
+      expect(descriptions[key]).not.toContain("beta workspace");
     }
     expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
     expect(descriptions.create_social_post).toMatch(/video/);

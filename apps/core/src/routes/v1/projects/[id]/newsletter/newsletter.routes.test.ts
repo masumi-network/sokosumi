@@ -279,7 +279,12 @@ describe("Project newsletter access", () => {
     );
     expect(m.projectFindFirst).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true, closingAt: true, closedAt: true },
+      select: {
+        id: true,
+        closingAt: true,
+        closedAt: true,
+        workspace: { select: { organization: { select: { slug: true } } } },
+      },
     });
     expect(m.newsletterFindUnique).not.toHaveBeenCalled();
     expect(m.newsletterUpsert).not.toHaveBeenCalled();
