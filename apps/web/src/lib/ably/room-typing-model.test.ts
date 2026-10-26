@@ -85,7 +85,7 @@ describe("liveTypistIds", () => {
       keystroke(atMs);
     }
 
-    for (let atMs = 9_900; atMs < 9_900 + 8_000; atMs += 100) {
+    for (let atMs = 9_900; atMs <= 9_900 + 8_000; atMs += 100) {
       expect(liveTypistIds(set, atMs)).toEqual(["user_pat"]);
     }
   });
