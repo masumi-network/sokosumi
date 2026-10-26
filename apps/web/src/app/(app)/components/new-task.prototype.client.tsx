@@ -12,6 +12,7 @@
 
 import { PanelLeft, Plus, Search, SquarePen } from "lucide-react";
 import { useEffect } from "react";
+import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
@@ -136,7 +137,8 @@ export function SearchPrototypeSidebarIcon() {
 
 /**
  * Variant f: the hidden sidebar's way back, at the start of the top bar.
- * Shown only while the sidebar is closed; ⌘B toggles it too.
+ * Shown only while the sidebar is closed; ⌘B toggles it too. It carries the
+ * mobile Chats tab's unread dot, since the hidden list cannot show one.
  */
 export function OpenSidebarPrototypeButton() {
   const active = useSidebarPrototypeVariant() === "f";
@@ -152,9 +154,26 @@ export function OpenSidebarPrototypeButton() {
       aria-label="Show sidebar"
       title="Show sidebar (⌘B)"
       onClick={toggleSidebar}
-      className="-ml-2 hidden size-8 shrink-0 md:inline-flex"
+      className="relative -ml-2 hidden size-8 shrink-0 md:inline-flex"
     >
       <PanelLeft aria-hidden />
+      <SidebarUnreadDot />
     </Button>
+  );
+}
+
+/** Mounted only while the sidebar is hidden, so its reader runs only then. */
+function SidebarUnreadDot() {
+  const { showUnreadDot } = useChatTabUnreadPresence();
+  if (!showUnreadDot) {
+    return null;
+  }
+  return (
+    <span
+      data-testid="sidebar-unread-dot"
+      className="bg-primary ring-sidebar absolute top-1 right-1 size-1.5 rounded-full ring-2"
+    >
+      <span className="sr-only">Unread chats</span>
+    </span>
   );
 }
