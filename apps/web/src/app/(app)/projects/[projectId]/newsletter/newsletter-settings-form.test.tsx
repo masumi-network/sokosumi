@@ -116,6 +116,41 @@ describe("NewsletterSettingsForm", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["en", en],
+    ["de", de],
+    ["es", es],
+  ] as const)(
+    "rejects HTTP logos with an inline HTTPS error in %s before saving",
+    async (locale, messages) => {
+      const user = userEvent.setup();
+      const copy = messages.App.Projects.Newsletter;
+      render(
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <NewsletterSettingsForm
+            projectId="p1"
+            projectName="Launch"
+            projectLogo={null}
+            newsletter={NEWSLETTER}
+          />
+        </NextIntlClientProvider>,
+      );
+      await user.clear(screen.getByLabelText(copy.fields.logoUrl));
+      await user.type(
+        screen.getByLabelText(copy.fields.logoUrl),
+        "http://example.com/logo.png",
+      );
+      await user.click(screen.getByRole("button", { name: copy.save }));
+
+      expect(await screen.findByText(copy.Validation.url)).toBeInTheDocument();
+      expect(screen.getByLabelText(copy.fields.logoUrl)).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(mocks.save).not.toHaveBeenCalled();
+    },
+  );
+
   it("saves welcome content, shows a toast, and displays the new public address", async () => {
     const user = userEvent.setup();
     renderForm();

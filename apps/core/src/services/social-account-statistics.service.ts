@@ -24,6 +24,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type SocialAccountMetric,
+  type SocialAccountPostMedia,
   type SocialAccountStatistics,
   socialAccountMetricSchema,
   socialAccountPostSchema,
@@ -96,6 +97,24 @@ function mapAccountPosts(
       },
     ];
   });
+}
+
+type PersistedSocialAccountPostMedia = {
+  kind: SocialAccountPostMedia["kind"];
+  url: string;
+  thumbnailUrl: string | null;
+};
+
+function persistPostMedia(
+  media: SocialAccountPostMedia[],
+): Prisma.InputJsonValue {
+  return media.map(
+    (item): PersistedSocialAccountPostMedia => ({
+      kind: item.kind,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl,
+    }),
+  );
 }
 
 function parseStoredPostMetrics(
@@ -609,6 +628,9 @@ export async function refreshSocialAccountStatistics(
       const stored = storedByExternalId.get(post.externalId);
       const data = {
         text: post.text,
+        contentType: post.contentType,
+        postKind: post.postKind,
+        media: persistPostMedia(post.media),
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         url: post.url,
         metrics: mergePostMetrics(
@@ -636,7 +658,14 @@ export async function refreshSocialAccountStatistics(
         // All-null insights keep stored counters and their original age.
         // Partial insights keep any stored counter the fetch did not measure.
         update: preservePostMetrics.has(post.externalId)
-          ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
+          ? {
+              text: data.text,
+              contentType: data.contentType,
+              postKind: data.postKind,
+              media: data.media,
+              publishedAt: data.publishedAt,
+              url: data.url,
+            }
           : data,
       });
       if (preservePostMetrics.has(post.externalId)) continue;

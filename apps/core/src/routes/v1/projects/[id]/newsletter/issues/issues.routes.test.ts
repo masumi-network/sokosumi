@@ -363,4 +363,31 @@ describe("newsletter issue routes", () => {
     expect((await app().request(BASE)).status).toBe(404);
     expect(m.findMany).not.toHaveBeenCalled();
   });
+
+  it.each([{ organization: { slug: "other" } }, { organization: null }, null])(
+    "hides every operation outside the beta workspace: %j",
+    async (workspace) => {
+      m.workspace.mockResolvedValue(workspace);
+      const server = app();
+      const responses = await Promise.all([
+        server.request(BASE),
+        server.request(BASE, json("POST", INPUT)),
+        server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`),
+        server.request(
+          `${BASE}/${NEWSLETTER_ISSUE_ID}`,
+          json("PATCH", { subject: "Updated", revision: 0 }),
+        ),
+        server.request(`${BASE}/${NEWSLETTER_ISSUE_ID}`, { method: "DELETE" }),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual([
+        404, 404, 404, 404, 404,
+      ]);
+      expect(m.project).not.toHaveBeenCalled();
+      expect(m.findMany).not.toHaveBeenCalled();
+      expect(m.findUnique).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.deleteMany).not.toHaveBeenCalled();
+    },
+  );
 });

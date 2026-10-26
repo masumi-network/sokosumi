@@ -1657,6 +1657,7 @@
         "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
         "source": {
           "inbox": "Aus deinem Posteingang",
+          "briefing": "Morgen-Briefing",
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
@@ -2606,8 +2607,8 @@
           },
           "timezone": {
             "yours": "Deine Zeitzone: {zone}",
-            "goesOut": "Erscheint {date} ({zone})",
-            "postZone": "Geplant als {date} ({zone})"
+            "goesOut": "Erscheint {date} · {zone}",
+            "postZone": "Geplant als {date} · {zone}"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",
@@ -3128,7 +3129,7 @@
         "Validation": {
           "required": "Gib einen Wert ein.",
           "email": "Gib eine gültige E-Mail-Adresse ein.",
-          "url": "Gib eine vollständige HTTP- oder HTTPS-URL ein.",
+          "url": "Gib eine vollständige HTTPS-URL ein.",
           "color": "Gib eine Hex-Farbe mit 3 oder 6 Ziffern und einem vorangestellten # ein.",
           "maxLength": "Verwende höchstens {max} Zeichen."
         },

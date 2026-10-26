@@ -141,11 +141,19 @@ model NewsletterSubscriber {
   unsubscribedAt DateTime?
   bouncedAt      DateTime?
 
+  /// Set only after the provider accepts the welcome email.
+  welcomeSentAt         DateTime?
+  /// A later confirmation can recover an interrupted send after this lease expires.
+  welcomeLeaseExpiresAt DateTime?
+
   sends  NewsletterSend[]
   events NewsletterEvent[]
 
   @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
   @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([newsletterId, status, id], map: "newsletter_subscriber_newsletterId_status_id_idx")
+  @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
+  @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")
   @@map("newsletter_subscriber")
 }
 

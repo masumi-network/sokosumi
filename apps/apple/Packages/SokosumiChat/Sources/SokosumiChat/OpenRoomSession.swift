@@ -106,7 +106,7 @@ public final class OpenRoomSession: ObservableObject {
     messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
       .sink { [weak self] _ in self?.objectWillChange.send() }
       .store(in: &observations)
-    // Both Transcripts load with the workspace's client; every landed page syncs read attention before the load ends.
+    // Every landed page syncs read attention before the load ends.
     room.hooks = .init(access: { [weak self] in self?.hooks.access() }, failed: { [weak self] in self?.hooks.failed($0) ?? false },
                        pageLanded: { [weak self] page in await self?.roomPageLanded(page) })
     thread.transcript.hooks = .init(access: { [weak self] in self?.hooks.access() }, failed: { [weak self] in self?.hooks.failed($0) ?? false },

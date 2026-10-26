@@ -39,7 +39,10 @@ export default function mount(app: OpenAPIHono) {
       await renderNewsletterConfirmPage({
         name: subscriber.newsletter.name,
         actionUrl: `?token=${encodeURIComponent(token)}`,
-        confirmed: subscriber.status === "ACTIVE",
+        confirmed:
+          subscriber.status === "ACTIVE" &&
+          (!subscriber.newsletter.welcomeEmailEnabled ||
+            subscriber.welcomeSentAt !== null),
         locale: getEmailLocale(c.req.raw),
       }),
     );

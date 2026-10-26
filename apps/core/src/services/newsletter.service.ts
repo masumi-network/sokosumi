@@ -2,12 +2,15 @@ import { randomBytes } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import slugify from "slugify";
 
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  isPrismaRecordNotFoundError,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import type {
@@ -136,22 +139,34 @@ export async function patchNewsletterSubscriber(
   if (
     input.status &&
     subscriber.status !== "ACTIVE" &&
-    (input.status === "ACTIVE" || subscriber.status !== "UNSUBSCRIBED")
+    !(subscriber.status === "UNSUBSCRIBED" && input.status === "UNSUBSCRIBED")
   ) {
-    throw conflict("This subscriber's status cannot be changed manually");
+    throw conflict(
+      "Unsubscribed, pending and bounced subscribers cannot change status manually",
+    );
   }
-  return prisma.newsletterSubscriber.update({
-    where,
-    data: {
-      name: input.name,
-      status: input.status === "UNSUBSCRIBED" ? input.status : undefined,
-      ...(input.status && input.status !== subscriber.status
-        ? {
-            unsubscribedAt: input.status === "UNSUBSCRIBED" ? new Date() : null,
-          }
-        : {}),
-    },
-  });
+  try {
+    return await prisma.newsletterSubscriber.update({
+      where: {
+        ...where,
+        ...(input.status ? { status: subscriber.status } : {}),
+      },
+      data: {
+        name: input.name,
+        status: input.status,
+        ...(input.status === "UNSUBSCRIBED" && subscriber.status === "ACTIVE"
+          ? { unsubscribedAt: new Date() }
+          : {}),
+      },
+    });
+  } catch (error) {
+    if (isPrismaRecordNotFoundError(error)) {
+      if (input.status)
+        throw conflict("Subscriber status changed; reload and try again");
+      throw notFound("Subscriber not found");
+    }
+    throw error;
+  }
 }
 
 export async function deleteNewsletterSubscriber(
@@ -166,9 +181,7 @@ export async function deleteNewsletterSubscriber(
   if (!count) {
     const subscriber = await prisma.newsletterSubscriber.findUnique({ where });
     if (subscriber)
-      throw forbidden(
-        "Unsubscribed and bounced subscribers must be kept to prevent re-adding them",
-      );
+      throw conflict("Unsubscribed and bounced subscribers must be retained");
     throw notFound("Subscriber not found");
   }
 }
