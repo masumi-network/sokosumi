@@ -585,7 +585,7 @@ describe("message result hydration query budget", () => {
         },
       }),
     );
-    const { data } = await readResults(
+    const { counts, data } = await readResults(
       harness.rows.messages.map((message) => message.id),
     );
     const titles = data.flatMap((row) =>
@@ -600,6 +600,8 @@ describe("message result hydration query budget", () => {
       "hidden",
       "hidden",
     ]);
+    // The workspace query proves org membership; no second member read.
+    expect(counts.member).toBe(0);
   });
 
   it("loads attached files for the whole page in one read", async () => {

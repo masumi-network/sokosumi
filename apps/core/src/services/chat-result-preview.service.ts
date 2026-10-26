@@ -181,14 +181,10 @@ function emptyHydrationScope(): ChatResultHydrationScope {
   return { workspaces: new Map(), social: new Map(), studio: new Map() };
 }
 
-function canReadProject(
-  workspace: ResolvedWorkspace,
-  viewerUserId: string,
-  memberOrgs: ReadonlySet<string>,
-) {
+/** Org membership is already proven by the workspace query's `members.some`. */
+function canReadProject(workspace: ResolvedWorkspace, viewerUserId: string) {
   if (workspace.userId) return workspace.userId === viewerUserId;
-  if (!workspace.organizationId) return false;
-  return memberOrgs.has(workspace.organizationId);
+  return workspace.organizationId !== null;
 }
 
 /**
@@ -225,28 +221,12 @@ export async function preloadChatResultHydration(
       },
     ]),
   );
-  const orgIds = [
-    ...new Set(
-      workspaceRows.flatMap((row) =>
-        row.userId == null && row.organizationId ? [row.organizationId] : [],
-      ),
-    ),
-  ];
-  const memberOrgs = new Set<string>();
-  if (orgIds.length > 0) {
-    const members = await client.member.findMany({
-      where: { userId: viewerUserId, organizationId: { in: orgIds } },
-      select: { organizationId: true },
-    });
-    for (const member of members) memberOrgs.add(member.organizationId);
-  }
-
   const projectIdsByWorkspace = new Map<string, Set<string>>();
   for (const snapshot of snapshots) {
     const ref = snapshot.reference;
     if (ref.kind !== "social_post" && ref.kind !== "studio_job") continue;
     const workspace = workspaces.get(snapshot.workspaceId);
-    if (!workspace || !canReadProject(workspace, viewerUserId, memberOrgs)) {
+    if (!workspace || !canReadProject(workspace, viewerUserId)) {
       continue;
     }
     const ids = projectIdsByWorkspace.get(snapshot.workspaceId) ?? new Set();
