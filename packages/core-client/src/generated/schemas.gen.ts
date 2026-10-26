@@ -23212,6 +23212,20 @@ export const SocialAccountPostSchema = {
         text: {
             type: 'string'
         },
+        contentType: {
+            $ref: '#/components/schemas/SocialAccountPostContentType'
+        },
+        postKind: {
+            $ref: '#/components/schemas/SocialAccountPostKind'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountPostMedia'
+            },
+            maxItems: 20,
+            default: []
+        },
         publishedAt: {
             type: [
                 'string',
@@ -23262,6 +23276,61 @@ export const SocialAccountPostSchema = {
         'metrics',
         'additionalMetrics',
         'fetchedAt'
+    ]
+} as const;
+
+export const SocialAccountPostContentTypeSchema = {
+    type: 'string',
+    enum: [
+        'text',
+        'image',
+        'video',
+        'carousel',
+        'link',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostKindSchema = {
+    type: 'string',
+    enum: [
+        'post',
+        'reply',
+        'quote',
+        'repost',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostMediaSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        thumbnailUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'thumbnailUrl'
     ]
 } as const;
 

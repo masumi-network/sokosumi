@@ -41,6 +41,15 @@ export interface SokoBotSystemSchedule {
   promptShared?: string;
 }
 
+/**
+ * The shape every check-in answers in, which chat renders as a card: a
+ * headline, short headed sections, and the numbers last.
+ */
+export const SOKO_BOT_BRIEF_FORMAT =
+  'Write it as a brief. First line: one plain sentence saying what matters most (no heading, no label). Then 2 to 4 sections, each a "### " heading of one to three words followed by 1 to 4 "- " bullets of one line each. If you quote counts, put them last on one line starting "Numbers: " with items separated by " · " (for example: Numbers: 11 Tasks created · 9 completed · 3,816 credits). Talk to the reader, never about your input: no "in the packet" or "in the information provided". Skip empty sections.';
+
+const brief = (prompt: string) => `${prompt} ${SOKO_BOT_BRIEF_FORMAT}`;
+
 export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
   {
     key: "standup",
@@ -48,10 +57,12 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "0 8 * * 1-5",
     description:
       "Weekday mornings: today's meetings, a summary of yesterday's mail, and what is stuck on the board.",
-    prompt:
-      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail: what needs them first, then the rest grouped in one line (for example 4 newsletters, 2 receipts), 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn, assigned to the owner and in the project it fits, and name it in the brief. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
-    promptShared:
-      'Daily stand-up for the team. Using the packet below, give the team one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail in the connected accounts: what needs the team first, then the rest grouped in one line, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, or ask the team one question), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. End with one short line on what the team has been working on, from "Team activity". Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
+    prompt: brief(
+      'Daily stand-up. Using the packet below, give the owner one short brief (under 14 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail: what needs them first, then the rest grouped in one line (for example 4 newsletters, 2 receipts), 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn, assigned to the owner and in the project it fits, and name it in the brief. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. When every section is empty, answer exactly: Nothing to add.',
+    ),
+    promptShared: brief(
+      'Daily stand-up for the team. Using the packet below, give the team one short brief (under 14 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail in the connected accounts: what needs the team first, then the rest grouped in one line, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, or ask the team one question), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. End with one short line on what the team has been working on, from "Team activity". When every section is empty, answer exactly: Nothing to add.',
+    ),
   },
   {
     key: "weekly-wrap",
@@ -59,10 +70,12 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "0 16 * * 5",
     description:
       "Friday afternoon: what got done, what slipped, and what is queued for next week.",
-    prompt:
-      'Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Open with one line from "This week in numbers" (Tasks completed, your turns, credits). Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.',
-    promptShared:
-      'Weekly wrap for the team. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the team should make. Open with one line from "This week in numbers". Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.',
+    prompt: brief(
+      'Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make, as the headline when it matters most. Take the Numbers line from "This week in numbers" (Tasks completed, your turns, credits). Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 14 lines; when nothing moved this week, say so in one line.',
+    ),
+    promptShared: brief(
+      'Weekly wrap for the team. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the team should make. Take the Numbers line from "This week in numbers". Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 14 lines; when nothing moved this week, say so in one line.',
+    ),
   },
   {
     key: "meeting-prep",
@@ -70,8 +83,9 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "*/30 7-19 * * 1-5",
     description:
       "Before a meeting with people from outside: who is coming, your last mail with them, and related open Tasks.",
-    prompt:
-      "Meeting prep. A meeting with people from outside starts within the hour. Give the owner a short brief (under 10 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. Name the meeting and its time first. The packet below is a starting point: when it has no real mail with someone, look them up yourself with search_inbox (their name, their company or domain) and read_email for the thread that matters. Say no mail was found only after you have searched. When there is nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
+    prompt: brief(
+      "Meeting prep. A meeting with people from outside starts within the hour. Give the owner a short brief (under 12 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. The headline names the meeting, its time, and what to get out of it. The packet below is a starting point: when it has no real mail with someone, look them up yourself with search_inbox (their name, their company or domain) and read_email for the thread that matters. Say no mail was found only after you have searched. When there is nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
+    ),
   },
   {
     key: "end-of-day",
@@ -79,10 +93,12 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "30 17 * * 1-5",
     description:
       "Weekday evenings: what got done, what waits on you, tomorrow's first meeting, three priorities.",
-    prompt:
-      "End of day. From the packet below, in under 10 lines: what got done today, what is waiting on the owner, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. Skip empty parts; when nothing happened and nothing waits, answer exactly: Nothing to add.",
-    promptShared:
-      "End of day for the team. From the packet below, in under 10 lines: what got done today, what is waiting on the team, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. Skip empty parts; when nothing happened and nothing waits, answer exactly: Nothing to add.",
+    prompt: brief(
+      "End of day. From the packet below, in under 12 lines: what got done today, what is waiting on the owner, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. When nothing happened and nothing waits, answer exactly: Nothing to add.",
+    ),
+    promptShared: brief(
+      "End of day for the team. From the packet below, in under 12 lines: what got done today, what is waiting on the team, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. When nothing happened and nothing waits, answer exactly: Nothing to add.",
+    ),
   },
   {
     key: "follow-ups",
@@ -99,10 +115,12 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "0 9 * * 1",
     description:
       "Monday mornings: how full the week is, deadlines, your goals, and where to protect time.",
-    prompt:
-      "Monday plan. From the packet below and your memory: one line on last week from \"Last week in numbers\", how full this week's calendar is (busiest days), deadlines this week, the goals you know of, and two or three blocks of time worth protecting, with why. Under 12 lines. Write the plan's three main points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.",
-    promptShared:
-      "Monday plan for the team. From the packet below and your memory: one line on last week from \"Last week in numbers\", how full this week's calendar is (busiest days), deadlines this week, the team goals you know of, and two or three things worth focusing on, with why. Under 12 lines. Write the plan's three main points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.",
+    prompt: brief(
+      'Monday plan. From the packet below and your memory, plan the owner\'s week. Headline: what this week is about, in one sentence. Sections: This week (how full the calendar is, the busiest days, deadlines with their dates), Focus (two or three priorities from the goals you know of, each with when to work on it and why), and Watch (blockers or risks, only if there are any). Numbers last, from "Last week in numbers". Under 14 lines. Write the three focus points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.',
+    ),
+    promptShared: brief(
+      'Monday plan for the team. From the packet below and your memory, plan the team\'s week. Headline: what this week is about, in one sentence. Sections: This week (how full the calendar is, the busiest days, deadlines with their dates), Focus (two or three team priorities, each with why), and Watch (blockers or risks, only if there are any). Numbers last, from "Last week in numbers". Under 14 lines. Write the three focus points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.',
+    ),
   },
   {
     key: "monthly-review",
@@ -110,10 +128,12 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "0 9 1 * *",
     description:
       "First of the month: progress on your goals, what last month's work cost, and invoices or subscriptions seen in mail.",
-    prompt:
-      "Monthly review. Lead with \"Last 31 days in numbers\" as 4 to 5 short bullets: the owner's Tasks (created, completed, failed, how many through you), chat (the owner's messages, your turns), credits (total, yours, the top Coworkers), and the team (who completed what). Then progress on the goals in your memory, recurring invoices or subscriptions seen in mail (name, amount if shown, how often), two or three insights the numbers show, and one thing to change. Under 15 lines. Quote the numbers as given; never estimate them. Tasks the packet names as someone else's are not the owner's. When there is nothing to review, answer exactly: Nothing to add.",
-    promptShared:
-      'Monthly review for the team. Lead with "Last 31 days in numbers" as 3 to 4 short bullets: chat (your turns and messages), credits (total, yours, the top Coworkers), and the team (who completed what). Then progress on the team goals in your memory, recurring invoices or subscriptions seen in connected mail (name, amount if shown, how often), two or three insights the numbers show, and one thing to change. Under 15 lines. Quote the numbers as given; never estimate them. When there is nothing to review, answer exactly: Nothing to add.',
+    prompt: brief(
+      "Monthly review. Open with a \"Last 31 days\" section of 4 to 5 short bullets: the owner's Tasks (created, completed, failed, how many through you), chat (the owner's messages, your turns), credits (total, yours, the top Coworkers), and the team (who completed what). Then progress on the goals in your memory, recurring invoices or subscriptions seen in mail (name, amount if shown, how often), two or three insights the numbers show, and one thing to change. Under 16 lines. Quote the numbers as given; never estimate them. Tasks the packet names as someone else's are not the owner's. When there is nothing to review, answer exactly: Nothing to add.",
+    ),
+    promptShared: brief(
+      'Monthly review for the team. Open with a "Last 31 days" section of 3 to 4 short bullets: chat (your turns and messages), credits (total, yours, the top Coworkers), and the team (who completed what). Then progress on the team goals in your memory, recurring invoices or subscriptions seen in connected mail (name, amount if shown, how often), two or three insights the numbers show, and one thing to change. Under 16 lines. Quote the numbers as given; never estimate them. When there is nothing to review, answer exactly: Nothing to add.',
+    ),
   },
   {
     key: "memory-cleanup",
