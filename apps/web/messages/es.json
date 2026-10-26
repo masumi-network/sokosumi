@@ -7193,6 +7193,10 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "jumpToLatest": "Ir a los mensajes más recientes",
+      "UnreadDivider": {
+        "label": "Nuevo",
+        "accessibleName": "Mensajes nuevos"
+      },
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
