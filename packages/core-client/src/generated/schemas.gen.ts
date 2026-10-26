@@ -22213,6 +22213,26 @@ export const ProjectSocialProviderSchema = {
     example: 'x'
 } as const;
 
+export const ProjectSocialConnectionSubscriptionSchema = {
+    type: 'object',
+    properties: {
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        textLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'subscriptionType',
+        'textLimit'
+    ]
+} as const;
+
 export const SocialAccountStatisticsPageSchema = {
     type: 'object',
     properties: {
@@ -25395,7 +25415,7 @@ export const CreateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
+            maxLength: 25000,
             example: '#launch'
         },
         media: {
@@ -25490,7 +25510,7 @@ export const UpdateSocialPostRequestSchema = {
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
+            maxLength: 25000,
             example: '#launch'
         },
         media: {

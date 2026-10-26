@@ -1,4 +1,8 @@
-import type { Prisma, SocialPostStatus } from "@sokosumi/database";
+import type {
+  Prisma,
+  ProjectSocialConnection,
+  SocialPostStatus,
+} from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -14,6 +18,7 @@ import {
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
+  socialPostTextLength,
   socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -41,6 +46,7 @@ import {
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
@@ -370,17 +376,18 @@ function requireProvider(provider: string): SocialPostProvider {
 function requireFirstCommentWithinLimit(
   value: string | null | undefined,
   provider: string,
+  subscriptionType?: string | null,
 ): string | null {
   const trimmed = value?.trim() ?? "";
   if (trimmed.length === 0) return null;
   const scopedProvider = requireProvider(provider);
-  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const limit = socialPostFirstCommentLimit(scopedProvider, subscriptionType);
   const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
-  if (trimmed.length > cap) {
+  if (socialPostTextLength(scopedProvider, trimmed) > cap) {
     throw badRequest(
       limit === null
-        ? `First comment must be at most ${cap} characters`
-        : `First comment must be at most ${cap} characters for ${provider}`,
+        ? `First comment must be at most ${cap.toLocaleString("en-US")} characters`
+        : `First comment must be at most ${cap.toLocaleString("en-US")} characters for ${provider}`,
     );
   }
   return trimmed;
@@ -402,7 +409,7 @@ function requireTextWithinLimit(
   if (trimmed.length === 0 && !hasMedia) {
     throw badRequest("Text is required");
   }
-  if (trimmed.length > limit) {
+  if (socialPostTextLength(scopedProvider, trimmed) > limit) {
     throw badRequest(
       `Text must be at most ${limit.toLocaleString("en-US")} characters for ${label}`,
     );
@@ -493,12 +500,15 @@ function requireFutureScheduledAt(scheduledAt: Date): void {
   }
 }
 
-interface ConnectionCandidate {
-  id: string;
-  provider: string;
-  status: string;
-  subscriptionType: string | null;
-}
+type ConnectionCandidate = Pick<
+  ProjectSocialConnection,
+  | "id"
+  | "projectId"
+  | "provider"
+  | "status"
+  | "subscriptionType"
+  | "composioConnectedAccountId"
+>;
 
 /** Loads a connection that belongs to the Project. Disconnected rows never qualify. */
 async function requireProjectConnection(
@@ -508,7 +518,14 @@ async function requireProjectConnection(
 ): Promise<ConnectionCandidate> {
   const connection = await tx.projectSocialConnection.findFirst({
     where: { id: socialConnectionId, projectId },
-    select: { id: true, provider: true, status: true, subscriptionType: true },
+    select: {
+      id: true,
+      projectId: true,
+      provider: true,
+      status: true,
+      subscriptionType: true,
+      composioConnectedAccountId: true,
+    },
   });
   if (!connection) {
     throw notFound("Project social connection not found");
@@ -517,7 +534,11 @@ async function requireProjectConnection(
   if (connection.status === "disconnected") {
     throw conflict("Social connection is disconnected");
   }
-  return connection;
+  return {
+    ...connection,
+    // Keep the refreshed tier even when post validation rolls back this transaction.
+    subscriptionType: await resolveXSubscriptionType(connection),
+  };
 }
 
 async function requireActiveProjectConnection(
@@ -692,6 +713,7 @@ export async function createSocialPost(
   const firstComment = requireFirstCommentWithinLimit(
     input.firstComment,
     provider,
+    connection?.subscriptionType,
   );
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
@@ -785,12 +807,22 @@ export async function updateSocialPost(
     data.socialConnectionId = connection.id;
     provider = requireProvider(connection.provider);
     subscriptionType = connection.subscriptionType;
-  } else if (post.status === "SCHEDULED") {
-    const connection = await requireActiveProjectConnection(
-      input.projectId,
-      post.socialConnectionId,
-      tx,
-    );
+  } else if (
+    post.socialConnectionId &&
+    post.socialConnection?.status !== "disconnected"
+  ) {
+    const connection =
+      post.status === "SCHEDULED"
+        ? await requireActiveProjectConnection(
+            input.projectId,
+            post.socialConnectionId,
+            tx,
+          )
+        : await requireProjectConnection(
+            input.projectId,
+            post.socialConnectionId,
+            tx,
+          );
     subscriptionType = connection.subscriptionType;
   }
 
@@ -808,18 +840,19 @@ export async function updateSocialPost(
     });
     data.media = mediaJson(media);
   }
+  const text = requireTextWithinLimit(
+    input.text ?? post.text,
+    provider,
+    media.length > 0,
+    subscriptionType,
+  );
   if (
     input.text !== undefined ||
     input.media !== undefined ||
     input.socialConnectionId !== undefined ||
     providerChanged
   ) {
-    data.text = requireTextWithinLimit(
-      input.text ?? post.text,
-      provider,
-      media.length > 0,
-      subscriptionType,
-    );
+    data.text = text;
     if (input.media === undefined) {
       const validation = validateSocialPostMedia(provider, media);
       if (!validation.ok) {
@@ -831,11 +864,13 @@ export async function updateSocialPost(
     }
   }
 
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    provider,
+    subscriptionType,
+  );
   if (input.firstComment !== undefined || providerChanged) {
-    data.firstComment = requireFirstCommentWithinLimit(
-      input.firstComment !== undefined ? input.firstComment : post.firstComment,
-      provider,
-    );
+    data.firstComment = firstComment;
   }
 
   return mapSocialPost(
@@ -880,7 +915,11 @@ export async function scheduleSocialPost(
     media.length > 0,
     connection.subscriptionType,
   );
-  requireFirstCommentWithinLimit(post.firstComment, provider);
+  requireFirstCommentWithinLimit(
+    post.firstComment,
+    provider,
+    connection.subscriptionType,
+  );
   requireMediaRequirement(provider, media);
 
   return mapSocialPost(
@@ -1027,7 +1066,11 @@ export async function duplicateSocialPost(
   });
   const connection =
     source.socialConnection && source.socialConnection.status !== "disconnected"
-      ? source.socialConnection
+      ? await requireProjectConnection(
+          input.projectId,
+          source.socialConnection.id,
+          tx,
+        )
       : null;
   const text = requireTextWithinLimit(
     source.text,
@@ -1036,6 +1079,11 @@ export async function duplicateSocialPost(
     connection?.subscriptionType,
   );
   requireMediaRequirement(provider, media);
+  const firstComment = requireFirstCommentWithinLimit(
+    source.firstComment,
+    provider,
+    connection?.subscriptionType,
+  );
 
   const post = await tx.socialPost.create({
     data: {
@@ -1044,7 +1092,7 @@ export async function duplicateSocialPost(
       socialConnectionId: connection?.id ?? null,
       provider,
       text,
-      firstComment: source.firstComment,
+      firstComment,
       media: mediaJson(media),
       status: "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,

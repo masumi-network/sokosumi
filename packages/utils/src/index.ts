@@ -429,6 +429,7 @@ export {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
   socialPostTextLimit,
   splitYouTubePostText,
   validateSocialPostMedia,

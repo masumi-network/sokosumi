@@ -17,6 +17,7 @@ export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
 
 export const X_PREMIUM_TEXT_LIMIT = 25_000;
+// Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
 export const X_LONG_POST_SUBSCRIPTION_TYPES = [
   "Basic",
   "Premium",
@@ -33,6 +34,66 @@ export function socialPostTextLimit(
     X_LONG_POST_SUBSCRIPTION_TYPES.some((tier) => tier === subscriptionType)
     ? X_PREMIUM_TEXT_LIMIT
     : SOCIAL_POST_TEXT_LIMITS[provider];
+}
+
+const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
+const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;
+// shortcut: syntactic URL matching lacks twitter-text's TLD list; replace when registry access is available.
+const X_URL =
+  /(?<![\p{L}\p{N}_@＠])(?:https?:\/\/|www\.)[^\s<>]+|(?<![\p{L}\p{N}_@＠])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[a-z]{2,63}(?:\/[^\s<>]*)?/giu;
+
+function xCharacterLength(text: string): number {
+  let length = 0;
+  for (const { segment } of X_GRAPHEMES.segment(text)) {
+    if (X_EMOJI.test(segment)) {
+      length += 2;
+      continue;
+    }
+    for (const character of segment) {
+      const point = character.codePointAt(0)!;
+      length +=
+        point <= 0x10ff ||
+        (point >= 0x2000 && point <= 0x200d) ||
+        (point >= 0x2010 && point <= 0x201f) ||
+        (point >= 0x2032 && point <= 0x2037)
+          ? 1
+          : 2;
+    }
+  }
+  return length;
+}
+
+/** X v3 weights: t.co URLs cost 23; emoji sequences cost 2. Other providers keep UTF-16 length. */
+export function socialPostTextLength(
+  provider: SocialPostProvider,
+  text: string,
+): number {
+  if (provider !== "x") return text.length;
+  const normalized = text.normalize("NFC");
+  let length = 0;
+  let end = 0;
+  for (const match of normalized.matchAll(X_URL)) {
+    const candidate = match[0];
+    // Sentence punctuation stays outside the link, as do unmatched closing parentheses.
+    let url = candidate.replace(/[.,!?;:'"…]+$/, "");
+    while (
+      url.endsWith(")") &&
+      (url.match(/\)/g)?.length ?? 0) > (url.match(/\(/g)?.length ?? 0)
+    ) {
+      url = url.slice(0, -1);
+    }
+    try {
+      const parsed = new URL(
+        /^https?:\/\//i.test(url) ? url : `https://${url}`,
+      );
+      if (!parsed.hostname.includes(".")) continue;
+    } catch {
+      continue;
+    }
+    length += xCharacterLength(normalized.slice(end, match.index)) + 23;
+    end = match.index + url.length;
+  }
+  return length + xCharacterLength(normalized.slice(end));
 }
 
 /** Whether a provider accepts a post with text only, media only, or needs video. */
@@ -222,7 +283,7 @@ export const SOCIAL_POST_FIRST_COMMENT_LIMITS = {
 
 /** Longest first comment any supporting provider accepts. */
 export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
-  SOCIAL_POST_FIRST_COMMENT_LIMITS.x,
+  X_PREMIUM_TEXT_LIMIT,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.linkedin,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.facebook,
   SOCIAL_POST_FIRST_COMMENT_LIMITS.instagram,
@@ -232,8 +293,11 @@ export const SOCIAL_POST_FIRST_COMMENT_MAX = Math.max(
 /** Comment cap for a provider, or `null` when Composio cannot post one. */
 export function socialPostFirstCommentLimit(
   provider: SocialPostProvider,
+  subscriptionType?: string | null,
 ): number | null {
-  return SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
+  return provider === "x"
+    ? socialPostTextLimit(provider, subscriptionType)
+    : SOCIAL_POST_FIRST_COMMENT_LIMITS[provider];
 }
 
 export function socialPostSupportsFirstComment(

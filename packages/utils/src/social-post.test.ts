@@ -19,6 +19,7 @@ import {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
   socialPostTextLimit,
   splitYouTubePostText,
   validateSocialPostMedia,
@@ -147,8 +148,44 @@ describe("per-provider limits and requirements", () => {
   it("leaves TikTok without a first comment", () => {
     expect(socialPostFirstCommentLimit("tiktok")).toBeNull();
     expect(socialPostSupportsFirstComment("tiktok")).toBe(false);
-    expect(SOCIAL_POST_FIRST_COMMENT_MAX).toBe(10_000);
+    expect(SOCIAL_POST_FIRST_COMMENT_MAX).toBe(25_000);
   });
+});
+
+describe("socialPostTextLength", () => {
+  it.each([
+    ["https://example.com/a-very-long-url", 23],
+    ["Read https://example.com/a-very-long-url", 28],
+    ["https://example.com/hello.", 24],
+    ["https://example.com/hello_(world)", 23],
+    ["(https://example.com/hello)", 25],
+    ["example.com", 23],
+    ["😀", 2],
+    ["👨‍👩‍👧‍👦", 2],
+    ["👍🏽", 2],
+    ["🇯🇵", 2],
+    ["1️⃣", 2],
+    ["中文", 4],
+    ["cafe\u0301", 4],
+    ["Hello world", 11],
+  ])("counts %j as %i on X", (text, length) => {
+    expect(socialPostTextLength("x", text)).toBe(length);
+  });
+
+  it.each(["linkedin", "facebook", "instagram", "tiktok", "youtube"] as const)(
+    "preserves UTF-16 counting on %s",
+    (provider) => {
+      const text = "👨‍👩‍👧‍👦 中文 https://example.com/hello";
+      expect(socialPostTextLength(provider, text)).toBe(text.length);
+    },
+  );
+
+  it.each(["Basic", "Premium", "PremiumPlus"])(
+    "applies the %s tier to X replies as well as posts",
+    (tier) => {
+      expect(socialPostFirstCommentLimit("x", tier)).toBe(25_000);
+    },
+  );
 });
 
 describe("splitYouTubePostText", () => {

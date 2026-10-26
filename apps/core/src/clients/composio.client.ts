@@ -419,11 +419,12 @@ export async function getComposioConnectedAccount(
 export async function deleteComposioToolSession(
   sessionId: string,
   context: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     const response = await projectComposioFetch(
       `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}`,
-      { method: "DELETE" },
+      { method: "DELETE", signal },
     );
     await projectComposioResponse(response, context);
   } catch {

@@ -11,6 +11,13 @@ import { SocialPostMediaError } from "@/helpers/social-post-media";
 const SUMMARY_LIMIT = 300;
 const UNKNOWN_SUMMARY = "Unexpected error while publishing";
 
+export class SocialPostTextLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SocialPostTextLimitError";
+  }
+}
+
 export interface PublishErrorClassification {
   /** Short machine kind stored on the attempt row. */
   kind: string;
@@ -91,6 +98,9 @@ export function classifyPublishError(
   error: unknown,
   provider: SocialPostProvider,
 ): PublishErrorClassification {
+  if (error instanceof SocialPostTextLimitError) {
+    return { kind: "text_limit", transient: false, summary: error.message };
+  }
   if (error instanceof ComposioPublishOutcomeUnknownError) {
     return { kind: "unknown", transient: false, summary: error.message };
   }

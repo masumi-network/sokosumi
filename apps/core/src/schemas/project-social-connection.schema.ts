@@ -31,6 +31,13 @@ export const projectSocialConnectionParamsSchema =
       }),
   });
 
+export const projectSocialConnectionSubscriptionSchema = z
+  .object({
+    subscriptionType: z.string().nullable(),
+    textLimit: z.number().int().positive(),
+  })
+  .openapi("ProjectSocialConnectionSubscription");
+
 export const projectSocialConnectionSchema = z
   .object({
     id: z.string().uuid().openapi({
