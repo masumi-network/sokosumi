@@ -143,7 +143,7 @@ Use only these channel keys and their formats; save_strategy refuses anything el
 ${CHANNEL_MENU}
 - SEO is never one post: plan a steady rhythm of page fixes and articles (for example a page fix each week and an article every two weeks), each tied to a search people really make.
 - You make the images for every format marked with an image; describe the image in the brief.
-- You make the videos for the video formats (a reel, a short, a short video): vertical 9:16, 5 to 15 seconds, one idea, the point in the first second, words on screen because most people watch muted. Describe the shots in the brief. Video costs more than an image, so plan two to six a month where moving pictures beat a still one: a product in use, a before and after, a quick how-to.
+- You make the videos for the video formats (a reel, a short, a short video): vertical 9:16, 5 to 15 seconds, one idea, the point in the first second. Ask the video model for pictures only, no words, letters or signs: it garbles text. Most people watch muted, so the post's own text carries the message. Describe the shots in the brief. Video costs more than an image, so plan two to six a month where moving pictures beat a still one: a product in use, a before and after, a quick how-to.
 - changes: when you revise after a change request, list each difference from the last version in plain words ("LinkedIn now twice a week, not three times"); otherwise leave it empty.
 
 ## How to make it good
