@@ -1,4 +1,12 @@
-import type { SocialPostCalendarItem } from "@sokosumi/core-client";
+import type {
+  ProjectSocialProvider,
+  SocialPostCalendarItem,
+} from "@sokosumi/core-client";
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialPostProviderLabel,
+  socialProvidersForWorkspace,
+} from "@sokosumi/utils";
 import {
   fireEvent,
   render,
@@ -8,6 +16,7 @@ import {
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { createFormats } from "@/i18n/time-format";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
@@ -51,6 +60,7 @@ function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
   variant: "compact" | "preview" = "preview",
   showThumb = false,
+  enabledProviders: readonly ProjectSocialProvider[] = SOCIAL_PUBLIC_PROVIDERS,
 ) {
   return render(
     <NextIntlClientProvider
@@ -59,12 +69,14 @@ function renderCard(
       messages={messages}
       formats={createFormats("h12")}
     >
-      <SocialPostCalendarEvent
-        timeZone="UTC"
-        item={{ ...item, ...overrides }}
-        variant={variant}
-        showThumb={showThumb}
-      />
+      <SocialProviderAvailabilityProvider enabledProviders={enabledProviders}>
+        <SocialPostCalendarEvent
+          timeZone="UTC"
+          item={{ ...item, ...overrides }}
+          variant={variant}
+          showThumb={showThumb}
+        />
+      </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -515,6 +527,36 @@ describe("Social post calendar event", () => {
       "/social?projectId=a%26b&postId=c+d#social-post-c%20d",
     );
   });
+
+  it.each([null, "utxo"])(
+    "describes a stored coming-soon failure using workspace %s availability",
+    (organizationSlug) => {
+      const enabledProviders = socialProvidersForWorkspace({
+        organizationSlug,
+      });
+      renderCard(
+        {
+          provider: "tiktok",
+          status: "FAILED",
+          lastAttempt: {
+            outcome: "failed_permanent",
+            errorKind: "provider_coming_soon:tiktok",
+          },
+        },
+        "preview",
+        false,
+        enabledProviders,
+      );
+
+      expect(
+        screen.getByTestId("social-post-status-reason"),
+      ).toHaveAccessibleDescription(
+        `TikTok is coming soon. Available now: ${new Intl.ListFormat("en", {
+          type: "conjunction",
+        }).format(enabledProviders.map(socialPostProviderLabel))}.`,
+      );
+    },
+  );
 
   it.each(["FAILED", "MISSED"] as const)(
     "opens a %s post on Needs attention",

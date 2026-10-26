@@ -50,6 +50,7 @@ const PERSONAL = {
   slug: null,
   logo: null,
   websiteUrl: null,
+  enabledSocialProviders: ["x", "youtube", "linkedin"],
   preferred: false,
 } as const;
 
@@ -61,6 +62,7 @@ const ORGANIZATION = {
   slug: "acme-x1y2z3",
   logo: null,
   websiteUrl: "https://acme.com",
+  enabledSocialProviders: ["x", "youtube", "linkedin"],
   preferred: true,
 } as const;
 

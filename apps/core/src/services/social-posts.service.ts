@@ -5,6 +5,7 @@ import type {
 } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
+  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -23,6 +24,11 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
+import {
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
+  socialProviderWorkspaceForProject,
+} from "@/config/social-providers";
 import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
@@ -97,9 +103,11 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
 
 const socialPostInclude = {
   threadParts: { orderBy: { position: "asc" } },
+  project: { select: socialProviderProjectSelect },
   socialConnection: {
     select: {
       id: true,
+      provider: true,
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
@@ -333,6 +341,16 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const provider = isSocialPostProvider(record.provider)
     ? record.provider
     : null;
+  const providerEnabled =
+    isSocialProviderEnabled(
+      record.provider,
+      socialProviderWorkspaceForProject(record.project),
+    ) &&
+    (!record.socialConnection ||
+      isSocialProviderEnabled(
+        record.socialConnection.provider,
+        socialProviderWorkspaceForProject(record.project),
+      ));
   return {
     id: record.id,
     projectId: record.projectId,
@@ -378,18 +396,23 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     canEdit:
-      EDITABLE_STATUSES.includes(record.status) && !hasStartedThread(record),
+      (EDITABLE_STATUSES.includes(record.status) ||
+        canRepairDisabledPost(record)) &&
+      !hasStartedThread(record),
     canSchedule:
+      providerEnabled &&
       SCHEDULABLE_STATUSES.includes(record.status) &&
       record.publishingThreadPartPosition == null,
     canCancel: CANCELABLE_STATUSES.includes(record.status),
     canPublishNow:
+      providerEnabled &&
       PUBLISH_NOW_STATUSES.includes(record.status) &&
       record.publishingThreadPartPosition == null &&
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
-    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
-    canApprove: record.status === "NEEDS_APPROVAL",
+    canDuplicate:
+      providerEnabled && DUPLICATABLE_STATUSES.includes(record.status),
+    canApprove: providerEnabled && record.status === "NEEDS_APPROVAL",
     canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
@@ -418,6 +441,22 @@ async function requireScopedPost(
 
 function isSocialPostProvider(value: string): value is SocialPostProvider {
   return value in SOCIAL_POST_TEXT_LIMITS;
+}
+
+/** Failed disabled-provider posts can be rescued as drafts with an enabled account. */
+function canRepairDisabledPost(post: SocialPostRecord): boolean {
+  return (
+    (post.status === "FAILED" || post.status === "MISSED") &&
+    (!isSocialProviderEnabled(
+      post.provider,
+      socialProviderWorkspaceForProject(post.project),
+    ) ||
+      (post.socialConnection !== null &&
+        !isSocialProviderEnabled(
+          post.socialConnection.provider,
+          socialProviderWorkspaceForProject(post.project),
+        )))
+  );
 }
 
 function requireProvider(provider: string): SocialPostProvider {
@@ -646,12 +685,14 @@ async function requireProjectConnection(
       status: true,
       subscriptionType: true,
       composioConnectedAccountId: true,
+      project: { select: socialProviderProjectSelect },
     },
   });
   if (!connection) {
     throw notFound("Project social connection not found");
   }
   requireProvider(connection.provider);
+  requireSocialProviderEnabled(connection.provider, connection.project);
   if (connection.status === "disconnected") {
     throw conflict("Social connection is disconnected");
   }
@@ -894,15 +935,25 @@ export async function updateSocialPost(
   if (hasStartedThread(post)) {
     throw conflict("A thread cannot be edited after publishing has started");
   }
-  if (!EDITABLE_STATUSES.includes(post.status)) {
+  const repairingDisabledPost = canRepairDisabledPost(post);
+  if (!EDITABLE_STATUSES.includes(post.status) && !repairingDisabledPost) {
     throw conflict(
       "Only a draft, scheduled, or needs-approval post can be edited",
     );
   }
   requireRevision(post, input.revision);
 
-  const data: Prisma.SocialPostUncheckedUpdateManyInput =
-    post.status === "SCHEDULED"
+  const data: Prisma.SocialPostUncheckedUpdateManyInput = repairingDisabledPost
+    ? {
+        status: "DRAFT",
+        scheduledAt: null,
+        scheduledByUserId: null,
+        scheduledByCoworkerId: null,
+        nextAttemptAt: null,
+        lastError: null,
+        attemptCount: 0,
+      }
+    : post.status === "SCHEDULED"
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
@@ -923,6 +974,7 @@ export async function updateSocialPost(
       throw badRequest("A scheduled post must keep a social connection");
     }
     data.socialConnectionId = null;
+    provider = "x";
     subscriptionType = null;
   } else if (input.socialConnectionId !== undefined) {
     const connection =
@@ -957,8 +1009,11 @@ export async function updateSocialPost(
             tx,
           );
     subscriptionType = connection.subscriptionType;
+  } else if (post.socialConnection) {
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
 
+  requireSocialProviderEnabled(provider, post.project);
   const providerChanged = provider !== currentProvider;
   if (providerChanged) {
     data.provider = provider;
@@ -1198,6 +1253,10 @@ export async function approveSocialPost(
   }
   requireRevision(post, input.revision);
   const due = post.scheduledAt;
+  requireSocialProviderEnabled(post.provider, post.project);
+  if (post.socialConnection) {
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
+  }
   const schedule =
     due != null &&
     due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
@@ -1264,6 +1323,13 @@ export async function duplicateSocialPost(
   }
 
   const provider = requireProvider(source.provider);
+  requireSocialProviderEnabled(provider, source.project);
+  if (source.socialConnection) {
+    requireSocialProviderEnabled(
+      source.socialConnection.provider,
+      source.project,
+    );
+  }
   const media = normalizeSocialPostMedia({
     userId: input.userId,
     organizationId: input.organizationId,
@@ -1349,12 +1415,23 @@ export async function recycleSocialAccountPost(
       },
     },
     include: {
-      connection: { select: { id: true, status: true, provider: true } },
+      connection: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          project: { select: socialProviderProjectSelect },
+        },
+      },
     },
   });
   if (!accountPost) {
     throw notFound("Performance post not found");
   }
+  requireSocialProviderEnabled(
+    accountPost.connection.provider,
+    accountPost.connection.project,
+  );
 
   const match = await tx.socialPost.findFirst({
     where: {

@@ -2499,6 +2499,7 @@
           "missed": "Se pasó la hora programada."
         },
         "failures": {
+          "providerComingSoon": "{provider} estará disponible próximamente. Disponible ahora: {providers}.",
           "rateLimited": "Límite de peticiones. Inténtalo más tarde.",
           "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
           "unauthorized": "Vuelve a conectar la cuenta.",

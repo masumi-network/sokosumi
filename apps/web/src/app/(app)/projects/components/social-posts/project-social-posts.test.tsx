@@ -3,7 +3,11 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  SOCIAL_POST_TEXT_LIMITS,
+  socialPostProviderLabel,
+} from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -21,6 +25,8 @@ import {
   SocialComposeProvider,
   useSocialCompose,
 } from "@/app/social/components/social-compose-context";
+import { SOCIAL_POST_PROVIDERS } from "@/components/social-platform-filter";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
@@ -110,6 +116,9 @@ const MESSAGES: Record<string, string> = {
   "actions.approve": "Approve",
   "toasts.approved": "Post approved.",
   title: "Social posts",
+  comingSoon: "Coming soon",
+  "failures.providerComingSoon":
+    "{provider} is coming soon. Available now: {providers}.",
   tryAgain: "Try again",
   help: "Everything else still works. Check your connection and try again.",
   "title.drafts": "Couldn't load drafts",
@@ -734,18 +743,22 @@ describe("ProjectSocialPosts", () => {
     getSubscriptionMock
       .mockReset()
       .mockRejectedValue(new Error("subscription lookup unavailable"));
+    vi.mocked(createProjectSocialPost).mockReset();
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ id: "post-new", text: "Fresh" }),
     });
+    vi.mocked(updateProjectSocialPost).mockReset();
     vi.mocked(updateProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ text: "Edited", revision: 1 }),
     });
+    vi.mocked(scheduleProjectSocialPost).mockReset();
     vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
       ok: true,
       value: SCHEDULED_POST,
     });
+    vi.mocked(cancelProjectSocialPost).mockReset();
     vi.mocked(cancelProjectSocialPost).mockResolvedValue({
       ok: true,
       value: { ...SCHEDULED_POST, status: "CANCELED", revision: 3 },
@@ -1132,83 +1145,59 @@ describe("ProjectSocialPosts", () => {
   });
 
   it.each([false, true])(
-    "retries only the visible platform after a filter change: %s",
+    "cannot retry disabled-platform history after a filter change: %s",
     async (changeFilterAfterSelection) => {
       const user = userEvent.setup();
-      const linkedInFailed = buildPost({
+      const tiktokFailed = buildPost({
         ...FAILED_POST,
-        id: "post-failed-li",
-        provider: "linkedin",
-        text: "LinkedIn failed",
+        id: "post-failed-tt",
+        provider: "tiktok",
+        text: "TikTok failed",
         revision: 7,
       });
-      vi.mocked(publishProjectSocialPost).mockResolvedValue({
-        ok: true,
-        value: {
-          ...linkedInFailed,
-          status: "PUBLISHED",
-          revision: 8,
-          canPublishNow: false,
-        },
-      });
-
-      function FilterToLinkedIn() {
+      function FilterToTikTok() {
         const [, setProvider] = useQueryState("provider");
         return (
-          <button type="button" onClick={() => void setProvider("linkedin")}>
-            Filter to LinkedIn
+          <button type="button" onClick={() => void setProvider("tiktok")}>
+            Filter to TikTok
           </button>
         );
       }
-
       render(
         <>
-          <FilterToLinkedIn />
+          <FilterToTikTok />
           <ProjectSocialPosts
             connections={[buildConnection()]}
-            posts={[FAILED_POST, linkedInFailed]}
+            posts={[FAILED_POST, tiktokFailed]}
             projectId={PROJECT_ID}
           />
         </>,
         changeFilterAfterSelection
           ? "?tab=attention"
-          : "?tab=attention&provider=linkedin",
+          : "?tab=attention&provider=tiktok",
       );
-
       if (changeFilterAfterSelection) {
         await user.click(screen.getByTestId("social-post-select-post-failed"));
         expect(screen.getByText("1 selected")).toBeVisible();
         await user.click(
-          screen.getByRole("button", { name: "Filter to LinkedIn" }),
+          screen.getByRole("button", { name: "Filter to TikTok" }),
         );
-        await waitFor(() => {
-          expect(screen.getByText("0 selected")).toBeVisible();
-        });
-        expect(
-          screen.getByRole("button", { name: "Retry selected" }),
-        ).toBeDisabled();
       }
-
       const attention = screen.getByTestId("social-posts-section-attention");
-      expect(within(attention).getByText("LinkedIn failed")).toBeVisible();
+      await waitFor(() =>
+        expect(within(attention).getByText("TikTok failed")).toBeVisible(),
+      );
       expect(
         within(attention).queryByTestId("social-post-post-failed"),
-      ).not.toBeInTheDocument();
-      await user.click(screen.getByTestId("social-bulk-retry-select-all"));
-      expect(screen.getByText("1 selected")).toBeVisible();
-      await user.click(screen.getByRole("button", { name: "Retry selected" }));
-      await user.click(
-        within(screen.getByRole("alertdialog")).getByRole("button", {
-          name: "Retry selected",
-        }),
-      );
-
-      await screen.findByTestId("social-bulk-retry-results");
-      expect(publishProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
-        projectId: PROJECT_ID,
-        postId: linkedInFailed.id,
-        revision: linkedInFailed.revision,
-      });
+      ).toBeNull();
+      expect(
+        within(attention).queryByTestId("social-post-select-post-failed-tt"),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Retry selected" }),
+      ).toBeNull();
+      expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
     },
   );
 
@@ -2234,7 +2223,7 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
-  it("keeps the Save draft hint to add text or media on empty Instagram", async () => {
+  it("offers only an untargeted draft when all connected platforms are disabled", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -2248,117 +2237,304 @@ describe("ProjectSocialPosts", () => {
         projectId={PROJECT_ID}
       />,
     );
-
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    const saveDraft = within(dialog).getByRole("button", {
-      name: "Save draft",
+    const account = within(dialog).getByRole("button", {
+      name: "Instagram @sokosumi.ig",
     });
-    const trigger = saveDraft.parentElement;
-    if (!trigger) throw new Error("Save draft has no tooltip trigger");
-    expect(saveDraft).toBeDisabled();
-
-    trigger.focus();
-    const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip).toHaveTextContent("Add text or media.");
-    expect(tooltip).not.toHaveTextContent(
-      "Instagram requires at least one image or video.",
-    );
-  });
-
-  it("names every selected network that still needs text or media", async () => {
-    const user = userEvent.setup();
-    render(
-      <ProjectSocialPosts
-        connections={[
-          buildConnection(),
-          buildConnection({
-            id: "connection-ig",
-            provider: "instagram",
-            externalHandle: "sokosumi.ig",
-          }),
-        ]}
-        posts={[]}
-        projectId={PROJECT_ID}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "New post" }));
-    const dialog = screen.getByRole("dialog");
+    expect(account).toBeDisabled();
+    expect(account).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).toBeNull();
+    await user.type(within(dialog).getByLabelText("Text"), "Saved for later");
     await user.click(
-      within(dialog).getByRole("button", { name: "Instagram @sokosumi.ig" }),
+      within(dialog).getByRole("button", { name: "Save draft" }),
     );
-    const postNow = within(dialog).getByRole("button", { name: "Post now" });
-    const trigger = postNow.parentElement;
-    if (!trigger) throw new Error("Post now has no tooltip trigger");
-
-    trigger.focus();
-    const focused = await screen.findByRole("tooltip");
-    expect(focused).toHaveTextContent("Add text or media.");
-    expect(focused).toHaveTextContent(
-      "Instagram requires at least one image or video.",
-    );
-
-    await user.hover(trigger);
-    const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip).toHaveTextContent("Add text or media.");
-    expect(tooltip).toHaveTextContent(
-      "Instagram requires at least one image or video.",
+    await waitFor(() =>
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "Saved for later",
+          socialConnectionId: null,
+        }),
+      ),
     );
   });
+
+  it.each(SOCIAL_POST_PROVIDERS)(
+    "lets a workspace pick %s in the composer once Core enables it",
+    async (provider) => {
+      const user = userEvent.setup();
+      const connection = buildConnection({ provider });
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={SOCIAL_POST_PROVIDERS}
+        >
+          <ProjectSocialPosts
+            connections={[connection]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      const account = within(dialog).getByRole("button", {
+        name: `${socialPostProviderLabel(provider)} @sokosumi`,
+      });
+      expect(account).toBeEnabled();
+      expect(account).toHaveAttribute("aria-pressed", "true");
+      expect(within(dialog).queryByText("Coming soon")).toBeNull();
+    },
+  );
+
+  it.each(["youtube", "linkedin"] as const)(
+    "picks an existing %s account in a public workspace",
+    async (provider) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ provider })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const account = within(screen.getByRole("dialog")).getByRole("button", {
+        name: `${socialPostProviderLabel(provider)} @sokosumi`,
+      });
+      expect(account).toBeEnabled();
+      expect(account).toHaveAttribute("aria-pressed", "true");
+    },
+  );
 
   it.each([
-    [
-      "instagram",
-      "sokosumi.ig",
-      "Instagram requires at least one image or video.",
-    ],
-    ["tiktok", "sokosumi.tt", "TikTok requires a video."],
-    ["youtube", "sokosumi.yt", "YouTube requires a video."],
+    ["tiktok", "TikTok"],
+    ["instagram", "Instagram"],
+    ["facebook", "Facebook"],
   ] as const)(
-    "saves a %s draft without media and keeps the Post now hint",
-    async (provider, handle, hint) => {
+    "shows %s with a disabled Coming soon badge and ignores remembered selections",
+    async (provider, name) => {
       const user = userEvent.setup();
+      writeRememberedComposerAccounts("org_1", PROJECT_ID, [
+        "disabled-connection",
+      ]);
       render(
         <ProjectSocialPosts
           connections={[
             buildConnection({
+              id: "disabled-connection",
               provider,
-              externalHandle: handle,
+              externalHandle: "future",
             }),
+            buildConnection(),
           ]}
           posts={[]}
           projectId={PROJECT_ID}
         />,
       );
-
       await user.click(screen.getByRole("button", { name: "New post" }));
       const dialog = screen.getByRole("dialog");
-      await user.type(within(dialog).getByLabelText("Text"), "Hello");
-      const saveDraft = within(dialog).getByRole("button", {
-        name: "Save draft",
+      const accounts = within(dialog).getByRole("group", { name: "Post to" });
+      const disabledAccount = within(accounts).getByRole("button", {
+        name: `${name} @future`,
       });
-      const postNow = within(dialog).getByRole("button", { name: "Post now" });
-      expect(saveDraft).toBeEnabled();
-      expect(postNow).toBeDisabled();
-
-      const trigger = postNow.parentElement;
-      if (!trigger) throw new Error("Post now has no tooltip trigger");
-      trigger.focus();
-      expect(await screen.findByRole("tooltip")).toHaveTextContent(hint);
-
-      await user.click(saveDraft);
-      await waitFor(() => {
-        expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect(disabledAccount).toBeDisabled();
+      expect(disabledAccount).toHaveAttribute("aria-pressed", "false");
+      expect(within(disabledAccount).getByText("Coming soon")).toHaveAttribute(
+        "data-slot",
+        "badge",
+      );
+      await user.click(disabledAccount);
+      expect(disabledAccount).toHaveAttribute("aria-pressed", "false");
+      expect(
+        within(accounts).getByRole("button", { name: "X @sokosumi" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await user.type(
+        within(dialog).getByLabelText("Text"),
+        "Account-specific text",
+      );
+      await user.click(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      );
+      await waitFor(() =>
+        expect(createProjectSocialPost).toHaveBeenCalledExactlyOnceWith(
           expect.objectContaining({
-            text: "Hello",
-            media: [],
             socialConnectionId: "connection-1",
+            text: "Account-specific text",
           }),
-        );
-      });
+        ),
+      );
     },
   );
+
+  it("lets an existing disabled-provider draft move to X before saving", async () => {
+    const user = userEvent.setup();
+    const disabledConnection = buildConnection({
+      id: "connection-ig",
+      provider: "instagram",
+      externalHandle: "future",
+    });
+    const draft = buildPost({
+      provider: "instagram",
+      socialConnection: disabledConnection,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[disabledConnection, buildConnection()]}
+        posts={[draft]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Drafts");
+    await openRowMenu(user, draft.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Instagram @future" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() =>
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: draft.id,
+          socialConnectionId: "connection-1",
+          text: draft.text,
+        }),
+      ),
+    );
+  });
+
+  it("moves a disabled draft onto X before scheduling edited content", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const disabledConnection = buildConnection({
+      id: "connection-ig",
+      provider: "instagram",
+      externalHandle: "future",
+    });
+    const draft = buildPost({
+      provider: "instagram",
+      socialConnection: disabledConnection,
+      revision: 4,
+    });
+    const text = "Move to X before scheduling";
+    vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+      ok: true,
+      value: buildPost({
+        text,
+        socialConnection: buildConnection(),
+        revision: 5,
+      }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[disabledConnection, buildConnection()]}
+        posts={[draft]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Drafts");
+    await openRowMenu(user, draft.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: text },
+    });
+    await pickInAnHour(user, dialog);
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    );
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
+        projectId: PROJECT_ID,
+        postId: draft.id,
+        text,
+        firstComment: "",
+        media: [],
+        socialConnectionId: "connection-1",
+        revision: 4,
+      });
+      expect(scheduleProjectSocialPost).toHaveBeenCalledExactlyOnceWith({
+        projectId: PROJECT_ID,
+        postId: draft.id,
+        scheduledAt: IN_AN_HOUR.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        socialConnectionId: "connection-1",
+        revision: 5,
+      });
+    });
+    expect(
+      vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(scheduleProjectSocialPost).mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("lets a failed disabled-provider post be repaired as an X draft", async () => {
+    const user = userEvent.setup();
+    const disabledConnection = buildConnection({
+      id: "connection-li",
+      provider: "tiktok",
+      externalHandle: "future",
+    });
+    const failed = buildPost({
+      ...FAILED_POST,
+      provider: "tiktok",
+      socialConnection: disabledConnection,
+      canEdit: true,
+    });
+    vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+      ok: true,
+      value: buildPost({
+        id: failed.id,
+        text: failed.text,
+        socialConnection: buildConnection(),
+        revision: 6,
+      }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[disabledConnection, buildConnection()]}
+        posts={[failed]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, failed.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", { name: "TikTok @future" }),
+    ).toBeDisabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(updateProjectSocialPost).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          postId: failed.id,
+          socialConnectionId: "connection-1",
+          text: failed.text,
+          revision: 5,
+        }),
+      ),
+    );
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
 
   it("hides the Post now hint once the draft can post", async () => {
     const user = userEvent.setup();
@@ -2380,44 +2556,29 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("says why Schedule is off when a picked network still needs media", async () => {
+  it("cannot schedule onto a disabled platform even with content and a future time", async () => {
     freezeClock();
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[
-          buildConnection(),
-          buildConnection({
-            id: "connection-ig",
-            provider: "instagram",
-            externalHandle: "sokosumi.ig",
-          }),
+          buildConnection({ provider: "instagram", externalHandle: "future" }),
         ]}
         posts={[]}
         projectId={PROJECT_ID}
       />,
     );
-
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Instagram @sokosumi.ig" }),
-    );
-    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.type(within(dialog).getByLabelText("Text"), "Ready to schedule");
     await pickInAnHour(user, dialog);
-
     const schedule = within(dialog).getByRole("button", {
       name: /^Schedule for /,
     });
-    const trigger = schedule.parentElement;
-    if (!trigger) throw new Error("Schedule has no tooltip trigger");
     expect(schedule).toBeDisabled();
-    expect(schedule).toHaveAttribute("aria-describedby");
-
-    trigger.focus();
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "Instagram requires at least one image or video.",
-    );
+    await user.click(schedule);
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
@@ -2868,7 +3029,7 @@ describe("ProjectSocialPosts", () => {
       buildConnection(),
       buildConnection({
         id: "connection-2",
-        provider: "linkedin",
+        provider: "x",
         externalHandle: "sokosumi-co",
       }),
     ];
@@ -2883,7 +3044,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const first = screen.getByRole("dialog");
     await user.click(
-      within(first).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(first).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.type(within(first).getByLabelText("Text"), "Hello both");
     await user.click(within(first).getByRole("button", { name: "Save draft" }));
@@ -2906,7 +3067,7 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("aria-pressed", "true");
     expect(
       within(accounts).getByRole("button", {
-        name: "LinkedIn @sokosumi-co",
+        name: "X @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "true");
   });
@@ -2991,7 +3152,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3019,7 +3180,7 @@ describe("ProjectSocialPosts", () => {
     });
     expect(
       within(accounts).getByRole("button", {
-        name: "LinkedIn @sokosumi-co",
+        name: "X @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
@@ -3087,7 +3248,7 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("counts the text against each picked platform's own limit", async () => {
+  it("keeps the X text limit when a disabled platform is clicked", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -3095,7 +3256,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "tiktok",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3107,27 +3268,21 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "TikTok @sokosumi-co" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "a".repeat(300) },
     });
 
-    const x = within(dialog).getByTestId("social-post-platform-x");
-    const linkedIn = within(dialog).getByTestId(
-      "social-post-platform-linkedin",
-    );
-    expect(x).toHaveTextContent("X post · 300 / 280");
-    expect(x).toHaveClass("text-destructive");
-    expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
-    expect(linkedIn).not.toHaveClass("text-destructive");
-    // Shared text still goes to both until an account is edited on its own.
+    expect(
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("300 / 280");
+    expect(
+      within(dialog).queryByTestId("social-post-platform-tiktok"),
+    ).toBeNull();
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
-    expect(
-      within(dialog).getByTestId("social-post-text-for-account"),
-    ).toHaveTextContent("Text for this account");
   });
 
   it("saves different text and the first comment for each picked account", async () => {
@@ -3140,9 +3295,9 @@ describe("ProjectSocialPosts", () => {
       .mockResolvedValueOnce({
         ok: true,
         value: buildPost({
-          id: "post-li",
-          provider: "linkedin",
-          text: "Longer for LinkedIn",
+          id: "post-second-x",
+          provider: "x",
+          text: "Other for X",
         }),
       });
     render(
@@ -3151,7 +3306,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3163,31 +3318,31 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "Short for X" },
     });
     await user.click(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
-      target: { value: "Longer for LinkedIn" },
+      target: { value: "Other for X" },
     });
     fireEvent.change(within(dialog).getByLabelText("First comment"), {
       target: { value: " #launch " },
     });
     expect(within(dialog).getByTestId("social-post-preview")).toHaveTextContent(
-      "Longer for LinkedIn",
+      "Other for X",
     );
     expect(
-      within(dialog).getByTestId("social-post-platform-x"),
+      within(dialog).getAllByTestId("social-post-platform-x")[0],
     ).toHaveTextContent("X post · 11 / 280");
     expect(
-      within(dialog).getByTestId("social-post-platform-linkedin"),
-    ).toHaveTextContent("LinkedIn post · 19 / 3000");
+      within(dialog).getAllByTestId("social-post-platform-x")[1],
+    ).toHaveTextContent("X post · 11 / 280");
 
     await user.click(
       within(dialog).getByRole("button", { name: "Save draft" }),
@@ -3208,14 +3363,14 @@ describe("ProjectSocialPosts", () => {
       2,
       expect.objectContaining({
         projectId: PROJECT_ID,
-        text: "Longer for LinkedIn",
+        text: "Other for X",
         firstComment: "#launch",
         socialConnectionId: "connection-2",
       }),
     );
   });
 
-  it("lets a long LinkedIn caption save after X is shortened", async () => {
+  it("requires every selected X account copy to fit 280 characters", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -3223,7 +3378,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3235,7 +3390,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "a".repeat(300) },
@@ -3252,21 +3407,21 @@ describe("ProjectSocialPosts", () => {
     );
     await user.click(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
-      target: { value: "a".repeat(300) },
+      target: { value: "b".repeat(280) },
     });
     expect(screen.getByTestId("social-post-character-count")).toHaveTextContent(
-      "300 / 3000",
+      "280 / 280",
     );
     expect(
-      within(dialog).getByTestId("social-post-platform-x"),
+      within(dialog).getAllByTestId("social-post-platform-x")[0],
     ).toHaveTextContent("X post · 280 / 280");
     expect(
-      within(dialog).getByTestId("social-post-platform-linkedin"),
-    ).toHaveTextContent("LinkedIn post · 300 / 3000");
+      within(dialog).getAllByTestId("social-post-platform-x")[1],
+    ).toHaveTextContent("X post · 280 / 280");
     expect(
       within(dialog).queryByTestId("social-post-too-long"),
     ).not.toBeInTheDocument();
@@ -3275,7 +3430,7 @@ describe("ProjectSocialPosts", () => {
     ).toBeEnabled();
   });
 
-  it("keeps each connected network's limit after every account is deselected", async () => {
+  it("ignores disabled platforms when every account is deselected", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -3283,7 +3438,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "tiktok",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3302,11 +3457,11 @@ describe("ProjectSocialPosts", () => {
     });
 
     expect(
-      within(dialog).getByTestId("social-post-platform-x"),
-    ).toHaveTextContent("X post · 300 / 280");
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("300 / 280");
     expect(
-      within(dialog).getByTestId("social-post-platform-linkedin"),
-    ).toHaveTextContent("LinkedIn post · 300 / 3000");
+      within(dialog).queryByTestId("social-post-platform-tiktok"),
+    ).toBeNull();
   });
 
   it("posts to X in one go: open, type, Post now", async () => {
@@ -3430,7 +3585,7 @@ describe("ProjectSocialPosts", () => {
       })
       .mockResolvedValueOnce({
         ok: false,
-        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+        error: { code: "BAD_INPUT", message: "X refused it" },
       });
     vi.mocked(publishProjectSocialPost).mockResolvedValue({
       ok: true,
@@ -3442,7 +3597,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3454,14 +3609,14 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.type(within(dialog).getByLabelText("Text"), "Hi");
     await user.click(within(dialog).getByRole("button", { name: "Post now" }));
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "@sokosumi-co — LinkedIn refused it",
+        "@sokosumi-co — X refused it",
       );
     });
     // X is live already, so it leaves the selection.
@@ -3469,7 +3624,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: "X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "false");
     expect(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -3483,8 +3638,8 @@ describe("ProjectSocialPosts", () => {
       .mockResolvedValueOnce({
         ok: true,
         value: buildPost({
-          id: "post-li",
-          provider: "linkedin",
+          id: "post-second-x",
+          provider: "x",
           text: "Hi",
           revision: 0,
         }),
@@ -3502,9 +3657,9 @@ describe("ProjectSocialPosts", () => {
         ok: true,
         value: {
           ...FAILED_POST,
-          id: "post-li",
-          provider: "linkedin",
-          lastError: "LinkedIn rate limited",
+          id: "post-second-x",
+          provider: "x",
+          lastError: "X rate limited",
           lastAttempt: {
             ...FAILED_POST.lastAttempt!,
             errorKind: "rate_limited",
@@ -3517,7 +3672,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3529,7 +3684,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.type(within(dialog).getByLabelText("Text"), "Hi");
     await user.click(within(dialog).getByRole("button", { name: "Post now" }));
@@ -3626,13 +3781,13 @@ describe("ProjectSocialPosts", () => {
       })
       .mockResolvedValueOnce({
         ok: false,
-        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+        error: { code: "BAD_INPUT", message: "X refused it" },
       })
       .mockResolvedValueOnce({
         ok: true,
         value: buildPost({
-          id: "post-li",
-          provider: "linkedin",
+          id: "post-second-x",
+          provider: "x",
           text: "Hello",
         }),
       });
@@ -3642,7 +3797,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3654,7 +3809,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
     await user.click(
@@ -3662,14 +3817,14 @@ describe("ProjectSocialPosts", () => {
     );
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+      expect(toastErrorMock).toHaveBeenCalledWith("X refused it");
     });
-    // X is saved already, so it leaves the selection; LinkedIn stays.
+    // X is saved already, so it leaves the selection; X stays.
     expect(
       within(dialog).getByRole("button", { name: "X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "false");
     expect(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await user.click(
@@ -3693,8 +3848,8 @@ describe("ProjectSocialPosts", () => {
       .mockResolvedValueOnce({
         ok: true,
         value: buildPost({
-          id: "post-li",
-          provider: "linkedin",
+          id: "post-second-x",
+          provider: "x",
           text: "Hello",
         }),
       });
@@ -3704,7 +3859,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3716,7 +3871,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
     await user.click(
@@ -3735,7 +3890,7 @@ describe("ProjectSocialPosts", () => {
       expect.objectContaining({ socialConnectionId: "connection-2" }),
     );
     expect(screen.getByTestId("social-post-post-x")).toBeVisible();
-    expect(screen.getByTestId("social-post-post-li")).toBeVisible();
+    expect(screen.getByTestId("social-post-post-second-x")).toBeVisible();
   });
 
   it("keeps Schedule disabled without an account or a future time", async () => {
@@ -3889,7 +4044,7 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
-  it("caps the first comment by the strictest selected network", async () => {
+  it("caps the first comment for multiple X accounts", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -3897,7 +4052,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3909,11 +4064,11 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "X @sokosumi-co" }),
     );
     await user.click(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     );
     fireEvent.change(within(dialog).getByTestId("social-post-first-comment"), {
@@ -3928,27 +4083,27 @@ describe("ProjectSocialPosts", () => {
     ).toBeDisabled();
   });
 
-  it("hides first comment when only TikTok is selected", async () => {
+  it("never selects a disabled TikTok account for a new draft", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[
-          buildConnection({
-            id: "connection-tiktok",
-            provider: "tiktok",
-            externalHandle: "sokosumi",
-          }),
+          buildConnection({ provider: "tiktok", externalHandle: "future" }),
         ]}
         posts={[]}
         projectId={PROJECT_ID}
       />,
     );
-
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
+    const account = within(dialog).getByRole("button", {
+      name: "TikTok @future",
+    });
+    expect(account).toBeDisabled();
+    expect(account).toHaveAttribute("aria-pressed", "false");
     expect(
-      within(dialog).queryByTestId("social-post-first-comment"),
-    ).not.toBeInTheDocument();
+      within(dialog).getByTestId("social-post-first-comment"),
+    ).toBeVisible();
   });
 
   it("returns focus to the calendar trigger after closing a preview", async () => {
@@ -4640,7 +4795,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "x",
             externalHandle: "sokosumi-co",
             displayName: "Sokosumi Co",
           }),
@@ -4653,7 +4808,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn Sokosumi Co" }),
+      within(dialog).getByRole("button", { name: "X Sokosumi Co" }),
     );
     await user.type(within(dialog).getByLabelText("Text"), "Hello both");
 
@@ -4667,25 +4822,25 @@ describe("ProjectSocialPosts", () => {
     ).toHaveClass("h-11", "md:h-8");
     expect(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     ).toHaveClass("h-11", "md:h-8");
 
     await user.click(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     );
-    expect(preview).toHaveAttribute("data-provider", "linkedin");
+    expect(preview).toHaveAttribute("data-provider", "x");
     expect(within(preview).getByText("Sokosumi Co")).toBeVisible();
     expect(
       within(dialog).getByRole("button", {
-        name: "Preview as LinkedIn @sokosumi-co",
+        name: "Preview as X @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn Sokosumi Co" }),
+      within(dialog).getByRole("button", { name: "X Sokosumi Co" }),
     );
     expect(
       within(dialog).queryByTestId("social-post-preview-accounts"),
@@ -4705,7 +4860,7 @@ describe("ProjectSocialPosts", () => {
             buildConnection({ avatarUrl: photo }),
             buildConnection({
               id: "connection-2",
-              provider: "linkedin",
+              provider: "x",
               externalHandle: "sokosumi-co",
               displayName: "Sokosumi Co",
               avatarUrl: photo,
@@ -4719,7 +4874,7 @@ describe("ProjectSocialPosts", () => {
       await user.click(screen.getByRole("button", { name: "New post" }));
       const dialog = screen.getByRole("dialog");
       await user.click(
-        within(dialog).getByRole("button", { name: "LinkedIn Sokosumi Co" }),
+        within(dialog).getByRole("button", { name: "X Sokosumi Co" }),
       );
       await user.type(within(dialog).getByLabelText("Text"), "Hello both");
 
@@ -5544,7 +5699,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByText("No drafts yet.")).toBeVisible();
   });
 
-  it("hides Publish now on a TikTok draft that still needs a video", async () => {
+  it("keeps Edit but hides publish and schedule for a disabled provider draft", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -5568,8 +5723,52 @@ describe("ProjectSocialPosts", () => {
       screen.queryByRole("menuitem", { name: "Publish now" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
-    expect(screen.getByRole("menuitem", { name: "Schedule" })).toBeVisible();
+    expect(screen.queryByRole("menuitem", { name: "Schedule" })).toBeNull();
   });
+
+  it.each(["tiktok", "instagram", "facebook"] as const)(
+    "keeps failed %s history visible without retry, schedule, or duplicate actions",
+    async (provider) => {
+      const user = userEvent.setup();
+      const failed = buildPost({
+        ...FAILED_POST,
+        provider,
+        lastAttempt: {
+          attempt: 1,
+          trigger: "scheduler",
+          outcome: "failed_permanent",
+          providerOutcome: null,
+          finishedAt: null,
+          errorKind: `provider_coming_soon:${provider}`,
+        },
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ provider })]}
+          posts={[failed]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await openTab(user, "Needs attention");
+      expect(
+        screen.getByText(
+          `${provider === "tiktok" ? "TikTok" : provider === "instagram" ? "Instagram" : "Facebook"} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+        ),
+      ).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Retry selected" }),
+      ).toBeNull();
+      await openRowMenu(user, failed.id);
+      for (const name of ["Post now", "Reschedule", "Duplicate as draft"]) {
+        expect(screen.queryByRole("menuitem", { name })).toBeNull();
+      }
+      expect(screen.getByRole("menuitem", { name: "Dismiss" })).toBeVisible();
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      expect(duplicateProjectSocialPost).not.toHaveBeenCalled();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
 
   it("toasts and refreshes when publishing hits a revision conflict", async () => {
     const user = userEvent.setup();

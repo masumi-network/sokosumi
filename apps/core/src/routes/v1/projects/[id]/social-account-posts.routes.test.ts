@@ -108,7 +108,7 @@ function createApp() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.beta.mockResolvedValue(undefined);
+  mocks.beta.mockRejectedValue(new Error("Outside Ads beta"));
   mocks.capability.mockResolvedValue(undefined);
   mocks.delegation.mockRejectedValue(forbidden("Delegation required"));
   mocks.recycle.mockResolvedValue(recycled);
@@ -125,6 +125,7 @@ describe("recycle social account post route", () => {
       },
     );
     expect(response.status).toBe(201);
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(mocks.recycle).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId,

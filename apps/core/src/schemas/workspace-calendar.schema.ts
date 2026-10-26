@@ -29,7 +29,7 @@ const workspaceCalendarQueryObjectSchema = z.object({
   }),
   includeSocialPosts: z.enum(["true", "false"]).optional().openapi({
     description:
-      "Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.",
+      "Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.",
   }),
   agendaOnly: z.enum(["true", "false"]).optional().openapi({
     description:

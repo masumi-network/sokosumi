@@ -1,9 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireSocialPostActor } from "@/helpers/social-post-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -26,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts",
     description:
-      "Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostProjectParamsSchema,
@@ -53,7 +51,7 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(userContext.userId, prisma);
+
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const input = c.req.valid("json");

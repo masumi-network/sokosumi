@@ -109,7 +109,7 @@ describe("POST /composio/callback/complete", () => {
     expect(completeComposioCallbackMock).not.toHaveBeenCalled();
   });
 
-  it("gates callback redemption behind Social beta access", async () => {
+  it("allows Social callback redemption outside the Ads beta", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
@@ -125,12 +125,9 @@ describe("POST /composio/callback/complete", () => {
       },
     );
 
-    expect(response.status).toBe(403);
-    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.anything(),
-    );
-    expect(completeComposioCallbackMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
+    expect(completeComposioCallbackMock).toHaveBeenCalled();
   });
 
   it.each([
