@@ -55,8 +55,6 @@ import {
 // Type only: `room-unread` imports this module at runtime.
 import type { ChatRoomUnreadThreads } from "./room-unread";
 
-export { formerDirectUserIds, isReadOnlyDirectRoom } from "./read-only-room";
-
 import {
   chatRoomSokoBotSelect,
   mapChatRoomSokoBotParticipant,

@@ -292,8 +292,8 @@ importers:
         specifier: 0.5.1
         version: 0.5.1
       '@composio/core':
-        specifier: 0.25.0
-        version: 0.25.0(ws@8.21.0)(zod@4.6.7)
+        specifier: 0.27.0
+        version: 0.27.0(ws@8.21.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.14)
@@ -1384,8 +1384,8 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@composio/client@2.0.0-rc.17':
-    resolution: {integrity: sha512-j1fqyiAwAO6kOmbLwkLn4fb4//GNveV2yo0iMo4wTwOk9euRwQNK6lodVcRhJT6ZeRCSS2Xv8uUsJtmGsPTyiA==}
+  '@composio/client@2.0.0-rc.19':
+    resolution: {integrity: sha512-EdBq7KXefbLXwK4F4wUtlG/e37pSxBQCAjJLRAgb0tHhiifDVqsmB/9AzLzpDsDfDKL/3UMUtYUiVUYaD87BVA==}
     engines: {node: '>=22'}
     peerDependencies:
       effect: '*'
@@ -1393,14 +1393,14 @@ packages:
       effect:
         optional: true
 
-  '@composio/core@0.25.0':
-    resolution: {integrity: sha512-oxzr0etEDb2EzoyCQfyunoui0sRZq+v97w1l4Wj445cbks/VGauQsgVjVSxMqMc74MnSnzvvZ4saQbpkycBN+g==}
+  '@composio/core@0.27.0':
+    resolution: {integrity: sha512-tkWThMKQ3NzCoIXpMioMSwVB1Lxd7Gk1h2Z+cIdw1P0d6ARYPcmwKkscJHSVknHy4qxJkBtc3Q3dFtinIoZSaA==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
 
-  '@composio/json-schema-to-zod@0.3.4':
-    resolution: {integrity: sha512-8MQUTBZ+r5ToY5lLaJCdOHLXjpqfyFKQuyruZbHnl4Mtp7LYjJP2k5KPyo521AmVSpugbyXiyNdCZWZQR2qGIw==}
+  '@composio/json-schema-to-zod@0.4.0':
+    resolution: {integrity: sha512-BwZXcGpiBFNStECzka7nyF8RogVIzK5kRrDGI5p9P9nlLbQqpCF6H/ILozQE5NoT3HDjbJF26aang+2hDduSNQ==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
@@ -10094,12 +10094,12 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@composio/client@2.0.0-rc.17': {}
+  '@composio/client@2.0.0-rc.19': {}
 
-  '@composio/core@0.25.0(ws@8.21.0)(zod@4.6.7)':
+  '@composio/core@0.27.0(ws@8.21.0)(zod@4.6.7)':
     dependencies:
-      '@composio/client': 2.0.0-rc.17
-      '@composio/json-schema-to-zod': 0.3.4(zod@4.6.7)
+      '@composio/client': 2.0.0-rc.19
+      '@composio/json-schema-to-zod': 0.4.0(zod@4.6.7)
       '@types/json-schema': 7.0.15
       is-fs-case-sensitive: 2.0.0
       openai: 7.34.0(undici@7.30.0)(ws@8.21.0)(zod@4.6.7)
@@ -10116,7 +10116,7 @@ snapshots:
       - effect
       - ws
 
-  '@composio/json-schema-to-zod@0.3.4(zod@4.6.7)':
+  '@composio/json-schema-to-zod@0.4.0(zod@4.6.7)':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       dequal: 2.0.3
