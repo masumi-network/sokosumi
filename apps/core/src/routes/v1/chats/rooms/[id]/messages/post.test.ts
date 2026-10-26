@@ -66,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: roomFindFirstMock,
     },
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findUnique: messageFindUniqueMock,
     },
     chatRoomUserMember: {
@@ -206,6 +207,7 @@ const tx = {
     update: roomUpdateMock,
   },
   chatRoomMessage: {
+    groupBy: vi.fn().mockResolvedValue([]),
     findFirst: messageFindFirstMock,
     findUnique: messageFindUniqueMock,
     findMany: messageFindManyMock,
@@ -411,7 +413,6 @@ function createdMessage(
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 0 },
   };
 }
 

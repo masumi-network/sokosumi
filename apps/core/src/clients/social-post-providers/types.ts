@@ -18,7 +18,8 @@ export interface SocialPostPublishContext {
 }
 
 export interface SocialPostPublishResult {
-  externalId: string;
+  /** Null when the platform confirmed the post but returned no id for it. */
+  externalId: string | null;
   publishedUrl: string | null;
   providerOutcome?: string;
   /** Set when the tool that produced the id differs from the attempt's default. */
