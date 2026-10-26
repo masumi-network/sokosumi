@@ -65,6 +65,31 @@ describe("liveTypistIds", () => {
     ]);
   });
 
+  it("keeps a typist named for 8s after their last keystroke", () => {
+    let set = EMPTY;
+    let announcedAtMs: number | null = null;
+    function keystroke(atMs: number) {
+      const action = nextTypingPublishAction({
+        composerHasText: true,
+        startedPublishedAtMs: announcedAtMs,
+        nowMs: atMs,
+      });
+      if (action === "start") {
+        announcedAtMs = atMs;
+        set = applyTypingEvent(set, started("user_pat", atMs), SELF);
+      }
+    }
+
+    // Steady typing for just under 10s, then a pause to think.
+    for (let atMs = 0; atMs <= 9_900; atMs += 300) {
+      keystroke(atMs);
+    }
+
+    for (let atMs = 9_900; atMs < 9_900 + 8_000; atMs += 100) {
+      expect(liveTypistIds(set, atMs)).toEqual(["user_pat"]);
+    }
+  });
+
   it("holds a heartbeating typist's place in the order", () => {
     let set = applyTypingEvent(EMPTY, started("user_pat", 1_000), SELF);
     set = applyTypingEvent(set, started("user_andreas", 2_000), SELF);
