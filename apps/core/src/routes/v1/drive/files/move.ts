@@ -31,6 +31,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { rebaseDriveFolderShares } from "@/services/drive-share.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -406,6 +407,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const failed = outcomes.find((outcome) => outcome.status === "rejected");
       if (failed) throw failed.reason;
+
+      // A link to this folder, or one inside it, follows it to its new place.
+      await rebaseDriveFolderShares({
+        workspaceId: await workspaceIdFor(scope),
+        scope,
+        ownerId,
+        fromFolderPath: sourceFolderPath,
+        toFolderPath: newFolderPath,
+      });
 
       return ok(c, body);
     }

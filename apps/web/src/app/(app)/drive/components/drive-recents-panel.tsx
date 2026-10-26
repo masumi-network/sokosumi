@@ -7,6 +7,7 @@ import {
   Download,
   Edit3,
   Folder,
+  Link2,
   MoreHorizontal,
   Table2,
   Trash2,
@@ -30,6 +31,7 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
+import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
   driveItemArticleClass,
@@ -78,6 +80,8 @@ interface DriveRecentsPanelProps {
   reloadToken?: number;
   viewMode?: FilesViewMode;
   onOpenMoveDialog: (item: DriveItem) => void;
+  /** Opens the link dialog for an uploaded file the catalog knows. */
+  onShareFile: (item: DriveShareItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
   onOpenCopyDialog: (item: DriveRecentsItem & { kind: "task-output" }) => void;
@@ -118,6 +122,7 @@ export function DriveRecentsPanel({
   reloadToken = 0,
   viewMode = "list",
   onOpenMoveDialog,
+  onShareFile,
   onOpenDeleteDialog,
   onRenameFile,
   onOpenCopyDialog,
@@ -380,6 +385,23 @@ export function DriveRecentsPanel({
                           <Folder className="size-4" aria-hidden />
                           {t("moveAction")}
                         </DropdownMenuItem>
+                        {item.resourceId ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              if (item.resourceId)
+                                onShareFile({
+                                  target: {
+                                    kind: "file",
+                                    resourceId: item.resourceId,
+                                  },
+                                  name: item.name,
+                                });
+                            }}
+                          >
+                            <Link2 className="size-4" aria-hidden />
+                            {t("shareAction")}
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem
                           variant="destructive"
                           onSelect={(event) => {

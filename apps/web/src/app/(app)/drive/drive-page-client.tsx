@@ -23,6 +23,7 @@ import {
   FolderInput,
   FolderPlus,
   Folders,
+  Link2,
   ListFilter,
   MoreHorizontal,
   Pencil,
@@ -61,6 +62,10 @@ import {
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveRecentsTagFilter } from "@/app/drive/components/drive-recents-tag-filter";
+import {
+  DriveShareDialog,
+  type DriveShareItem,
+} from "@/app/drive/components/drive-share-dialog";
 import {
   DriveSortControl,
   DriveSortMenuItems,
@@ -302,6 +307,7 @@ function DrivePageWorkspace({
   const isMobile = useIsMobile();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
   /**
    * Which folder is narrowing the catalog, if any.
@@ -1515,6 +1521,23 @@ function DrivePageWorkspace({
         size="sm"
         variant="ghost"
         className="gap-1.5"
+        data-testid="files-share-folder"
+        aria-label={t("shareFolderAction", { name: folderName })}
+        onClick={() =>
+          setShareItem({
+            target: { kind: "folder", folderPath: facetFolder },
+            name: folderName,
+          })
+        }
+      >
+        <Link2 className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("shareAction")}</span>
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
         data-testid="files-rename-folder"
         aria-label={t("renameFolderAction", { name: folderName })}
         onClick={() => {
@@ -1854,6 +1877,7 @@ function DrivePageWorkspace({
           viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
+          onShareFile={setShareItem}
           onRenameFile={handleRename}
           onOpenCopyDialog={(item) => {
             setTaskFileToCopy({
@@ -2195,8 +2219,17 @@ function DrivePageWorkspace({
             onOpen: navigateToTasksRoot,
           }}
           reloadToken={catalogReloadToken}
+          onShareFile={setShareItem}
         />
       ) : null}
+
+      <DriveShareDialog
+        store={allFilesStore}
+        item={shareItem}
+        onOpenChange={(open) => {
+          if (!open) setShareItem(null);
+        }}
+      />
 
       {!isTasksView && isWorkspaceView && (
         <ListMobileCreateFab
