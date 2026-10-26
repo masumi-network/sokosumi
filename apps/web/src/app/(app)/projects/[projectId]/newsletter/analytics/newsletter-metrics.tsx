@@ -35,6 +35,7 @@ export function NewsletterMetrics({
         "complaints",
       ] as const);
   function value(key: (typeof metrics)[number], full = false) {
+    if (totals[key] == null) return t("unavailable");
     return key === "openRate" || key === "clickRate"
       ? format.number(totals[key], {
           style: "percent",
@@ -42,7 +43,7 @@ export function NewsletterMetrics({
         })
       : format.number(
           totals[key],
-          !full && totals[key] >= 10000
+          !full && (totals[key] ?? 0) >= 10000
             ? { notation: "compact", maximumFractionDigits: 1 }
             : {},
         );

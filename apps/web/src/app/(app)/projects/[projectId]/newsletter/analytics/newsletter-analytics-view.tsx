@@ -5,7 +5,7 @@ import { BarChart2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryStates } from "nuqs";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { DailyBarChart } from "@/components/performance/daily-bar-chart";
 import { PerformanceDateRange } from "@/components/performance/performance-date-range";
@@ -47,10 +47,12 @@ export function NewsletterAnalyticsView({
   analytics,
 }: NewsletterAnalyticsViewProps) {
   const t = useTranslations("App.Projects.Newsletter.Analytics");
+  const issueTranslations = useTranslations("App.Projects.Newsletter.Issues");
   const format = useFormatter();
+  const [pending, startTransition] = useTransition();
   const [range, setRange] = useQueryStates(
-    { from: parseAsString, to: parseAsString },
-    { shallow: false },
+    { from: parseAsString, to: parseAsString, cursor: parseAsString },
+    { shallow: false, startTransition },
   );
   const [growthMetric, setGrowthMetric] =
     useState<GrowthMetric>("runningTotal");
@@ -66,6 +68,7 @@ export function NewsletterAnalyticsView({
     void setRange({
       from: start.toISOString().slice(0, 10),
       to: end.toISOString().slice(0, 10),
+      cursor: null,
     });
   }
   return (
@@ -92,12 +95,16 @@ export function NewsletterAnalyticsView({
           fromLabel={t("from")}
           untilLabel={t("to")}
           invalid={!analytics}
-          onFromChange={(value) => void setRange({ from: value || null })}
-          onUntilChange={(value) => void setRange({ to: value || null })}
+          onFromChange={(value) =>
+            void setRange({ from: value || null, cursor: null })
+          }
+          onUntilChange={(value) =>
+            void setRange({ to: value || null, cursor: null })
+          }
         />
         <Button
           variant="outline"
-          onClick={() => void setRange({ from: null, to: null })}
+          onClick={() => void setRange({ from: null, to: null, cursor: null })}
         >
           {t("resetRange")}
         </Button>
@@ -111,7 +118,7 @@ export function NewsletterAnalyticsView({
         <>
           <NewsletterMetrics totals={analytics.totals} />
           <NewsletterAnalyticsNotes />
-          {!analytics.issues.length ? (
+          {analytics.issuesPagination.total === 0 ? (
             <EmptyState
               icon={BarChart2}
               title={t("emptyTitle")}
@@ -234,7 +241,7 @@ export function NewsletterAnalyticsView({
               />
             </section>
           </div>
-          {analytics.issues.length ? (
+          {analytics.issues.length || analytics.issuesPagination.cursor ? (
             <section
               aria-labelledby="newsletter-issue-performance"
               className="min-w-0 space-y-4"
@@ -245,6 +252,9 @@ export function NewsletterAnalyticsView({
               >
                 {t("issuePerformance")}
               </h3>
+              <p className="text-muted-foreground text-sm">
+                {t("issueUnsubscribesNote")}
+              </p>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -293,18 +303,57 @@ export function NewsletterAnalyticsView({
                         ] as const
                       ).map((key) => (
                         <TableCell key={key} className="text-end tabular-nums">
-                          {format.number(
-                            issue[key],
-                            key === "openRate" || key === "clickRate"
-                              ? { style: "percent", maximumFractionDigits: 1 }
-                              : {},
-                          )}
+                          {issue[key] == null
+                            ? t("unavailable")
+                            : format.number(
+                                issue[key],
+                                key === "openRate" || key === "clickRate"
+                                  ? {
+                                      style: "percent",
+                                      maximumFractionDigits: 1,
+                                    }
+                                  : {},
+                              )}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-muted-foreground text-sm" role="status">
+                  {issueTranslations("results", {
+                    count: analytics.issuesPagination.total,
+                  })}
+                </p>
+                {analytics.issuesPagination.cursor ||
+                analytics.issuesPagination.nextCursor ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={!analytics.issuesPagination.cursor || pending}
+                      loading={pending}
+                      onClick={() => void setRange({ cursor: null })}
+                    >
+                      {issueTranslations("firstPage")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={
+                        !analytics.issuesPagination.nextCursor || pending
+                      }
+                      loading={pending}
+                      onClick={() =>
+                        void setRange({
+                          cursor: analytics.issuesPagination.nextCursor,
+                        })
+                      }
+                    >
+                      {issueTranslations("nextPage")}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </section>
           ) : null}
         </>

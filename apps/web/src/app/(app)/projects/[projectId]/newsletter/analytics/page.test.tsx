@@ -70,6 +70,7 @@ describe("newsletter analytics page", () => {
     expect(m.analytics).toHaveBeenCalledExactlyOnceWith("p1", {
       from: "2026-10-01",
       to: "2026-10-02",
+      cursor: undefined,
     });
     expect(screen.getByText("2026-10-01")).toBeVisible();
   });

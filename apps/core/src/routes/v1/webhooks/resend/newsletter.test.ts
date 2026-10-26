@@ -136,7 +136,11 @@ beforeEach(() => {
       where,
       data,
     }: {
-      where: { id: string; status: { not: string } };
+      where: {
+        id: string;
+        status: { not: string };
+        OR?: Array<{ bouncedAt: null | { gt: Date } }>;
+      };
       data: {
         status: NewsletterSubscriber["status"];
         bouncedAt?: Date;
@@ -147,7 +151,14 @@ beforeEach(() => {
       if (
         !subscriber ||
         subscriber.id !== where.id ||
-        subscriber.status === where.status.not
+        subscriber.status === where.status.not ||
+        (where.OR &&
+          subscriber.bouncedAt &&
+          !where.OR.some(
+            (condition) =>
+              condition.bouncedAt &&
+              subscriber.bouncedAt! > condition.bouncedAt.gt,
+          ))
       ) {
         return { count: 0 };
       }
@@ -318,6 +329,32 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
       expect(m.state.subscriber).toEqual(NEWSLETTER_SUBSCRIBER);
     },
   );
+
+  it("preserves the earliest permanent bounce across repeated and out-of-order reports", async () => {
+    const server = app();
+    for (const [index, at] of [
+      "2026-10-22T10:00:00Z",
+      "2026-10-23T10:00:00Z",
+      "2026-10-21T10:00:00Z",
+    ].entries()) {
+      const event = {
+        ...payload("email.bounced", { bounce: { type: "hard" } }),
+        created_at: at,
+      };
+      expect(
+        (
+          await server.request(
+            URL,
+            signedRequest(JSON.stringify(event), { id: `bounce-${index}` }),
+          )
+        ).status,
+      ).toBe(200);
+      expect(m.state.subscriber?.bouncedAt).toEqual(
+        new Date(index < 2 ? "2026-10-22T10:00:00Z" : "2026-10-21T10:00:00Z"),
+      );
+    }
+    expect(m.state.events).toHaveLength(3);
+  });
 
   it.each(["ACTIVE", "BOUNCED"] as const)(
     "unsubscribes a %s subscriber on complaint",

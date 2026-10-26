@@ -19,7 +19,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/issues/{issueId}/analytics",
     tags: ["Projects"],
     description:
-      "Lifetime analytics for one newsletter issue. Engagement counts distinct subscribers; deliveries count distinct sends. Rates are fractions using delivered sends, falling back to sent when delivered is zero (zero if both are zero). activeSubscribers is the newsletter's current count. Top links are the 20 most clicked URLs, each deduplicated per subscriber, ordered by uniqueClicks then URL.",
+      "Lifetime analytics for one newsletter issue in the utxo workspace. Unsubscribes are null because unsubscribe links do not identify an issue. Engagement counts distinct subscribers; deliveries count distinct sends. Rates are fractions using delivered sends, falling back to sent when delivered is zero (zero if both are zero). activeSubscribers is the newsletter's current count. Top links are the 20 most clicked URLs, each deduplicated per subscriber, ordered by uniqueClicks then URL.",
     request: { params: newsletterIssueParamsSchema },
     responses: {
       200: jsonSuccessResponse(

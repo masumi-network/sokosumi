@@ -3430,6 +3430,7 @@
           "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
           "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
           "opensNote": "Öffnungen können zu niedrig erfasst werden, da manche E-Mail-Apps Bilder blockieren.",
+          "issueUnsubscribesNote": "Abmeldungen gelten für den gesamten Newsletter und können keiner einzelnen Ausgabe zugeordnet werden.",
           "emptyTitle": "Kein Versand in diesem Zeitraum",
           "emptyDescription": "Sende eine Ausgabe, um ihre Statistiken zu sehen, oder wähle einen Zeitraum mit früheren Aktivitäten.",
           "viewIssues": "Ausgaben ansehen",

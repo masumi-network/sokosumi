@@ -31,7 +31,8 @@ export function DailyBarChart({
   return (
     <figure className="min-w-0 space-y-3" aria-label={label}>
       <div
-        className="relative flex h-40 items-end gap-px border-b"
+        className="relative flex h-40 items-end border-b"
+        style={{ columnGap: `min(1px, ${25 / Math.max(1, points.length)}%)` }}
         aria-hidden="true"
       >
         {minimum < 0 ? (
