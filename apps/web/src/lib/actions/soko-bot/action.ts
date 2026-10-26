@@ -375,6 +375,7 @@ const proactiveSchema = z
     paused: z.boolean().optional(),
     dailyLimit: z.number().int().min(1).max(200).optional(),
     timezone: z.string().trim().min(1).max(64).optional(),
+    mailAutoRead: z.boolean().optional(),
   })
   .strict();
 

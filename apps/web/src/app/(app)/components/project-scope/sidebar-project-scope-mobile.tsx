@@ -10,7 +10,10 @@ import {
   returnFocusTo,
   useProjectScopeSwitch,
 } from "@/app/components/project-scope/use-project-scope";
-import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import {
+  usePrefetchScopeProjects,
+  useSelectedScopeProject,
+} from "@/app/components/project-scope/use-scope-projects";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -68,6 +71,7 @@ export function useCurrentScope() {
 
 /** Below md: a compact scope chip in the header that opens a bottom sheet. */
 export function SidebarScopeMobileChip() {
+  const prefetch = usePrefetchScopeProjects();
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
   const open = useScopeSheetOpen();
@@ -98,6 +102,7 @@ export function SidebarScopeMobileChip() {
               aria-label={label}
               title={name}
               data-testid="project-scope-sidebar-chip"
+              onPointerDown={prefetch}
               className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
             >
               <span aria-hidden className="flex shrink-0">

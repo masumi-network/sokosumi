@@ -45,6 +45,24 @@ export function MentionCountPill({ count }: { count: number }) {
 }
 
 /**
+ * How many unread messages wait on the reader: a question or a decision Jev
+ * read as addressed to them. Solid primary, the loudest mark a row can draw,
+ * because it outranks being named: the `@` pill says the reader was
+ * mentioned, this says someone is waiting on them. Same size as the `@` pill
+ * so the two share the room's hole.
+ */
+export function NeedsYouPill({ count }: { count: number }) {
+  return (
+    <span
+      data-slot="needs-you-pill"
+      className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-2xs leading-4 font-semibold tabular-nums"
+    >
+      {count > MENTION_COUNT_CAP ? `${MENTION_COUNT_CAP}+` : count}
+    </span>
+  );
+}
+
+/**
  * A row's one drawn number (the one-number rule, SOK-1147): the `@` pill
  * where the reader was named, the muted count otherwise, nothing at zero.
  * Draws only; each row states the number in words for assistive technology,
@@ -53,10 +71,16 @@ export function MentionCountPill({ count }: { count: number }) {
 export function RowCountMark({
   mentionCount,
   count,
+  needsYouCount = 0,
 }: {
   mentionCount: number;
   count: number;
+  /** Wins over the `@` pill: waited on outranks named. */
+  needsYouCount?: number;
 }) {
+  if (needsYouCount > 0) {
+    return <NeedsYouPill count={needsYouCount} />;
+  }
   if (mentionCount > 0) {
     return <MentionCountPill count={mentionCount} />;
   }

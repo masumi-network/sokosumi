@@ -1,0 +1,93 @@
+{
+  "messages": [
+    {
+      "messageId": "18f1a2b3c4d5e6f7",
+      "threadId": "18f1a2b3c4d5e000",
+      "messageTimestamp": "2026-10-20T09:14:02Z",
+      "labelIds": ["SENT"],
+      "sender": "Patrick Tobler <patrick@yellowhouse.gmbh>",
+      "to": "\"Keller, Nina\" <Nina.Keller@acme-robotics.com>",
+      "subject": "Re: Pilot pricing for Q3",
+      "messageText": "Hi Nina, attached the numbers. Best, Patrick",
+      "payload": {
+        "headers": [
+          {
+            "name": "From",
+            "value": "Patrick Tobler <patrick@yellowhouse.gmbh>"
+          },
+          {
+            "name": "To",
+            "value": "\"Keller, Nina\" <Nina.Keller@acme-robotics.com>"
+          },
+          {
+            "name": "Cc",
+            "value": "Bob Teammate <bob@yellowhouse.gmbh>, tom.berger@acme-robotics.com"
+          },
+          { "name": "Subject", "value": "Re: Pilot pricing for Q3" },
+          { "name": "In-Reply-To", "value": "<CAF=abc@mail.gmail.com>" }
+        ]
+      }
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6f8",
+      "threadId": "18f1a2b3c4d5e001",
+      "messageTimestamp": "2026-10-19T16:40:00Z",
+      "labelIds": ["SENT"],
+      "sender": "patrick@yellowhouse.gmbh",
+      "to": "support@vendor-saas.io",
+      "subject": "Invoice question",
+      "messageText": "Hello, could you resend invoice 1042?"
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6f9",
+      "threadId": "18f1a2b3c4d5e002",
+      "messageTimestamp": "2026-10-19T10:00:00Z",
+      "labelIds": ["SENT"],
+      "sender": "patrick@yellowhouse.gmbh",
+      "to": "reply+ABCDEF123@reply.github.com, noreply@notifications.example.com",
+      "subject": "Re: [sokosumi] Fix flaky test (#123)",
+      "messageText": "LGTM"
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6fa",
+      "threadId": "18f1a2b3c4d5e003",
+      "messageTimestamp": "2026-10-18T07:00:00Z",
+      "labelIds": ["SENT"],
+      "sender": "patrick@yellowhouse.gmbh",
+      "to": "anna@client.ch",
+      "subject": "Automatic reply: Workshop next week",
+      "messageText": "I am out of office until Monday."
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6fb",
+      "threadId": "18f1a2b3c4d5e004",
+      "messageTimestamp": "2026-10-17T12:00:00Z",
+      "labelIds": ["SENT"],
+      "sender": "patrick@yellowhouse.gmbh",
+      "to": "organizer@partner.org",
+      "subject": "Accepted: Partner sync @ Thu 17 Oct 14:00",
+      "messageText": ""
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6fc",
+      "threadId": "18f1a2b3c4d5e005",
+      "messageTimestamp": "2026-10-16T08:00:00Z",
+      "labelIds": ["SENT"],
+      "sender": "patrick@yellowhouse.gmbh",
+      "to": "a01@x.com, a02@x.com, a03@x.com, a04@x.com, a05@x.com, a06@x.com, a07@x.com, a08@x.com, a09@x.com, a10@x.com, a11@x.com, a12@x.com, a13@x.com, a14@x.com, a15@x.com, a16@x.com, a17@x.com, a18@x.com, a19@x.com, a20@x.com, a21@x.com",
+      "subject": "Our October update",
+      "messageText": "Dear all"
+    },
+    {
+      "messageId": "18f1a2b3c4d5e6fd",
+      "threadId": "18f1a2b3c4d5e006",
+      "messageTimestamp": "2026-10-15T08:00:00Z",
+      "labelIds": ["SENT"],
+      "sender": "Patrick <p.tobler@gmail.com>",
+      "to": "patrick@yellowhouse.gmbh, Max Muster <max@gmail.com>",
+      "subject": "Fwd: Dinner on Friday",
+      "messageText": "See below"
+    }
+  ],
+  "nextPageToken": "sent-page-2"
+}

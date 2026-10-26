@@ -283,11 +283,14 @@ describe("SocialPublishedPost", () => {
     ).toHaveTextContent("5");
   });
 
-  it("shows the exact UTC publication date even for a viewer in another zone", () => {
+  it("shows the exact UTC publication date with its full zone in a tooltip even for a viewer in another zone", async () => {
     renderPost();
-    expect(screen.getByText("Oct 1, 12:15 AM UTC")).toHaveAttribute(
-      "dateTime",
-      "2026-10-01T00:15:00.000Z",
+    const time = screen.getByRole("listitem").querySelector("time");
+    expect(time).toHaveTextContent("Oct 1, 12:15 AM UTC");
+    expect(time).toHaveAttribute("dateTime", "2026-10-01T00:15:00.000Z");
+    await userEvent.setup().hover(screen.getByRole("button", { name: "UTC" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Coordinated Universal Time",
     );
   });
 
@@ -392,7 +395,8 @@ describe("SocialPublishedPost", () => {
 
   it("shows the Strong badge beside the UTC date above the metrics", () => {
     renderPost({ strong: true });
-    const date = screen.getByText("Oct 1, 12:15 AM UTC");
+    const date = screen.getByText("Oct 1, 12:15 AM");
+    expect(date).toHaveTextContent("Oct 1, 12:15 AM UTC");
     const badge = screen.getByText("Strong");
     expect(badge).toHaveAttribute("data-slot", "badge");
     expect(date.parentElement).toContainElement(badge);

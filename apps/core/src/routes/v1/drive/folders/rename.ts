@@ -26,6 +26,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { rebaseDriveFolderShares } from "@/services/drive-share.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -276,6 +277,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const failed = outcomes.find((outcome) => outcome.status === "rejected");
     if (failed) throw failed.reason;
+
+    // A link to this folder, or one inside it, follows it to its new name.
+    await rebaseDriveFolderShares({
+      workspaceId: workspace.workspaceId,
+      scope,
+      ownerId,
+      fromFolderPath: oldFolderPath,
+      toFolderPath: newFolderPath,
+    });
 
     return ok(c, body);
   });

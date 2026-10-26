@@ -251,6 +251,60 @@ describe("action lines the owner reads", () => {
     );
   });
 
+  it("names the contacts and lists a bot changed", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "contact-a",
+        toolCallId: "call-a",
+        capability: "upsert_contact",
+        targetId: "contact-one",
+        effectEventId: null,
+        result: { contact: { name: "Nina [Acme] Keller" }, created: true },
+      }),
+      receipt({
+        id: "contact-b",
+        toolCallId: "call-b",
+        capability: "upsert_contact",
+        targetId: "contact-two",
+        effectEventId: null,
+        result: { contact: { name: "Tom Berger" }, created: false },
+      }),
+      receipt({
+        id: "list-a",
+        toolCallId: "call-c",
+        capability: "manage_contact_lists",
+        targetId: "list-one",
+        effectEventId: null,
+        result: { id: "list-one", name: "Investors", count: 2 },
+      }),
+      receipt({
+        id: "log-a",
+        toolCallId: "call-d",
+        capability: "log_contact_interaction",
+        targetId: "contact-one",
+        effectEventId: null,
+        result: { interaction: { id: "i1" }, created: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      [
+        "Saved contact (2×): Nina \\[Acme\\] Keller, Tom Berger.",
+        "Updated contact list Investors.",
+        "Logged a contact interaction.",
+      ].join("\n"),
+    );
+    for (const capability of [
+      "upsert_contact",
+      "update_contact",
+      "log_contact_interaction",
+      "merge_contacts",
+      "manage_contact_lists",
+    ])
+      expect(ACTION_CAPABILITIES.has(capability)).toBe(true);
+  });
+
   it("links an uploaded file to its page, not to the public blob", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({

@@ -11,8 +11,10 @@ const {
   memoryFindFirstMock,
   nudgeFindManyMock,
   taskFindManyMock,
+  triageMailMock,
   turnCountMock,
 } = vi.hoisted(() => ({
+  triageMailMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   getEnvMock: vi.fn(),
@@ -46,6 +48,13 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: vi.fn(),
   fetchCalendarEvents: vi.fn(),
   fetchInboxMessages: vi.fn(),
+}));
+vi.mock("@/services/contacts-context.service", () => ({
+  calendarPeopleBlock: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/mail-triage")>()),
+  triageMail: triageMailMock,
 }));
 
 import {
@@ -318,6 +327,154 @@ describe("buildSystemBeatMessage stand-up board", () => {
     );
     // Work without an Owner is still the team's.
     expect(beat.message).toContain('A teammate · COMPLETED · "Weekly digest"');
+  });
+});
+
+describe("buildSystemBeatMessage stand-up people", () => {
+  it("adds who the owner meets today from Contacts, right after the calendar", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    const context = await import("@/services/contacts-context.service");
+    vi.mocked(integrations.activeIntegrationsForBot).mockImplementation(
+      async (_botId, kind) =>
+        kind === "calendar"
+          ? [
+              {
+                id: "int-1",
+                sokoBotId: ALICE_BOT_ID,
+                provider: {
+                  id: "googlecalendar",
+                  name: "Google Calendar",
+                  kinds: ["calendar"],
+                  tools: {},
+                  logoUrl: "",
+                },
+                composioAccountId: "ca",
+                connectorUserId: null,
+                cursor: null,
+              },
+            ]
+          : [],
+    );
+    vi.mocked(integrations.fetchCalendarEvents).mockResolvedValue([
+      {
+        provider: "googlecalendar",
+        id: "e1",
+        title: "Pilot kickoff",
+        startsAt: "2026-09-16T08:00:00.000Z",
+        endsAt: null,
+        allDay: false,
+        location: null,
+        attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+        organizer: null,
+        description: null,
+        link: null,
+      },
+    ]);
+    vi.mocked(context.calendarPeopleBlock).mockResolvedValue([
+      "## People on your calendar (from Contacts)",
+      "- Nina Keller — Head of Partnerships @ Acme · known by Bob (2)",
+      "",
+    ]);
+    taskFindManyMock.mockResolvedValue([]);
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(context.calendarPeopleBlock).toHaveBeenCalledWith({
+      workspaceId: ALICE_WORKSPACE_ID,
+      attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
+      timeZone: "Europe/Vienna",
+    });
+    const calendarAt = beat.message.indexOf("## Calendar");
+    const peopleAt = beat.message.indexOf("## People on your calendar");
+    expect(calendarAt).toBeGreaterThanOrEqual(0);
+    expect(peopleAt).toBeGreaterThan(calendarAt);
+    expect(beat.message).toContain("Nina Keller — Head of Partnerships @ Acme");
+  });
+});
+
+describe("buildSystemBeatMessage stand-up mail", () => {
+  it("shows the last day's mail triaged by Jev: urgent in full, bulk as a count", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    vi.mocked(integrations.activeIntegrationsForBot).mockImplementation(
+      async (_botId, kind) =>
+        kind === "email"
+          ? [
+              {
+                id: "int-2",
+                sokoBotId: ALICE_BOT_ID,
+                provider: {
+                  id: "gmail",
+                  name: "Gmail",
+                  kinds: ["email"],
+                  tools: {},
+                  logoUrl: "",
+                },
+                composioAccountId: "ca",
+                connectorUserId: null,
+                cursor: null,
+              },
+            ]
+          : [],
+    );
+    const inbox = ["Payout failed", "Weekly digest"].map((subject, index) => ({
+      provider: "gmail",
+      id: `m${index}`,
+      threadId: null,
+      from: "Stripe <support@stripe.com>",
+      to: [],
+      subject,
+      snippet: subject,
+      receivedAt: "2026-09-16T05:00:00.000Z",
+      unread: true,
+      labels: [],
+    }));
+    vi.mocked(integrations.fetchInboxMessages).mockResolvedValue(inbox);
+    const emit = vi.fn();
+    triageMailMock.mockResolvedValue({
+      mail: [
+        { message: inbox[0], tag: "URGENT", probability: 0.97 },
+        { message: inbox[1], tag: "BULK", probability: 0.9 },
+      ],
+      failed: false,
+      log: { set: vi.fn(), emit },
+    });
+    taskFindManyMock.mockResolvedValue([]);
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(triageMailMock).toHaveBeenCalledWith({
+      sokoBotId: ALICE_BOT_ID,
+      mail: inbox,
+      source: "standup",
+    });
+    expect(emit).toHaveBeenCalledOnce();
+    expect(beat.message).toContain("a guide, not a fact");
+    expect(beat.message).toContain("### Urgent (1)");
+    expect(beat.message).toContain("**Payout failed**");
+    expect(beat.message).toContain("### Bulk (1)\n- Stripe");
+    expect(beat.message).not.toContain("Weekly digest");
   });
 });
 

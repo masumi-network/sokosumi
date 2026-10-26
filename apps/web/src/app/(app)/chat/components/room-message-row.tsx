@@ -88,6 +88,8 @@ import {
   readProjectSelectionReply,
 } from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
+import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
+import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
@@ -132,6 +134,7 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
@@ -154,6 +157,7 @@ import {
   type UserMentionLookup,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { isSokoBotBriefSource, SokoBotBriefCard } from "./soko-bot-brief-card";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
@@ -2532,12 +2536,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
+  // Jev's chips draw a row of their own under the text when there is one.
+  const hasSignalRow =
+    !isDeleted &&
+    message.signal != null &&
+    (signalChips(message.signal, currentUserId).length > 0 ||
+      message.signal.loopClosedAt != null);
   const contentEndsTheRow =
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
     !hasUnfurlRow &&
     !hasSokoBotFooter &&
+    !hasSignalRow &&
     outboundStatus !== "failed";
   // An attachment row is a block: the inline reserve after it has no line to
   // share and opens one of its own, a line height the row gained only when
@@ -2547,6 +2558,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     contentEndsTheRow && !isDeleted && endsWithAttachmentRow(message.content);
   const bodyEndsTheRow =
     seenBy != null && contentEndsTheRow && !attachmentEndsTheRow;
+  const brief =
+    !isDeleted && isSokoBotBriefSource(message.metadata)
+      ? parseSokoBotBrief(message.content)
+      : null;
   const keepsSeenByCornerClear = newestEndsInAttachment && attachmentEndsTheRow;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2842,7 +2857,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 />
               ) : (
                 <>
-                  <SokoBotSourceLabel metadata={message.metadata} />
+                  {brief ? null : (
+                    <SokoBotSourceLabel metadata={message.metadata} />
+                  )}
                   {thoughtView?.disclosure ? (
                     <div className="mb-1">
                       <CoworkerThoughtTrace
@@ -2863,7 +2880,34 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   ) : null}
                   {/* Send to yourself posts only a quote, so there is no body.
                       The card still ends the row, so the reserve follows it. */}
-                  {quote && !message.content.trim() ? (
+                  {brief ? (
+                    <>
+                      <SokoBotBriefCard
+                        brief={brief}
+                        metadata={message.metadata}
+                        createdAt={message.createdAt}
+                        renderMarkdown={(content) => (
+                          <ChannelMessageText
+                            content={content}
+                            coworkersById={coworkersById}
+                            coworkersBySlug={coworkersBySlug}
+                            sokoBotsById={sokoBotsById}
+                            sokoBotsBySlug={sokoBotsBySlug}
+                            usersById={usersById}
+                            usersBySlug={usersBySlug}
+                            channelLinks={channelLinks}
+                            currentUserId={currentUserId}
+                            canOpenHumanDirect={canOpenHumanDirect}
+                            onOpenDirectMessage={onOpenDirectMessage}
+                            openingDirectParticipantKey={
+                              openingDirectParticipantKey
+                            }
+                          />
+                        )}
+                      />
+                      {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                    </>
+                  ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
                       <SeenByInlineReserve />
                     ) : null
@@ -2922,6 +2966,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     )}
                   />
+                  {hasSignalRow ? (
+                    <MessageSignalBar
+                      message={message}
+                      currentUserId={currentUserId}
+                      usersById={usersById}
+                    />
+                  ) : null}
                 </>
               )}
             </>

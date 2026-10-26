@@ -196,6 +196,11 @@ export const userPreferencesResponseSchema = z.object({
       "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
     example: true,
   }),
+  tagDirectMessages: z.boolean().default(false).openapi({
+    description:
+      "Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.",
+    example: false,
+  }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:
       "Every cell of the notification preference matrix, with defaults already applied",

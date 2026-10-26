@@ -88,6 +88,7 @@ import {
 } from "./chat-sidebar-section-header";
 import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
+import { limitSidebarSectionRooms } from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
@@ -100,12 +101,14 @@ import {
 } from "./pinned-rooms-dnd";
 import { resolveSectionAttention, roomUnreadReads } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
 import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
+import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
 
 /** Stable empty default — inline `= []` is a new array every render and
  *  infinite-loops the render-time pendingInvitations sync (React #301). */
@@ -224,6 +227,11 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
+  const [channelsShowAll, setChannelsShowAll] =
+    useSidebarSectionShowAll("channels");
+  const [externalShowAll, setExternalShowAll] =
+    useSidebarSectionShowAll("external");
+  const [directShowAll, setDirectShowAll] = useSidebarSectionShowAll("direct");
   const [unreadOnly, setUnreadOnly] = useChatUnreadsFilter();
   const [filterSwitched, setFilterSwitched] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -235,6 +243,7 @@ export function OrganizationChatList({
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
   // The app sidebar and the mobile `/chat` page each mount this list.
   const inboxReadLabelId = useId();
+  const inboxNeedsYouLabelId = useId();
   const inboxPinnedLabelId = useId();
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
@@ -396,8 +405,32 @@ export function OrganizationChatList({
         .flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
     : [];
   const inboxPinnedRooms = unreadOnly ? pinned : [];
-  const isUnreadRoom = (room: ChatRoom) =>
-    unreadRooms.some((row) => row.id === room.id);
+  // Rooms with a message waiting on the reader lead the filter, under their
+  // own label: a question or decision for them comes before plain unread.
+  const needsYouInboxRooms = inboxRooms.filter(
+    (room) => (room.unreadNeedsYouCount ?? 0) > 0 && room.mutedAt == null,
+  );
+  const otherInboxRooms = inboxRooms.filter(
+    (room) => !needsYouInboxRooms.includes(room),
+  );
+  const unreadRoomIds = new Set(unreadRooms.map((room) => room.id));
+  const isUnreadRoom = (room: ChatRoom) => unreadRoomIds.has(room.id);
+  // Past the limit a section still lists what is unread and the open room,
+  // so nothing new waits behind "Show more".
+  const keepInSection = (room: ChatRoom) =>
+    room.id === activeRoomId || isUnreadRoom(room);
+  const channelRows = limitSidebarSectionRooms(namedChannels, {
+    showAll: channelsShowAll,
+    alwaysShow: keepInSection,
+  });
+  const externalRows = limitSidebarSectionRooms(externalJoined, {
+    showAll: externalShowAll,
+    alwaysShow: keepInSection,
+  });
+  const directRows = limitSidebarSectionRooms(directMessages, {
+    showAll: directShowAll,
+    alwaysShow: keepInSection,
+  });
   // Read rooms dim, but not the open one: dimmed, its highlight reads as
   // disabled.
   const inboxItemProps = (room: ChatRoom) =>
@@ -501,7 +534,6 @@ export function OrganizationChatList({
         <SidebarGroupContent className="space-y-2">
           <ChatUnreadNavRows
             rooms={roomRows}
-            currentUserId={currentUserId}
             dismissSheetOnNavigate={dismissSheetOnNavigate}
             unreadOnly={unreadOnly}
             onUnreadOnlyChange={handleUnreadOnlyChange}
@@ -574,6 +606,32 @@ export function OrganizationChatList({
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
+                {needsYouInboxRooms.length > 0 ? (
+                  <>
+                    <p
+                      id={inboxNeedsYouLabelId}
+                      className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pt-2 pb-1 text-xs font-medium"
+                    >
+                      {t("Signals.needsYouSection")}
+                    </p>
+                    <SidebarMenu
+                      data-slot="unread-inbox-needs-you"
+                      aria-labelledby={inboxNeedsYouLabelId}
+                      className="gap-0"
+                    >
+                      <AnimatePresence initial={false}>
+                        {needsYouInboxRooms.map((room) => (
+                          <ChatRoomSidebarRow
+                            key={room.id}
+                            {...roomRowProps(room)}
+                            itemProps={inboxItemProps(room)}
+                            itemMotion={UNREAD_FILTER_ROW_PRESENCE}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </SidebarMenu>
+                  </>
+                ) : null}
                 <SidebarMenu
                   data-slot="unread-inbox"
                   aria-labelledby={
@@ -582,7 +640,7 @@ export function OrganizationChatList({
                   className="gap-0"
                 >
                   <AnimatePresence initial={false}>
-                    {inboxRooms.map((room) => (
+                    {otherInboxRooms.map((room) => (
                       <ChatRoomSidebarRow
                         key={room.id}
                         {...roomRowProps(room)}
@@ -692,12 +750,19 @@ export function OrganizationChatList({
                 </ChatSidebarSectionHeader>
                 <ChatSidebarSectionContent>
                   <SidebarMenu className="gap-0">
-                    {namedChannels.map((room) => (
+                    {channelRows.visible.map((room) => (
                       <ChatRoomSidebarRow
                         key={room.id}
                         {...roomRowProps(room)}
                       />
                     ))}
+                    {channelRows.hiddenCount > 0 ? (
+                      <SidebarSectionShowMoreRow
+                        hiddenCount={channelRows.hiddenCount}
+                        showAll={channelsShowAll}
+                        onShowAllChange={setChannelsShowAll}
+                      />
+                    ) : null}
                     {namedChannels.length === 0 ? (
                       <SidebarMenuItem>
                         <div
@@ -803,12 +868,19 @@ export function OrganizationChatList({
                     {/* Under the filter these rooms are in its flat list. */}
                     {unreadOnly
                       ? null
-                      : externalJoined.map((room) => (
+                      : externalRows.visible.map((room) => (
                           <ChatRoomSidebarRow
                             key={room.id}
                             {...roomRowProps(room)}
                           />
                         ))}
+                    {!unreadOnly && externalRows.hiddenCount > 0 ? (
+                      <SidebarSectionShowMoreRow
+                        hiddenCount={externalRows.hiddenCount}
+                        showAll={externalShowAll}
+                        onShowAllChange={setExternalShowAll}
+                      />
+                    ) : null}
                   </SidebarMenu>
                 </ChatSidebarSectionContent>
               </Collapsible>
@@ -1033,12 +1105,19 @@ export function OrganizationChatList({
                 </ChatSidebarSectionHeader>
                 <ChatSidebarSectionContent>
                   <SidebarMenu className="gap-0">
-                    {directMessages.map((room) => (
+                    {directRows.visible.map((room) => (
                       <ChatRoomSidebarRow
                         key={room.id}
                         {...roomRowProps(room)}
                       />
                     ))}
+                    {directRows.hiddenCount > 0 ? (
+                      <SidebarSectionShowMoreRow
+                        hiddenCount={directRows.hiddenCount}
+                        showAll={directShowAll}
+                        onShowAllChange={setDirectShowAll}
+                      />
+                    ) : null}
                     {directMessages.length === 0 ? (
                       <SidebarMenuItem>
                         <div

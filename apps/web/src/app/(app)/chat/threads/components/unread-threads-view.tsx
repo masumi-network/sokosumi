@@ -9,7 +9,12 @@ import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention"
 import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { UnreadThreadsList } from "@/components/chat/unread-threads-list";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
+import { cn } from "@/lib/utils";
 
 interface UnreadThreadsViewProps {
   /** Core's first page at request time, or null when that read failed. */
@@ -47,25 +52,30 @@ export function UnreadThreadsView({
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
 
   return (
-    // A reading column, not the full width: a Thread's name and its time
-    // belong on one line the eye can cross.
-    <div className="mx-auto flex w-full max-w-3xl flex-col pb-4">
+    <div className="flex w-full flex-col gap-4 pb-4">
       <ChatUnreadViewHeader title={t("title")} />
-      <section aria-labelledby={unreadHeadingId} className="mt-2 flex flex-col">
-        <ThreadGroupHeading id={unreadHeadingId} count={threadCount}>
-          {tGroups("groupUnread")}
-        </ThreadGroupHeading>
-        <UnreadThreadsList
-          rooms={rooms}
-          roomsLive={roomsLive}
-          initial={
-            initialPage ? { page: initialPage, rooms: initialRooms } : null
-          }
-          currentUserId={currentUserId}
-          variant="page"
-        />
-      </section>
-      <EarlierThreadsList rooms={rooms} currentUserId={currentUserId} />
+      <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
+        <section
+          aria-labelledby={unreadHeadingId}
+          className={cn(HOLDER_ITEM_CLASS, "flex flex-col px-2 pb-2")}
+        >
+          <ThreadGroupHeading id={unreadHeadingId} count={threadCount}>
+            {tGroups("groupUnread")}
+          </ThreadGroupHeading>
+          <UnreadThreadsList
+            rooms={rooms}
+            roomsLive={roomsLive}
+            initial={
+              initialPage ? { page: initialPage, rooms: initialRooms } : null
+            }
+            currentUserId={currentUserId}
+            variant="page"
+          />
+        </section>
+        <div className={cn(HOLDER_ITEM_CLASS, "px-2 pb-2 empty:hidden")}>
+          <EarlierThreadsList rooms={rooms} currentUserId={currentUserId} />
+        </div>
+      </div>
     </div>
   );
 }

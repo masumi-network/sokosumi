@@ -52,13 +52,13 @@ interface ProjectActivityPageParams {
  * otherwise match everything after "50". Escaping them (and the escape
  * character itself) keeps the query a literal substring match.
  */
-function projectNameSearchPattern(search: string): string {
+export function literalSubstringPattern(search: string): string {
   const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
   return `%${escaped}%`;
 }
 
 function projectNameSearchClause(search: string) {
-  return PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`;
+  return PrismaRaw.sql`AND p.name ILIKE ${literalSubstringPattern(search)} ESCAPE '\\'`;
 }
 
 /** Same predicate as the ranked page query, so pagination.total cannot drift. */

@@ -484,6 +484,53 @@ try {
     leftBehind.push(`File: ${uploaded.filename ?? uploaded.id ?? "uploaded"}`);
   }
 
+  // ---- contacts: shared with the whole workspace, so archived again ----------
+  await run("search_contacts", { search: "tool-smoke" });
+  await run("list_contact_lists", {});
+  await run("find_contact_duplicates", {});
+  const saved = (await run("upsert_contact", {
+    name: "Tool smoke contact",
+    stage: "PROSPECT",
+    channels: [{ type: "EMAIL", value: "tool-smoke@example.invalid" }],
+  })) as { contact?: { id: string; version: number } } | null;
+  const contactId = saved?.contact?.id;
+  if (contactId) {
+    await run("get_contact", { contactId });
+    await run("log_contact_interaction", {
+      contactId,
+      occurredAt: new Date().toISOString(),
+      channel: "MANUAL",
+      summary: "Tool smoke run",
+      sourceRef: `tool-smoke:${turnId}`,
+    });
+    const list = (await run("manage_contact_lists", {
+      action: "create",
+      name: `Tool smoke ${turnId.slice(0, 8)}`,
+    })) as { id?: string } | null;
+    if (list?.id) {
+      await run("manage_contact_lists", { action: "delete", listId: list.id });
+    }
+    const current = (await run("get_contact", { contactId })) as {
+      version?: number;
+    } | null;
+    await run("update_contact", {
+      contactId,
+      version: current?.version ?? saved?.contact?.version ?? 1,
+      nextStep: "None: written by soko-bot:tool-smoke",
+      archived: true,
+    });
+    leftBehind.push(`Archived contact: ${contactId}`);
+  } else {
+    for (const capability of [
+      "get_contact",
+      "log_contact_interaction",
+      "manage_contact_lists",
+      "update_contact",
+    ])
+      skip(capability, "the smoke contact was not saved");
+  }
+  skip("merge_contacts", "would fold two real people into one");
+
   // ---- hiring: real credits, only when asked for ------------------------------
   const hireable = await prisma.agent.findFirst({
     where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },

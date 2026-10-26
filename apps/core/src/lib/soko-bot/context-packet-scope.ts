@@ -78,8 +78,10 @@ function roomWhere(roomId: string | null | undefined) {
 }
 
 /**
- * A background run reports into the room it was started from, so the
- * conversation there includes what it found.
+ * The conversation in a room includes what the bot posted there without being
+ * asked: a background run's report, and a briefing, inbox check or schedule
+ * that was actually published. Without them "stop telling me about these" has
+ * nothing to point at.
  */
 function recentTurnRoomWhere(
   roomId: string | null | undefined,
@@ -89,6 +91,13 @@ function recentTurnRoomWhere(
         OR: [
           { chatMention: { message: { roomId } } },
           { parentTurnId: { not: null }, destinationRoomId: roomId },
+          {
+            chatMentionId: null,
+            destinationRoomId: roomId,
+            deliveries: {
+              some: { purpose: "FINAL", status: "PUBLISHED", roomId },
+            },
+          },
         ],
       }
     : { chatMentionId: null };
