@@ -6,9 +6,10 @@ import { motion } from "motion/react";
 import { useEffect } from "react";
 
 import { channelLabel, formatDay } from "../lib/calendar";
+import { formatHasImage, formatName } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
 import { DraftText } from "./draft-text";
-import { withoutLabel } from "./onboarding/showcases";
+import { withoutLabel } from "./showcases";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
@@ -53,7 +54,11 @@ export function EntrySheet({
         <div className="sheet-head">
           <ChannelIcon channel={entry.channel} size={18} />
           <span>
-            {channelLabel(entry.channel)} · {entry.format}
+            {channelLabel(entry.channel)} ·{" "}
+            {formatName(entry.channel, entry.format)}
+            {formatHasImage(entry.channel, entry.format)
+              ? " · image by Cuso"
+              : ""}
           </span>
           <button
             type="button"
@@ -85,7 +90,7 @@ export function EntrySheet({
             ) : null}
             {entry.brief ? <p>{entry.brief}</p> : null}
             <p className="note">
-              Cuso writes the full piece before it goes out.
+              Cuso writes it three days before it goes out.
             </p>
           </>
         )}

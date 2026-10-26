@@ -89,6 +89,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "save_brand_brain",
   "save_strategy",
   "report_update",
+  "search_exa",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
@@ -105,6 +106,7 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "save_brand_brain",
   "save_strategy",
   "report_update",
+  "search_exa",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {

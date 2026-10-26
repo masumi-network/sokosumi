@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   cmoMayExecute,
   cmoRoutineSkipReason,
+  cmoSaveStrategyInputSchema,
   cmoStrategySchema,
   isCmoScheduleKey,
+  parseCmoStrategySave,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
@@ -116,6 +118,115 @@ describe("CMO strategy and rhythms", () => {
       cadence: "3 posts a week",
     });
     expect(strategy.previews).toEqual([]);
+  });
+
+  it("saves only what Cuso runs, mapping older names first", () => {
+    const plan = (channel: string, format: string) => ({
+      strategy: {
+        month: "2026-10",
+        summary: "Grow.",
+        goals: ["More demos"],
+        pillars: [],
+        channels: [{ channel, cadence: "Weekly" }],
+        calendar: [
+          {
+            id: "a",
+            date: "2026-10-05",
+            channel,
+            title: "One",
+            format,
+            status: "idea",
+          },
+        ],
+      },
+    });
+    const saved = cmoSaveStrategyInputSchema.parse(plan("website", "article"));
+    expect(saved.strategy.channels[0]?.channel).toBe("seo");
+    expect(saved.strategy.calendar[0]).toMatchObject({
+      channel: "seo",
+      format: "article",
+    });
+    expect(
+      cmoSaveStrategyInputSchema.parse(plan("linkedin", "carousel")).strategy
+        .calendar[0]?.format,
+    ).toBe("images");
+    const refused = cmoSaveStrategyInputSchema.safeParse(
+      plan("youtube", "video"),
+    );
+    expect(refused.success).toBe(false);
+    expect(refused.error?.issues[0]?.message).toContain("linkedin");
+    const withSkipped = plan("linkedin", "post");
+    withSkipped.strategy.calendar.push({
+      id: "old",
+      date: "2026-10-06",
+      channel: "youtube",
+      title: "Retired",
+      format: "video",
+      status: "skipped",
+    });
+    expect(cmoSaveStrategyInputSchema.safeParse(withSkipped).success).toBe(
+      true,
+    );
+  });
+
+  it("takes only the named part, so filler never replaces the saved plan", () => {
+    const entry = {
+      id: "a",
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: "One",
+      format: "post",
+      status: "idea",
+    };
+    // Tool calls fill every field: the calendar call sends empty lists too.
+    const calendarOnly = parseCmoStrategySave({
+      part: "calendar",
+      strategy: { mix: [], funnel: [], openQuestions: [], calendar: [entry] },
+    });
+    expect(Object.keys(calendarOnly)).toEqual(["calendar"]);
+    // And the plan call may send the calendar as a placeholder string.
+    const planOnly = parseCmoStrategySave({
+      part: "plan",
+      strategy: { summary: "Grow.", calendar: "unchanged" },
+    });
+    expect(planOnly.summary).toBe("Grow.");
+    expect("calendar" in planOnly).toBe(false);
+  });
+
+  it("proposes only channels Cuso runs that the plan leaves out", () => {
+    const proposing = (channel: string) => ({
+      strategy: {
+        month: "2026-10",
+        summary: "Grow.",
+        goals: ["More demos"],
+        pillars: [],
+        channels: [{ channel: "linkedin", cadence: "Weekly" }],
+        calendar: [],
+        proposals: [
+          {
+            channel,
+            what: "Image posts",
+            why: "Buyers are there",
+            perMonth: 8,
+          },
+        ],
+      },
+    });
+    expect(
+      cmoSaveStrategyInputSchema.safeParse(proposing("instagram")).success,
+    ).toBe(true);
+    for (const outside of ["reddit", "tiktok", "linkedin"]) {
+      expect(
+        cmoSaveStrategyInputSchema.safeParse(proposing(outside)).success,
+      ).toBe(false);
+    }
+    // A plan saved before proposals named a channel still reads.
+    expect(
+      cmoStrategySchema.parse({
+        ...proposing("instagram").strategy,
+        proposals: [{ name: "Reddit", what: "Answers", why: "Threads" }],
+      }).proposals,
+    ).toEqual([]);
   });
 
   it("names its rhythms", () => {

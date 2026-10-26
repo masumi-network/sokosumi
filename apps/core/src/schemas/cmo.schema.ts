@@ -87,6 +87,9 @@ export const cmoWorkSchema = z
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),
+    /** Brand Brain profile sections stored so far, of `sectionsTotal`. */
+    sectionsSaved: z.number().int().min(0),
+    sectionsTotal: z.number().int().min(0),
   })
   .openapi("CmoWork");
 
@@ -154,6 +157,9 @@ export const cmoOverviewSchema = z
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
+    adProviders: z.array(z.string()),
+    connectAdsUrl: z.string(),
+    mailingListSize: z.number().int(),
     subscribeUrl: z.string(),
     billing: z.object({
       plan: z.union([z.string(), z.null()]),

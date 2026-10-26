@@ -1,5 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { channelInfo } from "./channels";
+
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
 /** How the calendar marks an entry; the legend uses the same kinds. */
@@ -8,6 +10,11 @@ export type CalendarKind = "post" | "ad" | "article" | "news";
 export function calendarKind(
   entry: Pick<Entry, "format" | "channel">,
 ): CalendarKind {
+  const group = channelInfo(entry.channel)?.group;
+  if (group === "ads") return "ad";
+  if (group === "email") return "news";
+  if (group === "search") return "article";
+  if (group === "social") return "post";
   const text = `${entry.format} ${entry.channel}`.toLowerCase();
   if (/\bad\b|ads|sponsored/.test(text)) return "ad";
   if (/newsletter|email/.test(text)) return "news";
@@ -15,14 +22,12 @@ export function calendarKind(
   return "post";
 }
 
-/** Social networks Sokosumi publishes to; everything else is plan only. */
+/** Social networks Cuso posts to once connected; TikTok follows soon. */
 export const SOCIAL_PROVIDERS = [
   "x",
   "linkedin",
   "instagram",
   "facebook",
-  "tiktok",
-  "youtube",
 ] as const;
 
 /**
@@ -139,7 +144,11 @@ const CHANNEL_LABELS: Record<string, string> = {
 /** A channel id as people write it: "linkedin" reads "LinkedIn". */
 export function channelLabel(channel: string): string {
   const key = channel.trim().toLowerCase();
-  return CHANNEL_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+  return (
+    channelInfo(key)?.name ??
+    CHANNEL_LABELS[key] ??
+    key.charAt(0).toUpperCase() + key.slice(1)
+  );
 }
 
 export function relativeDay(date: string, today: string): string {

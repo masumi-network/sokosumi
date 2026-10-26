@@ -95,6 +95,9 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    adProviders: [],
+    connectAdsUrl: "http://web/ads?projectId=project-1",
+    mailingListSize: 0,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
     posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
@@ -415,7 +418,7 @@ describe("pages", () => {
     expect(VIEW_PATHS.settings).toBe("/settings");
   });
 
-  it("reads the strategy as one headline, the main goal and the weeks", () => {
+  it("reads an older strategy as one headline, the main goal and the weeks", () => {
     const html = renderToStaticMarkup(
       <StrategyPage
         overview={overview({
@@ -425,16 +428,16 @@ describe("pages", () => {
             why: "Founders read LinkedIn.",
           },
         })}
+        onAsk={async () => {}}
       />,
     );
     expect(html).toContain(strategy.summary);
     expect(html).toContain("40 trial sign-ups");
     expect(html).toContain("Week 1");
     expect(html).toContain("Why we built it");
-    // The other goals and the reasoning wait behind "Why this plan".
-    expect(html.indexOf("A second goal")).toBeGreaterThan(
-      html.indexOf("Why this plan"),
-    );
+    // Parts an older plan does not have stay out instead of showing empty.
+    expect(html).not.toContain("What stops people buying");
+    expect(html).not.toContain("The mix");
   });
 
   it("shows real post counts and no invented reach", () => {

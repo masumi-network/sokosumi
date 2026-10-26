@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AdminCmoSpend,
   AdminSokoBotActionRequest,
   AdminSokoBotChatRoom,
   AdminSokoBotDetail,
@@ -51,6 +52,12 @@ export const adminSokoBotService = {
       versionId: params.versionId,
       sokoBotId: params.sokoBotId,
     });
+    return response.data;
+  },
+
+  /** What each CMO bot (Cuso) spent over the last days, and on what. */
+  async cmoSpend(days: number): Promise<AdminCmoSpend> {
+    const response = await coreClient.getAdminCmoSpend({ days });
     return response.data;
   },
 

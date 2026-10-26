@@ -19,6 +19,11 @@ export async function searchWeb(
   query: string,
   gateway: Gateway,
   model: LanguageModel,
+  /** Receives the search call's usage, for runtimes that record it themselves. */
+  onUsage?: (result: {
+    usage?: { inputTokens?: unknown; outputTokens?: unknown };
+    providerMetadata?: unknown;
+  }) => Promise<void>,
 ): Promise<{ query: string; results: unknown[] }> {
   const result = await generateText({
     model,
@@ -29,6 +34,7 @@ export async function searchWeb(
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
   });
+  await onUsage?.(result);
   return {
     query,
     results: result.steps.flatMap((step) =>

@@ -609,6 +609,40 @@ export const adminSokoBotVersionUsageSchema = z
   })
   .openapi("AdminSokoBotVersionUsage");
 
+export const adminCmoSpendQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
+});
+
+export const adminCmoSpendSchema = z
+  .object({
+    since: z.string(),
+    bots: z.array(
+      z.object({
+        sokoBotId: z.string(),
+        businessName: z.string(),
+        ownerEmail: z.string(),
+        turns: z.number().int(),
+        totalUsd: z.number(),
+        overheadUsd: z.number(),
+        imagesCredits: z.number(),
+        chargedCredits: z.number(),
+        bySource: z.array(
+          z.object({
+            source: z.string(),
+            costUsd: z.number(),
+            calls: z.number().int(),
+            inputTokens: z.number(),
+            outputTokens: z.number(),
+          }),
+        ),
+        tools: z.array(
+          z.object({ capability: z.string(), calls: z.number().int() }),
+        ),
+      }),
+    ),
+  })
+  .openapi("AdminCmoSpend");
+
 export const adminSokoBotVersionMigrationRequestSchema = z
   .object({
     fromVersionId: sokoBotVersionSlugSchema.optional(),

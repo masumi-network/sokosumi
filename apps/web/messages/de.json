@@ -4198,6 +4198,10 @@
           "badgeCampaigns": {
             "title": "Feature-Badges",
             "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
+          },
+          "cmoSpend": {
+            "title": "CMO-Kosten",
+            "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
           }
         }
       },
@@ -5517,6 +5521,25 @@
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
         }
+      },
+      "CmoSpend": {
+        "title": "CMO-Kosten",
+        "description": "Was jeder CMO-Bot für seine Arbeit ausgegeben hat, was dem Inhaber belastet wurde und wofür: jedes Modell, Websuche, Exa, Overhead und Bilder.",
+        "summary": "{bots, plural, one {# CMO-Bot hat} other {# CMO-Bots haben}} {spent} ausgegeben und {charged} Credits belastet.",
+        "period": "Zeitraum",
+        "days": "{days} Tage",
+        "empty": "In diesem Zeitraum hat kein CMO-Bot gearbeitet.",
+        "business": "Unternehmen",
+        "turns": "Durchläufe",
+        "spent": "Ausgegeben",
+        "charged": "Belastet (Credits)",
+        "where": "Wofür",
+        "tools": "Genutzte Tools",
+        "calls": "{calls, plural, one {# Aufruf} other {# Aufrufe}}",
+        "exa": "Exa-Suche",
+        "webSearch": "Websuche",
+        "overhead": "Routing und Qualitätsprüfung (nicht belastet)",
+        "images": "Credits für Bilder"
       }
     },
     "Billing": {

@@ -26,6 +26,7 @@ import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import type { View } from "../lib/views";
 import { signOut } from "./actions";
 import {
+  addMailingList,
   approveStrategy,
   chooseMockPlan,
   completeOnboarding,
@@ -40,6 +41,7 @@ import {
   requestStrategy,
   retryLearning,
   revertUpdate,
+  saveBrandBrain,
   sendMessage,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
@@ -204,8 +206,10 @@ export async function Home({ searchParams, view }: HomeProps) {
           sendMessage,
           retryLearning,
           requestStrategy,
+          saveBrandBrain,
           approveStrategy,
           finishAccounts,
+          addMailingList,
           chooseMockPlan,
           connectChannel,
           completeOnboarding,
@@ -228,6 +232,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         approveStrategy,
         revertUpdate,
         retryLearning,
+        saveBrandBrain,
         pauseEntry,
         connectChannel,
         chooseMockPlan,

@@ -11,6 +11,7 @@ import {
   getChatsRoomsByIdMessages,
   getCmoOverview,
   getSubscriptionCatalog,
+  importCmoMailingList,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   requestCmoStrategy,
@@ -18,6 +19,7 @@ import {
   revertCmoUpdate,
   type SubscriptionCatalog,
   startCmoOnboarding,
+  updateCmoBrandBrain,
 } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
@@ -109,6 +111,16 @@ export async function approveStrategy(): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await approveCmoStrategy(core);
   if (!data) throw new Error("Could not approve the strategy");
+  return data.data;
+}
+
+/** The owner's own edit to the Brand Brain, saved as written. */
+export async function saveBrandBrain(
+  brandBrain: NonNullable<CmoOverview["brandBrain"]>,
+): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data } = await updateCmoBrandBrain({ ...core, body: { brandBrain } });
+  if (!data) throw new Error("Could not save the Brand Brain");
   return data.data;
 }
 
@@ -253,6 +265,24 @@ export async function finishAccounts(): Promise<CmoOverview> {
   return data.data;
 }
 
+/** Adds the founder's mailing list for the newsletter Cuso writes. */
+export async function addMailingList(
+  text: string,
+): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await importCmoMailingList({
+    ...core,
+    body: { text },
+  });
+  if (!data) {
+    return {
+      overview: null,
+      error: errorText(error, "Could not add the list"),
+    };
+  }
+  return { overview: data.data, error: null };
+}
+
 /** The founder is done with onboarding: CMO opens on the chat. */
 export async function completeOnboarding(): Promise<void> {
   const core = await requireCore();
@@ -274,7 +304,7 @@ async function callbackUrl(): Promise<string> {
 
 /** Starts connecting a network; the browser goes to the returned URL. */
 export async function connectChannel(
-  provider: "x" | "linkedin" | "instagram" | "facebook" | "tiktok" | "youtube",
+  provider: "x" | "linkedin" | "instagram" | "facebook",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoChannel({

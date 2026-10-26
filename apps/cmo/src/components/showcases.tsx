@@ -1,17 +1,16 @@
 "use client";
 
+import "./showcases.css";
+
 import type { CmoOverview } from "@sokosumi/core-client";
 import { motion } from "motion/react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { calendarKind } from "../../lib/calendar";
-import {
-  BusinessMark,
-  businessDisplayName,
-  vividColors,
-} from "../business-mark";
-import { ChannelIcon } from "../channel-icon";
-import { plainText } from "../draft-text";
+import { calendarKind } from "../lib/calendar";
+import { channelKey } from "../lib/channels";
+import { BusinessMark, businessDisplayName } from "./business-mark";
+import { ChannelIcon } from "./channel-icon";
+import { plainText } from "./draft-text";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -22,23 +21,27 @@ export type ShowcaseKind =
   | "instagram"
   | "facebook"
   | "ad"
+  | "google"
   | "newsletter"
   | "seo";
 
-const ORDER: ShowcaseKind[] = [
+export const SHOWCASE_ORDER: ShowcaseKind[] = [
   "x",
   "linkedin",
   "instagram",
   "facebook",
   "ad",
+  "google",
   "newsletter",
   "seo",
 ];
 
-function showcaseKind(
+export function showcaseKind(
   entry: Pick<Entry, "channel" | "format">,
 ): ShowcaseKind | null {
-  const channel = entry.channel.toLowerCase();
+  const channel = channelKey(entry.channel) ?? entry.channel.toLowerCase();
+  if (channel === "google_ads" && entry.format !== "display_ad")
+    return "google";
   const kind = calendarKind(entry);
   if (kind === "ad") return "ad";
   if (kind === "news") return "newsletter";
@@ -119,14 +122,6 @@ function host(url: string): string {
   }
 }
 
-function brand(overview: CmoOverview): CSSProperties {
-  const [accent, second] = vividColors(overview.brandVisual?.colors ?? []);
-  return {
-    "--brand": accent ?? "var(--foreground)",
-    "--brand-2": second ?? accent ?? "var(--muted)",
-  } as CSSProperties;
-}
-
 function when(entry: Entry): string {
   const day = new Date(`${entry.date}T00:00:00Z`).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -136,37 +131,23 @@ function when(entry: Entry): string {
   return entry.time ? `${day} · ${entry.time}` : day;
 }
 
-/**
- * The founder's accounts as they will look once Cuso runs the plan, built
- * from the real drafts. No invented likes or followers.
- */
-export function Showcases({ overview }: { overview: CmoOverview }) {
-  const strategy = overview.strategy as Strategy;
-  const groups = showcaseEntries(strategy);
-  const kinds = ORDER.filter((kind) => groups.has(kind));
-  if (kinds.length === 0) {
-    return (
-      <p className="ob-note">Cuso shows previews once the plan has posts.</p>
-    );
-  }
+function Post({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="ob-showcases" style={brand(overview)}>
-      {kinds.map((kind, index) => (
-        <motion.div
-          key={kind}
-          className="ob-showcase"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05 * index }}
-        >
-          <Showcase
-            kind={kind}
-            entries={groups.get(kind) ?? []}
-            overview={overview}
-          />
-        </motion.div>
-      ))}
-    </div>
+    <motion.div
+      layout="position"
+      className={className}
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -213,7 +194,12 @@ function Frame({
   );
 }
 
-function Showcase({
+/**
+ * One of the founder's accounts as it will look once Cuso runs the plan,
+ * built from the real drafts, newest post first. No invented likes or
+ * followers. A post slides in when it is new.
+ */
+export function Showcase({
   kind,
   entries,
   overview,
@@ -240,7 +226,7 @@ function Showcase({
             <p className="sx-handle">@{at}</p>
           </div>
           {entries.slice(0, 3).map((entry) => (
-            <div key={entry.id} className="sx-post">
+            <Post key={entry.id} className="sx-post">
               <BusinessMark overview={overview} size={28} />
               <div>
                 <p className="sx-meta">
@@ -248,7 +234,7 @@ function Showcase({
                 </p>
                 <p className="sx-text">{text(entry)}</p>
               </div>
-            </div>
+            </Post>
           ))}
         </Frame>
       );
@@ -256,7 +242,7 @@ function Showcase({
       return (
         <Frame channel="linkedin" label="Your LinkedIn feed">
           {entries.slice(0, 2).map((entry, index) => (
-            <div key={entry.id} className="sl-post">
+            <Post key={entry.id} className="sl-post">
               <div className="sl-head">
                 <BusinessMark overview={overview} size={36} />
                 <div>
@@ -270,7 +256,7 @@ function Showcase({
                 title={entry.title}
                 site={host(overview.websiteUrl)}
               />
-            </div>
+            </Post>
           ))}
         </Frame>
       );
@@ -278,7 +264,7 @@ function Showcase({
       return (
         <Frame channel="facebook" label="Your Facebook page">
           {entries.slice(0, 2).map((entry, index) => (
-            <div key={entry.id} className="sl-post">
+            <Post key={entry.id} className="sl-post">
               <div className="sl-head">
                 <BusinessMark overview={overview} size={36} />
                 <div>
@@ -292,7 +278,7 @@ function Showcase({
                 title={entry.title}
                 site={host(overview.websiteUrl)}
               />
-            </div>
+            </Post>
           ))}
         </Frame>
       );
@@ -334,7 +320,14 @@ function Showcase({
       );
     case "ad":
       return (
-        <Frame channel={first.channel} label="Your ad">
+        <Frame
+          channel={first.channel}
+          label={
+            channelKey(first.channel) === "meta_ads"
+              ? "Your ad on Facebook and Instagram"
+              : "Your ad"
+          }
+        >
           <div className="sa-ad">
             <div className="sl-head">
               <BusinessMark overview={overview} size={32} />
@@ -355,6 +348,24 @@ function Showcase({
           </div>
         </Frame>
       );
+    case "google":
+      return (
+        <Frame channel="google_ads" label="Your ad on Google">
+          {entries.slice(0, 2).map((entry) => (
+            <Post key={entry.id} className="ss-result">
+              <p className="ss-site">
+                <span className="ss-sponsored">Sponsored</span>
+                <span>
+                  {name}
+                  <small>{host(overview.websiteUrl)}</small>
+                </span>
+              </p>
+              <p className="ss-title">{headline(entry)}</p>
+              <p className="ss-snippet">{text(entry)}</p>
+            </Post>
+          ))}
+        </Frame>
+      );
     case "newsletter":
       return (
         <Frame channel="newsletter" label="Your newsletter">
@@ -373,7 +384,7 @@ function Showcase({
       return (
         <Frame channel="website" label="Your article in Google">
           {entries.slice(0, 2).map((entry) => (
-            <div key={entry.id} className="ss-result">
+            <Post key={entry.id} className="ss-result">
               <p className="ss-site">
                 <BusinessMark overview={overview} size={18} />
                 <span>
@@ -385,7 +396,7 @@ function Showcase({
               <p className="ss-snippet">
                 {entry.hook ?? entry.brief ?? text(entry)}
               </p>
-            </div>
+            </Post>
           ))}
         </Frame>
       );

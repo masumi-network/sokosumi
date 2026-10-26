@@ -90,6 +90,45 @@ function InstagramMark(props: SvgProps) {
   );
 }
 
+/** Meta's infinity loop, in Meta blue. */
+function MetaMark(props: SvgProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...props}>
+      <path
+        style={{
+          fill: "none",
+          stroke: "var(--mark-facebook)",
+          strokeWidth: 2.6,
+          strokeLinecap: "round",
+        }}
+        d="M3 15.5c0-4 2.2-7.5 4.6-7.5 3.4 0 5.6 8 8.8 8 1.7 0 2.6-1.4 2.6-3.3 0-2.6-1.5-4.7-3.4-4.7-3 0-5.3 8-8.9 8C4.5 16 3 15.6 3 15.5Z"
+      />
+    </svg>
+  );
+}
+
+/** Google Ads' two bars and dot. */
+function GoogleAdsMark(props: SvgProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...props}>
+      <path
+        style={{ fill: "var(--mark-google-yellow)" }}
+        d="M2.9 16.6 9 6a3.1 3.1 0 1 1 5.4 3.1L8.3 19.7a3.1 3.1 0 1 1-5.4-3.1Z"
+      />
+      <path
+        style={{ fill: "var(--mark-google-blue)" }}
+        d="m14.9 6 6.1 10.6a3.1 3.1 0 1 1-5.4 3.1L9.5 9.1A3.1 3.1 0 1 1 14.9 6Z"
+      />
+      <circle
+        cx="5.6"
+        cy="18.2"
+        r="3.1"
+        style={{ fill: "var(--mark-google-green)" }}
+      />
+    </svg>
+  );
+}
+
 function FacebookMark(props: SvgProps) {
   return (
     <svg viewBox="0 0 24 24" {...props}>
@@ -200,9 +239,13 @@ export function ChannelIcon({
     case "newsletter":
     case "email":
       return <Mail size={size} aria-hidden />;
-    case "ads":
+    case "meta_ads":
     case "meta":
+      return <MetaMark {...props} />;
+    case "google_ads":
     case "google":
+      return <GoogleAdsMark {...props} />;
+    case "ads":
       return <Megaphone size={size} aria-hidden />;
     case "blog":
       return <Newspaper size={size} aria-hidden />;

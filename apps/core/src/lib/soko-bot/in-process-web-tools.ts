@@ -4,7 +4,9 @@ import {
   recordSandboxActionResult,
 } from "@/services/soko-bot-sandbox-turn.service";
 import { citableSources, fetchWebPage } from "@/soko-bot-runner/local-tools";
+import { gatewayCallUsage } from "./gateway-cost";
 import { sokoBotModelRequest } from "./model-policy";
+import { RuntimeEventLog, runtimeEvent } from "./turn-loop";
 import { searchWeb } from "./web-search";
 
 /** How long a recorded web call stays attributable to its turn. */
@@ -54,6 +56,14 @@ export async function runInProcessWebTool(input: {
               model: input.model,
               inferenceRegion: input.inferenceRegion,
             }).model,
+            // Billed and broken down as search, not as the agent's own model.
+            (result) =>
+              new RuntimeEventLog(input.turnId, input.sessionId).append(
+                runtimeEvent("step.completed", {
+                  modelId: "web_search",
+                  usage: gatewayCallUsage(result),
+                }),
+              ),
           );
     await report("completed", output);
     return output;

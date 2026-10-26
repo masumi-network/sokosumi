@@ -50,10 +50,12 @@ function useElapsed(since: Date | string | undefined, running: boolean) {
   return Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000));
 }
 
+const BRAIN_PHASE = "Your Brand Brain";
+
 const RESEARCH_PHASES = [
   { kinds: ["read"], label: "Your website" },
   { kinds: ["search", "study"], label: "Your market and competitors" },
-  { kinds: ["brain"], label: "Your Brand Brain" },
+  { kinds: ["brain"], label: BRAIN_PHASE },
 ] as const;
 
 const PLANNING_PHASES = [
@@ -110,6 +112,10 @@ export function ResearchStep({
   const steps = work?.steps ?? [];
   const site = host(overview.websiteUrl);
   const phases = planning ? PLANNING_PHASES : RESEARCH_PHASES;
+  const sections =
+    !planning && work && work.sectionsSaved > 0
+      ? { saved: work.sectionsSaved, total: work.sectionsTotal }
+      : null;
   const noCredits =
     status === "failed" && overview.billing.availableCredits <= 0;
   const asked =
@@ -139,14 +145,14 @@ export function ResearchStep({
             {status === "failed"
               ? "Nothing was lost. Try again and Cuso starts over."
               : asked
-                ? "Answer below and he finishes your Brand Brain."
+                ? "Answer below and he finishes."
                 : planning
-                  ? "Every day of the next four weeks: what goes out, where, when, and why. The plan opens in about a minute, then fills in as he writes each piece."
-                  : "Your site, your market and your competitors. This takes about a minute and a half."}
+                  ? "Your next four weeks: every post, ad, email and website change Cuso will make, and when. Ready in about a minute."
+                  : "He reads your site, your reviews and your competitors. About three minutes."}
           </p>
         )}
         {running ? (
-          <p className="ob-elapsed" aria-live="polite">
+          <p className="ob-elapsed">
             <Loader2 size={14} className="ob-spin" aria-hidden="true" />
             {elapsed < 60
               ? `${elapsed}s`
@@ -166,6 +172,11 @@ export function ResearchStep({
                   ) : null}
                 </span>
                 {phase.label}
+                {phase.label === BRAIN_PHASE && sections ? (
+                  <span className="ob-phase-count num">
+                    {sections.saved} of {sections.total} sections
+                  </span>
+                ) : null}
               </li>
             );
           })}

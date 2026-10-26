@@ -31,6 +31,7 @@ import {
   connectCmoChannel,
   finalizeCmoChannel,
   finishCmoAccountsStep,
+  getCmoHireForUser,
   getCmoOverview,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
@@ -39,6 +40,7 @@ import {
   saveCmoBrandBrain,
   startCmoOnboarding,
 } from "@/services/cmo.service";
+import { importCmoMailingList } from "@/services/cmo-mailing-list.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 
 /**
@@ -94,6 +96,9 @@ function mapOverview(overview: CmoOverview) {
     })),
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,
+    adProviders: overview.adProviders,
+    connectAdsUrl: overview.connectAdsUrl,
+    mailingListSize: overview.mailingListSize,
     subscribeUrl: overview.subscribeUrl,
     billing: overview.billing,
     posts: {
@@ -294,7 +299,7 @@ app.openapi(
   async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { brandBrain } = c.req.valid("json");
-    await saveCmoBrandBrain({ userId }, brandBrain).catch(rethrow);
+    await saveCmoBrandBrain({ userId }, { brandBrain }).catch(rethrow);
     return ok(c, await requireOverview(userId));
   },
 );
@@ -466,6 +471,41 @@ app.openapi(
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { connectionId } = c.req.valid("json");
     await finalizeCmoChannel({ userId, connectionId }).catch(rethrow);
+    return ok(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/mailing-list",
+    operationId: "importCmoMailingList",
+    tags: ["CMO"],
+    description:
+      "Adds the owner's mailing list (a CSV export, or one address a line) to the newsletter list Cuso writes for.",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({ text: z.string().min(1).max(2_000_000) }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Mailing list added"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
+      422: jsonErrorResponse("No email addresses found"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { text } = c.req.valid("json");
+    const hire = await getCmoHireForUser(userId);
+    if (!hire) throw notFound("Cuso is not hired yet");
+    await importCmoMailingList(hire, text);
     return ok(c, await requireOverview(userId));
   },
 );

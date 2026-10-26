@@ -3,11 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
+import { showcaseEntries } from "../showcases";
 import { strategySocialChannels } from "./connect-step";
 import { onboardingStep } from "./flow";
 import { PricingStep } from "./pricing-step";
 import { ResearchStep } from "./research-step";
-import { showcaseEntries } from "./showcases";
+import { ResultsStep } from "./results-step";
 import { StrategyStep } from "./strategy-step";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -107,6 +108,9 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    adProviders: [],
+    connectAdsUrl: "http://web/ads?projectId=project-1",
+    mailingListSize: 0,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
     posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
@@ -129,6 +133,8 @@ const running = (kind: "research" | "strategy") => ({
       at: new Date("2026-10-05T09:00:05Z"),
     },
   ],
+  sectionsSaved: 0,
+  sectionsTotal: 16,
 });
 
 describe("onboarding steps", () => {
@@ -192,6 +198,21 @@ describe("research", () => {
     expect(html).toContain("Live");
   });
 
+  it("counts the Brand Brain sections as Cuso writes them", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({
+          brandBrain: null,
+          work: { ...running("research"), sectionsSaved: 7 },
+        })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("7 of 16 sections");
+  });
+
   it("says when credits ran out", () => {
     const html = renderToStaticMarkup(
       <ResearchStep
@@ -229,7 +250,7 @@ describe("strategy", () => {
     expect(groups.get("newsletter")?.map((entry) => entry.id)).toEqual(["c"]);
   });
 
-  it("shows the why, what changed, the days and the previews", () => {
+  it("shows the why, what changed, the month and the days", () => {
     const html = renderToStaticMarkup(
       <StrategyStep
         overview={overview()}
@@ -237,13 +258,78 @@ describe("strategy", () => {
         onApprove={async () => {}}
       />,
     );
-    expect(html).toContain("Founders read LinkedIn.");
+    expect(html).toContain("Show the rockets working.");
     expect(html).toContain("X now once a week");
     expect(html).toContain("We built a rocket in a garage.");
-    expect(html).toContain("Your newsletter");
-    expect(html).toContain("Our first launch");
-    expect(html).toContain("Approve strategy");
+    // The month shows the busiest feeds as phones, the inbox included.
+    expect(html).toContain("Inbox");
+    expect(html).toContain("Approve plan");
     expect(html).not.toContain("likes");
+  });
+
+  it("leads back to the current step when opened again after approval", () => {
+    const html = renderToStaticMarkup(
+      <StrategyStep
+        overview={overview({ strategyApprovedAt: new Date() })}
+        onChange={async () => null}
+        onApprove={async () => {}}
+        ahead={{ label: "Accounts", onClick: () => {} }}
+      />,
+    );
+    expect(html).toContain("Continue to Accounts");
+    expect(html).not.toContain("Approve plan");
+  });
+});
+
+describe("results", () => {
+  it("shows the number, Cuso's rhythm and when he changes course", () => {
+    const base = overview({ strategyApprovedAt: new Date() });
+    const html = renderToStaticMarkup(
+      <ResultsStep
+        overview={{
+          ...base,
+          strategy: {
+            ...(base.strategy as Strategy),
+            objective: {
+              metric: "Demo requests",
+              target: "20 by 30 Oct",
+              baseline: "About 8 a month",
+              baselineBasis: "assumption",
+            },
+            funnel: [
+              {
+                stage: "awareness",
+                name: "Hear about us",
+                goal: "Founders see a launch",
+                channels: ["linkedin"],
+                metric: "Profile visits",
+              },
+            ],
+            measurement: {
+              primary: "Demo requests",
+              supporting: [],
+              tracking: ["UTM links on every post"],
+              rules: [
+                {
+                  when: "A format gets no clicks for two weeks",
+                  then: "Swap it for one that works",
+                },
+              ],
+            },
+          },
+        }}
+        next="accounts"
+        onContinue={() => {}}
+      />,
+    );
+    expect(html).toContain("Step 4 of 6");
+    expect(html).toContain("More demo requests");
+    expect(html).toContain("Target: 20 by 30 Oct");
+    expect(html).toContain("Profile visits");
+    expect(html).toContain("Every Monday");
+    expect(html).toContain("Swap it for one that works");
+    expect(html).toContain("UTM links on every post");
+    expect(html).toContain("Continue to accounts");
   });
 });
 
@@ -277,7 +363,7 @@ describe("pricing", () => {
     expect(html).toContain("€75");
     expect(html).toContain("750 credits every month");
     expect(html).toContain('href="http://web/billing?tab=subscription"');
-    expect(html).toContain("Start without a plan for now");
+    expect(html).toContain("Subscribe later");
     expect(html).not.toContain("Choose Growth");
   });
 
@@ -295,7 +381,7 @@ describe("pricing", () => {
     expect(html).toContain("Recommended");
     expect(html).toContain("Yearly");
     expect(html).not.toContain("http://web/billing");
-    expect(html).toContain("Start without a plan for now");
+    expect(html).toContain("Subscribe later");
   });
 
   it("marks the active mock tier and lets the founder start", () => {

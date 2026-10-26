@@ -5,20 +5,16 @@ import type {
   SubscriptionCatalog,
   SubscriptionCatalogPlan,
 } from "@sokosumi/core-client";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ExternalLink,
-  Loader2,
-} from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState, useTransition } from "react";
 
 import { calendarKind, socialPostsPerWeek } from "../../lib/calendar";
+import { channelInfo, formatHasImage } from "../../lib/channels";
 import { fittingMockPlan, mockPlanById } from "../../lib/mock-plans";
 import { MockPlanTable } from "../mock-plans";
 import { strategySocialChannels } from "./connect-step";
+import { StepHead } from "./step-head";
 
 const PAID = ["starter", "standard", "pro"] as const;
 const RECOMMENDED = "standard";
@@ -38,7 +34,6 @@ function title(name: string): string {
 interface PricingStepProps {
   overview: CmoOverview;
   plans: SubscriptionCatalog | null;
-  onBack?: () => void;
   onStart: () => Promise<void>;
   onRefresh: () => Promise<void>;
   /** Mock checkout: activates a CMO tier; the refusal, if any. */
@@ -52,7 +47,6 @@ interface PricingStepProps {
 export function PricingStep({
   overview,
   plans,
-  onBack,
   onStart,
   onRefresh,
   onChooseMockPlan,
@@ -76,51 +70,58 @@ export function PricingStep({
   const postsPerWeek = socialPostsPerWeek(overview.strategy?.calendar ?? []);
   // Website, newsletter and ad pieces need a tier with article and ad drafts.
   const drafts = (overview.strategy?.calendar ?? []).some(
-    (entry) => calendarKind(entry) !== "post",
+    (entry) => entry.status !== "skipped" && calendarKind(entry) !== "post",
   );
   const fit = fittingMockPlan({ channels, postsPerWeek, drafts });
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
-  const start = (
+  // Once subscribed, the head's Start Cuso is the way on.
+  const later = (
     <div className="ob-footer">
       <button
         type="button"
-        className={
-          subscribed
-            ? "ob-button ob-button-lg"
-            : "ob-button ob-button-lg ob-button-quiet"
-        }
+        className="ob-button ob-button-lg ob-button-quiet"
         disabled={starting}
         onClick={() => startStarting(onStart)}
       >
-        {starting
-          ? "Starting…"
-          : subscribed
-            ? "Start Cuso"
-            : "Start without a plan for now"}
-        {subscribed ? <ArrowRight size={16} aria-hidden="true" /> : null}
+        {starting ? "Starting…" : "Subscribe later"}
       </button>
-      {subscribed ? null : (
-        <p className="ob-note">
-          Without a plan Cuso keeps your strategy and checks in, but doesn't
-          schedule posts.
-        </p>
-      )}
+      <p className="ob-note">
+        Cuso keeps your plan and checks in, but posts nothing until you
+        subscribe.
+      </p>
     </div>
   );
 
   return (
     <section className="ob-pricing">
-      {onBack ? (
-        <button type="button" className="ob-back" onClick={onBack}>
-          <ArrowLeft size={14} aria-hidden="true" /> Accounts
-        </button>
-      ) : null}
-      <p className="ob-eyebrow">Plan</p>
-      <h1 className="ob-title">
-        {subscribed ? "You're all set" : "Pick a plan and Cuso starts today"}
-      </h1>
+      <StepHead
+        step={6}
+        title="Pricing"
+        mood="cheer"
+        say={
+          subscribed
+            ? "You're all set. I start on your plan today."
+            : overview.mockBilling
+              ? `${fit.name} fits your plan. Pick it and I start today.`
+              : "Pick a plan and I start today."
+        }
+        action={
+          subscribed ? (
+            <button
+              type="button"
+              className="ob-button ob-button-lg"
+              disabled={starting}
+              onClick={() => startStarting(onStart)}
+            >
+              {starting ? "Starting…" : "Start Cuso"}
+              {starting ? null : <ArrowRight size={16} aria-hidden="true" />}
+            </button>
+          ) : undefined
+        }
+      />
+      {subscribed ? null : <MonthSummary overview={overview} />}
       {overview.mockBilling ? (
         <>
           <p className="ob-lede">
@@ -131,10 +132,9 @@ export function PricingStep({
                     : "Cuso writes your posts from today and starts posting once you connect an account."
                 }`
               : postsPerWeek > 0
-                ? `Your strategy has about ${formatRate(postsPerWeek)} posts a week on ${channels} ${channels === 1 ? "network" : "networks"}${drafts ? ", plus articles and emails" : ""}. ${fit.name} covers that.`
-                : "Every plan includes Cuso's daily posting, a weekly review and a fresh strategy each month."}
+                ? `About ${formatRate(postsPerWeek)} social posts a week on ${channels} ${channels === 1 ? "network" : "networks"}${drafts ? ", plus everything above" : ""}. Every plan includes a weekly review and a fresh strategy each month.`
+                : "Every plan includes a weekly review and a fresh strategy each month."}
           </p>
-          {subscribed ? start : null}
           <div className="ob-plans-mock">
             <MockPlanTable
               current={overview.mockPlan}
@@ -231,8 +231,65 @@ export function PricingStep({
         </p>
       ) : null}
 
-      {subscribed && overview.mockBilling ? null : start}
+      {subscribed ? null : later}
     </section>
+  );
+}
+
+/**
+ * What the first month holds, counted from the real calendar: the work a
+ * founder gets done for them, before they look at a price.
+ */
+function MonthSummary({ overview }: { overview: CmoOverview }) {
+  const calendar = (overview.strategy?.calendar ?? []).filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const count = (group: string, format?: string) =>
+    calendar.filter(
+      (entry) =>
+        channelInfo(entry.channel)?.group === group &&
+        (!format || entry.format === format),
+    ).length;
+  const tiles = [
+    { value: count("social"), one: "social post", many: "social posts" },
+    { value: count("ads"), one: "ad", many: "ads" },
+    {
+      value: count("email"),
+      one: "newsletter email",
+      many: "newsletter emails",
+    },
+    {
+      value: count("search", "article"),
+      one: "full article",
+      many: "full articles",
+    },
+    { value: count("search", "page_fix"), one: "page fix", many: "page fixes" },
+    {
+      value: calendar.filter((entry) =>
+        formatHasImage(entry.channel, entry.format),
+      ).length,
+      one: "with an image",
+      many: "with images",
+    },
+  ].filter((tile) => tile.value > 0);
+  if (tiles.length === 0) return null;
+  return (
+    <div className="ob-month">
+      <p className="ob-label">What Cuso makes in your first month</p>
+      <ul className="ob-month-tiles">
+        {tiles.map((tile) => (
+          <li key={tile.one}>
+            <span className="ob-month-n num">{tile.value}</span>
+            <span>{tile.value === 1 ? tile.one : tile.many}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="ob-note">
+        Written in your voice, planned around your goal, and improved every week
+        from what works.
+        {count("ads") > 0 ? " Ad spend is separate; you set it." : ""}
+      </p>
+    </div>
   );
 }
 

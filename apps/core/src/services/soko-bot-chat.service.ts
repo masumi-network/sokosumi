@@ -45,6 +45,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   read_memory: "Reading memory",
   update_memory: "Updating memory",
   web_search: "Searching the web",
+  search_exa: "Searching with Exa",
   web_fetch: "Reading a web page",
   bash: "Running a command",
   workspace_read: "Reading a file",

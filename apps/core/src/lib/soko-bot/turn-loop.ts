@@ -551,10 +551,15 @@ export async function finishTurn(input: {
   finishReason: string;
   requiresActionProof: boolean;
 }): Promise<void> {
+  // A turn that needs no proof can still get the JSON reply out of habit,
+  // from an earlier turn that did; the owner sees its message, not the JSON.
+  const text = input.requiresActionProof
+    ? input.text
+    : (parseActionNarrativeText(input.text)?.message ?? input.text);
   const response = await buildActionResponse(
     prisma,
     input.turnId,
-    input.text,
+    text,
     input.requiresActionProof,
     input.requiresActionProof
       ? await ownerNarrative(input.text, input.turnId)

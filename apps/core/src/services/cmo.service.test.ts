@@ -38,8 +38,11 @@ const {
   getUserWorkspace: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
+    // Runs the callback against this same mock, as one transaction would.
+    $transaction: (callback: (tx: unknown) => unknown) => callback(client),
+    $executeRaw: vi.fn(async () => 1),
     cmoHire: {
       findUnique: cmoFindUnique,
       update: cmoUpdate,
@@ -52,8 +55,9 @@ vi.mock("@/lib/db/prisma", () => ({
     projectSocialConnection: { findMany: connectionFindMany },
     socialPost: { findFirst: postFindFirst, findMany: postFindMany },
     sokoBotRuntimeEvent: { findFirst: eventFindFirst },
-  },
-}));
+  };
+  return { default: client };
+});
 
 const mockBilling = vi.hoisted(() => ({ on: false }));
 
@@ -112,6 +116,7 @@ import {
   reportCmoUpdate,
   retryCmoOnboarding,
   revertCmoUpdate,
+  saveCmoBrandBrain,
   saveCmoStrategy,
   startCmoOnboarding,
   withoutDashes,
@@ -345,6 +350,47 @@ describe("weekly change and revert", () => {
       "b",
       "a",
       "d",
+    ]);
+  });
+
+  it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy,
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyHistory: null,
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "A sharper headline." },
+      { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
+    );
+    const saved = cmoUpdate.mock.calls[0]?.[0].data.strategy;
+    expect(saved.summary).toBe("A sharper headline.");
+    expect(saved.goals).toEqual(strategy.goals);
+    expect(saved.calendar.map((entry: { id: string }) => entry.id)).toEqual(
+      strategy.calendar.map((entry) => entry.id),
+    );
+  });
+
+  it("keeps saved previews when a weekly drafting save sends none", async () => {
+    const preview = {
+      kind: "post" as const,
+      channel: "linkedin",
+      title: "Sample",
+      body: "A sample post.",
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy: { ...strategy, previews: [preview] },
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyHistory: null,
+    });
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, strategy, {
+      turnId: "turn-1",
+    });
+    expect(cmoUpdate.mock.calls[0]?.[0].data.strategy.previews).toEqual([
+      preview,
     ]);
   });
 
@@ -602,6 +648,84 @@ describe("pauseCmoCalendarEntry", () => {
   });
 });
 
+describe("saveCmoBrandBrain", () => {
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+  };
+  const section = (answer: string) => ({
+    answer,
+    findings: [
+      {
+        point: answer,
+        evidence: "fact" as const,
+        confidence: "high" as const,
+      },
+    ],
+  });
+
+  it("keeps sections in a draft until the essentials arrive", async () => {
+    cmoFindUnique.mockResolvedValue({ id: "cmo-1", brandBrain: null });
+    cmoUpdate.mockClear();
+    await saveCmoBrandBrain(
+      { sokoBotId: "bot-1" },
+      { sections: { pricing: section("From 9 dollars") } },
+    );
+    const data = cmoUpdate.mock.calls[0]?.[0].data;
+    expect(data.brandBrain).toEqual({
+      profile: {
+        pricing: { ...section("From 9 dollars"), openQuestions: [] },
+      },
+    });
+    // The owner only sees a Brand Brain once it has its essentials.
+    expect(data.brandBrainUpdatedAt).toBeUndefined();
+  });
+
+  it("merges later saves: a sent section replaces its own, the rest stay", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      brandBrain: {
+        profile: {
+          pricing: section("From 9 dollars"),
+          company: section("Founded 2019"),
+        },
+      },
+    });
+    cmoUpdate.mockClear();
+    await saveCmoBrandBrain(
+      { sokoBotId: "bot-1" },
+      {
+        brandBrain: { ...essentials, profile: {} },
+        sections: { pricing: section("From 12 dollars") },
+      },
+    );
+    const data = cmoUpdate.mock.calls[0]?.[0].data;
+    expect(data.brandBrain.summary).toBe("Acme sells rockets.");
+    expect(data.brandBrain.profile.pricing.answer).toBe("From 12 dollars");
+    expect(data.brandBrain.profile.company.answer).toBe("Founded 2019");
+    expect(data.brandBrainUpdatedAt).toBeInstanceOf(Date);
+  });
+
+  it("keeps the essentials when only sections change", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      brandBrain: { ...essentials, profile: {} },
+    });
+    cmoUpdate.mockClear();
+    await saveCmoBrandBrain(
+      { userId: "user-1" },
+      { sections: { company: section("Founded 2019") } },
+    );
+    const data = cmoUpdate.mock.calls[0]?.[0].data;
+    expect(data.brandBrain.summary).toBe("Acme sells rockets.");
+    expect(data.brandBrain.profile.company.answer).toBe("Founded 2019");
+  });
+});
+
 describe("research feed", () => {
   const site = "https://linear.app";
   it("reads tool calls the way a founder would", () => {
@@ -631,6 +755,34 @@ describe("research feed", () => {
       )?.label,
     ).toBe("Searching “Products Plausible analytics”");
     expect(describeCmoStep("save_brand_brain", {}, site)?.kind).toBe("brain");
+    expect(
+      describeCmoStep(
+        "save_brand_brain",
+        { sections: { pricing: {}, company: {} } },
+        site,
+      )?.label,
+    ).toBe("Writing Company basics, Pricing and business model");
+    expect(
+      describeCmoStep(
+        "search_exa",
+        { query: "Project tools for product teams", category: "company" },
+        site,
+      ),
+    ).toEqual({
+      kind: "study",
+      label: "Finding companies: “Project tools for product teams”",
+      url: null,
+    });
+    expect(
+      describeCmoStep(
+        "search_exa",
+        {
+          query: "What customers say",
+          includeDomains: ["g2.com", "reddit.com"],
+        },
+        site,
+      )?.label,
+    ).toBe("Reading g2.com, reddit.com");
     expect(describeCmoStep("read_memory", {}, site)).toBeNull();
   });
 });

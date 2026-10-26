@@ -122,6 +122,8 @@ const baseEnvSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
+  EXA_API_KEY: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**

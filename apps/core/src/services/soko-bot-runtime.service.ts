@@ -24,6 +24,7 @@ import {
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotListTasksInputSchema as listTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
+  parseCmoStrategySave,
   parseSokoBotMemory,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
@@ -51,6 +52,7 @@ import {
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
   sokoBotRunIntegrationToolInputSchema,
+  sokoBotSearchExaInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotStartBackgroundRunInputSchema,
   sokoBotUploadFileInputSchema,
@@ -192,6 +194,7 @@ import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
 import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   persistedToolResult,
@@ -201,6 +204,11 @@ import {
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import {
+  RuntimeEventLog,
+  runtimeEvent,
+  WEB_TAINT_EVENT,
+} from "@/lib/soko-bot/turn-loop";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
   type SokoBotWriteTargets,
@@ -226,7 +234,9 @@ import {
 } from "@/services/chat-result-preview.service";
 import {
   CmoNotFoundError,
+  cmoBrandSectionsSaved,
   cmoExecutionRefusal,
+  parseCmoBrandBrain,
   parseCmoStrategy,
   reportCmoUpdate,
   saveCmoBrandBrain,
@@ -370,6 +380,9 @@ export function sokoBotToolCallLimit(turn: {
  * background run, a provider refresh) counts against the turn's limit; sandbox
  * tools are recorded but not counted.
  */
+/** Exa searches one turn may run: a full research needs about ten. */
+const EXA_SEARCHES_PER_TURN = 16;
+
 const CORE_READ_CAPABILITIES: readonly SokoBotCapability[] =
   SOKO_BOT_CAPABILITIES.filter(
     (capability) =>
@@ -4025,15 +4038,16 @@ export class SokoBotRuntimeService {
     }> => {
       switch (input.capability) {
         case "save_brand_brain": {
-          const saved = await saveCmoBrandBrain(
-            where,
-            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(input.input)
-              .brandBrain,
+          const save = SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(
+            input.input,
           );
+          const saved = await saveCmoBrandBrain(where, save);
           return {
             targetId: saved.id,
             result: {
               saved: "brandBrain",
+              sections: cmoBrandSectionsSaved(saved.brandBrain),
+              essentials: parseCmoBrandBrain(saved.brandBrain) !== null,
               updatedAt: saved.brandBrainUpdatedAt?.toISOString(),
             },
           };
@@ -4041,11 +4055,15 @@ export class SokoBotRuntimeService {
         case "save_strategy": {
           const saved = await saveCmoStrategy(
             where,
-            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_strategy.parse(input.input)
-              .strategy,
+            parseCmoStrategySave(input.input),
             { turnId: authorized.turn.id },
           );
           const calendar = parseCmoStrategy(saved.strategy)?.calendar ?? [];
+          // Says which pieces still have no draft.
+          const undrafted = calendar
+            .filter((entry) => entry.status !== "skipped" && !entry.draft)
+            .map((entry) => entry.date)
+            .sort();
           return {
             targetId: saved.id,
             result: {
@@ -4054,6 +4072,8 @@ export class SokoBotRuntimeService {
               updatedAt: saved.strategyUpdatedAt?.toISOString(),
               entries: calendar.length,
               drafted: calendar.filter((entry) => entry.draft).length,
+              undrafted: undrafted.length,
+              firstUndrafted: undrafted[0],
             },
           };
         }
@@ -5699,6 +5719,45 @@ export class SokoBotRuntimeService {
           },
         });
         return evaluation.result;
+      }
+      case "search_exa": {
+        const parsed = sokoBotSearchExaInputSchema.parse(input.input);
+        // Each search costs money; this call's own row is already counted.
+        const searches = await prisma.sokoBotToolCall.count({
+          where: { turnId: authorized.turn.id, capability: "search_exa" },
+        });
+        if (searches > EXA_SEARCHES_PER_TURN) {
+          throw new SokoBotRuntimeValidationError(
+            `That was the last Exa search for this turn (${EXA_SEARCHES_PER_TURN}). Work with what you found, or use web_fetch on a page you already know.`,
+          );
+        }
+        let found: Awaited<ReturnType<typeof searchExa>>;
+        try {
+          found = await searchExa(parsed, {
+            userIdentifier: authorized.turn.sokoBotId,
+          });
+        } catch (error) {
+          throw new SokoBotRuntimeValidationError(
+            error instanceof ExaUnavailableError
+              ? "Exa search is unavailable right now; use web_search instead."
+              : "Exa search failed; use web_search instead.",
+          );
+        }
+        const log = new RuntimeEventLog(authorized.turn.id, input.sessionId);
+        // Search results are web pages: nothing they say may reach an outward action.
+        await log.append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "search_exa" }),
+        );
+        // Billed like a model step, so credits and the spend breakdown include it.
+        if (found.costUsd > 0) {
+          await log.append(
+            runtimeEvent("step.completed", {
+              modelId: "exa/search",
+              usage: { costUsd: found.costUsd },
+            }),
+          );
+        }
+        return found;
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(

@@ -618,6 +618,38 @@ const sokoBotWebSearchInputSchema = z
   .object({ query: z.string().trim().min(1).max(400) })
   .strict();
 
+/** The kinds of page Exa can limit a search to. */
+export const SOKO_BOT_EXA_CATEGORIES = [
+  "company",
+  "news",
+  "people",
+  "personal site",
+  "financial report",
+  "publication",
+] as const;
+
+export const sokoBotSearchExaInputSchema = z
+  .object({
+    /** A description of the pages wanted, not keywords. */
+    query: z.string().trim().min(1).max(400),
+    category: z.enum(SOKO_BOT_EXA_CATEGORIES).optional(),
+    includeDomains: z
+      .array(z.string().trim().min(1).max(200))
+      .max(20)
+      .optional(),
+    excludeDomains: z
+      .array(z.string().trim().min(1).max(200))
+      .max(20)
+      .optional(),
+    /** Only pages published on or after this day (not with company or people). */
+    startPublishedDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+      .optional(),
+    numResults: z.number().int().min(1).max(10).optional(),
+  })
+  .strict();
+
 const sokoBotWebFetchInputSchema = z
   .object({
     url: z.url(),
@@ -724,6 +756,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   update_plan: sokoBotUpdatePlanInputSchema,
   run_subagent: sokoBotRunSubagentInputSchema,
   save_brand_brain: cmoSaveBrandBrainInputSchema,
+  search_exa: sokoBotSearchExaInputSchema,
   save_strategy: cmoSaveStrategyInputSchema,
   report_update: cmoReportUpdateInputSchema,
   list_tables: z.object({
@@ -848,10 +881,12 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Write down or update your step-by-step plan for this turn. Use it for work with several steps, keep exactly one step in_progress, and mark steps done as you finish them.",
   run_subagent:
     "Hand a self-contained research or analysis question to a helper that can search the web, fetch pages and read your workspace, and get its written findings back. The helper cannot change anything. Give it the full context it needs in the task text.",
+  search_exa:
+    'Search the web with Exa, a search engine built for research: describe the pages you want in a full sentence ("Swiss agencies that build custom AI agents for business processes"), not keywords. category company returns real companies with their size, founding year and headquarters: use it to find competitors and alternatives. news finds recent coverage (add startPublishedDate), people finds founders and team members, includeDomains limits it to sites such as g2.com, capterra.com, trustpilot.com or reddit.com for reviews. Each result has its title, URL, date and the most relevant passages; read a page in full with web_fetch only when the passages are not enough.',
   save_brand_brain:
-    "Save the owner's Brand Brain (summary, voice with do/don't and example lines, audience, products, competitors, channels). Replaces the saved one, so send the complete Brand Brain. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
+    "Save the owner's Brand Brain. `sections` holds profile sections (company, offer, problems, customers, buyers, value, pricing, positioning, competition, sales, marketing, content, proof, reputation, momentum, opportunities), each a headline, an answer, findings with evidence, confidence, source, date and implication, and open questions; send them as you finish them. `brandBrain` holds the essentials (summary, voice with do/don't and example lines, audience, products, competitors, channels) and the reveal (positioning line, three insights, competitor map, buyers); send it last. Each save merges: a section you send replaces that section, the rest stay. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
   save_strategy:
-    "Save the marketing strategy for a month: summary, goals, audience, positioning, pillars, channels with cadence, the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. Replaces the saved one, so send the complete strategy. The owner approves the strategy once; your later changes keep that approval.",
+    "Save the marketing strategy for a month: summary, goals, audience, positioning, pillars, the starting point, the objective with baseline and target, the buying barrier, the content mix of approaches with shares, the focus segment, the offer, channels with cadence, campaigns, the conversion journey, the weekly plan with owners, budget, measurement, open questions, the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. part says what the call replaces: plan (every field but the calendar), calendar (only the calendar) or all; fields outside the part stay as saved, so a long plan goes in two short calls, plan then calendar. The owner approves the strategy once; your later changes keep that approval.",
   report_update:
     "Report to the owner as a card in their CMO chat: kind daily (done today, up next), weekly (results and the strategy changes you made; the owner can revert them), monthly (next month's strategy: results and what changes from this month; revertible), brand (what changed in the Brand Brain) or request (what you did for something they asked). Results must use only real numbers; say plainly when there are none. upNext lists concrete next actions only (a post, a draft, a review), never status notes such as 'the strategy awaits approval'.",
   manage_reminder:

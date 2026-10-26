@@ -344,12 +344,24 @@ function safeRuntimeDiagnostic(
   return redactSokoBotSensitiveText(value).slice(0, maxLength);
 }
 
+interface SokoBotUsageBySource {
+  costUsd: number;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 interface SokoBotTurnUsage {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   costUsd: number;
+  /**
+   * The same spend split by where it went: each model id, "web_search",
+   * "exa/search". Kept on the turn because step events are pruned later.
+   */
+  bySource?: Record<string, SokoBotUsageBySource>;
 }
 
 function nonnegativeNumber(value: unknown): number {
@@ -375,6 +387,11 @@ function parseTurnUsage(value: unknown): SokoBotTurnUsage {
     cacheReadTokens: nonnegativeNumber(usage.cacheReadTokens),
     cacheWriteTokens: nonnegativeNumber(usage.cacheWriteTokens),
     costUsd: nonnegativeNumber(usage.costUsd),
+    ...(usage.bySource &&
+    typeof usage.bySource === "object" &&
+    !Array.isArray(usage.bySource)
+      ? { bySource: usage.bySource as Record<string, SokoBotUsageBySource> }
+      : {}),
   };
 }
 
@@ -387,10 +404,25 @@ function turnRanModel(value: unknown): boolean {
 function addTurnUsage(
   current: SokoBotTurnUsage,
   value: unknown,
+  source: unknown,
 ): SokoBotTurnUsage | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const increment = parseTurnUsage(value);
+  const key =
+    typeof source === "string" && source ? source.slice(0, 120) : "unknown";
+  const before = current.bySource?.[key];
   return {
+    bySource: {
+      ...current.bySource,
+      [key]: {
+        costUsd: nonnegativeNumber(before?.costUsd) + increment.costUsd,
+        calls: nonnegativeNumber(before?.calls) + 1,
+        inputTokens:
+          nonnegativeNumber(before?.inputTokens) + increment.inputTokens,
+        outputTokens:
+          nonnegativeNumber(before?.outputTokens) + increment.outputTokens,
+      },
+    },
     inputTokens: current.inputTokens + increment.inputTokens,
     outputTokens: current.outputTokens + increment.outputTokens,
     cacheReadTokens: current.cacheReadTokens + increment.cacheReadTokens,
@@ -3108,6 +3140,7 @@ export class SokoBotControlPlane {
           const nextUsage = addTurnUsage(
             aggregateUsage,
             indexed.event.data.usage,
+            indexed.event.data.modelId,
           );
           if (nextUsage) {
             nextAggregateUsage = nextUsage;

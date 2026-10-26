@@ -225,6 +225,16 @@ beforeEach(() => {
 });
 
 describe("finishTurn", () => {
+  it("shows the message, not the JSON, when a plain turn replies in JSON", async () => {
+    await finish(
+      '{"kind":"REPORT","message":"Team trials now lead.","question":null,"observationToolCallIds":[]}',
+      false,
+    );
+    expect(buildActionResponseMock.mock.calls[0][2]).toBe(
+      "Team trials now lead.",
+    );
+  });
+
   it("keeps plain prose as the bot's message on a turn that could act", async () => {
     await finish("Here is the draft for your review.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({

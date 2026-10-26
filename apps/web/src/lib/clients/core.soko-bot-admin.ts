@@ -7,6 +7,7 @@ import {
   archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
   createAdminSokoBotVersion as coreCreateAdminSokoBotVersion,
   deleteAdminSokoBot as coreDeleteAdminSokoBot,
+  getAdminCmoSpend as coreGetAdminCmoSpend,
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
@@ -91,6 +92,14 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       (client) =>
         coreGetAdminSokoBotQuality({ client, query, cache: "no-store" }),
       "Failed to fetch Soko Bot quality",
+    );
+  }
+
+  async function getAdminCmoSpend(query: { days: number }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetAdminCmoSpend({ client, query, cache: "no-store" }),
+      "Failed to fetch CMO spend",
     );
   }
 
@@ -235,6 +244,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     listAdminSokoBots,
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,
+    getAdminCmoSpend,
     getAdminSokoBot,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,

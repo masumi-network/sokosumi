@@ -1,3 +1,8 @@
+import {
+  CMO_CHANNELS,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "@sokosumi/utils";
 import { z } from "zod";
 
 /**
@@ -13,6 +18,223 @@ const longText = z.string().trim().min(1).max(2_000);
 /** A finished post, article excerpt or email, ready to publish. */
 const draftText = z.string().trim().min(1).max(4_000);
 
+/**
+ * The company profile behind the Brand Brain, one section per question a
+ * marketer asks about a business. Keys only; CMO names them.
+ */
+export const CMO_BRAND_SECTION_KEYS = [
+  "company",
+  "offer",
+  "problems",
+  "customers",
+  "buyers",
+  "value",
+  "pricing",
+  "positioning",
+  "competition",
+  "sales",
+  "marketing",
+  "content",
+  "proof",
+  "reputation",
+  "momentum",
+  "opportunities",
+] as const;
+export type CmoBrandSectionKey = (typeof CMO_BRAND_SECTION_KEYS)[number];
+
+/** What each section answers, for Cuso's skill and the live research feed. */
+export const CMO_BRAND_SECTIONS: Record<
+  CmoBrandSectionKey,
+  { title: string; covers: string }
+> = {
+  company: {
+    title: "Company basics",
+    covers:
+      "name, website, headquarters, markets served, founding year, ownership, size, locations, languages, business stage",
+  },
+  offer: {
+    title: "Products and services",
+    covers:
+      "what they sell, categories, main features, included services, flagship offering, use cases, integrations, requirements to use it",
+  },
+  problems: {
+    title: "Customer problems",
+    covers:
+      "problems solved, how customers cope today, cost of leaving them unsolved, desired outcomes, events that trigger a purchase",
+  },
+  customers: {
+    title: "Target customers",
+    covers:
+      "B2B or B2C, industries, company sizes, geographies, budgets, customer maturity, the most valuable segments",
+  },
+  buyers: {
+    title: "Buyers and users",
+    covers:
+      "who uses it, who researches, who influences, who approves the budget, who can block the purchase; for B2B job titles, departments, responsibilities, goals",
+  },
+  value: {
+    title: "Value proposition",
+    covers:
+      "main promise, practical benefits, measurable results, differentiation, reasons to choose them, reasons customers hesitate",
+  },
+  pricing: {
+    title: "Pricing and business model",
+    covers:
+      "prices, packages, subscription or one-off, usage fees, contract lengths, free trials, discounts, upsells, public or negotiated",
+  },
+  positioning: {
+    title: "Positioning and messaging",
+    covers:
+      "how they describe themselves, category, tagline, key messages, tone, recurring claims, whether messaging changes by audience",
+  },
+  competition: {
+    title: "Competitors and alternatives",
+    covers:
+      "direct competitors, indirect alternatives, in-house solutions, doing nothing, relative pricing, strengths and weaknesses, switching barriers",
+  },
+  sales: {
+    title: "Sales process",
+    covers:
+      "self-serve or sales-led, purchase steps, demos, consultations, onboarding, likely cycle length, procurement, common objections",
+  },
+  marketing: {
+    title: "Marketing and distribution",
+    covers:
+      "search, social, paid ads, email, events, partnerships, referrals, marketplaces, resellers, which channels are active or important",
+  },
+  content: {
+    title: "Content and search",
+    covers:
+      "main website topics, target keywords, useful landing pages, blog themes, publishing frequency, lead magnets, FAQs, content per buying stage",
+  },
+  proof: {
+    title: "Customer evidence",
+    covers:
+      "named customers, case studies, testimonials, independent reviews, reported results, recurring praise and complaints, repeat business",
+  },
+  reputation: {
+    title: "Brand and reputation",
+    covers:
+      "visual identity, personality, perceived expertise, press, community, public sentiment, trust signals such as certifications or awards",
+  },
+  momentum: {
+    title: "Strategy and momentum",
+    covers:
+      "recent launches, hiring, funding, acquisitions, partnerships, expansion, leadership statements, apparent priorities",
+  },
+  opportunities: {
+    title: "Constraints and opportunities",
+    covers:
+      "regulation, operational limits, seasonality, customer concentration, underserved segments, messaging gaps, openings competitors overlook",
+  },
+};
+
+export const cmoBrandFindingSchema = z.object({
+  /** What is true, in one sentence. */
+  point: shortText,
+  /** fact: confirmed by a source; claim: the company says so; inference: Cuso's reading. */
+  evidence: z.enum(["fact", "claim", "inference"]),
+  confidence: z.enum(["high", "medium", "low"]),
+  sourceUrl: z.string().url().max(500).optional(),
+  /** How recent the source is, YYYY-MM or YYYY-MM-DD. */
+  asOf: z
+    .string()
+    .regex(/^\d{4}-\d{2}(-\d{2})?$/, "Use YYYY-MM or YYYY-MM-DD")
+    .optional(),
+  /** What it means for marketing, sales or strategy. */
+  implication: shortText.optional(),
+});
+export type CmoBrandFinding = z.infer<typeof cmoBrandFindingSchema>;
+
+export const cmoBrandSectionSchema = z.object({
+  /** The answer at a glance, at most eight words. */
+  headline: z.string().trim().min(1).max(80).optional(),
+  /** The section's answer in one or two sentences. */
+  answer: shortText,
+  /** Left out or empty on a save, the stored findings stay. */
+  findings: z.array(cmoBrandFindingSchema).max(6).default([]),
+  /** What still needs the owner or a source to confirm. */
+  openQuestions: z.array(shortText).max(3).default([]),
+});
+export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
+
+const section = cmoBrandSectionSchema.optional();
+export const cmoBrandProfileSchema = z.object({
+  company: section,
+  offer: section,
+  problems: section,
+  customers: section,
+  buyers: section,
+  value: section,
+  pricing: section,
+  positioning: section,
+  competition: section,
+  sales: section,
+  marketing: section,
+  content: section,
+  proof: section,
+  reputation: section,
+  momentum: section,
+  opportunities: section,
+} satisfies Record<CmoBrandSectionKey, typeof section>);
+export type CmoBrandProfile = z.infer<typeof cmoBrandProfileSchema>;
+
+const mapLabel = z.string().trim().min(1).max(40);
+
+/**
+ * The first thing the owner sees: what Cuso would put on the cover of a
+ * brand book. Short on purpose; the profile holds the evidence.
+ */
+export const cmoBrandRevealSchema = z.object({
+  /** The business's position in one line, at most twelve words. */
+  positioning: z.string().trim().min(1).max(120),
+  /** The three things a marketer would not have guessed. */
+  insights: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(60),
+        detail: z.string().trim().min(1).max(200),
+        sourceUrl: z.string().url().max(500).optional(),
+      }),
+    )
+    .max(3),
+  /** Where the business sits against its competitors on two axes. */
+  map: z
+    .object({
+      x: z.object({ low: mapLabel, high: mapLabel }),
+      y: z.object({ low: mapLabel, high: mapLabel }),
+      players: z
+        .array(
+          z.object({
+            name: z.string().trim().min(1).max(40),
+            x: z.number().min(0).max(100),
+            y: z.number().min(0).max(100),
+            you: z.boolean().optional(),
+          }),
+        )
+        .min(2)
+        .max(6),
+    })
+    .optional(),
+  /** The people who buy, each in a few words. */
+  buyers: z
+    .array(
+      z.object({
+        role: z.string().trim().min(1).max(50),
+        wants: z.string().trim().min(1).max(120),
+        worry: z.string().trim().min(1).max(120),
+      }),
+    )
+    .max(3),
+});
+export type CmoBrandReveal = z.infer<typeof cmoBrandRevealSchema>;
+
+const cmoCompanyLinkSchema = z.object({
+  name: shortText,
+  url: z.string().url().max(500).optional(),
+  note: shortText.optional(),
+});
+
 export const cmoBrandBrainSchema = z.object({
   /** One paragraph: what the business is and why customers choose it. */
   summary: longText,
@@ -25,15 +247,9 @@ export const cmoBrandBrainSchema = z.object({
   }),
   audience: z.array(shortText).max(8),
   products: z.array(shortText).max(12),
-  competitors: z
-    .array(
-      z.object({
-        name: shortText,
-        url: z.string().url().max(500).optional(),
-        note: shortText.optional(),
-      }),
-    )
-    .max(10),
+  competitors: z.array(cmoCompanyLinkSchema).max(10),
+  /** Well-known platforms, firms and tools a buyer also weighs, anywhere. */
+  alternatives: z.array(cmoCompanyLinkSchema).max(6).default([]),
   channels: z
     .array(
       z.object({
@@ -43,6 +259,8 @@ export const cmoBrandBrainSchema = z.object({
       }),
     )
     .max(12),
+  profile: cmoBrandProfileSchema.default({}),
+  reveal: cmoBrandRevealSchema.optional(),
 });
 export type CmoBrandBrain = z.infer<typeof cmoBrandBrainSchema>;
 
@@ -52,6 +270,28 @@ export const CMO_CALENDAR_STATUSES = [
   "scheduled",
   "published",
   "skipped",
+] as const;
+
+/** The ways social content can work; a plan leads with one or two. */
+export const CMO_CONTENT_APPROACHES = [
+  "educational",
+  "thought-leadership",
+  "problem-solution",
+  "product-led",
+  "social-proof",
+  "people-led",
+  "community-led",
+  "entertainment",
+  "research-led",
+  "promotional",
+] as const;
+export type CmoContentApproach = (typeof CMO_CONTENT_APPROACHES)[number];
+
+/** Why people do not buy yet, which decides the mix. */
+export const CMO_BUYING_BARRIERS = [
+  "awareness",
+  "understanding",
+  "trust",
 ] as const;
 
 export const cmoCalendarEntrySchema = z.object({
@@ -79,8 +319,208 @@ export const cmoCalendarEntrySchema = z.object({
   socialPostId: z.string().uuid().optional(),
   imageFileId: z.string().max(100).optional(),
   taskId: z.string().max(100).optional(),
+  /** The campaign this piece belongs to, by campaign id. */
+  campaignId: z.string().trim().min(1).max(64).optional(),
+  /** The content approach this piece takes, one of the plan's mix. */
+  approach: z.enum(CMO_CONTENT_APPROACHES).optional(),
+  /** The topic (pillar) it covers. */
+  pillar: shortText.optional(),
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
+
+/** The funnel's stages, top to bottom. */
+export const CMO_FUNNEL_STAGES = [
+  "awareness",
+  "consideration",
+  "conversion",
+  "loyalty",
+] as const;
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+const channelKey = z.string().trim().toLowerCase().min(1).max(40);
+
+/** Known from research or the owner, or Cuso's assumption to confirm. */
+const CMO_STRATEGY_BASES = ["fact", "assumption"] as const;
+const strategyPointSchema = z.object({
+  text: shortText,
+  basis: z.enum(CMO_STRATEGY_BASES).default("fact"),
+});
+
+/** The plan's ten parts besides the calendar, each optional so older plans still read. */
+const strategyPlanShape = {
+  /** Where marketing stands today: what works, the gaps, what there is to work with. */
+  start: z
+    .object({
+      working: z.array(strategyPointSchema).max(4).default([]),
+      gaps: z.array(strategyPointSchema).max(4).default([]),
+      /** Budget, people and assets available. */
+      resources: z.array(strategyPointSchema).max(4).default([]),
+    })
+    .optional(),
+  /** The one business outcome this month, from today's number to a target. */
+  objective: z
+    .object({
+      metric: shortText,
+      baseline: shortText.optional(),
+      baselineBasis: z.enum(CMO_STRATEGY_BASES).optional(),
+      target: shortText,
+      why: shortText.optional(),
+    })
+    .optional(),
+  /** The biggest reason people do not buy yet; it decides the mix. */
+  barrier: z
+    .object({
+      kind: z.enum(CMO_BUYING_BARRIERS),
+      /** The barrier in one plain line. */
+      text: shortText,
+    })
+    .optional(),
+  /** The content mix: two to four approaches whose shares add up to 100. */
+  mix: z
+    .array(
+      z.object({
+        approach: z.enum(CMO_CONTENT_APPROACHES),
+        share: z.number().int().min(5).max(100),
+        why: shortText,
+      }),
+    )
+    .max(4)
+    .default([]),
+  /** The one customer segment this month. */
+  focus: z
+    .object({
+      segment: shortText,
+      problem: shortText,
+      trigger: shortText.optional(),
+      objections: z.array(shortText).max(3).default([]),
+      where: z.array(shortText).max(4).default([]),
+    })
+    .optional(),
+  offer: z
+    .object({
+      what: shortText,
+      why: shortText,
+      proof: z.array(shortText).max(3).default([]),
+      /** The one action people should take. */
+      action: shortText,
+    })
+    .optional(),
+  campaigns: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        name: shortText,
+        message: shortText,
+        audience: shortText.optional(),
+        offer: shortText.optional(),
+        channels: z.array(channelKey).max(4).default([]),
+        assets: z.array(shortText).max(6).default([]),
+        start: isoDate,
+        end: isoDate,
+        budget: shortText.optional(),
+        metric: shortText,
+      }),
+    )
+    .max(4)
+    .default([]),
+  /**
+   * How a stranger becomes a customer, top to bottom: each stage's job, the
+   * channels that do it and the number that shows it works.
+   */
+  funnel: z
+    .array(
+      z.object({
+        stage: z.enum(CMO_FUNNEL_STAGES),
+        /** What people do here, in their words: "Hear about us". */
+        name: shortText,
+        goal: shortText,
+        channels: z.array(channelKey).max(6).default([]),
+        metric: shortText,
+        target: shortText.optional(),
+      }),
+    )
+    .max(4)
+    .default([]),
+  /**
+   * Channels Cuso runs that this plan leaves out because the owner has no
+   * account, list or budget there yet; each runs once the owner adds it.
+   */
+  proposals: z.preprocess(
+    // Proposals saved before they named a channel key are dropped.
+    (value) =>
+      Array.isArray(value)
+        ? value.filter(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              typeof (item as { channel?: unknown }).channel === "string",
+          )
+        : value,
+    z
+      .array(
+        z.object({
+          channel: channelKey,
+          why: shortText,
+          /** What Cuso would make there: "Image posts of finished dossiers". */
+          what: shortText,
+          /** Pieces a month once it is added. */
+          perMonth: z.number().int().min(1).max(40),
+        }),
+      )
+      .max(3)
+      .default([]),
+  ),
+  /** What happens after the click, step by step, with any fix it needs. */
+  journey: z
+    .array(z.object({ step: shortText, fix: shortText.optional() }))
+    .max(6)
+    .default([]),
+  weeks: z
+    .array(
+      z.object({
+        focus: shortText,
+        tasks: z
+          .array(
+            z.object({
+              task: shortText,
+              owner: z.enum(["cuso", "you"]),
+              due: isoDate.optional(),
+              /** The owner approves or provides something. */
+              approval: z.boolean().default(false),
+            }),
+          )
+          .max(6)
+          .default([]),
+      }),
+    )
+    .max(5)
+    .default([]),
+  budget: z
+    .object({
+      total: shortText,
+      basis: z.enum(CMO_STRATEGY_BASES).default("fact"),
+      lines: z
+        .array(z.object({ item: shortText, amount: shortText }))
+        .max(6)
+        .default([]),
+    })
+    .optional(),
+  measurement: z
+    .object({
+      primary: shortText,
+      supporting: z.array(shortText).max(4).default([]),
+      /** What has to be set up to measure it. */
+      tracking: z.array(shortText).max(4).default([]),
+      /** When to continue, change or stop an activity. */
+      rules: z
+        .array(z.object({ when: shortText, then: shortText }))
+        .max(4)
+        .default([]),
+    })
+    .optional(),
+  /** Assumptions the owner can confirm or correct in a line. */
+  openQuestions: z.array(shortText).max(5).default([]),
+};
 
 /** A sample piece in the strategy proposal, so the owner sees the voice. */
 export const cmoPreviewSchema = z.object({
@@ -104,13 +544,14 @@ export const cmoStrategySchema = z.object({
   channels: z
     .array(
       z.object({
-        channel: z.string().trim().toLowerCase().min(1).max(40),
+        channel: channelKey,
         cadence: shortText,
         /** Why this channel at this cadence, for this audience. */
         why: shortText.optional(),
       }),
     )
     .max(10),
+  ...strategyPlanShape,
   calendar: z.array(cmoCalendarEntrySchema).max(120),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
@@ -119,11 +560,131 @@ export const cmoStrategySchema = z.object({
 });
 export type CmoStrategy = z.infer<typeof cmoStrategySchema>;
 
-export const cmoSaveBrandBrainInputSchema = z.object({
-  brandBrain: cmoBrandBrainSchema,
-});
+/**
+ * Sections as they are finished, the essentials last: each save merges into
+ * the stored Brand Brain, and the owner sees it once the essentials exist.
+ */
+export const cmoSaveBrandBrainInputSchema = z
+  .object({
+    brandBrain: cmoBrandBrainSchema.optional(),
+    sections: cmoBrandProfileSchema.optional(),
+  })
+  .refine((input) => input.brandBrain || input.sections, {
+    message: "Send brandBrain, sections, or both",
+  });
+export type CmoSaveBrandBrainInput = z.input<
+  typeof cmoSaveBrandBrainInputSchema
+>;
+/**
+ * What Cuso saves: only channels and formats he can run today. Reading a
+ * stored strategy stays lenient so older plans still show.
+ */
+/** Older channel and format names, mapped to the catalog before the check. */
+function normalizeStrategyChannels(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const strategy = value as {
+    channels?: unknown;
+    calendar?: unknown;
+  };
+  const channels = Array.isArray(strategy.channels)
+    ? strategy.channels.map((channel) =>
+        channel && typeof channel === "object" && "channel" in channel
+          ? {
+              ...channel,
+              channel: normalizeCmoChannelFormat(String(channel.channel), "")
+                .channel,
+            }
+          : channel,
+      )
+    : strategy.channels;
+  const calendar = Array.isArray(strategy.calendar)
+    ? strategy.calendar.map((entry) =>
+        entry &&
+        typeof entry === "object" &&
+        "channel" in entry &&
+        "format" in entry
+          ? {
+              ...entry,
+              ...normalizeCmoChannelFormat(
+                String(entry.channel),
+                String(entry.format),
+              ),
+            }
+          : entry,
+      )
+    : strategy.calendar;
+  return { ...strategy, channels, calendar };
+}
+
+/**
+ * A save sends only the parts it changes; what it leaves out stays as stored.
+ * A long plan goes in short calls (the strategy, then its calendar), each
+ * well inside one model answer.
+ */
+const cmoStrategySaveSchema = cmoStrategySchema.partial();
+export type CmoStrategySave = z.input<typeof cmoStrategySaveSchema>;
+
+/**
+ * What a save replaces: the plan (every field but the calendar), the
+ * calendar alone, or all of it. A long plan goes in two short calls; the
+ * part keeps the fields a call must still fill in from replacing the saved
+ * ones.
+ */
+export const CMO_STRATEGY_SAVE_PARTS = ["plan", "calendar", "all"] as const;
+
 export const cmoSaveStrategyInputSchema = z.object({
-  strategy: cmoStrategySchema,
+  part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
+  strategy: z
+    .preprocess(normalizeStrategyChannels, cmoStrategySaveSchema)
+    .superRefine((strategy, ctx) => {
+      const live = Object.entries(CMO_CHANNELS)
+        .filter(([, channel]) => channel.status === "live")
+        .map(
+          ([key, channel]) =>
+            `${key} (${Object.keys(channel.formats).join(", ")})`,
+        )
+        .join("; ");
+      const planned = new Set(
+        (strategy.channels ?? []).map((channel) => channel.channel),
+      );
+      (strategy.proposals ?? []).forEach((proposal, index) => {
+        const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
+          proposal.channel
+        ];
+        if (entry?.status !== "live" || planned.has(proposal.channel)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["proposals", index, "channel"],
+            message: `Propose only a channel Cuso runs today that the plan does not use yet: ${live}`,
+          });
+        }
+      });
+      (strategy.channels ?? []).forEach((channel, index) => {
+        const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
+          channel.channel
+        ];
+        if (entry?.status !== "live") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["channels", index, "channel"],
+            message: `Use a channel Cuso runs today: ${live}`,
+          });
+        }
+      });
+      (strategy.calendar ?? []).forEach((entry, index) => {
+        // Skipped entries from older plans may name retired formats.
+        if (
+          entry.status !== "skipped" &&
+          !isCmoChannelFormat(entry.channel, entry.format)
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["calendar", index],
+            message: `"${entry.channel}" / "${entry.format}" is not something Cuso makes. Use one of: ${live}`,
+          });
+        }
+      });
+    }),
 });
 
 /**
@@ -230,7 +791,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Re-reads the website and updates the Brand Brain with what changed.",
     prompt:
-      "Brand Brain refresh. Re-read the business's website (home, about, products, pricing) and search for recent news about the company. Compare with the Brand Brain in the packet below. If something changed (new product, new pricing, new audience, new claims), save the updated Brand Brain with save_brand_brain, keeping everything still true, then report with report_update kind brand: a headline and each change in changes. Write down only what you found. When nothing changed, answer exactly: Nothing to add.",
+      "Brand Brain refresh. Re-read the business's website (home, about, products, pricing) and search for recent news about the company. Compare with the Brand Brain in the packet below. If something changed (new product, new pricing, new audience, new claims, a launch, a hire, a funding round), save only the changed profile sections with save_brand_brain, plus the essentials when they change, then report with report_update kind brand: a headline and each change in changes. Write down only what you found. When nothing changed, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-strategy-nudge",
@@ -288,4 +849,29 @@ export function isCmoScheduleKey(
   key: string | null | undefined,
 ): key is CmoSystemSchedule["key"] {
   return SOKO_BOT_CMO_SCHEDULES.some((schedule) => schedule.key === key);
+}
+
+/**
+ * The fields a save_strategy call replaces. Tool calls must fill every field,
+ * often with empty lists, so only the fields of the named part are taken.
+ */
+export function parseCmoStrategySave(input: unknown): CmoStrategySave {
+  const raw = (input ?? {}) as { part?: unknown; strategy?: unknown };
+  const sent = (
+    raw.strategy && typeof raw.strategy === "object" ? raw.strategy : {}
+  ) as Record<string, unknown>;
+  // The other part's fields are filler; they are dropped before checking.
+  const { calendar, ...plan } = sent;
+  const picked =
+    raw.part === "calendar" ? { calendar } : raw.part === "plan" ? plan : sent;
+  const { part, strategy } = cmoSaveStrategyInputSchema.parse({
+    ...raw,
+    strategy: picked,
+  });
+  if (part === "calendar") return { calendar: strategy.calendar ?? [] };
+  if (part === "plan") {
+    const { calendar: _calendar, ...rest } = strategy;
+    return rest;
+  }
+  return strategy;
 }

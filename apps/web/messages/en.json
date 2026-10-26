@@ -4377,6 +4377,10 @@
           "badgeCampaigns": {
             "title": "Feature badges",
             "description": "Show a New badge on a sidebar feature for existing users, for a set time."
+          },
+          "cmoSpend": {
+            "title": "CMO spend",
+            "description": "What each CMO bot (Cuso) spent, what owners were charged, and where the money went."
           }
         }
       },
@@ -5553,6 +5557,25 @@
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
         }
+      },
+      "CmoSpend": {
+        "title": "CMO spend",
+        "description": "What each CMO bot spent on its work, what its owner was charged, and where the money went: each model, web search, Exa, overhead and images.",
+        "summary": "{bots, plural, one {# CMO bot} other {# CMO bots}} spent {spent} and charged {charged} credits.",
+        "period": "Period",
+        "days": "{days} days",
+        "empty": "No CMO bot worked in this period.",
+        "business": "Business",
+        "turns": "Turns",
+        "spent": "Spent",
+        "charged": "Charged (credits)",
+        "where": "Where it went",
+        "tools": "Tools used",
+        "calls": "{calls, plural, one {# call} other {# calls}}",
+        "exa": "Exa search",
+        "webSearch": "Web search",
+        "overhead": "Routing and quality checks (not billed)",
+        "images": "credits on images"
       }
     },
     "Billing": {

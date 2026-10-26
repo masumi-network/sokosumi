@@ -4,12 +4,12 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
+import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { mockPlanById } from "../../lib/mock-plans";
+import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { MockPlanTable } from "../mock-plans";
-import { ExpandableText } from "./expandable-text";
 
 interface PageProps {
   overview: CmoOverview;
@@ -102,63 +102,23 @@ function Kpi({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function BrandBrainPage({ overview }: PageProps) {
+export function BrandBrainPage({
+  overview,
+  onSave,
+  onAsk,
+}: {
+  overview: CmoOverview;
+  onSave: (brain: BrandBrain) => Promise<void>;
+  onAsk: (text: string) => Promise<void>;
+}) {
   const brain = overview.brandBrain;
   if (!brain) {
     return <Empty>Cuso is still learning your business.</Empty>;
   }
   return (
     <div className="page-body">
-      <div className="grid2">
-        <section className="panel">
-          <h3>Business</h3>
-          <p>
-            <ExpandableText text={brain.summary} />
-          </p>
-        </section>
-        <section className="panel">
-          <h3>Voice</h3>
-          <p>{brain.voice.tone}</p>
-          {brain.voice.examples.map((line) => (
-            <p key={line} className="quote">
-              {line}
-            </p>
-          ))}
-        </section>
-        <section className="panel">
-          <h3>Products</h3>
-          <Lines items={brain.products} />
-        </section>
-        <section className="panel">
-          <h3>Audience</h3>
-          <Lines items={brain.audience} />
-        </section>
-        <section className="panel">
-          <h3>Competitors</h3>
-          <Lines items={brain.competitors.map((c) => c.name)} />
-        </section>
-        <section className="panel">
-          <h3>Always / never</h3>
-          <Lines
-            items={[
-              ...brain.voice.do.map((line) => `Always: ${line}`),
-              ...brain.voice.dont.map((line) => `Never: ${line}`),
-            ]}
-          />
-        </section>
-      </div>
+      <BrandReveal overview={overview} onSave={onSave} onAsk={onAsk} />
     </div>
-  );
-}
-
-function Lines({ items }: { items: string[] }) {
-  if (items.length === 0) return <p className="muted">Nothing yet.</p>;
-  return (
-    <ul className="plain">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
   );
 }
 

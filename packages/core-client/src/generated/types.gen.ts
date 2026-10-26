@@ -455,6 +455,31 @@ export type AdminSokoBotVersionUsage = {
     }>;
 };
 
+export type AdminCmoSpend = {
+    since: string;
+    bots: Array<{
+        sokoBotId: string;
+        businessName: string;
+        ownerEmail: string;
+        turns: number;
+        totalUsd: number;
+        overheadUsd: number;
+        imagesCredits: number;
+        chargedCredits: number;
+        bySource: Array<{
+            source: string;
+            costUsd: number;
+            calls: number;
+            inputTokens: number;
+            outputTokens: number;
+        }>;
+        tools: Array<{
+            capability: string;
+            calls: number;
+        }>;
+    }>;
+};
+
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
@@ -7930,11 +7955,255 @@ export type CmoOverview = {
             url?: string;
             note?: string;
         }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
         channels: Array<{
             name: string;
             url?: string;
             note?: string;
         }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
     } | null;
     brandBrainUpdatedAt: Date | null;
     strategy: {
@@ -7950,6 +8219,107 @@ export type CmoOverview = {
             cadence: string;
             why?: string;
         }>;
+        start?: {
+            working?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            gaps?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+            resources?: Array<{
+                text: string;
+                basis?: 'fact' | 'assumption';
+            }>;
+        };
+        objective?: {
+            metric: string;
+            baseline?: string;
+            baselineBasis?: 'fact' | 'assumption';
+            target: string;
+            why?: string;
+        };
+        barrier?: {
+            kind: 'awareness' | 'understanding' | 'trust';
+            text: string;
+        };
+        mix?: Array<{
+            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            share: number;
+            why: string;
+        }>;
+        focus?: {
+            segment: string;
+            problem: string;
+            trigger?: string;
+            objections?: Array<string>;
+            where?: Array<string>;
+        };
+        offer?: {
+            what: string;
+            why: string;
+            proof?: Array<string>;
+            action: string;
+        };
+        campaigns?: Array<{
+            id: string;
+            name: string;
+            message: string;
+            audience?: string;
+            offer?: string;
+            channels?: Array<string>;
+            assets?: Array<string>;
+            start: string;
+            end: string;
+            budget?: string;
+            metric: string;
+        }>;
+        funnel?: Array<{
+            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+            name: string;
+            goal: string;
+            channels?: Array<string>;
+            metric: string;
+            target?: string;
+        }>;
+        proposals?: Array<{
+            channel: string;
+            why: string;
+            what: string;
+            perMonth: number;
+        }>;
+        journey?: Array<{
+            step: string;
+            fix?: string;
+        }>;
+        weeks?: Array<{
+            focus: string;
+            tasks?: Array<{
+                task: string;
+                owner: 'cuso' | 'you';
+                due?: string;
+                approval?: boolean;
+            }>;
+        }>;
+        budget?: {
+            total: string;
+            basis?: 'fact' | 'assumption';
+            lines?: Array<{
+                item: string;
+                amount: string;
+            }>;
+        };
+        measurement?: {
+            primary: string;
+            supporting?: Array<string>;
+            tracking?: Array<string>;
+            rules?: Array<{
+                when: string;
+                then: string;
+            }>;
+        };
+        openQuestions?: Array<string>;
         calendar: Array<{
             id: string;
             date: string;
@@ -7965,6 +8335,9 @@ export type CmoOverview = {
             socialPostId?: string;
             imageFileId?: string;
             taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -7980,6 +8353,9 @@ export type CmoOverview = {
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
+    adProviders: Array<string>;
+    connectAdsUrl: string;
+    mailingListSize: number;
     subscribeUrl: string;
     billing: {
         plan: string | null;
@@ -8000,6 +8376,8 @@ export type CmoWork = {
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
+    sectionsSaved: number;
+    sectionsTotal: number;
 };
 
 export type CmoWorkStep = {
@@ -8097,11 +8475,255 @@ export type CmoBrandBrainRequest = {
             url?: string;
             note?: string;
         }>;
+        alternatives?: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
         channels: Array<{
             name: string;
             url?: string;
             note?: string;
         }>;
+        profile?: {
+            company?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            offer?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            problems?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            customers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            buyers?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            value?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            pricing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            positioning?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            competition?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            sales?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            marketing?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            content?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            proof?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            reputation?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            momentum?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+            opportunities?: {
+                headline?: string;
+                answer: string;
+                findings?: Array<{
+                    point: string;
+                    evidence: 'fact' | 'claim' | 'inference';
+                    confidence: 'high' | 'medium' | 'low';
+                    sourceUrl?: string;
+                    asOf?: string;
+                    implication?: string;
+                }>;
+                openQuestions?: Array<string>;
+            };
+        };
+        reveal?: {
+            positioning: string;
+            insights: Array<{
+                title: string;
+                detail: string;
+                sourceUrl?: string;
+            }>;
+            map?: {
+                x: {
+                    low: string;
+                    high: string;
+                };
+                y: {
+                    low: string;
+                    high: string;
+                };
+                players: Array<{
+                    name: string;
+                    x: number;
+                    y: number;
+                    you?: boolean;
+                }>;
+            };
+            buyers: Array<{
+                role: string;
+                wants: string;
+                worry: string;
+            }>;
+        };
     };
 };
 
@@ -12086,6 +12708,66 @@ export type GetAdminSokoBotVersionUsageResponses = {
 };
 
 export type GetAdminSokoBotVersionUsageResponse = GetAdminSokoBotVersionUsageResponses[keyof GetAdminSokoBotVersionUsageResponses];
+
+export type GetAdminCmoSpendData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+    };
+    url: '/admin/soko-bots/cmo-spend';
+};
+
+export type GetAdminCmoSpendErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminCmoSpendError = GetAdminCmoSpendErrors[keyof GetAdminCmoSpendErrors];
+
+export type GetAdminCmoSpendResponses = {
+    /**
+     * Spend per CMO bot
+     */
+    200: {
+        data: AdminCmoSpend;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminCmoSpendResponse = GetAdminCmoSpendResponses[keyof GetAdminCmoSpendResponses];
 
 export type MigrateAdminSokoBotVersionsData = {
     body?: AdminSokoBotVersionMigrationRequest;
@@ -56864,6 +57546,96 @@ export type FinalizeCmoChannelResponses = {
 };
 
 export type FinalizeCmoChannelResponse = FinalizeCmoChannelResponses[keyof FinalizeCmoChannelResponses];
+
+export type ImportCmoMailingListData = {
+    body?: {
+        text: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/mailing-list';
+};
+
+export type ImportCmoMailingListErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No email addresses found
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportCmoMailingListError = ImportCmoMailingListErrors[keyof ImportCmoMailingListErrors];
+
+export type ImportCmoMailingListResponses = {
+    /**
+     * Mailing list added
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportCmoMailingListResponse = ImportCmoMailingListResponses[keyof ImportCmoMailingListResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

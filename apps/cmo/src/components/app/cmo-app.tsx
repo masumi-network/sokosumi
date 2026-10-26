@@ -81,6 +81,9 @@ export interface CmoAppActions {
   sendMessage: (content: string) => Promise<void>;
   approveStrategy: () => Promise<CmoOverview>;
   revertUpdate: (id: string) => Promise<CmoOverview>;
+  saveBrandBrain: (
+    brandBrain: NonNullable<CmoOverview["brandBrain"]>,
+  ) => Promise<CmoOverview>;
   retryLearning: () => Promise<{
     overview: CmoOverview;
     error: string | null;
@@ -469,7 +472,13 @@ export function CmoApp({
           <div className="scroll">
             <div className="page-wide">
               {view === "strategy" ? (
-                <StrategyPage overview={overview} />
+                <StrategyPage
+                  overview={overview}
+                  onAsk={async (text) => {
+                    await actions.sendMessage(text);
+                    await refresh();
+                  }}
+                />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
@@ -477,7 +486,16 @@ export function CmoApp({
                   openUpdate={openUpdate}
                 />
               ) : view === "brain" ? (
-                <BrandBrainPage overview={overview} compose={compose} />
+                <BrandBrainPage
+                  overview={overview}
+                  onSave={async (brandBrain) =>
+                    setOverview(await actions.saveBrandBrain(brandBrain))
+                  }
+                  onAsk={async (text) => {
+                    await actions.sendMessage(text);
+                    await refresh();
+                  }}
+                />
               ) : view === "channels" ? (
                 <ChannelsPage
                   overview={overview}

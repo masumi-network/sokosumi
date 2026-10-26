@@ -4198,6 +4198,10 @@
           "badgeCampaigns": {
             "title": "Insignias de funciones",
             "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
+          },
+          "cmoSpend": {
+            "title": "Gasto de CMO",
+            "description": "Lo que gastó cada bot CMO (Cuso), lo que se cobró a sus dueños y en qué."
           }
         }
       },
@@ -5517,6 +5521,25 @@
           "deleteFailed": "No se pudo eliminar la campaña",
           "started": "Campaña iniciada"
         }
+      },
+      "CmoSpend": {
+        "title": "Gasto de CMO",
+        "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
+        "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "period": "Periodo",
+        "days": "{days} días",
+        "empty": "Ningún bot CMO trabajó en este periodo.",
+        "business": "Empresa",
+        "turns": "Turnos",
+        "spent": "Gastado",
+        "charged": "Cobrado (créditos)",
+        "where": "En qué",
+        "tools": "Herramientas usadas",
+        "calls": "{calls, plural, one {# llamada} other {# llamadas}}",
+        "exa": "Búsqueda Exa",
+        "webSearch": "Búsqueda web",
+        "overhead": "Enrutamiento y control de calidad (no cobrado)",
+        "images": "créditos en imágenes"
       }
     },
     "Billing": {

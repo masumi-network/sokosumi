@@ -1,15 +1,23 @@
 import { randomBytes } from "node:crypto";
 import type { CmoHire, Prisma } from "@sokosumi/database";
 import {
+  CMO_BRAND_SECTION_KEYS,
+  CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
   type CmoBrandBrain,
+  type CmoBrandProfile,
+  type CmoBrandSectionKey,
   type CmoReportUpdateInput,
+  type CmoSaveBrandBrainInput,
   type CmoStrategy,
+  type CmoStrategySave,
   type CmoSystemSchedule,
   cmoBrandBrainSchema,
+  cmoBrandProfileSchema,
   cmoMayExecute,
   cmoReportUpdateInputSchema,
   cmoRoutineSkipReason,
+  cmoSaveBrandBrainInputSchema,
   cmoStrategySchema,
   getSokoBotVersion,
   SOKO_BOT_CMO_SCHEDULES,
@@ -34,6 +42,7 @@ import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
+import { cmoMailingListSize } from "@/services/cmo-mailing-list.service";
 
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
@@ -368,7 +377,7 @@ function onboardingMessage(input: {
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
     `Their main marketing goal, in their words: ${input.goals}`,
     "",
-    "Learn the business. Read the website (home, about, products, pricing, blog), search for the company, its competitors and its existing marketing and social profiles, then save the Brand Brain with save_brand_brain. Write down only what you found.",
+    "Learn the business and build its Brand Brain, following your Brand Brain skill: read the website, search for the company, its reviews, competitors, news and social profiles, and save each group of profile sections with save_brand_brain as soon as you have researched it, the essentials last. Write down only what you found, with the evidence, confidence, source and implication of every finding.",
     "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
     "If you could not confirm what they sell, to whom, and the offer, end with two or three short questions; otherwise end with one plain sentence on what stood out.",
     "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
@@ -451,7 +460,7 @@ export async function cmoLearningState(
   hire: Pick<CmoHire, "userId" | "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
-  if (hire.brandBrain) return "done";
+  if (parseCmoBrandBrain(hire.brandBrain)) return "done";
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
       sokoBotId: hire.sokoBotId,
@@ -479,6 +488,8 @@ export interface CmoWork {
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
+  sectionsSaved: number;
+  sectionsTotal: number;
 }
 
 function hostOf(value: string): string | null {
@@ -520,6 +531,27 @@ export function describeCmoStep(
       url: null,
     };
   }
+  if (capability === "search_exa" && typeof fields.query === "string") {
+    const query = `“${clip(fields.query.replace(/["“”]/g, "").trim(), 60)}”`;
+    const domains = Array.isArray(fields.includeDomains)
+      ? fields.includeDomains.filter((domain) => typeof domain === "string")
+      : [];
+    const label =
+      fields.category === "company"
+        ? `Finding companies: ${query}`
+        : fields.category === "news"
+          ? `Reading the news: ${query}`
+          : fields.category === "people"
+            ? `Looking up people: ${query}`
+            : domains.length > 0
+              ? `Reading ${clip(domains.join(", "), 50)}`
+              : `Searching ${query}`;
+    return {
+      kind: fields.category === "company" ? "study" : "search",
+      label,
+      url: null,
+    };
+  }
   if (capability === "web_fetch" && typeof fields.url === "string") {
     const host = hostOf(fields.url);
     if (!host) return null;
@@ -537,7 +569,20 @@ export function describeCmoStep(
     };
   }
   if (capability === "save_brand_brain") {
-    return { kind: "brain", label: "Writing your Brand Brain", url: null };
+    const sections =
+      fields.sections && typeof fields.sections === "object"
+        ? CMO_BRAND_SECTION_KEYS.filter(
+            (key) => key in (fields.sections as object),
+          ).map((key) => CMO_BRAND_SECTIONS[key].title)
+        : [];
+    return {
+      kind: "brain",
+      label:
+        sections.length > 0
+          ? `Writing ${clip(sections.join(", "), 70)}`
+          : "Writing your Brand Brain",
+      url: null,
+    };
   }
   if (capability === "save_strategy") {
     return { kind: "strategy", label: "Writing your strategy", url: null };
@@ -550,7 +595,7 @@ export function describeCmoStep(
 
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
-  hire: Pick<CmoHire, "sokoBotId" | "websiteUrl">,
+  hire: Pick<CmoHire, "sokoBotId" | "websiteUrl" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
@@ -605,6 +650,8 @@ export async function cmoWork(
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,
+    sectionsSaved: cmoBrandSectionsSaved(hire.brandBrain).length,
+    sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
 }
 
@@ -848,28 +895,34 @@ export async function requestCmoStrategy(input: {
 }): Promise<{ turnId: string }> {
   const hire = await getCmoHireForUser(input.userId);
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
-  if (!parseCmoBrandBrain(hire.brandBrain)) {
+  const brain = parseCmoBrandBrain(hire.brandBrain);
+  if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
   await prisma.cmoHire.update({
     where: { id: hire.id },
     data: { strategyApprovedAt: null },
   });
+  // Named up front: a goal such as "More leads" once pulled whole plans onto
+  // a side product or feature with the same word in it.
+  const sells = brain.reveal?.positioning ?? brain.summary;
   return startCmoTurn(hire, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note
       ? [
           `Change ${hire.businessName}'s marketing strategy. The owner asked: ${input.note}`,
           "",
-          "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time, hook and draft. To move a piece, change the date on the same id; never add a copy. A new or rewritten piece gets a full draft. List each difference in changes, in plain words.",
-          "Save the whole strategy with save_strategy.",
+          "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
+          "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
         ]
       : [
           `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-          `Their main goal, in their words: ${hire.goals}`,
+          `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers, unless the owner's goal below names a product, launch or offer: then that is what the plan sells. Otherwise a single product or feature may carry one campaign, never the whole plan.`,
+          `Their goal, in their words: ${hire.goals}. When it names a product or launch, the plan is built around it. Otherwise it is the result they want from selling the main offer; never read a word in it as a topic, product or feature to promote.`,
+          "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
           "",
           "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-          "Save in two passes so the owner sees the plan grow: first call save_strategy as soon as the plan stands (summary, why, goals, channels, and the exact day-by-day calendar with date, time, channel, format, title, hook, brief and why, no drafts yet); then write the full draft of every entry and the previews (an ad, an SEO article, a newsletter and one post, in the brand's voice) and call save_strategy again with the whole strategy.",
+          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (summary, why, goals, start, objective, barrier, mix, pillars, focus, offer, channels, funnel, proposals, campaigns, journey, weeks, budget, measurement, openQuestions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves, your daily run writes each piece three days before it goes out.",
         ]
     )
       .concat([
@@ -881,23 +934,68 @@ export async function requestCmoStrategy(input: {
   });
 }
 
+/**
+ * Merges a save into the stored Brand Brain: sent sections replace theirs,
+ * sent essentials replace the essentials. Until the essentials exist the
+ * record holds only sections and the owner does not see it yet.
+ */
 export async function saveCmoBrandBrain(
   where: { userId: string } | { sokoBotId: string },
-  brandBrain: CmoBrandBrain,
+  input: CmoSaveBrandBrainInput,
 ): Promise<CmoHire> {
-  const parsed = cmoBrandBrainSchema.parse(brandBrain);
-  const current = await prisma.cmoHire.findUnique({
-    where,
-    select: { id: true },
+  const save = cmoSaveBrandBrainInputSchema.parse(input);
+  return prisma.$transaction(async (tx) => {
+    const hire = await tx.cmoHire.findUnique({ where, select: { id: true } });
+    if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+    // Section saves run in parallel: lock the row so none overwrites another.
+    await tx.$executeRaw`SELECT 1 FROM cmo_hire WHERE id = ${hire.id}::uuid FOR UPDATE`;
+    const current = await tx.cmoHire.findUnique({
+      where: { id: hire.id },
+      select: { brandBrain: true },
+    });
+    const stored = storedBrandBrain(current?.brandBrain);
+    const incoming = { ...save.brandBrain?.profile, ...save.sections };
+    // Cuso's packet carries no findings; a section he rewrites keeps them.
+    const kept = Object.fromEntries(
+      Object.entries(incoming).map(([key, section]) => {
+        const before = stored.profile[key as CmoBrandSectionKey];
+        return [
+          key,
+          section && section.findings.length === 0 && before
+            ? { ...section, findings: before.findings }
+            : section,
+        ];
+      }),
+    );
+    const profile = cmoBrandProfileSchema.parse({
+      ...stored.profile,
+      ...kept,
+    });
+    const essentials = save.brandBrain ?? parseCmoBrandBrain(stored);
+    const next = essentials ? { ...essentials, profile } : { profile };
+    return tx.cmoHire.update({
+      where: { id: hire.id },
+      data: {
+        brandBrain: next as Prisma.InputJsonValue,
+        ...(essentials ? { brandBrainUpdatedAt: new Date() } : {}),
+      },
+    });
   });
-  if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
-  return prisma.cmoHire.update({
-    where: { id: current.id },
-    data: {
-      brandBrain: parsed as Prisma.InputJsonValue,
-      brandBrainUpdatedAt: new Date(),
-    },
-  });
+}
+
+/** The profile sections a stored Brand Brain holds, in profile order. */
+export function cmoBrandSectionsSaved(value: unknown): CmoBrandSectionKey[] {
+  const { profile } = storedBrandBrain(value);
+  return CMO_BRAND_SECTION_KEYS.filter((key) => profile[key]);
+}
+
+function storedBrandBrain(value: unknown): { profile: CmoBrandProfile } {
+  const record =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+  const profile = cmoBrandProfileSchema.safeParse(record.profile ?? {});
+  return { ...record, profile: profile.success ? profile.data : {} };
 }
 
 const STRATEGY_HISTORY_LIMIT = 8;
@@ -1030,13 +1128,29 @@ function parseHistory(value: unknown): StrategyHistory {
  */
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
-  strategy: CmoStrategy,
+  strategy: CmoStrategySave,
   options: { turnId?: string; now?: Date } = {},
 ): Promise<CmoHire> {
-  const parsed = cmoStrategySchema.parse(strategy);
   const current = await prisma.cmoHire.findUnique({ where });
   if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
-  const previous = options.turnId ? parseCmoStrategy(current.strategy) : null;
+  // What a save leaves out stays as stored; the merged plan must be whole.
+  const before = parseCmoStrategy(current.strategy);
+  const whole = cmoStrategySchema.parse({
+    ...before,
+    ...Object.fromEntries(
+      Object.entries(strategy).filter(([, value]) => value !== undefined),
+    ),
+    calendar: strategy.calendar ?? before?.calendar ?? [],
+  });
+  // A channel the plan now runs is no longer a proposal.
+  const running = new Set(whole.channels.map((channel) => channel.channel));
+  const parsed = {
+    ...whole,
+    proposals: whole.proposals.filter(
+      (proposal) => !running.has(proposal.channel),
+    ),
+  };
+  const previous = options.turnId ? before : null;
   const merged = previous
     ? {
         ...parsed,
@@ -1045,6 +1159,9 @@ export async function saveCmoStrategy(
           keepCalendarWork(previous.calendar, parsed.calendar),
           options.now ?? new Date(),
         ),
+        // An empty previews list keeps the stored samples.
+        previews:
+          parsed.previews.length > 0 ? parsed.previews : previous.previews,
       }
     : parsed;
   const stored = options.turnId ? withoutDashes(merged) : merged;
@@ -1281,14 +1398,24 @@ export async function loadCmoMarketingContext(
         socialConnectionId: channel.id,
       }),
     ),
-    brandBrain: parseCmoBrandBrain(hire.brandBrain),
+    brandBrain: compactBrandBrain(parseCmoBrandBrain(hire.brandBrain)),
     /** The brand's logo, colours and fonts: use them in images and layouts. */
     brandVisual: parseCmoBrandVisual(hire.brandVisual),
     strategy: strategy
       ? {
           ...strategy,
           // Next 31 days. saveCmoStrategy puts entries outside this window back.
-          calendar: calendarWindow(strategy, now, CMO_VISIBLE_CALENDAR_DAYS),
+          // Drafts past the first week stay stored: keepCalendarWork restores
+          // them when an entry comes back under its id and title without one.
+          calendar: calendarWindow(
+            strategy,
+            now,
+            CMO_VISIBLE_CALENDAR_DAYS,
+          ).map((entry) =>
+            entry.draft && entry.date > draftHorizon(now)
+              ? { ...entry, draft: undefined, draftStored: true }
+              : entry,
+          ),
           calendarTotal: strategy.calendar.length,
         }
       : null,
@@ -1296,6 +1423,44 @@ export async function loadCmoMarketingContext(
       .slice(0, 3)
       .map(({ previousStrategy: _previous, ...update }) => update),
   };
+}
+
+/** The last day a turn sees full drafts for. */
+function draftHorizon(now: Date): string {
+  return new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * The Brand Brain as a turn reads it: each section's headline, answer, what
+ * its findings mean and its open questions. The findings themselves stay
+ * stored; a full profile no longer fits Cuso's context packet.
+ */
+export function compactBrandBrain(
+  brain: CmoBrandBrain | null,
+): Record<string, unknown> | null {
+  if (!brain) return null;
+  const profile = Object.fromEntries(
+    Object.entries(brain.profile ?? {}).flatMap(([key, section]) =>
+      section
+        ? [
+            [
+              key,
+              {
+                headline: section.headline,
+                answer: section.answer,
+                soWhat: section.findings
+                  .map((finding) => finding.implication)
+                  .filter(Boolean)
+                  .slice(0, 2),
+                openQuestions: section.openQuestions,
+                findingsStored: section.findings.length,
+              },
+            ],
+          ]
+        : [],
+    ),
+  );
+  return { ...brain, profile };
 }
 
 /** The packet appended to a CMO rhythm's prompt. */
@@ -1309,7 +1474,7 @@ export async function buildCmoBeatPacket(
   // Nothing runs without a reason: no approved strategy, no Brand Brain,
   // or not the reminder's one slot. A skipped run costs no turn.
   const skipReason = cmoRoutineSkipReason(key, {
-    brandBrain: hire.brandBrain !== null,
+    brandBrain: parseCmoBrandBrain(hire.brandBrain) !== null,
     strategySavedAt: hire.strategy ? hire.strategyUpdatedAt : null,
     strategyApproved: hire.strategyApprovedAt !== null,
     now,
@@ -1403,6 +1568,12 @@ export interface CmoOverview {
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
+  /** Ad providers with an active connection on Cuso's Project. */
+  adProviders: string[];
+  /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
+  connectAdsUrl: string;
+  /** People on the newsletter list. */
+  mailingListSize: number;
   subscribeUrl: string;
   billing: {
     plan: string | null;
@@ -1420,7 +1591,7 @@ export interface CmoOverview {
  * Strategy calendar only.
  */
 export function cmoUpNext(
-  strategy: CmoStrategy | null,
+  strategy: Pick<CmoStrategy, "calendar"> | null,
   now: Date,
   connectedProviders: readonly string[],
   limit = 8,
@@ -1479,6 +1650,13 @@ export async function getCmoOverview(
       },
     }),
     listCmoChannels(hire.projectId),
+  ]);
+  const [adConnections, mailingListSize] = await Promise.all([
+    prisma.projectAdConnection.findMany({
+      where: { projectId: hire.projectId, status: "active" },
+      select: { provider: true },
+    }),
+    cmoMailingListSize(hire),
   ]);
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -1550,6 +1728,9 @@ export async function getCmoOverview(
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${hire.projectId}`,
+    adProviders: [...new Set(adConnections.map((row) => row.provider))],
+    connectAdsUrl: `${web}/ads?projectId=${hire.projectId}`,
+    mailingListSize,
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
     subscribeUrl: `${web}/billing`,
     billing: {
