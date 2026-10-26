@@ -41,6 +41,14 @@ describe("newsletter rendering", () => {
       expect(html).toContain(label);
       expect(html).toContain('href="https://example.com/n/weekly"');
       expect(html).toContain('href="https://example.com/read"');
+      // The public page's sandboxed frame only allows links that open a new tab.
+      for (const href of [
+        "https://example.com/n/weekly",
+        "https://example.com/read",
+      ])
+        expect(
+          html.match(new RegExp(`<a[^>]*href="${href}"[^>]*>`))?.[0],
+        ).toContain('target="_blank"');
       expect(html).toContain("<strong>News</strong>");
       expect(html).toContain("#123456");
       expect(html).toContain("Thanks for reading");

@@ -83,7 +83,8 @@ export default async function PublicIssuePage({
           <iframe
             title={t("issueContent", { subject: issue.subject })}
             srcDoc={issue.html}
-            sandbox=""
+            // Email links open in a new tab; scripts and same-origin stay off.
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
             referrerPolicy="no-referrer"
             className="min-h-[48rem] w-full border-0"
           />
