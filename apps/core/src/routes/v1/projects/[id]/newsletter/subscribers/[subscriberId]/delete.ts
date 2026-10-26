@@ -17,13 +17,15 @@ const route = withCoworkerContextHeaderParameters(
     method: "delete",
     path: "/{id}/newsletter/subscribers/{subscriberId}",
     tags: ["Projects"],
-    description: "Delete a subscriber from this Project's newsletter.",
+    description:
+      "Delete an active or pending subscriber from this Project's newsletter. Unsubscribed and bounced subscribers are retained to prevent reactivation and return 409.",
     request: { params: newsletterSubscriberParamsSchema },
     responses: {
       204: { description: "Subscriber deleted" },
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Suppressed subscriber must be retained"),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),

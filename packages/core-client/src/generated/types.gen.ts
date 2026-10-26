@@ -47631,6 +47631,21 @@ export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors = {
         };
     };
     /**
+     * Suppressed subscriber must be retained
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
