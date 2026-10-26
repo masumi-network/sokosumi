@@ -3230,6 +3230,18 @@
         "unknown": "This generation did not finish."
       },
       "failedDetails": "What the provider said",
+      "studioMode": "Make",
+      "modeImage": "Image",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Describe a video",
+      "videoPromptPlaceholder": "Describe the video you want…",
+      "generateVideo": "Generate video",
+      "videoLength": "Length",
+      "videoFollowsImage": "The video keeps the image's frame.",
+      "videoNeedsProject": "Open a project to make a video in it.",
+      "animate": "Animate",
+      "animating": "Animating",
+      "stopAnimating": "Stop animating this image",
       "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
       "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
       "creditsCount": "{count, plural, one {# credit} other {# credits}}",
@@ -8072,6 +8084,8 @@
           "read_file": "Reading a file",
           "generate_image": "Generating an image",
           "get_image": "Checking an image",
+          "generate_video": "Generating a video",
+          "get_video": "Checking a video",
           "preview_result": "Preparing a result preview"
         },
         "composer": {

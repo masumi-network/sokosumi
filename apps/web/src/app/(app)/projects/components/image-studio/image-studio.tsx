@@ -1,5 +1,7 @@
 "use client";
 
+import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -29,6 +31,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  startVideoGeneration,
 } from "@/lib/actions/image-studio/action";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
@@ -41,6 +44,7 @@ import {
   resolveModel,
   settingsOf,
   supportsVariation,
+  videoModelsFor,
 } from "./catalog";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -54,6 +58,12 @@ import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
+import {
+  StudioModeSwitch,
+  StudioVideoComposer,
+  type StudioVideoDraft,
+  videoDraftFor,
+} from "./studio-video-composer";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -71,6 +81,10 @@ import {
   useGenerationQueue,
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
+
+type VideoAspectRatio = NonNullable<
+  NonNullable<CreateProjectVideoJobRequest["settings"]>["aspectRatio"]
+>;
 
 const EMPTY_STUDIO_STATE: StudioState = {
   assets: [],
@@ -175,6 +189,21 @@ export function ImageStudio({
   const [creatingProjectFor, setCreatingProjectFor] = useState<
     GenerationRequest[] | null
   >(null);
+
+  // Video: a second composer over the same gallery, shown only when Core
+  // offers a video model.
+  const hasVideo = catalog.videoModels.length > 0;
+  const [mode, setMode] = useState<"image" | "video">("image");
+  const [videoSource, setVideoSource] = useState<StudioAsset | null>(null);
+  const [videoDraft, setVideoDraft] = useState<StudioVideoDraft | null>(null);
+  const [videoBusy, startVideoTransition] = useTransition();
+  const videoModels = videoModelsFor(catalog, videoSource ? "image" : "text");
+  const activeVideoDraft =
+    videoDraft && videoModels.some((model) => model.id === videoDraft.modelId)
+      ? videoDraft
+      : videoModels[0]
+        ? videoDraftFor(videoModels[0])
+        : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
@@ -482,6 +511,55 @@ export function ImageStudio({
     });
   }
 
+  /** Open the video composer on a gallery image. */
+  function animate(asset: StudioAsset) {
+    setVideoSource(asset);
+    setVideoDraft(null);
+    setMode("video");
+    setViewing(null);
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function handleGenerateVideo() {
+    const projectForVideo = videoSource?.projectId ?? activeProjectId;
+    if (!projectForVideo || !activeVideoDraft) return;
+    const brief = prompt.trim();
+    // One key per press, reused if the same press is retried.
+    const idempotencyKey = `ui:${crypto.randomUUID()}`;
+    setActionError(null);
+    startVideoTransition(async () => {
+      const result = await startVideoGeneration({
+        projectId: projectForVideo,
+        modelId: activeVideoDraft.modelId,
+        prompt: brief,
+        settings: {
+          durationSeconds: activeVideoDraft.settings.durationSeconds,
+          resolution: activeVideoDraft.settings.resolution,
+          // Empty for an image-to-video model: its frame is the still's.
+          ...(activeVideoDraft.settings.aspectRatio
+            ? {
+                aspectRatio: activeVideoDraft.settings
+                  .aspectRatio as VideoAspectRatio,
+              }
+            : {}),
+        },
+        sourceAssetId: videoSource?.id ?? null,
+        sessionId: null,
+        idempotencyKey,
+      });
+      if (!result.ok) {
+        setActionError(
+          result.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
+            ? labels.errorInsufficientCredits
+            : result.message,
+        );
+        return;
+      }
+      setPrompt("");
+      await refresh();
+    });
+  }
+
   function errorMessage(code: StudioErrorCode | null) {
     switch (code) {
       case "session_expired":
@@ -543,46 +621,81 @@ export function ImageStudio({
 
   const dock = useSteadyDock(promptRef);
 
-  const composer = (
-    <StudioComposer
-      key={composerKey}
-      busy={pending}
-      catalog={catalog}
+  const modeSwitch = hasVideo ? (
+    <StudioModeSwitch
       labels={labels}
-      onApplyTemplate={applyTemplate}
-      onClearReferences={clearReferences}
-      onCopiesChange={() => {
-        setTemplateUndo(null);
-        setHasNewerSettings(true);
+      mode={mode}
+      onModeChange={(next) => {
+        setMode(next);
+        if (next === "image") setVideoSource(null);
       }}
-      onGenerate={handleGenerate}
-      onPromptChange={(value) => {
-        setTemplateUndo(null);
-        setPrompt(value);
-      }}
-      onTargetChange={(update) => {
-        setTemplateUndo(null);
-        setTarget(update);
-        setHasNewerSettings(true);
-      }}
-      parentAssetId={parentAssetId}
-      prompt={prompt}
-      promptRef={promptRef}
-      referenceAssets={checkedAssets}
-      target={target}
-      showTemplates={!showsNothing}
-      onUndoTemplate={
-        templateUndo
-          ? () => {
-              setPrompt(templateUndo.prompt);
-              setTarget(templateUndo.target);
-              setTemplateUndo(null);
-              promptRef.current?.focus();
-            }
-          : undefined
-      }
     />
-  );
+  ) : null;
+
+  const composer =
+    mode === "video" && activeVideoDraft ? (
+      <StudioVideoComposer
+        busy={videoBusy}
+        canGenerate={(videoSource?.projectId ?? activeProjectId) !== null}
+        catalog={catalog}
+        draft={activeVideoDraft}
+        labels={labels}
+        modeSwitch={modeSwitch}
+        onClearSource={() => {
+          setVideoSource(null);
+          setVideoDraft(null);
+        }}
+        onDraftChange={setVideoDraft}
+        onGenerate={handleGenerateVideo}
+        onPromptChange={(value) => {
+          setTemplateUndo(null);
+          setPrompt(value);
+        }}
+        prompt={prompt}
+        promptRef={promptRef}
+        source={videoSource}
+      />
+    ) : (
+      <StudioComposer
+        key={composerKey}
+        modeSwitch={modeSwitch}
+        busy={pending}
+        catalog={catalog}
+        labels={labels}
+        onApplyTemplate={applyTemplate}
+        onClearReferences={clearReferences}
+        onCopiesChange={() => {
+          setTemplateUndo(null);
+          setHasNewerSettings(true);
+        }}
+        onGenerate={handleGenerate}
+        onPromptChange={(value) => {
+          setTemplateUndo(null);
+          setPrompt(value);
+        }}
+        onTargetChange={(update) => {
+          setTemplateUndo(null);
+          setTarget(update);
+          setHasNewerSettings(true);
+        }}
+        parentAssetId={parentAssetId}
+        prompt={prompt}
+        promptRef={promptRef}
+        referenceAssets={checkedAssets}
+        target={target}
+        showTemplates={!showsNothing}
+        onUndoTemplate={
+          templateUndo
+            ? () => {
+                setPrompt(templateUndo.prompt);
+                setTarget(templateUndo.target);
+                setTemplateUndo(null);
+                promptRef.current?.focus();
+              }
+            : undefined
+        }
+      />
+    );
 
   return (
     <div
@@ -808,6 +921,9 @@ export function ImageStudio({
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
           labels={labels}
+          onAnimate={
+            videoModelsFor(catalog, "image").length > 0 ? animate : undefined
+          }
           onClose={() => setViewing(null)}
           onRegenerate={(asset) => repeat(asset, "asset")}
           onSchedule={canScheduleSocial ? scheduleAsset : undefined}

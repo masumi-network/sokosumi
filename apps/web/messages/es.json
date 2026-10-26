@@ -3230,6 +3230,18 @@
         "unknown": "Esta generación no se completó."
       },
       "failedDetails": "Lo que dijo el proveedor",
+      "studioMode": "Crear",
+      "modeImage": "Imagen",
+      "modeVideo": "Vídeo",
+      "videoComposerTitle": "Describe un vídeo",
+      "videoPromptPlaceholder": "Describe el vídeo que quieres…",
+      "generateVideo": "Generar vídeo",
+      "videoLength": "Duración",
+      "videoFollowsImage": "El vídeo mantiene el formato de la imagen.",
+      "videoNeedsProject": "Abre un proyecto para crear un vídeo en él.",
+      "animate": "Animar",
+      "animating": "Animando",
+      "stopAnimating": "Dejar de animar esta imagen",
       "runPlanCredits": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}, {credits, plural, one {# crédito} other {# créditos}}",
       "creditsEach": "{credits, plural, one {# crédito} other {# créditos}} x {count}",
       "creditsCount": "{count, plural, one {# crédito} other {# créditos}}",
@@ -8072,6 +8084,8 @@
           "read_file": "Leyendo un archivo",
           "generate_image": "Generando una imagen",
           "get_image": "Consultando una imagen",
+          "generate_video": "Generando un vídeo",
+          "get_video": "Consultando un vídeo",
           "preview_result": "Preparando una vista previa"
         },
         "composer": {
