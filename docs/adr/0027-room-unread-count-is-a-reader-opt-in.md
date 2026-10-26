@@ -35,7 +35,7 @@ reader switches it off.
 
 **Why not switch the mention badge to count messages:** the badge counts user
 mentions and direct messages, and a reader relies on it to tell a message
-aimed at them from general volume. `CONTEXT.md` lists using the mention badge
+aimed at them from general volume. `GLOSSARY.md` lists using the mention badge
 as the message unread count under *Avoid* for **Room unread**. The count is
 therefore a third field on `resolveRoomAttention` and separate text on the
 row, so both numbers can sit on one row with neither changing what the other
