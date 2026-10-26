@@ -29,6 +29,10 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
+import {
+  SOCIAL_POST_THREAD_MAX_PARTS,
+  summarizeSocialPostThread,
+} from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
@@ -85,6 +89,7 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
 ];
 
 const socialPostInclude = {
+  threadParts: { orderBy: { position: "asc" } },
   socialConnection: {
     select: {
       id: true,
@@ -137,6 +142,11 @@ export interface SocialPostSummary {
   text: string;
   firstComment: string | null;
   media: SocialPostMediaRef[];
+  threadParts: SocialPostThreadPartSummary[];
+  threadPartCount: number;
+  publishedThreadPartCount: number;
+  failedThreadPartPosition: number | null;
+  partiallyPublished: boolean;
   status: SocialPostStatus;
   scheduledAt: Date | null;
   timezone: string | null;
@@ -197,6 +207,21 @@ interface WorkspaceOwnerScope {
   organizationId: string | null;
 }
 
+export interface SocialPostThreadPartInput {
+  text: string;
+  media?: SocialPostMediaRef[];
+}
+
+interface SocialPostThreadPartSummary {
+  id: string;
+  position: number;
+  text: string;
+  media: SocialPostMediaRef[];
+  externalPostId: string | null;
+  publishedAt: Date | null;
+  error: string | null;
+}
+
 export interface CreateSocialPostInput
   extends ProjectScope,
     WorkspaceOwnerScope {
@@ -206,6 +231,7 @@ export interface CreateSocialPostInput
   text: string;
   firstComment?: string;
   media?: SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
   socialConnectionId?: string;
   scheduledAt?: Date;
   timezone?: string;
@@ -220,6 +246,7 @@ export interface UpdateSocialPostInput
   text?: string;
   firstComment?: string;
   media?: SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
   socialConnectionId?: string | null;
   revision: number;
 }
@@ -296,6 +323,21 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     text: record.text,
     firstComment: record.firstComment,
     media,
+    threadParts: record.threadParts.map((part) => ({
+      id: part.id,
+      position: part.position,
+      text: part.text,
+      media: parseSocialPostMedia(part.media, part.id),
+      externalPostId: part.externalPostId,
+      publishedAt: part.publishedAt,
+      error:
+        part.error ??
+        (record.status === "FAILED" &&
+        record.publishingThreadPartPosition === part.position
+          ? record.lastError
+          : null),
+    })),
+    ...summarizeSocialPostThread(record),
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -317,11 +359,15 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     revision: record.revision,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    canEdit: EDITABLE_STATUSES.includes(record.status),
-    canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
+    canEdit:
+      EDITABLE_STATUSES.includes(record.status) && !hasStartedThread(record),
+    canSchedule:
+      SCHEDULABLE_STATUSES.includes(record.status) &&
+      record.publishingThreadPartPosition == null,
     canCancel: CANCELABLE_STATUSES.includes(record.status),
     canPublishNow:
       PUBLISH_NOW_STATUSES.includes(record.status) &&
+      record.publishingThreadPartPosition == null &&
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
     canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
@@ -481,6 +527,60 @@ function normalizeSocialPostMedia(
 /** Prisma Json input wants a plain JSON value; refs are plain objects already. */
 function mediaJson(media: SocialPostMediaRef[]): Prisma.InputJsonValue {
   return media.map((ref) => ({ ...ref }));
+}
+
+function requireThreadPartsAllowed(provider: string, partCount: number): void {
+  if (partCount > 0 && provider !== "x") {
+    throw badRequest("Thread parts are only supported for X accounts");
+  }
+  if (partCount >= SOCIAL_POST_THREAD_MAX_PARTS) {
+    throw badRequest(
+      `Threads allow at most ${SOCIAL_POST_THREAD_MAX_PARTS} parts including the main post`,
+    );
+  }
+}
+
+function normalizeThreadParts(
+  input: Omit<NormalizeMediaInput, "media"> & {
+    threadParts: readonly SocialPostThreadPartInput[];
+  },
+): Prisma.SocialPostThreadPartCreateWithoutPostInput[] {
+  requireThreadPartsAllowed(input.provider, input.threadParts.length);
+  return input.threadParts.map((part, index) => {
+    const media = normalizeSocialPostMedia({
+      ...input,
+      media: part.media ?? [],
+    });
+    return {
+      position: index + 2,
+      text: requireTextWithinLimit(part.text, input.provider, media.length > 0),
+      media: mediaJson(media),
+    };
+  });
+}
+
+function requireStoredThreadParts(
+  post: SocialPostRecord,
+  provider: SocialPostProvider,
+): void {
+  requireThreadPartsAllowed(provider, post.threadParts.length);
+  for (const part of post.threadParts) {
+    const media = parseSocialPostMedia(part.media, part.id);
+    requireTextWithinLimit(part.text, provider, media.length > 0);
+    const validation = validateSocialPostMedia(provider, media);
+    if (!validation.ok) {
+      throw badRequest(mediaValidationMessage(provider, validation.reason));
+    }
+  }
+}
+
+function hasStartedThread(post: SocialPostRecord): boolean {
+  return (
+    post.threadParts.length > 0 &&
+    (post.publishedExternalId !== null ||
+      post.publishingThreadPartPosition != null ||
+      post.threadParts.some((part) => part.externalPostId !== null))
+  );
 }
 
 function requireFutureScheduledAt(scheduledAt: Date): void {
@@ -683,6 +783,11 @@ export async function createSocialPost(
     input.firstComment,
     provider,
   );
+  const threadParts = normalizeThreadParts({
+    ...input,
+    provider,
+    threadParts: input.threadParts ?? [],
+  });
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
@@ -698,6 +803,9 @@ export async function createSocialPost(
       text,
       firstComment,
       media: mediaJson(media),
+      ...(threadParts.length > 0
+        ? { threadParts: { create: threadParts } }
+        : {}),
       status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
@@ -728,6 +836,9 @@ export async function updateSocialPost(
     await requireLockedOpenProject(tx, input, {
       closedMessage: PROJECT_CLOSED_MESSAGE,
     });
+  }
+  if (hasStartedThread(post)) {
+    throw conflict("A thread cannot be edited after publishing has started");
   }
   if (!EDITABLE_STATUSES.includes(post.status)) {
     throw conflict(
@@ -822,9 +933,28 @@ export async function updateSocialPost(
     );
   }
 
-  return mapSocialPost(
-    await writeWithRevision(input, input.revision, data, tx),
-  );
+  const threadParts =
+    input.threadParts !== undefined
+      ? normalizeThreadParts({
+          ...input,
+          provider,
+          threadParts: input.threadParts,
+        })
+      : undefined;
+  if (threadParts === undefined) requireStoredThreadParts(post, provider);
+
+  const updated = await writeWithRevision(input, input.revision, data, tx);
+  if (threadParts !== undefined) {
+    return mapSocialPost(
+      await tx.socialPost.update({
+        where: { id: post.id },
+        data: { threadParts: { deleteMany: {}, create: threadParts } },
+        include: socialPostInclude,
+      }),
+    );
+  }
+
+  return mapSocialPost(updated);
 }
 
 export async function scheduleSocialPost(
@@ -846,6 +976,20 @@ export async function scheduleSocialPost(
   }
   requireRevision(post, input.revision);
   requireFutureScheduledAt(input.scheduledAt);
+  if (post.publishingThreadPartPosition != null) {
+    throw conflict(
+      `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
+    );
+  }
+  if (
+    hasStartedThread(post) &&
+    input.socialConnectionId &&
+    input.socialConnectionId !== post.socialConnectionId
+  ) {
+    throw conflict(
+      "A partially published thread must keep its original X account",
+    );
+  }
   const media = parseSocialPostMedia(post.media, post.id);
   const currentProvider = requireProvider(post.provider);
   const connection = await requireActiveProjectConnection(
@@ -854,6 +998,7 @@ export async function scheduleSocialPost(
     tx,
   );
   const provider = requireProvider(connection.provider);
+  requireStoredThreadParts(post, provider);
   const validation = validateSocialPostMedia(provider, media);
   if (!validation.ok) {
     throw badRequest(mediaValidationMessage(provider, validation.reason));
@@ -1005,6 +1150,14 @@ export async function duplicateSocialPost(
     media: parseSocialPostMedia(source.media, source.id),
   });
   const text = requireTextWithinLimit(source.text, provider, media.length > 0);
+  const threadParts = normalizeThreadParts({
+    ...input,
+    provider,
+    threadParts: source.threadParts.map((part) => ({
+      text: part.text,
+      media: parseSocialPostMedia(part.media, part.id),
+    })),
+  });
   requireMediaRequirement(provider, media);
   const socialConnectionId =
     source.socialConnection && source.socialConnection.status !== "disconnected"
@@ -1020,7 +1173,10 @@ export async function duplicateSocialPost(
       text,
       firstComment: source.firstComment,
       media: mediaJson(media),
-      status: "DRAFT",
+      ...(threadParts.length > 0
+        ? { threadParts: { create: threadParts } }
+        : {}),
+      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },

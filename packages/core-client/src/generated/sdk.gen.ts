@@ -3856,7 +3856,7 @@ export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends b
 });
 
 /**
- * Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.
+ * Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.
  */
 export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdDuplicateData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,

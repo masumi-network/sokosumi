@@ -68,6 +68,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         text: input.text,
         firstComment: input.firstComment,
         media: input.media,
+        threadParts: input.threadParts,
         socialConnectionId: input.socialConnectionId,
         scheduledAt: input.scheduledAt
           ? new Date(input.scheduledAt)

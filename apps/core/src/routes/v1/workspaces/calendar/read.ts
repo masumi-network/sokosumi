@@ -13,6 +13,7 @@ import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
+import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -568,6 +569,13 @@ export async function readWorkspaceCalendar(
             text: true,
             status: true,
             revision: true,
+            publishedExternalId: true,
+            publishingThreadPartPosition: true,
+            lastError: true,
+            threadParts: {
+              orderBy: { position: "asc" },
+              select: { position: true, externalPostId: true, error: true },
+            },
             scheduledAt: true,
             projectId: true,
             workspaceId: true,
@@ -597,6 +605,7 @@ export async function readWorkspaceCalendar(
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
+      ...summarizeSocialPostThread(post),
       provider: post.provider,
       text: post.text,
       status: post.status,

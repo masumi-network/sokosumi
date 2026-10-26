@@ -21759,6 +21759,26 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         provider: {
             type: 'string',
             enum: [
@@ -21900,6 +21920,10 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'provider',
         'text',
         'status',
@@ -24917,6 +24941,32 @@ export const SocialPostSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             }
         },
+        threadParts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostThreadPart'
+            }
+        },
+        threadPartCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Total posts including the main text/media (1 for a single post).'
+        },
+        publishedThreadPartCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        failedThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1
+        },
+        partiallyPublished: {
+            type: 'boolean',
+            description: 'Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.'
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -25071,6 +25121,11 @@ export const SocialPostSchema = {
         'text',
         'firstComment',
         'media',
+        'threadParts',
+        'threadPartCount',
+        'publishedThreadPartCount',
+        'failedThreadPartPosition',
+        'partiallyPublished',
         'status',
         'scheduledAt',
         'timezone',
@@ -25147,6 +25202,59 @@ export const SocialPostMediaRefSchema = {
         'size',
         'mimeType',
         'kind'
+    ]
+} as const;
+
+export const SocialPostThreadPartSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer',
+            minimum: 2,
+            maximum: 25
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
+        externalPostId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'position',
+        'text',
+        'media',
+        'externalPostId',
+        'publishedAt',
+        'error'
     ]
 } as const;
 
@@ -25378,7 +25486,8 @@ export const CreateSocialPostRequestSchema = {
         firstComment: {
             type: 'string',
             maxLength: 10000,
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -25387,6 +25496,32 @@ export const CreateSocialPostRequestSchema = {
             },
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        maxLength: 63206,
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -25473,7 +25608,8 @@ export const UpdateSocialPostRequestSchema = {
         firstComment: {
             type: 'string',
             maxLength: 10000,
-            example: '#launch'
+            example: '#launch',
+            description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
         media: {
             type: 'array',
@@ -25482,6 +25618,32 @@ export const UpdateSocialPostRequestSchema = {
             },
             maxItems: 4,
             description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+        },
+        threadParts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string',
+                        maxLength: 63206,
+                        example: 'Shipping the new Calendar today.'
+                    },
+                    media: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/SocialPostMediaRef'
+                        },
+                        maxItems: 4,
+                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                    }
+                },
+                required: [
+                    'text'
+                ]
+            },
+            maxItems: 24,
+            description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
         },
         socialConnectionId: {
             type: [

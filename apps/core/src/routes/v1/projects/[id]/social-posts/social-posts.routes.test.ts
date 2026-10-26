@@ -142,6 +142,11 @@ const draftPost = {
   text: "Hello world",
   firstComment: null,
   media: [],
+  threadParts: [],
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,
@@ -373,6 +378,98 @@ describe("Project social post routes", () => {
 
     expect(response.status).toBe(403);
     expectNoServiceCalls();
+  });
+
+  it("passes ordered thread parts through create and update", async () => {
+    const threadParts = [{ text: "Second", media: [] }, { text: "Third" }];
+    const app = createApp();
+    const created = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Head", threadParts }),
+      },
+    );
+    const updated = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadParts, revision: 0 }),
+      },
+    );
+    expect(created.status).toBe(201);
+    expect(updated.status).toBe(200);
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ threadParts }),
+    );
+    expect(updateSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ threadParts }),
+    );
+  });
+
+  it("reads thread parts, dates, and partial progress", async () => {
+    const threadParts = [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        position: 2,
+        text: "Second",
+        media: [],
+        externalPostId: "1908",
+        publishedAt: new Date(SCHEDULED_AT),
+        error: null,
+      },
+      {
+        id: "66666666-6666-4666-8666-666666666666",
+        position: 3,
+        text: "Third",
+        media: [],
+        externalPostId: null,
+        publishedAt: null,
+        error: "Thread part 3 failed",
+      },
+    ];
+    getSocialPostMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "FAILED",
+      publishedExternalId: "1907",
+      threadParts,
+      threadPartCount: 3,
+      publishedThreadPartCount: 2,
+      failedThreadPartPosition: 3,
+      partiallyPublished: true,
+    });
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({
+      threadParts: [
+        { ...threadParts[0], publishedAt: SCHEDULED_AT },
+        threadParts[1],
+      ],
+      threadPartCount: 3,
+      publishedThreadPartCount: 2,
+      failedThreadPartPosition: 3,
+      partiallyPublished: true,
+    });
+  });
+
+  it("rejects more than 25 total parts at the request boundary", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Head",
+          threadParts: Array.from({ length: 25 }, () => ({ text: "Part" })),
+        }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(createSocialPostMock).not.toHaveBeenCalled();
   });
 
   it("lists posts for the Project with an optional status filter", async () => {

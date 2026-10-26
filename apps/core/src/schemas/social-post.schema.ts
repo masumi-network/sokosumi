@@ -8,6 +8,7 @@ import {
   type SocialPostProvider,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SOCIAL_POST_THREAD_MAX_PARTS } from "@/helpers/social-post-thread";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -62,7 +63,11 @@ const socialPostFirstCommentSchema = z
   .string()
   .trim()
   .max(SOCIAL_POST_FIRST_COMMENT_MAX)
-  .openapi({ example: "#launch" });
+  .openapi({
+    example: "#launch",
+    description:
+      "Posted after publishing succeeds. For X threads, replies to the last thread part.",
+  });
 
 export const socialPostMediaRefSchema = z
   .object({
@@ -80,6 +85,44 @@ const socialPostMediaRequestSchema = z
     description:
       "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
   });
+
+const socialPostThreadPartRequestSchema = z.object({
+  text: socialPostTextSchema,
+  media: socialPostMediaRequestSchema.optional(),
+});
+
+const socialPostThreadPartsRequestSchema = z
+  .array(socialPostThreadPartRequestSchema)
+  .max(SOCIAL_POST_THREAD_MAX_PARTS - 1)
+  .openapi({
+    description:
+      "Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post's text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.",
+  });
+
+export const socialPostThreadPartSchema = z
+  .object({
+    id: z.uuid(),
+    position: z.number().int().min(2).max(SOCIAL_POST_THREAD_MAX_PARTS),
+    text: z.string(),
+    media: z.array(socialPostMediaRefSchema),
+    externalPostId: z.string().nullable(),
+    publishedAt: dateTimeSchema.nullable(),
+    error: z.string().nullable(),
+  })
+  .openapi("SocialPostThreadPart");
+
+export const socialPostThreadSummaryShape = {
+  threadPartCount: z.number().int().min(1).openapi({
+    description:
+      "Total posts including the main text/media (1 for a single post).",
+  }),
+  publishedThreadPartCount: z.number().int().min(0),
+  failedThreadPartPosition: z.number().int().min(1).nullable(),
+  partiallyPublished: z.boolean().openapi({
+    description:
+      "Some but not all thread parts have confirmed X ids. Terminal failures retain FAILED; retry resumes unpublished parts.",
+  }),
+};
 
 const socialPostTimezoneSchema = z
   .string()
@@ -146,6 +189,8 @@ export const socialPostSchema = z
     text: z.string(),
     firstComment: z.string().nullable(),
     media: z.array(socialPostMediaRefSchema),
+    threadParts: z.array(socialPostThreadPartSchema),
+    ...socialPostThreadSummaryShape,
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
     timezone: z.string().nullable().openapi({ example: "Europe/Zurich" }),
@@ -200,6 +245,7 @@ export const createSocialPostRequestSchema = z
     text: socialPostTextSchema,
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
+    threadParts: socialPostThreadPartsRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
     timezone: socialPostTimezoneSchema.optional(),
@@ -214,6 +260,7 @@ export const updateSocialPostRequestSchema = z
     text: socialPostTextSchema.optional(),
     firstComment: socialPostFirstCommentSchema.optional(),
     media: socialPostMediaRequestSchema.optional(),
+    threadParts: socialPostThreadPartsRequestSchema.optional(),
     socialConnectionId: z.string().uuid().nullable().optional(),
     revision: socialPostRevisionSchema,
   })

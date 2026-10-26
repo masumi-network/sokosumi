@@ -3214,6 +3214,13 @@ export const getProjectsByIdAdsMarketAdsResponseTransformer = async (data: any):
     return data;
 };
 
+const socialPostThreadPartSchemaResponseTransformer = (data: any) => {
+    if (data.publishedAt) {
+        data.publishedAt = new Date(data.publishedAt);
+    }
+    return data;
+};
+
 const socialPostStatisticsSchemaResponseTransformer = (data: any) => {
     if (data.fetchedAt) {
         data.fetchedAt = new Date(data.fetchedAt);
@@ -3232,6 +3239,7 @@ const socialPostLastAttemptSchemaResponseTransformer = (data: any) => {
 };
 
 const socialPostSchemaResponseTransformer = (data: any) => {
+    data.threadParts = data.threadParts.map((item: any) => socialPostThreadPartSchemaResponseTransformer(item));
     if (data.scheduledAt) {
         data.scheduledAt = new Date(data.scheduledAt);
     }
