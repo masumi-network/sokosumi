@@ -243,6 +243,7 @@ import SwiftUI
       // Seen by rides the newest row only; asked once per pass.
       let readReceipts = workspaces.roomReadReceipts
       let newestMessageId = messages.last?.id
+      let unreadDividerId = workspaces.openRoom.room.unreadDividerRowId(in: messages)
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
@@ -268,7 +269,7 @@ import SwiftUI
             )
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let row = workspaces.openRoom.room.row(at: index, of: messages, context: rowContext, streamBusy: workspaces.openRoom.directStream.isBusy,
-                                                     newestId: newestMessageId, now: Date())
+                                                     newestId: newestMessageId, unreadDividerId: unreadDividerId, now: Date())
               // Unary row: a top-level if (day pill) plus the bubble made the
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
@@ -284,7 +285,9 @@ import SwiftUI
                     }
                   }
                 }
-                if let label = row.dayLabel {
+                if row.startsUnread {
+                  UnreadDividerRow(dayLabel: row.dayLabel)
+                } else if let label = row.dayLabel {
                   DaySeparatorRow(label: label)
                 }
                 switch row.content {
@@ -317,7 +320,7 @@ import SwiftUI
               }
               .background {
                 // Where the first rows sit in the viewport, so an older page landing above them can leave them there.
-                if index < 2 || message.id == firstRows.landingAnchor {
+                if index < 2 || message.id == firstRows.landingAnchor || row.startsUnread {
                   Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { frame in
                     firstRows.record(index, id: message.id, frame: frame)
                   }
@@ -347,6 +350,12 @@ import SwiftUI
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
           guard workspaces.openRoom.room.timeline.historicalAnchor == nil, scrollTarget == nil else { return }
+          // Spec SOK-1481: a room with Room unread opens at its Unread divider, unless an explicit target took it.
+          if workspaces.openRoom.room.placesUnreadDivider, let unreadDividerId {
+            placeUnreadDivider(unreadDividerId)
+            workspaces.openRoom.room.unreadDividerPlaced()
+            return
+          }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
         }
         .scrollPosition($scrollPosition)
@@ -464,6 +473,22 @@ import SwiftUI
         defer { firstRows.landingAnchor = nil }
         guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
               let offset = firstRows.settledOffset(for: placement.id, was: placement.minY) else { return }
+        scrollPosition.scrollTo(y: offset)
+      }
+    }
+
+    /// Puts the Unread divider's row a third of the way down the viewport, read messages above it. The anchor's fraction
+    /// leaves a tall row higher, so once it has settled the list moves it the rest of the way, as an older page's
+    /// landing does.
+    private func placeUnreadDivider(_ id: String) {
+      scroll.readOlder()
+      firstRows.landingAnchor = id
+      firstRows.forgetAnchorFrame()
+      scrollPosition.scrollTo(id: id, anchor: UnitPoint(x: 0, y: 1.0 / 3))
+      Task { @MainActor in
+        defer { firstRows.landingAnchor = nil }
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
+              let offset = firstRows.settledOffset(for: id, was: firstRows.viewport.topInset + firstRows.viewport.height / 3) else { return }
         scrollPosition.scrollTo(y: offset)
       }
     }

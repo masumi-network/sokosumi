@@ -5137,3 +5137,28 @@ Review follow-up, after #6431 merged (squash `7951fdf18`), taken from Cursor's d
 - The legal footer wraps, centered, through `WrappingRow`'s new `centersRows`, so it fits the 420pt minimum window. `theLegalFooterFitsTheMinimumWindow` checks that each link is inside the window and none overlap.
 
 Not taken from #6432: its tests, which did not compile (calls on `NSObject` in its Apple CI run); a test comparing color constants with themselves; and a Larger Text test, since macOS ignored `dynamicTypeSize` set from the environment in a harness render. Verified the same way as above: the harness rendered every state in light and dark and at 420pt. Tests and lint run in CI only.
+
+## 04b — a room opens at its Unread divider (SOK-1486)
+
+Built from spec SOK-1481's acceptance list, not from web's code. Core's part is SOK-1482 (`openAtUnread` and `meta.pagination.firstUnreadMessageId` on `GET /chats/rooms/{id}/messages`); Apple's `openapi.json` already carried that operation. The read-at-the-end rule is SOK-1484's.
+
+### Behaviour
+
+- `RoomTimeline.reset(..., opensAtUnread:)`: a room's first page asks for `openAtUnread=true`; a Thread never does. The first page's `firstUnreadMessageId` is the visit's divider. Later pages, read responses and realtime never change it; opening a room again asks afresh.
+- Core answers either the newest page or, for an older divider, a window of up to 33 rows. `listRoomMessages` tells them apart by size: `firstUnread != nil && count < min(total, limit)`. A window fetches the plain newest page in the same load, and both land together, the window as a page of the past, so the gap row (04a) joins them and no history anchor is set. Jump to latest then only scrolls.
+- `TranscriptSession.placesUnreadDivider` is set when that first page lands with a divider. The list's mount task puts the divider's row at a third of the viewport (`UnitPoint(y: 1/3)`, then the settle correction older pages use) and stops following the latest message. A jump or covered mark replaces a placement still waiting.
+- A Message link or notification (`openRoomLink` with a message) selects the room with `atUnreadDivider: false`: the plain newest page, the target lands, and the divider draws when its message is loaded.
+- `unreadDividerRowId(in:)`: the divider sits above its message, or, once that message is a tombstone the list leaves out, above the next loaded message after it; with none, it goes. Edits change nothing.
+- Look: `UnreadDividerRow`, a 1 pt accent hairline with a trailing "New" in the accent, no count; a day pill above the same message sits on the line. VoiceOver reads a separator: SwiftUI has no separator role, so an `NSViewRepresentable` reports AppKit's splitter named "New messages". Both strings are in `ChatUnreadDivider.xcstrings` (en, de, es).
+
+### Tests
+
+- `UnreadDividerTests` (SokosumiChat, transcript-session level): the open-at-unread request and divider on the newest page; an older divider's window joined to the newest page through the gap row with Jump to latest; the divider fixed across a realtime arrival, an own post, an edit and a later page naming none; deletion moving it, then removing it; a new visit asking afresh; explicit targets winning; an unloaded divider message drawing nothing; no Room unread; a Thread never asking.
+- `WorkspaceStateTests`: a sidebar pick sends `openAtUnread=true`; a chat link does not.
+- `NativeWindowTests/UnreadDividerPlacementTests`: 100 tall rows, divider on message 60; the separator settles between 25 % and 42 % of the visible height, with read rows above. The window ignores the mouse and rows hold their hover chrome (`withoutRowHover`). The render is attached to the result.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1346 tests in 151 suites) and `Packages/SokosumiWorkspace` (205 tests in 4 suites) passed; `xcodebuild test … -only-testing` for `UnreadDividerPlacementTests` (3 iterations), `TranscriptScrollingTests` and `RoomOlderPageTests` (3 iterations) passed; `swift build --package-path Packages/SokosumiChat --triple arm64-apple-ios17.0` built; SwiftFormat and strict SwiftLint clean. The full app suite was not run.
+
+Unverified: the running app against a real Core, the day pill sharing the divider's row on screen, dark appearance, and VoiceOver itself.

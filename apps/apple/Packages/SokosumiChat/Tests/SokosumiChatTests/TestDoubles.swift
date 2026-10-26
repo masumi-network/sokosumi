@@ -51,10 +51,13 @@ func testCreatedMessageBody(
   """
 }
 
-func testMessagesPageBody(messages: [String], nextCursor: String?) -> String {
+/// `total` is the room's message count (the page's own by default); `firstUnreadMessageId` is sent when given,
+/// `.some(nil)` sending null.
+func testMessagesPageBody(messages: [String], nextCursor: String?, total: Int? = nil, firstUnreadMessageId: String?? = .none) -> String {
   let cursorJSON = nextCursor.map { "\"\($0)\"" } ?? "null"
+  let firstUnreadJSON = firstUnreadMessageId.map { id in ",\"firstUnreadMessageId\":" + (id.map { "\"\($0)\"" } ?? "null") } ?? ""
   return """
-  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(testTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":\(cursorJSON)}}}
+  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(testTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(total ?? messages.count),"nextCursor":\(cursorJSON)\(firstUnreadJSON)}}}
   """
 }
 

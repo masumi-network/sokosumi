@@ -46,6 +46,8 @@ public final class TranscriptSession: ObservableObject {
   static let signInMissing = "Sign-in is not configured."
 
   @Published public private(set) var jumpTarget: JumpTarget?
+  /// The room opened at its Unread divider and the list has not placed it yet. An explicit target replaces it.
+  @Published public private(set) var placesUnreadDivider = false
   public let timeline = RoomTimeline()
   public let outbox: RoomOutbox
   public let recovery: ChatRefreshScheduler
@@ -77,9 +79,10 @@ public final class TranscriptSession: ObservableObject {
     displayedTranscript(messages: timeline.messages, shells: outbox.shells)
   }
 
-  public func open(roomId: String, parentMessageId: String? = nil) {
+  /// `atUnreadDivider` opens a room's main Transcript through Core's open-at-unread mode; a Thread never does.
+  public func open(roomId: String, parentMessageId: String? = nil, atUnreadDivider: Bool = false) {
     stop()
-    timeline.reset(roomId: roomId, parentMessageId: parentMessageId)
+    timeline.reset(roomId: roomId, parentMessageId: parentMessageId, opensAtUnread: atUnreadDivider)
   }
 
   public func close() {
@@ -91,6 +94,7 @@ public final class TranscriptSession: ObservableObject {
   /// once, in `open` or `close`, so it never publishes an empty scope between two rooms.
   private func stop() {
     clearJump()
+    unreadDividerPlaced()
     loadTask?.cancel()
     loadTask = nil
     gapTask?.cancel()
@@ -101,6 +105,7 @@ public final class TranscriptSession: ObservableObject {
 
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
+    unreadDividerPlaced()
     // RoomTools is already waiting in `jump(to:)` when the room view's messageJump task requests this same row.
     // Replacing that request would answer false before the list lands.
     if let current = jumpTarget, landing != nil, current.messageId == messageId, !current.hasLanded, !current.isCovered {
@@ -112,6 +117,7 @@ public final class TranscriptSession: ObservableObject {
   /// Marks a row something covers now, on this Transcript's clock, so its hold runs under the cover (web's `landOn`).
   public func markCovered(_ messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
+    unreadDividerPlaced()
     replaceJump(with: JumpTarget(messageId: messageId, mark: JumpMark(messageId: messageId, landedAt: now()), isCovered: true))
   }
 
@@ -123,6 +129,22 @@ public final class TranscriptSession: ObservableObject {
     // A second wait on this same row takes the answer; the request above kept the target.
     finishLanding(false)
     return await withCheckedContinuation { landing = $0 }
+  }
+
+  /// The list placed the Unread divider, or something else took the opening.
+  public func unreadDividerPlaced() {
+    if placesUnreadDivider {
+      placesUnreadDivider = false
+    }
+  }
+
+  /// The row of `messages` the Unread divider sits above: its message, or once that is deleted the next loaded one
+  /// after it. Nil with no divider, or while its message is not loaded.
+  public func unreadDividerRowId(in messages: [Message]) -> String? {
+    // A deleted message stays in the history as a tombstone, which the list leaves out.
+    guard let id = timeline.unreadDividerMessageId, let index = timeline.messages.firstIndex(where: { $0.id == id }) else { return nil }
+    let shown = Set(messages.map(\.id))
+    return timeline.messages[index...].first { shown.contains($0.id) }?.id
   }
 
   /// Start the hold only after the view has issued the scroll to the prepared row. A late acknowledgement
@@ -271,6 +293,9 @@ public final class TranscriptSession: ObservableObject {
     do {
       guard try await timeline.loadPage(page, client: access.client, organizationSlug: access.organizationSlug, generation: generation) else {
         return false
+      }
+      if page == .initial, timeline.opensAtUnread, timeline.unreadDividerMessageId != nil, jumpTarget == nil {
+        placesUnreadDivider = true
       }
       await hooks.pageLanded(page)
       return timeline.generation == generation && !Task.isCancelled
