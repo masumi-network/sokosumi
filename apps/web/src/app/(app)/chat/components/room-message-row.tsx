@@ -151,6 +151,7 @@ import {
   type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
+  ROOM_QUOTE_CLAMP_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
   senderProfile,
@@ -442,7 +443,7 @@ function MessageQuoteBlock({
             ref={contentRef}
             className={cn(
               "text-muted-foreground text-xs leading-5",
-              expanded ? null : "line-clamp-4",
+              expanded ? null : ROOM_QUOTE_CLAMP_CLASSNAME,
             )}
           >
             <RoomMessageMarkdown

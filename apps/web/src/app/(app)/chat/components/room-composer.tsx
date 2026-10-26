@@ -87,6 +87,7 @@ import {
   isRoomComposerContentOverLimit,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
+  ROOM_QUOTE_CLAMP_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
 } from "./room-helpers";
@@ -222,7 +223,12 @@ function PendingQuotePreview({
             />
           ) : null}
           {quote.snippet.trim() ? (
-            <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
+            <div
+              className={cn(
+                "text-muted-foreground min-w-0 flex-1 text-xs leading-5",
+                ROOM_QUOTE_CLAMP_CLASSNAME,
+              )}
+            >
               <RoomMessageMarkdown
                 content={quote.snippet}
                 markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
