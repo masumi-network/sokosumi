@@ -58,6 +58,7 @@ const recycled = {
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
   partiallyPublished: false,
+  publishingThreadPartPosition: null,
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,

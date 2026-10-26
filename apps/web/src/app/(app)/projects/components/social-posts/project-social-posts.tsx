@@ -75,9 +75,12 @@ import {
 } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   duplicateProjectSocialPost,
   publishProjectSocialPost,
+  resumeProjectSocialPostThread,
+  updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import {
@@ -102,8 +105,14 @@ import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { SocialPostPreviewFailure } from "./social-post-preview-failure";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import {
+  SocialPostQuoteBadge,
+  socialPostQuoteAttentionCopy,
+} from "./social-post-quote";
 import { SocialPostStatistics } from "./social-post-statistics";
+import { SocialPostThreadBadge } from "./social-post-thread-badge";
 import { getSocialReconnections } from "./social-reconnection";
 
 interface ProjectSocialPostsProps {
@@ -347,6 +356,9 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [actionPendingPostId, setActionPendingPostId] = useState<string | null>(
+    null,
+  );
   const [duplicatePending, setDuplicatePending] = useState(false);
   const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
     new Set(),
@@ -526,6 +538,13 @@ export function ProjectSocialPosts({
       toast.error(t("toasts.timeout"));
       return;
     }
+    if (error.status === 409) {
+      toast.error(error.message || t("toasts.failed"), {
+        duration: Infinity,
+        closeButton: true,
+      });
+      return;
+    }
     toast.error(error.message || t("toasts.failed"));
   }
 
@@ -555,6 +574,7 @@ export function ProjectSocialPosts({
   }
 
   function handleSaved(post: SocialPost): void {
+    setPreviewTarget((current) => (current?.id === post.id ? post : current));
     setPosts((current) => upsertPost(current, post));
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
@@ -644,8 +664,10 @@ export function ProjectSocialPosts({
     }
   }
 
-  async function handleConfirmPublish(): Promise<void> {
-    const target = publishTarget;
+  async function handleConfirmPublish(
+    confirmedTarget?: SocialPost,
+  ): Promise<void> {
+    const target = confirmedTarget ?? publishTarget;
     if (!target || publishPending) return;
     setPublishPending(true);
     try {
@@ -767,6 +789,73 @@ export function ProjectSocialPosts({
     if (sawConflict) router.refresh();
   }
 
+  async function handleApprove(post: SocialPost): Promise<void> {
+    if (actionPendingPostId) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await approveProjectSocialPost({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.approved"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
+  async function handleResume(post: SocialPost): Promise<void> {
+    if (actionPendingPostId || publishPending) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await resumeProjectSocialPostThread({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+        confirmedNotPosted: true,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      await handleConfirmPublish(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
+  async function handleRemoveQuote(post: SocialPost): Promise<void> {
+    setActionPendingPostId(post.id);
+    try {
+      const result = await updateProjectSocialPost({
+        projectId,
+        postId: post.id,
+        quotedPostId: null,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.updated"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
   function renderPostActions(post: SocialPost, preview = false) {
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
@@ -785,9 +874,35 @@ export function ProjectSocialPosts({
     const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
-        className="ms-auto flex items-center gap-2"
+        className="ms-auto flex flex-wrap items-center gap-2"
         data-testid={preview ? `social-post-${post.id}` : undefined}
       >
+        {post.needsAttentionReason && post.canEdit ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-h-11 whitespace-normal md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              onClick={() => {
+                if (preview) setPreviewOpen(false);
+                setComposer({ kind: "edit", post, chooseQuote: true });
+              }}
+            >
+              {t("quote.change")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              loading={actionPendingPostId === post.id}
+              onClick={() => void handleRemoveQuote(post)}
+            >
+              {t("quote.remove")}
+            </Button>
+          </>
+        ) : null}
         {!preview ? (
           <Button
             type="button"
@@ -804,6 +919,32 @@ export function ProjectSocialPosts({
             <Eye className="size-4" aria-hidden />
           </Button>
         ) : null}
+        {post.canApprove ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="min-h-11 md:min-h-10"
+            disabled={Boolean(actionPendingPostId)}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleApprove(post)}
+          >
+            {t("actions.approve")}
+          </Button>
+        ) : null}
+        {preview &&
+        post.status === "FAILED" &&
+        post.publishingThreadPartPosition != null ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="h-auto min-h-11 whitespace-normal md:min-h-10"
+            disabled={Boolean(actionPendingPostId) || publishPending}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleResume(post)}
+          >
+            {t("thread.confirmNotPosted")}
+          </Button>
+        ) : null}
         {canRetry ? (
           <Button
             type="button"
@@ -816,7 +957,7 @@ export function ProjectSocialPosts({
             }}
           >
             <RotateCcw className="size-4" aria-hidden />
-            {t("actions.retry")}
+            {t(post.threadPartCount > 1 ? "thread.retry" : "actions.retry")}
           </Button>
         ) : null}
         {hasMenu ? (
@@ -900,6 +1041,8 @@ export function ProjectSocialPosts({
     publishTarget && RETRY_STATUSES.includes(publishTarget.status)
       ? "retryDialog"
       : "publishDialog";
+  const isThreadRetry =
+    publishCopy === "retryDialog" && (publishTarget?.threadPartCount ?? 1) > 1;
   const cancelCopy =
     cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
       ? "dismissDialog"
@@ -954,18 +1097,26 @@ export function ProjectSocialPosts({
           account={previewAccountFor(post, connections)}
           compact
           media={post.media}
+          quotedPost={post.quotedPost}
           onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
           timestamp={null}
         />
-        {post.status === "PUBLISHING" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <SocialPostThreadBadge count={post.threadPartCount} />
+          <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
+        </div>
+        {post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL" ? (
           <SocialPostStatusBadge
-            label={t("status.PUBLISHING")}
+            label={t(`status.${post.status}`)}
             status={post.status}
           />
         ) : null}
         {renderReconnectWarning(post)}
+        {post.needsAttentionReason ? (
+          <SocialPostPreviewFailure post={post} />
+        ) : null}
         <div className="mt-auto">{renderPostActions(post)}</div>
       </li>
     );
@@ -983,8 +1134,9 @@ export function ProjectSocialPosts({
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const leadingAt =
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
-    const failureReason =
-      post.status === "FAILED" || post.status === "MISSED"
+    const failureReason = post.needsAttentionReason
+      ? socialPostQuoteAttentionCopy(post.needsAttentionReason, t)
+      : post.status === "FAILED" || post.status === "MISSED"
         ? publishFailureCopy(post, t)
         : null;
 
@@ -1032,9 +1184,16 @@ export function ProjectSocialPosts({
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
+            <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
             <SocialPostStatusBadge
               className="order-first"
-              label={t(`status.${post.status}`)}
+              label={t(
+                post.partiallyPublished
+                  ? "thread.partlyPosted"
+                  : `status.${post.status}`,
+              )}
+              partiallyPublished={post.partiallyPublished}
               status={post.status}
             />
           </p>
@@ -1081,7 +1240,9 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {(post.status === "FAILED" || post.status === "MISSED") &&
+          {(post.needsAttentionReason ||
+            post.status === "FAILED" ||
+            post.status === "MISSED") &&
           (failureReason || failedAt) ? (
             <div className="space-y-0.5 text-xs">
               {failureReason ? (
@@ -1556,9 +1717,15 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.title`)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t(`${publishCopy}.description`)}
+              {t(
+                isThreadRetry
+                  ? "thread.retryDescription"
+                  : `${publishCopy}.description`,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1572,7 +1739,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t(`${publishCopy}.confirm`)}
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

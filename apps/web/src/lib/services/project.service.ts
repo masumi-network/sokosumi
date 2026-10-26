@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  ApproveSocialPostRequest,
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
@@ -19,6 +20,7 @@ import type {
   ProjectStatsEntry,
   PublishSocialPostRequest,
   RecycleSocialAccountPostRequest,
+  ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   SocialPostStatus,
@@ -295,12 +297,18 @@ export const projectService = (() => {
     params: {
       statuses?: readonly SocialPostStatus[];
       cursor?: string | null;
+      quoteCandidates?: boolean;
+      excludePostId?: string;
+      search?: string;
     } = {},
   ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
     const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
       status: params.statuses?.join(","),
       cursor: params.cursor ?? undefined,
       limit: 20,
+      ...(params.quoteCandidates ? { quoteCandidates: "true" } : {}),
+      ...(params.excludePostId ? { excludePostId: params.excludePostId } : {}),
+      ...(params.search ? { search: params.search } : {}),
     });
     return {
       posts: result.data,
@@ -493,6 +501,33 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function approveSocialPost(
+    projectId: string,
+    postId: string,
+    input: ApproveSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdApprove(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function resumeSocialPostThread(
+    projectId: string,
+    postId: string,
+    input: ResumeSocialPostThreadRequest,
+  ): Promise<SocialPost> {
+    const result =
+      await coreClient.postProjectsByIdSocialPostsByPostIdThreadResume(
+        projectId,
+        postId,
+        input,
+      );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -619,6 +654,8 @@ export const projectService = (() => {
     duplicateSocialPost,
     recycleSocialAccountPost,
     publishSocialPost,
+    approveSocialPost,
+    resumeSocialPostThread,
     listProjectJobs,
     listProjectTasks,
     addJob,

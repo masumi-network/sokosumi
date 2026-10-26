@@ -215,6 +215,12 @@ export const socialPostSchema = z
     media: z.array(socialPostMediaRefSchema),
     ...socialPostQuoteSummaryShape,
     threadParts: z.array(socialPostThreadPartSchema),
+    publishingThreadPartPosition: z
+      .number()
+      .int()
+      .min(1)
+      .max(SOCIAL_POST_THREAD_MAX_PARTS)
+      .nullable(),
     ...socialPostThreadSummaryShape,
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
@@ -331,6 +337,13 @@ export const publishSocialPostRequestSchema = z
     revision: socialPostRevisionSchema,
   })
   .openapi("PublishSocialPostRequest");
+
+export const resumeSocialPostThreadRequestSchema = z
+  .object({
+    confirmedNotPosted: z.literal(true),
+    revision: socialPostRevisionSchema,
+  })
+  .openapi("ResumeSocialPostThreadRequest");
 
 function isSocialPostStatus(
   value: string,

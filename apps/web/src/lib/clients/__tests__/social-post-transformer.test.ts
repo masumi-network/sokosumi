@@ -9,6 +9,7 @@ import {
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
 } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
@@ -31,6 +32,7 @@ function buildPost() {
     quotedPostId: null,
     quotedPost: null,
     needsAttentionReason: null,
+    publishingThreadPartPosition: null,
     status: "SCHEDULED",
     scheduledAt: timestamp,
     timezone: "Europe/Prague",
@@ -65,6 +67,7 @@ const transformers = [
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
@@ -88,6 +91,44 @@ describe("social post response transformers", () => {
       expect(result.data.timezone).toBe("Europe/Prague");
     },
   );
+
+  it("revives a resumed thread's published parts without losing unpublished parts", async () => {
+    const result =
+      await postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer({
+        data: {
+          ...buildPost(),
+          status: "FAILED",
+          threadPartCount: 3,
+          publishedThreadPartCount: 2,
+          partiallyPublished: true,
+          threadParts: [
+            {
+              id: "part-2",
+              position: 2,
+              text: "Posted",
+              media: [],
+              externalPostId: "second-id",
+              publishedAt: timestamp,
+              error: null,
+            },
+            {
+              id: "part-3",
+              position: 3,
+              text: "Not posted",
+              media: [],
+              externalPostId: null,
+              publishedAt: null,
+              error: "Failed",
+            },
+          ],
+        },
+        meta: { timestamp, requestId: "request-1" },
+      });
+    expect(result.data.threadParts[0].publishedAt).toEqual(new Date(timestamp));
+    expect(result.data.threadParts[1].publishedAt).toBeNull();
+    expect(result.data.publishingThreadPartPosition).toBeNull();
+    expect(result.data.threadParts[0].externalPostId).toBe("second-id");
+  });
 
   it.each([null, timestamp])(
     "converts lists with absent and unfinished or finished attempts (%s)",

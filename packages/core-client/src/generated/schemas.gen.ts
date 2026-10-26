@@ -24987,6 +24987,14 @@ export const SocialPostSchema = {
                 $ref: '#/components/schemas/SocialPostThreadPart'
             }
         },
+        publishingThreadPartPosition: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 25
+        },
         threadPartCount: {
             type: 'integer',
             minimum: 1,
@@ -25172,6 +25180,7 @@ export const SocialPostSchema = {
         'quotedPost',
         'needsAttentionReason',
         'threadParts',
+        'publishingThreadPartPosition',
         'threadPartCount',
         'publishedThreadPartCount',
         'failedThreadPartPosition',
@@ -25844,6 +25853,28 @@ export const ApproveSocialPostRequestSchema = {
         }
     },
     required: [
+        'revision'
+    ]
+} as const;
+
+export const ResumeSocialPostThreadRequestSchema = {
+    type: 'object',
+    properties: {
+        confirmedNotPosted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'confirmedNotPosted',
         'revision'
     ]
 } as const;

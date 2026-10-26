@@ -16,6 +16,7 @@ import mountPublishSocialPost from "./[postId]/publish/post.js";
 import mountRejectSocialPost from "./[postId]/reject/post.js";
 import mountScheduleSocialPost from "./[postId]/schedule/post.js";
 import mountRefreshStatistics from "./[postId]/statistics/refresh/post.js";
+import mountResumeThread from "./[postId]/thread/resume/post.js";
 import mountListSocialPosts from "./get.js";
 import mountCreateSocialPost from "./post.js";
 import mountStatistics from "./statistics/get.js";
@@ -32,6 +33,7 @@ const {
   refreshSocialPostStatisticsMock,
   listSocialPostsMock,
   publishSocialPostNowMock,
+  resumeSocialPostThreadMock,
   rejectSocialPostMock,
   requireSocialBetaAccessMock,
   scheduleSocialPostMock,
@@ -48,6 +50,7 @@ const {
   refreshSocialPostStatisticsMock: vi.fn(),
   listSocialPostsMock: vi.fn(),
   publishSocialPostNowMock: vi.fn(),
+  resumeSocialPostThreadMock: vi.fn(),
   rejectSocialPostMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
@@ -65,6 +68,7 @@ vi.mock("@/services/social-posts.service", () => ({
   duplicateSocialPost: duplicateSocialPostMock,
   getSocialPost: getSocialPostMock,
   listSocialPosts: listSocialPostsMock,
+  resumeSocialPostThread: resumeSocialPostThreadMock,
   rejectSocialPost: rejectSocialPostMock,
   scheduleSocialPost: scheduleSocialPostMock,
   updateSocialPost: updateSocialPostMock,
@@ -150,6 +154,7 @@ const draftPost = {
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
   partiallyPublished: false,
+  publishingThreadPartPosition: null,
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,
@@ -220,6 +225,7 @@ function createApp(
   mountPatchSocialPost(app);
   mountScheduleSocialPost(app);
   mountApproveSocialPost(app);
+  mountResumeThread(app);
   mountRejectSocialPost(app);
   mountCancelSocialPost(app);
   mountDuplicateSocialPost(app);
@@ -1142,5 +1148,94 @@ describe("Project social post routes", () => {
     );
     expect(responses.every((response) => response.status === 403)).toBe(true);
     expectNoServiceCalls();
+  });
+});
+
+describe("thread resume confirmation", () => {
+  beforeEach(() => {
+    resumeSocialPostThreadMock.mockReset();
+    requireSocialBetaAccessMock.mockReset().mockResolvedValue(undefined);
+  });
+  const url = `/${PROJECT_ID}/social-posts/${POST_ID}/thread/resume`;
+  it("requires an explicit confirmation and observed revision", async () => {
+    const app = createApp();
+    for (const body of [
+      { revision: 0 },
+      { revision: 0, confirmedNotPosted: false },
+      { confirmedNotPosted: true },
+    ]) {
+      expect((await app.request(url, json("POST", body))).status).toBe(422);
+    }
+    expect(resumeSocialPostThreadMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the marker through the scoped service and returns the refreshed post", async () => {
+    requireSocialBetaAccessMock.mockResolvedValue(undefined);
+    resumeSocialPostThreadMock.mockResolvedValue({
+      ...draftPost,
+      status: "FAILED",
+      revision: 1,
+    });
+    const response = await createApp().request(
+      url,
+      json("POST", { revision: 0, confirmedNotPosted: true }),
+    );
+    expect(response.status).toBe(200);
+    expect(resumeSocialPostThreadMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+      confirmedNotPosted: true,
+    });
+    expect((await response.json()).data).toMatchObject({
+      publishingThreadPartPosition: null,
+      revision: 1,
+    });
+  });
+
+  it.each([
+    COWORKER_CONTEXT_AUTH,
+    USER_API_KEY_AUTH,
+    OAUTH_TOKEN_AUTH,
+    SOKO_BOT_CONTEXT_AUTH,
+  ])("requires an interactive human session: %j", async (auth) => {
+    expect(
+      (
+        await createApp(auth).request(
+          url,
+          json("POST", { revision: 0, confirmedNotPosted: true }),
+        )
+      ).status,
+    ).toBe(403);
+  });
+
+  it("requires authentication, beta access and a workspace before touching a post", async () => {
+    const body = { revision: 0, confirmedNotPosted: true };
+    expect(
+      (await createApp(null).request(url, json("POST", body))).status,
+    ).toBe(401);
+    expect(
+      (await createApp(SESSION_AUTH, null).request(url, json("POST", body)))
+        .status,
+    ).toBe(403);
+    requireSocialBetaAccessMock.mockRejectedValue(
+      forbidden("Social beta required"),
+    );
+    expect((await createApp().request(url, json("POST", body))).status).toBe(
+      403,
+    );
+    expect(resumeSocialPostThreadMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates conflicts without retrying a post", async () => {
+    requireSocialBetaAccessMock.mockResolvedValue(undefined);
+    resumeSocialPostThreadMock.mockRejectedValue(conflict("Post changed"));
+    const response = await createApp().request(
+      url,
+      json("POST", { revision: 0, confirmedNotPosted: true }),
+    );
+    expect(response.status).toBe(409);
   });
 });

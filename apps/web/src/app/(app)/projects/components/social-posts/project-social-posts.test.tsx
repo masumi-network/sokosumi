@@ -3,7 +3,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -24,6 +24,7 @@ import {
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   createProjectSocialPost,
   duplicateProjectSocialPost,
@@ -31,16 +32,17 @@ import {
   initiateProjectSocialConnection,
   publishProjectSocialPost,
   refreshProjectSocialPostStatistics,
+  resumeProjectSocialPostThread,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { formatTimezoneLabel } from "@/lib/schedules/timezones";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
+import enMessages from "@/messages/en.json";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
-
-import { loadMoreSocialPosts } from "./actions";
+import { loadMoreSocialPosts, loadSocialPostQuoteCandidates } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -55,6 +57,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 
 vi.mock("./actions", () => ({
   loadMoreSocialPosts: vi.fn(),
+  loadSocialPostQuoteCandidates: vi.fn(),
 }));
 
 const {
@@ -94,6 +97,19 @@ const {
 }));
 
 const MESSAGES: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(enMessages.App.Projects.SocialPosts.quote).map(
+      ([key, value]) => [`quote.${key}`, value],
+    ),
+  ),
+  ...enMessages.App.Projects.SocialPosts.thread,
+  ...Object.fromEntries(
+    Object.entries(enMessages.App.Projects.SocialPosts.thread).map(
+      ([key, value]) => [`thread.${key}`, value],
+    ),
+  ),
+  "actions.approve": "Approve",
+  "toasts.approved": "Post approved.",
   title: "Social posts",
   tryAgain: "Try again",
   help: "Everything else still works. Check your connection and try again.",
@@ -314,8 +330,14 @@ vi.mock("next-intl", async () => {
     useLocale: () => "en",
     useTimeZone: () => "UTC",
     useTranslations:
-      () => (key: string, values?: Record<string, string | number>) => {
-        const message = MESSAGES[key] ?? key;
+      (namespace: string) =>
+      (key: string, values?: Record<string, string | number>) => {
+        const message =
+          MESSAGES[
+            namespace === "App.Projects.SocialPosts.quote"
+              ? `quote.${key}`
+              : key
+          ] ?? key;
         if (!values) return message;
         return Object.entries(values).reduce(
           (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
@@ -339,6 +361,8 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   finalizeProjectSocialConnection: vi.fn(),
   initiateProjectSocialConnection: vi.fn(),
+  approveProjectSocialPost: vi.fn(),
+  resumeProjectSocialPostThread: vi.fn(),
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   duplicateProjectSocialPost: vi.fn(),
@@ -444,6 +468,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     publishedThreadPartCount: 0,
     failedThreadPartPosition: null,
     partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -472,6 +497,34 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     connectionNeedsReconnect: false,
     ...overrides,
   };
+}
+
+function buildThread(overrides: Partial<SocialPost> = {}): SocialPost {
+  return buildPost({
+    text: "Thread opener",
+    threadPartCount: 3,
+    threadParts: [
+      {
+        id: "part-2",
+        position: 2,
+        text: "Second part",
+        media: [],
+        externalPostId: null,
+        publishedAt: null,
+        error: null,
+      },
+      {
+        id: "part-3",
+        position: 3,
+        text: "Third part",
+        media: [],
+        externalPostId: null,
+        publishedAt: null,
+        error: null,
+      },
+    ],
+    ...overrides,
+  });
 }
 
 const SCHEDULED_POST = buildPost({
@@ -680,6 +733,11 @@ describe("ProjectSocialPosts", () => {
   beforeEach(() => {
     window.localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(loadSocialPostQuoteCandidates).mockReset();
+    vi.mocked(loadSocialPostQuoteCandidates).mockResolvedValue({
+      posts: [],
+      nextCursor: null,
+    });
     getSocialConnectionsMock.mockRejectedValue(
       new Error("photo lookup unavailable"),
     );
@@ -6185,5 +6243,876 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(row).queryByText("X rejected the post (429 too many requests)"),
     ).not.toBeInTheDocument();
+  });
+
+  it("adds, reorders and removes thread parts, keeping each part's media in the saved payload", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    expect(
+      within(dialog).getByText("Part 2 is empty. Add text or media."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    const part2 = within(dialog).getByRole("region", { name: "Part 2" });
+    await user.click(
+      within(part2).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+      { target: { value: "Third" } },
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move part 2 down" }),
+    );
+    expect(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+    ).toHaveValue("Third");
+    expect(
+      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+    ).toHaveValue("Second");
+    expect(
+      within(within(dialog).getByRole("region", { name: "Part 3" })).getByRole(
+        "button",
+        { name: "Remove launch.png" },
+      ),
+    ).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move part 3 up" }),
+    );
+    expect(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+    ).toHaveValue("Second");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Remove part 3" }),
+    );
+    expect(
+      within(dialog).queryByLabelText("Part 3", { selector: "textarea" }),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByText("1/2")).toBeVisible();
+    expect(within(dialog).getAllByTestId("social-post-x-preview")).toHaveLength(
+      2,
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Opener",
+        threadParts: [{ text: "Second", media: [IMAGE_REF] }],
+      }),
+    );
+  });
+
+  it("uses the main counter's limit for each part and names an over-limit reply", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    const textarea = within(dialog).getByLabelText("Part 2", {
+      selector: "textarea",
+    });
+    fireEvent.change(textarea, {
+      target: { value: "x".repeat(SOCIAL_POST_TEXT_LIMITS.x + 1) },
+    });
+    const part = within(dialog).getByRole("region", { name: "Part 2" });
+    expect(
+      within(part).getByTestId("social-post-character-count"),
+    ).toHaveTextContent(
+      `${SOCIAL_POST_TEXT_LIMITS.x + 1} / ${SOCIAL_POST_TEXT_LIMITS.x}`,
+    );
+    expect(within(part).getByText("Part 2 is over the limit.")).toBeVisible();
+    expect(textarea).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    fireEvent.change(textarea, {
+      target: { value: "x".repeat(SOCIAL_POST_TEXT_LIMITS.x) },
+    });
+    expect(
+      within(part).queryByText("Part 2 is over the limit."),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+  });
+
+  it("blocks mixed X and non-X selections while a thread has extra parts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({ id: "linkedin", provider: "linkedin" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const accounts = within(dialog).getByTestId("social-post-accounts");
+    const linkedin = within(accounts).getByRole("button", { name: /LinkedIn/ });
+    if (linkedin.getAttribute("aria-pressed") === "true")
+      await user.click(linkedin);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    await user.click(linkedin);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      enMessages.App.Projects.SocialPosts.thread.onlyX,
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeDisabled();
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("limits a thread to 25 total parts with an inline explanation", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const add = within(dialog).getByRole("button", { name: "Add to thread" });
+    for (let index = 0; index < 24; index++) fireEvent.click(add);
+    expect(add).toBeDisabled();
+    expect(
+      within(dialog).getByText("Threads can have up to 25 parts."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getAllByRole("region", { name: /^Part \d+$/ }),
+    ).toHaveLength(24);
+  });
+
+  it("schedules a new thread with all ordered parts", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    await pickInAnHour(user, dialog);
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Schedule for/ }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadParts: [{ text: "Second", media: [] }],
+        scheduledAt: IN_AN_HOUR.toISOString(),
+      }),
+    );
+  });
+
+  it.each(["DRAFT", "SCHEDULED"] as const)(
+    "reopens a %s thread and saves edited parts",
+    async (status) => {
+      freezeClock();
+      const user = userEvent.setup();
+      const post = buildThread({
+        status,
+        scheduledAt: status === "SCHEDULED" ? IN_AN_HOUR : null,
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+          selectedPostId={post.id}
+        />,
+      );
+      const preview = screen.getByRole("dialog");
+      expect(
+        within(preview).getAllByTestId("social-post-x-preview"),
+      ).toHaveLength(3);
+      await user.click(within(preview).getByRole("button", { name: "Edit" }));
+      const composer = screen.getByRole("dialog");
+      expect(
+        within(composer).getByLabelText("Part 2", { selector: "textarea" }),
+      ).toHaveValue("Second part");
+      fireEvent.change(
+        within(composer).getByLabelText("Part 3", { selector: "textarea" }),
+        { target: { value: "Edited third" } },
+      );
+      await user.click(
+        within(composer).getByRole("button", {
+          name: status === "DRAFT" ? "Save draft" : /^Reschedule for/,
+        }),
+      );
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          threadParts: [
+            { text: "Second part", media: [] },
+            { text: "Edited third", media: [] },
+          ],
+        }),
+      );
+    },
+  );
+
+  it("keeps Needs approval visible on a thread and Approve as its main action", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canPublishNow: false,
+    });
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...post, status: "DRAFT", canApprove: false },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    const row = screen.getByTestId(`social-post-${post.id}`);
+    expect(within(row).getByText("Needs approval")).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Approve" })).toHaveClass(
+      "bg-primary-solid",
+    );
+    await user.click(within(row).getByRole("button", { name: "Approve" }));
+    expect(approveProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+    });
+  });
+
+  it("shows partial progress, links confirmed parts, and retries only through the existing publish action", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "FAILED",
+      canEdit: false,
+      canSchedule: false,
+      publishedExternalId: "head",
+      publishedThreadPartCount: 2,
+      partiallyPublished: true,
+      failedThreadPartPosition: 3,
+      lastError: "X rejected part 3",
+    });
+    post.threadParts[0].externalPostId = "second";
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+        selectedPostId={post.id}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Partly posted: 2 of 3 parts posted. Part 3 failed.",
+    );
+    expect(within(dialog).getByText("X rejected part 3")).toBeVisible();
+    expect(
+      within(dialog)
+        .getAllByRole("link", { name: /View part/ })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "https://x.com/i/web/status/head",
+      "https://x.com/i/web/status/second",
+    ]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Retry remaining parts" }),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Retry remaining parts",
+      }),
+    );
+    expect(publishProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+    });
+  });
+
+  it("requires explicit not-posted confirmation before resuming an uncertain thread", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "FAILED",
+      publishingThreadPartPosition: 2,
+      canEdit: false,
+      canSchedule: false,
+      canPublishNow: false,
+      lastError: "Unknown outcome",
+    });
+    const resumed = {
+      ...post,
+      revision: 4,
+      publishingThreadPartPosition: null,
+      canPublishNow: true,
+    };
+    vi.mocked(resumeProjectSocialPostThread).mockResolvedValue({
+      ok: true,
+      value: resumed,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+        selectedPostId={post.id}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText(/We couldn’t confirm whether part 2 was posted/),
+    ).toBeVisible();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Retry remaining parts" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "It was not posted, continue",
+      }),
+    );
+    expect(resumeProjectSocialPostThread).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+      confirmedNotPosted: true,
+    });
+    expect(publishProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: 4,
+    });
+  });
+
+  it("shows duplicate thread parts and their approval requirement", async () => {
+    const user = userEvent.setup();
+    const quote: Pick<SocialPost, "quotedPostId" | "quotedPost"> = {
+      quotedPostId: "original-post",
+      quotedPost: {
+        id: "original-post",
+        provider: "x",
+        status: "PUBLISHED",
+        scheduledAt: null,
+        timezone: null,
+        publishedExternalId: "x-original",
+        publishedUrl: null,
+        account: null,
+        text: "The post being quoted",
+        media: [],
+      },
+    };
+    const source = buildThread({
+      ...FAILED_POST,
+      ...quote,
+      id: "source-thread",
+      canDuplicate: true,
+    });
+    const duplicate = buildThread({
+      ...quote,
+      id: "duplicate-thread",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canPublishNow: false,
+    });
+    vi.mocked(duplicateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: duplicate,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[source]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, source.id);
+    await user.click(
+      screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+    );
+    const row = await screen.findByTestId("social-post-duplicate-thread");
+    expect(within(row).getByText("1/3")).toBeVisible();
+    expect(within(row).getByText("Needs approval")).toBeVisible();
+    expect(
+      within(row).getByTestId("social-post-quote-badge"),
+    ).toHaveTextContent("Quote");
+    expect(within(row).getByRole("button", { name: "Approve" })).toBeEnabled();
+    await user.click(within(row).getByRole("button", { name: /^Preview/ }));
+    expect(
+      within(screen.getByRole("dialog")).getAllByTestId(
+        "social-post-x-preview",
+      ),
+    ).toHaveLength(4);
+    expect(
+      within(screen.getByRole("dialog")).getByTestId(
+        "social-post-quoted-preview",
+      ),
+    ).toHaveTextContent("The post being quoted");
+  });
+  it("lists, searches and paginates quote candidates, then nests the selected post only in part 1", async () => {
+    const user = userEvent.setup();
+    const candidate = buildPost({
+      id: "quote-target",
+      text: "Launch source",
+      status: "SCHEDULED",
+      scheduledAt: IN_AN_HOUR,
+      socialConnection: SCHEDULED_POST.socialConnection,
+    });
+    const live = buildPost({
+      id: "live-target",
+      status: "PUBLISHED",
+      text: "Already live",
+      publishedExternalId: "x-live",
+    });
+    vi.mocked(loadSocialPostQuoteCandidates).mockImplementation(
+      async ({ search, cursor }) => ({
+        posts: search || cursor ? [live] : [candidate],
+        nextCursor: search || cursor ? null : "more-quotes",
+      }),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    let composer = screen.getByRole("dialog");
+    await user.click(
+      within(composer).getByRole("button", { name: "Quote a post" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Quote a post" });
+    expect(await within(picker).findByText("Launch source")).toBeVisible();
+    expect(within(picker).getByText("Scheduled")).toBeVisible();
+    expect(within(picker).getByText(/@sokosumi/)).toBeVisible();
+    expect(within(picker).getByTestId("social-post-preview")).toHaveAttribute(
+      "data-provider",
+      "x",
+    );
+    await user.click(within(picker).getByRole("button", { name: "Load more" }));
+    expect(await within(picker).findByText("Already live")).toBeVisible();
+    expect(loadSocialPostQuoteCandidates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        cursor: "more-quotes",
+        search: "",
+      }),
+    );
+    fireEvent.change(within(picker).getByLabelText("Search posts"), {
+      target: { value: "live" },
+    });
+    await waitFor(() =>
+      expect(loadSocialPostQuoteCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ search: "live" }),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        within(picker).queryByText("Launch source"),
+      ).not.toBeInTheDocument(),
+    );
+    await user.click(
+      within(picker).getByRole("button", { name: "Quote this post" }),
+    );
+    composer = screen.getByRole("dialog");
+    expect(
+      within(composer).getByRole("group", { name: "Quoted post" }),
+    ).toHaveTextContent("Already live");
+    expect(
+      within(composer).getByRole("button", { name: "Choose another post" }),
+    ).toHaveFocus();
+    expect(
+      within(composer)
+        .getByTestId("social-post-quoted-preview")
+        .querySelector('[data-provider="x"]'),
+    ).not.toBeNull();
+    await user.click(
+      within(composer).getByRole("button", { name: "X @sokosumi" }),
+    );
+    expect(
+      within(composer).getByTestId("social-post-quoted-preview"),
+    ).toBeVisible();
+    await user.click(
+      within(composer).getByRole("button", { name: "X @sokosumi" }),
+    );
+    fireEvent.change(within(composer).getByLabelText("Text"), {
+      target: { value: "My take" },
+    });
+    expect(
+      within(composer).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
+    await user.click(
+      within(composer).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(
+      within(composer).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second part" } },
+    );
+    expect(
+      within(composer).getAllByTestId("social-post-quoted-preview"),
+    ).toHaveLength(1);
+    expect(
+      within(composer).getAllByTestId("social-post-x-preview"),
+    ).toHaveLength(3);
+    await user.click(
+      within(composer).getByRole("button", { name: "Save draft" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quotedPostId: "live-target",
+        threadParts: [{ text: "Second part", media: [] }],
+      }),
+    );
+  });
+
+  it.each([0, 60_000])(
+    "blocks Post now and schedules at or before an unpublished quoted post (offset %s), and removes the quote",
+    async (offset) => {
+      freezeClock();
+      const user = userEvent.setup();
+      vi.mocked(loadSocialPostQuoteCandidates).mockResolvedValue({
+        posts: [
+          buildPost({
+            id: "quote-target",
+            text: "Unpublished source",
+            status: "SCHEDULED",
+            scheduledAt: new Date(IN_AN_HOUR.getTime() + offset),
+          }),
+        ],
+        nextCursor: null,
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      let composer = screen.getByRole("dialog");
+      fireEvent.change(within(composer).getByLabelText("Text"), {
+        target: { value: "My quote" },
+      });
+      await user.click(
+        within(composer).getByRole("button", { name: "Quote a post" }),
+      );
+      const picker = screen.getByRole("dialog", { name: "Quote a post" });
+      await user.click(
+        await within(picker).findByRole("button", { name: "Quote this post" }),
+      );
+      composer = screen.getByRole("dialog");
+      expect(
+        within(composer).getByRole("button", { name: "Post now" }),
+      ).toBeDisabled();
+      expect(
+        within(composer).getAllByText(
+          enMessages.App.Projects.SocialPosts.quote.postNowUnavailable,
+        )[0],
+      ).toBeVisible();
+      expect(
+        within(composer).getByText(/^Publishes after the quoted post/),
+      ).toBeVisible();
+      await pickInAnHour(user, composer);
+      expect(within(composer).getByRole("alert")).toHaveTextContent(
+        "Choose a time after the quoted post",
+      );
+      expect(
+        within(composer).getByRole("button", { name: /^Schedule/ }),
+      ).toBeDisabled();
+      expect(createProjectSocialPost).not.toHaveBeenCalled();
+      await user.click(
+        within(composer).getByRole("button", { name: "Remove quote" }),
+      );
+      expect(
+        within(composer).queryByTestId("social-post-quoted-preview"),
+      ).not.toBeInTheDocument();
+      const schedule = within(composer).getByRole("button", {
+        name: /^Schedule/,
+      });
+      expect(schedule).toBeEnabled();
+      await user.click(schedule);
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.not.objectContaining({ quotedPostId: "quote-target" }),
+      );
+    },
+  );
+
+  it.each([
+    "The post it quotes failed to publish",
+    "The quoted post was cancelled",
+  ])(
+    "shows quote attention in the list and preview, opens the picker and removes the quote: %s",
+    async (reason) => {
+      freezeClock();
+      const user = userEvent.setup();
+      const post = buildPost({
+        id: "failed-quote",
+        status: "FAILED",
+        quotedPostId: "original-post",
+        needsAttentionReason: reason,
+        canPublishNow: false,
+        canSchedule: false,
+        quotedPost: {
+          id: "original-post",
+          provider: "x",
+          status: "FAILED",
+          scheduledAt: IN_AN_HOUR,
+          timezone: "UTC",
+          publishedExternalId: null,
+          publishedUrl: null,
+          account: null,
+          text: "Original quote text",
+          media: [],
+        },
+      });
+      vi.mocked(updateProjectSocialPost).mockResolvedValue({
+        ok: true,
+        value: {
+          ...post,
+          quotedPostId: null,
+          quotedPost: null,
+          needsAttentionReason: null,
+          revision: 1,
+          canEdit: false,
+          canPublishNow: true,
+        },
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+        />,
+        "?tab=attention",
+      );
+      const row = screen.getByTestId("social-post-failed-quote");
+      expect(within(row).getByText(reason)).toBeVisible();
+      expect(
+        within(row).getByTestId("social-post-quote-badge"),
+      ).toHaveTextContent("Quote");
+      await user.click(within(row).getByRole("button", { name: /^Preview/ }));
+      let preview = screen.getByRole("dialog");
+      expect(within(preview).getByRole("alert")).toHaveTextContent(reason);
+      expect(
+        within(preview).getByTestId("social-post-quoted-preview"),
+      ).toHaveTextContent("Original quote text");
+      await user.click(
+        within(preview).getByRole("button", { name: "Choose another post" }),
+      );
+      const picker = screen.getByRole("dialog", { name: "Quote a post" });
+      await waitFor(() =>
+        expect(loadSocialPostQuoteCandidates).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            excludePostId: post.id,
+          }),
+        ),
+      );
+      await user.click(within(picker).getByRole("button", { name: "Close" }));
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Cancel",
+        }),
+      );
+      await user.click(
+        within(screen.getByTestId("social-post-failed-quote")).getByRole(
+          "button",
+          { name: /^Preview/ },
+        ),
+      );
+      preview = screen.getByRole("dialog");
+      await user.click(
+        within(preview).getByRole("button", { name: "Remove quote" }),
+      );
+      await waitFor(() =>
+        expect(updateProjectSocialPost).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          postId: post.id,
+          quotedPostId: null,
+          revision: 0,
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole("dialog")).queryByText(reason),
+        ).not.toBeInTheDocument(),
+      );
+      expect(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Retry",
+        }),
+      ).toBeVisible();
+    },
+  );
+  it("moves a scheduled quote's time before attaching a later target, using the new revision", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const original = buildPost({
+      ...SCHEDULED_POST,
+      scheduledAt: new Date(NOW.getTime() + 5 * 60_000),
+    });
+    const target = buildPost({
+      id: "later-target",
+      text: "Later source",
+      status: "SCHEDULED",
+      scheduledAt: new Date(NOW.getTime() + 10 * 60_000),
+    });
+    vi.mocked(loadSocialPostQuoteCandidates).mockResolvedValue({
+      posts: [target],
+      nextCursor: null,
+    });
+    vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...original, scheduledAt: IN_AN_HOUR, revision: 2 },
+    });
+    vi.mocked(updateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...original,
+        scheduledAt: IN_AN_HOUR,
+        quotedPostId: target.id,
+        revision: 3,
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[original]}
+        projectId={PROJECT_ID}
+        selectedPostId={original.id}
+      />,
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }),
+    );
+    let composer = screen.getByRole("dialog");
+    await user.click(
+      within(composer).getByRole("button", { name: "Quote a post" }),
+    );
+    await user.click(
+      await within(
+        screen.getByRole("dialog", { name: "Quote a post" }),
+      ).findByRole("button", { name: "Quote this post" }),
+    );
+    composer = screen.getByRole("dialog");
+    expect(
+      within(composer).getByRole("button", { name: "Save" }),
+    ).toBeDisabled();
+    await pickInAnHour(user, composer);
+    await user.click(
+      within(composer).getByRole("button", { name: /^Reschedule for/ }),
+    );
+    await waitFor(() =>
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ quotedPostId: target.id, revision: 2 }),
+      ),
+    );
+    expect(
+      vi.mocked(scheduleProjectSocialPost).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
+    );
+    expect(scheduleProjectSocialPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Core's quote dependency 409 visible when editing a post's time", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const message =
+      "Post quote-1 (Follow-up) quotes this post and is scheduled at 2026-10-01T12:00:00.000Z; move it first";
+    vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
+      ok: false,
+      error: { code: "CONFLICT", status: 409, message },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId={SCHEDULED_POST.id}
+      />,
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Reschedule",
+      }),
+    );
+    const composer = screen.getByRole("dialog");
+    await user.click(
+      within(composer).getByRole("button", { name: /^Reschedule for/ }),
+    );
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(message, {
+        duration: Infinity,
+        closeButton: true,
+      }),
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Reschedule post");
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

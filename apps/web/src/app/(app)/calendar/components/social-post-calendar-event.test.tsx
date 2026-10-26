@@ -75,6 +75,47 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
+
+  it.each(["compact", "preview"] as const)(
+    "shows the quote indicator beside the thread indicator in %s",
+    (variant) => {
+      renderCard({ quotedPostId: "quoted-post", threadPartCount: 3 }, variant);
+      expect(screen.getByTestId("social-post-quote-badge")).toHaveTextContent(
+        "Quote",
+      );
+      expect(screen.getByTestId("social-post-thread-count")).toHaveTextContent(
+        "1/3",
+      );
+      expect(screen.getByTestId("calendar-social-post")).toHaveAccessibleName(
+        /Quote/,
+      );
+    },
+  );
+  it.each(["compact", "preview"] as const)(
+    "shows a compact part count in the %s calendar chip",
+    (variant) => {
+      renderCard({ threadPartCount: 3 }, variant);
+      expect(screen.getByTestId("social-post-thread-count")).toHaveTextContent(
+        "1/3",
+      );
+      expect(screen.getByLabelText("Part 1 of 3")).toBeVisible();
+    },
+  );
+
+  it("shows a warning for a partly published thread", () => {
+    renderCard({
+      status: "FAILED",
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      partiallyPublished: true,
+      failedThreadPartPosition: 2,
+    });
+    expect(screen.getByText("Partly posted")).toBeVisible();
+    expect(screen.getByTestId("social-post-status-FAILED")).toHaveTextContent(
+      "Partly posted",
+    );
+  });
+
   it("names the compact workspace card in one phrase", () => {
     renderCard({}, "compact");
     expect(

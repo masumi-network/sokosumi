@@ -1208,6 +1208,35 @@ describe("WorkspaceCalendar editing", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
+  it("reverts a quote dependency 409 and shows Core's explanation", async () => {
+    const message =
+      "Post quote-1 (Launch follow-up) quotes this post and is scheduled at 2030-01-03T12:00:00.000Z; move it first";
+    scheduleProjectSocialPostMock.mockResolvedValue({
+      ok: false,
+      error: { code: "CONFLICT", status: 409, message },
+    });
+    renderCalendar({ items: [SOCIAL_POST] });
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const revert = vi.fn();
+    await act(async () => {
+      props.eventDrop?.({
+        event: {
+          id: SOCIAL_POST.id,
+          start: new Date("2030-01-04T14:00:00.000Z"),
+        },
+        revert,
+      });
+    });
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(message, {
+        duration: Infinity,
+        closeButton: true,
+      }),
+    );
+    expect(revert).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
   it("reverts a conflicted social drop and reloads", async () => {
     scheduleProjectSocialPostMock.mockResolvedValue({
       ok: false,
