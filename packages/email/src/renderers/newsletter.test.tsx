@@ -196,6 +196,55 @@ describe("newsletter rendering", () => {
   });
 
   it.each([
+    ["[" + "[\\".repeat(50_000), "[\\[\\[\\"],
+    ["[\\](https://" + "[!](https://".repeat(20_000), "[!](https://[!]"],
+    ["**" + "[".repeat(50_000), "**[[["],
+  ])(
+    "renders adversarial inline markup as plain text quickly",
+    async (text, sample) => {
+      const render = (content: string) =>
+        renderNewsletterEmail({
+          mode: "web",
+          newsletter: { name: "Weekly", brand: {} },
+          issue: {
+            subject: "News",
+            template: "TEXT",
+            content: [{ type: "text", text: content }],
+          },
+        });
+      const baseline = (await render("")).html;
+      const start = performance.now();
+      const { html } = await render(text);
+      expect(performance.now() - start).toBeLessThan(1000);
+      expect(html).toContain(sample);
+      expect(html).not.toContain("<strong>");
+      expect(html.split("<a ").length).toBe(baseline.split("<a ").length);
+    },
+  );
+
+  it("renders bold and links next to stray brackets", async () => {
+    const { html } = await renderNewsletterEmail({
+      mode: "web",
+      newsletter: { name: "Weekly", brand: {} },
+      issue: {
+        subject: "News",
+        template: "TEXT",
+        content: [
+          {
+            type: "text",
+            text: "**Hi** [ [docs](https://example.com/a?b=1#c) [x](https://example.com/[y])",
+          },
+        ],
+      },
+    });
+    expect(html).toContain("<strong>Hi</strong>");
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/example.com\/a\?b=1#c"[^>]*>docs<\/a>/,
+    );
+    expect(html).not.toContain('href="https://example.com/[y]"');
+  });
+
+  it.each([
     ["en", "Unsubscribe", "Confirm unsubscribe", "You are unsubscribed"],
     ["de", "Abmelden", "Abmeldung bestätigen", "Du bist abgemeldet"],
     [
