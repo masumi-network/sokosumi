@@ -3132,6 +3132,97 @@
           "url": "Introduce una URL completa con HTTPS.",
           "color": "Introduce un color hexadecimal de 3 o 6 dígitos que empiece por #.",
           "maxLength": "Usa un máximo de {max} caracteres."
+        },
+        "Subscribers": {
+          "title": "Suscriptores",
+          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
+          "add": "Añadir suscriptor",
+          "import": "Importar CSV",
+          "cancel": "Cancelar",
+          "done": "Listo",
+          "emptyTitle": "Aún no hay suscriptores",
+          "emptyDescription": "Añade a alguien que haya aceptado recibir tu boletín o importa una lista CSV con consentimiento.",
+          "search": "Buscar por correo",
+          "searchPlaceholder": "nombre@ejemplo.es",
+          "searchButton": "Buscar",
+          "filterStatus": "Estado",
+          "allStatuses": "Todos los estados",
+          "clearFilters": "Borrar filtros",
+          "results": "{count, plural, =0 {No hay suscriptores coincidentes} one {# suscriptor coincidente} other {# suscriptores coincidentes}}",
+          "firstPage": "Primera página",
+          "nextPage": "Página siguiente",
+          "noName": "—",
+          "rowActions": "Gestionar suscriptor {email}",
+          "unsubscribe": "Dar de baja",
+          "remove": "Eliminar suscriptor",
+          "unsubscribed": "Suscriptor dado de baja",
+          "updateError": "No se pudo actualizar el suscriptor. Inténtalo de nuevo.",
+          "transitionError": "El estado de este suscriptor ha cambiado. Recarga la página antes de volver a intentarlo.",
+          "invalid": "Revisa los campos marcados e inténtalo de nuevo.",
+          "columns": {
+            "email": "Correo electrónico",
+            "name": "Nombre",
+            "status": "Estado",
+            "source": "Origen",
+            "subscribedAt": "Fecha de suscripción",
+            "actions": "Acciones"
+          },
+          "statuses": {
+            "ACTIVE": "Activo",
+            "PENDING": "Pendiente",
+            "UNSUBSCRIBED": "Dado de baja",
+            "BOUNCED": "Rebotado"
+          },
+          "sources": {
+            "MANUAL": "Añadido manualmente",
+            "CSV_IMPORT": "Importación CSV",
+            "SIGNUP_FORM": "Formulario de suscripción",
+            "API": "API"
+          },
+          "Validation": {
+            "email": "Introduce un correo electrónico válido.",
+            "name": "Usa como máximo 200 caracteres.",
+            "consent": "Confirma el consentimiento antes de continuar."
+          },
+          "Add": {
+            "description": "Añade a una persona que haya aceptado recibir este boletín.",
+            "email": "Correo electrónico",
+            "name": "Nombre (opcional)",
+            "consent": "Esta persona ha aceptado recibir este boletín",
+            "duplicate": "Este correo ya está en la lista. Búscalo para gestionar el suscriptor existente.",
+            "error": "No se pudo añadir el suscriptor. Inténtalo de nuevo.",
+            "success": "Suscriptor añadido"
+          },
+          "Remove": {
+            "title": "¿Eliminar suscriptor?",
+            "description": "Elimina permanentemente a {email} de este boletín. Esta acción no se puede deshacer.",
+            "error": "No se pudo eliminar el suscriptor. Inténtalo de nuevo.",
+            "success": "Suscriptor eliminado"
+          },
+          "Import": {
+            "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",
+            "file": "Archivo CSV",
+            "chooseFile": "Elegir CSV",
+            "noFile": "Ningún archivo seleccionado",
+            "fileHint": "Archivos CSV de hasta 5 MB y un máximo de 50.000 filas. Incluye una cabecera email y, opcionalmente, name.",
+            "fileType": "Elige un archivo con la extensión .csv.",
+            "fileSize": "Elige un archivo CSV de 5 MB como máximo.",
+            "fileRequired": "Elige un archivo CSV para importar.",
+            "consent": "Todas las personas de este CSV han aceptado recibir este boletín",
+            "importing": "Importando suscriptores…",
+            "error": "No se pudieron importar los suscriptores. Inténtalo de nuevo.",
+            "invalidCsv": "Revisa el CSV: incluye una cabecera email, otra opcional name y un máximo de 50.000 filas. Después, inténtalo de nuevo.",
+            "doneDescription": "Importación completada. Revisa los resultados a continuación.",
+            "result": {
+              "imported": "Importados",
+              "skippedExisting": "Ya están en la lista",
+              "invalid": "Filas no válidas notificadas"
+            },
+            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidRow": "Fila {row}: {value}",
+            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+          },
+          "dismiss": "Cerrar"
         }
       }
     },

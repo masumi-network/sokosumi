@@ -5,6 +5,11 @@ const core = vi.hoisted(() => ({
   getNewsletterAvailability: vi.fn(),
   getProjectsByIdNewsletter: vi.fn(),
   putProjectsByIdNewsletter: vi.fn(),
+  getProjectsByIdNewsletterSubscribers: vi.fn(),
+  postProjectsByIdNewsletterSubscribers: vi.fn(),
+  postProjectsByIdNewsletterSubscribersImport: vi.fn(),
+  patchProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
+  deleteProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
 }));
 vi.mock("@/lib/clients/core.client", async () => {
   const { CoreApiRequestError } = await import("@/lib/clients/core.request");
@@ -74,5 +79,94 @@ describe("newsletterService", () => {
         welcomeEmailEnabled: false,
       }),
     ).rejects.toThrow("Save failed");
+  });
+
+  it("preserves subscriber counts and cursor metadata from Core", async () => {
+    const response = {
+      data: { subscribers: [], counts: { ACTIVE: 2 } },
+      meta: { pagination: { nextCursor: "s2" } },
+    };
+    const query = {
+      limit: 25,
+      cursor: "s1",
+      status: "ACTIVE",
+      search: "example",
+    } as const;
+    core.getProjectsByIdNewsletterSubscribers.mockResolvedValue(response);
+    expect(await newsletterService.listSubscribers("p1", query)).toBe(response);
+    expect(core.getProjectsByIdNewsletterSubscribers).toHaveBeenCalledWith(
+      "p1",
+      query,
+    );
+  });
+
+  it("forwards subscriber mutations to generated Core operations", async () => {
+    const subscriber = { id: "s1" };
+    const input = { email: "one@example.com", consent: true } as const;
+    core.postProjectsByIdNewsletterSubscribers.mockResolvedValue({
+      data: subscriber,
+    });
+    expect(await newsletterService.addSubscriber("p1", input)).toBe(subscriber);
+    expect(core.postProjectsByIdNewsletterSubscribers).toHaveBeenCalledWith(
+      "p1",
+      input,
+    );
+    const summary = { imported: 1, skippedExisting: 0, invalid: [] };
+    const csv = { csv: "email\none@example.com", consent: true } as const;
+    core.postProjectsByIdNewsletterSubscribersImport.mockResolvedValue({
+      data: summary,
+    });
+    expect(await newsletterService.importSubscribers("p1", csv)).toBe(summary);
+    expect(
+      core.postProjectsByIdNewsletterSubscribersImport,
+    ).toHaveBeenCalledWith("p1", csv);
+    core.patchProjectsByIdNewsletterSubscribersBySubscriberId.mockResolvedValue(
+      { data: subscriber },
+    );
+    expect(
+      await newsletterService.updateSubscriber("p1", "s1", {
+        status: "UNSUBSCRIBED",
+      }),
+    ).toBe(subscriber);
+    expect(
+      core.patchProjectsByIdNewsletterSubscribersBySubscriberId,
+    ).toHaveBeenCalledWith("p1", "s1", { status: "UNSUBSCRIBED" });
+    await newsletterService.removeSubscriber("p1", "s1");
+    expect(
+      core.deleteProjectsByIdNewsletterSubscribersBySubscriberId,
+    ).toHaveBeenCalledWith("p1", "s1");
+  });
+
+  it("propagates subscriber read and mutation failures", async () => {
+    const error = new CoreApiRequestError("Forbidden", { status: 403 });
+    for (const method of [
+      core.getProjectsByIdNewsletterSubscribers,
+      core.postProjectsByIdNewsletterSubscribers,
+      core.postProjectsByIdNewsletterSubscribersImport,
+      core.patchProjectsByIdNewsletterSubscribersBySubscriberId,
+      core.deleteProjectsByIdNewsletterSubscribersBySubscriberId,
+    ])
+      method.mockRejectedValue(error);
+    await expect(newsletterService.listSubscribers("p1", {})).rejects.toBe(
+      error,
+    );
+    await expect(
+      newsletterService.addSubscriber("p1", {
+        email: "one@example.com",
+        consent: true,
+      }),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.importSubscribers("p1", {
+        csv: "email",
+        consent: true,
+      }),
+    ).rejects.toBe(error);
+    await expect(
+      newsletterService.updateSubscriber("p1", "s1", { status: "ACTIVE" }),
+    ).rejects.toBe(error);
+    await expect(newsletterService.removeSubscriber("p1", "s1")).rejects.toBe(
+      error,
+    );
   });
 });
