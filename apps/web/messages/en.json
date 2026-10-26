@@ -2507,7 +2507,8 @@
           "rejected": "The platform rejected this post.",
           "mediaMissing": "A file is missing.",
           "mediaType": "That file type is not allowed.",
-          "generic": "Couldn't publish. Open the post for details."
+          "generic": "Couldn't publish. Open the post for details.",
+          "unconfirmed": "We couldn't confirm the post. Check {provider} before retrying so it isn't posted twice."
         },
         "sections": {
           "calendar": "Calendar",
