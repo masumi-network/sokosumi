@@ -18569,6 +18569,18 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const NewsletterAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -22197,6 +22209,349 @@ export const NewsletterBrandSchema = {
     }
 } as const;
 
+export const NewsletterIssueSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        newsletterId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterIssueStatus'
+        },
+        publicSlug: {
+            type: 'string'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        approvedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        approvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'newsletterId',
+        'projectId',
+        'workspaceId',
+        'subject',
+        'previewText',
+        'template',
+        'content',
+        'status',
+        'publicSlug',
+        'revision',
+        'scheduledAt',
+        'timezone',
+        'sentAt',
+        'approvedByUserId',
+        'approvedAt',
+        'taskId',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const NewsletterTemplateSchema = {
+    type: 'string',
+    enum: [
+        'TEXT',
+        'IMAGES',
+        'BUTTONS'
+    ]
+} as const;
+
+export const NewsletterContentSchema = {
+    type: 'array',
+    items: {
+        oneOf: [
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'heading'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 1000
+                    },
+                    level: {
+                        anyOf: [
+                            {
+                                type: 'number',
+                                enum: [
+                                    1
+                                ]
+                            },
+                            {
+                                type: 'number',
+                                enum: [
+                                    2
+                                ]
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'type',
+                    'text',
+                    'level'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'text'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 100000
+                    }
+                },
+                required: [
+                    'type',
+                    'text'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'image'
+                        ]
+                    },
+                    url: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    },
+                    alt: {
+                        type: 'string',
+                        maxLength: 1000
+                    },
+                    href: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    }
+                },
+                required: [
+                    'type',
+                    'url',
+                    'alt'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'button'
+                        ]
+                    },
+                    label: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    url: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    }
+                },
+                required: [
+                    'type',
+                    'label',
+                    'url'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'divider'
+                        ]
+                    }
+                },
+                required: [
+                    'type'
+                ]
+            }
+        ]
+    },
+    maxItems: 200
+} as const;
+
+export const NewsletterIssueStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'NEEDS_APPROVAL',
+        'SCHEDULED',
+        'SENDING',
+        'SENT',
+        'FAILED',
+        'CANCELED'
+    ]
+} as const;
+
+export const CreateNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        }
+    },
+    required: [
+        'subject',
+        'template',
+        'content'
+    ]
+} as const;
+
+export const PatchNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const PutNewsletterRequestSchema = {
     type: 'object',
     properties: {
@@ -22540,6 +22895,14 @@ export const ProjectSocialConnectionSchema = {
             ],
             example: 'Sokosumi'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         avatarUrl: {
             type: [
                 'string',
@@ -22581,6 +22944,7 @@ export const ProjectSocialConnectionSchema = {
         'provider',
         'externalHandle',
         'displayName',
+        'subscriptionType',
         'avatarUrl',
         'status',
         'connectedAt',
@@ -22599,6 +22963,26 @@ export const ProjectSocialProviderSchema = {
         'youtube'
     ],
     example: 'x'
+} as const;
+
+export const ProjectSocialConnectionSubscriptionSchema = {
+    type: 'object',
+    properties: {
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        textLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'subscriptionType',
+        'textLimit'
+    ]
 } as const;
 
 export const SocialAccountStatisticsPageSchema = {
@@ -26166,6 +26550,14 @@ export const SocialPostSocialConnectionSchema = {
             description: 'Profile picture copy in Sokosumi storage',
             example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         status: {
             type: 'string',
             enum: [
@@ -26182,6 +26574,7 @@ export const SocialPostSocialConnectionSchema = {
         'externalHandle',
         'displayName',
         'avatarUrl',
+        'subscriptionType',
         'status'
     ]
 } as const;
@@ -26340,12 +26733,10 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch'
         },
         media: {
@@ -26435,12 +26826,10 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch'
         },
         media: {
@@ -26845,6 +27234,76 @@ export const PatchProjectRequestSchema = {
             example: 'SOK'
         }
     }
+} as const;
+
+export const PublicNewsletterSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        senderName: {
+            type: 'string'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        }
+    },
+    required: [
+        'name',
+        'senderName',
+        'brand'
+    ]
+} as const;
+
+export const NewsletterSignupAcceptedSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'check_your_inbox'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const SubscribeNewsletterRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string'
+        },
+        name: {
+            type: 'string',
+            maxLength: 200
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'SIGNUP_FORM'
+            ]
+        },
+        website: {
+            type: 'string',
+            maxLength: 2048
+        },
+        locale: {
+            type: 'string',
+            enum: [
+                'en',
+                'de',
+                'es'
+            ],
+            default: 'en'
+        }
+    },
+    required: [
+        'email'
+    ]
 } as const;
 
 export const JobSchema = {

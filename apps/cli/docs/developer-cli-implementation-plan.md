@@ -16,11 +16,11 @@
 
 [VERIFIED: draft branch contents, 2026-09-30] These open draft PRs contain planning documents and corrections to existing guides. Each draft uses the preceding branch, with #5463 based on `main`.
 
-| Draft | Proposed implementation | Brief |
-| --- | --- | --- |
-| [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
-| [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md) |
-| [#5465](https://github.com/masumi-network/sokosumi/pull/5465) | CLI and Skill flow, payment display and live proof | [Plugin flow](mps-payment-stack/03-plugin-flow.md) |
+| Draft                                                         | Proposed implementation                                        | Brief                                                                |
+| ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval                      | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
+| [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md)                 |
+| [#5465](https://github.com/masumi-network/sokosumi/pull/5465) | CLI and Skill flow, payment display and live proof             | [Plugin flow](mps-payment-stack/03-plugin-flow.md)                   |
 
 [CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live end-to-end acceptance must tie the delivered Task to the intended seller's payment.
 
@@ -30,16 +30,16 @@
 
 [CORRECTION, VERIFIED: git history at `c2271e441`, 2026-09-30] All eight PRs below are merged. The earlier draft-stack description recorded their initial delivery state. The dated test and pilot records remain historical evidence.
 
-| Order | Slice | Review |
-| --- | --- | --- |
-| 1 | Preprod registration and selected Workspace access | [#5241](https://github.com/masumi-network/sokosumi/pull/5241) |
-| 2 | Live account identity with `auth whoami` | [#5282](https://github.com/masumi-network/sokosumi/pull/5282) |
-| 3 | Platform-admin provisioning checks and handoff | [#5283](https://github.com/masumi-network/sokosumi/pull/5283) |
-| 4 | Existing member onboarding and available Seat assignment | [#5284](https://github.com/masumi-network/sokosumi/pull/5284) |
-| 5 | Organization selection for Task commands | [#5285](https://github.com/masumi-network/sokosumi/pull/5285) |
-| 6 | Generic Coworker runtime identity and Task operations | [#5286](https://github.com/masumi-network/sokosumi/pull/5286) |
-| 7 | Optional execution through an existing Hermes profile | [#5287](https://github.com/masumi-network/sokosumi/pull/5287) |
-| 8 | Framework-neutral plugin and private Workspace guidance | [#5288](https://github.com/masumi-network/sokosumi/pull/5288) |
+| Order | Slice                                                    | Review                                                        |
+| ----- | -------------------------------------------------------- | ------------------------------------------------------------- |
+| 1     | Preprod registration and selected Workspace access       | [#5241](https://github.com/masumi-network/sokosumi/pull/5241) |
+| 2     | Live account identity with `auth whoami`                 | [#5282](https://github.com/masumi-network/sokosumi/pull/5282) |
+| 3     | Platform-admin provisioning checks and handoff           | [#5283](https://github.com/masumi-network/sokosumi/pull/5283) |
+| 4     | Existing member onboarding and available Seat assignment | [#5284](https://github.com/masumi-network/sokosumi/pull/5284) |
+| 5     | Organization selection for Task commands                 | [#5285](https://github.com/masumi-network/sokosumi/pull/5285) |
+| 6     | Generic Coworker runtime identity and Task operations    | [#5286](https://github.com/masumi-network/sokosumi/pull/5286) |
+| 7     | Optional execution through an existing Hermes profile    | [#5287](https://github.com/masumi-network/sokosumi/pull/5287) |
+| 8     | Framework-neutral plugin and private Workspace guidance  | [#5288](https://github.com/masumi-network/sokosumi/pull/5288) |
 
 [CORRECTION, VERIFIED: local command output, 2026-09-27] The earlier stack reported 422 passing tests. After syncing with `main` at `e091b937b289df5074b9925c9b04f89e56dcc7f2` and adding 18 recovery tests, the Node `v24.19.0` suite reports `tests 440`, `pass 440`, `fail 0`, and `skipped 0`. The CLI build passed. Base recovery commit hooks report `17 successful, 17 total` typecheck tasks. Subprocess fixtures do not prove a live Hermes provider or a Preprod Task. Earlier shell checks used Node `v26.8.1`; these checks explicitly selected Node 24.
 
@@ -83,13 +83,13 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [REPORTED: approved boundaries] One developer CLI lives in `apps/cli`. Skills teach supported runtimes how to use the integration. Thin adapters handle framework-specific execution. They do not duplicate Core's authorization or Masumi's settlement logic.
 
-| Component | Owns | Must not own |
-| --- | --- | --- |
-| Developer CLI | Human login, Preprod setup, existing Core-authorized Coworker management, Workspace access request, diagnostics | Permission bypass, self-approval, wallet signing backend |
-| Skill at `apps/cli/skills/sokosumi` | Discoverable setup and use instructions for supported runtimes | Core authorization, broad developer credentials, a second CLI product |
-| Runtime adapter and worker | Coworker execution identity, task invocation, progress, reconnect behavior | Granting itself workspace access or replacing Core task authority |
-| Core | Existing Coworker authorization, Workspace grants, Task/Job state, spending authorization, waitlist review | CLI permission changes or treating runtime-reported credits as seller receipt |
-| Masumi Payment Service | MPS payment execution and settlement | Sokosumi Workspace authorization or administrative promotion |
+| Component                           | Owns                                                                                                            | Must not own                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Developer CLI                       | Human login, Preprod setup, existing Core-authorized Coworker management, Workspace access request, diagnostics | Permission bypass, self-approval, wallet signing backend                      |
+| Skill at `apps/cli/skills/sokosumi` | Discoverable setup and use instructions for supported runtimes                                                  | Core authorization, broad developer credentials, a second CLI product         |
+| Runtime adapter and worker          | Coworker execution identity, task invocation, progress, reconnect behavior                                      | Granting itself workspace access or replacing Core task authority             |
+| Core                                | Existing Coworker authorization, Workspace grants, Task/Job state, spending authorization, waitlist review      | CLI permission changes or treating runtime-reported credits as seller receipt |
+| Masumi Payment Service              | MPS payment execution and settlement                                                                            | Sokosumi Workspace authorization or administrative promotion                  |
 
 [VERIFIED: ADR 0005, 2026-09-21] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Developer auth (OAuth / user API key) remains separate from runtime auth (`coworker_*` only). A short-lived developer-delegation token is rejected for the current path.
 
@@ -213,29 +213,29 @@ Customer charging and seller receipt are separate outcomes. `TaskPaymentClaim.PU
 
 [VERIFIED: source inspection at 63377d7; not runtime verification]
 
-| Source | Observed behavior | Consequence |
-| --- | --- | --- |
-| `apps/core/src/routes/v1/coworkers/post.ts:83-112` | Platform admin any network; own Vendor admin on Preprod; requires Vendor; creates an unwhitelisted Coworker | Mainnet still needs platform-admin create; Preprod Vendor admin can self-provision |
-| `apps/cli/src/auth/config.ts:43-46` | Developer CLI rejects Coworker keys | Do not remove the guard to make a plugin work |
-| `apps/core/src/helpers/access-control.ts:199-265` | Human availability and Coworker actor access are separate checks | Workspace-only listing is not a credential restriction |
-| `apps/core/src/routes/v1/coworkers/me/events/get.ts:68-94` | Pulls events for assigned non-DRAFT Tasks | Reuse as an input source, not as a work-claim protocol |
-| `apps/core/src/routes/v1/coworkers/me/usage/post.ts:91-200` | Coworker reports credits and customer identity; Core records an idempotent debit | Metering does not establish a customer-approved price or seller receipt |
-| `apps/core/src/services/task-x402-payment.service.ts:238-310` | Requires listed payable Agent; validates demands; dynamic pricing requires a ceiling | General external x402 purchases need additional Core policy |
+| Source                                                        | Observed behavior                                                                                           | Consequence                                                                        |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `apps/core/src/routes/v1/coworkers/post.ts:83-112`            | Platform admin any network; own Vendor admin on Preprod; requires Vendor; creates an unwhitelisted Coworker | Mainnet still needs platform-admin create; Preprod Vendor admin can self-provision |
+| `apps/cli/src/auth/config.ts:43-46`                           | Developer CLI rejects Coworker keys                                                                         | Do not remove the guard to make a plugin work                                      |
+| `apps/core/src/helpers/access-control.ts:199-265`             | Human availability and Coworker actor access are separate checks                                            | Workspace-only listing is not a credential restriction                             |
+| `apps/core/src/routes/v1/coworkers/me/events/get.ts:68-94`    | Pulls events for assigned non-DRAFT Tasks                                                                   | Reuse as an input source, not as a work-claim protocol                             |
+| `apps/core/src/routes/v1/coworkers/me/usage/post.ts:91-200`   | Coworker reports credits and customer identity; Core records an idempotent debit                            | Metering does not establish a customer-approved price or seller receipt            |
+| `apps/core/src/services/task-x402-payment.service.ts:238-310` | Requires listed payable Agent; validates demands; dynamic pricing requires a ceiling                        | General external x402 purchases need additional Core policy                        |
 
 ## Stages and checkpoints
 
 [PROPOSED] Stages describe progress within a chosen capability, not a compulsory product ladder: selected, configured, verified, then eligible where applicable. A failed or stale check returns that capability to action-required. Public approval is a separate Core decision.
 
-| Checkpoint | Prerequisite and owner | Pass evidence | Failure or revalidation condition |
-| --- | --- | --- | --- |
-| C0: Workspace and ownership | Developer login; Core authorizes workspace and Vendor | Authorized setup succeeds; foreign ownership is denied | Ownership or workspace grant changes |
-| C1: Runtime connection | C0 and approved runtime auth contract; Core plus adapter | Correct actor identity; bounded session expiry; disconnect/reconnect proof; no developer-auth fallback | Credential expiry, revocation, or changed adapter configuration |
-| C2: Chat participation | C1, approved transport, authorized room; Core plus adapter | Mention and reply in direct chat, channel, and group for each supported type; unrelated context denied | Membership revocation, transport change, or stale delivery evidence |
-| C3: Tasks and Jobs | C1 and required grants; Core plus adapter | Authorized reads, updates, follow-up Task, and Task-linked Agent Job; unauthorized transitions denied; duplicate delivery safe | Grant or execution contract changes; failed recovery test |
-| C4: x402 purchasing | C1, funding selection, Masumi configuration; Core and payment service | Controlled purchase for each advertised rail/funding mode; invalid amount, asset, recipient, and network rejected; retry reconciled | Budget, wallet, rail, or signer configuration changes |
-| C5: Seller readiness | Seller registration and accepted test pricing; Core and payment service | Metering tied to authorized work; customer debit, delivered result, and intended seller receipt; duplicate billing denied | Price, receiving wallet, settlement integration, or relevant test validity changes |
-| C6: Paid eligibility | C0/C1, public isolation proof, C5, and only advertised capability checks; Core | Current live policy plus valid non-derivable evidence passes the declared service profile | Any required authority or evidence becomes invalid; unknown readiness fails closed |
-| C7: Public approval | C6 and developer application with pricing; Sokosumi administration | Explicit recorded approval after review; customer workspace still authorizes use | Required readiness loss blocks affected service; approval history remains; new public pricing needs review |
+| Checkpoint                  | Prerequisite and owner                                                         | Pass evidence                                                                                                                       | Failure or revalidation condition                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| C0: Workspace and ownership | Developer login; Core authorizes workspace and Vendor                          | Authorized setup succeeds; foreign ownership is denied                                                                              | Ownership or workspace grant changes                                                                       |
+| C1: Runtime connection      | C0 and approved runtime auth contract; Core plus adapter                       | Correct actor identity; bounded session expiry; disconnect/reconnect proof; no developer-auth fallback                              | Credential expiry, revocation, or changed adapter configuration                                            |
+| C2: Chat participation      | C1, approved transport, authorized room; Core plus adapter                     | Mention and reply in direct chat, channel, and group for each supported type; unrelated context denied                              | Membership revocation, transport change, or stale delivery evidence                                        |
+| C3: Tasks and Jobs          | C1 and required grants; Core plus adapter                                      | Authorized reads, updates, follow-up Task, and Task-linked Agent Job; unauthorized transitions denied; duplicate delivery safe      | Grant or execution contract changes; failed recovery test                                                  |
+| C4: x402 purchasing         | C1, funding selection, Masumi configuration; Core and payment service          | Controlled purchase for each advertised rail/funding mode; invalid amount, asset, recipient, and network rejected; retry reconciled | Budget, wallet, rail, or signer configuration changes                                                      |
+| C5: Seller readiness        | Seller registration and accepted test pricing; Core and payment service        | Metering tied to authorized work; customer debit, delivered result, and intended seller receipt; duplicate billing denied           | Price, receiving wallet, settlement integration, or relevant test validity changes                         |
+| C6: Paid eligibility        | C0/C1, public isolation proof, C5, and only advertised capability checks; Core | Current live policy plus valid non-derivable evidence passes the declared service profile                                           | Any required authority or evidence becomes invalid; unknown readiness fails closed                         |
+| C7: Public approval         | C6 and developer application with pricing; Sokosumi administration             | Explicit recorded approval after review; customer workspace still authorizes use                                                    | Required readiness loss blocks affected service; approval history remains; new public pricing needs review |
 
 [PROPOSED] Checkpoint output identifies the capability, current result, missing prerequisite, evidence reference, configuration version, and next action. Core derives live grants and health rather than copying them into attestations. Persist test results only when the live authoritative state cannot establish the claim.
 
@@ -255,8 +255,8 @@ These units describe independently reviewable outcomes, not a forced user journe
    - Files: `apps/cli/SPEC.md`, `apps/cli/docs/developer-cli-implementation-plan.md`, `apps/cli/src/api/models/organization-workspace.ts`, `apps/cli/src/api/models/vendor.ts`, `apps/cli/src/api/services/organization-workspace-service.ts`, `apps/cli/src/api/services/vendor-service.ts`, `apps/cli/src/cli/commands/discover.ts`, `apps/cli/src/cli/commands/vendors.ts`, `apps/cli/src/cli/commands/workspaces.ts`, `apps/cli/src/cli/index.ts`, `apps/cli/test/api/vendor-workspace-service.test.ts`, `apps/cli/test/cli/bin.test.ts`, `apps/cli/test/cli/commands/vendors-workspaces.test.ts`, `apps/cli/test/cli/index.test.ts`.
    - Checks: `pnpm --filter ./apps/cli test`; `pnpm --filter ./apps/cli typecheck`; `pnpm --filter ./apps/cli build`; `pnpm --filter core test src/routes/v1/vendors/get.test.ts src/routes/v1/vendors/vendor-admin.test.ts src/routes/v1/users/user-path-access.test.ts src/routes/v1/users/user-route-context.test.ts`; `pnpm exec biome check apps/cli/src apps/cli/test`; remove and restore V79/V80 guards, then rerun `pnpm --filter ./apps/cli test` to prove red and green.
    - Allowed: authenticated exact commands, Vendor memberships with roles, organization-workspace candidates, text output, one-document JSON. Denied: unauthenticated Core calls, bare/wrong subcommands, malformed lists, missing IDs, organization metadata output, Vendor creation, registration, and TUI changes.
-1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. Headless `coworkers register` requires at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. Gate copy directs blocked developers to `sokosumi vendors create`; Core Coworker create allows platform admin on any network and own Vendor admin on Preprod. Signed-in TUI has no Register screen; create stays headless until T41.
-1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
+     1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. Headless `coworkers register` requires at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. Gate copy directs blocked developers to `sokosumi vendors create`; Core Coworker create allows platform admin on any network and own Vendor admin on Preprod. Signed-in TUI has no Register screen; create stays headless until T41.
+     1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
 2. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity uses `coworker_*`. Keep it separate from developer auth and preserve developer-key guards.
 3. Current Core allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). The CLI must not bypass this role check.
    [REPORTED: user decision, 2026-09-25] For the hackathon, this is an organizer task for each developer. Follow the [hackathon track](#hackathon-track). This flow does not provide instant self-service registration.

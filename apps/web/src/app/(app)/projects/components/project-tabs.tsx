@@ -10,6 +10,7 @@ export interface ProjectTab {
   id: string;
   href: string;
   label: string;
+  icon?: React.ReactNode;
   /**
    * Match this path and nothing below it.
    *
@@ -81,7 +82,7 @@ export function ProjectTabs({
               <Link
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "-mb-px block border-b-2 py-2.5 whitespace-nowrap transition-colors",
+                  "-mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
                   // No radius: the corners belong to the indicator too, and a
                   // rounded 2px bar under a word reads as a pill rather than
                   // as an underline.
@@ -92,6 +93,7 @@ export function ProjectTabs({
                 )}
                 href={tab.href}
               >
+                {tab.icon}
                 {tab.label}
               </Link>
             </li>

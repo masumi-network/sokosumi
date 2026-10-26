@@ -56,6 +56,7 @@ const account = {
   externalHandle: "launch",
   displayName: "Launch",
   avatarUrl: null,
+  subscriptionType: null,
   status: "active",
   connectedAt: null,
   disconnectedAt: null,
