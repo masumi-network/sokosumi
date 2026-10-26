@@ -1,6 +1,13 @@
 import "server-only";
 
-import type { Newsletter, PutNewsletterRequest } from "@sokosumi/core-client";
+import type {
+  AddNewsletterSubscriberRequest,
+  GetProjectsByIdNewsletterSubscribersData,
+  ImportNewsletterSubscribersRequest,
+  Newsletter,
+  PatchNewsletterSubscriberRequest,
+  PutNewsletterRequest,
+} from "@sokosumi/core-client";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
@@ -31,5 +38,56 @@ export const newsletterService = {
       input,
     );
     return response.data;
+  },
+
+  async listSubscribers(
+    projectId: string,
+    query: GetProjectsByIdNewsletterSubscribersData["query"],
+  ) {
+    return coreClient.getProjectsByIdNewsletterSubscribers(projectId, query);
+  },
+
+  async addSubscriber(
+    projectId: string,
+    input: AddNewsletterSubscriberRequest,
+  ) {
+    const response = await coreClient.postProjectsByIdNewsletterSubscribers(
+      projectId,
+      input,
+    );
+    return response.data;
+  },
+
+  async importSubscribers(
+    projectId: string,
+    input: ImportNewsletterSubscribersRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSubscribersImport(
+        projectId,
+        input,
+      );
+    return response.data;
+  },
+
+  async updateSubscriber(
+    projectId: string,
+    subscriberId: string,
+    input: PatchNewsletterSubscriberRequest,
+  ) {
+    const response =
+      await coreClient.patchProjectsByIdNewsletterSubscribersBySubscriberId(
+        projectId,
+        subscriberId,
+        input,
+      );
+    return response.data;
+  },
+
+  async removeSubscriber(projectId: string, subscriberId: string) {
+    await coreClient.deleteProjectsByIdNewsletterSubscribersBySubscriberId(
+      projectId,
+      subscriberId,
+    );
   },
 };
