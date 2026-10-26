@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getConnectedSocialIdentity } from "@/clients/composio.client";
 import {
+  escapeLinkedInCommentary,
   linkedInPostIdOf,
   publishLinkedInPost,
 } from "@/clients/social-post-providers/linkedin";
@@ -33,7 +35,7 @@ const context = {
   executorUserId: "sokosumi:project-executor:project_123",
   externalAccountId: "person_42",
   externalHandle: "ada",
-  text: "Hello LinkedIn",
+  text: "Hello (LinkedIn) #launch",
   media: [],
 };
 
@@ -111,13 +113,72 @@ describe("publishLinkedInPost", () => {
         tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
         arguments: {
           author: "urn:li:person:person_42",
-          commentary: "Hello LinkedIn",
+          commentary: "Hello \\(LinkedIn\\) #launch",
           visibility: "PUBLIC",
           lifecycleState: "PUBLISHED",
         },
       },
     ]);
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it.each([
+    ["a bare stored id", "person_42"],
+    ["a legacy full-URN stored id", "urn:li:person:person_42"],
+  ])("publishes as the person URN from %s", async (_, externalAccountId) => {
+    const fetchMock = stubSession((call) => {
+      if (call.tool_slug === "LINKEDIN_REGISTER_IMAGE_UPLOAD") {
+        return toolResponse({
+          upload_url: "https://www.linkedin.com/upload/1",
+          asset_urn: "urn:li:image:asset_1",
+        });
+      }
+      return toolResponse({ id: "urn:li:share:74" });
+    });
+    downloadSocialPostMediaMock.mockResolvedValue([
+      {
+        bytes: new Uint8Array([1]),
+        name: "photo.jpg",
+        mimeType: "image/jpeg",
+        kind: "image",
+      },
+    ]);
+
+    await publishLinkedInPost({
+      ...context,
+      externalAccountId,
+      media: [LINKEDIN_IMAGE_REF],
+    });
+
+    const [register, create] = executeCalls(fetchMock);
+    expect(register?.arguments.owner_urn).toBe("urn:li:person:person_42");
+    expect(create?.arguments.author).toBe("urn:li:person:person_42");
+  });
+
+  it("publishes as the person returned by the LinkedIn connect lookup", async () => {
+    const fetchMock = stubSession((call) =>
+      call.tool_slug === "LINKEDIN_GET_MY_INFO"
+        ? toolResponse({
+            response_dict: {
+              author_id: "urn:li:person:alice",
+              given_name: "Alice",
+              family_name: "Doe",
+            },
+          })
+        : toolResponse({ id: "urn:li:share:75" }),
+    );
+
+    const identity = await getConnectedSocialIdentity({
+      provider: "linkedin",
+      connectedAccountId: context.connectedAccountId,
+      executorUserId: context.executorUserId,
+    });
+    await publishLinkedInPost({ ...context, externalAccountId: identity.id });
+
+    expect(executeCalls(fetchMock).at(-1)).toMatchObject({
+      tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
+      arguments: { author: "urn:li:person:alice" },
+    });
   });
 
   it("registers each image and attaches the asset URNs", async () => {
@@ -172,7 +233,7 @@ describe("publishLinkedInPost", () => {
       tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
       arguments: {
         author: "urn:li:person:person_42",
-        commentary: "Hello LinkedIn",
+        commentary: "Hello \\(LinkedIn\\) #launch",
         visibility: "PUBLIC",
         lifecycleState: "PUBLISHED",
         images: ["urn:li:image:asset_1", "urn:li:image:asset_2"],
@@ -220,7 +281,7 @@ describe("publishLinkedInPost", () => {
         tool_slug: "LINKEDIN_CREATE_VIDEO_POST",
         arguments: {
           video_urn: "urn:li:video:99",
-          commentary: "Hello LinkedIn",
+          commentary: "Hello \\(LinkedIn\\) #launch",
           visibility: "PUBLIC",
         },
       },
@@ -348,5 +409,33 @@ describe("publishLinkedInPost", () => {
     await expect(publishLinkedInPost(context)).rejects.toBeInstanceOf(
       ComposioPublishOutcomeUnknownError,
     );
+  });
+});
+
+describe("escapeLinkedInCommentary", () => {
+  it("escapes reserved characters and keeps hashtags", () => {
+    expect(
+      escapeLinkedInCommentary(
+        "Test (one) [two] snake_case *star* #hashtag @someone ~ end",
+      ),
+    ).toBe(
+      "Test \\(one\\) \\[two\\] snake\\_case \\*star\\* #hashtag \\@someone \\~ end",
+    );
+  });
+
+  it.each([
+    ["a\\b", "a\\\\b"],
+    ["a|b", "a\\|b"],
+    ["{a}", "\\{a\\}"],
+    ["<a>", "\\<a\\>"],
+    ["#", "\\#"],
+    ["# ", "\\# "],
+    ["C#", "C\\#"],
+    ["#snake_case", "#snake_case"],
+    ["#café2026 ok", "#café2026 ok"],
+    ["line one\nline two 🚀", "line one\nline two 🚀"],
+    ["", ""],
+  ])("escapes %j", (text, expected) => {
+    expect(escapeLinkedInCommentary(text)).toBe(expected);
   });
 });

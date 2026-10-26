@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { TestQueryProvider } from "@/test/query-provider";
@@ -258,6 +262,32 @@ describe("RoomsClient opens a room at the Unread divider", () => {
         ?.anchorId,
     ).toBe("unread-1");
     expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+  });
+
+  it("opens on the open-at-unread read the click started, not a second one", async () => {
+    const room = unreadRoom();
+    publishMembershipVisibleRooms([room], "org-1", "user-1");
+    const view = render(<a href={`/chat/rooms/${room.id}`}>{room.name}</a>, {
+      wrapper: RetainedRooms,
+    });
+    screen.getByRole("link", { name: room.name }).click();
+    await waitFor(() => expect(openAtUnreadCalls()).toHaveLength(1));
+
+    view.rerender(
+      <RoomsClient
+        {...roomsClientBaseProps({
+          rooms: [room],
+          messages: [read1, read2, unread1, unread2],
+        })}
+      />,
+    );
+    await waitFor(() => expect(dividerMessageId()).toBe("unread-1"));
+
+    // The click's read carries no visit signal; the room asked for no other.
+    expect(openAtUnreadCalls()).toEqual([
+      [room.id, null, { openAtUnread: true }, expect.any(Function)],
+    ]);
+    clearMembershipVisibleRoomsSnapshot();
   });
 
   it("joins an older divider window to the newest page through the gap row", async () => {

@@ -24,6 +24,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserMembership,
+  withChatRoomReplyCounts,
 } from "../../../../helpers";
 import {
   aroundWindowPaginationMeta,
@@ -131,13 +132,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!target) {
         throw notFound("Message not found");
       }
-      const { messages, hasMoreOlder, count } =
-        await listChatRoomMessagesAround({
-          db: prisma,
-          scope: where,
-          center: target,
-          take,
-        });
+      const around = await listChatRoomMessagesAround({
+        db: prisma,
+        scope: where,
+        center: target,
+        take,
+      });
+      const { hasMoreOlder, count } = around;
+      const messages = await withChatRoomReplyCounts(prisma, around.messages);
       const paginationMeta = aroundWindowPaginationMeta(
         messages,
         take,
@@ -178,7 +180,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       hasMore,
       cursor,
     );
-    const orderedMessages = [...pageMessages].reverse();
+    const orderedMessages = await withChatRoomReplyCounts(
+      prisma,
+      [...pageMessages].reverse(),
+    );
 
     return ok(
       c,
