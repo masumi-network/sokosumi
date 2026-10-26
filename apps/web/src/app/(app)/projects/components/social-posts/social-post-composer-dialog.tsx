@@ -24,6 +24,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
+import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
@@ -108,6 +109,7 @@ export type SocialPostComposerMode =
 
 interface SocialPostComposerDialogProps {
   connections: ProjectSocialConnection[];
+  connectDisabled?: boolean;
   mode: SocialPostComposerMode;
   /** Takes the reader to where accounts are connected; absent, none is offered. */
   onConnectAccount?: () => void;
@@ -135,6 +137,7 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
+  connectDisabled = false,
   mode,
   onConnectAccount,
   onError,
@@ -145,6 +148,7 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
@@ -158,10 +162,28 @@ export function SocialPostComposerDialog({
   const tooLongId = useId();
   const publishHintId = useId();
   const saveHintId = useId();
+  const reconnectHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const [reconnectedAccounts, setReconnectedAccounts] = useState<
+    Record<string, ProjectSocialConnection>
+  >({});
+  const knownConnections: ProjectSocialConnection[] = [...initialConnections];
+  if (
+    post?.socialConnection &&
+    !knownConnections.some(
+      (connection) => connection.id === post.socialConnection?.id,
+    )
+  ) {
+    knownConnections.push({
+      ...post.socialConnection,
+      provider: post.provider,
+      connectedAt: null,
+      disconnectedAt: null,
+    });
+  }
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -180,19 +202,41 @@ export function SocialPostComposerDialog({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  // Refresh only pictures: cached query data must not reintroduce disconnected accounts.
-  const connections = initialConnections.map((connection) => ({
-    ...connection,
-    avatarUrl:
-      connection.avatarUrl ??
-      refreshedConnections?.find(
-        (fresh) =>
-          fresh.id === connection.id &&
-          fresh.provider === connection.provider &&
-          fresh.externalHandle === connection.externalHandle,
-      )?.avatarUrl ??
-      null,
-  }));
+  // Cached query data supplies pictures only; status comes from props or completed OAuth.
+  const updatedConnections = knownConnections.map((known) => {
+    const connection = reconnectedAccounts[known.id] ?? known;
+    return {
+      ...connection,
+      avatarUrl:
+        connection.avatarUrl ??
+        refreshedConnections?.find(
+          (fresh) =>
+            fresh.id === connection.id &&
+            fresh.provider === connection.provider &&
+            fresh.externalHandle === connection.externalHandle,
+        )?.avatarUrl ??
+        null,
+    };
+  });
+  const allConnections = [
+    ...new Map(
+      updatedConnections.map((connection) => [connection.id, connection]),
+    ).values(),
+  ];
+  const connections = allConnections.filter(
+    (connection) => connection.status === "active",
+  );
+  const accountOptions = allConnections.filter(
+    (connection) =>
+      connection.status === "active" || connection.status === "pending",
+  );
+  const reconnections = allConnections
+    .filter(
+      (connection) =>
+        connection.status === "reauthorization_required" ||
+        connection.status === "disconnected",
+    )
+    .map((connection) => ({ connection, affectedPosts: [] }));
   const organizationId = session?.session.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
@@ -260,9 +304,17 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-  );
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (!post?.scheduledAt) return "";
+    if (
+      (post.status === "FAILED" || post.status === "MISSED") &&
+      post.scheduledAt.getTime() <=
+        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+    ) {
+      return "";
+    }
+    return toScheduleValue(post.scheduledAt);
+  });
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
   const { data: suggestedTimes } = useQuery({
@@ -298,13 +350,13 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
+    scheduledAt,
     connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = connections
+  const selectedConnections = allConnections
     .filter((connection) => connectionIds.includes(connection.id))
     .map((connection) => {
       const fresh = subscriptions.get(connection.id);
@@ -312,6 +364,13 @@ export function SocialPostComposerDialog({
         ? { ...connection, subscriptionType: fresh.subscriptionType }
         : connection;
     });
+  const selectedAccountsConnected =
+    selectedConnections.length > 0 &&
+    selectedConnections.every((connection) => connection.status === "active");
+  const needsReconnect = reconnections.some(
+    ({ connection }) =>
+      connectionIds.includes(connection.id) || connections.length === 0,
+  );
   const connectionId = selectedConnections[0]?.id ?? "";
   // One feed at a time: the account the reader picked, else the first still
   // selected, else the post's own account while none is picked.
@@ -464,7 +523,7 @@ export function SocialPostComposerDialog({
   const canSchedule =
     textValid &&
     mediaValid &&
-    connectionId !== "" &&
+    selectedAccountsConnected &&
     scheduledAtValid &&
     !isBusy;
   const canSave = draftValid && !isBusy;
@@ -473,7 +532,7 @@ export function SocialPostComposerDialog({
     mode.kind === "create" &&
     textValid &&
     mediaValid &&
-    selectedConnections.length > 0 &&
+    selectedAccountsConnected &&
     !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
 
@@ -749,7 +808,7 @@ export function SocialPostComposerDialog({
    * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
    * time is all the schedule dialog does, so it never saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const canPostNow = mode.kind === "create" && allConnections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
@@ -782,6 +841,7 @@ export function SocialPostComposerDialog({
         : saveLabel;
   const needsAccount =
     !isScheduleOnly &&
+    !needsReconnect &&
     primaryAction !== "save" &&
     connections.length > 0 &&
     selectedConnections.length === 0;
@@ -803,7 +863,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
-          socialConnectionId: connectionId || null,
+          socialConnectionId: connectionIds[0] ?? null,
           revision: mode.post.revision,
         });
         if (!result.ok) {
@@ -1014,7 +1074,13 @@ export function SocialPostComposerDialog({
       disabled={!primaryEnabled}
       loading={pending === primaryAction}
       onClick={runPrimary}
-      aria-describedby={showRequirementHint ? publishHintId : undefined}
+      aria-describedby={
+        needsReconnect && primaryAction !== "save"
+          ? reconnectHintId
+          : showRequirementHint
+            ? publishHintId
+            : undefined
+      }
     >
       {primaryLabel}
       {primaryEnabled ? (
@@ -1087,7 +1153,7 @@ export function SocialPostComposerDialog({
                     ? t("composer.accounts")
                     : t("composer.account")}
                 </span>
-                {connections.length === 0 ? (
+                {allConnections.length === 0 ? (
                   <div
                     className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
                     data-testid="social-post-no-accounts"
@@ -1113,7 +1179,7 @@ export function SocialPostComposerDialog({
                       </Button>
                     ) : null}
                   </div>
-                ) : (
+                ) : accountOptions.length > 0 ? (
                   <div
                     aria-invalid={needsAccount || undefined}
                     aria-labelledby={accountsLabelId}
@@ -1121,7 +1187,7 @@ export function SocialPostComposerDialog({
                     data-testid="social-post-accounts"
                     role="group"
                   >
-                    {connections.map((connection) => {
+                    {accountOptions.map((connection) => {
                       const selected = connectionIds.includes(connection.id);
                       const handle = accountChipLabel(
                         connection,
@@ -1142,7 +1208,7 @@ export function SocialPostComposerDialog({
                               ? "border-foreground text-foreground"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          disabled={isBusy}
+                          disabled={isBusy || connection.status !== "active"}
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
                           type="button"
@@ -1152,6 +1218,9 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {connection.status === "pending" ? (
+                            <span>{accountsT("status.pending")}</span>
+                          ) : null}
                           {selected ? (
                             <Check className="size-3.5" aria-hidden />
                           ) : null}
@@ -1167,7 +1236,40 @@ export function SocialPostComposerDialog({
                       </p>
                     ) : null}
                   </div>
-                )}
+                ) : null}
+                {reconnections.length > 0 ? (
+                  <div className="w-full space-y-2">
+                    <ProjectSocialAccounts
+                      connections={allConnections}
+                      connectDisabled={connectDisabled || isBusy}
+                      projectId={projectId}
+                      reconnections={reconnections}
+                      onReconnected={(connection, previousConnectionId) => {
+                        setReconnectedAccounts((current) => ({
+                          ...current,
+                          [previousConnectionId ?? connection.id]: connection,
+                        }));
+                        setConnectionIds((current) =>
+                          current.length === 0
+                            ? [connection.id]
+                            : current.map((id) =>
+                                id === previousConnectionId
+                                  ? connection.id
+                                  : id,
+                              ),
+                        );
+                      }}
+                    />
+                    {needsReconnect ? (
+                      <p
+                        id={reconnectHintId}
+                        className="text-muted-foreground text-xs"
+                      >
+                        {t("composer.reconnectAccount")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {isScheduleOnly ? null : (

@@ -2624,6 +2624,7 @@
           "rescheduleFor": "Reschedule for {date}",
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
+          "reconnectAccount": "Reconnect to post or schedule. You can still save a draft.",
           "dismiss": "Cancel",
           "discardTitle": "Discard changes?",
           "discardDescription": "Your changes will be lost.",

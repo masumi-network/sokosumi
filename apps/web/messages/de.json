@@ -2624,6 +2624,7 @@
           "rescheduleFor": "Neu planen für {date}",
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
+          "reconnectAccount": "Verbinde das Konto erneut, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "dismiss": "Abbrechen",
           "discardTitle": "Änderungen verwerfen?",
           "discardDescription": "Deine Änderungen gehen verloren.",
