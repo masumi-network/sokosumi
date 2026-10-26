@@ -6711,6 +6711,10 @@ export type ProjectSocialConnection = {
     externalHandle: string | null;
     displayName: string | null;
     /**
+     * X subscription tier; null when unknown or not X
+     */
+    subscriptionType: string | null;
+    /**
      * Profile picture copy in Sokosumi storage
      */
     avatarUrl: string | null;
@@ -6729,6 +6733,11 @@ export const ProjectSocialProvider = {
 } as const;
 
 export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
+
+export type ProjectSocialConnectionSubscription = {
+    subscriptionType: string | null;
+    textLimit: number;
+};
 
 export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
@@ -7631,6 +7640,10 @@ export type SocialPostSocialConnection = {
      * Profile picture copy in Sokosumi storage
      */
     avatarUrl: string | null;
+    /**
+     * X subscription tier; null when unknown or not X
+     */
+    subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
 } | null;
 
@@ -49891,6 +49904,141 @@ export type GetProjectsByIdSocialConnectionsResponses = {
 };
 
 export type GetProjectsByIdSocialConnectionsResponse = GetProjectsByIdSocialConnectionsResponses[keyof GetProjectsByIdSocialConnectionsResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/subscription';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionError = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses = {
+    /**
+     * Account subscription and text limit
+     */
+    200: {
+        data: ProjectSocialConnectionSubscription;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponse = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses];
 
 export type GetProjectsByIdSocialConnectionsStatisticsData = {
     body?: never;

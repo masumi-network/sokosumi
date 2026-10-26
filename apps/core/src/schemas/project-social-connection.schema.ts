@@ -31,6 +31,13 @@ export const projectSocialConnectionParamsSchema =
       }),
   });
 
+export const projectSocialConnectionSubscriptionSchema = z
+  .object({
+    subscriptionType: z.string().nullable(),
+    textLimit: z.number().int().positive(),
+  })
+  .openapi("ProjectSocialConnectionSubscription");
+
 export const projectSocialConnectionSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -39,6 +46,10 @@ export const projectSocialConnectionSchema = z
     provider: projectSocialProviderSchema,
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
     displayName: z.string().nullable().openapi({ example: "Sokosumi" }),
+    subscriptionType: z.string().nullable().openapi({
+      description: "X subscription tier; null when unknown or not X",
+      example: "Premium",
+    }),
     avatarUrl: z.string().url().nullable().openapi({
       description: "Profile picture copy in Sokosumi storage",
       example:

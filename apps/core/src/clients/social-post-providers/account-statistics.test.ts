@@ -114,6 +114,7 @@ describe("connected account statistics", () => {
       request.tool_slug
         ? {
             id: "123",
+            subscription_type: "Premium",
             public_metrics: {
               followers_count: 0,
               following_count: 9,
@@ -142,6 +143,11 @@ describe("connected account statistics", () => {
           },
     );
     const result = await fetchSocialAccountStatisticsPage(input);
+    expect(result.subscriptionType).toBe("Premium");
+    expect(requests[0]).toMatchObject({
+      tool_slug: "TWITTER_USER_LOOKUP_ME",
+      arguments: { user_fields: ["public_metrics", "subscription_type"] },
+    });
     expect(result.accountMetrics).toContainEqual({
       key: "followers_count",
       value: 0,
@@ -189,6 +195,7 @@ describe("connected account statistics", () => {
       cursor: "token_2",
     });
     expect(result.accountMetrics).toBeNull();
+    expect(result.subscriptionType).toBeNull();
     expect(result.historyError).toBeNull();
     expect(requests).toHaveLength(1);
     expect(requests[0].parameters).toContainEqual({
