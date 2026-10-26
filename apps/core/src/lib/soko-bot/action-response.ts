@@ -47,6 +47,7 @@ export const ACTION_LABELS: Record<string, string> = {
   update_emails: "Updated mail",
   draft_email: "Drafted email",
   send_email_draft: "Sent email",
+  save_email_attachment: "Saved email attachment",
   install_skill: "Installed skill",
   remove_skill: "Removed skill",
   generate_image: "Started image",

@@ -123,8 +123,13 @@ describe("triageMail", () => {
     const { mail: tagged, failed } = await triage(inbox);
     expect(failed).toBe(false);
     expect(tagged).toEqual([
-      { message: inbox[0], tag: "BULK", probability: 0.7 },
-      { message: inbox[1], tag: "URGENT", probability: 0.9 },
+      { message: inbox[0], tag: "BULK", probability: 0.7, matchesRule: false },
+      {
+        message: inbox[1],
+        tag: "URGENT",
+        probability: 0.9,
+        matchesRule: false,
+      },
     ]);
     expect(evaluateMock).toHaveBeenCalledOnce();
     const { state, questions } = evaluateMock.mock.calls[0][0];
@@ -132,7 +137,12 @@ describe("triageMail", () => {
       "Do not flag Make scenario errors or DigitalOcean deployment failures.",
     ]);
     expect(state.alreadyFlaggedToday).toEqual(["Stripe: your payout failed."]);
-    expect(Object.keys(questions)).toEqual(["mail0", "mail1"]);
+    expect(Object.keys(questions)).toEqual([
+      "mail0",
+      "rule0",
+      "mail1",
+      "rule1",
+    ]);
     expect(questions.mail0).toMatchObject({
       type: "choice",
       criteria: MAIL_TRIAGE_CRITERIA,
@@ -140,6 +150,41 @@ describe("triageMail", () => {
     expect(questions.mail0.instructions).toMatch(/ownerPreferences/);
     expect(questions.mail0.instructions).toMatch(/alreadyFlaggedToday/);
     expect(MAIL_TRIAGE_CRITERIA.URGENT).toMatch(/DigitalOcean.*never urgent/);
+  });
+
+  it("marks mail a saved rule asks the bot to act on, only when Jev is sure", async () => {
+    memoryMock.mockResolvedValue({
+      markdown:
+        "# Soko Bot memory\n\n## Decisions\n\n- Save invoice attachments into Finance/Invoices.\n",
+    });
+    evaluateMock.mockResolvedValue({
+      answers: {
+        mail0: choice(0, 0.2, 0.8),
+        rule0: { type: "boolean", probability: 0.9 },
+        mail1: choice(0, 0.2, 0.8),
+        rule1: { type: "boolean", probability: 0.4 },
+      },
+    });
+    const { mail: tagged } = await triage([
+      mail("a", "Invoice #42"),
+      mail("b", "Weekly digest"),
+    ]);
+    expect(tagged.map((item) => item.matchesRule)).toEqual([true, false]);
+    const { state, questions } = evaluateMock.mock.calls[0][0];
+    expect(state.ownerRules).toEqual([
+      "Save invoice attachments into Finance/Invoices.",
+    ]);
+    expect(questions.rule0).toMatchObject({ type: "boolean" });
+    expect(questions.rule0.instructions).toMatch(/ownerRules/);
+  });
+
+  it("asks no rule questions when the owner saved none", async () => {
+    evaluateMock.mockResolvedValue({ answers: { mail0: choice(0, 0, 1) } });
+    const { mail: tagged } = await triage([mail("a", "Invoice")]);
+    expect(Object.keys(evaluateMock.mock.calls[0][0].questions)).toEqual([
+      "mail0",
+    ]);
+    expect(tagged[0].matchesRule).toBe(false);
   });
 
   it("logs every tag without subjects or senders", async () => {
@@ -161,6 +206,7 @@ describe("triageMail", () => {
         urgent: 0,
         notable: 0,
         bulk: 1,
+        matchesRule: 0,
         failed: false,
         costUsd: 0.0004,
         preferences: 0,
@@ -185,7 +231,7 @@ describe("triageMail", () => {
     const result = await triage(inbox);
     expect(result.failed).toBe(true);
     expect(result.mail).toEqual([
-      { message: inbox[0], tag: null, probability: null },
+      { message: inbox[0], tag: null, probability: null, matchesRule: false },
     ]);
     expect(logSetMock.mock.calls[0][0].mailTriage.failed).toBe(true);
   });
@@ -205,6 +251,7 @@ describe("triagedMailLines", () => {
     message: mail(id, `Subject ${id}`, from),
     tag,
     probability: tag ? 0.9 : null,
+    matchesRule: false,
   });
 
   it("puts urgent first, notable after, bulk only as a count by sender", () => {
@@ -234,6 +281,22 @@ describe("triagedMailLines", () => {
     expect(lines).not.toContain("Subject b1");
     expect(lines).toContain("### Not triaged (1)");
     expect(lines).toMatch(/\[gmail:x1\]$/m);
+  });
+
+  it("lists rule-matching mail first and in full, even when bulk", () => {
+    const lines = triagedMailLines({
+      timeZone: "UTC",
+      limit: 40,
+      mail: [
+        tagged("b1", "BULK"),
+        { ...tagged("inv", "BULK", "billing@acme.com"), matchesRule: true },
+      ],
+    }).join("\n");
+    expect(lines).toContain(
+      "### Matches a saved rule of the owner's: act on it (1)",
+    );
+    expect(lines).toContain("[gmail:inv] · bulk 90%");
+    expect(lines).toContain("### Bulk (1)");
   });
 
   it("is empty without mail and marks a full fetch", () => {

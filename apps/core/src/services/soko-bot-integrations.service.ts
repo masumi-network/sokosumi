@@ -12,6 +12,7 @@ import {
   isSokoBotEmailProvider,
   SOKO_BOT_POPULAR_TOOLKITS,
   type SokoBotCalendarEvent,
+  type SokoBotInboxAttachment,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,
   type SokoBotIntegrationProvider,
@@ -593,7 +594,7 @@ const GMAIL_LABEL = { unread: "UNREAD", inbox: "INBOX" } as const;
 
 function requireMailTool(
   integration: ActiveIntegration,
-  tool: "modifyMessages" | "createDraft" | "sendDraft",
+  tool: "modifyMessages" | "createDraft" | "sendDraft" | "getAttachment",
 ): string {
   const slug = integration.provider.tools[tool];
   if (!slug)
@@ -778,7 +779,101 @@ export async function fetchInboxMessage(
   return {
     ...normaliseMessage(integration.provider.id, raw),
     body: body.slice(0, 20_000),
+    attachments: messageAttachments(raw),
   };
+}
+
+function attachmentOf(entry: unknown): SokoBotInboxAttachment | null {
+  const id = str(
+    pick(entry, "attachmentId", "attachment_id") ??
+      pick(pick(entry, "body"), "attachmentId"),
+  );
+  const filename = str(pick(entry, "filename", "fileName", "name"));
+  if (!id || !filename) return null;
+  const size = Number(pick(entry, "size") ?? pick(pick(entry, "body"), "size"));
+  return {
+    id,
+    filename,
+    mimeType:
+      str(pick(entry, "mimeType", "mimetype", "contentType")) ||
+      "application/octet-stream",
+    size: Number.isFinite(size) && size > 0 ? size : null,
+  };
+}
+
+/** Gmail lists attachments in `attachmentList`, and always in the payload's parts. */
+function messageAttachments(raw: unknown): SokoBotInboxAttachment[] {
+  const found = new Map<string, SokoBotInboxAttachment>();
+  const add = (entry: unknown) => {
+    const attachment = attachmentOf(entry);
+    if (attachment && !found.has(attachment.id))
+      found.set(attachment.id, attachment);
+  };
+  asList(pick(raw, "attachmentList", "attachments")).forEach(add);
+  const walk = (part: unknown, depth: number) => {
+    if (depth > 8) return;
+    add(part);
+    for (const child of asList(pick(part, "parts"))) walk(child, depth + 1);
+  };
+  walk(pick(raw, "payload"), 0);
+  return [...found.values()];
+}
+
+/** Mail attachments a bot may save; Gmail's own limit is 25 MB. */
+export const INBOX_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+function base64Bytes(value: string): Buffer | null {
+  const text = value.replace(/^data:[^,]*,/, "").trim();
+  if (!text || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(text)) return null;
+  return Buffer.from(text.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+}
+
+async function downloadBytes(url: string): Promise<Buffer> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok)
+    throw new SokoBotIntegrationError(
+      `The attachment download failed (HTTP ${response.status})`,
+    );
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > INBOX_ATTACHMENT_MAX_BYTES)
+    throw new SokoBotIntegrationError("The attachment is larger than 25 MB");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * The bytes of one attachment. Composio documents the result only as
+ * `data`, so a file link (`s3url`/`url`) and inline base64 are both read.
+ */
+export async function fetchInboxAttachment(
+  integration: ActiveIntegration,
+  input: { messageId: string; attachmentId: string; filename: string },
+): Promise<Buffer> {
+  const slug = requireMailTool(integration, "getAttachment");
+  const data = await execute(integration, slug, {
+    message_id: input.messageId,
+    attachment_id: input.attachmentId,
+    file_name: input.filename,
+  });
+  const candidates = [data, pick(data, "file", "data", "attachment")];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      if (/^https:\/\//.test(candidate)) return downloadBytes(candidate);
+      const bytes = base64Bytes(candidate);
+      if (bytes) return bytes;
+      continue;
+    }
+    const url = str(pick(candidate, "s3url", "s3_url", "url", "downloadUrl"));
+    if (/^https:\/\//.test(url)) return downloadBytes(url);
+    const inline = str(pick(candidate, "data", "content", "base64"));
+    const bytes = inline ? base64Bytes(inline) : null;
+    if (bytes) return bytes;
+  }
+  console.warn("[soko-bot-mail] unreadable attachment result", {
+    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  });
+  throw new SokoBotIntegrationError(
+    "The mailbox returned the attachment in a form Sokosumi cannot read",
+  );
 }
 
 export async function fetchCalendarEvents(

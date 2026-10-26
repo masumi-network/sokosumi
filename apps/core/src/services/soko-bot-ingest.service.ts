@@ -112,6 +112,10 @@ export function buildIngestMessage(input: {
       "New mail arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
     );
   }
+  if (input.mail.some((item) => item.matchesRule))
+    lines.push(
+      "Some mail matches a saved rule of the owner's (listed first). For each, read it with `read_email` and do what the rule says, such as `save_email_attachment` into the folder it names, then say in one line what you filed where. Do nothing a rule does not ask for.",
+    );
   lines.push(MAIL_TRIAGE_GUIDE, "");
   if (input.events.length > 0) {
     lines.push(`## Calendar (${input.timeZone})`);
@@ -393,8 +397,8 @@ export class SokoBotIngestSyncService {
       return "skipped";
     }
     // Jev tags every mail the bot is shown. Between briefings only urgent
-    // mail wakes it; the rest, and everything when Jev is down, waits for the
-    // next briefing.
+    // mail, or mail a saved rule of the owner's asks the bot to act on, wakes
+    // it; the rest, and everything when Jev is down, waits for the briefing.
     const triage = await triageMail({
       sokoBotId: bot.id,
       mail: mail.slice(
@@ -407,7 +411,10 @@ export class SokoBotIngestSyncService {
       triage.log.set({
         mailAutoRead: await autoReadBulkMail(bot.id, triage.mail),
       });
-    if (!briefing && !triage.mail.some((item) => item.tag === "URGENT")) {
+    if (
+      !briefing &&
+      !triage.mail.some((item) => item.tag === "URGENT" || item.matchesRule)
+    ) {
       triage.log.set({ outcome: "quiet" });
       triage.log.emit();
       await stamp();

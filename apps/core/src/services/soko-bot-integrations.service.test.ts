@@ -70,6 +70,8 @@ import {
 import {
   activeIntegrationsForBot,
   createInboxDraft,
+  fetchInboxAttachment,
+  fetchInboxMessage,
   fetchInboxMessages,
   fetchInboxPage,
   listIntegrationTools,
@@ -358,6 +360,119 @@ describe("Soko Bot OAuth replacement", () => {
     await expect(
       modifyInboxMessages(integration, ["m1"], { read: true }),
     ).rejects.toThrow("can only be read");
+  });
+
+  it("lists Gmail attachments from attachmentList and nested payload parts", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: {
+            messageId: "m1",
+            messageText: "See attached",
+            attachmentList: [
+              {
+                filename: "invoice-42.pdf",
+                mimeType: "application/pdf",
+                attachmentId: "att-1",
+                size: 2048,
+              },
+            ],
+            payload: {
+              parts: [
+                { mimeType: "text/plain", filename: "", body: { size: 12 } },
+                {
+                  mimeType: "multipart/mixed",
+                  parts: [
+                    {
+                      filename: "receipt.png",
+                      mimeType: "image/png",
+                      body: { attachmentId: "att-2", size: 99 },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const message = await fetchInboxMessage(integration, "m1");
+    expect(message.attachments).toEqual([
+      {
+        id: "att-1",
+        filename: "invoice-42.pdf",
+        mimeType: "application/pdf",
+        size: 2048,
+      },
+      { id: "att-2", filename: "receipt.png", mimeType: "image/png", size: 99 },
+    ]);
+  });
+
+  it("downloads an attachment from the file link Composio returns", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: {
+            file: {
+              name: "invoice.pdf",
+              mimetype: "application/pdf",
+              s3url: "https://files.example/invoice.pdf",
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        arrayBuffer: async () => new TextEncoder().encode("%PDF").buffer,
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const bytes = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "invoice.pdf",
+    });
+    expect(fetchMock.mock.calls[0][0]).toContain("GMAIL_GET_ATTACHMENT");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).arguments).toEqual({
+      message_id: "m1",
+      attachment_id: "att-1",
+      file_name: "invoice.pdf",
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      "https://files.example/invoice.pdf",
+    );
+    expect(bytes.toString()).toBe("%PDF");
+  });
+
+  it("reads an attachment returned inline as base64url", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: { data: Buffer.from("hello?").toString("base64url") },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const bytes = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "a.txt",
+    });
+    expect(bytes.toString()).toBe("hello?");
   });
 
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {
