@@ -190,6 +190,7 @@ model Workspace {
   fileLabels         WorkspaceLabel[]
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
+  driveShares        DriveShare[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
 
@@ -5511,6 +5512,7 @@ model FileResource {
   links     FileProjectLink[]
   overrides FileFieldOverride[]
   jobs      FileIndexJob[]
+  shares    DriveShare[]
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])
@@ -5980,4 +5982,45 @@ model FileResultWindow {
   @@index([workspaceId, actorFingerprint])
   @@index([expiresAt])
   @@map("file_result_window")
+}
+
+enum DriveShareKind {
+  FILE
+  FOLDER
+}
+
+/// A public link to one Drive file or folder of a store, optionally behind a
+/// password. One link per item: revoking deletes the row, so a new link gets
+/// a new token. A file link follows its catalog entry through moves; a folder
+/// link names the folder path and is rebased when the folder moves.
+model DriveShare {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  token String @unique
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceScope FileSourceScope
+  /// The store's owner: the user for a personal Drive, the organization otherwise.
+  ownerId     String
+
+  kind       DriveShareKind
+  resourceId String?        @unique @db.Uuid
+  resource   FileResource?  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  /// Normalized folder path within the store, for a FOLDER link.
+  folderPath String?
+
+  /// `scrypt$<salt>$<hash>`, both base64url; null when the link has no password.
+  passwordHash    String?
+  /// Wrong passwords since the last right one; enough of them lock the link.
+  failedUnlocks   Int       @default(0)
+  unlockLockedAt  DateTime?
+  createdByUserId String
+
+  @@unique([workspaceId, sourceScope, ownerId, folderPath])
+  @@index([workspaceId, sourceScope, ownerId])
+  @@map("drive_share")
 }

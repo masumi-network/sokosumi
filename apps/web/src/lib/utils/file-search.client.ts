@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  DriveShare,
   FileCollection,
   FileResource,
   FileSearchMeta,
@@ -9,18 +10,21 @@ import type {
 import {
   deleteDriveCollectionsById,
   deleteDriveFilesDelete,
+  deleteDriveSharesById,
   getDriveCollections,
   getDriveFolders,
   getDriveLabels,
   getDriveResourcesById,
   getDriveResourcesByIdRelated,
   getDriveSearch,
+  getDriveShares,
   patchDriveCollectionsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   postDriveResourcesMetadataBatch,
   postDriveResourcesSelectionToken,
+  putDriveShares,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
@@ -280,6 +284,64 @@ export async function deleteDriveUploads(
     ),
   );
   return pathnames.filter((_, index) => results[index].status === "rejected");
+}
+
+/** One Drive file (catalog id) or folder (path in the store). */
+export type DriveShareTarget =
+  | { kind: "file"; resourceId: string }
+  | { kind: "folder"; folderPath: string };
+
+function shareTargetFields(target: DriveShareTarget) {
+  return target.kind === "file"
+    ? { resourceId: target.resourceId }
+    : { folderPath: target.folderPath };
+}
+
+export async function fetchDriveShare(input: {
+  store: FileStore;
+  target: DriveShareTarget;
+}): Promise<DriveShare | null> {
+  const { data } = await getDriveShares({
+    client: getBrowserCoreClient(),
+    query: { ...storeQuery(input.store), ...shareTargetFields(input.target) },
+    throwOnError: true,
+  });
+  return data.data.share;
+}
+
+/** Creates the link, or changes its password: null removes it, omit keeps it. */
+export async function saveDriveShare(input: {
+  store: FileStore;
+  target: DriveShareTarget;
+  password?: string | null;
+}): Promise<DriveShare> {
+  const { data } = await putDriveShares({
+    client: getBrowserCoreClient(),
+    body: {
+      ...storeQuery(input.store),
+      ...shareTargetFields(input.target),
+      ...(input.password !== undefined ? { password: input.password } : {}),
+    },
+    throwOnError: true,
+  });
+  return data.data;
+}
+
+export async function revokeDriveShare(input: {
+  store: FileStore;
+  shareId: string;
+}): Promise<void> {
+  await deleteDriveSharesById({
+    client: getBrowserCoreClient(),
+    path: { id: input.shareId },
+    query: storeQuery(input.store),
+    throwOnError: true,
+  });
+}
+
+/** The public page a link opens. */
+export function driveShareUrl(token: string): string {
+  return `${window.location.origin}/share/files/${token}`;
 }
 
 export async function fetchFileResource(input: {
