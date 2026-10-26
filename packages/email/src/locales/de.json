@@ -254,5 +254,11 @@
         "button": "Credits aufladen"
       }
     }
+  },
+  "newsletter": {
+    "why": "Du erhältst diese E-Mail, weil du {name} abonniert hast.",
+    "unsubscribe": "Abmelden",
+    "confirm": "Abmeldung bestätigen",
+    "unsubscribed": "Du bist abgemeldet"
   }
 }

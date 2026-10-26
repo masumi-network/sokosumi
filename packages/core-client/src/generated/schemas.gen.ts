@@ -22237,6 +22237,349 @@ export const NewsletterBrandSchema = {
     }
 } as const;
 
+export const NewsletterIssueSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        newsletterId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        subject: {
+            type: 'string'
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterIssueStatus'
+        },
+        publicSlug: {
+            type: 'string'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sentAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        approvedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        approvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'newsletterId',
+        'projectId',
+        'workspaceId',
+        'subject',
+        'previewText',
+        'template',
+        'content',
+        'status',
+        'publicSlug',
+        'revision',
+        'scheduledAt',
+        'timezone',
+        'sentAt',
+        'approvedByUserId',
+        'approvedAt',
+        'taskId',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const NewsletterTemplateSchema = {
+    type: 'string',
+    enum: [
+        'TEXT',
+        'IMAGES',
+        'BUTTONS'
+    ]
+} as const;
+
+export const NewsletterContentSchema = {
+    type: 'array',
+    items: {
+        oneOf: [
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'heading'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 1000
+                    },
+                    level: {
+                        anyOf: [
+                            {
+                                type: 'number',
+                                enum: [
+                                    1
+                                ]
+                            },
+                            {
+                                type: 'number',
+                                enum: [
+                                    2
+                                ]
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'type',
+                    'text',
+                    'level'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'text'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 100000
+                    }
+                },
+                required: [
+                    'type',
+                    'text'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'image'
+                        ]
+                    },
+                    url: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    },
+                    alt: {
+                        type: 'string',
+                        maxLength: 1000
+                    },
+                    href: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    }
+                },
+                required: [
+                    'type',
+                    'url',
+                    'alt'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'button'
+                        ]
+                    },
+                    label: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    url: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    }
+                },
+                required: [
+                    'type',
+                    'label',
+                    'url'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'divider'
+                        ]
+                    }
+                },
+                required: [
+                    'type'
+                ]
+            }
+        ]
+    },
+    maxItems: 200
+} as const;
+
+export const NewsletterIssueStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'NEEDS_APPROVAL',
+        'SCHEDULED',
+        'SENDING',
+        'SENT',
+        'FAILED',
+        'CANCELED'
+    ]
+} as const;
+
+export const CreateNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        }
+    },
+    required: [
+        'subject',
+        'template',
+        'content'
+    ]
+} as const;
+
+export const PatchNewsletterIssueRequestSchema = {
+    type: 'object',
+    properties: {
+        subject: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        previewText: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        template: {
+            $ref: '#/components/schemas/NewsletterTemplate'
+        },
+        content: {
+            $ref: '#/components/schemas/NewsletterContent'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const PutNewsletterRequestSchema = {
     type: 'object',
     properties: {
