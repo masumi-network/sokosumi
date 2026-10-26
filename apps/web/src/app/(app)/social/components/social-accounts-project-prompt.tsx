@@ -9,6 +9,7 @@ import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-m
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -107,8 +108,8 @@ function SocialPlatformCard({
       <provider.Icon className="size-8" aria-hidden />
       <div className="space-y-1">
         <p className="text-sm font-medium">{provider.name}</p>
-        {"comingSoon" in provider ? (
-          <p className="text-muted-foreground text-xs">{comingSoonLabel}</p>
+        {provider.comingSoon ? (
+          <Badge variant="secondary">{comingSoonLabel}</Badge>
         ) : null}
       </div>
     </div>

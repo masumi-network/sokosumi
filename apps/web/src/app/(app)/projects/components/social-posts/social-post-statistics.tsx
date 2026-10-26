@@ -1,5 +1,6 @@
 "use client";
 
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -148,15 +150,19 @@ function accountName(account: Account) {
 function RecycleAccountPost({
   projectId,
   accountPostId,
+  provider,
 }: {
   projectId: string;
   accountPostId: string;
+  provider: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function recycle(delayDays?: 7 | 14 | 30) {
+    if (!isSocialProviderEnabled(provider)) return;
     if (pending) return;
     setPending(true);
     try {
@@ -185,9 +191,13 @@ function RecycleAccountPost({
         size="sm"
         className="h-11 md:h-8"
         variant="outline"
+        disabled={!isSocialProviderEnabled(provider)}
         onClick={() => setOpen(true)}
       >
         {t("recycle.action")}
+        {!isSocialProviderEnabled(provider) ? (
+          <Badge variant="secondary">{accountsT("comingSoon")}</Badge>
+        ) : null}
       </Button>
       <AlertDialog
         open={open}
@@ -774,6 +784,7 @@ export function SocialPostStatistics(
                       <RecycleAccountPost
                         projectId={projectId}
                         accountPostId={post.id}
+                        provider={post.provider}
                       />
                     ) : null
                   }

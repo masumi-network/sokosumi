@@ -7,6 +7,7 @@ import {
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
+  socialProviderUnavailableMessage,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -17,8 +18,8 @@ import {
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
+import { requireSocialProviderEnabled } from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
-import { SOCIAL_BETA_USER_WHERE } from "@/helpers/social-beta-access";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
   parseSocialPostMedia,
@@ -94,6 +95,7 @@ const publisherInclude = {
   socialConnection: {
     select: {
       id: true,
+      provider: true,
       status: true,
       composioConnectedAccountId: true,
       externalAccountId: true,
@@ -424,6 +426,33 @@ async function attemptPublish(
   const projectOutcome = await checkProjectPublishingAccess(post, options);
   if (projectOutcome) return projectOutcome;
 
+  const disabledProvider = [provider, post.socialConnection?.provider].find(
+    (value): value is SocialPostProvider =>
+      value !== undefined &&
+      isSocialPostProvider(value) &&
+      socialProviderUnavailableMessage(value) !== null,
+  );
+  if (disabledProvider) {
+    const message = socialProviderUnavailableMessage(disabledProvider);
+    await prisma.socialPostPublishAttempt.create({
+      data: {
+        socialPostId: post.id,
+        attempt: await nextAttemptNumber(post.id),
+        trigger: options.trigger,
+        actorUserId: options.actorUserId ?? null,
+        finishedAt: now,
+        outcome: "failed_permanent",
+        providerOutcome: message,
+      },
+      select: { id: true },
+    });
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: message,
+    });
+    return settled ? "failed" : "skipped";
+  }
+
   if (
     post.attemptCount > 0 &&
     post.scheduledAt &&
@@ -622,9 +651,8 @@ type ClaimResult = { post: ClaimedPost } | "none" | "lost";
  * Optimistic claim of the earliest due post (or one whose lease expired): the
  * row must still carry the observed status and revision when the lease lands.
  *
- * Fresh scheduled posts require a current Calendar beta member. Expired
- * publishing leases are always recovered so a previously started attempt can
- * be reconciled even after the scheduling user loses beta access.
+ * Social scheduling is public. Expired publishing leases are always recovered
+ * so a previously started attempt can be reconciled without publishing twice.
  */
 async function claimDuePost(): Promise<ClaimResult> {
   const now = new Date();
@@ -634,15 +662,6 @@ async function claimDuePost(): Promise<ClaimResult> {
         {
           status: "SCHEDULED",
           project: { closingAt: null, closedAt: null },
-          AND: {
-            OR: [
-              { scheduledByCoworkerId: { not: null } },
-              {
-                scheduledByCoworkerId: null,
-                scheduledByUser: SOCIAL_BETA_USER_WHERE,
-              },
-            ],
-          },
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },
@@ -764,6 +783,10 @@ export async function publishSocialPostNow(
       }
       if (post.revision !== input.revision) {
         throw conflict(REVISION_CONFLICT_MESSAGE);
+      }
+      requireSocialProviderEnabled(post.provider);
+      if (post.socialConnection) {
+        requireSocialProviderEnabled(post.socialConnection.provider);
       }
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {

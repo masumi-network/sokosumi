@@ -2498,6 +2498,7 @@
           "missed": "Missed the scheduled time."
         },
         "failures": {
+          "providerComingSoon": "This platform is coming soon. Only X is available right now.",
           "rateLimited": "Rate limited. Try again later.",
           "timeout": "Timed out. Try again.",
           "unauthorized": "Reconnect the account.",

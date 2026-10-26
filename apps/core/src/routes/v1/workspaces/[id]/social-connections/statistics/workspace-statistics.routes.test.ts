@@ -67,7 +67,7 @@ function createApp() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.beta.mockResolvedValue(undefined);
+  mocks.beta.mockRejectedValue(new Error("Outside Ads beta"));
   mocks.list.mockResolvedValue({
     accounts: [account],
     posts: [],
@@ -89,6 +89,7 @@ describe("workspace social account statistics routes", () => {
       `http://localhost/${workspaceId}/social-connections/statistics?connectionId=${connectionId}&publishedFrom=2026-10-01T00:00:00Z`,
     );
     expect(response.status).toBe(200);
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(await response.json()).toMatchObject({
       data: { accounts: [{ id: connectionId }], posts: [] },
     });
@@ -115,6 +116,7 @@ describe("workspace social account statistics routes", () => {
       `http://localhost/${workspaceId}/social-connections/statistics/export?format=csv&publishedFrom=2026-10-01T00:00:00Z`,
     );
     expect(response.status).toBe(200);
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(response.headers.get("content-type")).toContain("text/csv");
     expect(await response.text()).toContain("platform,account,published_at");
     expect(mocks.export).toHaveBeenCalledWith(

@@ -6,7 +6,11 @@ import {
   type SocialPost,
   type SocialPostStatus,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  isSocialProviderEnabled,
+  isValidTimezone,
+} from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -148,7 +152,11 @@ interface ProjectSocialPostsProps {
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
 
 function canRetryPost(post: SocialPost): boolean {
-  return RETRY_STATUSES.includes(post.status) && post.canPublishNow;
+  return (
+    isSocialProviderEnabled(post.provider) &&
+    RETRY_STATUSES.includes(post.status) &&
+    post.canPublishNow
+  );
 }
 
 function retryLabel(post: SocialPost): string {
@@ -765,11 +773,12 @@ export function ProjectSocialPosts({
   }
 
   function renderPostActions(post: SocialPost, preview = false) {
+    const providerEnabled = isSocialProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
     // Retry sits on the row, the way Reconnect does on a Social account.
-    const canRetry = isRetry && post.canPublishNow;
-    const canPublishNow = !isRetry && post.canPublishNow;
+    const canRetry = providerEnabled && isRetry && post.canPublishNow;
+    const canPublishNow = providerEnabled && !isRetry && post.canPublishNow;
     // Preview footer already has Edit and Schedule. Keep the menu for
     // Publish now and Cancel, and hide it when those are gone.
     const showComposeInMenu = !preview;
@@ -851,7 +860,7 @@ export function ProjectSocialPosts({
                   {t("composer.edit")}
                 </DropdownMenuItem>
               ) : null}
-              {showComposeInMenu && post.canSchedule ? (
+              {providerEnabled && showComposeInMenu && post.canSchedule ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
@@ -863,7 +872,7 @@ export function ProjectSocialPosts({
                     : t("composer.schedule")}
                 </DropdownMenuItem>
               ) : null}
-              {post.canDuplicate ? (
+              {providerEnabled && post.canDuplicate ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {

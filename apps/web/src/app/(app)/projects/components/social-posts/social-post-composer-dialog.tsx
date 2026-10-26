@@ -7,6 +7,7 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
+  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -37,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
@@ -165,6 +167,7 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
@@ -213,6 +216,9 @@ export function SocialPostComposerDialog({
       null,
   }));
   const organizationId = session?.session.activeOrganizationId ?? null;
+  const enabledConnections = connections.filter((connection) =>
+    isSocialProviderEnabled(connection.provider),
+  );
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [copy, setCopy] = useState<SocialPostComposerText>({
@@ -238,7 +244,11 @@ export function SocialPostComposerDialog({
         readRememberedComposerAccounts(organizationId, projectId),
       );
     }
-    const initial = post?.socialConnection?.id ?? connections[0]?.id;
+    const initial = post
+      ? isSocialProviderEnabled(post.provider)
+        ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
+        : undefined
+      : enabledConnections[0]?.id;
     return initial ? [initial] : [];
   });
   const [scheduledAt, setScheduledAt] = useState(
@@ -280,12 +290,12 @@ export function SocialPostComposerDialog({
     text: post?.text ?? "",
     media: post?.media ?? [],
     scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+    connectionId: connectionIds[0] ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = connections.filter((connection) =>
+  const selectedConnections = enabledConnections.filter((connection) =>
     connectionIds.includes(connection.id),
   );
   const connectionId = selectedConnections[0]?.id ?? "";
@@ -307,9 +317,9 @@ export function SocialPostComposerDialog({
       }
     : null;
   const providers = socialPostComposerProviders(
-    post?.provider,
+    post && isSocialProviderEnabled(post.provider) ? post.provider : undefined,
     selectedConnections.map((connection) => connection.provider),
-    connections.map((connection) => connection.provider),
+    enabledConnections.map((connection) => connection.provider),
   );
   const previewProvider =
     selectedConnections.find(
@@ -419,7 +429,12 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = draftValid && !isBusy;
+  const canSave =
+    draftValid &&
+    !isBusy &&
+    (!post ||
+      isSocialProviderEnabled(post.provider) ||
+      selectedConnections.length > 0);
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
@@ -430,6 +445,7 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
       return current.includes(id)
@@ -701,7 +717,7 @@ export function SocialPostComposerDialog({
    * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
    * time is all the schedule dialog does, so it never saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const canPostNow = mode.kind === "create" && enabledConnections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
@@ -827,6 +843,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
+          socialConnectionId: connectionId,
           revision,
         });
         if (!updated.ok) {
@@ -1094,7 +1111,10 @@ export function SocialPostComposerDialog({
                               ? "border-foreground text-foreground"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          disabled={isBusy}
+                          disabled={
+                            isBusy ||
+                            !isSocialProviderEnabled(connection.provider)
+                          }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
                           type="button"
@@ -1104,6 +1124,11 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {!isSocialProviderEnabled(connection.provider) ? (
+                            <Badge variant="secondary">
+                              {accountsT("comingSoon")}
+                            </Badge>
+                          ) : null}
                           {selected ? (
                             <Check className="size-3.5" aria-hidden />
                           ) : null}

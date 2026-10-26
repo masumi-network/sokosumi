@@ -87,4 +87,12 @@ describe("publishFailureCopy", () => {
       "Couldn't publish. Open the post for details.",
     );
   });
+  it.each(["tiktok", "instagram", "linkedin", "facebook", "youtube"])(
+    "explains that %s is coming soon in Needs attention",
+    (provider) => {
+      expect(
+        publishFailureCopy({ status: "FAILED", provider }, (key) => key),
+      ).toBe("failures.providerComingSoon");
+    },
+  );
 });

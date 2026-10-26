@@ -166,7 +166,7 @@ describe("Project social connection routes", () => {
     });
     disconnectProjectSocialConnectionMock.mockResolvedValue({
       connection: { ...connection, status: "disconnected" },
-      providerRevocation: "revoked",
+      providerRevocation: "succeeded",
     });
   });
 
@@ -505,7 +505,7 @@ describe("Project social connection routes", () => {
     });
   });
 
-  it("gates every social-connection operation behind Social beta access", async () => {
+  it("allows every social-connection operation outside the Ads beta", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
@@ -535,16 +535,13 @@ describe("Project social connection routes", () => {
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403,
+      200, 201, 201, 200,
     ]);
-    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
-      USER_ID,
-      expect.anything(),
-    );
-    expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
-    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
-    expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
-    expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
+    expect(listProjectSocialConnectionsMock).toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).toHaveBeenCalled();
+    expect(finalizeProjectSocialConnectionMock).toHaveBeenCalled();
+    expect(disconnectProjectSocialConnectionMock).toHaveBeenCalled();
   });
 
   it("rejects a missing workspace and malformed route ids", async () => {

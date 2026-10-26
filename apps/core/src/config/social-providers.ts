@@ -1,3 +1,6 @@
+import { socialProviderUnavailableMessage } from "@sokosumi/utils";
+import { badRequest } from "@/helpers/error";
+
 export const PROJECT_SOCIAL_PROVIDERS = {
   x: {
     name: "X",
@@ -37,4 +40,13 @@ export function isProjectSocialProvider(
   provider: string,
 ): provider is ProjectSocialProvider {
   return Object.hasOwn(PROJECT_SOCIAL_PROVIDERS, provider);
+}
+
+/** Shared by connection flows and post mutations before any external effect. */
+export function requireSocialProviderEnabled(provider: string): void {
+  if (!isProjectSocialProvider(provider)) {
+    throw badRequest(`Unsupported social provider: ${provider}`);
+  }
+  const message = socialProviderUnavailableMessage(provider);
+  if (message) throw badRequest(message);
 }

@@ -1,4 +1,5 @@
 import type { SocialPostStatus } from "@sokosumi/core-client";
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 
 /**
  * Lean copy for a Failed or Missed publish: outcome / errorKind first.
@@ -23,6 +24,7 @@ function isPublishFailureKind(kind: string): kind is PublishFailureKind {
 
 export interface PublishFailureSource {
   status: SocialPostStatus;
+  provider?: string;
   lastAttempt?: {
     outcome?: string | null;
     errorKind?: string | null;
@@ -33,6 +35,9 @@ export function publishFailureCopy(
   post: PublishFailureSource,
   t: (key: string) => string,
 ): string {
+  if (post.provider && !isSocialProviderEnabled(post.provider)) {
+    return t("failures.providerComingSoon");
+  }
   const outcome = post.lastAttempt?.outcome;
   if (outcome === "authorization_revoked") {
     return t("outcomes.authorizationRevoked");

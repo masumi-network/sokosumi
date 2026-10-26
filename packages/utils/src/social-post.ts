@@ -16,6 +16,24 @@ export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
 
+/** Add a provider id here to enable it everywhere in Social scheduling. */
+export const SOCIAL_ENABLED_PROVIDERS = [
+  "x",
+] as const satisfies readonly SocialPostProvider[];
+
+export function isSocialProviderEnabled(provider: string): boolean {
+  return (SOCIAL_ENABLED_PROVIDERS as readonly string[]).includes(provider);
+}
+
+/** User-facing reason retained on posts whose provider is unavailable. */
+export function socialProviderUnavailableMessage(
+  provider: SocialPostProvider,
+): string | null {
+  return isSocialProviderEnabled(provider)
+    ? null
+    : `${socialPostProviderLabel(provider)} is coming soon. Only X is available right now.`;
+}
+
 /** Whether a provider accepts a post with text only, media only, or needs video. */
 export type SocialPostMediaRequirement = "none" | "any" | "video";
 

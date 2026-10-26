@@ -1,9 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireSocialPostActor } from "@/helpers/social-post-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -22,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/duplicate",
     description:
-      "Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.",
+      "Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.",
     tags: ["Projects"],
     request: { params: socialPostParamsSchema },
     responses: {
@@ -41,7 +39,7 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(userContext.userId, prisma);
+
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, postId } = c.req.valid("param");
 

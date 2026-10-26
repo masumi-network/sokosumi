@@ -46153,7 +46153,7 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**
@@ -71420,7 +71420,7 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**
@@ -71578,7 +71578,7 @@ export type GetWorkspacesCalendarSourcesData = {
     path?: never;
     query?: {
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**

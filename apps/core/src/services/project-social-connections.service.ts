@@ -13,6 +13,7 @@ import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
+  requireSocialProviderEnabled,
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
@@ -284,6 +285,7 @@ export async function initiateProjectSocialConnection(
     provider = target.provider;
   }
 
+  requireSocialProviderEnabled(provider);
   const authConfigId = requireProjectSocialAuthConfigId(provider);
   if (input.action === "replace") {
     const retiredConnection = await serializableTransaction(async (tx) => {
@@ -356,6 +358,8 @@ export async function finalizeProjectSocialConnection(
   if (!isLiveIntent(intent, input)) {
     throw notFound("Unknown or expired connection");
   }
+
+  requireSocialProviderEnabled(intent.provider);
 
   const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);

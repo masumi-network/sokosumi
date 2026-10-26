@@ -137,9 +137,11 @@ Core after changing them. The **Web** project needs no new variables.
 
 A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
 the connect menu, and choosing it returns "This integration is not configured
-yet" without starting OAuth. Social itself is still gated to members of the
-beta organization (`SOCIAL_BETA_ORGANIZATION_SLUG` in `@sokosumi/utils`); that
-is code, not an environment variable.
+yet" without starting OAuth. Social scheduling is public. Only providers in
+`SOCIAL_ENABLED_PROVIDERS` (`@sokosumi/utils`) can connect or publish; other
+providers show Coming soon. Existing disabled-provider posts fail when due with
+that reason, preserving their content and history. The legacy
+`SOCIAL_BETA_ORGANIZATION_SLUG` now gates Ads only.
 
 #### TikTok setup
 

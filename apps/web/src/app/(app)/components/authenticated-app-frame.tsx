@@ -84,7 +84,7 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  // In parallel: the sidebar's Social row and the seat gate are both single
+  // In parallel: the sidebar's Ads row and the seat gate are both single
   // reads the frame already has to finish before it paints nav.
   const [hasAssignedSeat, socialBetaEnabled] = await Promise.all([
     organizationSeatService

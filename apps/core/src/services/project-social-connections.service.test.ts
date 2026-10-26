@@ -1,3 +1,4 @@
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -216,8 +217,12 @@ describe("project social connections service", () => {
   const providers = Object.keys(
     PROJECT_SOCIAL_PROVIDERS,
   ) as ProjectSocialProvider[];
+  const enabledProviders = providers.filter(isSocialProviderEnabled);
+  const disabledProviders = providers.filter(
+    (provider) => !isSocialProviderEnabled(provider),
+  );
 
-  it.each(providers)(
+  it.each(enabledProviders)(
     "initiates %s with its configured OAuth credentials",
     async (provider) => {
       const { authConfigEnv } = PROJECT_SOCIAL_PROVIDERS[provider];
@@ -250,7 +255,7 @@ describe("project social connections service", () => {
     },
   );
 
-  it.each(providers)(
+  it.each(enabledProviders)(
     "does not provision OAuth credentials for unconfigured %s",
     async (provider) => {
       getEnvMock.mockReturnValue({});
@@ -270,7 +275,7 @@ describe("project social connections service", () => {
     },
   );
 
-  it.each(providers)(
+  it.each(enabledProviders)(
     "finalizes %s using its pinned intent and provider identity",
     async (provider) => {
       const intent = {
@@ -320,7 +325,7 @@ describe("project social connections service", () => {
     },
   );
 
-  it.each(providers)(
+  it.each(enabledProviders)(
     "derives reconnect and replacement OAuth for stored %s",
     async (provider) => {
       const { initiateProjectSocialConnection } = await import(
@@ -355,7 +360,7 @@ describe("project social connections service", () => {
     },
   );
 
-  it.each(providers)(
+  it.each(enabledProviders)(
     "finalizes reconnect and replacement for %s",
     async (provider) => {
       const { finalizeProjectSocialConnection } = await import(
@@ -409,6 +414,83 @@ describe("project social connections service", () => {
           executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
         });
       }
+    },
+  );
+
+  it.each(
+    disabledProviders.flatMap((provider) =>
+      (["connect", "reconnect", "replace"] as const).map((action) => ({
+        provider,
+        action,
+      })),
+    ),
+  )(
+    "rejects $action for $provider before initiating or retiring credentials",
+    async ({ provider, action }) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...socialConnection,
+        provider,
+      });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+
+      await expect(
+        initiateProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          ...(action === "connect"
+            ? { action, provider }
+            : { action, socialConnectionId: SOCIAL_CONNECTION_ID }),
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Only X is available right now.`,
+      });
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+      expect(socialConnectionIntentCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(
+    disabledProviders.flatMap((provider) =>
+      (["connect", "reconnect", "replace"] as const).map((action) => ({
+        provider,
+        action,
+      })),
+    ),
+  )(
+    "rejects finalizing $action for $provider before reading external credentials",
+    async ({ provider, action }) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        ...createIntent(action),
+        provider,
+        authConfigId: `ac_${provider}`,
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+
+      await expect(
+        finalizeProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          connectionId: CONNECTION_ID,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Only X is available right now.`,
+      });
+      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
+      expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+      expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
     },
   );
 

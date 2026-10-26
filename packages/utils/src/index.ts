@@ -408,6 +408,8 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  isSocialProviderEnabled,
+  SOCIAL_ENABLED_PROVIDERS,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -429,6 +431,7 @@ export {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";

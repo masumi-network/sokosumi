@@ -277,11 +277,11 @@ describe("ProjectSocialAccounts", () => {
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await connectProvider(userEvent.setup(), "Instagram");
+    await connectProvider(userEvent.setup(), "X");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This integration is not configured yet",
     );
-    expect(screen.queryByText(/COMPOSIO_INSTAGRAM/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/COMPOSIO_X/)).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no accounts are connected", () => {
@@ -310,6 +310,9 @@ describe("ProjectSocialAccounts", () => {
   it.each([
     ["tiktok", "TikTok"],
     ["facebook", "Facebook"],
+    ["instagram", "Instagram"],
+    ["linkedin", "LinkedIn"],
+    ["youtube", "YouTube"],
   ])(
     "shows %s as coming soon and does not start a connection",
     async (_provider, name) => {
@@ -322,29 +325,29 @@ describe("ProjectSocialAccounts", () => {
       });
       expect(item).toHaveAttribute("aria-disabled", "true");
       expect(item).toHaveTextContent("Coming soon");
+      expect(within(item).getByText("Coming soon")).toHaveAttribute(
+        "data-slot",
+        "badge",
+      );
 
       await user.click(item);
       expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     },
   );
 
-  it.each([
-    ["instagram", "Instagram"],
-    ["linkedin", "LinkedIn"],
-    ["youtube", "YouTube"],
-  ])("starts a connection for %s", async (provider, name) => {
+  it("starts a connection for X", async () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,
       error: { code: "BAD_INPUT", message: "Unavailable" },
     });
     const user = userEvent.setup();
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await connectProvider(user, name);
+    await connectProvider(user, "X");
     await waitFor(() =>
       expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         action: "connect",
-        provider,
+        provider: "x",
       }),
     );
   });
@@ -433,7 +436,7 @@ describe("ProjectSocialAccounts", () => {
 
     await user.click(connect);
     expect(
-      screen.getByRole("menuitem", { name: "Connect Instagram account" }),
+      screen.getByRole("menuitem", { name: "Connect X account" }),
     ).toHaveClass("min-h-11");
     await user.keyboard("{Escape}");
 
@@ -1105,55 +1108,102 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it("explains a Facebook reconnect that manages zero or several Pages", async () => {
-    const user = userEvent.setup();
-    vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
-      ok: true,
-      value: undefined,
-    });
-    vi.mocked(finalizeProjectSocialConnection).mockResolvedValueOnce({
-      ok: false,
-      error: {
-        code: "BAD_REQUEST",
-        kind: "social_facebook_page_required",
-        message: "Facebook identity rejected",
-      },
-    });
+  it.each(["tiktok", "facebook", "instagram", "linkedin", "youtube"] as const)(
+    "keeps a connected %s account listed and disconnectable",
+    async (provider) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[
+            buildConnection({ provider, displayName: "Connected profile" }),
+          ]}
+        />,
+      );
 
+      const row = screen.getByTestId("project-social-connection-connection-1");
+      expect(within(row).getByText("Connected profile")).toBeVisible();
+      expect(within(row).getByText("Connected")).toBeVisible();
+      expect(within(row).getByText("Coming soon")).toHaveAttribute(
+        "data-slot",
+        "badge",
+      );
+      await user.click(
+        within(row).getByRole("button", {
+          name: "Actions for Connected profile",
+        }),
+      );
+      expect(screen.queryByRole("menuitem", { name: "Replace" })).toBeNull();
+      expect(screen.getByRole("menuitem", { name: "Sync now" })).toBeVisible();
+      await user.click(screen.getByRole("menuitem", { name: "Disconnect" }));
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Disconnect account",
+        }),
+      );
+      await waitFor(() =>
+        expect(disconnectProjectSocialConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          socialConnectionId: "connection-1",
+        }),
+      );
+      expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["tiktok", "facebook", "instagram", "linkedin", "youtube"] as const)(
+    "blocks reconnect and Start over for existing %s accounts",
+    async (provider) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[
+            buildConnection({ provider, status: "reauthorization_required" }),
+            buildConnection({
+              id: "pending-connection",
+              provider,
+              status: "pending",
+            }),
+          ]}
+        />,
+      );
+      const reconnect = screen.getByRole("button", { name: "Reconnect" });
+      const startOver = screen.getByRole("button", { name: "Start over" });
+      expect(reconnect).toBeDisabled();
+      expect(startOver).toBeDisabled();
+      expect(screen.getAllByText("Coming soon")).toHaveLength(2);
+      await user.click(reconnect);
+      await user.click(startOver);
+      expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
+      expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+      expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
+      expect(finalizeProjectSocialConnection).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows the Coming soon badge in a disabled account's attention row", async () => {
+    const user = userEvent.setup();
+    const connection = buildConnection({
+      provider: "instagram",
+      status: "reauthorization_required",
+    });
     render(
       <ProjectSocialAccounts
         projectId={PROJECT_ID}
-        connections={[
-          buildConnection({
-            provider: "facebook",
-            displayName: "Sokosumi Page",
-            externalHandle: null,
-            status: "reauthorization_required",
-          }),
-        ]}
+        connections={[connection]}
+        reconnections={[{ connection, affectedPosts: [] }]}
       />,
     );
-
-    await user.click(screen.getByRole("button", { name: "Reconnect" }));
-    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
-    await act(async () => {
-      MockBroadcastChannel.instances[0]?.onmessage?.({
-        data: {
-          type: "sokosumi:composio:result",
-          status: "success",
-          connectionId: "ca_known",
-          sessionUri: "https://backend.composio.dev/session/single-use",
-          errorMessage: null,
-          nonce: "project-social-nonce",
-        },
-      } as MessageEvent);
-    });
-
-    await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Facebook needs an account that manages exactly one Page.",
-      );
-    });
+    const row = screen.getByTestId(`social-reconnect-${connection.id}`);
+    expect(within(row).getByText("Coming soon")).toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
+    const reconnect = within(row).getByRole("button", { name: "Reconnect" });
+    expect(reconnect).toBeDisabled();
+    await user.click(reconnect);
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
   it("reports a callback verification failure without finalizing", async () => {

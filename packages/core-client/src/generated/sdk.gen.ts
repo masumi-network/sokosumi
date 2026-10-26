@@ -3478,7 +3478,7 @@ export const postProjectsByIdStar = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List a Project's current X social connections. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access. Connection management remains human-only.
+ * List a Project's current social connections. Requires an interactive session or an authorized task-capable Coworker with user context. Connection management remains human-only.
  */
 export const getProjectsByIdSocialConnections = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialConnectionsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialConnectionsResponses, GetProjectsByIdSocialConnectionsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialConnectionsResponses, GetProjectsByIdSocialConnectionsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialConnectionsResponseTransformer,
@@ -3729,7 +3729,7 @@ export const getProjectsByIdAdsMarketAds = <ThrowOnError extends boolean = false
 });
 
 /**
- * List a Project's Social posts. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * List a Project's Social posts. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const getProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialPostsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialPostsResponses, GetProjectsByIdSocialPostsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialPostsResponses, GetProjectsByIdSocialPostsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialPostsResponseTransformer,
@@ -3738,7 +3738,7 @@ export const getProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsResponseTransformer,
@@ -3782,7 +3782,7 @@ export const postProjectsByIdSocialPostsByPostIdStatisticsRefresh = <ThrowOnErro
 });
 
 /**
- * Read one Social post of a Project. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Read one Social post of a Project. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<GetProjectsByIdSocialPostsByPostIdResponses, GetProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialPostsByPostIdResponses, GetProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -3791,7 +3791,7 @@ export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean 
 });
 
 /**
- * Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -3804,7 +3804,7 @@ export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolea
 });
 
 /**
- * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
@@ -3843,7 +3843,7 @@ export const postProjectsByIdSocialPostsByPostIdReject = <ThrowOnError extends b
 });
 
 /**
- * Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
@@ -3856,7 +3856,7 @@ export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends b
 });
 
 /**
- * Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.
+ * Copy a published, failed, or missed Social post into a new draft. Copies text, media, provider, and the linked account when it is still connected. Does not copy the provider post id, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.
  */
 export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdDuplicateData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
@@ -3865,7 +3865,7 @@ export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extend
 });
 
 /**
- * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.
+ * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen. Requires an interactive session or an authorized task-capable Coworker with user context.
  */
 export const postProjectsByIdSocialAccountPostsByAccountPostIdRecycle = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,

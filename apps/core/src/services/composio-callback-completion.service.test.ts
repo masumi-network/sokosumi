@@ -1,3 +1,4 @@
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,11 +13,13 @@ import {
 const {
   completeComposioAuthMock,
   getComposioConnectedAccountMock,
+  memberFindFirstMock,
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentUpdateManyMock,
 } = vi.hoisted(() => ({
   completeComposioAuthMock: vi.fn(),
   getComposioConnectedAccountMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentUpdateManyMock: vi.fn(),
 }));
@@ -28,6 +31,7 @@ vi.mock("@/clients/composio.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    member: { findFirst: memberFindFirstMock },
     projectSocialConnectionIntent: {
       findUnique: socialConnectionIntentFindUniqueMock,
       updateMany: socialConnectionIntentUpdateManyMock,
@@ -40,6 +44,7 @@ describe("completeComposioCallback", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-03T10:00:00.000Z"));
+    memberFindFirstMock.mockResolvedValue({ id: "utxo-member" });
     completeComposioAuthMock.mockResolvedValue({
       connectedAccountId: "ca_123",
       toolkitSlug: "twitter",
@@ -53,7 +58,11 @@ describe("completeComposioCallback", () => {
     socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
-  it.each(Object.keys(PROJECT_SOCIAL_PROVIDERS) as ProjectSocialProvider[])(
+  const providers = Object.keys(
+    PROJECT_SOCIAL_PROVIDERS,
+  ) as ProjectSocialProvider[];
+
+  it.each(providers.filter(isSocialProviderEnabled))(
     "redeems the pinned %s callback",
     async (provider) => {
       socialConnectionIntentFindUniqueMock.mockResolvedValue({
@@ -96,6 +105,38 @@ describe("completeComposioCallback", () => {
     },
   );
 
+  it.each(providers.filter((provider) => !isSocialProviderEnabled(provider)))(
+    "rejects a disabled %s callback without redeeming its OAuth session",
+    async (provider) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider,
+        authConfigId: `ac_${provider}`,
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Only X is available right now.`,
+      });
+      expect(completeComposioAuthMock).not.toHaveBeenCalled();
+      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])(
     "redeems the pinned %s ads callback",
     async (provider) => {
@@ -132,6 +173,42 @@ describe("completeComposioCallback", () => {
         where: expect.objectContaining({ provider }),
         data: { callbackRedeemedAt: expect.any(Date) },
       });
+    },
+  );
+
+  it.each(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])(
+    "keeps %s ads callback redemption restricted to utxo members",
+    async (provider) => {
+      memberFindFirstMock.mockResolvedValue(null);
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider,
+        authConfigId: `ac_${provider}`,
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).rejects.toMatchObject({
+        status: 403,
+        message: "Ads is only available to utxo AG workspace members",
+      });
+      expect(memberFindFirstMock).toHaveBeenCalledWith({
+        where: { userId: "user_123", organization: { slug: "utxo" } },
+        select: { id: true },
+      });
+      expect(completeComposioAuthMock).not.toHaveBeenCalled();
+      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+      expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
     },
   );
 
@@ -201,11 +278,15 @@ describe("completeComposioCallback", () => {
   it("rejects a callback toolkit from another provider", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue({
       initiatingUserId: "user_123",
-      provider: "instagram",
-      authConfigId: "ac_instagram",
+      provider: "x",
+      authConfigId: "ac_x",
       callbackRedeemedAt: null,
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
       project: { closingAt: null, closedAt: null },
+    });
+    completeComposioAuthMock.mockResolvedValue({
+      connectedAccountId: "ca_123",
+      toolkitSlug: "instagram",
     });
     const { completeComposioCallback } = await import(
       "./composio-callback-completion.service"
@@ -252,6 +333,7 @@ describe("completeComposioCallback", () => {
   );
 
   it("redeems a live Project social callback for its initiating human", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
     socialConnectionIntentFindUniqueMock.mockResolvedValue({
       connectionId: "ca_123",
       initiatingUserId: "user_123",
@@ -277,6 +359,7 @@ describe("completeComposioCallback", () => {
       sessionUri: "https://backend.composio.dev/session/single-use",
       userId: "sokosumi:user:user_123",
     });
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
     expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
       where: {
         connectionId: "ca_123",

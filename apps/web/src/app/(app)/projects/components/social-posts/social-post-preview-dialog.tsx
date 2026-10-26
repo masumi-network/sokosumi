@@ -1,6 +1,7 @@
 "use client";
 
 import type { SocialPost } from "@sokosumi/core-client";
+import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -162,7 +163,7 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule ? (
+              {post.canSchedule && isSocialProviderEnabled(post.provider) ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

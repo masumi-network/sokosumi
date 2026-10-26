@@ -113,7 +113,6 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -5215,7 +5214,7 @@ export class SokoBotRuntimeService {
       authorized.turn.workspaceId,
     );
     await requireAssignedOrganizationSeat(userId, workspace.organizationId, tx);
-    await requireSocialBetaAccess(userId, tx);
+
     return workspace;
   }
 

@@ -93,10 +93,22 @@ describe("SocialAccountsProjectPrompt", () => {
     }
     expect(within(primary).getByText("TikTok")).toBeVisible();
     expect(within(primary).getAllByText("Coming soon")).toHaveLength(
-      SOCIAL_PROVIDERS.filter((provider) => "comingSoon" in provider).length,
+      SOCIAL_PROVIDERS.filter((provider) => provider.comingSoon).length,
     );
     for (const provider of SOCIAL_PROVIDERS) {
-      expect(within(primary).getByText(provider.name)).toBeVisible();
+      const name = within(primary).getByText(provider.name);
+      expect(name).toBeVisible();
+      const card = name.parentElement;
+      expect(card).not.toBeNull();
+      if (!card) throw new Error("Platform card is missing");
+      if (provider.comingSoon) {
+        expect(within(card).getByText("Coming soon")).toHaveAttribute(
+          "data-slot",
+          "badge",
+        );
+      } else {
+        expect(within(card).queryByText("Coming soon")).toBeNull();
+      }
     }
     expect(screen.getAllByText("TikTok")).toHaveLength(2);
 
