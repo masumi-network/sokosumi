@@ -193,19 +193,42 @@ export async function renderNewsletterEmail({
   return { subject: issue.subject, html, text: toPlainText(html) };
 }
 
-export async function renderNewsletterUnsubscribePage({
-  name,
-  actionUrl,
-  confirmed,
-  locale,
-}: {
+export async function renderNewsletterUnsubscribePage(
+  props: NewsletterActionPageProps,
+) {
+  return renderNewsletterActionPage({ ...props, action: "unsubscribe" });
+}
+
+interface NewsletterActionPageProps {
   name: string;
   actionUrl: string;
   confirmed: boolean;
   locale?: string;
-}) {
+}
+
+export async function renderNewsletterConfirmPage(
+  props: NewsletterActionPageProps,
+) {
+  return renderNewsletterActionPage({ ...props, action: "subscribe" });
+}
+
+async function renderNewsletterActionPage({
+  name,
+  actionUrl,
+  confirmed,
+  locale,
+  action,
+}: NewsletterActionPageProps & { action: "subscribe" | "unsubscribe" }) {
   const { locale: lang, t } = createEmailTranslator(locale);
-  const title = t(confirmed ? "newsletter.unsubscribed" : "newsletter.confirm");
+  const title = t(
+    action === "subscribe"
+      ? confirmed
+        ? "newsletter.confirmed"
+        : "newsletter.confirmSubscription"
+      : confirmed
+        ? "newsletter.unsubscribed"
+        : "newsletter.confirm",
+  );
   return render(
     <html lang={lang}>
       <head>
@@ -225,10 +248,47 @@ export async function renderNewsletterUnsubscribePage({
         <p>{name}</p>
         {!confirmed ? (
           <form method="post" action={actionUrl}>
-            <button type="submit">{t("newsletter.confirm")}</button>
+            <button type="submit">{title}</button>
           </form>
         ) : null}
       </body>
     </html>,
   );
+}
+
+export async function renderNewsletterConfirmationEmail({
+  newsletter,
+  confirmUrl,
+  unsubscribeUrl,
+  locale,
+}: Pick<NewsletterEmailProps, "newsletter" | "unsubscribeUrl" | "locale"> & {
+  confirmUrl: string;
+}) {
+  const { t } = createEmailTranslator(locale);
+  return renderNewsletterEmail({
+    newsletter,
+    unsubscribeUrl,
+    locale,
+    issue: {
+      subject: t("newsletter.confirmation.subject", { name: newsletter.name }),
+      template: "BUTTONS",
+      content: [
+        {
+          type: "heading",
+          level: 1,
+          text: t("newsletter.confirmSubscription"),
+        },
+        {
+          type: "text",
+          text: t("newsletter.confirmation.body", { name: newsletter.name }),
+        },
+        {
+          type: "button",
+          label: t("newsletter.confirmSubscription"),
+          url: confirmUrl,
+        },
+        { type: "text", text: t("newsletter.confirmation.expiry") },
+      ],
+    },
+  });
 }

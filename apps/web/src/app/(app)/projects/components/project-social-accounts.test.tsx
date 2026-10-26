@@ -159,6 +159,7 @@ function buildConnection(
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,

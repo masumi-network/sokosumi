@@ -193,6 +193,7 @@ function accountFromRecord(record: StatisticsConnection) {
     externalHandle: record.externalHandle,
     displayName: record.displayName,
     avatarUrl: record.avatarUrl,
+    subscriptionType: record.subscriptionType,
     status: record.status,
     connectedAt: record.connectedAt,
     disconnectedAt: record.disconnectedAt,
@@ -483,6 +484,7 @@ export async function refreshSocialAccountStatistics(
   let snapshot: SocialAccountStatistics;
   const preservePostMetrics = new Set<string>();
   let profileMeasured = false;
+  let subscriptionType: string | null = null;
   let headFetchedAt: Date | null = null;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
@@ -502,6 +504,7 @@ export async function refreshSocialAccountStatistics(
     );
     input.signal?.throwIfAborted();
     const fetchedAt = new Date().toISOString();
+    subscriptionType = record.provider === "x" ? page.subscriptionType : null;
     const measuredProfile =
       page.accountMetrics !== null &&
       page.accountMetrics.some((metric) => metric.value !== null);
@@ -599,6 +602,7 @@ export async function refreshSocialAccountStatistics(
       },
       data: {
         statistics,
+        ...(subscriptionType !== null ? { subscriptionType } : {}),
         ...(headFetchedAt ? { performanceHeadFetchedAt: headFetchedAt } : {}),
       },
     });
@@ -706,7 +710,12 @@ export async function refreshSocialAccountStatistics(
       where: { connectionId: record.id },
     });
     return {
-      account: { ...account, statistics: snapshot, postCount },
+      account: {
+        ...account,
+        subscriptionType: subscriptionType ?? account.subscriptionType,
+        statistics: snapshot,
+        postCount,
+      },
       importedPostCount: new Set(posts.map((post) => post.externalId)).size,
     };
   }, "Account statistics changed during refresh. Reload the account.");
