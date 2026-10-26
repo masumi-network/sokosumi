@@ -8,6 +8,17 @@ import {
 } from "./tools";
 
 describe("ComposioToolError", () => {
+  it("omits arbitrary upstream titles and types from loggable diagnostics", () => {
+    const error = new ComposioToolError({
+      message: "refused",
+      providerTitle: "Forbidden for @private-account",
+      providerType:
+        "https://api.x.com/2/problems/private-person?access_token=secret",
+    });
+    expect(error.providerTitle).toBeNull();
+    expect(error.providerType).toBeNull();
+    expect(JSON.stringify(error)).not.toMatch(/private|secret/);
+  });
   it("redacts tokens, urls, and session ids from the stored provider message", () => {
     const error = new ComposioToolError({
       message: "X rejected the post",

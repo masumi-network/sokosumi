@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   socialAccountPostKindSchema,
@@ -8,6 +9,18 @@ import {
 } from "@/schemas/social-account-statistics.schema";
 
 const nullableCount = z.number().int().nonnegative().nullable();
+export const socialStatisticsResearchErrorCodeSchema = z.enum([
+  "x_access_denied",
+  "x_rate_limited",
+  "x_reconnect_required",
+  "x_upstream_error",
+  "x_upstream_unavailable",
+]);
+export const socialStatisticsResearchErrorResponseSchema =
+  errorResponseWithExtensionsSchema(
+    { code: socialStatisticsResearchErrorCodeSchema.optional() },
+    "SocialStatisticsResearchError",
+  );
 const audienceKindSchema = z.enum([
   "followers",
   "mentions",

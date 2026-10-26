@@ -424,9 +424,9 @@ export function parseXAccountPosts(
 }
 
 const X_NATIVE_STATISTICS_ENDPOINT =
-  /^https:\/\/api\.x\.com\/2\/(?:tweets(?:\/(?:[0-9]{1,19}\/(?:liking_users|retweeted_by)|search\/recent))?|users\/(?:[0-9]{1,19}\/(?:tweets|mentions|followers)|by\/username\/[A-Za-z0-9_]{1,15}))$/;
+  /^https:\/\/api\.x\.com\/2\/(?:tweets\/(?:[0-9]{1,19}\/(?:liking_users|retweeted_by)|search\/recent)|users\/(?:[0-9]{1,19}\/(?:tweets|mentions|followers)|by\/username\/[A-Za-z0-9_]{1,15}))$/;
 
-/** Fixed X research GETs through the existing Composio proxy. Caller URLs never reach the proxy. */
+/** Fixed X research reads through restricted TWITTER tools. No caller URL is executed. */
 export async function readNativeStatistics(
   context: SocialAccountStatisticsContext,
   endpoint: string,
@@ -438,12 +438,71 @@ export async function readNativeStatistics(
     parameters.some((value) => value.type !== "query")
   )
     throw new TypeError("Unsupported native statistics endpoint or parameter");
-  return readNativeJson(
-    context,
-    endpoint,
-    parameters,
-    endpoint.replace("https://api.x.com/", "https://api.twitter.com/"),
-  );
+  const path = endpoint.slice("https://api.x.com/2/".length).split("/");
+  const tools: Record<string, string> = {
+    mentions: "TWITTER_GET_USER_MENTIONS",
+    followers: "TWITTER_FOLLOWERS_BY_USER_ID",
+    liking_users: "TWITTER_LIST_POST_LIKERS",
+    retweeted_by: "TWITTER_GET_POST_RETWEETERS_ACTION",
+    tweets: "TWITTER_GET_USER_POSTS",
+    recent: "TWITTER_RECENT_SEARCH",
+    username: "TWITTER_USER_LOOKUP_BY_USERNAME",
+  };
+  const lookup = path[1] === "by";
+  const search = path[1] === "search";
+  const toolSlug = tools[lookup ? "username" : path[2]];
+  const args: Record<string, unknown> = lookup
+    ? { username: path[3] }
+    : search
+      ? {}
+      : { id: path[1] };
+  const arrayArguments: Record<string, string> = {
+    "tweet.fields": "tweet_fields",
+    "user.fields": "user_fields",
+    "media.fields": "media_fields",
+    expansions: "expansions",
+    exclude: "exclude",
+  };
+  for (const { name, value } of parameters) {
+    if (Object.hasOwn(arrayArguments, name))
+      args[arrayArguments[name]] = value.split(",");
+    else if (name === "max_results") args.max_results = Number(value);
+    else if (
+      [
+        "pagination_token",
+        "next_token",
+        "query",
+        "start_time",
+        "end_time",
+        "sort_order",
+      ].includes(name)
+    )
+      args[name] = value;
+    else throw new TypeError("Unsupported native statistics parameter");
+  }
+  const sessionId = await createComposioToolSession({
+    toolkitSlug: "twitter",
+    connectedAccountId: context.connectedAccountId,
+    executorUserId: context.executorUserId,
+    toolSlugs: [toolSlug],
+    context: "create X research session",
+    signal: context.signal,
+  });
+  try {
+    const result = await executeComposioTool({
+      sessionId,
+      toolSlug,
+      arguments: args,
+      context: "read X research",
+      refused: "X research request failed",
+      preserveEnvelope: true,
+      signal: context.signal,
+    });
+    if (!result) throw new TypeError("Invalid X research response");
+    return result;
+  } finally {
+    await deleteComposioToolSession(sessionId, "delete X research session");
+  }
 }
 
 function insights(data: Record<string, unknown> | null): SocialAccountMetric[] {
@@ -510,9 +569,9 @@ async function readNativeHistory(
     ? [
         { name: "max_results", value: "100", type: "query" },
         {
-          name: "post.fields",
+          name: "tweet.fields",
           value:
-            "created_at,public_metrics,note_post,referenced_tweets,attachments,author_id,in_reply_to_user_id",
+            "created_at,public_metrics,note_tweet,referenced_tweets,attachments,author_id,in_reply_to_user_id",
           type: "query",
         },
         {
@@ -631,7 +690,7 @@ async function enrichXOrganicReposts(
           value: eligible.map((entry) => entry.externalId).join(","),
           type: "query",
         },
-        { name: "post.fields", value: "organic_metrics", type: "query" },
+        { name: "tweet.fields", value: "organic_metrics", type: "query" },
       ],
       "https://api.twitter.com/2/tweets",
     );

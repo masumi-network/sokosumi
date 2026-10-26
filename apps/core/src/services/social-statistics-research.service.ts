@@ -1,14 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
-import { record } from "@/clients/composio.client";
+import { HTTPException } from "hono/http-exception";
+import { ComposioApiError, record } from "@/clients/composio.client";
 import {
   parseXAccountPosts,
   readNativeStatistics,
   type SocialAccountStatisticsContext,
 } from "@/clients/social-post-providers/account-statistics";
-import { badRequest, notFound, serviceUnavailable } from "@/helpers/error";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import {
+  badGateway,
+  badRequest,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+  tooManyRequests,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { buildSocialPerformanceHeadline } from "@/helpers/social-performance-headline";
 import prisma from "@/lib/db/prisma";
+import { tryUseLogger } from "@/lib/evlog";
 import {
   socialPerformanceAudienceQuerySchema,
   socialPerformanceAudienceResponseSchema,
@@ -19,6 +30,7 @@ import {
   socialPerformanceDiscoveryResponseSchema,
   socialPerformancePublicPostSchema,
   socialStatisticsResearchCursorSchema,
+  socialStatisticsResearchErrorCodeSchema,
   socialStatisticsResearchPostSchema,
 } from "@/schemas/social-statistics-research.schema";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
@@ -44,6 +56,86 @@ const userFields = query(
   "description,location,profile_image_url,public_metrics,protected",
 );
 
+function researchFailure(error: unknown, resource: string) {
+  if (error instanceof HTTPException) return error;
+  const status =
+    error instanceof ComposioToolError
+      ? error.providerStatus
+      : error instanceof ComposioApiError
+        ? error.httpStatus
+        : null;
+  const detail =
+    error instanceof ComposioToolError
+      ? [error.providerMessage, error.providerType, error.providerTitle]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/[_-]+/g, " ")
+      : "";
+  const retryAfterSeconds =
+    error instanceof ComposioToolError ? error.retryAfterSeconds : null;
+  let code: z.infer<typeof socialStatisticsResearchErrorCodeSchema>;
+  let failure;
+  if (status === 429 || /rate.?limit|too many requests/i.test(detail)) {
+    code = "x_rate_limited";
+    failure = tooManyRequests(
+      `X is rate limiting ${resource}. ${retryAfterSeconds !== null ? `Try again in ${retryAfterSeconds} seconds.` : "Wait a few minutes before trying again."}`,
+      retryAfterSeconds !== null ? { retryAfterSeconds } : undefined,
+    );
+  } else if (
+    status === 401 ||
+    /(?:missing|insufficient|invalid|required).{0,80}scope|scope.{0,80}(?:missing|insufficient|required)|(?:expired|invalid|revoked).{0,40}(?:token|connection|credential)|(?:token|connection|credential).{0,40}(?:expired|invalid|revoked|inactive)|connected account.{0,40}(?:not found|not active)/i.test(
+      detail,
+    )
+  ) {
+    code = "x_reconnect_required";
+    failure = unprocessableEntity(
+      `Reconnect the X account and grant the required permissions to read ${resource}.`,
+    );
+  } else if (
+    status === 403 ||
+    status === 402 ||
+    /forbidden|access denied|not authorized for resource|client[-_ ](?:not[-_ ]enrolled|forbidden)|not enrolled|access tier|subscription|usage.?cap|plan.{0,40}(?:access|upgrade|limit)/i.test(
+      detail,
+    )
+  ) {
+    code = "x_access_denied";
+    failure = forbidden(
+      `X doesn't give this connection access to ${resource}. Check the X app's plan and endpoint permissions.`,
+    );
+  } else if (
+    (status !== null && status >= 500) ||
+    (error instanceof Error &&
+      /timeout|timed out|fetch failed/i.test(error.message))
+  ) {
+    code = "x_upstream_unavailable";
+    failure = serviceUnavailable(
+      `X ${resource} is temporarily unavailable. Try again later.`,
+    );
+  } else {
+    code = "x_upstream_error";
+    failure = badGateway(
+      `X ${resource} is unavailable because the connection returned an unexpected response. Try again later.`,
+    );
+  }
+  failure.cause = {
+    ...record(failure.cause),
+    kind: code,
+    extensions: { code },
+  };
+  tryUseLogger()?.set({
+    socialStatisticsResearch: {
+      resource,
+      code,
+      upstreamStatus: status,
+      upstreamTitle:
+        error instanceof ComposioToolError ? error.providerTitle : null,
+      upstreamType:
+        error instanceof ComposioToolError ? error.providerType : null,
+    },
+  });
+  return failure;
+}
+
 export async function scopedXConnection(input: Scope, postId?: string) {
   const accounts = await listProjectSocialConnections(input);
   const account = accounts.find((value) => value.id === input.connectionId);
@@ -53,8 +145,12 @@ export async function scopedXConnection(input: Scope, postId?: string) {
       "Audience and public benchmarking currently require an X connection",
     );
   if (account.status !== "active")
-    throw badRequest(
-      "Reconnect the X account before reading audience or benchmark data",
+    throw unprocessableEntity(
+      "Reconnect the X account before reading research data.",
+      {
+        kind: "x_reconnect_required",
+        extensions: { code: "x_reconnect_required" },
+      },
     );
   const selectedPost = postId
     ? await prisma.socialAccountPost.findFirst({
@@ -224,8 +320,11 @@ export async function readSocialPerformanceAudience(
     parameters.push(query("pagination_token", request.cursor));
   if (request.kind === "mentions") {
     parameters.push(
-      query("post.fields", "created_at,public_metrics"),
-      query("expansions", "author_id,in_reply_to_user_id,referenced_posts"),
+      query(
+        "tweet.fields",
+        "created_at,public_metrics,author_id,in_reply_to_user_id,referenced_tweets",
+      ),
+      query("expansions", "author_id,in_reply_to_user_id,referenced_tweets.id"),
     );
   }
   try {
@@ -365,10 +464,8 @@ export async function readSocialPerformanceAudience(
             ? `This page lists public ${request.kind} visible for the selected account's post. Counts describe one post, not a complete account audience ranking. It does not identify when these actions occurred. Profile locations are self-reported.`
             : "This page lists public followers visible through the connected account. It does not identify when they followed, their age, gender, or a complete demographic breakdown. Profile locations are self-reported.",
     });
-  } catch {
-    throw serviceUnavailable(
-      "X audience data is unavailable. Check connection scopes, API access and rate limits, then try again.",
-    );
+  } catch (error) {
+    throw researchFailure(error, request.kind);
   }
 }
 
@@ -388,8 +485,15 @@ export async function readSocialPerformanceBenchmark(
     );
     const user = record(lookup.data);
     const profile = user ? contact(user) : null;
-    if (!profile || user?.protected === true)
-      throw new TypeError("Public X profile unavailable");
+    if (user?.protected === true)
+      throw forbidden(
+        "This X account is protected. Choose a public handle for benchmarking.",
+        {
+          kind: "x_access_denied",
+          extensions: { code: "x_access_denied" },
+        },
+      );
+    if (!profile) throw new TypeError("Public X profile unavailable");
     const data = await readNativeStatistics(
       context,
       `https://api.x.com/2/users/${profile.id}/tweets`,
@@ -398,12 +502,12 @@ export async function readSocialPerformanceBenchmark(
         query("exclude", "retweets,replies"),
         query("start_time", publishedFrom),
         query(
-          "post.fields",
-          "created_at,public_metrics,note_post,attachments,entities",
+          "tweet.fields",
+          "created_at,public_metrics,note_tweet,attachments,entities,author_id,in_reply_to_user_id,referenced_tweets",
         ),
         query(
           "expansions",
-          "attachments.media_keys,author_id,referenced_posts",
+          "attachments.media_keys,author_id,referenced_tweets.id",
         ),
         query(
           "media.fields",
@@ -458,10 +562,8 @@ export async function readSocialPerformanceBenchmark(
           : null,
       coverage: `Public lifetime counters for up to 100 original and quote posts published in the last 90 days.${nextCursor(data) ? " More posts exist beyond this sample." : ""} Impressions include repeat views. Private clicks, follower attribution and historical growth are unavailable for another account.`,
     });
-  } catch {
-    throw serviceUnavailable(
-      "X public benchmark is unavailable. Confirm the handle is public, then check connection permissions, API access and rate limits.",
-    );
+  } catch (error) {
+    throw researchFailure(error, "public benchmark data");
   }
 }
 
@@ -502,7 +604,7 @@ export async function readSocialPerformanceDiscovery(
     text: "-has:media -has:links",
     image: "has:images",
     carousel: "has:images",
-    video: "has:videos",
+    video: "has:video",
     link: "has:links",
   }[request.format];
   const searchQuery = [
@@ -522,12 +624,12 @@ export async function readSocialPerformanceDiscovery(
     query("end_time", publishedUntil),
     query("sort_order", "recency"),
     query(
-      "post.fields",
-      "created_at,public_metrics,note_post,attachments,entities,lang",
+      "tweet.fields",
+      "created_at,public_metrics,note_tweet,attachments,entities,lang,author_id,in_reply_to_user_id,referenced_tweets",
     ),
     query(
       "expansions",
-      "attachments.media_keys,author_id,in_reply_to_user_id,referenced_posts",
+      "attachments.media_keys,author_id,in_reply_to_user_id,referenced_tweets.id",
     ),
     query("media.fields", "type,url,preview_image_url,variants,public_metrics"),
     userFields,
@@ -644,9 +746,7 @@ export async function readSocialPerformanceDiscovery(
       coverage:
         "X recent search covers the last seven days. This page samples provider-visible public original and quote posts matching the topic phrase, handle, language and media operators. Follower-size and metric thresholds and ranking apply only within this fetched page. Missing required counters are excluded, rather than treated as zero. Public lifetime impressions include repeat views; no private click metrics are exposed. This is not an exhaustive global ranking or full archive.",
     });
-  } catch {
-    throw serviceUnavailable(
-      "X recent discovery is unavailable. Check connection scopes, search API access and rate limits, then try again.",
-    );
+  } catch (error) {
+    throw researchFailure(error, "recent search");
   }
 }

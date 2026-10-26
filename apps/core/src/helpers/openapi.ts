@@ -79,10 +79,13 @@ export function jsonPaginatedSuccessResponse(
   };
 }
 
-export function jsonErrorResponse(description: string) {
+export function jsonErrorResponse(
+  description: string,
+  schema: z.ZodTypeAny = errorResponseSchema,
+) {
   return {
     description,
-    content: jsonContent(errorResponseSchema),
+    content: jsonContent(schema),
   };
 }
 
