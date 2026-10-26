@@ -225,6 +225,7 @@ export const socialConnectionSuggestedTimesSchema = z
 /** Provider results are validated before any cache write. */
 export const socialAccountStatisticsProviderPageSchema = z.object({
   accountMetrics: z.array(socialAccountMetricSchema).max(100).nullable(),
+  subscriptionType: z.string().nullable().default(null),
   accountError: z.string().nullable(),
   posts: z
     .array(
