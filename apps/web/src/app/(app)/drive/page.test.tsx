@@ -153,6 +153,18 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
   };
 });
 
+const fetchWorkspaceFoldersMock = vi.fn();
+
+vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/file-search.client")>();
+  return {
+    ...actual,
+    fetchWorkspaceFolders: (...args: unknown[]) =>
+      fetchWorkspaceFoldersMock(...args),
+  };
+});
+
 const fetchDriveTasksPageMock = vi.fn();
 const fetchDriveRecentsPageMock = vi.fn();
 
@@ -547,34 +559,16 @@ describe("DrivePage workspace remount", () => {
 
   it("ignores a stale move-folder list after the workspace changes", async () => {
     const user = userEvent.setup();
-    const orgAOnly = {
-      type: "folder" as const,
-      name: "OrgAOnly",
-      path: "OrgAOnly",
-    };
-    const orgBOnly = {
-      type: "folder" as const,
-      name: "OrgBOnly",
-      path: "OrgBOnly",
-    };
-    let resolveOrgAFolders: ((items: (typeof orgAOnly)[]) => void) | undefined;
-    let listCalls = 0;
-
-    listDriveItemsMock.mockImplementation(() => {
-      listCalls += 1;
-      if (listCalls === 1) {
-        return Promise.resolve([reportsFolder()]);
-      }
-      if (listCalls === 2) {
-        return new Promise<(typeof orgAOnly)[]>((resolve) => {
-          resolveOrgAFolders = resolve;
-        });
-      }
-      if (listCalls === 3) {
-        return Promise.resolve([reportsFolder()]);
-      }
-      return Promise.resolve([orgBOnly]);
-    });
+    let resolveOrgAFolders: ((paths: string[]) => void) | undefined;
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchWorkspaceFoldersMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<string[]>((resolve) => {
+            resolveOrgAFolders = resolve;
+          }),
+      )
+      .mockResolvedValue(["OrgBOnly"]);
 
     // With a folder applied, so the page head offers the folder actions the
     // folder cards used to carry.
@@ -618,11 +612,36 @@ describe("DrivePage workspace remount", () => {
     });
 
     await act(async () => {
-      resolveOrgAFolders?.([orgAOnly]);
+      resolveOrgAFolders?.(["OrgAOnly"]);
     });
 
     expect(screen.queryByText("OrgAOnly")).not.toBeInTheDocument();
     expect(screen.getByText("OrgBOnly")).toBeVisible();
+  });
+});
+
+describe("DrivePage move dialog", () => {
+  it("offers nested folders as destinations", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchWorkspaceFoldersMock.mockResolvedValue([
+      "Reports",
+      "Clients",
+      "Clients/Acme",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Clients / Acme")).toBeVisible();
+    });
   });
 });
 
