@@ -34,9 +34,9 @@ import SwiftUI
     }
   }
 
-  /// The Unread divider above the first unread message (spec SOK-1481): a full-width accent hairline with a trailing
-  /// "New" and no count. Above the same message as a day pill, the pill sits on the line, so the two share one row.
-  /// VoiceOver finds it as a separator named "New messages".
+  /// The Unread divider above the first unread message (spec SOK-1481): a full-width accent hairline broken in the
+  /// middle by "New", no count. Above the same message as a day pill, the pill comes first in the middle, so the two
+  /// share one row: `——— Today New ———`. VoiceOver finds it as a separator named "New messages".
   struct UnreadDividerRow: View {
     let dayLabel: String?
 
@@ -45,13 +45,13 @@ import SwiftUI
         hairline
         if let dayLabel {
           DayPill(label: dayLabel)
-          hairline
         }
-        Text("New", tableName: "ChatUnreadDivider", comment: "Label at the end of the line above the first unread message in a room.")
+        Text("New", tableName: "ChatUnreadDivider", comment: "Label in the middle of the line above the first unread message in a room.")
           .font(.caption)
           .fontWeight(.semibold)
           .foregroundStyle(Color.accentColor)
           .accessibilityHidden(true)
+        hairline
       }
       .padding(.horizontal, 12)
       .padding(.vertical, 4)

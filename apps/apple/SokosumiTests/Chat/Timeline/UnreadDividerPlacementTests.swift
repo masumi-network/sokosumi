@@ -65,7 +65,8 @@
                                                   createdAt: Date(),
                                                   sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
         message.id = "message-\(index)"
-        message.createdAt = Date(timeIntervalSince1970: 1_700_000_000 + Double(index))
+        // The unread run starts a day later, so the divider shares its row with that day's pill.
+        message.createdAt = Date(timeIntervalSince1970: 1_700_000_000 + Double(index) + (index >= 60 ? 86400 : 0))
         return message
       }
     }

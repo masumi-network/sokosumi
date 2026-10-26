@@ -5149,7 +5149,7 @@ Built from spec SOK-1481's acceptance list, not from web's code. Core's part is 
 - `TranscriptSession.placesUnreadDivider` is set when that first page lands with a divider. The list's mount task puts the divider's row at a third of the viewport (`UnitPoint(y: 1/3)`, then the settle correction older pages use) and stops following the latest message. A jump or covered mark replaces a placement still waiting.
 - A Message link or notification (`openRoomLink` with a message) selects the room with `atUnreadDivider: false`: the plain newest page, the target lands, and the divider draws when its message is loaded.
 - `unreadDividerRowId(in:)`: the divider sits above its message, or, once that message is a tombstone the list leaves out, above the next loaded message after it; with none, it goes. Edits change nothing.
-- Look: `UnreadDividerRow`, a 1 pt accent hairline with a trailing "New" in the accent, no count; a day pill above the same message sits on the line. VoiceOver reads a separator: SwiftUI has no separator role, so an `NSViewRepresentable` reports AppKit's splitter named "New messages". Both strings are in `ChatUnreadDivider.xcstrings` (en, de, es).
+- Look: `UnreadDividerRow`, a 1 pt accent hairline on both sides of a centered "New" in the accent, no count (variant H, user decision 2026-10-26); a day pill above the same message sits before "New" in the middle: `——— Today New ———`. VoiceOver reads a separator: SwiftUI has no separator role, so an `NSViewRepresentable` reports AppKit's splitter named "New messages". Both strings are in `ChatUnreadDivider.xcstrings` (en, de, es).
 
 ### Tests
 
