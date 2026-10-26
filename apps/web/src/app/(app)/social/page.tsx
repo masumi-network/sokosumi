@@ -1,6 +1,6 @@
 import type { SocialPost } from "@sokosumi/core-client";
 import type { Metadata } from "next";
-import { notFound, unstable_rethrow } from "next/navigation";
+import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
@@ -18,7 +18,6 @@ import {
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
 import { SocialCalendarPreviewProvider } from "./components/social-calendar-preview";
@@ -58,9 +57,6 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function SocialPage({ searchParams }: SocialPageProps) {
   await connection();
-  if (!(await hasCurrentUserSocialBetaAccess())) {
-    notFound();
-  }
 
   const query = await searchParams;
   const t = await getTranslations("App.Social");

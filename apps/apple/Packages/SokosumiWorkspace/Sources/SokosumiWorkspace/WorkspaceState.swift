@@ -280,8 +280,13 @@ public final class WorkspaceState: ObservableObject {
   /// Nil is ignored — `List` emits it when collapsed rows leave the
   /// hierarchy, and this app keeps a room selected whenever one is listed.
   public func selectRoom(_ id: String?) {
+    selectRoom(id, atUnreadDivider: true)
+  }
+
+  /// `atUnreadDivider` false when an explicit target lands the room once it opens.
+  func selectRoom(_ id: String?, atUnreadDivider: Bool) {
     guard let id, id != selectedRoomId else { return }
-    applyRoomSelection(id)
+    applyRoomSelection(id, atUnreadDivider: atUnreadDivider)
   }
 
   private func acceptCreatedRoom(_ room: Components.Schemas.ChatRoom, sourceRoom: String?) {
@@ -498,13 +503,13 @@ public final class WorkspaceState: ObservableObject {
     return opened
   }
 
-  private func applyRoomSelection(_ id: String?) {
+  private func applyRoomSelection(_ id: String?, atUnreadDivider: Bool = true) {
     sidebar.select(id, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     guard let id = selectedRoomId, let room = rooms.first(where: { $0.id == id }) else {
       leaveRoom()
       return
     }
-    enterRoom(room)
+    enterRoom(room, atUnreadDivider: atUnreadDivider)
   }
 
   /// Keep a room selected whenever rooms exist: the saved room when it is
@@ -524,8 +529,8 @@ public final class WorkspaceState: ObservableObject {
   /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
-  public func enterRoom(_ room: Components.Schemas.ChatRoom) {
-    openRoom.open(room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
+  public func enterRoom(_ room: Components.Schemas.ChatRoom, atUnreadDivider: Bool = true) {
+    openRoom.open(room, userId: currentUserId, organizationId: selection?.workspace.organizationId, atUnreadDivider: atUnreadDivider)
     readAttention.roomChanged()
     watchRoom(room.id)
   }
@@ -811,9 +816,8 @@ public final class WorkspaceState: ObservableObject {
     // Background reads stay silent; only a dead session needs action, and `request` signs that out.
     _ = try? await request { _, client, slug in
       try await readAttention.readIfNeeded(
-        room: room,
-        content: content,
-        historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
+        .init(room: room, content: content, historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
+              atEnd: openRoom.isAtEnd),
         client: client,
         organizationSlug: slug,
         threadLooked: { threadLooked(content.parentMessageId) }

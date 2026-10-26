@@ -2499,6 +2499,7 @@
           "missed": "Missed the scheduled time."
         },
         "failures": {
+          "providerComingSoon": "{provider} is coming soon. Available now: {providers}.",
           "rateLimited": "Rate limited. Try again later.",
           "timeout": "Timed out. Try again.",
           "unauthorized": "Reconnect the account.",
@@ -7330,6 +7331,10 @@
       },
       "loadOlder": "Load older messages",
       "jumpToLatest": "Jump to latest",
+      "UnreadDivider": {
+        "label": "New",
+        "accessibleName": "New messages"
+      },
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",

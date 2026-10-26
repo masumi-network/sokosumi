@@ -28,7 +28,7 @@ import {
 import {
   aroundWindowPaginationMeta,
   listChatRoomMessagesAround,
-} from "../../../../message-window-around";
+} from "../../../../message-windows";
 
 const paramsSchema = z.object({
   id: z
