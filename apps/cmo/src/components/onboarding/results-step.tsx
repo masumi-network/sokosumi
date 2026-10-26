@@ -18,7 +18,8 @@ const RHYTHM = [
     what: [
       "Finishes the next three days of pieces, images and videos included",
       "Schedules them on your connected accounts",
-      "Tells you in one line what went out and what's next",
+      "Replies to new comments on your Instagram, Facebook and YouTube posts, in your voice; complaints and anything sensitive come to you",
+      "Tells you in one line what went out, what he answered and what's next",
     ],
   },
   {

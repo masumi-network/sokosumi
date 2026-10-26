@@ -14,6 +14,7 @@ import {
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import {
   type ChannelGroup,
+  COMMENT_REPLY_CHANNELS,
   channelInfo,
   channelKey,
   GROUP_NAMES,
@@ -273,16 +274,19 @@ function rowNote(
     return "Ongoing page fixes and full articles. You paste them into your site; no connection needed.";
   }
   const platform = key === "google_ads" ? "Google Ads" : "Meta";
+  const replies = COMMENT_REPLY_CHANNELS.includes(key)
+    ? " Cuso answers its comments every day."
+    : "";
   if (state.connected) {
     return group === "ads"
       ? `Connected. You set the budget and launch the ads in ${platform}.`
-      : `Connected${state.handle ? ` as @${state.handle}` : ""}`;
+      : `Connected${state.handle ? ` as @${state.handle}` : ""}.${replies}`;
   }
   if (group === "ads") {
     return `${state.pieces} ${state.pieces === 1 ? "ad" : "ads"}, written and designed. You set the budget and launch ${state.pieces === 1 ? "it" : "them"} in ${platform}.`;
   }
   const what = key === "youtube" ? "video" : "post";
-  return `Unlocks ${state.pieces} ${what}${state.pieces === 1 ? "" : "s"} in your first four weeks`;
+  return `Unlocks ${state.pieces} ${what}${state.pieces === 1 ? "" : "s"} in your first four weeks.${replies}`;
 }
 
 /** The newsletter needs the founder's list: a CSV export or pasted addresses. */

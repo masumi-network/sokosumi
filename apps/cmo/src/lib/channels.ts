@@ -84,3 +84,14 @@ export const SOON_CHANNELS = (
 )
   .filter(([, channel]) => channel.status === "soon")
   .map(([key, channel]) => ({ key, name: channel.name }));
+
+/**
+ * Networks whose comments Cuso answers in his daily run. Core reads and
+ * replies through these only: LinkedIn shares no comments and X needs paid
+ * search, so both are left out.
+ */
+export const COMMENT_REPLY_CHANNELS: readonly string[] = [
+  "instagram",
+  "facebook",
+  "youtube",
+];

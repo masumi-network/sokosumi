@@ -88,6 +88,7 @@ import { head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
@@ -266,6 +267,7 @@ import {
   type CmoPlanReview,
   cmoPlanDrift,
   cmoPlanProblems,
+  cmoReplySafety,
 } from "@/services/cmo-plan-review.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
@@ -292,6 +294,12 @@ import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
 } from "@/services/social-account-statistics.service";
+import {
+  collectNewSocialComments,
+  handleSocialComment,
+  SocialCommentRefusedError,
+  socialCommentText,
+} from "@/services/social-comments.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
   listSocialPostStatistics,
@@ -1912,11 +1920,12 @@ export class SokoBotRuntimeService {
    * refusal is recorded as rejected rather than as an unknown outcome.
    */
   /**
-   * Media costs credits, so a person asks for it in chat. Cuso's own
-   * routines are the exception once the owner approved his plan: the plan
-   * lists the images and videos, and the daily run makes them.
+   * Spending credits on media and replying in the brand's name need a person
+   * asking in chat. Cuso's own routines are the exception once the owner
+   * approved his plan: it lists the media, and the daily run makes it and
+   * answers comments.
    */
-  private async mayGenerateMedia(
+  private async mayActForOwner(
     authorized: AuthorizedSokoBotRuntime,
   ): Promise<boolean> {
     const { turn } = authorized;
@@ -1938,13 +1947,95 @@ export class SokoBotRuntimeService {
     return hire?.strategyApprovedAt != null;
   }
 
+  private async cmoHireOf(authorized: AuthorizedSokoBotRuntime) {
+    const hire = await prisma.cmoHire.findUnique({
+      where: { sokoBotId: authorized.turn.sokoBotId },
+    });
+    if (!hire)
+      throw new SokoBotRuntimeValidationError("Cuso is not hired here.");
+    return hire;
+  }
+
+  /**
+   * Cuso's daily reply round, one comment at a time. Replies post on his own
+   * runs once the owner approved his plan, or when the owner asks in chat;
+   * each passes a safety check first, and a held one goes to the owner.
+   */
+  private async handleCmoComment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+  ) {
+    const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS.handle_social_comment.parse(
+      input.input,
+    );
+    const hire = await this.cmoHireOf(authorized);
+    try {
+      if (parsed.action !== "reply") {
+        return await handleSocialComment({
+          projectId: hire.projectId,
+          commentId: parsed.commentId,
+          action: parsed.action,
+          note: parsed.note,
+        });
+      }
+      if (!(await this.mayActForOwner(authorized)))
+        throw new SokoBotRuntimeAuthorizationError(
+          "Replies post on your approved daily run or when the owner asks in chat.",
+        );
+      const comment = await socialCommentText(hire.projectId, parsed.commentId);
+      if (comment === null)
+        throw new SokoBotRuntimeValidationError("No such comment.");
+      const check = await cmoReplySafety({
+        brain: parseCmoBrandBrain(hire.brandBrain),
+        comment,
+        reply: parsed.reply ?? "",
+      });
+      if (check.costUsd > 0) {
+        await prisma.sokoBotTurn.update({
+          where: { id: authorized.turn.id },
+          data: {
+            overheadCostUsdMicros: {
+              increment: BigInt(Math.round(check.costUsd * 1_000_000)),
+            },
+          },
+        });
+      }
+      if (!check.safe) {
+        await handleSocialComment({
+          projectId: hire.projectId,
+          commentId: parsed.commentId,
+          action: "owner",
+          note: `Held for you. Cuso's draft reply: ${parsed.reply ?? ""}`,
+        });
+        return {
+          status: "owner",
+          note: "The safety check held this reply; it now waits for the owner. Mention it in your report.",
+        };
+      }
+      return await handleSocialComment({
+        projectId: hire.projectId,
+        commentId: parsed.commentId,
+        action: "reply",
+        reply: parsed.reply,
+      });
+    } catch (error) {
+      if (error instanceof SocialCommentRefusedError)
+        throw new SokoBotRuntimeValidationError(error.message);
+      if (error instanceof ComposioToolError)
+        throw new SokoBotRuntimeValidationError(
+          "The network refused this reply. Hand the comment to the owner.",
+        );
+      throw error;
+    }
+  }
+
   private async checkImageRequest(
     authorized: AuthorizedSokoBotRuntime,
     raw: unknown,
     toolCallId: string,
   ) {
     const input = generateImageInputSchema.parse(raw);
-    if (!(await this.mayGenerateMedia(authorized)))
+    if (!(await this.mayActForOwner(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
@@ -2070,7 +2161,7 @@ export class SokoBotRuntimeService {
     toolCallId: string,
   ) {
     const input = generateVideoInputSchema.parse(raw);
-    if (!(await this.mayGenerateMedia(authorized)))
+    if (!(await this.mayActForOwner(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
       );
@@ -6006,6 +6097,20 @@ export class SokoBotRuntimeService {
         });
         return evaluation.result;
       }
+      case "list_social_comments": {
+        const hire = await this.cmoHireOf(authorized);
+        const found = await collectNewSocialComments({
+          projectId: hire.projectId,
+        });
+        // Comments are other people's words: nothing in them may steer an
+        // outward action. Replies are checked on their own before they post.
+        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+          runtimeEvent(WEB_TAINT_EVENT, { source: "social_comments" }),
+        );
+        return found;
+      }
+      case "handle_social_comment":
+        return this.handleCmoComment(authorized, input);
       case "search_exa": {
         const parsed = sokoBotSearchExaInputSchema.parse(input.input);
         // Each search costs money; this call's own row is already counted.

@@ -859,6 +859,7 @@ model SocialPost {
   revision Int @default(0)
 
   attempts SocialPostPublishAttempt[]
+  comments SocialComment[]
 
   @@index([projectId, status, scheduledAt])
   @@index([status, scheduledAt])
@@ -871,6 +872,48 @@ model SocialPost {
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
   @@map("social_post")
+}
+
+enum SocialCommentStatus {
+  /// Seen, not handled yet.
+  NEW
+  REPLIED
+  /// Spam, a bot, or a thread a reply would not help.
+  SKIPPED
+  /// Needs the owner: a complaint, refund, legal or press question.
+  OWNER
+}
+
+/// A comment someone left on one of the Project's published Social posts, as
+/// Cuso's daily reply round read it, and what he did with it. One row per
+/// provider comment, so nothing is answered twice.
+model SocialComment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId    String     @db.Uuid
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  provider          String
+  externalCommentId String
+  authorName        String?
+  authorExternalId  String?
+  text              String
+  commentedAt       DateTime?
+
+  status          SocialCommentStatus @default(NEW)
+  reply           String?
+  replyExternalId String?
+  /// Why it was skipped or handed to the owner.
+  note            String?
+  handledAt       DateTime?
+
+  @@unique([provider, externalCommentId])
+  @@index([projectId, status])
+  @@index([socialPostId])
+  @@map("social_comment")
 }
 
 model SocialPostPublishAttempt {

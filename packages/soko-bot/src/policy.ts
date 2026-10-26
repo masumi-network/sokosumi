@@ -92,6 +92,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "save_strategy",
   "report_update",
   "search_exa",
+  "list_social_comments",
+  "handle_social_comment",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
@@ -109,6 +111,9 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "save_strategy",
   "report_update",
   "search_exa",
+  // The daily reply round: comments on the Project's own posts.
+  "list_social_comments",
+  "handle_social_comment",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {
