@@ -86,48 +86,56 @@ describe("public newsletter unsubscribe", () => {
     expect(await response.text()).toContain(title);
     expect(m.updateMany).not.toHaveBeenCalled();
   });
-  it("renders a no-auth GET confirmation without mutating data", async () => {
-    const response = await app().request(URL);
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toContain("text/html");
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    const html = await response.text();
-    expect(html).toContain("Confirm unsubscribe");
-    expect(html).toContain('method="post"');
-    expect(html).toContain(TOKEN);
-    expect(m.updateMany).not.toHaveBeenCalled();
-    expect(m.eventCreate).not.toHaveBeenCalled();
-    expect(m.transaction).not.toHaveBeenCalled();
-  });
-
-  it("POST unsubscribes and records one event, idempotently", async () => {
-    const server = app();
-    for (let i = 0; i < 2; i++) {
-      const response = await server.request(URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "List-Unsubscribe=One-Click",
-      });
+  it.each([true, false])(
+    "renders a no-auth GET confirmation without mutating data when enabled=%s",
+    async (enabled) => {
+      m.enabled = enabled;
+      const response = await app().request(URL);
       expect(response.status).toBe(200);
-      expect(await response.text()).toContain("You are unsubscribed");
-    }
-    expect(m.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: NEWSLETTER_SUBSCRIBER_ID,
-        newsletterId: NEWSLETTER_ID,
-        status: { not: "UNSUBSCRIBED" },
-      },
-      data: { status: "UNSUBSCRIBED", unsubscribedAt: expect.any(Date) },
-    });
-    expect(m.eventCreate).toHaveBeenCalledExactlyOnceWith({
-      data: {
-        newsletterId: NEWSLETTER_ID,
-        subscriberId: NEWSLETTER_SUBSCRIBER_ID,
-        type: "UNSUBSCRIBED",
-        occurredAt: expect.any(Date),
-      },
-    });
-  });
+      expect(response.headers.get("Content-Type")).toContain("text/html");
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      const html = await response.text();
+      expect(html).toContain("Confirm unsubscribe");
+      expect(html).toContain('method="post"');
+      expect(html).toContain(TOKEN);
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    "POST unsubscribes idempotently when enabled=%s",
+    async (enabled) => {
+      m.enabled = enabled;
+      const server = app();
+      for (let i = 0; i < 2; i++) {
+        const response = await server.request(URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "List-Unsubscribe=One-Click",
+        });
+        expect(response.status).toBe(200);
+        expect(await response.text()).toContain("You are unsubscribed");
+      }
+      expect(m.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: NEWSLETTER_SUBSCRIBER_ID,
+          newsletterId: NEWSLETTER_ID,
+          status: { not: "UNSUBSCRIBED" },
+        },
+        data: { status: "UNSUBSCRIBED", unsubscribedAt: expect.any(Date) },
+      });
+      expect(m.eventCreate).toHaveBeenCalledExactlyOnceWith({
+        data: {
+          newsletterId: NEWSLETTER_ID,
+          subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+          type: "UNSUBSCRIBED",
+          occurredAt: expect.any(Date),
+        },
+      });
+    },
+  );
 
   it("accepts the plain confirmation form POST without a body", async () => {
     expect((await app().request(URL, { method: "POST" })).status).toBe(200);
@@ -135,7 +143,7 @@ describe("public newsletter unsubscribe", () => {
   });
 
   it.each(["GET", "POST"])(
-    "hides %s even with a missing token while disabled",
+    "rejects a missing token for %s while disabled",
     async (method) => {
       m.enabled = false;
       expect(
@@ -145,7 +153,7 @@ describe("public newsletter unsubscribe", () => {
             { method },
           )
         ).status,
-      ).toBe(404);
+      ).toBe(422);
       expect(m.findUnique).not.toHaveBeenCalled();
       expect(m.updateMany).not.toHaveBeenCalled();
     },
@@ -154,6 +162,7 @@ describe("public newsletter unsubscribe", () => {
   it.each(["GET", "POST"])(
     "rejects tampered tokens for %s without data access",
     async (method) => {
+      m.enabled = false;
       expect((await app().request(`${URL}!`, { method })).status).toBe(400);
       expect(m.findUnique).not.toHaveBeenCalled();
       expect(m.updateMany).not.toHaveBeenCalled();

@@ -66,6 +66,7 @@ function payload(type = "email.delivered", data = {}) {
       email_id: EMAIL_ID,
       from: "newsletter@news.example.com",
       to: ["reader@example.com"],
+      tags: { category: "newsletter" },
       ...data,
     },
   };
@@ -418,13 +419,55 @@ describe("POST /v1/webhooks/resend/newsletter", () => {
     expect(m.state.events).toHaveLength(2);
   });
 
-  it("acknowledges unknown email IDs without recording events or subscriber changes", async () => {
-    m.findSend.mockResolvedValue(null);
-    expect((await app().request(URL, signedRequest())).status).toBe(200);
-    expect(m.transaction).not.toHaveBeenCalled();
-    expect(m.createEvents).not.toHaveBeenCalled();
-    expect(m.updateSubscriber).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["email.delivered", "ACTIVE"],
+    ["email.opened", "ACTIVE"],
+    ["email.clicked", "ACTIVE"],
+    ["email.bounced", "BOUNCED"],
+    ["email.complained", "UNSUBSCRIBED"],
+  ])(
+    "retries an early %s event until its send is saved",
+    async (type, status) => {
+      m.findSend.mockResolvedValueOnce(null);
+      const server = app();
+      const body = JSON.stringify(
+        payload(type, {
+          click: { link: "https://example.com/article" },
+          bounce: { type: "Permanent" },
+        }),
+      );
+
+      expect((await server.request(URL, signedRequest(body))).status).toBe(503);
+      expect(m.transaction).not.toHaveBeenCalled();
+      expect(m.state.events).toHaveLength(0);
+      expect(m.state.subscriber).toEqual(NEWSLETTER_SUBSCRIBER);
+
+      for (let i = 0; i < 2; i++) {
+        expect((await server.request(URL, signedRequest(body))).status).toBe(
+          200,
+        );
+      }
+      expect(m.state.events).toHaveLength(1);
+      expect(m.state.subscriber?.status).toBe(status);
+      if (status !== "ACTIVE") {
+        expect(m.updateSubscriber).toHaveBeenCalledOnce();
+      }
+    },
+  );
+
+  it.each([undefined, {}, { category: "reset-password" }])(
+    "acknowledges unknown unrelated emails with tags %j",
+    async (tags) => {
+      m.findSend.mockResolvedValue(null);
+      const request = signedRequest(
+        JSON.stringify(payload("email.delivered", { tags })),
+      );
+      expect((await app().request(URL, request)).status).toBe(200);
+      expect(m.transaction).not.toHaveBeenCalled();
+      expect(m.createEvents).not.toHaveBeenCalled();
+      expect(m.updateSubscriber).not.toHaveBeenCalled();
+    },
+  );
 
   it("acknowledges unrelated event types", async () => {
     const request = signedRequest(
