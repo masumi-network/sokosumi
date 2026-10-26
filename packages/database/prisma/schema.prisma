@@ -167,6 +167,8 @@ model Workspace {
   jobs                     Job[]
   tasks                    Task[]
   socialPosts              SocialPost[]
+  newsletters              Newsletter[]
+  newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
   projectIdentifierAliases ProjectIdentifierAlias[]
@@ -483,6 +485,9 @@ model Project {
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
+
+  newsletter       Newsletter?
+  newsletterIssues NewsletterIssue[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -3171,6 +3176,7 @@ model Task {
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
+  newsletterIssues   NewsletterIssue[]
   sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
