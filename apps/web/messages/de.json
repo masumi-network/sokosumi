@@ -7956,7 +7956,7 @@
         "connectFailed": "Die Verbindung wurde nicht abgeschlossen. Bitte erneut versuchen.",
         "lastError": "Braucht Aufmerksamkeit: {error}",
         "title": "Verbundene Konten",
-        "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
+        "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -8267,7 +8267,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
+          "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {

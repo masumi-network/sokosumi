@@ -7956,7 +7956,7 @@
         "connectFailed": "La conexión no se completó. Inténtalo de nuevo.",
         "lastError": "Necesita atención: {error}",
         "title": "Cuentas conectadas",
-        "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
+        "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -8267,7 +8267,7 @@
         },
         "Connectors": {
           "title": "Herramientas",
-          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
+          "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {
