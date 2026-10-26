@@ -1,3 +1,5 @@
+import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
+
 /**
  * Default maximum text length per social provider for a Social post.
  * Client-safe: web reuses it for composer validation, Core for request validation.
@@ -38,9 +40,9 @@ export function socialPostTextLimit(
 
 const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
 const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;
-// shortcut: syntactic URL matching lacks twitter-text's TLD list; replace when registry access is available.
+// Bare hosts use twitter-text's TLD lists and short ccTLD rule.
 const X_URL =
-  /(?<![\p{L}\p{N}_@＠])(?:https?:\/\/|www\.)[^\s<>]+|(?<![\p{L}\p{N}_@＠])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[a-z]{2,63}(?:\/[^\s<>]*)?/giu;
+  /https?:\/\/[^\s<>]+|((?:[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+[\p{L}\p{M}\p{N}_-]+)(\/[^\s<>]*)?/giu;
 
 function xCharacterLength(text: string): number {
   let length = 0;
@@ -73,6 +75,29 @@ export function socialPostTextLength(
   let length = 0;
   let end = 0;
   for (const match of normalized.matchAll(X_URL)) {
+    const hostname = match[1];
+    const preceding = normalized.slice(0, match.index);
+    if (
+      /[\p{L}\p{N}_@＠]$/u.test(preceding) ||
+      (hostname && /[$#＃]$/.test(preceding))
+    ) {
+      continue;
+    }
+    if (hostname) {
+      const labels = hostname.toLowerCase().split(".");
+      const tld = labels[labels.length - 1];
+      const isCountry = X_COUNTRY_TLDS.has(tld);
+      if (!X_GENERIC_TLDS.has(tld) && !isCountry) continue;
+      if (
+        isCountry &&
+        labels.length === 2 &&
+        !match[2] &&
+        tld !== "co" &&
+        tld !== "tv"
+      ) {
+        continue;
+      }
+    }
     const candidate = match[0];
     // Sentence punctuation stays outside the link, as do unmatched closing parentheses.
     let url = candidate.replace(/[.,!?;:'"…]+$/, "");

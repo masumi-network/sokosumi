@@ -154,22 +154,87 @@ describe("per-provider limits and requirements", () => {
 
 describe("socialPostTextLength", () => {
   it.each([
+    ["https://example.com/very/long/path", 23],
+    ["http://example.com/very/long/path", 23],
+    ["https://file.txt/very/long/path", 23],
+    ["#https://example.com/very/long/path", 24],
+    ["$http://example.com/very/long/path", 24],
     ["https://example.com/a-very-long-url", 23],
     ["Read https://example.com/a-very-long-url", 28],
     ["https://example.com/hello.", 24],
     ["https://example.com/hello_(world)", 23],
     ["(https://example.com/hello)", 25],
     ["example.com", 23],
+    ["EXAMPLE.COM", 23],
+    ["sokosumi.io/x", 23],
+    ["SOKOSUMI.IO/x", 23],
+    ["sokosumi.io", 11],
+    ["bit.ly", 6],
+    ["bit.ly/x", 23],
+    ["bit.ly/", 23],
+    ["www.bit.ly", 23],
+    ["a.b.io", 23],
+    ["example.co", 23],
+    ["EXAMPLE.CO", 23],
+    ["example.tv", 23],
+    ["file.txt", 8],
+    ["e.g.", 4],
+    ["www.example.com", 23],
+    ["www.file.txt", 12],
+    ["example.com123", 14],
+    ["example.com.unknown", 19],
+    ["example.世界", 23],
+    ["example.中国/x", 23],
     ["😀", 2],
     ["👨‍👩‍👧‍👦", 2],
     ["👍🏽", 2],
     ["🇯🇵", 2],
     ["1️⃣", 2],
     ["中文", 4],
+    ["中", 2],
     ["cafe\u0301", 4],
     ["Hello world", 11],
   ])("counts %j as %i on X", (text, length) => {
     expect(socialPostTextLength("x", text)).toBe(length);
+  });
+
+  it.each(["@", "＠", "$", "#", "＃", "_", "user_"])(
+    "keeps bare domains after %j as plain text",
+    (prefix) => {
+      const text = `${prefix}www.example.com/path`;
+      const prefixLength =
+        prefix === "＠" || prefix === "＃" ? 2 : prefix.length;
+      expect(socialPostTextLength("x", text)).toBe(prefixLength + 20);
+    },
+  );
+
+  it.each([
+    [0x0000, 1],
+    [0x10ff, 1],
+    [0x1100, 2],
+    [0x1fff, 2],
+    [0x2000, 1],
+    [0x200d, 1],
+    [0x200e, 2],
+    [0x200f, 2],
+    [0x2010, 1],
+    [0x201f, 1],
+    [0x2020, 2],
+    [0x2031, 2],
+    [0x2032, 1],
+    [0x2037, 1],
+    [0x2038, 2],
+  ])("weights code point %i as %i on X", (point, length) => {
+    expect(socialPostTextLength("x", String.fromCodePoint(point))).toBe(length);
+  });
+
+  it("allows a 300-character post with a long link on a free X account", () => {
+    const text = `${"a".repeat(240)} https://example.com/${"b".repeat(39)}`;
+    expect(text).toHaveLength(300);
+    expect(socialPostTextLength("x", text)).toBe(264);
+    expect(socialPostTextLength("x", text)).toBeLessThanOrEqual(
+      socialPostTextLimit("x"),
+    );
   });
 
   it.each(["linkedin", "facebook", "instagram", "tiktok", "youtube"] as const)(
