@@ -9,7 +9,7 @@ import {
   useRef,
 } from "react";
 import { flushSync } from "react-dom";
-
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import {
   CollapsibleContent,
   CollapsibleTrigger,
@@ -75,6 +75,9 @@ export function ChatSidebarSectionHeader({
 }) {
   const tChannels = useTranslations("App.Channels");
   const expandedTriggerRef = useRef<HTMLButtonElement>(null);
+  // PROTOTYPE: variants b and c put the chevron after the title, shown on
+  // hover and kept while the section is closed.
+  const prototype = useSidebarPrototypeVariant() !== "a";
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
   const attention = isOpen ? null : closedAttention;
   const attentionLabel =
@@ -107,7 +110,7 @@ export function ChatSidebarSectionHeader({
         <CollapsibleTrigger
           ref={expandedTriggerRef}
           className={cn(
-            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
+            "group/section text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
             trailingCount === 1 && "pr-9",
             trailingCount >= 2 && "pr-20",
@@ -116,18 +119,35 @@ export function ChatSidebarSectionHeader({
             trailingCount >= 2 && "md:pr-14",
           )}
         >
-          {/* In the shared slot, so the chevron sits where the section's rail
-              icon sits and the title starts on the rooms' 48px column. */}
-          <SidebarRowSlot>
-            <ChevronDown
-              aria-hidden
-              className={cn(
-                "size-4 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none md:size-3",
-                !isOpen && "-rotate-90",
-              )}
-            />
-          </SidebarRowSlot>
-          <span className="truncate">{children}</span>
+          {prototype ? (
+            <>
+              <span className="min-w-0 truncate">{children}</span>
+              <ChevronDown
+                aria-hidden
+                className={cn(
+                  "size-4 shrink-0 transition-[opacity,rotate] duration-200 motion-reduce:transition-none md:size-3",
+                  isOpen
+                    ? "opacity-0 group-hover/section:opacity-100 group-focus-visible/section:opacity-100"
+                    : "-rotate-90",
+                )}
+              />
+            </>
+          ) : (
+            <>
+              {/* In the shared slot, so the chevron sits where the section's rail
+                  icon sits and the title starts on the rooms' 48px column. */}
+              <SidebarRowSlot>
+                <ChevronDown
+                  aria-hidden
+                  className={cn(
+                    "size-4 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none md:size-3",
+                    !isOpen && "-rotate-90",
+                  )}
+                />
+              </SidebarRowSlot>
+              <span className="truncate">{children}</span>
+            </>
+          )}
           {attentionLabel ? (
             <span className="sr-only">{attentionLabel}</span>
           ) : null}

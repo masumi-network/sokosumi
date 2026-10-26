@@ -6,7 +6,6 @@
  *   a  today
  *   b  recommended (labelled scope, live Soko Bot row, grouped nav)
  *   c  recommended with the Soko Bot card
- *   d  recommended with a small, foldable heading over every nav group
  * The choice also lives in sessionStorage, so it survives in-app navigation,
  * which drops the query string. Off in production. Delete once a variant wins.
  */
@@ -20,7 +19,6 @@ const VARIANTS = [
   { key: "a", name: "Today" },
   { key: "b", name: "Recommended" },
   { key: "c", name: "Recommended, bot card" },
-  { key: "d", name: "Small section headers" },
 ] as const;
 
 export type SidebarPrototypeVariant = (typeof VARIANTS)[number]["key"];

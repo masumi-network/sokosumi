@@ -1,22 +1,15 @@
 "use client";
 
 /**
- * PROTOTYPE, throwaway: a foldable nav group for sidebar variants b and c.
- * It wears the chat sections' own heading, so Records and Marketing fold the
- * way Pinned and Channels do. State is in memory only.
+ * PROTOTYPE, throwaway: a nav group under a small heading, for sidebar
+ * variants b and c. The heading folds its group; the chevron after the title
+ * shows on hover and stays while the group is closed, as the chat sections'
+ * headings do in those variants. The rail drops the heading and keeps every
+ * row, so a closed group never hides an icon there. State is in memory only.
  */
 
 import { ChevronDown } from "lucide-react";
-import {
-  type ComponentType,
-  type ReactNode,
-  type SVGProps,
-  useState,
-} from "react";
-import {
-  ChatSidebarSectionContent,
-  ChatSidebarSectionHeader,
-} from "@/components/chat/chat-sidebar-section-header";
+import { type ReactNode, useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,36 +18,6 @@ import {
 import { SidebarMenu, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-export function NavPrototypeGroup({
-  title,
-  railIcon,
-  defaultOpen,
-  children,
-}: {
-  title: string;
-  railIcon: ComponentType<SVGProps<SVGSVGElement>>;
-  defaultOpen: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <ChatSidebarSectionHeader isOpen={open} railIcon={railIcon}>
-        {title}
-      </ChatSidebarSectionHeader>
-      <ChatSidebarSectionContent>
-        <SidebarMenu className="gap-0">{children}</SidebarMenu>
-      </ChatSidebarSectionContent>
-    </Collapsible>
-  );
-}
-
-/**
- * Variant d: a small label over every group. The chevron shows on hover and
- * stays while the group is closed. The rail drops the label and keeps every
- * row, so a closed group never hides an icon there.
- */
 export function NavPrototypeSection({
   title,
   children,
@@ -80,7 +43,7 @@ export function NavPrototypeSection({
             "size-3 shrink-0 transition-[opacity,rotate] duration-200 motion-reduce:transition-none",
             open
               ? "opacity-0 group-hover/section:opacity-100 group-focus-visible/section:opacity-100"
-              : "-rotate-90 opacity-100",
+              : "-rotate-90",
           )}
         />
       </CollapsibleTrigger>
