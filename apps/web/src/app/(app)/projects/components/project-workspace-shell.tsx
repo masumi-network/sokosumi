@@ -1,3 +1,4 @@
+import { Mail } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import {
@@ -13,6 +14,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
+import { newsletterService } from "@/lib/services/newsletter.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,7 @@ export interface ProjectWorkspaceLabels {
   bots?: string;
   design: string;
   memory: string;
+  newsletter?: string;
   overview: string;
   properties: ProjectPropertiesLabels;
 }
@@ -41,16 +44,18 @@ export interface ProjectWorkspaceLabels {
  * shared bots exist only in an organization.
  */
 export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabels> {
-  const [t, sharedBots, organizationId] = await Promise.all([
+  const [t, sharedBots, organizationId, newsletterEnabled] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     sokoBotService.listShared().catch(() => null),
     userService.getActiveOrganizationId(),
+    newsletterService.isEnabled().catch(() => false),
   ]);
   return {
     ariaLabel: t("tabs.ariaLabel"),
     ...(sharedBots && organizationId ? { bots: t("tabs.bots") } : {}),
     design: t("tabs.design"),
     memory: t("tabs.memory"),
+    ...(newsletterEnabled ? { newsletter: t("tabs.newsletter") } : {}),
     overview: t("tabs.overview"),
     properties: {
       title: t("header.properties"),
@@ -135,6 +140,16 @@ export function ProjectWorkspaceShell({
             id: "bots",
             href: `/projects/${projectId}/bots`,
             label: labels.bots,
+          },
+        ]
+      : []),
+    ...(labels.newsletter
+      ? [
+          {
+            id: "newsletter",
+            href: `/projects/${projectId}/newsletter`,
+            label: labels.newsletter,
+            icon: <Mail className="size-4" />,
           },
         ]
       : []),

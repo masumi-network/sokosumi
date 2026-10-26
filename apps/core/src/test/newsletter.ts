@@ -64,6 +64,8 @@ export const NEWSLETTER_SUBSCRIBER: NewsletterSubscriber = {
   source: "MANUAL",
   consentAt: NEWSLETTER_NOW,
   confirmedAt: null,
+  welcomeSentAt: null,
+  welcomeLeaseExpiresAt: null,
   unsubscribedAt: null,
   bouncedAt: null,
   createdAt: NEWSLETTER_NOW,
