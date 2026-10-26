@@ -163,6 +163,7 @@ export const newsletterSchema = z
     id: z.uuid(),
     projectId: z.uuid(),
     workspaceId: z.uuid(),
+    contactListId: z.uuid().nullable(),
     name: z.string(),
     senderName: z.string(),
     replyTo: z.email(),
@@ -238,6 +239,7 @@ export const newsletterSubscriberSchema = z
     newsletterId: z.uuid(),
     email: z.email(),
     name: z.string().nullable(),
+    contact: z.union([z.object({ id: z.uuid(), name: z.string() }), z.null()]),
     status: newsletterSubscriberStatusSchema,
     source: z
       .enum(NewsletterSubscriberSource)

@@ -3,12 +3,11 @@ import {
   renderNewsletterConfirmationEmail,
   renderNewsletterEmail,
 } from "@sokosumi/email";
-import { contactNameFromChannel } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
 import { sendEmail } from "@/clients/email.client";
 import { getEnv } from "@/config/env";
-import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   signNewsletterConfirmToken,
@@ -25,7 +24,8 @@ import {
   newsletterBrandSchema,
   type SubscribeNewsletterRequest,
 } from "@/schemas/newsletter.schema";
-import { contactListNameKey } from "@/services/contact-lists.service";
+import { inContactTransaction } from "@/services/contacts.service";
+import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
 
 const CONFIRMATION_RESEND_MS = 10 * 60_000;
 const WELCOME_LEASE_MS = 5 * 60_000;
@@ -53,7 +53,7 @@ export async function subscribeToNewsletter(
 
   const now = new Date();
   const reserveSignup = () =>
-    prisma.$transaction(async (tx) => {
+    inContactTransaction(async (tx) => {
       const { count: created } = await tx.newsletterSubscriber.createMany({
         data: {
           newsletterId: newsletter.id,
@@ -105,51 +105,26 @@ export async function subscribeToNewsletter(
         });
         if (!count) return null;
       }
-      const channel = await tx.contactChannel.upsert({
-        where: {
-          workspaceId_type_value: {
-            workspaceId: newsletter.workspaceId,
-            type: "EMAIL",
-            value: input.email,
-          },
-        },
-        create: {
+      // Only reserved signups become Contacts; suppressed addresses stay untouched.
+      const contacts = await linkNewsletterContacts(
+        tx,
+        newsletter.id,
+        {
           workspaceId: newsletter.workspaceId,
-          type: "EMAIL",
-          value: input.email,
-          source: "OTHER",
-          isPrimary: true,
-          contact: {
-            create: {
-              workspaceId: newsletter.workspaceId,
-              name: input.name || contactNameFromChannel("EMAIL", input.email),
-            },
-          },
+          userId: null,
+          sokoBotId: null,
         },
-        update: {},
-        select: { contactId: true },
-      });
-      const name = `${newsletter.name} subscribers`;
-      const nameKey = contactListNameKey(name);
-      const list = await tx.contactList.upsert({
-        where: {
-          workspaceId_nameKey: { workspaceId: newsletter.workspaceId, nameKey },
-        },
-        create: {
-          workspaceId: newsletter.workspaceId,
-          name,
-          nameKey,
-          color: "gray",
-        },
-        update: {},
-        select: { id: true, smartFilter: true },
-      });
-      if (list.smartFilter)
-        throw unprocessableEntity(`"${name}" is a smart list`);
-      await tx.contactListMember.createMany({
-        data: { listId: list.id, contactId: channel.contactId },
-        skipDuplicates: true,
-      });
+        [input],
+        "OTHER",
+      );
+      const contact = contacts.get(input.email);
+      if (!contact) throw notFound("Contact not found");
+      if (subscriber.contactId !== contact.id) {
+        await tx.newsletterSubscriber.update({
+          where: { id: subscriber.id },
+          data: { contactId: contact.id },
+        });
+      }
       if (created)
         await tx.newsletterEvent.create({
           data: {
@@ -161,10 +136,11 @@ export async function subscribeToNewsletter(
         });
       return subscriber;
     });
-  // Nested Contact upserts can race across newsletters sharing the same email.
+  // Contact upserts can race across newsletters sharing the same email.
   const subscriber = await reserveSignup()
     .catch((error: unknown) => {
-      if (!isPrismaUniqueViolation(error)) throw error;
+      if (!(error instanceof HTTPException && error.status === 409))
+        throw error;
       return reserveSignup();
     })
     .catch((error: unknown) => {

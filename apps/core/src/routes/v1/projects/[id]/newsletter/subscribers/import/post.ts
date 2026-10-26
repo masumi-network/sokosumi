@@ -11,6 +11,7 @@ import {
   newsletterImportResultSchema,
   newsletterProjectParamsSchema,
 } from "@/schemas/newsletter.schema";
+import { resolveContactActor } from "@/services/contacts.service";
 import { importNewsletterSubscribers } from "@/services/newsletter.service";
 
 import { newsletterScope } from "../../context";
@@ -38,6 +39,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Invalid CSV or missing consent"),
     },
   }),
@@ -50,6 +52,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const result = await importNewsletterSubscribers(
       scope,
       c.req.valid("json").csv,
+      await resolveContactActor(c.var.authContext, scope.workspaceId),
     );
     return ok(c, newsletterImportResultSchema.parse(result));
   });

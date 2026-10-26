@@ -51,6 +51,7 @@ const PERSON: NewsletterSubscriber = {
   newsletterId: "n1",
   email: "ada@example.com",
   name: "Ada",
+  contact: null,
   status: NewsletterSubscriberStatus.ACTIVE,
   source: NewsletterSubscriberSource.MANUAL,
   createdAt: new Date("2026-10-01T12:00:00Z"),
@@ -577,17 +578,19 @@ describe("newsletter subscribers", () => {
         locale,
         data: {
           ...DATA,
-          subscribers: statuses.map((status, i) => ({
+          subscribers: sources.map((source, i) => ({
             ...PERSON,
             id: `s${i}`,
-            status,
-            source: sources[i],
+            status: statuses[i % statuses.length],
+            source,
           })),
         },
       });
       const table = within(screen.getByRole("table"));
       for (const status of statuses)
-        expect(table.getByText(copy.statuses[status])).toBeInTheDocument();
+        expect(
+          table.getAllByText(copy.statuses[status]).length,
+        ).toBeGreaterThan(0);
       for (const source of sources)
         expect(table.getByText(copy.sources[source])).toBeInTheDocument();
       expect(
