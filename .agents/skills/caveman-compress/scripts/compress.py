@@ -72,6 +72,7 @@ SENSITIVE_BASENAME_REGEX = re.compile(
     r"(?ix)^("
     r"\.env(\..+)?"
     r"|\.netrc"
+    r"|\.(npmrc|pypirc|pgpass|s3cfg|boto)"
     r"|credentials(\..+)?"
     r"|secrets?(\..+)?"
     r"|passwords?(\..+)?"
@@ -105,8 +106,31 @@ def _state_base_dir(kind: str) -> Path:
 
 
 def backup_dir_for(filepath: Path) -> Path:
-    """Out-of-tree backup dir for filepath, keyed by its parent dir name — kept outside the source tree so skill auto-loaders don't re-ingest `.original.md` backups as live files."""
-    return _state_base_dir("backups") / filepath.parent.name
+    """Out-of-tree backup dir for filepath — kept outside the source tree so skill
+    auto-loaders don't re-ingest `.original.md` backups as live files.
+
+    Keyed on the file's RESOLVED PARENT PATH, not just the parent's name. Keying
+    on the name alone meant every project's `.claude/CLAUDE.md` shared one slot
+    (issue #1351): the second project aborted on the first project's backup, and
+    the abort's own advice — remove the backup and rerun — deleted another
+    project's only uncompressed original. The readable parent name is kept as a
+    prefix so the directory is still recognisable by eye; the digest is what
+    makes it unique. Resolving here (rather than trusting callers) keeps two
+    spellings of one file in a single slot.
+    """
+    parent = Path(filepath).resolve().parent
+    digest = hashlib.sha256(str(parent).encode("utf-8")).hexdigest()[:12]
+    # A file directly under the filesystem root has an empty parent name.
+    return _state_base_dir("backups") / f"{parent.name or 'root'}-{digest}"
+
+
+def legacy_backup_dir_for(filepath: Path) -> Path:
+    """The pre-#1351 backup dir (parent name only). Read-only: `_compress_file_locked`
+    still refuses to run when a backup sits here, so an install that compressed a
+    file before the key changed cannot silently re-backup its own compressed output
+    as the new "original". Never written to, and never deleted — the file it holds
+    may belong to a different project entirely, which is the bug that produced it."""
+    return _state_base_dir("backups") / Path(filepath).resolve().parent.name
 
 
 LOCK_WAIT_SECONDS = 900  # must outlast a legitimate holder's worst-case run (up to MAX_RETRIES+1 Claude calls against the 500KB size cap) or a healthy wait misreads as a stuck lock
@@ -625,9 +649,15 @@ def call_opencode_cli(prompt: str) -> str:
             "OPENCODE_CONFIG_CONTENT must be a strict JSON object (no comments or "
             "trailing commas) so compress can add its tool-deny rule; fix or unset it."
         )
+    agents = config.get("agent") or {}
+    if not isinstance(agents, dict):
+        raise RuntimeError(
+            'OPENCODE_CONFIG_CONTENT "agent" must be a JSON object so compress '
+            "can add its tool-deny agent; fix or unset it."
+        )
     config["permission"] = OPENCODE_PERMISSION_DENY
     config["agent"] = {
-        **(config.get("agent") or {}),
+        **agents,
         OPENCODE_AGENT: {"permission": OPENCODE_PERMISSION_DENY},
     }
     env = {**os.environ, "OPENCODE_CONFIG_CONTENT": json.dumps(config)}
@@ -753,7 +783,7 @@ STRICT RULES:
 - Preserve ALL URLs exactly
 - Preserve ALL headings exactly
 - Preserve file paths and commands
-- Return ONLY the compressed markdown body — do NOT wrap the entire output in a ```markdown fence or any other fence. Inner code blocks from the original stay as-is; do not add a new outer fence around the whole file.
+- Return ONLY the compressed markdown body, with no preface, commentary, or YAML frontmatter — do NOT wrap the entire output in a ```markdown fence or any other fence. Inner code blocks from the original stay as-is; do not add a new outer fence around the whole file.
 
 Only compress natural language prose. Never restructure, add formatting, or improve organization.
 
@@ -787,7 +817,7 @@ ORIGINAL (reference only):
 COMPRESSED (fix this):
 {compressed}
 
-Return ONLY the fixed compressed file. No explanation.
+Return ONLY the fixed compressed markdown body. No preface, commentary, YAML frontmatter, or explanation.
 """
 
 
@@ -877,6 +907,32 @@ def restore_code_blocks(text: str, blocks: List[Tuple[str, str]]) -> str:
     return restored
 
 
+def _frontmatter_block_count(masked_body: str) -> int:
+    """Count mapping-shaped delimiter blocks outside preserved code."""
+    lines = masked_body.splitlines()
+    delimiters = [i for i, line in enumerate(lines) if line == "---"]
+    count = 0
+    for start, end in zip(delimiters, delimiters[1:]):
+        content = [line for line in lines[start + 1:end] if line.strip()]
+        key_value = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*:(\s.*)?$")
+        if content and key_value.match(content[0]) and all(
+            key_value.match(line) or line[0].isspace() or line.startswith("- ")
+            for line in content[1:]
+        ):
+            count += 1
+    return count
+
+
+def _body_candidate_error(original_masked: str, candidate_masked: str) -> str:
+    """Use the same body-only structural guards for compression and repair."""
+    anchor = first_nonblank_line(original_masked)
+    if anchor.startswith(("#", CODE_MARKER_PREFIX)) and first_nonblank_line(candidate_masked) != anchor:
+        return "output does not start with the original body's first line (possible preamble leak)"
+    if _frontmatter_block_count(candidate_masked) > _frontmatter_block_count(original_masked):
+        return "output added YAML frontmatter to the markdown body"
+    return ""
+
+
 # ---------- Core Logic ----------
 
 
@@ -906,10 +962,24 @@ def compress_file(filepath: Path) -> bool:
         )
 
     with file_lock(filepath):
-        return _compress_file_locked(filepath)
+        backup_path = backup_dir_for(filepath) / (filepath.stem + ".original.md")
+        had_backup = backup_path.exists()
+        run = {"live_write_started": False}
+        try:
+            return _compress_file_locked(filepath, run)
+        except BaseException:
+            # A provider error, timeout or Ctrl-C mid-run must not leave the
+            # staging file next to the source, or a backup that makes every
+            # later run abort with "Backup file already exists". The backup is
+            # removed only if this run created it and never started the live
+            # write; past that point it may be the only copy of the original.
+            filepath.with_name(filepath.name + ".caveman-staged").unlink(missing_ok=True)
+            if not had_backup and not run["live_write_started"]:
+                backup_path.unlink(missing_ok=True)
+            raise
 
 
-def _compress_file_locked(filepath: Path) -> bool:
+def _compress_file_locked(filepath: Path, run: dict) -> bool:
     """Body of compress_file; runs entirely under compress_file's file_lock for this resolved path."""
     print(f"Processing: {filepath}")
 
@@ -928,11 +998,35 @@ def _compress_file_locked(filepath: Path) -> bool:
         print("❌ Refusing to compress: file is empty or whitespace-only.")
         return False
 
-    # Check if backup already exists to prevent accidental overwriting
+    # Refuse when a backup already exists, so a rerun cannot capture this file's
+    # already-compressed text as the new "original".
     if backup_path.exists():
-        print(f"⚠️ Backup file already exists: {backup_path}")
-        print("The original backup may contain important content.")
-        print("Aborting to prevent data loss. Please remove or rename the backup file if you want to proceed.")
+        print(f"⚠️ Backup already exists: {backup_path}")
+        print(f"   It holds the uncompressed original of an earlier run on {filepath.name}.")
+        print("Aborting to prevent data loss.")
+        print(f"   To restore it:     cp '{backup_path}' '{filepath}'")
+        print(f"   To start over:     mv '{backup_path}' '{backup_path}.kept'")
+        print("   Do not just delete it — rerunning would then store the ALREADY")
+        print("   COMPRESSED text as the new original, losing the uncompressed version.")
+        return False
+
+    # The pre-#1351 location is checked too: an install that compressed this file
+    # before the backup key changed still has its only original there. That path
+    # was keyed on the parent directory's NAME alone, so it was shared by every
+    # same-named file on the machine — this backup may well belong to a DIFFERENT
+    # project, which is exactly the bug that produced it. So: refuse, name the
+    # ambiguity, and never read, move or delete it on the user's behalf.
+    legacy_backup = legacy_backup_dir_for(filepath) / (filepath.stem + ".original.md")
+    if legacy_backup.exists():
+        print(f"⚠️ A backup from an older caveman-compress exists: {legacy_backup}")
+        print("   Older versions keyed backups on the parent directory's name only,")
+        print(f"   so that file is the original of SOME {filepath.parent.name}/{filepath.name}")
+        print("   on this machine — possibly this one, possibly another project's.")
+        print("Aborting to prevent data loss.")
+        print("   Check its contents, then move it out of the way to proceed:")
+        print(f"     mv '{legacy_backup}' '{legacy_backup}.kept'")
+        print("   Backups written from now on are keyed on the file's full path and")
+        print(f"   will land in {backup_path.parent}")
         return False
 
     # Split YAML frontmatter off before compression. LLMs tend to strip or
@@ -950,11 +1044,16 @@ def _compress_file_locked(filepath: Path) -> bool:
     provider = configured_provider()
     print(f"Compressing with {provider}...")
     masked_body, code_blocks = mask_code_blocks(body)
-    nocompress_regions = [
-        block for _, block in code_blocks
-        if NOCOMPRESS_OPEN_RE.match(block.split("\n", 1)[0])
-    ]
     masked_compressed = call_claude(build_compress_prompt(masked_body))
+    if masked_compressed is None or not masked_compressed.strip():
+        print(f"❌ Compression aborted: {provider} returned an empty response.")
+        print("   Original file is untouched (no backup created).")
+        return False
+    body_error = _body_candidate_error(masked_body, masked_compressed)
+    if body_error:
+        print(f"❌ Compression aborted: {body_error}.")
+        print("   Original file is untouched (no backup created).")
+        return False
     try:
         compressed_body = restore_code_blocks(masked_compressed, code_blocks)
     except ValueError as error:
@@ -1013,6 +1112,7 @@ def _compress_file_locked(filepath: Path) -> bool:
 
         if result.is_valid:
             print("Validation passed")
+            run["live_write_started"] = True
             _write_target(filepath, compressed, backup_path, newline)
             staging_path.unlink(missing_ok=True)
             return True
@@ -1029,7 +1129,7 @@ def _compress_file_locked(filepath: Path) -> bool:
 
         print(f"Fixing with {provider}...")
         fixed = call_claude(
-            build_fix_prompt(original_text, compressed, result.errors)
+            build_fix_prompt(body, compressed_body, result.errors)
         )
 
         if fixed is None or not fixed.strip():
@@ -1037,36 +1137,31 @@ def _compress_file_locked(filepath: Path) -> bool:
             print("   Skipping this attempt.")
             continue
 
-        # Guard against a prose preamble smuggled in ahead of the real fixed
-        # content (issue #588). Only enforced when the original starts with a
-        # structural anchor (frontmatter `---` or a heading) — plain-prose
-        # first lines get legitimately rewritten by compression, and requiring
-        # them verbatim would reject every valid fix.
-        anchor = first_nonblank_line(original_text)
-        if anchor.startswith(("---", "#")) and first_nonblank_line(fixed) != anchor:
-            print("❌ Fix attempt aborted: output does not start with the original's first line.")
-            print("   Possible preamble leak. Skipping this attempt.")
+        # Repairs use the same body-only contract as the initial compression.
+        # Mask code for structural checks so fenced YAML is never frontmatter.
+        try:
+            masked_fixed, _ = mask_code_blocks(fixed)
+        except ValueError as error:
+            print(f"❌ Fix attempt aborted: {error}")
             continue
-
-        # The repaired candidate is what gets written if it validates, so the
-        # non-expansion invariant has to hold for it too — a repair that
-        # restores the structure validate() asked for by padding the prose back
-        # out is exactly the "compression" #776 is about. `fixed` is a whole
-        # file (build_fix_prompt is given one, and the anchor check above
-        # requires it to start with the original's first line), so its
-        # frontmatter is split off to compare like against like.
-        _, fixed_body = split_frontmatter(fixed)
+        body_error = _body_candidate_error(masked_body, masked_fixed)
+        if body_error:
+            print(f"❌ Fix attempt aborted: {body_error}.")
+            print("   Skipping this attempt.")
+            continue
+        fixed_body = fixed
         if not _is_smaller_than_body(fixed_body, body):
             print("   Skipping this attempt.")
             continue
 
-        # The fix prompt carries <!-- nocompress --> regions unmasked and
-        # validate() never compares prose, so check them verbatim here.
-        if any(block.rstrip("\n") not in fixed for block in nocompress_regions):
-            print("❌ Fix attempt aborted: output changed a <!-- nocompress --> region.")
+        # The fix prompt carries the body unmasked; every protected block
+        # must still come back verbatim, including list-nested fences.
+        if any(block.rstrip("\n") not in fixed_body for _, block in code_blocks):
+            print("❌ Fix attempt aborted: output changed a preserved code or <!-- nocompress --> block.")
             print("   Skipping this attempt.")
             continue
 
-        compressed = fixed
+        compressed_body = fixed_body
+        compressed = frontmatter + compressed_body
 
     return False

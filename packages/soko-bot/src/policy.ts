@@ -44,10 +44,18 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_tables",
   "read_table",
   "upload_file",
+  "move_file",
+  "update_emails",
+  "draft_email",
+  "send_email_draft",
+  "save_email_attachment",
   "generate_image",
   "get_image",
   "generate_video",
   "get_video",
+  "list_skills",
+  "install_skill",
+  "remove_skill",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -128,6 +136,12 @@ export function isSokoBotSandboxCapability(
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "hire_agent",
+  // Mail leaves the owner's mailbox; a page the bot read must not send it.
+  "send_email_draft",
+  "update_emails",
+  // A skill is instructions the bot follows from then on; a page it read
+  // must not be able to install one.
+  "install_skill",
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
@@ -184,6 +198,7 @@ const DIRECT_READ_CAPABILITIES = [
   "read_file",
   "get_image",
   "get_video",
+  "list_skills",
   "list_tables",
   "read_table",
   "search_contacts",
@@ -235,6 +250,16 @@ const SCHEDULE_CAPABILITIES = [
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
+ * The bot's own installed skills. Core allows them only in the owner's own
+ * chat, when the owner asked: a skill is third-party instructions the bot
+ * follows on every later turn.
+ */
+const SKILL_CAPABILITIES = [
+  "install_skill",
+  "remove_skill",
+] as const satisfies readonly SokoBotCapability[];
+
+/**
  * The workspace's shared contacts: people, their channels, interactions and
  * lists. Every member sees them, so they are writes, but nothing leaves
  * Sokosumi — web research may fill them, as the prospects feature asks.
@@ -257,6 +282,12 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // something. Nobody else is in it, so it is not an outward post.
   "ask_coworker",
   "upload_file",
+  "move_file",
+  // The owner's mailbox: read state, archive, drafts. Sending is its own
+  // tool, which Core allows only on the owner's word in their chat.
+  "update_emails",
+  "draft_email",
+  "save_email_attachment",
   "generate_image",
   "generate_video",
   "create_table",
@@ -340,6 +371,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "find_coworkers",
@@ -355,6 +387,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "get_agent_input_schema",
@@ -366,6 +399,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "update_task",
@@ -414,12 +448,14 @@ export function capabilitiesForClassification(
     Exclude<NonNullable<TurnClassification["writeScope"]>, "WORK">,
     readonly SokoBotCapability[]
   > = {
-    MEMORY: ["update_memory"],
+    MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat", "ask_coworker"],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
+      "move_file",
+      "save_email_attachment",
       "generate_image",
       "generate_video",
       "create_table",
@@ -427,7 +463,12 @@ export function capabilitiesForClassification(
       "update_table_columns",
       ...CONTACT_WRITE_CAPABILITIES,
     ],
-    INTEGRATION: ["run_integration_tool"],
+    INTEGRATION: [
+      "run_integration_tool",
+      "update_emails",
+      "draft_email",
+      "send_email_draft",
+    ],
     // A post's media must be in Files first; images sent in chat get there
     // through upload_file.
     SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],

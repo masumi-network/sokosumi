@@ -31,7 +31,7 @@
     "node": "24.x"
   },
   "dependencies": {
-    "@napi-rs/keyring": "2.1.1",
+    "@napi-rs/keyring": "2.1.2",
     "ink": "8.0.0",
     "react": "19.3.1"
   },

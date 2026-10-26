@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ListFilter, type LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ReactElement, useMemo, useState } from "react";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface FilterDropdownMenuOption {
   value: string;
   label: string;
+  /** Compact selected value; the full label wraps in the options and appears in a tooltip. */
+  shortLabel?: string;
   avatarLabel?: string;
   image?: string | null;
   useAgentIcon?: boolean;
@@ -239,20 +246,24 @@ function FilterDropdownMenuSectionItem({
       open={submenuOpen}
       onOpenChange={(nextOpen) => setSubmenuOpen(nextOpen)}
     >
-      <DropdownMenuSubTrigger className="gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <FilterDropdownMenuSelectionTooltip option={selectedOption}>
+        <DropdownMenuSubTrigger className="gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <section.icon
-              className="size-4 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="truncate">{section.label}</span>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <section.icon
+                className="size-4 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="truncate">{section.label}</span>
+            </div>
+            <span className="min-w-0 max-w-28 truncate text-right text-xs text-muted-foreground">
+              {selectedOption?.shortLabel ??
+                selectedOption?.label ??
+                section.allLabel}
+            </span>
           </div>
-          <span className="min-w-0 max-w-28 truncate text-right text-xs text-muted-foreground">
-            {selectedOption?.label ?? section.allLabel}
-          </span>
-        </div>
-      </DropdownMenuSubTrigger>
+        </DropdownMenuSubTrigger>
+      </FilterDropdownMenuSelectionTooltip>
       <DropdownMenuSubContent className="w-72 p-0">
         <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
           <CommandInput autoFocus placeholder={searchPlaceholder} />
@@ -280,7 +291,13 @@ function FilterDropdownMenuSectionItem({
                   }}
                 >
                   <FilterDropdownMenuOptionAvatar option={option} />
-                  <span className={FILTER_DROPDOWN_OPTION_LABEL_CLASS}>
+                  <span
+                    className={
+                      option.shortLabel
+                        ? "min-w-0 flex-1 whitespace-normal break-words"
+                        : FILTER_DROPDOWN_OPTION_LABEL_CLASS
+                    }
+                  >
                     {option.label}
                   </span>
                   <Check
@@ -311,6 +328,22 @@ function FilterDropdownMenuSectionItem({
         </Command>
       </DropdownMenuSubContent>
     </DropdownMenuSub>
+  );
+}
+
+function FilterDropdownMenuSelectionTooltip({
+  option,
+  children,
+}: {
+  option: FilterDropdownMenuOption | null;
+  children: ReactElement;
+}) {
+  if (!option?.shortLabel) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{option.label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -392,22 +425,26 @@ function FilterDropdownMenuSectionMobile({
 
   return (
     <div className="min-w-0 border-b pb-4 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="focus:bg-accent flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-3 text-left transition-colors press hover:bg-accent"
-      >
-        <div className="flex min-w-0 w-0 flex-1 items-center gap-2">
-          <section.icon
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-          <span className="truncate font-medium">{section.label}</span>
-        </div>
-        <span className="min-w-0 max-w-28 shrink-0 truncate text-right text-xs text-muted-foreground">
-          {selectedOption?.label ?? section.allLabel}
-        </span>
-      </button>
+      <FilterDropdownMenuSelectionTooltip option={selectedOption}>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="focus:bg-accent flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-3 text-left transition-colors press hover:bg-accent"
+        >
+          <div className="flex min-w-0 w-0 flex-1 items-center gap-2">
+            <section.icon
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <span className="truncate font-medium">{section.label}</span>
+          </div>
+          <span className="min-w-0 max-w-28 shrink-0 truncate text-right text-xs text-muted-foreground">
+            {selectedOption?.shortLabel ??
+              selectedOption?.label ??
+              section.allLabel}
+          </span>
+        </button>
+      </FilterDropdownMenuSelectionTooltip>
       {expanded ? (
         <div className="mt-2 w-full min-w-0 overflow-hidden rounded-md border bg-card p-2">
           <Command
@@ -439,7 +476,13 @@ function FilterDropdownMenuSectionMobile({
                     }}
                   >
                     <FilterDropdownMenuOptionAvatar option={option} />
-                    <span className={FILTER_DROPDOWN_OPTION_LABEL_CLASS}>
+                    <span
+                      className={
+                        option.shortLabel
+                          ? "min-w-0 flex-1 whitespace-normal break-words"
+                          : FILTER_DROPDOWN_OPTION_LABEL_CLASS
+                      }
+                    >
                       {option.label}
                     </span>
                     <Check

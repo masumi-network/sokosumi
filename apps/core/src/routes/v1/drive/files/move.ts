@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
-  isDriveFolderMarkerName,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
 import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
@@ -11,6 +10,10 @@ import pLimit from "p-limit";
 import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  moveDriveFile,
+  parseCacheControlMaxAge,
+} from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import {
   assertDriveFolderPathNotReserved,
@@ -31,6 +34,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { rebaseDriveFolderShares } from "@/services/drive-share.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -92,14 +96,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // in each branch: resolving it afterwards means a failure here leaves
     // the objects moved and the catalog pointing at where they used to be.
     let resolvedWorkspaceId: string | null = null;
-    const workspaceIdFor = async (scope: "user" | "organization") => {
+    // A file move names its store only through the pathname, so the owner
+    // parsed from it stands in for a missing organizationId; the Drive gate
+    // has already admitted that owner.
+    const workspaceIdFor = async (
+      scope: "user" | "organization",
+      ownerId?: string,
+    ) => {
       if (resolvedWorkspaceId !== null) return resolvedWorkspaceId;
       const workspace = await resolveDriveTasksWorkspace({
         userContext,
         scope: scope === "user" ? "me" : "org",
         organizationId:
           scope === "organization"
-            ? (body.organizationId ?? undefined)
+            ? (body.organizationId ?? ownerId)
             : undefined,
       });
       resolvedWorkspaceId = workspace.workspaceId;
@@ -134,78 +144,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       await requireDriveFileAccess(authContext, scope, ownerId);
 
-      let sourceMetadata;
-      try {
-        sourceMetadata = await head(body.sourcePathname, { token });
-      } catch (error) {
-        if (error instanceof BlobNotFoundError) {
-          throw notFound("Source file not found");
-        }
-        throw error;
-      }
-
-      const sourceSegments = body.sourcePathname.split("/");
-      const filename = sourceSegments[sourceSegments.length - 1] || "unnamed";
-
-      if (isDriveFolderMarkerName(filename)) {
-        throw badRequest(
-          "Cannot move the reserved folder marker file (__drive_folder__)",
-        );
-      }
-
-      const targetPrefix =
-        scope === "user"
-          ? buildUserDriveFolderPrefix(ownerId, targetFolderPath)
-          : buildOrganizationDriveFolderPrefix(ownerId, targetFolderPath);
-      const targetPathname = `${targetPrefix}${filename}`;
-
-      try {
-        await head(targetPathname, { token });
-        throw conflict("Target file already exists");
-      } catch (error) {
-        if (error instanceof BlobNotFoundError) {
-        } else if (
-          error &&
-          typeof error === "object" &&
-          "kind" in error &&
-          error.kind === "conflict"
-        ) {
-          throw error;
-        } else {
-          throw error;
-        }
-      }
-
-      const folderPrefix = `${targetPathname}/`;
-      const folderCheck = await list({
-        prefix: folderPrefix,
-        token,
-        limit: 1,
-      });
-      if (folderCheck.blobs.length > 0) {
-        throw conflict("A folder with that name already exists");
-      }
-
-      // Before the mutation, so a workspace-resolution failure cannot
-      // leave a moved object with a stale catalog entry.
-      await workspaceIdFor(scope);
-
-      const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
-      await rename(body.sourcePathname, targetPathname, {
-        token,
-        access: "public",
-        addRandomSuffix: false,
-        contentType: sourceMetadata.contentType,
-        cacheControlMaxAge: maxAge,
-      });
-
-      // Follow the object in the catalog. Without this the entry kept
-      // pointing at the vacated pathname, so a later upload there inherited
-      // this document's manual tags.
-      await reconcileMoves(
-        [{ fromPathname: body.sourcePathname, toPathname: targetPathname }],
+      await moveDriveFile({
+        sourcePathname: body.sourcePathname,
+        targetFolderPath,
         scope,
-      );
+        ownerId,
+        token,
+        // Before the mutation, so a workspace-resolution failure cannot
+        // leave a moved object with a stale catalog entry.
+        workspaceId: await workspaceIdFor(scope, ownerId),
+      });
 
       return ok(c, body);
     }
@@ -407,18 +355,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const failed = outcomes.find((outcome) => outcome.status === "rejected");
       if (failed) throw failed.reason;
 
+      // A link to this folder, or one inside it, follows it to its new place.
+      await rebaseDriveFolderShares({
+        workspaceId: await workspaceIdFor(scope),
+        scope,
+        ownerId,
+        fromFolderPath: sourceFolderPath,
+        toFolderPath: newFolderPath,
+      });
+
       return ok(c, body);
     }
 
     throw badRequest("Invalid itemType. Must be 'file' or 'folder'.");
   });
-}
-
-/**
- * Parse max-age from Cache-Control header.
- * Example: "public, max-age=31536000" → 31536000
- */
-function parseCacheControlMaxAge(cacheControl: string): number | undefined {
-  const match = /max-age=(\d+)/.exec(cacheControl);
-  return match ? Number.parseInt(match[1], 10) : undefined;
 }
