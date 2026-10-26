@@ -26,6 +26,7 @@ import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
+import { ThemeToggle } from "../theme-toggle";
 import {
   BrandBrainCard,
   type CardActions,
@@ -332,6 +333,7 @@ export function CmoApp({
             <span className="who-name">{name || email}</span>
             {name ? <span className="note">{email}</span> : null}
           </span>
+          <ThemeToggle className="who-theme" />
         </div>
       </nav>
 

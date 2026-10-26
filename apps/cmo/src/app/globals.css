@@ -60,6 +60,15 @@
   --mark-instagram-5: #7638fa;
 }
 
+/* A theme the person chose wins over their system's. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 *,
 *::before,
 *::after {
@@ -896,6 +905,25 @@ textarea {
 
 .who-text .note {
   font-size: 0.75rem;
+}
+
+.who-theme {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.who-theme:hover {
+  background: var(--surface);
+  color: var(--foreground);
 }
 
 .main {

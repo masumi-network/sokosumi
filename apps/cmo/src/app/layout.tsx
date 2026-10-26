@@ -2,9 +2,11 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { Logo } from "../components/logo";
+import { readTheme, THEME_COOKIE } from "../lib/theme";
 
 export const metadata: Metadata = {
   title: "CMO.xyz",
@@ -27,9 +29,10 @@ interface RootLayoutProps {
   children: ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const theme = readTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} data-theme={theme ?? undefined}>
       <body>
         <header className="site-header">
           <Logo />

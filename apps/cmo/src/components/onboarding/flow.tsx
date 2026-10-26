@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
+import { ThemeToggle } from "../theme-toggle";
 import { BrainStep } from "./brain-step";
 import { ConnectStep, needsAccounts } from "./connect-step";
 import { PricingStep } from "./pricing-step";
@@ -148,6 +149,7 @@ function AccountMenu({
       </button>
       {open ? (
         <form className="ob-who-menu" role="menu" action={signOut}>
+          <ThemeToggle className="ob-who-item" role="menuitem" withLabel />
           <button type="submit" role="menuitem" className="ob-who-item">
             <LogOut size={14} aria-hidden="true" />
             Sign out
