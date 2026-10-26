@@ -341,7 +341,7 @@ shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `
 Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
 prop/state-driven.
 
-- **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, *default*),
+- **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, _default_),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:

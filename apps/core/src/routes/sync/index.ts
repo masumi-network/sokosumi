@@ -13,6 +13,7 @@ import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/g
 import mountGetImageCatalogSync from "./image-catalog/get.js";
 import mountGetImageJobsSync from "./image-jobs/get.js";
 import mountGetJobsSync from "./jobs/get.js";
+import mountSendNewsletterIssues from "./newsletter-issues-send/get.js";
 import mountGetNotificationFollowUpsSync from "./notification-follow-ups/get.js";
 import mountGetNotificationPublishesSync from "./notification-publishes/get.js";
 import mountGetProjectClosesSync from "./project-closes/get.js";
@@ -48,6 +49,7 @@ mountGetImageCatalogSync(app);
 mountGetImageJobsSync(app);
 mountGetJobsSync(app);
 mountGetNotificationFollowUpsSync(app);
+mountSendNewsletterIssues(app);
 mountGetNotificationPublishesSync(app);
 mountGetProjectClosesSync(app);
 mountGetSkillCatalogSync(app);

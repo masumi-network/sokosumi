@@ -86,6 +86,7 @@ export interface ConnectedSocialIdentity {
   displayName: string | null;
   /** Provider CDN URL; expires for some providers, so callers copy it. */
   avatarUrl: string | null;
+  subscriptionType: string | null;
 }
 
 export interface ProjectSocialConnectedAccount {
@@ -418,11 +419,12 @@ export async function getComposioConnectedAccount(
 export async function deleteComposioToolSession(
   sessionId: string,
   context: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     const response = await projectComposioFetch(
       `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}`,
-      { method: "DELETE" },
+      { method: "DELETE", signal },
     );
     await projectComposioResponse(response, context);
   } catch {
@@ -437,7 +439,9 @@ const SOCIAL_IDENTITY_TOOLS: Record<
 > = {
   x: {
     slug: "TWITTER_USER_LOOKUP_ME",
-    arguments: { user_fields: ["name", "profile_image_url"] },
+    arguments: {
+      user_fields: ["name", "profile_image_url", "subscription_type"],
+    },
   },
   tiktok: {
     slug: "TIKTOK_GET_USER_STATS",
@@ -498,6 +502,7 @@ function socialIdentity(
   let handle: string | null;
   let displayName: string | null = null;
   let avatarUrl: string | null = null;
+  let subscriptionType: string | null = null;
   switch (provider) {
     case "tiktok":
       // TikTok v2 user/info returns data.user and error.code = "ok".
@@ -572,6 +577,7 @@ function socialIdentity(
       break;
     case "x":
       id = identityString(identity.id);
+      subscriptionType = identityString(identity.subscription_type);
       handle =
         identityString(identity.username) ?? identityString(identity.handle);
       displayName = identityString(identity.name);
@@ -583,7 +589,7 @@ function socialIdentity(
         ) ?? null;
       break;
   }
-  return id ? { id, handle, displayName, avatarUrl } : null;
+  return id ? { id, handle, displayName, avatarUrl, subscriptionType } : null;
 }
 
 export async function getConnectedSocialIdentity(input: {

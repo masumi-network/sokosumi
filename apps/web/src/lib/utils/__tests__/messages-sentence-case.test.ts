@@ -46,6 +46,7 @@ const PROPER_PHRASES = [
   "Florian Haller",
   "Serviceplan Group",
   "Acme Inc.",
+  "Times New Roman",
   // Example organization name in a placeholder.
   "My Organization",
 ];
