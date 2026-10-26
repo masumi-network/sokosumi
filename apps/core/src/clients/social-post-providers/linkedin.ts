@@ -32,6 +32,21 @@ const LINKEDIN_TOOL_SLUGS = [
   LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
 ];
 
+// A hashtag token stays intact; any other little-text reserved character is escaped.
+const LINKEDIN_LITTLE_TEXT = /#[\p{L}\p{N}_]+|[|{}@[\]()<>#\\*_~]/gu;
+
+/**
+ * Escapes post commentary for LinkedIn's little text format, which otherwise
+ * truncates the post at the first unescaped reserved character. Hashtags keep
+ * working; `@` is always escaped because we send no mention elements.
+ * https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format
+ */
+export function escapeLinkedInCommentary(text: string): string {
+  return text.replace(LINKEDIN_LITTLE_TEXT, (match) =>
+    match.length > 1 ? match : `\\${match}`,
+  );
+}
+
 /** Post/share URN from a LinkedIn create response. */
 function externalIdOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.id, data?.urn, data?.post_urn, data?.share_id];
@@ -138,7 +153,7 @@ export async function publishLinkedInPost(
           toolSlug: LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
           arguments: {
             video_urn: videoUrn,
-            commentary: context.text,
+            commentary: escapeLinkedInCommentary(context.text),
             visibility: "PUBLIC",
           },
           context: "publish LinkedIn video post",
@@ -170,7 +185,7 @@ export async function publishLinkedInPost(
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
           arguments: {
             author,
-            commentary: context.text,
+            commentary: escapeLinkedInCommentary(context.text),
             visibility: "PUBLIC",
             lifecycleState: "PUBLISHED",
             images: assetUrns,
@@ -188,7 +203,7 @@ export async function publishLinkedInPost(
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
           arguments: {
             author,
-            commentary: context.text,
+            commentary: escapeLinkedInCommentary(context.text),
             visibility: "PUBLIC",
             lifecycleState: "PUBLISHED",
           },

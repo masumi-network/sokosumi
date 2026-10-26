@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { publishLinkedInPost } from "@/clients/social-post-providers/linkedin";
+import {
+  escapeLinkedInCommentary,
+  publishLinkedInPost,
+} from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
 const {
@@ -30,7 +33,7 @@ const context = {
   executorUserId: "sokosumi:project-executor:project_123",
   externalAccountId: "person_42",
   externalHandle: "ada",
-  text: "Hello LinkedIn",
+  text: "Hello (LinkedIn) #launch",
   media: [],
 };
 
@@ -108,7 +111,7 @@ describe("publishLinkedInPost", () => {
         tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
         arguments: {
           author: "urn:li:person:person_42",
-          commentary: "Hello LinkedIn",
+          commentary: "Hello \\(LinkedIn\\) #launch",
           visibility: "PUBLIC",
           lifecycleState: "PUBLISHED",
         },
@@ -169,7 +172,7 @@ describe("publishLinkedInPost", () => {
       tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
       arguments: {
         author: "urn:li:person:person_42",
-        commentary: "Hello LinkedIn",
+        commentary: "Hello \\(LinkedIn\\) #launch",
         visibility: "PUBLIC",
         lifecycleState: "PUBLISHED",
         images: ["urn:li:image:asset_1", "urn:li:image:asset_2"],
@@ -217,7 +220,7 @@ describe("publishLinkedInPost", () => {
         tool_slug: "LINKEDIN_CREATE_VIDEO_POST",
         arguments: {
           video_urn: "urn:li:video:99",
-          commentary: "Hello LinkedIn",
+          commentary: "Hello \\(LinkedIn\\) #launch",
           visibility: "PUBLIC",
         },
       },
@@ -260,5 +263,33 @@ describe("publishLinkedInPost", () => {
     await expect(publishLinkedInPost(context)).rejects.toBeInstanceOf(
       ComposioPublishOutcomeUnknownError,
     );
+  });
+});
+
+describe("escapeLinkedInCommentary", () => {
+  it("escapes reserved characters and keeps hashtags", () => {
+    expect(
+      escapeLinkedInCommentary(
+        "Test (one) [two] snake_case *star* #hashtag @someone ~ end",
+      ),
+    ).toBe(
+      "Test \\(one\\) \\[two\\] snake\\_case \\*star\\* #hashtag \\@someone \\~ end",
+    );
+  });
+
+  it.each([
+    ["a\\b", "a\\\\b"],
+    ["a|b", "a\\|b"],
+    ["{a}", "\\{a\\}"],
+    ["<a>", "\\<a\\>"],
+    ["#", "\\#"],
+    ["# ", "\\# "],
+    ["C#", "C\\#"],
+    ["#snake_case", "#snake_case"],
+    ["#café2026 ok", "#café2026 ok"],
+    ["line one\nline two 🚀", "line one\nline two 🚀"],
+    ["", ""],
+  ])("escapes %j", (text, expected) => {
+    expect(escapeLinkedInCommentary(text)).toBe(expected);
   });
 });
