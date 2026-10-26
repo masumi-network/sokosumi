@@ -89,6 +89,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       slug: null,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -112,6 +113,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       slug: "acme-x1y2z3",
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     });
 

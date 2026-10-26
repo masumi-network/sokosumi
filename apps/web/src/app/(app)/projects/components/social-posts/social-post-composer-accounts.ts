@@ -1,3 +1,4 @@
+import { SOCIAL_PUBLIC_PROVIDERS } from "@sokosumi/utils";
 import {
   readStoredPreference,
   writeStoredPreference,
@@ -58,18 +59,26 @@ export function writeRememberedComposerAccounts(
 
 /** Stored ids that are still connected, else the first account. */
 export function initialCreateConnectionIds(
-  connections: readonly { id: string; status: string }[],
+  connections: readonly { id: string; status: string; provider: string }[],
   remembered: string[] | null,
+  enabledProviders: readonly string[] = SOCIAL_PUBLIC_PROVIDERS,
 ): string[] {
   const stillConnected =
     remembered?.filter((id) =>
       connections.some(
-        (connection) => connection.id === id && connection.status === "active",
+        (connection) =>
+          connection.id === id &&
+          connection.status === "active" &&
+          enabledProviders.includes(connection.provider),
       ),
     ) ?? [];
   if (stillConnected.length > 0) {
     return stillConnected;
   }
-  const first = connections[0]?.id;
+  const first = connections.find(
+    (connection) =>
+      connection.status === "active" &&
+      enabledProviders.includes(connection.provider),
+  )?.id;
   return first ? [first] : [];
 }

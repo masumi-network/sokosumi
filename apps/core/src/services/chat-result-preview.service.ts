@@ -11,7 +11,6 @@ import {
 import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
@@ -340,7 +339,6 @@ export async function resolveChatResultReference(
       break;
     }
     case "social_post": {
-      await requireSocialBetaAccess(actor.userId, client);
       await requireProjectAccess(
         { ...actor, projectId: ref.projectId },
         client,

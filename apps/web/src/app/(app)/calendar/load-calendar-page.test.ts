@@ -147,7 +147,7 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(false);
+    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -191,20 +191,25 @@ describe("loadWorkspaceCalendarPage", () => {
     [PROJECT.id, false],
     [PROJECT.id, true],
   ] as const)(
-    "preserves Social eligibility for project %s with access %s",
+    "includes Social for project %s with beta membership %s",
     async (projectId, allowed) => {
       hasSocialBetaAccessMock.mockResolvedValue(allowed);
       const result = await loadWorkspaceCalendarPage({
         projectId,
         searchParams: Promise.resolve({}),
       });
-      expect(result.includeSocialPosts).toBe(allowed);
+      expect(result.includeSocialPosts).toBe(true);
       const query = expect.objectContaining({
-        includeSocialPosts: allowed ? "true" : undefined,
+        includeSocialPosts: "true",
       });
       if (projectId)
         expect(getProjectCalendarMock).toHaveBeenCalledWith(projectId, query);
       else expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(query);
+      expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledWith({
+        includeSocialPosts: "true",
+        scope: "workspace",
+      });
+      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
     },
   );
 
@@ -315,7 +320,6 @@ describe("loadWorkspaceCalendarPage", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-01-10T12:00:00Z"));
-      hasSocialBetaAccessMock.mockResolvedValue(true);
       getWorkspaceCalendarSourcesMock.mockResolvedValue([
         { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
         {
@@ -412,13 +416,16 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.initialDate).toBe("2026-03-01");
     });
 
-    it("keeps the default for callers without Social access", async () => {
+    it("includes the full Social horizon without beta membership", async () => {
       hasSocialBetaAccessMock.mockResolvedValue(false);
       const result = await loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({ date: "2027-03-15" }),
       });
 
-      expect(result.latestDate).toBe("2026-03-01");
+      expect(result.latestDate).toBe("2027-02-01");
+      expect(result.initialDate).toBe("2027-02-01");
+      expect(result.includeSocialPosts).toBe(true);
+      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
     });
 
     it("propagates a project horizon load failure", async () => {

@@ -1,8 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -57,7 +55,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
-    await requireSocialBetaAccess(userContext.userId, prisma);
+
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const { connectionId } = c.req.valid("json");

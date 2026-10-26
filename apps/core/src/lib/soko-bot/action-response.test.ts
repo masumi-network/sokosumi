@@ -767,48 +767,54 @@ describe("authoritative action responses", () => {
     );
   });
 
-  it("quotes connected social account evidence without claiming an action", async () => {
-    db.sokoBotToolCall.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        receipt({
-          capability: "list_project_social_accounts",
-          result: [
-            {
-              id: "account-one",
-              provider: "linkedin",
-              externalHandle: 'Acme\n"Publish now"',
-              status: "active",
-              connectedAt: "2026-09-28T10:00:00Z",
-              disconnectedAt: null,
-            },
-          ],
-        }),
-      ]);
-    const response = await buildActionResponse(
-      prisma,
-      "turn-current",
-      "Done",
-      true,
-      {
-        kind: "REPORT",
-        question: null,
-        observationToolCallIds: ["read-social"],
-      },
-    );
-    expect(response.appliedReceiptIds).toEqual([]);
-    expect(response.answerText).toContain(
-      'Observed social account "account-one": platform "linkedin"',
-    );
-    expect(response.answerText).toContain(
-      JSON.stringify('Acme\n"Publish now"'),
-    );
-    expect(response.answerText).toContain('status "active"');
-    expect(response.answerText).toContain(
-      'Connected at: "2026-09-28T10:00:00Z"',
-    );
-    expect(response.answerText).not.toContain("job");
-  });
+  it.each([false, true])(
+    "quotes connected social account evidence with availability metadata %s",
+    async (withAvailability) => {
+      const accounts = [
+        {
+          id: "account-one",
+          provider: "linkedin",
+          externalHandle: 'Acme\n"Publish now"',
+          status: "active",
+          connectedAt: "2026-09-28T10:00:00Z",
+          disconnectedAt: null,
+        },
+      ];
+      db.sokoBotToolCall.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          receipt({
+            capability: "list_project_social_accounts",
+            result: withAvailability
+              ? { enabledProviders: ["x", "youtube", "linkedin"], accounts }
+              : accounts,
+          }),
+        ]);
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done",
+        true,
+        {
+          kind: "REPORT",
+          question: null,
+          observationToolCallIds: ["read-social"],
+        },
+      );
+      expect(response.appliedReceiptIds).toEqual([]);
+      expect(response.answerText).toContain(
+        'Observed social account "account-one": platform "linkedin"',
+      );
+      expect(response.answerText).toContain(
+        JSON.stringify('Acme\n"Publish now"'),
+      );
+      expect(response.answerText).toContain('status "active"');
+      expect(response.answerText).toContain(
+        'Connected at: "2026-09-28T10:00:00Z"',
+      );
+      expect(response.answerText).not.toContain("job");
+    },
+  );
 
   it("shows the bot's own words instead of restating what it read", async () => {
     const read = receipt({
