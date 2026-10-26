@@ -199,6 +199,23 @@ describe("research", () => {
     expect(html).toContain("Live");
   });
 
+  it("stays on finished research until the founder opens the Brand Brain", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({ work: running("research") })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+        onContinue={() => {}}
+      />,
+    );
+    expect(html).toContain("Cuso studied acme.io");
+    expect(html).toContain("Reading acme.io/pricing");
+    expect(html).toContain("What Cuso did");
+    expect(html).toContain("See your Brand Brain");
+    expect(html).not.toContain("ob-elapsed");
+  });
+
   it("counts the Brand Brain sections as Cuso writes them", () => {
     const html = renderToStaticMarkup(
       <ResearchStep

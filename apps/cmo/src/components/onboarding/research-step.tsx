@@ -2,6 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
+  ArrowRight,
   BookOpen,
   Check,
   CircleAlert,
@@ -92,6 +93,8 @@ interface ResearchStepProps {
   messages: CusoMessage[];
   onRetry: () => Promise<string | null>;
   onReply: (text: string) => Promise<void>;
+  /** Research is finished; the founder opens the Brand Brain when ready. */
+  onContinue?: () => void;
 }
 
 /**
@@ -103,10 +106,12 @@ export function ResearchStep({
   messages,
   onRetry,
   onReply,
+  onContinue,
 }: ResearchStepProps) {
   const work = overview.work;
   const planning = work?.kind === "strategy";
-  const status = work?.status ?? overview.learning;
+  const finished = onContinue !== undefined;
+  const status = finished ? "done" : (work?.status ?? overview.learning);
   const running = status === "running";
   const elapsed = useElapsed(work?.startedAt, running);
   const steps = work?.steps ?? [];
@@ -136,7 +141,9 @@ export function ResearchStep({
               ? "Cuso has a few questions"
               : planning
                 ? "Cuso is planning your month"
-                : `Cuso is studying ${site}`}
+                : finished
+                  ? `Cuso studied ${site}`
+                  : `Cuso is studying ${site}`}
         </h1>
         {noCredits ? (
           <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
@@ -148,7 +155,9 @@ export function ResearchStep({
                 ? "Answer below and he finishes."
                 : planning
                   ? "Your next four weeks: every post, ad, email and website change Cuso will make, and when. Ready in about a minute."
-                  : "He reads your site, your reviews and your competitors. About three minutes."}
+                  : finished
+                    ? "Your Brand Brain is ready. Check it, fix anything that's off, then he plans your month."
+                    : "He reads your site, your reviews and your competitors. About three minutes."}
           </p>
         )}
         {running ? (
@@ -161,7 +170,9 @@ export function ResearchStep({
         ) : null}
         <ol className="ob-phases">
           {phases.map((phase, index) => {
-            const state = phaseState(steps, phases, index, running);
+            const state = finished
+              ? "done"
+              : phaseState(steps, phases, index, running);
             return (
               <li key={phase.label} className={`ob-phase ${state}`}>
                 <span className="ob-phase-dot" aria-hidden="true">
@@ -185,6 +196,14 @@ export function ResearchStep({
           <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
         ) : null}
         {asked ? <QuestionReply question={asked} onReply={onReply} /> : null}
+        {finished ? (
+          <div className="ob-actions">
+            <button type="button" className="ob-button" onClick={onContinue}>
+              See your Brand Brain
+              <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="ob-feed" aria-label="What Cuso is doing">

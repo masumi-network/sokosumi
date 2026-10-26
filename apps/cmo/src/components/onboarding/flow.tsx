@@ -100,6 +100,8 @@ function stepIndex(step: OnboardingStep): number {
 }
 
 const POLL_MS = 2_500;
+/** A hidden tab still checks in, so coming back shows where Cuso is now. */
+const HIDDEN_POLL_MS = 20_000;
 
 /** Who is signed in, with the way out; closes on a click outside or Escape. */
 function AccountMenu({
@@ -202,8 +204,12 @@ export function OnboardingFlow({
   }, [actions]);
 
   useEffect(() => {
+    let last = Date.now();
     const poll = () => {
-      if (document.visibilityState === "visible") void refresh();
+      const visible = document.visibilityState === "visible";
+      if (!visible && Date.now() - last < HIDDEN_POLL_MS) return;
+      last = Date.now();
+      void refresh();
     };
     const timer = window.setInterval(poll, POLL_MS);
     document.addEventListener("visibilitychange", poll);
@@ -214,12 +220,33 @@ export function OnboardingFlow({
   }, [refresh]);
 
   const derived = onboardingStep(overview);
+  // The essentials save before Cuso writes the reveal and his notes, so
+  // research stays live until his turn ends.
+  const researchRunning =
+    overview.work?.kind === "research" && overview.work.status === "running";
+  const researchLive =
+    derived === "research" || (derived === "brain" && researchRunning);
+  // Research that ends in this session stays on screen, finished, until the
+  // founder moves on: jumping ahead hid everything Cuso just did.
+  const [heldResearch, setHeldResearch] = useState(false);
+  const wasLive = useRef(researchLive);
+  useEffect(() => {
+    if (wasLive.current && !researchLive && derived === "brain") {
+      setHeldResearch(true);
+    }
+    wasLive.current = researchLive;
+  }, [researchLive, derived]);
   const reached = stepIndex(derived);
   const revisiting =
     viewing !== null &&
     canRevisit(viewing, overview) &&
     stepIndex(viewing) < reached;
-  const step: OnboardingStep = revisiting && viewing ? viewing : derived;
+  const step: OnboardingStep =
+    revisiting && viewing
+      ? viewing
+      : researchLive || (heldResearch && derived === "brain")
+        ? "research"
+        : derived;
   const current = stepIndex(step);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -308,6 +335,11 @@ export function OnboardingFlow({
           <ResearchStep
             overview={overview}
             messages={messages}
+            onContinue={
+              heldResearch && !researchLive
+                ? () => setHeldResearch(false)
+                : undefined
+            }
             onRetry={async () => {
               const result = await actions.retryLearning();
               setOverview(result.overview);
