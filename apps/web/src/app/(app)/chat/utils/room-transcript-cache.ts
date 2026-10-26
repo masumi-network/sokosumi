@@ -75,6 +75,11 @@ export class RoomTranscriptCache {
     string,
     { revision: number; at: number; page: Promise<RoomMessagesPage | null> }
   >();
+  // Open-at-unread reads started by the same click, for the visit it opens.
+  private readonly prefetchedUnread = new Map<
+    string,
+    { at: number; page: Promise<RoomMessagesPage | null> }
+  >();
   // Positions follow the retained entry's lifetime without notifying data subscribers.
   private readonly positions = new WeakMap<object, TranscriptPosition>();
 
@@ -204,21 +209,60 @@ export class RoomTranscriptCache {
    * Start a room's first head read when the reader clicks it, alongside the
    * route navigation, instead of after the room mounts. A room already painted
    * from cache reads for itself on mount.
+   *
+   * A page proves membership: Core answers it only for a member. When it
+   * lands before the room page registers, `provisional` seeds the room so it
+   * paints from this read; the page's bootstrap then replaces those props.
    */
-  prefetch(roomId: string) {
+  prefetch(roomId: string, provisional?: () => RoomsClientProps | null) {
     const entry = this.get(roomId);
     if (!this.available(roomId) || entry?.resolved) return;
+    const page = this.fetch(roomId);
     this.prefetched.set(roomId, {
       // A seeded entry starts at revision 0.
       revision: entry?.revision ?? 0,
       at: Date.now(),
-      page: this.fetch(roomId),
+      page,
     });
+    if (!provisional || entry) return;
+    void page.then((head) => {
+      if (!head || !this.available(roomId) || this.get(roomId)) return;
+      const props = provisional();
+      if (!props) return;
+      this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), {
+        ...this.seed(props),
+        transcript: mergeRoomHeadPage(emptyRoomTranscript(), head),
+        resolved: true,
+      });
+    });
+  }
+
+  /**
+   * Start the open-at-unread read alongside the click's head read. A room
+   * with Room unread waits for both before its transcript shows, so the
+   * second read must not start only once the room has mounted.
+   */
+  prefetchUnreadWindow(roomId: string) {
+    if (!this.available(roomId)) return;
+    this.prefetchedUnread.set(roomId, {
+      at: Date.now(),
+      page: this.fetch(roomId, { openAtUnread: true }),
+    });
+  }
+
+  /** The click's open-at-unread read, once, for the visit that click opened. */
+  takeUnreadWindow(roomId: string) {
+    const prefetched = this.prefetchedUnread.get(roomId);
+    this.prefetchedUnread.delete(roomId);
+    if (!prefetched || Date.now() - prefetched.at >= ROOM_OPEN_PREFETCH_MS)
+      return undefined;
+    return prefetched.page;
   }
 
   evict(roomId: string) {
     this.revoked.add(roomId);
     this.prefetched.delete(roomId);
+    this.prefetchedUnread.delete(roomId);
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
@@ -228,6 +272,7 @@ export class RoomTranscriptCache {
     this.valid = false;
     this.reads.clear();
     this.prefetched.clear();
+    this.prefetchedUnread.clear();
     this.client.removeQueries({ queryKey: this.prefix });
   }
 
@@ -258,7 +303,12 @@ export class RoomTranscriptCache {
 
   private fetch(
     roomId: string,
-    options?: { around?: string; cursor?: string; limit?: number },
+    options?: {
+      around?: string;
+      cursor?: string;
+      limit?: number;
+      openAtUnread?: boolean;
+    },
   ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
