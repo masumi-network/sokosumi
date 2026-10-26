@@ -112,6 +112,81 @@ describe("v1 router", () => {
     };
     expect(body.servers).toEqual([{ url: "/v1" }]);
     expect(body.paths?.["/share/{token}"]?.get?.security).toEqual([]);
+    expect(
+      body.paths?.["/public/newsletters/{publicSlug}"]?.get?.security,
+    ).toEqual([]);
+    expect(body.paths?.["/public/newsletter/confirm"]?.get?.security).toEqual(
+      [],
+    );
+  });
+
+  it("allows any origin on signup preflights without credentials", async () => {
+    const { default: app } = await import("./index.js");
+    const response = await app.request(
+      "http://localhost/public/newsletters/weekly/subscribe",
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://example.com",
+          "Access-Control-Request-Method": "POST",
+          "Access-Control-Request-Headers": "content-type",
+        },
+      },
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST",
+    );
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
+      "Content-Type",
+    );
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+  });
+
+  it("includes public CORS headers on the signup acknowledgment", async () => {
+    getEnvMock.mockReturnValue({
+      NODE_ENV: "production",
+      NEWSLETTER_ENABLED: true,
+    });
+    const { default: app } = await import("./index.js");
+    const server = new Hono().route("/v1", app);
+    const response = await server.request(
+      "http://localhost/v1/public/newsletters/weekly/subscribe",
+      {
+        method: "POST",
+        headers: {
+          Origin: "https://example.com",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "reader@example.com",
+          website: "https://example.com",
+        }),
+      },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ status: "check_your_inbox" });
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+  });
+
+  it.each([
+    "/drive/files",
+    "/public/newsletters/weekly",
+    "/public/newsletters/weekly/subscribe/extra",
+    "/public/newsletter/confirm",
+    "/public/newsletter/unsubscribe",
+  ])("does not widen CORS for %s", async (path) => {
+    const { default: app } = await import("./index.js");
+    const response = await app.request(`http://localhost${path}`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://example.com",
+        "Access-Control-Request-Method": "POST",
+      },
+    });
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("registers impersonation before the admin router", () => {

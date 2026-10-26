@@ -132,10 +132,10 @@ import { GoogleMapsEmbed } from '@next/third-parties/google'
 
 ## Quick Reference
 
-| Pattern | Issue | Fix |
-|---------|-------|-----|
-| `<script src="...">` | No optimization | Use `next/script` |
-| `<Script>` without id | Can't track inline scripts | Add `id` attribute |
-| `<Script>` inside `<Head>` | Wrong placement | Move outside Head |
-| Inline GA/GTM scripts | No optimization | Use `@next/third-parties` |
-| `strategy="beforeInteractive"` outside layout | Won't work | Only use in root layout |
+| Pattern                                       | Issue                      | Fix                       |
+| --------------------------------------------- | -------------------------- | ------------------------- |
+| `<script src="...">`                          | No optimization            | Use `next/script`         |
+| `<Script>` without id                         | Can't track inline scripts | Add `id` attribute        |
+| `<Script>` inside `<Head>`                    | Wrong placement            | Move outside Head         |
+| Inline GA/GTM scripts                         | No optimization            | Use `@next/third-parties` |
+| `strategy="beforeInteractive"` outside layout | Won't work                 | Only use in root layout   |

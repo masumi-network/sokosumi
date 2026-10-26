@@ -52,14 +52,14 @@ Bot-created posts identify the bot as creator and land as Needs approval. They n
 
 Each provider publishes through its own Composio tool sequence; the post's provider comes from the chosen active connection.
 
-| Provider | Text | Media | Notes |
-| --- | --- | --- | --- |
-| X | ≤280 | 4 images / 1 GIF / 1 video | Publishing already works. |
-| LinkedIn | ≤3000, required | ≤4 images or 1 video | Person author only. |
-| Facebook | ≤63206 | ≤4 images or 1 video | Posts to the connection's single managed Page. |
-| Instagram | ≤2200 | 1 image (JPEG) or 1 video, required | Business/Creator account linked to a Page. |
-| TikTok | ≤2200 | 1 video, required | Privacy level is chosen at publish time and recorded on the attempt; unaudited apps post `SELF_ONLY`. |
-| YouTube | description ≤5000, title derived from the text | 1 video, required | Publishes public with an empty tag list and a default category. |
+| Provider  | Text                                           | Media                               | Notes                                                                                                 |
+| --------- | ---------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| X         | ≤280                                           | 4 images / 1 GIF / 1 video          | Publishing already works.                                                                             |
+| LinkedIn  | ≤3000, required                                | ≤4 images or 1 video                | Person author only.                                                                                   |
+| Facebook  | ≤63206                                         | ≤4 images or 1 video                | Posts to the connection's single managed Page.                                                        |
+| Instagram | ≤2200                                          | 1 image (JPEG) or 1 video, required | Business/Creator account linked to a Page.                                                            |
+| TikTok    | ≤2200                                          | 1 video, required                   | Privacy level is chosen at publish time and recorded on the attempt; unaudited apps post `SELF_ONLY`. |
+| YouTube   | description ≤5000, title derived from the text | 1 video, required                   | Publishes public with an empty tag list and a default category.                                       |
 
 Kinds never mix: a post carries images or one GIF or one video. Each provider's Composio auth config needs its publishing scope before a post can go out: LinkedIn `w_member_social`; Facebook `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; Instagram `instagram_business_content_publish`; TikTok `video.publish`; YouTube `https://www.googleapis.com/auth/youtube.upload`. Until then the connection works for identity and publishing fails with a clear permission error.
 

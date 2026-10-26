@@ -254,5 +254,18 @@
         "button": "Añadir créditos"
       }
     }
+  },
+  "newsletter": {
+    "why": "Recibes este correo porque te suscribiste a {name}.",
+    "unsubscribe": "Cancelar suscripción",
+    "confirm": "Confirmar cancelación de suscripción",
+    "unsubscribed": "Tu suscripción se ha cancelado",
+    "confirmSubscription": "Confirmar suscripción",
+    "confirmed": "Tu suscripción está confirmada",
+    "confirmation": {
+      "subject": "Confirma tu suscripción a {name}",
+      "body": "Confirma que quieres recibir correos de {name}.",
+      "expiry": "Este enlace caduca en 7 días. Si no solicitaste esta suscripción, puedes ignorar este correo."
+    }
   }
 }
