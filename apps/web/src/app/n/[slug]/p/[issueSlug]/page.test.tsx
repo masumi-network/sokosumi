@@ -57,7 +57,11 @@ describe("public issue page", () => {
       `Newsletter-Ausgabe: ${PUBLIC_NEWSLETTER_ISSUE.subject}`,
     );
     expect(frame).toHaveAttribute("srcdoc", PUBLIC_NEWSLETTER_ISSUE.html);
-    expect(frame).toHaveAttribute("sandbox", "");
+    // Links in the issue open in a new tab; no scripts or same-origin access.
+    expect(frame).toHaveAttribute(
+      "sandbox",
+      "allow-popups allow-popups-to-escape-sandbox",
+    );
     expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(frame).toHaveClass("min-h-[48rem]");
     expect(screen.queryByText("Our latest update")).not.toBeInTheDocument();
