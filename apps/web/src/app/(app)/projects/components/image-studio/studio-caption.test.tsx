@@ -1,5 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -126,6 +132,10 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
+afterEach(() => {
+  document.documentElement.classList.remove("dark");
+});
+
 describe("write a caption", () => {
   it("shows Write a caption without Social", () => {
     mount();
@@ -207,6 +217,95 @@ describe("write a caption", () => {
       "/social?projectId=project-9&compose=new",
     );
   });
+
+  it("offers a new caption without replacing edits, and lets the reader keep them", async () => {
+    writeCaptionMock
+      .mockResolvedValueOnce({ ok: true, value: { text: "First caption." } })
+      .mockResolvedValueOnce({ ok: true, value: { text: "New caption." } });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+    const caption = await screen.findByLabelText("captionLabel");
+    fireEvent.change(caption, { target: { value: "My edited caption." } });
+    fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+
+    expect(await screen.findByText("New caption.")).toBeVisible();
+    expect(caption).toHaveValue("My edited caption.");
+    fireEvent.click(screen.getByRole("button", { name: "keepCaption" }));
+    expect(caption).toHaveValue("My edited caption.");
+    expect(screen.queryByText("New caption.")).not.toBeInTheDocument();
+  });
+
+  it("requires a choice to use a replacement and can undo that choice", async () => {
+    writeCaptionMock
+      .mockResolvedValueOnce({ ok: true, value: { text: "First caption." } })
+      .mockResolvedValueOnce({ ok: true, value: { text: "New caption." } });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+    const caption = await screen.findByLabelText("captionLabel");
+    fireEvent.change(caption, { target: { value: "My edited caption." } });
+    fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "useCaption" }));
+    expect(caption).toHaveValue("New caption.");
+    fireEvent.click(screen.getByRole("button", { name: "undoCaption" }));
+    expect(caption).toHaveValue("My edited caption.");
+  });
+
+  it.each(["Edited while waiting.", ""])(
+    "preserves text changed to %j while generation is in flight",
+    async (edited) => {
+      const pending = Promise.withResolvers<{
+        ok: true;
+        value: { text: string };
+      }>();
+      writeCaptionMock
+        .mockResolvedValueOnce({ ok: true, value: { text: "First caption." } })
+        .mockReturnValueOnce(pending.promise);
+      mount();
+      fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+      const caption = await screen.findByLabelText("captionLabel");
+      fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
+      fireEvent.change(caption, { target: { value: edited } });
+
+      await act(async () => {
+        pending.resolve({ ok: true, value: { text: "Late result." } });
+      });
+
+      expect(caption).toHaveValue(edited);
+      expect(screen.getByText("Late result.")).toBeVisible();
+    },
+  );
+
+  it.each(["light", "dark"])(
+    "shows and announces caption generation in %s mode",
+    async (theme) => {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      const pending = Promise.withResolvers<{
+        ok: true;
+        value: { text: string };
+      }>();
+      writeCaptionMock.mockReturnValue(pending.promise);
+      mount();
+      const button = screen.getByRole("button", { name: "writeCaption" });
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+      fireEvent.click(button);
+      expect(button).toHaveAttribute("aria-busy", "true");
+      expect(screen.getByRole("status")).toHaveTextContent("writingCaption");
+      expect(screen.getByText("writingCaption")).toBeVisible();
+      fireEvent.click(button);
+      expect(writeCaptionMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        pending.resolve({ ok: true, value: { text: "Caption ready." } });
+      });
+      expect(button).not.toHaveAttribute("aria-busy");
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(screen.getByLabelText("captionLabel")).toHaveValue(
+        "Caption ready.",
+      );
+    },
+  );
 
   it("offers no caption in compare mode", () => {
     const assets = [ASSET, { ...ASSET, id: "asset-2", version: 2 }];

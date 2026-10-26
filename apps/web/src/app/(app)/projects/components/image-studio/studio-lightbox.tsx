@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +52,10 @@ export function StudioLightbox({
   onUseAsReference,
   onWriteCaption,
   caption,
+  captionSuggestion,
   onCaptionChange,
+  onCaptionSuggestionResolve,
+  onUndoCaption,
   siblings,
 }: {
   assets: StudioAsset[];
@@ -74,7 +78,11 @@ export function StudioLightbox({
   onWriteCaption: (asset: StudioAsset) => Promise<void>;
   /** Client-held caption for the open image. Absent until one is written. */
   caption?: string;
+  /** Generated alternative, kept separate from the reader's text until accepted. */
+  captionSuggestion?: string;
   onCaptionChange: (text: string) => void;
+  onCaptionSuggestionResolve?: (useSuggestion: boolean) => void;
+  onUndoCaption?: () => void;
   /** Every image the viewer can step through, in gallery order. */
   siblings: StudioAsset[];
 }) {
@@ -105,24 +113,76 @@ export function StudioLightbox({
               formatDate={formatDate}
               labels={labels}
             />
-            {caption !== undefined ? (
-              <div className="mt-4">
-                <label
-                  className="text-muted-foreground text-xs"
-                  htmlFor="studio-asset-caption"
+            <div aria-busy={writingCaption || undefined}>
+              {caption !== undefined ? (
+                <div className="mt-4">
+                  <label
+                    className="text-muted-foreground text-xs"
+                    htmlFor="studio-asset-caption"
+                  >
+                    {labels.captionLabel}
+                  </label>
+                  <Textarea
+                    aria-label={labels.captionLabel}
+                    className="mt-1.5"
+                    id="studio-asset-caption"
+                    maxLength={500}
+                    onChange={(event) => onCaptionChange(event.target.value)}
+                    value={caption}
+                  />
+                  {onUndoCaption ? (
+                    <Button onClick={onUndoCaption} size="sm" variant="ghost">
+                      {labels.undoCaption}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+              {captionSuggestion !== undefined ? (
+                <section
+                  aria-label={labels.captionSuggestionLabel}
+                  className="border-border mt-3 space-y-2 rounded-md border p-3"
                 >
-                  {labels.captionLabel}
-                </label>
-                <Textarea
-                  aria-label={labels.captionLabel}
-                  className="mt-1.5"
-                  id="studio-asset-caption"
-                  maxLength={500}
-                  onChange={(event) => onCaptionChange(event.target.value)}
-                  value={caption}
-                />
-              </div>
-            ) : null}
+                  <p className="text-sm font-medium">
+                    {labels.captionSuggestionLabel}
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {captionSuggestion}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => onCaptionSuggestionResolve?.(true)}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      {labels.useCaption}
+                    </Button>
+                    <Button
+                      onClick={() => onCaptionSuggestionResolve?.(false)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {labels.keepCaption}
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+              {writingCaption ? (
+                <div aria-hidden="true" className="mt-4 space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              ) : null}
+            </div>
+            <p
+              aria-atomic="true"
+              className={cn(
+                "text-foreground text-sm",
+                writingCaption && "mt-2",
+              )}
+              role="status"
+            >
+              {writingCaption ? labels.writingCaption : null}
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {onSchedule ? (
                 <Button
