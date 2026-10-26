@@ -35,7 +35,7 @@ import {
   aroundWindowPaginationMeta,
   listChatRoomMessagesAround,
   listChatRoomMessagesFrom,
-} from "../../message-window-around";
+} from "../../message-windows";
 import {
   getChatRoomFirstUnreadMessage,
   getChatRoomThreadAggregates,
@@ -147,6 +147,14 @@ const route = withOrganizationSlugHeaderParameter(
  * the aggregates are already Participant- and mute-gated, so this cannot
  * disagree with the room's thread unread number.
  */
+/** A first page's metadata naming the Unread divider (null: no Room unread). */
+function withUnreadDivider<Meta extends object>(
+  meta: Meta,
+  firstUnread: { id: string } | null,
+): Meta & { firstUnreadMessageId: string | null } {
+  return { ...meta, firstUnreadMessageId: firstUnread?.id ?? null };
+}
+
 async function getUnreadReplyCountByParent(
   roomId: string,
   userId: string,
@@ -228,10 +236,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }),
           getChatRoomFirstUnreadMessage(id, userContext.userId, prisma),
         ]);
-      const paginationMeta = {
-        ...aroundWindowPaginationMeta(messages, take, count, hasMoreOlder),
-        firstUnreadMessageId: firstUnread?.id ?? null,
-      };
+      const paginationMeta = withUnreadDivider(
+        aroundWindowPaginationMeta(messages, take, count, hasMoreOlder),
+        firstUnread,
+      );
       const unreadByParent = await getUnreadReplyCountByParent(
         id,
         userContext.userId,
@@ -325,7 +333,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
     const responseMeta = placesDivider
-      ? { ...paginationMeta, firstUnreadMessageId: firstUnread?.id ?? null }
+      ? withUnreadDivider(paginationMeta, firstUnread)
       : paginationMeta;
 
     // Polls hit this route; kick abandoned `sent` mentions so reclaim can run
