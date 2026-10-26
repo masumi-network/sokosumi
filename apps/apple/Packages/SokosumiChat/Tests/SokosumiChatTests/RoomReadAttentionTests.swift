@@ -53,11 +53,11 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention()
     let transport = TestTransport([(200, attentionBody(unread: 2))])
     let client = try makeTestClient(transport)
-    #expect(try await !state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil))
+    #expect(try await !state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil))
     state.setVisible(true, window: UUID())
-    #expect(try await !state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: false, atEnd: true, client: client, organizationSlug: nil))
+    #expect(try await !state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: false, atEnd: true), client: client, organizationSlug: nil))
     #expect(transport.requests.isEmpty)
-    #expect(try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil))
+    #expect(try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil))
     #expect(state.applying(to: [room])[0].unreadCount == 2)
     #expect(state.applying(to: [room])[0].unreadMentionCount == 1)
   }
@@ -69,12 +69,12 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: window)
     let transport = TestTransport([(200, attentionBody()), (200, attentionBody())])
     for text in ["Thinking", "Thinking", "Final answer"] {
-      try await state.readIfNeeded(room: room, content: .init(messages: [.init(id: "same", content: text)]), historyReadable: true, atEnd: true, client: makeTestClient(transport), organizationSlug: "acme")
+      try await state.readIfNeeded(.init(room: room, content: .init(messages: [.init(id: "same", content: text)]), historyReadable: true, atEnd: true), client: makeTestClient(transport), organizationSlug: "acme")
     }
     #expect(transport.requests.count == 2)
     #expect(testOrgSlugHeader(transport.requests[0].request) == "acme")
     state.setVisible(false, window: window)
-    #expect(try await !state.readIfNeeded(room: room, content: .init(messages: [.init(id: "next", content: "hidden")]), historyReadable: true, atEnd: true, client: makeTestClient(transport), organizationSlug: nil))
+    #expect(try await !state.readIfNeeded(.init(room: room, content: .init(messages: [.init(id: "next", content: "hidden")]), historyReadable: true, atEnd: true), client: makeTestClient(transport), organizationSlug: nil))
   }
 
   @Test func threadContentReadsLookBeforeRoomAndDeduplicates() async throws {
@@ -88,9 +88,9 @@ struct RoomReadAttentionTests {
                                    (200, lookBody), (200, attentionBody(unread: 1))])
     let client = try makeTestClient(transport)
     for text in ["First", "First", "Edited"] {
-      try await state.readIfNeeded(room: room,
-                                   content: .init(messages: [], parentMessageId: "root", replies: [.init(id: "reply", content: text)]),
-                                   historyReadable: true, atEnd: true, client: client, organizationSlug: nil)
+      try await state.readIfNeeded(.init(room: room,
+                                         content: .init(messages: [], parentMessageId: "root", replies: [.init(id: "reply", content: text)]),
+                                         historyReadable: true, atEnd: true), client: client, organizationSlug: nil)
     }
     #expect(transport.requests.map(\.operationID) == [
       "post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read",
@@ -116,7 +116,7 @@ struct RoomReadAttentionTests {
     let client = try makeTestClient(transport)
     var looked: [Int] = []
     func read(_ content: RoomReadAttention.Content) async {
-      _ = try? await state.readIfNeeded(room: room, content: content, historyReadable: true, atEnd: true, client: client, organizationSlug: nil,
+      _ = try? await state.readIfNeeded(.init(room: room, content: content, historyReadable: true, atEnd: true), client: client, organizationSlug: nil,
                                         threadLooked: { looked.append(transport.requests.count) })
     }
     await read(.init(messages: [.init(id: "m", content: "Room")]))
@@ -139,8 +139,8 @@ struct RoomReadAttentionTests {
     let client = try makeTestClient(transport)
     for _ in 0 ..< 2 {
       await #expect(throws: ChatServiceError.self) {
-        try await state.readIfNeeded(room: room, content: .init(messages: [], parentMessageId: "root"),
-                                     historyReadable: true, atEnd: true, client: client, organizationSlug: nil)
+        try await state.readIfNeeded(.init(room: room, content: .init(messages: [], parentMessageId: "root"),
+                                           historyReadable: true, atEnd: true), client: client, organizationSlug: nil)
       }
     }
     #expect(transport.requests.count == 4)
@@ -157,8 +157,8 @@ struct RoomReadAttentionTests {
     """)
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example.com/v1")), transport: transport)
     let task = Task {
-      try await state.readIfNeeded(room: room, content: .init(messages: [], parentMessageId: "root"),
-                                   historyReadable: true, atEnd: true, client: client, organizationSlug: nil)
+      try await state.readIfNeeded(.init(room: room, content: .init(messages: [], parentMessageId: "root"),
+                                         historyReadable: true, atEnd: true), client: client, organizationSlug: nil)
     }
     await transport.waitForRequest()
     state.roomChanged()
@@ -187,13 +187,13 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let transport = TestTransport([(503, "{}"), (200, attentionBody(unread: 1))])
     await #expect(throws: ChatServiceError.self) {
-      try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: makeTestClient(transport), organizationSlug: nil)
+      try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: makeTestClient(transport), organizationSlug: nil)
     }
     // Background read failures stay silent (web parity); only mark-unread
     // failures surface `errorMessage`.
     #expect(state.errorMessage == nil)
     #expect(state.applying(to: [room])[0].unreadCount == 4)
-    #expect(try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: makeTestClient(transport), organizationSlug: nil))
+    #expect(try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: makeTestClient(transport), organizationSlug: nil))
     #expect(state.applying(to: [room])[0].unreadCount == 1)
   }
 
@@ -227,7 +227,7 @@ struct RoomReadAttentionTests {
     let revision = state.beginRefresh()
     let transport = PausedAttentionTransport()
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil) }
+    let task = Task { try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     #expect(state.reconcile([room], requestRevision: revision)[0].unreadCount == 0)
     await transport.release()
@@ -242,7 +242,7 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil) }
+    let task = Task { try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     state.reset()
     await transport.release()
@@ -256,7 +256,7 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil) }
+    let task = Task { try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     state.roomChanged()
     let unread = TestTransport([(200, attentionBody(marked: true))])
@@ -274,7 +274,7 @@ struct RoomReadAttentionTests {
     state.setVisible(true, window: UUID())
     let transport = PausedAttentionTransport()
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil) }
+    let task = Task { try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     time = time.addingTimeInterval(31)
     #expect(state.reconcile([room], requestRevision: state.beginRefresh())[0].unreadCount == 4)
@@ -302,7 +302,7 @@ struct RoomReadAttentionTests {
     let transport = TestTransport([(200, attentionBody(unread: 0)), (200, attentionBody(unread: 0))])
     let client = try makeTestClient(transport)
     func read(_ id: String, atEnd: Bool) async throws -> Bool {
-      try await state.readIfNeeded(room: room, content: .init(messages: [.init(id: id, content: id)]), historyReadable: true, atEnd: atEnd,
+      try await state.readIfNeeded(.init(room: room, content: .init(messages: [.init(id: id, content: id)]), historyReadable: true, atEnd: atEnd),
                                    client: client, organizationSlug: nil)
     }
     #expect(try await !read("first", atEnd: false), "Opening away from the end reads nothing.")
@@ -330,7 +330,7 @@ struct RoomReadAttentionTests {
     let content = RoomReadAttention.Content(messages: [], parentMessageId: "root", replies: [.init(id: "reply", content: "Reply")])
     var looked = 0
     for atEnd in [false, false, true] {
-      _ = try await state.readIfNeeded(room: room, content: content, historyReadable: true, atEnd: atEnd, client: client,
+      _ = try await state.readIfNeeded(.init(room: room, content: content, historyReadable: true, atEnd: atEnd), client: client,
                                        organizationSlug: nil, threadLooked: { looked += 1 })
     }
     #expect(transport.requests.map(\.operationID) == [
@@ -373,7 +373,7 @@ struct RoomReadAttentionTests {
     let olderPoll = state.beginRefresh()
     let transport = PausedAttentionTransport(response: Self.splitRoomBody(channel: 0, thread: 3, mentions: 0, threads: 2))
     let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true, client: client, organizationSlug: nil) }
+    let task = Task { try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true), client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     for pending in [state.applying(to: [room])[0], state.reconcile([room], requestRevision: olderPoll)[0]] {
       #expect(pending.unreadCount == 3 && pending.channelUnreadCount == 0 && pending.threadUnreadCount == 3)
@@ -391,7 +391,7 @@ struct RoomReadAttentionTests {
     let state = RoomReadAttention()
     state.setVisible(true, window: UUID())
     await #expect(throws: ChatServiceError.self) {
-      try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, atEnd: true,
+      try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true),
                                    client: makeTestClient(TestTransport([(503, "{}")])), organizationSlug: nil)
     }
     let restored = state.applying(to: [room])[0]

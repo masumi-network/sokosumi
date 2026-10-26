@@ -159,6 +159,15 @@ const DIVIDER_POSITION: TranscriptPosition = {
   visibleMessageIds: [],
 };
 
+/**
+ * What the viewport last told its room about the end, `body[data-at-end]`,
+ * and whether it ever said "at end", `body[data-was-at-end]`.
+ */
+function reportAtEnd(atEnd: boolean) {
+  document.body.dataset.atEnd = String(atEnd);
+  if (atEnd) document.body.dataset.wasAtEnd = "true";
+}
+
 function DividerRoom() {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   return (
@@ -188,6 +197,7 @@ function DividerRoom() {
             )
           }
           holdOffBottom={false}
+          onAtEndChange={reportAtEnd}
         />
       }
       composer={null}
@@ -314,6 +324,7 @@ function Room() {
               )
             }
             holdOffBottom={false}
+            onAtEndChange={reportAtEnd}
           />
         }
         composer={null}

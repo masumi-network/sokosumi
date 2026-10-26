@@ -36,6 +36,15 @@ public struct TranscriptScroll: Equatable, Sendable {
     }
   }
 
+  /// A placement the list made by itself, the Unread divider's, came to rest. Only the reader's moves and crossings of
+  /// the near-bottom line set whether the list follows, and this placement may cross nothing: content that fits, or a
+  /// scroll the bottom clamps. Resting near the bottom, the list follows again, so a short unread run is read on open.
+  public mutating func placementSettled(at edges: TranscriptScrollEdges, anchored: Bool) {
+    if !anchored, edges.nearBottom {
+      followLatest()
+    }
+  }
+
   /// Whether a pending bottom alignment may run now.
   public func alignsToBottom(userIsScrolling: Bool, anchored: Bool) -> Bool {
     pendingBottomAlignment && !userIsScrolling && followsNewMessages(anchored: anchored)

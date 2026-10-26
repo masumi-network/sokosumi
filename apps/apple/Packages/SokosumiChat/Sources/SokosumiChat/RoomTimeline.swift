@@ -167,9 +167,10 @@ public final class RoomTimeline: ObservableObject {
     }
     do {
       let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
-      // The divider is older than the newest page: Core sent the window around it, which joins the newest page
-      // through a gap row, as a jump window does.
-      let newest = page.isUnreadWindow
+      // An open-at-unread answer naming a divider is either the newest page or the window around an older divider.
+      // Either way it lands as a jump window on the newest page, which it joins through a gap row when it is older.
+      let opensAtDivider = kind == .initial && opensAtUnread && page.firstUnreadMessageId != nil
+      let newest = opensAtDivider
         ? try await fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug) : nil
       guard generation == expectedGeneration, !Task.isCancelled else {
         if generation == expectedGeneration {
@@ -188,7 +189,7 @@ public final class RoomTimeline: ObservableObject {
     }
   }
 
-  /// The first page names the visit's Unread divider. An open-at-unread window lands after the newest page it joins.
+  /// The first page names the visit's Unread divider. An open-at-unread answer lands after the newest page it joins.
   private func land(_ page: RoomMessagesPage, joining newest: RoomMessagesPage?, kind: Page, roomId: String,
                     requestedCursor: String?) throws {
     if kind == .initial {
@@ -239,7 +240,7 @@ public final class RoomTimeline: ObservableObject {
     }
   }
 
-  /// `reachesPresent` false lands a page of the past whatever its kind: the open-at-unread window.
+  /// `reachesPresent` false lands a page of the past whatever its kind: the open-at-unread answer.
   private func applyPage(
     _ page: RoomMessagesPage, kind: Page, roomId: String, requestedCursor: String?, reachesPresent: Bool = true
   ) throws {

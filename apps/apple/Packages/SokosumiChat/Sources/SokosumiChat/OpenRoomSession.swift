@@ -162,7 +162,10 @@ public final class OpenRoomSession: ObservableObject {
 
   /// The room's list reports whether it is at its end (Jump to latest hidden). Reaching it syncs the read.
   public func setAtEnd(_ atEnd: Bool, roomId: String) async {
-    guard room.timeline.roomId == roomId, room.setAtEnd(atEnd), isAtEnd else { return }
+    guard room.timeline.roomId == roomId else { return }
+    let reachesEnd = atEnd && !room.isAtEnd
+    room.setAtEnd(atEnd)
+    guard reachesEnd, isAtEnd else { return }
     await hooks.pageLanded()
   }
 

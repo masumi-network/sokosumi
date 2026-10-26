@@ -816,10 +816,8 @@ public final class WorkspaceState: ObservableObject {
     // Background reads stay silent; only a dead session needs action, and `request` signs that out.
     _ = try? await request { _, client, slug in
       try await readAttention.readIfNeeded(
-        room: room,
-        content: content,
-        historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
-        atEnd: openRoom.isAtEnd,
+        .init(room: room, content: content, historyReadable: roomHistoryReadable && !openRoom.thread.transcript.timeline.isLoading,
+              atEnd: openRoom.isAtEnd),
         client: client,
         organizationSlug: slug,
         threadLooked: { threadLooked(content.parentMessageId) }

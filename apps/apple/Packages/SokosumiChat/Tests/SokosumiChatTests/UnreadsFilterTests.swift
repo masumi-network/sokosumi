@@ -246,7 +246,7 @@ struct UnreadsFilterTests {
     sidebar.setUnreadsFilter(true)
     try sidebar.keepUnreadsFilterPass(#require(sidebar.unreadsFilter(activeRoomId: nil, hasPendingInvitation: false)).pass)
     let transport = MarkAllTransport(failing: [])
-    _ = try await sidebar.readAttention.readIfNeeded(room: launch, content: .init(messages: []), historyReadable: true, atEnd: true,
+    _ = try await sidebar.readAttention.readIfNeeded(.init(room: launch, content: .init(messages: []), historyReadable: true, atEnd: true),
                                                      client: makeMarkAllClient(transport), organizationSlug: nil)
     let list = try #require(sidebar.unreadsFilter(activeRoomId: nil, hasPendingInvitation: false))
     #expect(list.isDimmed("room-launch") && list.caughtUp, "A read the row already shows dims the room at once.")

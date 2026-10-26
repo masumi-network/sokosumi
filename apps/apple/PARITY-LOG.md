@@ -5172,7 +5172,7 @@ Built from spec SOK-1481's acceptance list, not from web's code. Core's part is 
 ### Behaviour
 
 - `RoomTimeline.reset(..., opensAtUnread:)`: a room's first page asks for `openAtUnread=true`; a Thread never does. The first page's `firstUnreadMessageId` is the visit's divider. Later pages, read responses and realtime never change it; opening a room again asks afresh.
-- Core answers either the newest page or, for an older divider, a window of up to 33 rows. `listRoomMessages` tells them apart by size: `firstUnread != nil && count < min(total, limit)`. A window fetches the plain newest page in the same load, and both land together, the window as a page of the past, so the gap row (04a) joins them and no history anchor is set. Jump to latest then only scrolls.
+- Core answers either the newest page or, for an older divider, a window around it. Apple does not tell them apart: an answer naming a divider fetches the plain newest page in the same load, and both land together, the answer as a page of the past, so the gap row (04a) joins an older window and no history anchor is set. Jump to latest then only scrolls. (Until the SOK-1481 review fixes, a row-count guess with Core's 3/30 decided whether to fetch the newest page.)
 - `TranscriptSession.placesUnreadDivider` is set when that first page lands with a divider. The list's mount task puts the divider's row at a third of the viewport (`UnitPoint(y: 1/3)`, then the settle correction older pages use) and stops following the latest message. A jump or covered mark replaces a placement still waiting.
 - A Message link or notification (`openRoomLink` with a message) selects the room with `atUnreadDivider: false`: the plain newest page, the target lands, and the divider draws when its message is loaded.
 - `unreadDividerRowId(in:)`: the divider sits above its message, or, once that message is a tombstone the list leaves out, above the next loaded message after it; with none, it goes. Edits change nothing.
@@ -5189,3 +5189,17 @@ Built from spec SOK-1481's acceptance list, not from web's code. Core's part is 
 From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1346 tests in 151 suites) and `Packages/SokosumiWorkspace` (205 tests in 4 suites) passed; `xcodebuild test … -only-testing` for `UnreadDividerPlacementTests` (3 iterations), `TranscriptScrollingTests` and `RoomOlderPageTests` (3 iterations) passed; `swift build --package-path Packages/SokosumiChat --triple arm64-apple-ios17.0` built; SwiftFormat and strict SwiftLint clean. The full app suite was not run.
 
 Unverified: the running app against a real Core, the day pill sharing the divider's row on screen, dark appearance, and VoiceOver itself.
+
+## SOK-1481 review fixes (04b, 05b)
+
+Fixes from the code review of the integration branch, built from spec SOK-1481.
+
+- A short unread run is read on open. Placing the divider stops the list following; only the reader's moves and crossings of the near-bottom line turned following back on, so a room whose rows fit, or whose end stayed within 200 pt after the placement scroll, kept Jump to latest and was never read. `TranscriptScroll.placementSettled(at:anchored:)` runs once the placement has settled and follows again when the list rests near the bottom (web settles a clamped restore and measures its distance from the end the same way).
+- The list no longer reports the end while the divider is still to be placed. It used to report "at the end" as it mounted, before it moved to the divider, which could read a long unread run on open.
+- The room read after a thread Look, mute or Mark all waits for the end of the transcript like every automatic read (`syncRoomAttentionAfterThreadChange` checks `openRoom.isAtEnd`); the Look itself still goes through.
+- No row-count guess: see 04b above.
+- `RoomReadAttention.readIfNeeded(_ sight:client:organizationSlug:threadLooked:)` takes a `Sight` (room, content, historyReadable, atEnd). `TranscriptSession.endUnreadDividerPlacement()` replaces `unreadDividerPlaced()`, which also cancelled; `setAtEnd(_:)` returns nothing, and `OpenRoomSession.setAtEnd` works out "just reached" itself.
+
+Tests: `TranscriptScrollTests.aPlacementSettlingAtTheEndFollowsTheLatest`, `WorkspaceStateTests.aThreadMuteAwayFromTheEndReadsNoRoom`, `UnreadDividerPlacementTests.aShortUnreadRunOpensAtTheEnd` (six rows; without the settle check it failed in one of six local runs, as the list's own geometry sometimes turns following back on), and `theRoomOpensWithTheDividerAThirdOfTheWayDown` now also checks the room never counted as at its end. `UnreadDividerTests` serve the newest page after each answer naming a divider.
+
+The divider capture used to come out with blank names, message text and day pill: the capture draws the hosted list without the window's background, so on a Mac in dark appearance the white text vanished on it. The test window now uses the light appearance, and its messages are yesterday's and today's, so the capture shows the Today pill and "New" on one row. (On this German Mac the capture shows "Today" beside "Neu"; why the day pill stays English in the test host was not looked into.)
