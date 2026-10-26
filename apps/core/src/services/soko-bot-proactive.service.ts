@@ -491,6 +491,7 @@ export async function followUpsBlock(
       (item) => `- ${item.overdue ? "overdue" : "today"}: ${item.text}`,
     ),
     "A follow-up about a Task that is no longer open is done: drop it from memory instead of raising it.",
+    "A follow-up is yours and your owner's to act on: read the Task with get_task_status and tell your owner what changed. Never comment on a Task to ask its people for a status update.",
     "",
   ];
 }
