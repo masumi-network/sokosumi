@@ -78,7 +78,7 @@ function SidebarAccountChipDesktop({
 }: SidebarAccountChipProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
-  // PROTOTYPE: variants b and c badge the plan and shorten the balance.
+  // PROTOTYPE: variants b–d badge the plan and shorten the balance.
   const prototype = useSidebarPrototypeVariant() !== "a";
   const tPresence = useTranslations("App.Channels.Presence");
   const { state } = useSidebar();

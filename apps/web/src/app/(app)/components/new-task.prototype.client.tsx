@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * PROTOTYPE, throwaway: where New task lives once it leaves the sidebar nav.
- *   d  a "New task" button in the top bar, left of search
- *   e  a compose icon beside the sidebar's collapse button
- *   f  Linear-style sidebar header: search and compose icons, no collapse
- *      button (the sidebar hides completely; the top bar reopens it)
- * Each opens the wizard with C (no modifiers, never while typing).
+ * PROTOTYPE, throwaway: the Linear-style sidebar header and top-bar toggle
+ * for variants b, c and d. New task and search leave the nav and the top bar
+ * for the sidebar header; how those two read as buttons is the question:
+ *   b  plain icons
+ *   c  icons on button shapes: search on a quiet fill, New task on primary
+ *   d  search on a quiet fill, New task as a labelled "New" button
+ * C opens the wizard (no modifiers, never while typing).
  * See `components/prototype/sidebar-prototype.client.tsx`.
  */
 
@@ -16,21 +17,18 @@ import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unr
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import {
-  type SidebarPrototypeVariant,
-  useSidebarPrototypeVariant,
-} from "@/components/prototype/sidebar-prototype.client";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
-const SHORTCUT_HINT = "New task (C)";
+const ICON_BUTTON_CLASS = "size-10 shrink-0 md:size-8";
 
-/** The wizard opener for `variant`, or null when that placement is off. */
-function useNewTaskPlacement(variants: readonly SidebarPrototypeVariant[]) {
-  const active = variants.includes(useSidebarPrototypeVariant());
+/** The New task opener in variants b–d (with its C shortcut), else null. */
+function useNewTaskOpener() {
+  const active = useSidebarPrototypeVariant() !== "a";
   const wizard = useOptionalNewTaskWizard();
   const { projectId } = useProjectScope();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
@@ -65,99 +63,87 @@ function useNewTaskPlacement(variants: readonly SidebarPrototypeVariant[]) {
   return open;
 }
 
-export function NewTaskPrototypeHeaderButton() {
-  const open = useNewTaskPlacement(["d"]);
-  if (!open) {
-    return null;
-  }
-  return (
-    <Button
-      type="button"
-      variant="primary"
-      size="sm"
-      title={SHORTCUT_HINT}
-      className="hidden shrink-0 md:inline-flex"
-      onClick={open}
-    >
-      <Plus aria-hidden />
-      New task
-      <kbd className="border-primary-solid-foreground text-primary-solid-foreground ml-1 rounded-sm border px-1 font-sans text-2xs leading-4">
-        C
-      </kbd>
-    </Button>
-  );
-}
-
-export function NewTaskPrototypeSidebarIcon({
-  className,
-}: {
-  className?: string;
-}) {
-  const open = useNewTaskPlacement(["e", "f"]);
-  if (!open) {
-    return null;
-  }
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label="New task"
-      title={SHORTCUT_HINT}
-      onClick={open}
-      className={cn("size-10 shrink-0 md:size-8", className)}
-    >
-      <SquarePen aria-hidden />
-    </Button>
-  );
-}
-
-/** Variant f: search beside compose, as Linear's sidebar header has it. */
-export function SearchPrototypeSidebarIcon() {
-  const active = useSidebarPrototypeVariant() === "f";
+/** Search, then New task, at the end of the sidebar header (b–d). */
+export function SidebarHeaderPrototypeActions() {
+  const variant = useSidebarPrototypeVariant();
   const historySearch = useOptionalHistorySearch();
-  if (!active || !historySearch) {
+  const openNewTask = useNewTaskOpener();
+  if (variant === "a") {
     return null;
   }
+  const shaped = variant === "c" || variant === "d";
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label="Search"
-      aria-keyshortcuts="Meta+K Control+K"
-      title={`Search (${historySearch.searchShortcutLabel})`}
-      onClick={historySearch.openHistorySearch}
-      className="size-10 shrink-0 md:size-8"
-    >
-      <Search aria-hidden />
-    </Button>
+    <div className="flex shrink-0 items-center gap-1.5 group-data-[collapsible=icon]:hidden">
+      {historySearch ? (
+        <Button
+          type="button"
+          variant={shaped ? "secondary" : "ghost"}
+          size="icon"
+          aria-label="Search"
+          aria-keyshortcuts="Meta+K Control+K"
+          title={`Search (${historySearch.searchShortcutLabel})`}
+          onClick={historySearch.openHistorySearch}
+          className={ICON_BUTTON_CLASS}
+        >
+          <Search aria-hidden />
+        </Button>
+      ) : null}
+      {openNewTask && variant === "d" ? (
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          title="New task (C)"
+          onClick={openNewTask}
+          className="h-10 shrink-0 md:h-8"
+        >
+          <Plus aria-hidden />
+          New
+        </Button>
+      ) : openNewTask ? (
+        <Button
+          type="button"
+          variant={shaped ? "primary" : "ghost"}
+          size="icon"
+          aria-label="New task"
+          title="New task (C)"
+          onClick={openNewTask}
+          className={ICON_BUTTON_CLASS}
+        >
+          <SquarePen aria-hidden />
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
 /**
- * Variant f: the hidden sidebar's way back, at the start of the top bar.
- * Shown only while the sidebar is closed; ⌘B toggles it too. It carries the
- * mobile Chats tab's unread dot, since the hidden list cannot show one.
+ * b–d: one sidebar toggle at the start of the top bar, in place of the
+ * sidebar header's collapse button. ⌘B toggles it too. While the sidebar is
+ * hidden it carries the mobile Chats tab's unread dot, since the hidden list
+ * cannot show one.
  */
-export function OpenSidebarPrototypeButton() {
-  const active = useSidebarPrototypeVariant() === "f";
+export function SidebarTogglePrototypeButton() {
+  const active = useSidebarPrototypeVariant() !== "a";
   const { open, isMobile, toggleSidebar } = useSidebar();
-  if (!active || open || isMobile) {
+  if (!active || isMobile) {
     return null;
   }
+  const label = open ? "Hide sidebar" : "Show sidebar";
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      aria-label="Show sidebar"
-      title="Show sidebar (⌘B)"
+      aria-label={label}
+      aria-expanded={open}
+      title={`${label} (⌘B)`}
       onClick={toggleSidebar}
-      className="relative -ml-2 hidden size-8 shrink-0 md:inline-flex"
+      className={cn("relative -ml-2 hidden md:inline-flex", ICON_BUTTON_CLASS)}
     >
       <PanelLeft aria-hidden />
-      <SidebarUnreadDot />
+      {open ? null : <SidebarUnreadDot />}
     </Button>
   );
 }

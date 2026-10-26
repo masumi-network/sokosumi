@@ -1,10 +1,7 @@
 import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
-import {
-  NewTaskPrototypeSidebarIcon,
-  SearchPrototypeSidebarIcon,
-} from "@/app/components/new-task.prototype.client";
+import { SidebarHeaderPrototypeActions } from "@/app/components/new-task.prototype.client";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 import {
@@ -101,8 +98,8 @@ export default function Sidebar({
   socialBetaEnabled,
 }: SidebarProps) {
   return (
-    // PROTOTYPE: variant f hides the sidebar completely instead of showing
-    // the icon rail; every other variant keeps `collapsible="icon"`.
+    // PROTOTYPE: variants b–d hide the sidebar completely instead of showing
+    // the icon rail; variant a keeps `collapsible="icon"`.
     <PrototypeSidebarRoot>
       {/*
         h-16 border-b must match HeaderChrome's desktop control row so the
@@ -111,17 +108,14 @@ export default function Sidebar({
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
-          {/* PROTOTYPE: variant e puts New task beside the collapse button. */}
-          <div className="flex shrink-0 items-center gap-1 group-data-[collapsible=icon]:hidden">
-            <Suspense fallback={null}>
-              <NewTaskPrototypeSidebarIcon />
-            </Suspense>
-            <SearchPrototypeSidebarIcon />
-            <Suspense fallback={null}></Suspense>
-            <SidebarPrototypeOnly variants={["a", "b", "c", "d", "e"]}>
-              <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
-            </SidebarPrototypeOnly>
-          </div>
+          {/* PROTOTYPE: variants b–d put search and New task here and drop
+              the collapse button; the top bar's toggle replaces it. */}
+          <Suspense fallback={null}>
+            <SidebarHeaderPrototypeActions />
+          </Suspense>
+          <SidebarPrototypeOnly variants={["a"]}>
+            <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+          </SidebarPrototypeOnly>
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
@@ -130,8 +124,8 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          {/* PROTOTYPE: variants b and c move the Soko Bot below New task
-              and separate it by space, not rules. */}
+          {/* PROTOTYPE: variants b–d show the Soko Bot first in the nav
+              (MenuItems) and separate it by space, not rules. */}
           <SidebarPrototypeOnly variants={["a"]}>
             <PersonalAssistantNav />
             <SidebarSeparator className="-mt-px" />

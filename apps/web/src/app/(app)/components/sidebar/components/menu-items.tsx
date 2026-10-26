@@ -59,7 +59,7 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
-  /** PROTOTYPE: the foldable group variants b and c put this row in. */
+  /** PROTOTYPE: the foldable group variants b–d put this row in. */
   group?: "records" | "marketing";
 }
 
@@ -74,7 +74,7 @@ export default function MenuItems({
   prototypeSokoBot = null,
 }: {
   socialBetaEnabled?: boolean;
-  /** PROTOTYPE: the Soko Bot entry variants b and c show below New task. */
+  /** PROTOTYPE: the Soko Bot entry variants b–d show above the nav. */
   prototypeSokoBot?: ReactNode;
 } = {}) {
   return (
@@ -101,13 +101,9 @@ function ScopedMenuItems({
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-  // PROTOTYPE: variants b and c group the nav under small headings and drop
-  // New task's rule.
-  const variant = useSidebarPrototypeVariant();
-  const prototype = variant !== "a";
-  // d, e and f move New task out of the nav (top bar, sidebar header).
-  const newTaskElsewhere =
-    variant === "d" || variant === "e" || variant === "f";
+  // PROTOTYPE: variants b–d move New task to the sidebar header and group
+  // the nav under small headings, after the Soko Bot.
+  const prototype = useSidebarPrototypeVariant() !== "a";
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -138,7 +134,7 @@ function ScopedMenuItems({
           }),
       label: t("newTask"),
       Icon: Plus,
-      separatorAfter: !prototype,
+      separatorAfter: true,
       feature: AnnouncedFeature.NEW_TASK,
     },
     {
@@ -328,16 +324,11 @@ function ScopedMenuItems({
           selection bar's `-right-2` lands on the rail's edge in both. The
           separator spans the rail rather than the row, so it takes that
           padding back with `-mx-2`. */}
-      {newTaskElsewhere ? null : (
+      {prototype ? null : (
         <SidebarGroup className="w-full px-2 py-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0 py-2">
-              {(prototype
-                ? items.filter(
-                    ({ key }) => key === "new-task" && !newTaskElsewhere,
-                  )
-                : items
-              ).map(renderItem)}
+              {items.map(renderItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

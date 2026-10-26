@@ -2,14 +2,13 @@
 
 /**
  * PROTOTYPE, throwaway. Question: which sidebar do we build?
- * Three sidebars on the live app, switched by `?variant=`:
+ * Sidebars on the live app, switched by `?variant=`:
  *   a  today
- *   b  recommended (labelled scope, live Soko Bot row, grouped nav)
- *   c  recommended with the Soko Bot card
- *   d  b, with New task in the top bar instead of the sidebar
- *   e  b, with New task as an icon beside the sidebar collapse button
- *   f  Linear-style: search and compose in the sidebar header, no icon rail
- *      (the sidebar hides completely), denser rows
+ *   b  Linear-style: search and New task in the sidebar header, the sidebar
+ *      hides completely (top-bar toggle, ⌘B), live Soko Bot row, nav under
+ *      small foldable headings, denser rows
+ *   c  b, with search and New task on button shapes (quiet fill, primary)
+ *   d  b, with New task as a labelled "New" button
  * The choice also lives in sessionStorage, so it survives in-app navigation,
  * which drops the query string. Off in production. Delete once a variant wins.
  */
@@ -21,11 +20,9 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const VARIANTS = [
   { key: "a", name: "Today" },
-  { key: "b", name: "Recommended" },
-  { key: "c", name: "Recommended, bot card" },
-  { key: "d", name: "New task in top bar" },
-  { key: "e", name: "New task icon in sidebar" },
-  { key: "f", name: "Linear-style" },
+  { key: "b", name: "Linear-style" },
+  { key: "c", name: "Linear-style, button shapes" },
+  { key: "d", name: "Linear-style, labelled New" },
 ] as const;
 
 export type SidebarPrototypeVariant = (typeof VARIANTS)[number]["key"];

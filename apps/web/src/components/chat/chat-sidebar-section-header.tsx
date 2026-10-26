@@ -75,7 +75,7 @@ export function ChatSidebarSectionHeader({
 }) {
   const tChannels = useTranslations("App.Channels");
   const expandedTriggerRef = useRef<HTMLButtonElement>(null);
-  // PROTOTYPE: variants b and c put the chevron after the title, shown on
+  // PROTOTYPE: variants b–d put the chevron after the title, shown on
   // hover and kept while the section is closed.
   const prototype = useSidebarPrototypeVariant() !== "a";
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);

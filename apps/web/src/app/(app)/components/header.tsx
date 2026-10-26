@@ -14,10 +14,7 @@ import {
 import HeaderProfileSection from "./header/header-profile-section";
 import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
-import {
-  NewTaskPrototypeHeaderButton,
-  OpenSidebarPrototypeButton,
-} from "./new-task.prototype.client";
+import { SidebarTogglePrototypeButton } from "./new-task.prototype.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -33,8 +30,8 @@ export default function Header({ className, session }: HeaderProps) {
         </Suspense>
       </div>
 
-      {/* PROTOTYPE: variant f reopens its hidden sidebar from here. */}
-      <OpenSidebarPrototypeButton />
+      {/* PROTOTYPE: variants b–d toggle the sidebar from here. */}
+      <SidebarTogglePrototypeButton />
 
       <HeaderCenter>
         <BreadcrumbNavigation className="flex flex-1" />
@@ -45,13 +42,8 @@ export default function Header({ className, session }: HeaderProps) {
         <ProjectScopeGuard />
       </Suspense>
 
-      {/* PROTOTYPE: variant d puts New task here. */}
-      <Suspense fallback={null}>
-        <NewTaskPrototypeHeaderButton />
-      </Suspense>
-
-      {/* PROTOTYPE: variant f moves search into the sidebar header. */}
-      <SidebarPrototypeOnly variants={["a", "b", "c", "d", "e"]}>
+      {/* PROTOTYPE: variants b–d move search into the sidebar header. */}
+      <SidebarPrototypeOnly variants={["a"]}>
         <HeaderSearchTrigger />
       </SidebarPrototypeOnly>
 

@@ -2,7 +2,7 @@
 
 /**
  * PROTOTYPE, throwaway: a nav group under a small heading, for sidebar
- * variants b and c. The heading folds its group; the chevron after the title
+ * variants b–d. The heading folds its group; the chevron after the title
  * shows on hover and stays while the group is closed, as the chat sections'
  * headings do in those variants. The rail drops the heading and keeps every
  * row, so a closed group never hides an icon there. State is in memory only.

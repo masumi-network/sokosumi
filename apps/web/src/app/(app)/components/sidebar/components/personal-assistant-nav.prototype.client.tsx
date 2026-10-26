@@ -2,7 +2,7 @@
 
 /**
  * PROTOTYPE, throwaway: the Soko Bot entry with your bot's live state, for
- * sidebar variants b (row) and c (card). See `sidebar-prototype.client.tsx`.
+ * sidebar variants b–d. See `sidebar-prototype.client.tsx`.
  * Copy is hard-coded English until a variant wins.
  */
 
@@ -12,7 +12,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { AuroraOrb } from "@/components/aurora-orb";
-import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -117,14 +116,12 @@ function LiveFace({ bot }: { bot: SidebarSokoBotLive }) {
 }
 
 export function SokoBotLiveNav({ bot }: { bot: SidebarSokoBotLive | null }) {
-  const variant = useSidebarPrototypeVariant();
   const pathname = usePathname();
 
   if (!bot) {
     return <PersonalAssistantNav />;
   }
 
-  const card = variant === "c";
   const href = bot.isYours ? SOKO_BOT_ROUTE : SOKO_BOTS_ROUTE;
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
   const name = bot.name ?? "Soko Bot";
@@ -132,12 +129,7 @@ export function SokoBotLiveNav({ bot }: { bot: SidebarSokoBotLive | null }) {
 
   return (
     <SidebarGroup className="w-full pt-0 pb-2">
-      <SidebarGroupContent
-        className={cn(
-          card &&
-            "bg-sidebar-accent rounded-lg p-1 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0",
-        )}
-      >
+      <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem className="relative">
             <SidebarMenuButton
@@ -159,45 +151,28 @@ export function SokoBotLiveNav({ bot }: { bot: SidebarSokoBotLive | null }) {
                       {line.text}
                     </span>
                   </span>
-                  {card ? null : (
-                    <span
-                      aria-hidden
-                      className="w-7 shrink-0 group-data-[collapsible=icon]:hidden"
-                    />
-                  )}
+                  <span
+                    aria-hidden
+                    className="w-7 shrink-0 group-data-[collapsible=icon]:hidden"
+                  />
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
-            {card ? null : (
-              <div className="absolute top-1/2 right-1 z-10 -translate-y-1/2 group-data-[collapsible=icon]:hidden">
-                <SheetClose asChild>
-                  <Link
-                    href={SOKO_BOTS_ROUTE}
-                    aria-label="Your team’s Soko Bots"
-                    title="Your team’s Soko Bots"
-                    className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
-                  >
-                    <Users className="size-4 md:size-3.5" aria-hidden />
-                  </Link>
-                </SheetClose>
-              </div>
-            )}
+            <div className="absolute top-1/2 right-1 z-10 -translate-y-1/2 group-data-[collapsible=icon]:hidden">
+              <SheetClose asChild>
+                <Link
+                  href={SOKO_BOTS_ROUTE}
+                  aria-label="Your team’s Soko Bots"
+                  title="Your team’s Soko Bots"
+                  className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+                >
+                  <Users className="size-4 md:size-3.5" aria-hidden />
+                </Link>
+              </SheetClose>
+            </div>
             {isActive ? <SidebarRailSelectionBar /> : null}
           </SidebarMenuItem>
         </SidebarMenu>
-        {card ? (
-          <div className="border-sidebar-border text-muted-foreground mx-2 mt-1 flex items-center justify-between border-t pt-1.5 pb-0.5 text-xs group-data-[collapsible=icon]:hidden">
-            <span>Your Soko Bot</span>
-            <SheetClose asChild>
-              <Link
-                href={SOKO_BOTS_ROUTE}
-                className="hover:text-sidebar-accent-foreground rounded-sm"
-              >
-                Team’s bots →
-              </Link>
-            </SheetClose>
-          </div>
-        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );
