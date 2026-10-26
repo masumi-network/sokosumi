@@ -27,6 +27,7 @@ const {
   socialPostFindManyMock,
   socialPostUpdateManyMock,
   threadPartUpdateMock,
+  connectionUpdateManyMock,
   projectFindFirstMock,
   queryRawMock,
   transactionMock,
@@ -45,6 +46,7 @@ const {
   socialPostFindManyMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
   threadPartUpdateMock: vi.fn(),
+  connectionUpdateManyMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -75,6 +77,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: socialPostFindManyMock,
       updateMany: socialPostUpdateManyMock,
     },
+    projectSocialConnection: { updateMany: connectionUpdateManyMock },
     socialPostPublishAttempt: {
       findFirst: attemptFindFirstMock,
       aggregate: attemptAggregateMock,
@@ -223,6 +226,7 @@ describe("social post publisher service", () => {
       .mockResolvedValue(null);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
     socialPostFindManyMock.mockResolvedValue([]);
+    connectionUpdateManyMock.mockResolvedValue({ count: 1 });
     attemptFindFirstMock.mockResolvedValue(null);
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
     attemptCreateMock.mockResolvedValue({ id: ATTEMPT_ID });
@@ -805,6 +809,24 @@ describe("social post publisher service", () => {
       expect(state.lastError).toBe(
         "Thread part 3 is 282 characters, but @sokosumi can now post at most 280 characters on X (no X Premium). Shorten it or renew Premium, then retry.",
       );
+    });
+
+    it("flags the connection for reconnect when X refuses the login on a later part", async () => {
+      publishXPostMock.mockResolvedValueOnce(result("1907")).mockRejectedValue(
+        new ComposioToolError({
+          message: "X refused the post",
+          providerMessage: "Unauthorized: token expired",
+          providerStatus: 401,
+        }),
+      );
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        failed: 1,
+      });
+      expect(connectionUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: SOCIAL_CONNECTION_ID, status: "active" },
+        data: { status: "reauthorization_required" },
+      });
     });
 
     it("persists the head on failure at part 2 and post-now resumes only parts 2..3", async () => {
@@ -1869,6 +1891,69 @@ describe("social post publisher service", () => {
     expect(settleCall().data.lastError).toContain("Check X before retrying");
   });
 
+  it("records a confirmed post without an id as published, without a link or first comment", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, firstComment: "#launch" })
+      .mockResolvedValue(null);
+    publishXPostMock.mockResolvedValue({
+      externalId: null,
+      publishedUrl: null,
+      toolSlug: "TWITTER_CREATION_OF_A_POST",
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+      failed: 0,
+      retried: 0,
+    });
+    expect(attemptUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "succeeded",
+          externalId: null,
+        }),
+      }),
+    );
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: null,
+      publishedUrl: null,
+      lastError: null,
+    });
+    expect(publishFirstCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers a recorded success without an id as published, without republishing", async () => {
+    attemptFindFirstMock.mockResolvedValue({
+      outcome: "succeeded",
+      externalId: null,
+      finishedAt: NOW,
+    });
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        status: "PUBLISHING",
+        leaseToken: "stale-lease",
+        leaseExpiresAt: new Date(NOW.getTime() - 1_000),
+        revision: 2,
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: null,
+      publishedUrl: null,
+    });
+  });
+
   it("does not publish a retry delayed beyond fifteen minutes by a cron outage", async () => {
     socialPostFindFirstMock
       .mockReset()
@@ -2137,6 +2222,68 @@ describe("social post publisher service", () => {
       leaseExpiresAt: null,
       revision: { increment: 1 },
     });
+  });
+
+  // A later post on the flagged connection is covered by "fails a post whose connection is not active without calling X".
+  it("flags the connection for reconnect when the provider refuses the login", async () => {
+    publishXPostMock.mockRejectedValue(
+      new ComposioToolError({
+        message: "X refused the post",
+        providerMessage: "Unauthorized: token expired",
+        providerStatus: 401,
+      }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ retried: 0, failed: 1 });
+    expect(settleCall().data.status).toBe("FAILED");
+    expect(connectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID, status: "active" },
+      data: { status: "reauthorization_required" },
+    });
+  });
+
+  it("still fails the post when flagging the connection fails", async () => {
+    publishXPostMock.mockRejectedValue(
+      new ComposioToolError({
+        message: "X refused the post",
+        providerMessage: "Unauthorized",
+        providerStatus: 401,
+      }),
+    );
+    connectionUpdateManyMock.mockRejectedValue(new Error("db down"));
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ retried: 0, failed: 1 });
+    expect(settleCall().data.status).toBe("FAILED");
+  });
+
+  it.each([
+    [
+      "a Composio API 401",
+      new ComposioApiError(401, undefined, "publish X post failed (401)"),
+    ],
+    [
+      "a provider rejection",
+      new ComposioToolError({
+        message: "X refused the post",
+        providerMessage: "Unprocessable entity",
+        providerStatus: 422,
+      }),
+    ],
+  ])("does not flag the connection for %s", async (_name, error) => {
+    publishXPostMock.mockRejectedValue(error);
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ retried: 0, failed: 1 });
+    expect(settleCall().data.status).toBe("FAILED");
+    expect(connectionUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("redacts provider secrets from both persisted failure summaries", async () => {

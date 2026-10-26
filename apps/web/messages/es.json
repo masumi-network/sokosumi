@@ -2465,6 +2465,8 @@
           "sync": "No se pudo iniciar la sincronización."
         },
         "comingSoon": "Próximamente",
+        "linkedinPersonalOnly": "Solo perfil personal. Las páginas de empresa aún no son compatibles.",
+        "personalProfile": "Perfil personal",
         "connectComingSoon": "{provider} (próximamente)",
         "empty": "Aún no hay cuentas.",
         "emptyHint": "Conecta una para publicar."
@@ -2507,7 +2509,8 @@
           "rejected": "La plataforma rechazó esta publicación.",
           "mediaMissing": "Falta un archivo.",
           "mediaType": "Ese tipo de archivo no está permitido.",
-          "generic": "No se pudo publicar. Abre la publicación para ver los detalles."
+          "generic": "No se pudo publicar. Abre la publicación para ver los detalles.",
+          "unconfirmed": "No pudimos confirmar la publicación. Revisa {provider} antes de reintentar para no publicarla dos veces."
         },
         "sections": {
           "calendar": "Calendario",
@@ -7377,6 +7380,10 @@
       },
       "loadOlder": "Cargar mensajes anteriores",
       "jumpToLatest": "Ir a los mensajes más recientes",
+      "UnreadDivider": {
+        "label": "Nuevo",
+        "accessibleName": "Mensajes nuevos"
+      },
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",

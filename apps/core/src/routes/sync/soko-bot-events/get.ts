@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 
 import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
+import { adoptCoworkerSubtasks } from "@/services/soko-bot-subtask-adoption.service";
 import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
@@ -13,6 +14,11 @@ export default function mount(app: Hono) {
       c,
       SOKO_BOT_EVENTS_SYNC_LOCK_KEY,
       async (context) => {
+        const adopted = await adoptCoworkerSubtasks();
+        if (adopted)
+          console.info("[sync/soko-bot-events] Adopted Coworker sub-tasks", {
+            adopted,
+          });
         const result = await sokoBotEventsSyncService.syncDelegatedWork({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,

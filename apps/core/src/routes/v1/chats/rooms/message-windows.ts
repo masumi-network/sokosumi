@@ -107,6 +107,56 @@ export async function listChatRoomMessagesAround({
   return { messages, hasMoreOlder, count };
 }
 
+/**
+ * Reading-order window that opens at `first`: up to `above` messages before
+ * it, then `first` and the messages after it, `below` in all.
+ * `hasMoreOlder` is true when Load older from this window would return rows.
+ */
+export async function listChatRoomMessagesFrom({
+  db,
+  scope,
+  first,
+  above,
+  below,
+}: {
+  db: ChatRoomMessageReadClient;
+  scope: Prisma.ChatRoomMessageWhereInput;
+  first: { id: string; createdAt: Date };
+  above: number;
+  below: number;
+}): Promise<{ messages: ChatRoomMessageWithSender[]; hasMoreOlder: boolean }> {
+  const [olderPlus, fromFirst] = await Promise.all([
+    db.chatRoomMessage.findMany({
+      where: {
+        AND: [scope, createdAtIdSide(first.createdAt, first.id, "older")],
+      },
+      take: above + 1,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: chatRoomMessageInclude,
+    }),
+    db.chatRoomMessage.findMany({
+      where: {
+        AND: [
+          scope,
+          {
+            OR: [
+              { id: first.id },
+              createdAtIdSide(first.createdAt, first.id, "newer"),
+            ],
+          },
+        ],
+      },
+      take: below,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: chatRoomMessageInclude,
+    }),
+  ]);
+  return {
+    messages: olderPlus.slice(0, above).reverse().concat(fromFirst),
+    hasMoreOlder: olderPlus.length > above,
+  };
+}
+
 export function aroundWindowPaginationMeta(
   messages: ReadonlyArray<{ id: string }>,
   take: number,

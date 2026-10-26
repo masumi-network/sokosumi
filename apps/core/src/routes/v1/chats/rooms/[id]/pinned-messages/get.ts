@@ -24,6 +24,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserMembership,
+  withChatRoomReplyCounts,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -98,6 +99,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = pins.length === takePlusOne;
     const pagePins = pins.slice(0, take);
+    const countedMessages = await withChatRoomReplyCounts(
+      prisma,
+      pagePins.map((pin) => pin.message),
+    );
     const paginationMeta = createPaginationMeta(
       pagePins,
       count,
@@ -109,7 +114,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       z.array(chatRoomPinnedMessageListItemSchema).parse(
-        pagePins.map((pin) => {
+        pagePins.map((pin, index) => {
           const messageDeleted = pin.message.deletedAt != null;
           return {
             messageId: pin.messageId,
@@ -119,7 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               : null,
             message: messageDeleted
               ? null
-              : mapChatRoomMessage(pin.message, userContext.userId),
+              : mapChatRoomMessage(countedMessages[index], userContext.userId),
           };
         }),
       ),

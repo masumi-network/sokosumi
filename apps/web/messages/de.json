@@ -2465,6 +2465,8 @@
           "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
+        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
+        "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
         "emptyHint": "Verbinde eines, um zu posten."
@@ -2507,7 +2509,8 @@
           "rejected": "Die Plattform hat diesen Beitrag abgelehnt.",
           "mediaMissing": "Eine Datei fehlt.",
           "mediaType": "Dieser Dateityp ist nicht erlaubt.",
-          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details."
+          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details.",
+          "unconfirmed": "Wir konnten den Beitrag nicht bestätigen. Prüfe {provider}, bevor du es erneut versuchst, damit er nicht doppelt erscheint."
         },
         "sections": {
           "calendar": "Kalender",
@@ -7377,6 +7380,10 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "jumpToLatest": "Zu den neuesten Nachrichten",
+      "UnreadDivider": {
+        "label": "Neu",
+        "accessibleName": "Neue Nachrichten"
+      },
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
