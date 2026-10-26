@@ -232,7 +232,7 @@ async function visit(
 describe("SocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(true);
+    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
@@ -278,18 +278,35 @@ describe("SocialPage", () => {
     );
   });
 
-  it("stays hidden outside the beta", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(false);
+  it.each([undefined, PROJECT.id])(
+    "shows Social outside the beta for project %s",
+    async (projectId) => {
+      hasSocialBetaAccessMock.mockResolvedValue(false);
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
-    const { default: SocialPage } = await import("./page");
+      await visit({ projectId });
 
-    await expect(
-      SocialPage({ searchParams: Promise.resolve({ projectId: "project-1" }) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(notFoundMock).toHaveBeenCalled();
-    // Nothing is read for a reader who may not see any of it.
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
-  });
+      expect(screen.getByTestId("social-calendar")).toHaveAttribute(
+        "data-include-social",
+        "true",
+      );
+      expect(
+        screen.getByTestId(
+          projectId ? "social-posts" : "social-all-projects-tabs",
+        ),
+      ).toBeInTheDocument();
+      expect(notFoundMock).not.toHaveBeenCalled();
+      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
+      if (projectId) {
+        expect(projectServiceMock.getProjectById).toHaveBeenCalledWith(
+          projectId,
+        );
+        expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
+      } else {
+        expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it("shows every project's posting schedule when no scope is set", async () => {
     await visit({ view: "week" });

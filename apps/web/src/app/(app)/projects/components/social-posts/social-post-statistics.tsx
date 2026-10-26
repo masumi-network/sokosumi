@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   recycleProjectSocialAccountPost,
@@ -148,15 +150,20 @@ function accountName(account: Account) {
 function RecycleAccountPost({
   projectId,
   accountPostId,
+  provider,
 }: {
   projectId: string;
   accountPostId: string;
+  provider: string;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts.statistics");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function recycle(delayDays?: 7 | 14 | 30) {
+    if (!isProviderEnabled(provider)) return;
     if (pending) return;
     setPending(true);
     try {
@@ -185,9 +192,13 @@ function RecycleAccountPost({
         size="sm"
         className="h-11 md:h-8"
         variant="outline"
+        disabled={!isProviderEnabled(provider)}
         onClick={() => setOpen(true)}
       >
         {t("recycle.action")}
+        {!isProviderEnabled(provider) ? (
+          <Badge variant="secondary">{accountsT("comingSoon")}</Badge>
+        ) : null}
       </Button>
       <AlertDialog
         open={open}
@@ -774,6 +785,7 @@ export function SocialPostStatistics(
                       <RecycleAccountPost
                         projectId={projectId}
                         accountPostId={post.id}
+                        provider={post.provider}
                       />
                     ) : null
                   }

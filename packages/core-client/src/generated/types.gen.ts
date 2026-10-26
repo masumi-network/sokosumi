@@ -5543,10 +5543,25 @@ export type UserWorkspace = {
      */
     websiteUrl: string | null;
     /**
+     * Social providers enabled for projects owned by this workspace
+     */
+    enabledSocialProviders: Array<ProjectSocialProvider>;
+    /**
      * Whether a new session opens this workspace
      */
     preferred: boolean;
 };
+
+export const ProjectSocialProvider = {
+    X: 'x',
+    TIKTOK: 'tiktok',
+    INSTAGRAM: 'instagram',
+    LINKEDIN: 'linkedin',
+    FACEBOOK: 'facebook',
+    YOUTUBE: 'youtube'
+} as const;
+
+export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type CreateUserWorkspace = {
     kind: 'personal';
@@ -6690,17 +6705,6 @@ export type ProjectSocialConnection = {
     connectedAt: Date | null;
     disconnectedAt: Date | null;
 };
-
-export const ProjectSocialProvider = {
-    X: 'x',
-    TIKTOK: 'tiktok',
-    INSTAGRAM: 'instagram',
-    LINKEDIN: 'linkedin',
-    FACEBOOK: 'facebook',
-    YOUTUBE: 'youtube'
-} as const;
-
-export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type ProjectSocialConnectionSubscription = {
     subscriptionType: string | null;
@@ -46487,7 +46491,7 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**
@@ -73948,7 +73952,7 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**
@@ -74106,7 +74110,7 @@ export type GetWorkspacesCalendarSourcesData = {
     path?: never;
     query?: {
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
         /**

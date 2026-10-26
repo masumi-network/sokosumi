@@ -16,7 +16,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
-import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  SOCIAL_PROVIDERS,
+  socialProvidersEnabledFirst,
+} from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
@@ -142,6 +147,8 @@ export function ProjectSocialAccounts({
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
   const postsT = useTranslations("App.Projects.SocialPosts");
@@ -221,6 +228,11 @@ export function ProjectSocialAccounts({
     socialConnectionId?: string,
     provider?: ProjectSocialConnection["provider"],
   ): Promise<void> {
+    const targetProvider =
+      provider ??
+      connections.find((connection) => connection.id === socialConnectionId)
+        ?.provider;
+    if (!targetProvider || !isProviderEnabled(targetProvider)) return;
     const outcome = await connect({
       onStart: () => {
         setFeedback(null);
@@ -367,7 +379,7 @@ export function ProjectSocialAccounts({
   async function handleStartOver(
     connection: ProjectSocialConnection,
   ): Promise<void> {
-    if (connectDisabled) return;
+    if (connectDisabled || !isProviderEnabled(connection.provider)) return;
     if (disconnectInFlightRef.current || isBusy) {
       showFeedback({ kind: "error", message: t("errors.inFlight") });
       return;
@@ -471,12 +483,19 @@ export function ProjectSocialAccounts({
                 </p>
               ) : null}
             </div>
+            {!isProviderEnabled(connection.provider) ? (
+              <Badge variant="secondary">{t("comingSoon")}</Badge>
+            ) : null}
             <Button
               type="button"
               size="sm"
               variant="outline"
               className="h-11 md:h-8"
-              disabled={isBusy || connectDisabled}
+              disabled={
+                isBusy ||
+                connectDisabled ||
+                !isProviderEnabled(connection.provider)
+              }
               loading={pendingTarget === connection.id}
               onClick={() => void startOAuth("reconnect", connection.id)}
             >
@@ -521,9 +540,9 @@ export function ProjectSocialAccounts({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {SOCIAL_PROVIDERS.map((provider) => {
+            {socialProvidersEnabledFirst(enabledProviders).map((provider) => {
               const { id, name, Icon } = provider;
-              const comingSoon = "comingSoon" in provider;
+              const comingSoon = !isProviderEnabled(provider.id);
               return (
                 <DropdownMenuItem
                   key={id}
@@ -544,9 +563,9 @@ export function ProjectSocialAccounts({
                   />
                   {name}
                   {comingSoon ? (
-                    <span className="text-muted-foreground ml-auto pl-4 text-xs">
+                    <Badge variant="secondary" className="ms-auto">
                       {t("comingSoon")}
-                    </span>
+                    </Badge>
                   ) : null}
                 </DropdownMenuItem>
               );
@@ -577,6 +596,7 @@ export function ProjectSocialAccounts({
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
+            const comingSoon = !isProviderEnabled(connection.provider);
             const formattedHandle = formatHandle(
               connection.externalHandle,
               connection.provider,
@@ -591,6 +611,7 @@ export function ProjectSocialAccounts({
               canReconnect || connection.status === "pending";
             const canStartOver = connection.status === "pending";
             const canReplace =
+              !comingSoon &&
               !connectDisabled &&
               (connection.status === "active" || canReconnect);
             const canDisconnect = connection.status !== "disconnected";
@@ -612,6 +633,9 @@ export function ProjectSocialAccounts({
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
+                    {comingSoon ? (
+                      <Badge variant="secondary">{t("comingSoon")}</Badge>
+                    ) : null}
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
@@ -642,7 +666,7 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       className="h-11 md:h-8"
-                      disabled={isBusy || connectDisabled}
+                      disabled={isBusy || connectDisabled || comingSoon}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
@@ -657,7 +681,7 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={isBusy || connectDisabled}
+                      disabled={isBusy || connectDisabled || comingSoon}
                       loading={isRowPending && pendingAction === "startOver"}
                       onClick={() => {
                         void handleStartOver(connection);

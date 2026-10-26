@@ -18,6 +18,43 @@ export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
 
+/** Add a provider id here to enable it in every workspace's Social scheduling. */
+export const SOCIAL_PUBLIC_PROVIDERS = [
+  "x",
+  "youtube",
+  "linkedin",
+] as const satisfies readonly SocialPostProvider[];
+
+export interface SocialProviderWorkspace {
+  organizationSlug: string | null;
+}
+
+/** Every workspace gets the public list; the workspace argument keeps call sites stable. */
+export function socialProvidersForWorkspace(
+  _workspace: SocialProviderWorkspace,
+): readonly SocialPostProvider[] {
+  return SOCIAL_PUBLIC_PROVIDERS;
+}
+
+export function isSocialProviderEnabled(
+  provider: string,
+  workspace: SocialProviderWorkspace,
+): boolean {
+  return (socialProvidersForWorkspace(workspace) as readonly string[]).includes(
+    provider,
+  );
+}
+
+/** User-facing reason retained on posts whose provider is unavailable. */
+export function socialProviderUnavailableMessage(
+  provider: SocialPostProvider,
+  workspace: SocialProviderWorkspace,
+): string | null {
+  return isSocialProviderEnabled(provider, workspace)
+    ? null
+    : `${socialPostProviderLabel(provider)} is coming soon. Available now: ${new Intl.ListFormat("en", { type: "conjunction" }).format(socialProvidersForWorkspace(workspace).map(socialPostProviderLabel))}.`;
+}
+
 export const X_PREMIUM_TEXT_LIMIT = 25_000;
 // Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
 export const X_LONG_POST_SUBSCRIPTION_TYPES = [

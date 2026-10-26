@@ -118,7 +118,6 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
-  canScheduleSocial = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -137,8 +136,6 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
-  /** Social beta members can send a lightbox image into the composer. */
-  canScheduleSocial?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -926,7 +923,7 @@ export function ImageStudio({
           }
           onClose={() => setViewing(null)}
           onRegenerate={(asset) => repeat(asset, "asset")}
-          onSchedule={canScheduleSocial ? scheduleAsset : undefined}
+          onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setParentAssetId(undefined);
