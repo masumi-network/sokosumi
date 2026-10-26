@@ -201,6 +201,7 @@ describe("MenuItems", () => {
       "schedules",
       "contacts",
       "contentStudio",
+      "social",
       "drive",
     ];
     const positions = primaryOrder.map((label) =>
@@ -235,19 +236,12 @@ describe("MenuItems", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  /**
-   * Social was a tab inside one project. It is a destination now, and it is
-   * still beta-gated, so the row exists exactly where the surface does —
-   * including in the Instant Nav shell, which renders `MenuItems` with no
-   * props at all and must therefore leave the row out rather than guess it.
-   */
-  it("leaves Social out until the frame resolves the beta", () => {
+  it("shows Social before the Ads beta is resolved", () => {
     renderMenu();
-
-    expect(screen.queryByRole("link", { name: /social/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
-  it("shows Social inside the beta, scoped like the rows above it", () => {
+  it("shows public Social scoped like the rows above it", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
     renderMenu(true, true, true);
@@ -277,7 +271,7 @@ describe("MenuItems", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  /** Ads shares Social's beta gate: one flag, no second check. */
+  /** The retained beta flag gates Ads only. */
   it("leaves Ads out until the frame resolves the beta", () => {
     renderMenu();
 
@@ -388,6 +382,7 @@ describe("MenuItems", () => {
       "schedules",
       "contacts",
       "contentStudio",
+      "social",
       "drive",
     ]);
   });

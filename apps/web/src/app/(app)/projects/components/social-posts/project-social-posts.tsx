@@ -68,6 +68,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
   type ActionError,
@@ -157,10 +158,6 @@ interface ProjectSocialPostsProps {
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
-
-function canRetryPost(post: SocialPost): boolean {
-  return RETRY_STATUSES.includes(post.status) && post.canPublishNow;
-}
 
 function retryLabel(post: SocialPost): string {
   const text = post.text.trim();
@@ -310,6 +307,16 @@ export function ProjectSocialPosts({
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
+  function canRetryPost(post: SocialPost): boolean {
+    return (
+      isProviderEnabled(post.provider) &&
+      RETRY_STATUSES.includes(post.status) &&
+      post.canPublishNow
+    );
+  }
+
   const router = useRouter();
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
@@ -452,7 +459,12 @@ export function ProjectSocialPosts({
               remaining.push(result.value);
               toast.error(
                 t("toasts.publishFailed", {
-                  error: publishFailureCopy(result.value, t),
+                  error: publishFailureCopy(
+                    result.value,
+                    t,
+                    (values) => formatter.list(values, { type: "conjunction" }),
+                    enabledProviders,
+                  ),
                 }),
               );
             }
@@ -685,7 +697,13 @@ export function ProjectSocialPosts({
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
       } else if (post.lastError || post.lastAttempt?.errorKind) {
-        const error = publishFailureCopy(post, t) ?? t("toasts.failed");
+        const error =
+          publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
+          ) ?? t("toasts.failed");
         toast.error(t("toasts.publishFailed", { error }));
       } else {
         toast.error(t("toasts.failed"));
@@ -764,7 +782,13 @@ export function ProjectSocialPosts({
           postId: post.id,
           label: retryLabel(post),
           ok: false,
-          error: publishFailureCopy(next, t) ?? t("toasts.failed"),
+          error:
+            publishFailureCopy(
+              next,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ) ?? t("toasts.failed"),
         });
       } catch (error) {
         const actionError = toActionRejectionError(error);
@@ -857,11 +881,12 @@ export function ProjectSocialPosts({
   }
 
   function renderPostActions(post: SocialPost, preview = false) {
+    const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
     // Retry sits on the row, the way Reconnect does on a Social account.
-    const canRetry = isRetry && post.canPublishNow;
-    const canPublishNow = !isRetry && post.canPublishNow;
+    const canRetry = providerEnabled && isRetry && post.canPublishNow;
+    const canPublishNow = providerEnabled && !isRetry && post.canPublishNow;
     // Preview footer already has Edit and Schedule. Keep the menu for
     // Publish now and Cancel, and hide it when those are gone.
     const showComposeInMenu = !preview;
@@ -995,7 +1020,7 @@ export function ProjectSocialPosts({
                   {t("composer.edit")}
                 </DropdownMenuItem>
               ) : null}
-              {showComposeInMenu && post.canSchedule ? (
+              {providerEnabled && showComposeInMenu && post.canSchedule ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
@@ -1007,7 +1032,7 @@ export function ProjectSocialPosts({
                     : t("composer.schedule")}
                 </DropdownMenuItem>
               ) : null}
-              {post.canDuplicate ? (
+              {providerEnabled && post.canDuplicate ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
@@ -1149,7 +1174,12 @@ export function ProjectSocialPosts({
     const failureReason = post.needsAttentionReason
       ? socialPostQuoteAttentionCopy(post.needsAttentionReason, t)
       : post.status === "FAILED" || post.status === "MISSED"
-        ? publishFailureCopy(post, t)
+        ? publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
+          )
         : null;
 
     const retryable = canRetryPost(post);

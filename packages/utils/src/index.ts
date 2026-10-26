@@ -413,6 +413,7 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -422,10 +423,12 @@ export {
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  type SocialProviderWorkspace,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
@@ -436,6 +439,8 @@ export {
   socialPostSupportsFirstComment,
   socialPostTextLength,
   socialPostTextLimit,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
   X_LONG_POST_SUBSCRIPTION_TYPES,

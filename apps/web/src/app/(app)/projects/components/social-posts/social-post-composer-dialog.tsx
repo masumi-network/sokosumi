@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -45,6 +46,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -157,7 +159,10 @@ export function SocialPostComposerDialog({
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
+  const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const reportMovedQuotes = useReportMovedSocialPostQuotes();
   function handleSaved(post: SocialPost) {
     reportMovedQuotes(post);
@@ -217,6 +222,9 @@ export function SocialPostComposerDialog({
       null,
   }));
   const organizationId = session?.session.activeOrganizationId ?? null;
+  const enabledConnections = connections.filter((connection) =>
+    isProviderEnabled(connection.provider),
+  );
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [copy, setCopy] = useState<SocialPostComposerText>({
@@ -283,9 +291,14 @@ export function SocialPostComposerDialog({
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
+        enabledProviders,
       );
     }
-    const initial = post?.socialConnection?.id ?? connections[0]?.id;
+    const initial = post
+      ? isProviderEnabled(post.provider)
+        ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
+        : undefined
+      : enabledConnections[0]?.id;
     return initial ? [initial] : [];
   });
   const xConnections = connections.filter(
@@ -365,12 +378,12 @@ export function SocialPostComposerDialog({
     text: post?.text ?? "",
     media: post?.media ?? [],
     scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-    connectionId: post?.socialConnection?.id ?? connections[0]?.id ?? "",
+    connectionId: connectionIds[0] ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = connections
+  const selectedConnections = enabledConnections
     .filter((connection) => connectionIds.includes(connection.id))
     .map((connection) => {
       const fresh = subscriptions.get(connection.id);
@@ -397,11 +410,11 @@ export function SocialPostComposerDialog({
       }
     : null;
   const providers = socialPostComposerProviders(
-    post?.provider,
+    post && isProviderEnabled(post.provider) ? post.provider : undefined,
     selectedConnections.map((connection) => connection.provider),
     threadParts.length > 0
       ? ["x"]
-      : connections.map((connection) => connection.provider),
+      : enabledConnections.map((connection) => connection.provider),
   );
   const previewProvider =
     selectedConnections.find(
@@ -566,6 +579,9 @@ export function SocialPostComposerDialog({
   const canSave =
     draftValid &&
     !isBusy &&
+    (!post ||
+      isProviderEnabled(post.provider) ||
+      selectedConnections.length > 0) &&
     !(
       post?.status === "SCHEDULED" &&
       quotePending &&
@@ -584,6 +600,7 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
       return current.includes(id)
@@ -864,7 +881,12 @@ export function SocialPostComposerDialog({
           published += 1;
         } else {
           const reason =
-            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+            publishFailureCopy(
+              result.value,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ) ?? t("toasts.failed");
           failures.push(nameIfMany(connection, reason));
         }
       }
@@ -892,7 +914,7 @@ export function SocialPostComposerDialog({
    * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
    * time is all the schedule dialog does, so it never saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const canPostNow = mode.kind === "create" && enabledConnections.length > 0;
   const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
@@ -1387,7 +1409,9 @@ export function SocialPostComposerDialog({
                               ? "border-foreground text-foreground"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
-                          disabled={isBusy}
+                          disabled={
+                            isBusy || !isProviderEnabled(connection.provider)
+                          }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
                           type="button"
@@ -1397,6 +1421,11 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {!isProviderEnabled(connection.provider) ? (
+                            <Badge variant="secondary">
+                              {accountsT("comingSoon")}
+                            </Badge>
+                          ) : null}
                           {selected ? (
                             <Check className="size-3.5" aria-hidden />
                           ) : null}

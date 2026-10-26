@@ -2499,6 +2499,7 @@
           "missed": "Der geplante Zeitpunkt wurde verpasst."
         },
         "failures": {
+          "providerComingSoon": "{provider} ist bald verfügbar. Jetzt verfügbar: {providers}.",
           "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
           "unauthorized": "Verbinde das Konto erneut.",

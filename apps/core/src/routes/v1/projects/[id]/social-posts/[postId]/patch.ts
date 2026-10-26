@@ -1,9 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireSocialPostActor } from "@/helpers/social-post-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -26,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}/social-posts/{postId}",
     description:
-      "Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
+      "Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -53,7 +51,7 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(userContext.userId, prisma);
+
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, postId } = c.req.valid("param");
     const input = c.req.valid("json");

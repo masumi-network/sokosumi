@@ -888,6 +888,33 @@ describe("SocialPostStatistics account history", () => {
     );
   });
 
+  it.each(["tiktok", "instagram", "facebook"])(
+    "keeps %s history visible but disables recycling with a Coming soon badge",
+    async (provider) => {
+      mocks.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          posts: [{ ...post, provider, strong: true, canRecycle: true }],
+        }),
+      });
+      renderStatistics();
+      expect(await screen.findByText(post.text)).toBeVisible();
+      const recycle = await screen.findByRole("button", { name: /Recycle/ });
+      expect(recycle).toBeDisabled();
+      expect(
+        within(recycle).getByText(
+          en.App.Projects.ProjectSocialAccounts.comingSoon,
+        ),
+      ).toHaveAttribute("data-slot", "badge");
+      fireEvent.click(recycle);
+      expect(
+        screen.queryByRole("heading", { name: "Recycle this post?" }),
+      ).not.toBeInTheDocument();
+      expect(mocks.recycle).not.toHaveBeenCalled();
+    },
+  );
+
   it("saves a recycled post as a draft", async () => {
     mocks.fetch.mockResolvedValue({
       ok: true,

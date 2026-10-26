@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action";
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
@@ -38,6 +39,7 @@ export function SocialPostPreviewDialog({
   actions?: React.ReactNode;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
@@ -193,7 +195,9 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule && !post.canApprove ? (
+              {post.canSchedule &&
+              !post.canApprove &&
+              isProviderEnabled(post.provider) ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

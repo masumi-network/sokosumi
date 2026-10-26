@@ -13,7 +13,7 @@ interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
-  /** Resolved by the frame: Social is still a beta surface. */
+  /** Resolved by the frame: Ads remains in the utxo beta; Social scheduling is public. */
   socialBetaEnabled: boolean;
 }
 
