@@ -49,7 +49,7 @@ async function WithBot() {
       <SidebarPrototypeOnly variants={["a"]}>
         <PersonalAssistantNavClient bot={bot} />
       </SidebarPrototypeOnly>
-      <SidebarPrototypeOnly variants={["b", "c", "d", "e"]}>
+      <SidebarPrototypeOnly variants={["b", "c", "d", "e", "f"]}>
         <SokoBotLiveNav bot={bot} />
       </SidebarPrototypeOnly>
     </>

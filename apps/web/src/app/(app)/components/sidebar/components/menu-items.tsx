@@ -105,8 +105,9 @@ function ScopedMenuItems({
   // New task's rule.
   const variant = useSidebarPrototypeVariant();
   const prototype = variant !== "a";
-  // d and e move New task out of the nav (top bar, sidebar header).
-  const newTaskElsewhere = variant === "d" || variant === "e";
+  // d, e and f move New task out of the nav (top bar, sidebar header).
+  const newTaskElsewhere =
+    variant === "d" || variant === "e" || variant === "f";
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -327,18 +328,20 @@ function ScopedMenuItems({
           selection bar's `-right-2` lands on the rail's edge in both. The
           separator spans the rail rather than the row, so it takes that
           padding back with `-mx-2`. */}
-      <SidebarGroup className="w-full px-2 py-0">
-        <SidebarGroupContent>
-          <SidebarMenu className="gap-0 py-2">
-            {(prototype
-              ? items.filter(
-                  ({ key }) => key === "new-task" && !newTaskElsewhere,
-                )
-              : items
-            ).map(renderItem)}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {newTaskElsewhere ? null : (
+        <SidebarGroup className="w-full px-2 py-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0 py-2">
+              {(prototype
+                ? items.filter(
+                    ({ key }) => key === "new-task" && !newTaskElsewhere,
+                  )
+                : items
+              ).map(renderItem)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
       {prototype ? (
         <>
           {prototypeSokoBot}

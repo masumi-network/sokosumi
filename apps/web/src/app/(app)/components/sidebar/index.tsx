@@ -1,11 +1,13 @@
 import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
-import { NewTaskPrototypeSidebarIcon } from "@/app/components/new-task.prototype.client";
+import {
+  NewTaskPrototypeSidebarIcon,
+  SearchPrototypeSidebarIcon,
+} from "@/app/components/new-task.prototype.client";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 import {
-  Sidebar as ShadcnSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
@@ -20,6 +22,7 @@ import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
+import { PrototypeSidebarRoot } from "./components/sidebar-root.prototype.client";
 
 export type SidebarCreditsSubscription =
   GetUsersByIdCreditsResponse["data"]["subscription"];
@@ -98,7 +101,9 @@ export default function Sidebar({
   socialBetaEnabled,
 }: SidebarProps) {
   return (
-    <ShadcnSidebar collapsible="icon">
+    // PROTOTYPE: variant f hides the sidebar completely instead of showing
+    // the icon rail; every other variant keeps `collapsible="icon"`.
+    <PrototypeSidebarRoot>
       {/*
         h-16 border-b must match HeaderChrome's desktop control row so the
         hairline is one continuous rule across the sidebar/content seam.
@@ -111,7 +116,11 @@ export default function Sidebar({
             <Suspense fallback={null}>
               <NewTaskPrototypeSidebarIcon />
             </Suspense>
-            <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+            <SearchPrototypeSidebarIcon />
+            <Suspense fallback={null}></Suspense>
+            <SidebarPrototypeOnly variants={["a", "b", "c", "d", "e"]}>
+              <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+            </SidebarPrototypeOnly>
           </div>
         </div>
       </SidebarHeader>
@@ -154,6 +163,6 @@ export default function Sidebar({
           {accountFooter}
         </div>
       </SidebarFooter>
-    </ShadcnSidebar>
+    </PrototypeSidebarRoot>
   );
 }

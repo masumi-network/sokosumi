@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ProjectScopeGuard } from "@/app/components/project-scope/project-scope-guard";
 import { SidebarScopeMobileChip } from "@/app/components/project-scope/sidebar-project-scope-mobile";
 import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
+import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 
 import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
@@ -13,7 +14,10 @@ import {
 import HeaderProfileSection from "./header/header-profile-section";
 import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
-import { NewTaskPrototypeHeaderButton } from "./new-task.prototype.client";
+import {
+  NewTaskPrototypeHeaderButton,
+  OpenSidebarPrototypeButton,
+} from "./new-task.prototype.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -29,6 +33,9 @@ export default function Header({ className, session }: HeaderProps) {
         </Suspense>
       </div>
 
+      {/* PROTOTYPE: variant f reopens its hidden sidebar from here. */}
+      <OpenSidebarPrototypeButton />
+
       <HeaderCenter>
         <BreadcrumbNavigation className="flex flex-1" />
       </HeaderCenter>
@@ -43,7 +50,10 @@ export default function Header({ className, session }: HeaderProps) {
         <NewTaskPrototypeHeaderButton />
       </Suspense>
 
-      <HeaderSearchTrigger />
+      {/* PROTOTYPE: variant f moves search into the sidebar header. */}
+      <SidebarPrototypeOnly variants={["a", "b", "c", "d", "e"]}>
+        <HeaderSearchTrigger />
+      </SidebarPrototypeOnly>
 
       <HeaderTrailing>
         <HeaderProfileSection session={session} />

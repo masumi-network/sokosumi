@@ -8,6 +8,8 @@
  *   c  recommended with the Soko Bot card
  *   d  b, with New task in the top bar instead of the sidebar
  *   e  b, with New task as an icon beside the sidebar collapse button
+ *   f  Linear-style: search and compose in the sidebar header, no icon rail
+ *      (the sidebar hides completely), denser rows
  * The choice also lives in sessionStorage, so it survives in-app navigation,
  * which drops the query string. Off in production. Delete once a variant wins.
  */
@@ -23,6 +25,7 @@ const VARIANTS = [
   { key: "c", name: "Recommended, bot card" },
   { key: "d", name: "New task in top bar" },
   { key: "e", name: "New task icon in sidebar" },
+  { key: "f", name: "Linear-style" },
 ] as const;
 
 export type SidebarPrototypeVariant = (typeof VARIANTS)[number]["key"];

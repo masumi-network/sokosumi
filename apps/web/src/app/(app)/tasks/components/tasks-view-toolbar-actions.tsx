@@ -24,7 +24,7 @@ export function TasksViewToolbarActions({
       <ViewModeSwitch {...display} />
       {/* Below md the create FAB covers creation. */}
       {/* PROTOTYPE: variant d's top bar already carries New task. */}
-      <SidebarPrototypeOnly variants={["a", "b", "c", "e"]}>
+      <SidebarPrototypeOnly variants={["a", "b", "c", "e", "f"]}>
         <NewTaskButton className="hidden md:inline-flex" />
       </SidebarPrototypeOnly>
     </>
