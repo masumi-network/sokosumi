@@ -1,4 +1,11 @@
-import { Fragment, type ReactNode, type Ref, useImperativeHandle } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { vi } from "vitest";
 
 import {
@@ -42,25 +49,50 @@ export const transcriptViewportSpies = {
   scrollToMessage: vi.fn(),
 };
 
+/**
+ * Whether the reader is at the end of the transcript, which the real viewport
+ * reads from the scroller. A stub that reports it opens at `openAtEnd`;
+ * `report` moves it, as a scroll would. A landing reports the reader off the
+ * end, as a jump to an older message does. Reset by the rooms-client harness.
+ */
+export const transcriptViewportEnd = {
+  openAtEnd: true,
+  report: (_atEnd: boolean): void => {},
+};
+
 export function TranscriptViewport({
   rows,
   initialPosition,
   onPositionChange,
+  onAtEndChange,
   renderRow,
   list = CHAT_MESSAGE_LIST_ROOM,
   ref,
 }: {
   initialPosition?: TranscriptPosition;
   onPositionChange?: (position: TranscriptPosition) => void;
+  onAtEndChange?: (atEnd: boolean) => void;
   rows: readonly RoomTranscriptRenderRow[];
   renderRow: (row: RoomTranscriptRenderRow) => ReactNode;
   list?: string;
   ref: Ref<TranscriptViewportHandle>;
 }) {
   transcriptViewportSpies.position({ initialPosition, onPositionChange });
+  const atEndRef = useRef(onAtEndChange);
+  atEndRef.current = onAtEndChange;
+  useEffect(() => {
+    if (!atEndRef.current) return;
+    const report = (atEnd: boolean) => atEndRef.current?.(atEnd);
+    transcriptViewportEnd.report = report;
+    report(transcriptViewportEnd.openAtEnd);
+  }, []);
   useImperativeHandle(ref, () => ({
     ...transcriptViewportSpies,
-    landOnMessage: (messageId) => highlightListMessage(list, messageId),
+    landOnMessage: (messageId) => {
+      const landed = highlightListMessage(list, messageId);
+      if (landed) atEndRef.current?.(false);
+      return landed;
+    },
     scrollToMessage: (messageId) => {
       transcriptViewportSpies.scrollToMessage(messageId);
       return (

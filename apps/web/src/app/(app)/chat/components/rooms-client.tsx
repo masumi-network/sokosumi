@@ -653,6 +653,17 @@ function RoomView({
   const loadingBoundariesRef = useRef<Set<string>>(new Set());
   const boundaryLoadGenerationRef = useRef(0);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
+  // Room last-read waits for the end of the transcript (SOK-1481). Keyed by
+  // room: this component outlives the viewport, which remounts per room.
+  const [transcriptEnd, setTranscriptEnd] = useState<{
+    roomId: string;
+    atEnd: boolean;
+  } | null>(null);
+  const [explicitJumps, setExplicitJumps] = useState(0);
+  const trackExplicitJump = useCallback((jump: Promise<void>) => {
+    setExplicitJumps((count) => count + 1);
+    void jump.finally(() => setExplicitJumps((count) => count - 1));
+  }, []);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
@@ -1776,6 +1787,16 @@ function RoomView({
       openThreadParentId: threadParentMessage?.id ?? null,
       threadMessages: persistedThreadMessages,
       isThreadLoading,
+      // A named message (URL, notification, Message link) is still to be
+      // jumped to while the URL carries it or its jump is in flight; the
+      // viewport sits at the end until that jump moves it.
+      transcriptAtEnd:
+        transcriptEnd !== null &&
+        transcriptEnd.roomId === selectedRoom?.id &&
+        transcriptEnd.atEnd &&
+        !pendingMessageJump &&
+        !searchParams.has(CHAT_MESSAGE_PARAM) &&
+        explicitJumps === 0,
       onThreadLooked: handleThreadLooked,
     });
 
@@ -2186,6 +2207,7 @@ function RoomView({
     jumpInRoom: handleJumpToMessage,
     jumpInThread: (hit) =>
       handleSearchJump(hit, { quietWhenThreadIsGone: true }),
+    whileJumping: trackExplicitJump,
   });
 
   async function loadThreadMessages(
@@ -3256,6 +3278,9 @@ function RoomView({
                 : retained?.position
             }
             onPositionChange={retained?.positionChanged}
+            onAtEndChange={(atEnd) =>
+              setTranscriptEnd({ roomId: selectedRoom.id, atEnd })
+            }
           />
         )}
       </>

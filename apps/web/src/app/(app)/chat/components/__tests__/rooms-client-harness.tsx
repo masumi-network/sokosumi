@@ -9,6 +9,7 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { beforeEach, type Mock, vi } from "vitest";
 
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportEnd } from "./transcript-viewport-stub";
 
 /**
  * Shared RoomsClient test wiring. Mocks that every `rooms-client-*.tsx` file
@@ -385,6 +386,7 @@ export function resetRoomsClientMocks() {
   sendStreamMessage.mockReset();
   sendStreamMessage.mockReturnValue(true);
   useChatRoomRealtimeMock.mockReset();
+  transcriptViewportEnd.openAtEnd = true;
 }
 
 beforeEach(() => {

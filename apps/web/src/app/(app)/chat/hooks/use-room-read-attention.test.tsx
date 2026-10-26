@@ -56,6 +56,7 @@ function options() {
     openThreadParentId: null as string | null,
     threadMessages: [] as { id: string; content: string }[],
     isThreadLoading: false,
+    transcriptAtEnd: true,
   };
 }
 
