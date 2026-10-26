@@ -41,16 +41,17 @@ export default async function NewsletterIssuePage({
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
-  const [issue, subscribers, page, t] = await Promise.all([
+  const [issue, page, t] = await Promise.all([
     newsletterService.getIssue(project.id, issueId),
-    newsletterService.listSubscribers(project.id, {
-      limit: 1,
-      status: "ACTIVE",
-    }),
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
   if (!issue) notFound();
+  // After the issue check, so a missing project shows not found, not an error.
+  const subscribers = await newsletterService.listSubscribers(project.id, {
+    limit: 1,
+    status: "ACTIVE",
+  });
 
   return (
     <NewsletterPageShell

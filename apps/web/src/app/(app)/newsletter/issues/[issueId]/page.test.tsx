@@ -99,6 +99,12 @@ describe("newsletter issue page", () => {
     mocks.get.mockResolvedValue(null);
     await expect(NewsletterIssuePage(PROPS)).rejects.toThrow("NOT_FOUND");
   });
+  it("shows not found for a missing project instead of failing on its subscribers", async () => {
+    mocks.get.mockResolvedValue(null);
+    mocks.subscribers.mockRejectedValue(new Error("Project not found"));
+    await expect(NewsletterIssuePage(PROPS)).rejects.toThrow("NOT_FOUND");
+    expect(mocks.subscribers).not.toHaveBeenCalled();
+  });
   it("returns to settings until a newsletter exists", async () => {
     mocks.settings.mockResolvedValue(null);
     await expect(NewsletterIssuePage(PROPS)).rejects.toThrow(

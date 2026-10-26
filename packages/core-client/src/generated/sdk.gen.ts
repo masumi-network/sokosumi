@@ -3409,7 +3409,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdApprove = <ThrowOnError ex
 });
 
 /**
- * Schedule a newsletter issue using its current revision. Requires access to the project workspace.
+ * Schedule a newsletter issue using its current revision. Requires a human interactive session.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdScheduleResponseTransformer,
@@ -3422,7 +3422,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSchedule = <ThrowOnError e
 });
 
 /**
- * SendNow a newsletter issue using its current revision. Requires a human interactive session.
+ * Send a newsletter issue now using its current revision. Requires a human interactive session.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdSendNow = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdSendNowData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdSendNowResponses, PostProjectsByIdNewsletterIssuesByIssueIdSendNowErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdSendNowResponses, PostProjectsByIdNewsletterIssuesByIssueIdSendNowErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdSendNowResponseTransformer,
@@ -3435,7 +3435,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSendNow = <ThrowOnError ex
 });
 
 /**
- * Cancel a newsletter issue using its current revision. Requires access to the project workspace.
+ * Cancel a newsletter issue using its current revision. Requires a human interactive session.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdCancelResponseTransformer,

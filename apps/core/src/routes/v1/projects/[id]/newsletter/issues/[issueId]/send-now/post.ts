@@ -26,7 +26,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/issues/{issueId}/send-now",
     tags: ["Projects"],
     description:
-      "SendNow a newsletter issue using its current revision. Requires a human interactive session.",
+      "Send a newsletter issue now using its current revision. Requires a human interactive session.",
     request: {
       params: newsletterIssueParamsSchema,
       body: {

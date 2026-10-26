@@ -5,7 +5,7 @@ import {
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
 import slugify from "slugify";
 
 import { getEnv } from "@/config/env";
@@ -27,6 +27,7 @@ import {
   type NewsletterScope,
 } from "@/services/newsletter.service";
 import {
+  archiveTaskRecord,
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
@@ -167,7 +168,8 @@ async function setApprovalTaskStatus(
       archivedAt: null,
     },
   });
-  if (!task) throw conflict("Newsletter approval Task is unavailable");
+  // An archived or moved Task must not block editing or cancelling delivery.
+  if (!task) return null;
   if (task.status === status) return task;
   await applyGuardedTaskStatusUpdate({
     tx,
@@ -256,8 +258,8 @@ export function submitNewsletterIssue(
               assigneeUserId: context.humanUserId,
             },
           });
+          return;
         }
-        return;
       }
       const task = await createTaskForActor(
         {
@@ -392,6 +394,20 @@ export async function deleteNewsletterIssue(
     revision: issue.revision,
     status: { in: ["DRAFT", "CANCELED"] },
   };
-  const { count } = await prisma.newsletterIssue.deleteMany({ where });
-  if (!count) throw conflict("Only draft or canceled issues can be deleted");
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.newsletterIssue.deleteMany({ where });
+    if (!count) throw conflict("Only draft or canceled issues can be deleted");
+    if (!issue.taskId) return;
+    // Close the approval Task so no open review is left for a deleted issue.
+    const task = await tx.task.findFirst({
+      where: {
+        id: issue.taskId,
+        projectId: issue.projectId,
+        workspaceId: issue.workspaceId,
+        archivedAt: null,
+      },
+    });
+    if (task && canArchiveTaskStatus(task.status))
+      await archiveTaskRecord(tx, task);
+  });
 }
