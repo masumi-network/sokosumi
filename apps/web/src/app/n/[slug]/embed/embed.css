@@ -1,9 +1,5 @@
-html:has([data-newsletter-embed]),
-body:has([data-newsletter-embed]),
-body:has([data-newsletter-embed]) .bg-background:has([data-newsletter-embed]) {
-  background: transparent;
-}
-
+/* The embed keeps its own opaque theme background: a transparent page would
+   put dark-theme text straight onto a light host site (and vice versa). */
 main:has(> [data-newsletter-embed]) {
   max-width: var(--container-md);
   padding: calc(var(--spacing) * 4);
