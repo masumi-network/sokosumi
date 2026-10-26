@@ -3128,7 +3128,7 @@
         "Validation": {
           "required": "Introduce un valor.",
           "email": "Introduce una dirección de correo electrónico válida.",
-          "url": "Introduce una URL completa con HTTP o HTTPS.",
+          "url": "Introduce una URL completa con HTTPS.",
           "color": "Introduce un color hexadecimal de 3 o 6 dígitos que empiece por #.",
           "maxLength": "Usa un máximo de {max} caracteres."
         }

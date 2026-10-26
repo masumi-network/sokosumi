@@ -3128,7 +3128,7 @@
         "Validation": {
           "required": "Enter a value.",
           "email": "Enter a valid email address.",
-          "url": "Enter a full HTTP or HTTPS URL.",
+          "url": "Enter a full HTTPS URL.",
           "color": "Enter a hex color with 3 or 6 digits, starting with #.",
           "maxLength": "Use at most {max} characters."
         }

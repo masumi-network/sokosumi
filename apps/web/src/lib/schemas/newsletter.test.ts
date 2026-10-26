@@ -43,6 +43,7 @@ describe("newsletterSettingsSchema", () => {
     ["replyTo", "wrong"],
     ["logoUrl", "javascript:alert(1)"],
     ["logoUrl", "ftp://example.com/logo"],
+    ["logoUrl", "http://example.com/logo.png"],
     ["primaryColor", "red"],
     ["accentColor", "#12345"],
     ["fontFamily", ""],
@@ -76,7 +77,7 @@ describe("newsletterSettingsSchema", () => {
     ).toBe(true);
   });
 
-  it("accepts HTTP logos and both short and full hex colors", () => {
+  it("accepts HTTPS logos and both short and full hex colors", () => {
     expect(
       schema.safeParse({
         ...VALUES,

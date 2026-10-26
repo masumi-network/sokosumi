@@ -25,8 +25,7 @@ export function newsletterSettingsSchema(
           .trim()
           .refine(
             (value) =>
-              !value ||
-              z.url({ protocol: /^https?$/ }).safeParse(value).success,
+              !value || z.url({ protocol: /^https$/ }).safeParse(value).success,
             t("url"),
           )
           .max(2048, maxLength(2048)),

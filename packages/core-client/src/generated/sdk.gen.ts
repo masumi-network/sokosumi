@@ -2518,7 +2518,7 @@ export const getImageStudioState = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Read newsletter availability, including when newsletters are disabled.
+ * Read newsletter availability for the current workspace, including when newsletters are disabled.
  */
 export const getNewsletterAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetNewsletterAvailabilityData, ThrowOnError>): RequestResult<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError>({
     responseTransformer: getNewsletterAvailabilityResponseTransformer,
