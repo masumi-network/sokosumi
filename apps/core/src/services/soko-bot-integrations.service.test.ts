@@ -69,9 +69,11 @@ import {
 } from "./soko-bot-integration-connection.service";
 import {
   activeIntegrationsForBot,
+  createInboxDraft,
   fetchInboxMessages,
   fetchInboxPage,
   listIntegrationTools,
+  modifyInboxMessages,
   revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
 
@@ -304,6 +306,58 @@ describe("Soko Bot OAuth replacement", () => {
     });
     expect(page.nextPageToken).toBe("page-3");
     expect(page.messages).toHaveLength(1);
+  });
+
+  it("marks Gmail mail read and archived by removing its labels", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ successful: true, data: {} }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await modifyInboxMessages(integration, ["m1", "m2"], {
+      read: true,
+      archive: true,
+    });
+    expect(fetchMock.mock.calls[0][0]).toContain("GMAIL_BATCH_MODIFY_MESSAGES");
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toEqual({
+      messageIds: ["m1", "m2"],
+      removeLabelIds: ["UNREAD", "INBOX"],
+    });
+  });
+
+  it("drafts a reply in its thread and returns the draft id", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ successful: true, data: { id: "d1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const draftId = await createInboxDraft(integration, {
+      to: ["a@acme.com", "b@acme.com"],
+      subject: "Re: hi",
+      body: "Thanks",
+      threadId: "t1",
+    });
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toEqual({
+      recipient_email: "a@acme.com",
+      extra_recipients: ["b@acme.com"],
+      thread_id: "t1",
+      body: "Thanks",
+    });
+    expect(draftId).toBe("d1");
+  });
+
+  it("refuses mailbox writes for Outlook", async () => {
+    mocks.findMany.mockResolvedValue([{ ...existing, provider: "outlook" }]);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await expect(
+      modifyInboxMessages(integration, ["m1"], { read: true }),
+    ).rejects.toThrow("can only be read");
   });
 
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {

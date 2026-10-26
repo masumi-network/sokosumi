@@ -4547,6 +4547,9 @@ export const SokoBotSchema = {
         followWholeBoard: {
             type: 'boolean'
         },
+        mailAutoRead: {
+            type: 'boolean'
+        },
         ingestTimezone: {
             type: 'string'
         },
@@ -27975,6 +27978,9 @@ export const SokoBotStateSchema = {
                 followWholeBoard: {
                     type: 'boolean'
                 },
+                mailAutoRead: {
+                    type: 'boolean'
+                },
                 ingestTimezone: {
                     type: 'string'
                 },
@@ -28650,6 +28656,9 @@ export const UpdateSokoBotProactiveRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 64
+        },
+        mailAutoRead: {
+            type: 'boolean'
         }
     },
     additionalProperties: false

@@ -588,6 +588,86 @@ function normaliseEvent(
   };
 }
 
+/** Gmail's label ids for what the inbox tools change. */
+const GMAIL_LABEL = { unread: "UNREAD", inbox: "INBOX" } as const;
+
+function requireMailTool(
+  integration: ActiveIntegration,
+  tool: "modifyMessages" | "createDraft" | "sendDraft",
+): string {
+  const slug = integration.provider.tools[tool];
+  if (!slug)
+    throw new SokoBotIntegrationError(
+      `${integration.provider.name} mail can only be read for now`,
+    );
+  return slug;
+}
+
+/**
+ * Marks mail read or unread and archives it, in the owner's mailbox. Only
+ * the changes asked for are made; nothing is sent or deleted.
+ */
+export async function modifyInboxMessages(
+  integration: ActiveIntegration,
+  messageIds: readonly string[],
+  change: { read?: boolean; archive?: boolean },
+): Promise<void> {
+  if (messageIds.length === 0) return;
+  const slug = requireMailTool(integration, "modifyMessages");
+  const addLabelIds: string[] = [];
+  const removeLabelIds: string[] = [];
+  if (change.read === true) removeLabelIds.push(GMAIL_LABEL.unread);
+  if (change.read === false) addLabelIds.push(GMAIL_LABEL.unread);
+  if (change.archive) removeLabelIds.push(GMAIL_LABEL.inbox);
+  if (addLabelIds.length === 0 && removeLabelIds.length === 0) return;
+  await execute(integration, slug, {
+    messageIds: [...messageIds],
+    ...(addLabelIds.length ? { addLabelIds } : {}),
+    ...(removeLabelIds.length ? { removeLabelIds } : {}),
+  });
+}
+
+/** Writes a draft in the owner's mailbox; nothing is sent. Returns its id. */
+export async function createInboxDraft(
+  integration: ActiveIntegration,
+  draft: {
+    to: readonly string[];
+    cc?: readonly string[];
+    subject: string;
+    body: string;
+    threadId?: string;
+  },
+): Promise<string> {
+  const slug = requireMailTool(integration, "createDraft");
+  const [first, ...rest] = draft.to;
+  const data = await execute(integration, slug, {
+    ...(first ? { recipient_email: first } : {}),
+    ...(rest.length ? { extra_recipients: rest } : {}),
+    ...(draft.cc?.length ? { cc: [...draft.cc] } : {}),
+    // A reply keeps the thread's subject; a subject would start a new one.
+    ...(draft.threadId
+      ? { thread_id: draft.threadId }
+      : { subject: draft.subject }),
+    body: draft.body,
+  });
+  const draftId =
+    str(pick(data, "draft_id", "id")) ||
+    str(pick(pick(data, "draft", "data"), "id"));
+  if (!draftId)
+    throw new SokoBotIntegrationError("The mailbox did not return a draft id");
+  return draftId;
+}
+
+/** Sends a draft that is already in the owner's mailbox. */
+export async function sendInboxDraft(
+  integration: ActiveIntegration,
+  draftId: string,
+): Promise<void> {
+  await execute(integration, requireMailTool(integration, "sendDraft"), {
+    draft_id: draftId,
+  });
+}
+
 export async function fetchInboxMessages(
   integration: ActiveIntegration,
   options: {

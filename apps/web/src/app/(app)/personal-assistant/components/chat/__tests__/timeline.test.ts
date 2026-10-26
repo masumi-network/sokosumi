@@ -86,6 +86,7 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       avatarImageUrl: null,
       versionId: null,
       followWholeBoard: false,
+      mailAutoRead: false,
       ingestTimezone: "Europe/Berlin",
       proactivePaused: false,
       proactiveDailyLimit: 20,

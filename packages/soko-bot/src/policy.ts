@@ -45,6 +45,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_table",
   "upload_file",
   "move_file",
+  "update_emails",
+  "draft_email",
+  "send_email_draft",
   "generate_image",
   "get_image",
   "generate_video",
@@ -132,6 +135,9 @@ export function isSokoBotSandboxCapability(
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "hire_agent",
+  // Mail leaves the owner's mailbox; a page the bot read must not send it.
+  "send_email_draft",
+  "update_emails",
   // A skill is instructions the bot follows from then on; a page it read
   // must not be able to install one.
   "install_skill",
@@ -276,6 +282,10 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "ask_coworker",
   "upload_file",
   "move_file",
+  // The owner's mailbox: read state, archive, drafts. Sending is its own
+  // tool, which Core allows only on the owner's word in their chat.
+  "update_emails",
+  "draft_email",
   "generate_image",
   "generate_video",
   "create_table",
@@ -450,7 +460,12 @@ export function capabilitiesForClassification(
       "update_table_columns",
       ...CONTACT_WRITE_CAPABILITIES,
     ],
-    INTEGRATION: ["run_integration_tool"],
+    INTEGRATION: [
+      "run_integration_tool",
+      "update_emails",
+      "draft_email",
+      "send_email_draft",
+    ],
     // A post's media must be in Files first; images sent in chat get there
     // through upload_file.
     SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],

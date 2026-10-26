@@ -51,6 +51,7 @@ import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
+import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
@@ -599,6 +600,7 @@ export function SokoBotConsole({
                       <FollowBoardToggle
                         initial={bot.followWholeBoard ?? false}
                       />
+                      <MailAutoReadToggle initial={bot.mailAutoRead ?? false} />
                       {canManage ? (
                         <div className="space-y-2">
                           <p className="text-sm font-medium">
