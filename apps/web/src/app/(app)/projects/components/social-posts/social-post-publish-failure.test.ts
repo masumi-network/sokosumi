@@ -35,6 +35,16 @@ function post(partial: {
 }
 
 describe("publishFailureCopy", () => {
+  it("shows Core's actionable message when an X tier downgrade blocks publishing", () => {
+    const message =
+      "This post is 1,240 characters, but @handle can now post at most 280 characters on X (no X Premium). Shorten it or renew Premium, then retry.";
+    expect(
+      publishFailureCopy(
+        { ...post({ errorKind: "text_limit" }), lastError: message },
+        t,
+      ),
+    ).toBe(message);
+  });
   it.each([
     [
       "authorization_revoked",

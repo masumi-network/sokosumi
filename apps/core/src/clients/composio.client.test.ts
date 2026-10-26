@@ -97,7 +97,9 @@ describe("initiateComposioConnection", () => {
         if (url.endsWith("/trs_123/execute")) {
           expect(JSON.parse(String(init.body))).toEqual({
             tool_slug: "TWITTER_USER_LOOKUP_ME",
-            arguments: { user_fields: ["name", "profile_image_url"] },
+            arguments: {
+              user_fields: ["name", "profile_image_url", "subscription_type"],
+            },
           });
           return Response.json({
             data: { data: { id: "x_123", username: "alice" } },
@@ -382,12 +384,13 @@ describe("getConnectedSocialIdentity", () => {
     {
       provider: "x",
       slug: "TWITTER_USER_LOOKUP_ME",
-      args: { user_fields: ["name", "profile_image_url"] },
+      args: { user_fields: ["name", "profile_image_url", "subscription_type"] },
       payload: {
         data: {
           id: "x_123",
           username: "alice",
           name: "Alice Doe",
+          subscription_type: "Premium",
           profile_image_url:
             "https://pbs.twimg.com/profile_images/1/a_normal.jpg",
         },
@@ -397,6 +400,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: "alice",
         displayName: "Alice Doe",
         avatarUrl: "https://pbs.twimg.com/profile_images/1/a_400x400.jpg",
+        subscriptionType: "Premium",
       },
     },
     {
@@ -418,6 +422,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: "Alice",
         displayName: "Alice",
         avatarUrl: "https://p16.tiktokcdn.com/a.jpeg",
+        subscriptionType: null,
       },
     },
     {
@@ -438,6 +443,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: "alice",
         displayName: "Alice Doe",
         avatarUrl: "https://scontent.cdninstagram.com/a.jpg",
+        subscriptionType: null,
       },
     },
     {
@@ -457,6 +463,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: null,
         displayName: "Alice Doe",
         avatarUrl: "https://media.licdn.com/a.jpg",
+        subscriptionType: null,
       },
     },
     {
@@ -477,6 +484,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: "Alice Studio",
         displayName: "Alice Studio",
         avatarUrl: "https://scontent.xx.fbcdn.net/a.jpg",
+        subscriptionType: null,
       },
     },
     {
@@ -500,6 +508,7 @@ describe("getConnectedSocialIdentity", () => {
         handle: "@alice",
         displayName: "Alice Channel",
         avatarUrl: "https://yt3.ggpht.com/a.jpg",
+        subscriptionType: null,
       },
     },
   ];
@@ -656,6 +665,26 @@ describe("getConnectedSocialIdentity", () => {
       expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
         "private-token",
       );
+    },
+  );
+
+  it.each(["Basic", "Premium", "PremiumPlus", "None", null, undefined, 123])(
+    "reads X subscription_type %s as a string or null",
+    async (subscriptionType) => {
+      stubIdentity({
+        data: { id: "x_123", subscription_type: subscriptionType },
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "x",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toMatchObject({
+        subscriptionType:
+          typeof subscriptionType === "string" ? subscriptionType : null,
+      });
     },
   );
 
