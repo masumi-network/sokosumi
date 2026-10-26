@@ -72,10 +72,10 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
   });
 
-  // The Threads view lives in the Chats tab on the phone (SOK-1159), so the
-  // tab stays lit while the reader is in it.
-  it("keeps the Chats tab on the Threads view", () => {
-    expect(resolveChatMobileActiveTabId("/chat/threads")).toBe("chats");
+  // Catch up (with its Threads tab) lives in the Chats tab on the phone, so
+  // the tab stays lit while the reader is in it.
+  it("keeps the Chats tab on Catch up", () => {
+    expect(resolveChatMobileActiveTabId("/chat/catch-up")).toBe("chats");
   });
 
   it("returns null on rooms and nested routes", () => {

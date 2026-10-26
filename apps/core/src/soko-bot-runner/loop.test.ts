@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { simulateReadableStream, tool } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -16,41 +16,68 @@ const usage = {
   outputTokens: { total: 5, text: 5, reasoning: undefined },
 };
 
+type Answer = Awaited<ReturnType<MockLanguageModelV3["doGenerate"]>>;
+type Streamed = Awaited<ReturnType<MockLanguageModelV3["doStream"]>>;
+type StreamPart =
+  Streamed["stream"] extends ReadableStream<infer Part> ? Part : never;
+
+/** A generate-style answer as the stream the loop reads. */
+function streamOf({ content, finishReason, usage }: Answer): Streamed {
+  const parts = content.flatMap((part, index): StreamPart[] => {
+    const id = String(index);
+    if (part.type === "text")
+      return [
+        { type: "text-start", id },
+        { type: "text-delta", id, delta: part.text },
+        { type: "text-end", id },
+      ];
+    return part.type === "tool-call" ? [part] : [];
+  });
+  return {
+    stream: simulateReadableStream({
+      chunks: [...parts, { type: "finish", finishReason, usage }],
+    }),
+  };
+}
+
 /** A model that keeps working and never says DONE until told time is up. */
 function tirelessModel(clock: { now: number }) {
   const calls: { at: number; toolChoice: unknown; lastUser: string }[] = [];
-  const model = new MockLanguageModelV3({
-    doGenerate: async (options) => {
-      const last = options.prompt.findLast((m) => m.role === "user");
-      const lastUser =
-        last && Array.isArray(last.content)
-          ? last.content.map((p) => ("text" in p ? p.text : "")).join("")
-          : "";
-      calls.push({ at: clock.now, toolChoice: options.toolChoice, lastUser });
-      clock.now += 4 * MINUTE;
-      if (options.toolChoice?.type === "none")
-        return {
-          content: [
-            { type: "text", text: "DONE: filled 12 of 30 rows; 18 left." },
-          ],
-          finishReason: { unified: "stop", raw: "stop" },
-          warnings: [],
-          usage,
-        };
+  const answer = async (
+    options: Parameters<MockLanguageModelV3["doStream"]>[0],
+  ): Promise<Answer> => {
+    const last = options.prompt.findLast((m) => m.role === "user");
+    const lastUser =
+      last && Array.isArray(last.content)
+        ? last.content.map((p) => ("text" in p ? p.text : "")).join("")
+        : "";
+    calls.push({ at: clock.now, toolChoice: options.toolChoice, lastUser });
+    clock.now += 4 * MINUTE;
+    if (options.toolChoice?.type === "none")
       return {
         content: [
-          {
-            type: "tool-call",
-            toolCallId: `call_${calls.length}`,
-            toolName: "work",
-            input: "{}",
-          },
+          { type: "text", text: "DONE: filled 12 of 30 rows; 18 left." },
         ],
-        finishReason: { unified: "tool-calls", raw: "tool_calls" },
+        finishReason: { unified: "stop", raw: "stop" },
         warnings: [],
         usage,
       };
-    },
+    return {
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: `call_${calls.length}`,
+          toolName: "work",
+          input: "{}",
+        },
+      ],
+      finishReason: { unified: "tool-calls", raw: "tool_calls" },
+      warnings: [],
+      usage,
+    };
+  };
+  const model = new MockLanguageModelV3({
+    doStream: async (options) => streamOf(await answer(options)),
   });
   return { model, calls };
 }
@@ -94,12 +121,13 @@ describe("runTurnLoop", () => {
   it("answers a chat turn once, without the report round", async () => {
     const clock = { now: 0 };
     const model = new MockLanguageModelV3({
-      doGenerate: async () => ({
-        content: [{ type: "text", text: "Hi Patrick." }],
-        finishReason: { unified: "stop", raw: "stop" },
-        warnings: [],
-        usage,
-      }),
+      doStream: async () =>
+        streamOf({
+          content: [{ type: "text", text: "Hi Patrick." }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        }),
     });
 
     const result = await runTurnLoop({
@@ -115,6 +143,6 @@ describe("runTurnLoop", () => {
     });
 
     expect(result.text).toBe("Hi Patrick.");
-    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(model.doStreamCalls).toHaveLength(1);
   });
 });

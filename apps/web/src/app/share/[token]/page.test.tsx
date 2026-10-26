@@ -7,6 +7,7 @@ const notFoundMock = vi.fn(() => {
 });
 const jobDetailsViewMock = vi.fn();
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
 }));

@@ -9,16 +9,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { GroupedRadioItems } from "./contacts-toolbar";
 
 export interface CellChoice {
   value: string;
   label: string;
   icon?: ReactNode;
+  /** Heading of the group this choice starts or belongs to. */
+  group?: string;
 }
 
 export type CellEdit =
@@ -161,7 +163,7 @@ export function ContactCell({
         className,
       )}
     >
-      <div className="flex h-10 min-w-0 items-center px-3 text-sm">
+      <div className="flex h-9 min-w-0 items-center px-3 text-sm">
         {children}
       </div>
       {editing && edit && edit.kind !== "choice" ? (
@@ -185,7 +187,7 @@ export function ContactCell({
             onChange={(event) => setDraft(event.target.value)}
             onBlur={() => void commit()}
             onKeyDown={handleEditorKeyDown}
-            className="h-10 border-0 bg-transparent px-3 shadow-none dark:bg-transparent"
+            className="h-9 border-0 bg-transparent px-3 shadow-none dark:bg-transparent"
           />
         </div>
       ) : null}
@@ -200,7 +202,7 @@ export function ContactCell({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            className="min-w-48"
+            className="max-h-96 min-w-48 overflow-y-auto"
             onCloseAutoFocus={(event) => {
               event.preventDefault();
               cell.current?.focus();
@@ -213,16 +215,7 @@ export function ContactCell({
                 if (value !== edit.value) void edit.onSave(value);
               }}
             >
-              {edit.choices.map((choice) => (
-                <DropdownMenuRadioItem
-                  key={choice.value}
-                  value={choice.value}
-                  className="gap-2"
-                >
-                  {choice.icon}
-                  {choice.label}
-                </DropdownMenuRadioItem>
-              ))}
+              <GroupedRadioItems options={edit.choices} />
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>

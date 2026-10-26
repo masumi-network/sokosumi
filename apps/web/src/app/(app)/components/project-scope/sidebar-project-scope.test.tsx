@@ -32,11 +32,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({
-  loadMoreProjects: vi.fn(() =>
-    Promise.resolve({ projects: [], nextCursor: null }),
-  ),
-  loadPinnedProjects: mocks.loadPinned,
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: (path: string) =>
+    path.startsWith("/api/project-scope/pinned")
+      ? mocks.loadPinned()
+      : Promise.resolve({ projects: [], nextCursor: null }),
 }));
 // The wizard pulls in the whole Create flow; only "it opened" matters here.
 vi.mock("@/app/projects/components/inline-create-project-modal", () => ({

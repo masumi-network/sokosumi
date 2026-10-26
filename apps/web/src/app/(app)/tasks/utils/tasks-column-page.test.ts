@@ -247,6 +247,7 @@ describe("getTasksColumnPage", () => {
     expect(page).toEqual({
       tasks: [],
       nextCursor: null,
+      total: 0,
     });
     expect(listTasksMock).not.toHaveBeenCalled();
   });

@@ -176,14 +176,23 @@ export function HistoryTypeColumn({
 function formatHistoryCredits(
   item: TransactionHistoryItem,
   labels: Pick<HistoryListItemLabels, "credit" | "credits">,
-  formatNumber: (
-    value: number,
-    options: { maximumFractionDigits: number },
-  ) => string,
+  formatNumber: CreditNumberFormatter,
 ): string {
-  const credits = Math.trunc(item.credits * 100) / 100;
-  const unit = credits === 1 ? labels.credit : labels.credits;
-  const amount = `${formatNumber(credits, { maximumFractionDigits: 2 })} ${unit}`;
-
+  const amount = formatCreditAmount(item.credits, labels, formatNumber);
   return item.kind === "topUp" ? `+${amount}` : amount;
+}
+
+type CreditNumberFormatter = (
+  value: number,
+  options: { maximumFractionDigits: number },
+) => string;
+
+export function formatCreditAmount(
+  value: number,
+  labels: Pick<HistoryListItemLabels, "credit" | "credits">,
+  formatNumber: CreditNumberFormatter,
+): string {
+  const credits = Math.trunc(value * 100) / 100;
+  const unit = credits === 1 ? labels.credit : labels.credits;
+  return `${formatNumber(credits, { maximumFractionDigits: 2 })} ${unit}`;
 }

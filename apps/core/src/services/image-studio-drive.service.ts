@@ -12,7 +12,7 @@ import {
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { imageFileName } from "@/services/image-studio-files.service";
+import { studioAssetFileName } from "@/services/image-studio-files.service";
 
 /** Drive folder Soko Bot and Social already attach studio images from. */
 export const IMAGE_STUDIO_DRIVE_FOLDER = "Content Studio";
@@ -53,7 +53,7 @@ export async function ensureStudioAssetDriveFile(input: {
 
   const prompt = input.prompt ?? asset.prompt;
   const jobId = input.jobId ?? asset.jobId;
-  const name = imageFileName(prompt, jobId, asset.contentType);
+  const name = studioAssetFileName(prompt, jobId, asset.contentType);
   const pathname = input.organizationId
     ? buildOrganizationDriveFilePathnameWithFolder(
         input.organizationId,

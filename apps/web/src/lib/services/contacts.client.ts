@@ -9,6 +9,7 @@ import {
   getContactsByIdInteractions,
   getContactsDuplicates,
   getContactsExportCsv,
+  getContactsOrganizations,
   getOrganizationsByIdMembers,
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
@@ -25,6 +26,7 @@ import {
   postContactsByIdChannels,
   postContactsImport,
   postContactsMerge,
+  putContactsByIdImportance,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
@@ -43,6 +45,25 @@ export const contactsService = {
       nextCursor: data.meta.pagination.nextCursor,
       total: data.meta.pagination.total,
     };
+  },
+  /** The organizations contacts work at, biggest first. */
+  async organizations(search?: string) {
+    return (
+      await getContactsOrganizations({
+        ...options(),
+        query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
+  },
+  /** How much a contact matters to the reader; null lets Jev judge it. */
+  async setImportance(id: string, importance: number | null) {
+    return (
+      await putContactsByIdImportance({
+        ...options(),
+        path: { id },
+        body: { importance },
+      })
+    ).data.data;
   },
   async get(id: string) {
     return (await getContactsById({ ...options(), path: { id } })).data.data;

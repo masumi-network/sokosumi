@@ -164,6 +164,7 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -3320,7 +3321,17 @@ function RoomView({
                       <SokoBotConnectPrompt
                         sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
                       />
-                    ) : null
+                    ) : (
+                      <RoomCatchUpLine
+                        key={selectedRoom.id}
+                        roomId={selectedRoom.id}
+                        unreadAtOpen={
+                          selectedRoom.channelUnreadCount ??
+                          selectedRoom.unreadCount
+                        }
+                        onJump={handleJumpToMessage}
+                      />
+                    )
                   }
                   ref={roomComposerRef}
                   roomId={selectedRoom.id}

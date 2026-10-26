@@ -56,6 +56,9 @@ model User {
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
   hideRoomUnreadCount Boolean @default(false) // Whether the reader switched off the unread message count on chat sidebar rows. Shown by default (ADR-0038)
+  // Whether Jev may tag this person's person-to-person Directs (chat signals).
+  // Off by default; a Direct is tagged only when every human in it opted in.
+  tagDirectMessages   Boolean @default(false)
 
   // UTM Attribution
   utmAttribution UTMAttribution?
@@ -78,8 +81,8 @@ model User {
   ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
-  ownedContacts           Contact[]                @relation("ContactOwner")
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
+  contactScores           ContactScore[]           @relation("ContactScoreUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
@@ -101,19 +104,21 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
-  createdChatRooms                 ChatRoom[]                @relation("ChatRoomCreator")
+  createdChatRooms                 ChatRoom[]                    @relation("ChatRoomCreator")
   chatRoomMemberships              ChatRoomUserMember[]
-  chatRoomMessages                 ChatRoomMessage[]         @relation("ChatRoomUserSender")
-  chatRoomPinnedMessages           ChatRoomPinnedMessage[]   @relation("ChatRoomPinnedMessagePinnedBy")
+  chatRoomMessages                 ChatRoomMessage[]             @relation("ChatRoomUserSender")
+  chatRoomPinnedMessages           ChatRoomPinnedMessage[]       @relation("ChatRoomPinnedMessagePinnedBy")
   chatRoomReactions                ChatRoomReaction[]
   chatRoomReadStates               ChatRoomReadState[]
   chatRoomThreadReadStates         ChatRoomThreadReadState[]
   chatRoomUserMentions             ChatRoomUserMention[]
-  chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
-  chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
-  chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
+  chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[]     @relation("ChatRoomGuestInvitationInviter")
+  chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[]     @relation("ChatRoomGuestInvitationAcceptedBy")
+  chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[]     @relation("ChatRoomGuestInviteLinkCreator")
+  chatMessageSignalCorrections     ChatMessageSignalCorrection[]
+  chatCatchUpSummaries             ChatCatchUpSummary[]
   noticeAcknowledgments            NoticeAcknowledgment[]
-  badgeCampaignsCreated            BadgeCampaign[]           @relation("BadgeCampaignCreatedBy")
+  badgeCampaignsCreated            BadgeCampaign[]               @relation("BadgeCampaignCreatedBy")
   badgeCampaignsSeen               BadgeCampaignSeen[]
   projectStars                     ProjectStar[]
 

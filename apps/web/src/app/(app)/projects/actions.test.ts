@@ -9,7 +9,6 @@ const projectServiceMock = {
   listProjects: vi.fn(),
   pinProject: vi.fn(),
   unpinProject: vi.fn(),
-  listPinnedProjects: vi.fn(),
 };
 
 // Mock only the session source and exercise the real `withSession` wrapper so
@@ -99,21 +98,6 @@ describe("loadMoreProjects", () => {
     );
     expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
   });
-  it.each([
-    { userId: "user-1", organizationId: "org-2" },
-    { userId: "user-2", organizationId: "org-1" },
-    { userId: "user-1", organizationId: null },
-  ])(
-    "rejects a stale sidebar scope before reading projects: %j",
-    async (expectedScope) => {
-      const { loadMoreProjects } = await import("./actions");
-      await expect(
-        loadMoreProjects({ cursor: null, expectedScope }),
-      ).rejects.toThrow("Project workspace changed");
-      expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
-    },
-  );
-
   it("accepts the current personal workspace with a bounded page", async () => {
     getSessionResultMock.mockResolvedValue(
       ok({ user: { id: "user-1" }, session: { activeOrganizationId: null } }),
@@ -123,12 +107,10 @@ describe("loadMoreProjects", () => {
       pagination: null,
     });
     const { loadMoreProjects } = await import("./actions");
-    await expect(
-      loadMoreProjects({
-        cursor: null,
-        expectedScope: { userId: "user-1", organizationId: null },
-      }),
-    ).resolves.toEqual({ projects: [], nextCursor: null });
+    await expect(loadMoreProjects({ cursor: null })).resolves.toEqual({
+      projects: [],
+      nextCursor: null,
+    });
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: null,
       limit: 20,
@@ -186,30 +168,5 @@ describe("project Pin actions", () => {
       pinProjectAction({ projectId: "project-1" }),
     ).rejects.toThrow();
     expect(projectServiceMock.pinProject).not.toHaveBeenCalled();
-  });
-
-  it("lists the reader's Pins", async () => {
-    projectServiceMock.listPinnedProjects.mockResolvedValue([buildProject()]);
-
-    const { loadPinnedProjects } = await import("./actions");
-
-    await expect(
-      loadPinnedProjects({
-        expectedScope: { userId: "user-1", organizationId: "org-1" },
-      }),
-    ).resolves.toHaveLength(1);
-  });
-
-  it("refuses a Pin list belonging to a workspace the reader has left", async () => {
-    const { loadPinnedProjects } = await import("./actions");
-
-    // The guard exists so a Pin list cannot outlive an org switch: the rows
-    // would be another workspace's projects rendered as this one's.
-    await expect(
-      loadPinnedProjects({
-        expectedScope: { userId: "user-1", organizationId: "org-2" },
-      }),
-    ).rejects.toThrow("Project workspace changed");
-    expect(projectServiceMock.listPinnedProjects).not.toHaveBeenCalled();
   });
 });
