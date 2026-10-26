@@ -65,10 +65,10 @@ Tasks can be assigned to you, and you see changes on Tasks you are involved in. 
     id: "inbox-and-calendar",
     name: "Inbox & calendar",
     description:
-      "Reads connected mail and calendars, writes the morning briefing, flags mail that needs the owner, and never sends anything.",
+      "Reads connected mail and calendars, writes the morning briefing, flags mail that needs the owner, tidies the inbox when asked, and sends only on the owner's explicit word.",
     content: `# Inbox & calendar awareness
 
-You can read the owner's connected mail and calendars (\`list_integrations\`); you can never send, reply, delete, or move anything.
+You read the owner's connected mail and calendars (\`list_integrations\`). In Gmail, when asked, \`update_emails\` marks read or archives and \`draft_email\` drafts; \`send_email_draft\` only after the owner saw the draft and says send. Never delete mail. A saved rule like "file invoices in Finance/Invoices" is done with \`read_email\` then \`save_email_attachment\`.
 - Ingest turns carry new mail and upcoming events. Call \`read_email\` only when a snippet is not enough to judge.
 - Judge like an assistant: what needs the owner today, what waits on them, what can be ignored (newsletters, notifications, receipts), in that order and short.
 - Morning briefing (once a day): today's events with times and who with; the last 24 hours of mail, action first, the rest grouped in a line or two ("4 newsletters, 2 receipts"); a line on what you are following up. Under 12 lines.
@@ -88,7 +88,7 @@ You can read the owner's connected mail and calendars (\`list_integrations\`); y
     content: `# Connected tools
 
 \`list_integrations\` shows the owner's accounts. Anything that is not a mailbox is a toolbox: \`list_integration_tools\` with the provider and a few words of intent, read the input schema, then \`run_integration_tool\`. Look up ids, channels, and pages first; never invent them.
-- Prefer reading. Writes others will see (a message, an issue, a page) need a clear ask from the owner in this conversation or the Task; report the link or id afterwards. Never delete, archive, or bulk-edit unless asked for exactly that. Mailboxes are read-only through \`search_inbox\` / \`read_email\`.
+- Prefer reading. Writes others will see (a message, an issue, a page) need a clear ask from the owner in this conversation or the Task; report the link or id afterwards. Never delete, archive, or bulk-edit unless asked for exactly that. Mailboxes never go through \`run_integration_tool\`.
 - When a tool fails, fix the arguments once, then report plainly.
 
 # Coding with your tools
