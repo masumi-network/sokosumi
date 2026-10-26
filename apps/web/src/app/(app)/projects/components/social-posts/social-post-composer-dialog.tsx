@@ -10,11 +10,11 @@ import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
-  SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaValidationReason,
   socialPostFirstCommentLimit,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -317,12 +317,6 @@ export function SocialPostComposerDialog({
     )?.provider ??
     post?.provider ??
     providers[0];
-  // Media errors still name the strictest selected provider.
-  const provider = providers.reduce((strictest, candidate) =>
-    SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
-      ? candidate
-      : strictest,
-  );
   const accept = socialPostComposerAccept(providers);
   function textFor(connectionId: string | null | undefined): string {
     return socialPostTextFor(connectionId, copy);
@@ -338,19 +332,30 @@ export function SocialPostComposerDialog({
     );
   }
   const displayedText = textFor(previewConnection?.id);
-  const displayedLimit =
-    SOCIAL_POST_TEXT_LIMITS[previewConnection ? previewProvider : provider];
-  const displayedOverLimit = displayedText.length > displayedLimit;
   const accountTexts =
     selectedConnections.length > 0
       ? selectedConnections.map((connection) => ({
           provider: connection.provider,
+          limit: socialPostTextLimit(
+            connection.provider,
+            connection.subscriptionType,
+          ),
           text: textFor(connection.id),
         }))
       : providers.map((candidate) => ({
           provider: candidate,
+          limit: socialPostTextLimit(candidate),
           text: copy.shared,
         }));
+  // Media errors still name the strictest selected provider.
+  const provider = accountTexts.reduce((strictest, candidate) =>
+    candidate.limit < strictest.limit ? candidate : strictest,
+  ).provider;
+  const displayedLimit = socialPostTextLimit(
+    previewConnection ? previewProvider : provider,
+    previewConnection?.subscriptionType,
+  );
+  const displayedOverLimit = displayedText.length > displayedLimit;
   const issueAccount =
     accountTexts.find(
       (account) =>
@@ -375,8 +380,7 @@ export function SocialPostComposerDialog({
   const requirementHints = socialPostComposerRequirements(accountTexts, media);
   const trimmedText = displayedText.trim();
   const overLimit = accountTexts.some(
-    (account) =>
-      account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
+    (account) => account.text.length > account.limit,
   );
   const trimmedFirstComment = firstComment.trim();
   const commentProviders = (
@@ -1221,7 +1225,7 @@ export function SocialPostComposerDialog({
                       data-testid="social-post-platforms"
                     >
                       {accountTexts.map((account, index) => {
-                        const limit = SOCIAL_POST_TEXT_LIMITS[account.provider];
+                        const limit = account.limit;
                         const over = account.text.length > limit;
                         return (
                           <li

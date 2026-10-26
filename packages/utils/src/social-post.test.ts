@@ -19,6 +19,7 @@ import {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLimit,
   splitYouTubePostText,
   validateSocialPostMedia,
 } from "./social-post.js";
@@ -47,6 +48,20 @@ const quicktime = ref({
 });
 
 describe("per-provider limits and requirements", () => {
+  it.each(["Basic", "Premium", "PremiumPlus"])(
+    "allows long X posts for %s accounts",
+    (subscriptionType) => {
+      expect(socialPostTextLimit("x", subscriptionType)).toBe(25_000);
+    },
+  );
+
+  it.each(["None", null, undefined, "unknown", "premium"])(
+    "keeps the default X limit for %s",
+    (subscriptionType) => {
+      expect(socialPostTextLimit("x", subscriptionType)).toBe(280);
+    },
+  );
+
   it.each([
     ["x", 280],
     ["linkedin", 3000],
@@ -56,6 +71,10 @@ describe("per-provider limits and requirements", () => {
     ["youtube", 5000],
   ] as const)("caps %s text at %i characters", (provider, limit) => {
     expect(SOCIAL_POST_TEXT_LIMITS[provider]).toBe(limit);
+    expect(socialPostTextLimit(provider)).toBe(limit);
+    if (provider !== "x") {
+      expect(socialPostTextLimit(provider, "Premium")).toBe(limit);
+    }
   });
 
   it.each([

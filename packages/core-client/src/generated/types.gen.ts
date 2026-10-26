@@ -6493,6 +6493,10 @@ export type ProjectSocialConnection = {
     externalHandle: string | null;
     displayName: string | null;
     /**
+     * X subscription tier; null when unknown or not X
+     */
+    subscriptionType: string | null;
+    /**
      * Profile picture copy in Sokosumi storage
      */
     avatarUrl: string | null;
@@ -7383,6 +7387,10 @@ export type SocialPostSocialConnection = {
      * Profile picture copy in Sokosumi storage
      */
     avatarUrl: string | null;
+    /**
+     * X subscription tier; null when unknown or not X
+     */
+    subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
 } | null;
 

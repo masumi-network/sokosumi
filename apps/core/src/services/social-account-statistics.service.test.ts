@@ -58,6 +58,7 @@ const account = {
   externalHandle: "launch",
   displayName: "Launch",
   avatarUrl: null,
+  subscriptionType: null,
   status: "active",
   connectedAt: new Date("2026-10-01T12:00:00Z"),
   disconnectedAt: null,
@@ -145,6 +146,42 @@ beforeEach(() => {
 });
 
 describe("Social account statistics", () => {
+  it.each(["Basic", "Premium", "PremiumPlus", "None"])(
+    "refreshes the X subscription tier to %s",
+    async (subscriptionType) => {
+      mocks.provider.mockResolvedValue({ ...page, subscriptionType });
+      await refreshSocialAccountStatistics({
+        ...scope,
+        userId: "user_1",
+        connectionId,
+      });
+      expect(mocks.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subscriptionType }),
+        }),
+      );
+    },
+  );
+
+  it.each(["absent", "failed"])(
+    "keeps the stored subscription tier when the read is %s",
+    async (result) => {
+      mocks.connections.mockResolvedValue([
+        { ...connection, subscriptionType: "Premium" },
+      ]);
+      if (result === "failed")
+        mocks.provider.mockRejectedValue(new Error("Provider unavailable"));
+      await refreshSocialAccountStatistics({
+        ...scope,
+        userId: "user_1",
+        connectionId,
+      });
+      expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty(
+        "subscriptionType",
+      );
+    },
+  );
+
   it("returns cached external posts and independent account totals without provider history calls", async () => {
     const publishedFrom = new Date("2026-10-01T00:00:00Z");
     const result = await listSocialAccountStatistics({

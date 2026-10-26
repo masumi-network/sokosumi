@@ -1,5 +1,5 @@
 /**
- * Maximum text length per social provider for a Social post.
+ * Default maximum text length per social provider for a Social post.
  * Client-safe: web reuses it for composer validation, Core for request validation.
  */
 export const SOCIAL_POST_TEXT_LIMITS = {
@@ -15,6 +15,25 @@ export const SOCIAL_POST_TEXT_LIMITS = {
 export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
+
+export const X_PREMIUM_TEXT_LIMIT = 25_000;
+export const X_LONG_POST_SUBSCRIPTION_TYPES = [
+  "Basic",
+  "Premium",
+  "PremiumPlus",
+] as const;
+export type XLongPostSubscriptionType =
+  (typeof X_LONG_POST_SUBSCRIPTION_TYPES)[number];
+
+export function socialPostTextLimit(
+  provider: SocialPostProvider,
+  subscriptionType?: string | null,
+): number {
+  return provider === "x" &&
+    X_LONG_POST_SUBSCRIPTION_TYPES.some((tier) => tier === subscriptionType)
+    ? X_PREMIUM_TEXT_LIMIT
+    : SOCIAL_POST_TEXT_LIMITS[provider];
+}
 
 /** Whether a provider accepts a post with text only, media only, or needs video. */
 export type SocialPostMediaRequirement = "none" | "any" | "video";

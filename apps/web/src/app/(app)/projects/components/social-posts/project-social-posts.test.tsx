@@ -419,6 +419,7 @@ function buildConnection(
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -475,6 +476,7 @@ const SCHEDULED_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
@@ -520,6 +522,7 @@ const FAILED_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   lastError: "X rejected the post (403 forbidden)",
@@ -552,6 +555,7 @@ const PUBLISHING_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   attemptCount: 1,
@@ -1196,6 +1200,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1207,6 +1212,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: null,
               displayName: "Sokosumi Co",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1261,6 +1267,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
             media: [IMAGE_REF, gif],
@@ -1292,6 +1299,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1325,6 +1333,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1368,6 +1377,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
@@ -1546,6 +1556,7 @@ describe("ProjectSocialPosts", () => {
         externalHandle: "sokosumi",
         displayName: "Sokosumi HQ",
         avatarUrl: null,
+        subscriptionType: null,
         status: "active",
       },
     });
@@ -1573,6 +1584,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -2411,6 +2423,50 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeEnabled();
   });
 
+  it("uses the Premium X account limit in the counter and platform list", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ subscriptionType: "Premium" }),
+          buildConnection({
+            id: "linkedin",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "x".repeat(1000) },
+    });
+    expect(
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("1000 / 25000");
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 1000 / 25000");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+  });
+
   it("closes an empty composer without asking", async () => {
     const user = userEvent.setup();
     render(
@@ -2725,6 +2781,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi-co",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -4274,6 +4331,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi HQ",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           },
@@ -4698,6 +4756,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
@@ -4730,6 +4789,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,

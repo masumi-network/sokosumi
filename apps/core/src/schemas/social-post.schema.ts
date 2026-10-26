@@ -101,6 +101,7 @@ export const socialPostSocialConnectionSchema = z
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
     displayName: projectSocialConnectionSchema.shape.displayName,
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
+    subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
     status: projectSocialConnectionSchema.shape.status,
   })
   .openapi("SocialPostSocialConnection");
