@@ -27,6 +27,7 @@ import {
   roomUnreadReads,
 } from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenu,
@@ -122,6 +123,8 @@ export function ChatUnreadNavRows({
 
   const catchUpActive = pathname.startsWith(CHAT_CATCH_UP_PATH);
   const tSignals = useTranslations("App.Channels.Signals");
+  // PROTOTYPE: variants b and c name the filter instead of drawing an inbox.
+  const prototype = useSidebarPrototypeVariant() !== "a";
   // Everything waiting on the reader, across the rooms they have not muted.
   const needsYouTotal = rooms.reduce(
     (sum, room) =>
@@ -214,7 +217,13 @@ export function ChatUnreadNavRows({
                 aria-hidden
                 className={cn(
                   "group-data-[collapsible=icon]:hidden shrink-0",
-                  showMarkAll ? "w-14" : "w-7",
+                  prototype
+                    ? showMarkAll
+                      ? "w-24"
+                      : "w-16"
+                    : showMarkAll
+                      ? "w-14"
+                      : "w-7",
                 )}
               />
             </Link>,
@@ -257,12 +266,18 @@ export function ChatUnreadNavRows({
             onClick={toggleUnreadOnly}
             className={cn(
               CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
+              prototype &&
+                "border-sidebar-border h-6 w-auto rounded-full border px-2 text-xs font-medium",
               unreadOnly
                 ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
                 : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
             )}
           >
-            <Inbox className="size-4 md:size-3.5" aria-hidden />
+            {prototype ? (
+              t("allUnreads")
+            ) : (
+              <Inbox className="size-4 md:size-3.5" aria-hidden />
+            )}
           </button>
         </div>
       </SidebarMenuItem>

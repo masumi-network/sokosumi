@@ -3,6 +3,7 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
+  FolderOpen,
   HardDrive,
   ImagePlus,
   ListTodo,
@@ -10,6 +11,7 @@ import {
   Plus,
   Repeat,
   Share2,
+  Sparkles,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +21,7 @@ import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -37,6 +40,7 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 import { useMarkFeatureSeen } from "./feature-badges";
+import { NavPrototypeGroup } from "./nav-group.prototype.client";
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
@@ -51,6 +55,8 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
+  /** PROTOTYPE: the foldable group variants b and c put this row in. */
+  group?: "records" | "marketing";
 }
 
 /**
@@ -83,6 +89,8 @@ function ScopedMenuItems({
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
+  // PROTOTYPE: variants b and c group the nav and drop New task's rule.
+  const prototype = useSidebarPrototypeVariant() !== "a";
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -113,7 +121,7 @@ function ScopedMenuItems({
           }),
       label: t("newTask"),
       Icon: Plus,
-      separatorAfter: true,
+      separatorAfter: !prototype,
       feature: AnnouncedFeature.NEW_TASK,
     },
     {
@@ -143,6 +151,7 @@ function ScopedMenuItems({
       href: "/contacts",
       label: t("contacts"),
       Icon: Users,
+      group: "records",
     },
     // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
     // reader's project across without the studio knowing about the switcher.
@@ -152,14 +161,16 @@ function ScopedMenuItems({
       label: t("contentStudio"),
       Icon: ImagePlus,
       feature: AnnouncedFeature.CONTENT_STUDIO,
+      group: "marketing",
     },
     // Social scheduling is public and follows the studio's project scope.
     {
       key: "social",
       href: "/social",
-      label: t("social"),
+      label: prototype ? "Social posts" : t("social"),
       Icon: Share2,
       feature: AnnouncedFeature.SOCIAL,
+      group: "marketing",
     },
     ...(socialBetaEnabled
       ? [
@@ -170,6 +181,7 @@ function ScopedMenuItems({
             label: t("ads"),
             Icon: Megaphone,
             feature: AnnouncedFeature.SOCIAL,
+            group: "marketing" as const,
           },
         ]
       : []),
@@ -182,10 +194,115 @@ function ScopedMenuItems({
             label: t("drive"),
             Icon: HardDrive,
             feature: AnnouncedFeature.DRIVE,
+            group: "records" as const,
           },
         ]
       : []),
   ];
+
+  const renderItem = ({
+    key,
+    href,
+    label,
+    Icon,
+    onClick,
+    separatorAfter,
+    feature,
+  }: MenuItemConfig) => {
+    const isActive = href ? isPathActive(href) : false;
+    // The pill wears the rail square's 4px inset and 4px padding
+    // at every width, so collapsing only narrows it: its edge
+    // and the + inside it stay where they are.
+    const newTaskClassName =
+      key === "new-task"
+        ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+        : undefined;
+
+    // Collapsed rail hides the label, so every item needs the hint.
+    const tooltip = label;
+
+    const content = (
+      <>
+        <SidebarRowSlot>
+          <Icon className="size-4" aria-hidden />
+        </SidebarRowSlot>
+        <span
+          className={cn(
+            SIDEBAR_ROW_LABEL_CLASS,
+            SIDEBAR_ROW_FIXED_LABEL_CLASS,
+            SIDEBAR_FEATURE_LABEL_CLASS,
+          )}
+        >
+          {feature ? (
+            <SidebarFeatureLabel label={label} feature={feature} />
+          ) : (
+            <span className="min-w-0 truncate">{label}</span>
+          )}
+        </span>
+      </>
+    );
+
+    return (
+      <Fragment key={key}>
+        <SidebarMenuItem>
+          {href ? (
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
+              data-sidebar-new-task={key === "new-task" ? "" : undefined}
+              className={newTaskClassName}
+              tooltip={tooltip}
+            >
+              <SheetClose asChild>
+                <Link
+                  href={hrefFor(href)}
+                  onClick={() => feature && markFeatureSeen(feature)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    key === "new-task"
+                      ? newTaskClassName
+                      : isActive
+                        ? "text-sidebar-accent-foreground"
+                        : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  {content}
+                </Link>
+              </SheetClose>
+            </SidebarMenuButton>
+          ) : (
+            <SidebarMenuButton
+              type="button"
+              onClick={() => {
+                if (feature) markFeatureSeen(feature);
+                onClick?.();
+              }}
+              data-sidebar-new-task={key === "new-task" ? "" : undefined}
+              tooltip={tooltip}
+              className={cn(
+                newTaskClassName ??
+                  "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
+            >
+              {content}
+            </SidebarMenuButton>
+          )}
+          {/* Collapsed, the rail's fill belongs to hover alone, so
+                          the open destination is marked on the rail's edge the
+                          same way an open Chat room is. */}
+          {isActive ? <SidebarRailSelectionBar /> : null}
+        </SidebarMenuItem>
+        {separatorAfter ? (
+          <SidebarMenuItem aria-hidden className="-mx-2 py-2">
+            <div className="bg-sidebar-border h-px w-full" />
+          </SidebarMenuItem>
+        ) : null}
+      </Fragment>
+    );
+  };
+
+  const inGroup = (group: MenuItemConfig["group"]) =>
+    items.filter((item) => item.group === group);
 
   return (
     <>
@@ -197,115 +314,30 @@ function ScopedMenuItems({
       <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
-            {items.map(
-              ({
-                key,
-                href,
-                label,
-                Icon,
-                onClick,
-                separatorAfter,
-                feature,
-              }) => {
-                const isActive = href ? isPathActive(href) : false;
-                // The pill wears the rail square's 4px inset and 4px padding
-                // at every width, so collapsing only narrows it: its edge
-                // and the + inside it stay where they are.
-                const newTaskClassName =
-                  key === "new-task"
-                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
-                    : undefined;
-
-                // Collapsed rail hides the label, so every item needs the hint.
-                const tooltip = label;
-
-                const content = (
-                  <>
-                    <SidebarRowSlot>
-                      <Icon className="size-4" aria-hidden />
-                    </SidebarRowSlot>
-                    <span
-                      className={cn(
-                        SIDEBAR_ROW_LABEL_CLASS,
-                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
-                        SIDEBAR_FEATURE_LABEL_CLASS,
-                      )}
-                    >
-                      {feature ? (
-                        <SidebarFeatureLabel label={label} feature={feature} />
-                      ) : (
-                        <span className="min-w-0 truncate">{label}</span>
-                      )}
-                    </span>
-                  </>
-                );
-
-                return (
-                  <Fragment key={key}>
-                    <SidebarMenuItem>
-                      {href ? (
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          data-sidebar-new-task={
-                            key === "new-task" ? "" : undefined
-                          }
-                          className={newTaskClassName}
-                          tooltip={tooltip}
-                        >
-                          <SheetClose asChild>
-                            <Link
-                              href={hrefFor(href)}
-                              onClick={() =>
-                                feature && markFeatureSeen(feature)
-                              }
-                              aria-current={isActive ? "page" : undefined}
-                              className={cn(
-                                key === "new-task"
-                                  ? newTaskClassName
-                                  : isActive
-                                    ? "text-sidebar-accent-foreground"
-                                    : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                              )}
-                            >
-                              {content}
-                            </Link>
-                          </SheetClose>
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton
-                          type="button"
-                          onClick={() => {
-                            if (feature) markFeatureSeen(feature);
-                            onClick?.();
-                          }}
-                          data-sidebar-new-task={
-                            key === "new-task" ? "" : undefined
-                          }
-                          tooltip={tooltip}
-                          className={cn(
-                            newTaskClassName ??
-                              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                          )}
-                        >
-                          {content}
-                        </SidebarMenuButton>
-                      )}
-                      {/* Collapsed, the rail's fill belongs to hover alone, so
-                          the open destination is marked on the rail's edge the
-                          same way an open Chat room is. */}
-                      {isActive ? <SidebarRailSelectionBar /> : null}
-                    </SidebarMenuItem>
-                    {separatorAfter ? (
-                      <SidebarMenuItem aria-hidden className="-mx-2 py-2">
-                        <div className="bg-sidebar-border h-px w-full" />
-                      </SidebarMenuItem>
-                    ) : null}
-                  </Fragment>
-                );
-              },
+            {(prototype ? items.filter(({ group }) => !group) : items).map(
+              renderItem,
             )}
           </SidebarMenu>
+          {prototype ? (
+            <>
+              <NavPrototypeGroup
+                title="Records"
+                railIcon={FolderOpen}
+                defaultOpen
+              >
+                {inGroup("records").map(renderItem)}
+              </NavPrototypeGroup>
+              <NavPrototypeGroup
+                title="Marketing"
+                railIcon={Sparkles}
+                defaultOpen={inGroup("marketing").some(
+                  ({ href }) => href !== undefined && isPathActive(href),
+                )}
+              >
+                {inGroup("marketing").map(renderItem)}
+              </NavPrototypeGroup>
+            </>
+          ) : null}
         </SidebarGroupContent>
       </SidebarGroup>
     </>

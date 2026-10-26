@@ -1,18 +1,21 @@
 import { Suspense } from "react";
 
+import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
-import PersonalAssistantNavClient, {
-  type SidebarSokoBotAvatar,
-} from "./personal-assistant-nav.client";
+import PersonalAssistantNavClient from "./personal-assistant-nav.client";
+import {
+  type SidebarSokoBotLive,
+  SokoBotLiveNav,
+} from "./personal-assistant-nav.prototype.client";
 
 /**
  * The face the row shows: the workspace's first Soko Bot, yours when you have
  * one. Null in a workspace with none, where the row falls back to the bot
  * icon rather than borrowing a mascot that belongs to nobody.
  */
-async function loadWorkspaceBot(): Promise<SidebarSokoBotAvatar | null> {
+async function loadWorkspaceBot(): Promise<SidebarSokoBotLive | null> {
   try {
     const { members } = await sokoBotService.getTeam();
     const withBot = members.filter((member) => member.bot);
@@ -24,6 +27,11 @@ async function loadWorkspaceBot(): Promise<SidebarSokoBotAvatar | null> {
       id: member.bot.id,
       imageUrl: member.bot.avatarImageUrl,
       seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
+      // PROTOTYPE: live state for sidebar variants b and c.
+      name: member.bot.name,
+      status: member.bot.status,
+      lastActivityAt: member.bot.lastActivityAt,
+      isYours: member.isYou,
     };
   } catch {
     return null;
@@ -31,7 +39,17 @@ async function loadWorkspaceBot(): Promise<SidebarSokoBotAvatar | null> {
 }
 
 async function WithBot() {
-  return <PersonalAssistantNavClient bot={await loadWorkspaceBot()} />;
+  const bot = await loadWorkspaceBot();
+  return (
+    <>
+      <SidebarPrototypeOnly variants={["a"]}>
+        <PersonalAssistantNavClient bot={bot} />
+      </SidebarPrototypeOnly>
+      <SidebarPrototypeOnly variants={["b", "c"]}>
+        <SokoBotLiveNav bot={bot} />
+      </SidebarPrototypeOnly>
+    </>
+  );
 }
 
 /**

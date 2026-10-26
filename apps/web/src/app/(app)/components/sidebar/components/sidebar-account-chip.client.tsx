@@ -2,10 +2,11 @@
 
 import { resolveAccountDisplayName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
-import { AlertTriangle, ChevronDown } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Popover,
@@ -77,6 +78,8 @@ function SidebarAccountChipDesktop({
 }: SidebarAccountChipProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
+  // PROTOTYPE: variants b and c badge the plan and shorten the balance.
+  const prototype = useSidebarPrototypeVariant() !== "a";
   const tPresence = useTranslations("App.Channels.Presence");
   const { state } = useSidebar();
   const presence = useSelfPresence();
@@ -158,9 +161,22 @@ function SidebarAccountChipDesktop({
       {isCollapsed ? null : (
         <>
           <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 group-data-[collapsible=icon]:hidden">
-            <span className="w-full truncate text-left text-sm leading-tight font-medium">
-              {displayName}
-            </span>
+            {prototype ? (
+              <span className="flex w-full min-w-0 items-center gap-1.5">
+                <span className="truncate text-left text-sm leading-tight font-medium">
+                  {displayName}
+                </span>
+                {planName ? (
+                  <span className="border-sidebar-border text-muted-foreground shrink-0 rounded-sm border px-1 text-2xs leading-4 font-medium">
+                    {planName}
+                  </span>
+                ) : null}
+              </span>
+            ) : (
+              <span className="w-full truncate text-left text-sm leading-tight font-medium">
+                {displayName}
+              </span>
+            )}
             <span
               className={cn(
                 "flex w-full items-center gap-1 text-xs leading-tight",
@@ -172,13 +188,27 @@ function SidebarAccountChipDesktop({
               {isLowCredits ? (
                 <AlertTriangle className="size-3 shrink-0" aria-hidden />
               ) : null}
-              <span className="min-w-0 truncate tabular-nums">{summary}</span>
+              <span className="min-w-0 truncate tabular-nums">
+                {prototype && totalCredits !== null
+                  ? `${new Intl.NumberFormat(undefined, {
+                      notation: "compact",
+                      maximumFractionDigits: 1,
+                    }).format(totalCredits)} credits`
+                  : summary}
+              </span>
             </span>
           </span>
-          <ChevronDown
-            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
-            aria-hidden
-          />
+          {prototype ? (
+            <ChevronsUpDown
+              className="text-muted-foreground size-3.5 shrink-0 group-data-[collapsible=icon]:hidden"
+              aria-hidden
+            />
+          ) : (
+            <ChevronDown
+              className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
+              aria-hidden
+            />
+          )}
         </>
       )}
     </button>

@@ -6,6 +6,7 @@ import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import { SidebarPrototypeSwitcher } from "@/components/prototype/sidebar-prototype.client";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
@@ -143,6 +144,8 @@ export default async function AuthenticatedAppFrame({
                             socialBetaEnabled={socialBetaEnabled}
                           />
                         </FeatureBadgesProvider>
+                        {/* PROTOTYPE: sidebar variants, see the component. */}
+                        <SidebarPrototypeSwitcher />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
                         </Suspense>

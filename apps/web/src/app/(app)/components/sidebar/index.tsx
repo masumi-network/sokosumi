@@ -2,6 +2,7 @@ import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
+import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -114,7 +115,10 @@ export default function Sidebar({
             <SidebarProjectScope />
           </Suspense>
           <PersonalAssistantNav />
-          <SidebarSeparator className="-mt-px" />
+          {/* PROTOTYPE: variants b and c separate by space, not rules. */}
+          <SidebarPrototypeOnly variants={["a"]}>
+            <SidebarSeparator className="-mt-px" />
+          </SidebarPrototypeOnly>
           <MenuItems socialBetaEnabled={socialBetaEnabled} />
           <SidebarSeparator />
           {chatList}

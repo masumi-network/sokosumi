@@ -4,6 +4,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import {
   Popover,
   PopoverContent,
@@ -40,11 +41,22 @@ export function SidebarProjectScope() {
   const { projectId, name, label, mark, select } = useCurrentScope();
   const collapsed = state === "collapsed" && !isMobile;
   const prefetch = usePrefetchScopeProjects();
+  // PROTOTYPE: variants b and c label the picker and drop its rule.
+  const prototype = useSidebarPrototypeVariant() !== "a";
 
   const content = (
     <>
       <SidebarRowSlot aria-hidden>{mark}</SidebarRowSlot>
-      <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>{name}</span>
+      {prototype ? (
+        <span className="flex min-w-0 flex-1 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+          <span className="text-muted-foreground text-2xs font-medium">
+            Project
+          </span>
+          <span className="truncate">{projectId ? name : "All projects"}</span>
+        </span>
+      ) : (
+        <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>{name}</span>
+      )}
       <ChevronsUpDown
         className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden"
         aria-hidden
@@ -66,7 +78,11 @@ export function SidebarProjectScope() {
                 aria-expanded={sheetOpen}
                 aria-label={label}
                 data-testid="project-scope-sidebar-row"
-                className="font-medium data-[state=open]:bg-sidebar-accent"
+                className={cn(
+                  "font-medium data-[state=open]:bg-sidebar-accent",
+                  prototype &&
+                    "h-auto py-1.5 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:py-0",
+                )}
                 onPointerDown={prefetch}
                 onClick={() => {
                   setOpenMobile(false);
@@ -82,7 +98,11 @@ export function SidebarProjectScope() {
                     type="button"
                     aria-label={label}
                     data-testid="project-scope-sidebar-row"
-                    className="font-medium data-[state=open]:bg-sidebar-accent"
+                    className={cn(
+                      "font-medium data-[state=open]:bg-sidebar-accent",
+                      prototype &&
+                        "h-auto py-1.5 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:py-0",
+                    )}
                     // Rail only, and not over its own open popover.
                     tooltip={{ children: label, hidden: !collapsed || open }}
                     onPointerEnter={prefetch}
@@ -110,7 +130,7 @@ export function SidebarProjectScope() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
-      <SidebarSeparator />
+      {prototype ? null : <SidebarSeparator />}
     </>
   );
 }

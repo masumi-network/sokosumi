@@ -40,6 +40,7 @@ import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
+import { useSidebarPrototypeVariant } from "@/components/prototype/sidebar-prototype.client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -233,6 +234,7 @@ export function OrganizationChatList({
     useSidebarSectionShowAll("external");
   const [directShowAll, setDirectShowAll] = useSidebarSectionShowAll("direct");
   const [unreadOnly, setUnreadOnly] = useChatUnreadsFilter();
+  const sidebarPrototype = useSidebarPrototypeVariant() !== "a";
   const [filterSwitched, setFilterSwitched] = useState(false);
   const reduceMotion = useReducedMotion();
 
@@ -494,13 +496,23 @@ export function OrganizationChatList({
     }, reloadAfterFailure);
   }
 
+  // PROTOTYPE: variants b and c name your own Direct "Name (you)".
+  function selfLabel(room: ChatRoom): string {
+    const selfName = room.userMembers.find(
+      (member) => member.id === currentUserId,
+    )?.name;
+    return sidebarPrototype && selfName
+      ? `${selfName} (you)`
+      : t("SelfDirect.you");
+  }
+
   function roomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
     const isDirect = room.kind === "direct";
     return {
       room,
       href: `/chat/rooms/${room.id}`,
       label: isDirect
-        ? getRoomDisplayName(room, currentUserId, t("SelfDirect.you"))
+        ? getRoomDisplayName(room, currentUserId, selfLabel(room))
         : room.name,
       subtitle:
         room.myAccess === "guest" && room.organizationName
