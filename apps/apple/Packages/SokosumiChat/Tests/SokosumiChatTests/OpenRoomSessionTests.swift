@@ -431,10 +431,10 @@ struct OpenRoomSessionTests {
   func openingAtTheDividerReadsNothing(firstUnread: String?, readsOnOpen: Bool) async throws {
     var atEndWhenSynced: [Bool] = []
     var atEnd: () -> Bool = { false }
-    let session = try connected(TestTransport([
-      (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Unread", sender: ada)], nextCursor: nil,
-                                 firstUnreadMessageId: .some(firstUnread)))
-    ]), synced: { atEndWhenSynced.append(atEnd()) })
+    let page = (200, testMessagesPageBody(messages: [testMessageJSON(id: "m1", content: "Unread", sender: ada)], nextCursor: nil,
+                                          firstUnreadMessageId: .some(firstUnread)))
+    // A divider's answer joins the newest page, read next.
+    let session = try connected(TestTransport(firstUnread == nil ? [page] : [page, page]), synced: { atEndWhenSynced.append(atEnd()) })
     atEnd = { session.isAtEnd }
     session.open(room(testRoomId), userId: "me", organizationId: nil, atUnreadDivider: true)
     session.room.setAtEnd(true)

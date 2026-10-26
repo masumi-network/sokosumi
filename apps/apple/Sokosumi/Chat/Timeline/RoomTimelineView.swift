@@ -175,8 +175,10 @@ import SwiftUI
           Button("OK", role: .cancel) {}
         } message: { Text(jumpError ?? "") }
         // The room counts as read only at the end of its transcript (SOK-1481): tell the room whenever the list reaches
-        // or leaves it, and again for each visit, which starts away from it.
-        .onChange(of: TranscriptEnd(visit: workspaces.openRoom.room.timeline.generation, atEnd: !scroll.showsJumpToLatest(anchored: anchored)),
+        // or leaves it, and again for each visit, which starts away from it. A list mounting where the Unread divider
+        // is still to be placed is not at the end yet: it is about to move.
+        .onChange(of: TranscriptEnd(visit: workspaces.openRoom.room.timeline.generation,
+                                    atEnd: !scroll.showsJumpToLatest(anchored: anchored) && !workspaces.openRoom.room.placesUnreadDivider),
                   initial: true) { _, end in
           Task { @MainActor in await workspaces.openRoom.setAtEnd(end.atEnd, roomId: roomId) }
         }
@@ -359,7 +361,7 @@ import SwiftUI
           // Spec SOK-1481: a room with Room unread opens at its Unread divider, unless an explicit target took it.
           if workspaces.openRoom.room.placesUnreadDivider, let unreadDividerId {
             placeUnreadDivider(unreadDividerId)
-            workspaces.openRoom.room.unreadDividerPlaced()
+            workspaces.openRoom.room.endUnreadDividerPlacement()
             return
           }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
@@ -437,6 +439,7 @@ import SwiftUI
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           firstRows.viewport = (edges.topInset, edges.viewportHeight)
           firstRows.offset = edges.offsetY
+          firstRows.edges = edges
           var next = scroll
           next.edgesChanged(from: oldEdges, to: edges, userIsScrolling: userIsScrolling, anchored: anchored)
           if !edges.nearTop, !transcriptWasAwayFromTop {
@@ -493,9 +496,15 @@ import SwiftUI
       scrollPosition.scrollTo(id: id, anchor: UnitPoint(x: 0, y: 1.0 / 3))
       Task { @MainActor in
         defer { firstRows.landingAnchor = nil }
-        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest,
-              let offset = firstRows.settledOffset(for: id, was: firstRows.viewport.topInset + firstRows.viewport.height / 3) else { return }
-        scrollPosition.scrollTo(y: offset)
+        guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest else { return }
+        if let offset = firstRows.settledOffset(for: id, was: firstRows.viewport.topInset + firstRows.viewport.height / 3) {
+          scrollPosition.scrollTo(y: offset)
+          guard await (try? Task.sleep(for: .milliseconds(50))) != nil, scrollActivity.isAtRest else { return }
+        }
+        // A short unread run leaves the list at its end, which the room is read at (SOK-1481).
+        if let edges = firstRows.edges {
+          scroll.placementSettled(at: edges, anchored: anchored)
+        }
       }
     }
 
@@ -557,6 +566,8 @@ import SwiftUI
     var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
     /// The list's content offset, as the last geometry change reported it.
     var offset: CGFloat = 0
+    /// The list's edges, as the last geometry change reported them.
+    var edges: TranscriptScrollEdges?
     /// The row a landing keeps in place, tracked until it has settled.
     var landingAnchor: String?
     private var rows: [Int: (id: String, frame: CGRect)] = [:]

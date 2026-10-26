@@ -99,7 +99,7 @@ public final class TranscriptSession: ObservableObject {
   private func stop() {
     clearJump()
     isAtEnd = false
-    unreadDividerPlaced()
+    endUnreadDividerPlacement()
     loadTask?.cancel()
     loadTask = nil
     gapTask?.cancel()
@@ -108,16 +108,14 @@ public final class TranscriptSession: ObservableObject {
     outbox.reset()
   }
 
-  /// The list reports whether it is at its end; true when the reader has just reached it.
-  @discardableResult
-  public func setAtEnd(_ atEnd: Bool) -> Bool {
-    defer { isAtEnd = atEnd }
-    return atEnd && !isAtEnd
+  /// The list reports whether it is at its end.
+  public func setAtEnd(_ atEnd: Bool) {
+    isAtEnd = atEnd
   }
 
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
-    unreadDividerPlaced()
+    endUnreadDividerPlacement()
     // RoomTools is already waiting in `jump(to:)` when the room view's messageJump task requests this same row.
     // Replacing that request would answer false before the list lands.
     if let current = jumpTarget, landing != nil, current.messageId == messageId, !current.hasLanded, !current.isCovered {
@@ -129,7 +127,7 @@ public final class TranscriptSession: ObservableObject {
   /// Marks a row something covers now, on this Transcript's clock, so its hold runs under the cover (web's `landOn`).
   public func markCovered(_ messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
-    unreadDividerPlaced()
+    endUnreadDividerPlacement()
     replaceJump(with: JumpTarget(messageId: messageId, mark: JumpMark(messageId: messageId, landedAt: now()), isCovered: true))
   }
 
@@ -143,8 +141,8 @@ public final class TranscriptSession: ObservableObject {
     return await withCheckedContinuation { landing = $0 }
   }
 
-  /// The list placed the Unread divider, or something else took the opening.
-  public func unreadDividerPlaced() {
+  /// Ends a placement of the Unread divider still waiting: the list placed it, or something else took the opening.
+  public func endUnreadDividerPlacement() {
     if placesUnreadDivider {
       placesUnreadDivider = false
     }

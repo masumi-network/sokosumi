@@ -4177,6 +4177,23 @@ extension WorkspaceStateTests {
     state.openRoom.thread.close()
   }
 
+  /// Spec SOK-1481: the room read after a thread change is automatic too, so it waits for the end of the transcript;
+  /// the mute itself still goes through.
+  @Test func aThreadMuteAwayFromTheEndReadsNoRoom() async throws {
+    let (state, _, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (200, Self.threadBody(mutedAt: timestamp))
+    ])
+    await state.openRoom.setAtEnd(false, roomId: Self.muteRoomId)
+    let written = transport.operationIDs.count
+    await state.readThreadMuteIfNeeded()
+    await state.toggleThreadMute()
+    #expect(transport.operationIDs.count == written + 2, "The mute is read and toggled.")
+    #expect(!transport.operationIDs.dropFirst(written).contains("post/chats/rooms/{id}/read"))
+    #expect(transport.remainingStubs == 0)
+    state.openRoom.thread.close()
+  }
+
   @Test func markAllSettlesTheRowOnCoresHalves() async throws {
     let (state, _, transport) = try await Self.openOverview([
       (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),

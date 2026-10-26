@@ -169,18 +169,34 @@ public final class RoomReadAttention: ObservableObject {
     return true
   }
 
+  /// What the reader has in front of them when an automatic read is considered.
+  public struct Sight: Sendable {
+    public let room: Components.Schemas.ChatRoom
+    public let content: Content
+    /// The newest history is loaded and no jump window stands in for it.
+    public let historyReadable: Bool
+    /// The transcript is at its end (SOK-1481).
+    public let atEnd: Bool
+
+    public init(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, atEnd: Bool) {
+      self.room = room
+      self.content = content
+      self.historyReadable = historyReadable
+      self.atEnd = atEnd
+    }
+  }
+
   /// With a thread open this Looks it first. `threadLooked` runs as soon as a Look reaches Core, whatever
   /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts. The room is read
-  /// only while its transcript is `atEnd` (SOK-1481); away from it the open Thread is still Looked.
+  /// only while its transcript is at its end (SOK-1481); away from it the open Thread is still Looked.
   @discardableResult
-  // swiftlint:disable:next function_parameter_count
-  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, atEnd: Bool, client: Client,
-                           organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
+  public func readIfNeeded(_ sight: Sight, client: Client, organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
+    let (room, content, atEnd) = (sight.room, sight.content, sight.atEnd)
     let next = Marker(roomId: room.id, content: content, readsRoom: atEnd)
-    if marker?.covers(next) != true || !historyReadable {
+    if marker?.covers(next) != true || !sight.historyReadable {
       marker = nil
     }
-    guard isVisible, historyReadable, marker == nil, atEnd || content.parentMessageId != nil else { return false }
+    guard isVisible, sight.historyReadable, marker == nil, atEnd || content.parentMessageId != nil else { return false }
     marker = next
     let attempt = generation
     let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)

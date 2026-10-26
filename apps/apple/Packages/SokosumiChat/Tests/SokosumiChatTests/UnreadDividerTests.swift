@@ -21,8 +21,8 @@ struct UnreadDividerTests {
     "m\(String(format: "%03d", index))"
   }
 
-  private func page(_ range: ClosedRange<Int>, nextCursor: String? = nil, total: Int? = nil, firstUnread: String?? = .none) -> (Int, String) {
-    (200, testMessagesPageBody(messages: range.map { message($0) }, nextCursor: nextCursor, total: total, firstUnreadMessageId: firstUnread))
+  private func page(_ range: ClosedRange<Int>, nextCursor: String? = nil, firstUnread: String?? = .none) -> (Int, String) {
+    (200, testMessagesPageBody(messages: range.map { message($0) }, nextCursor: nextCursor, firstUnreadMessageId: firstUnread))
   }
 
   private func openedSession(_ responses: [(Int, String)], atUnreadDivider: Bool = true) async throws -> (TranscriptSession, TestTransport) {
@@ -49,11 +49,15 @@ struct UnreadDividerTests {
     }
   }
 
+  /// Core's answer lands as a jump window on the newest page, read next, whatever it holds: here it is that page.
   @Test func aRoomOpensAtTheDividerOnItsNewestPage() async throws {
-    let (session, transport) = try await openedSession([page(1 ... 10, firstUnread: id(7))])
-    #expect(transport.requests.count == 1)
+    let (session, transport) = try await openedSession([page(1 ... 10, firstUnread: id(7)), page(1 ... 10, firstUnread: id(7))])
+    #expect(transport.requests.count == 2)
     #expect(testRequestQuery(transport.requests[0].request).contains("openAtUnread=true"))
     #expect(testRequestQuery(transport.requests[0].request).contains("limit=100"))
+    #expect(!testRequestQuery(transport.requests[1].request).contains("openAtUnread"))
+    #expect(session.timeline.messages.map(\.id) == (1 ... 10).map(id))
+    #expect(session.timeline.historyGapMessageIds.isEmpty)
     #expect(session.timeline.unreadDividerMessageId == id(7))
     #expect(session.placesUnreadDivider)
     #expect(dividerRows(session) == [id(7)])
@@ -64,8 +68,8 @@ struct UnreadDividerTests {
   /// gap row, and the list reaches the present, so Jump to latest only scrolls.
   @Test func anOlderDividerJoinsTheNewestPageThroughTheGapRow() async throws {
     let (session, transport) = try await openedSession([
-      page(37 ... 70, nextCursor: id(37), total: 300, firstUnread: id(40)),
-      page(201 ... 300, nextCursor: id(201), total: 300, firstUnread: id(40))
+      page(37 ... 70, nextCursor: id(37), firstUnread: id(40)),
+      page(201 ... 300, nextCursor: id(201), firstUnread: id(40))
     ])
     #expect(transport.requests.count == 2)
     #expect(!testRequestQuery(transport.requests[1].request).contains("openAtUnread"))
@@ -83,6 +87,7 @@ struct UnreadDividerTests {
   /// read) leave the divider where the visit opened it. Edits do not move it either.
   @Test func theDividerIsFixedForTheVisit() async throws {
     let (session, transport) = try await openedSession([
+      page(1 ... 10, firstUnread: id(7)),
       page(1 ... 10, firstUnread: id(7)),
       (201, testCreatedMessageBody(id: "sent", content: "Mine", clientMessageId: "turn")),
       page(1 ... 12, firstUnread: .some(nil))
@@ -106,7 +111,7 @@ struct UnreadDividerTests {
 
   /// A deleted divider message hands the divider to the next loaded message after it; with none after it, it goes.
   @Test func deletingTheDividerMessageMovesItToTheNextLoadedMessage() async throws {
-    let (session, _) = try await openedSession([page(1 ... 10, firstUnread: id(8))])
+    let (session, _) = try await openedSession([page(1 ... 10, firstUnread: id(8)), page(1 ... 10, firstUnread: id(8))])
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: id(8), roomId: testRoomId))
     #expect(dividerRows(session) == [id(9)])
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: id(9), roomId: testRoomId))
@@ -117,7 +122,7 @@ struct UnreadDividerTests {
   /// Opening another room ends the visit; the next visit takes Core's answer afresh, so a room read meanwhile opens
   /// with no divider, at its newest message.
   @Test func aVisitEndsWhenAnotherRoomOpens() async throws {
-    let transport = TestTransport([page(1 ... 10, firstUnread: id(7)), page(1 ... 10, firstUnread: .some(nil))])
+    let transport = TestTransport([page(1 ... 10, firstUnread: id(7)), page(1 ... 10, firstUnread: id(7)), page(1 ... 10, firstUnread: .some(nil))])
     let client = try makeTestClient(transport)
     let session = TranscriptSession()
     session.hooks = .init(access: { (client, nil) }, failed: { _ in false }, pageLanded: { _ in })
@@ -143,7 +148,7 @@ struct UnreadDividerTests {
     #expect(!session.placesUnreadDivider)
     #expect(dividerRows(session) == [id(4)])
 
-    let (placing, _) = try await openedSession([page(1 ... 10, firstUnread: id(4))])
+    let (placing, _) = try await openedSession([page(1 ... 10, firstUnread: id(4)), page(1 ... 10, firstUnread: id(4))])
     #expect(placing.placesUnreadDivider)
     placing.requestJump(to: id(2))
     #expect(!placing.placesUnreadDivider)
@@ -152,7 +157,7 @@ struct UnreadDividerTests {
 
   /// A divider message an explicit target's page did not load draws nothing until a page brings it.
   @Test func aDividerMessageNotLoadedDrawsNothing() async throws {
-    let (session, _) = try await openedSession([page(201 ... 300, nextCursor: id(201), total: 300, firstUnread: id(40))], atUnreadDivider: false)
+    let (session, _) = try await openedSession([page(201 ... 300, nextCursor: id(201), firstUnread: id(40))], atUnreadDivider: false)
     #expect(session.timeline.unreadDividerMessageId == id(40))
     #expect(dividerRows(session).isEmpty)
   }
