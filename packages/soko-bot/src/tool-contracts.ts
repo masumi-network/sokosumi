@@ -316,6 +316,35 @@ export const sokoBotUploadFileInputSchema = z.object({
   folder: z.string().trim().min(1).max(200).optional(),
 });
 
+export const sokoBotUpdateEmailsInputSchema = z
+  .object({
+    /** Mailbox provider from list_integrations; omit when only one is connected. */
+    provider: z.string().min(1).max(40).optional(),
+    /** Message ids from search_inbox or read_email. */
+    messageIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+    /** true marks them read, false unread. */
+    read: z.boolean().optional(),
+    /** Moves them out of the inbox (Gmail archive); nothing is deleted. */
+    archive: z.boolean().optional(),
+  })
+  .strict();
+
+export const sokoBotDraftEmailInputSchema = z
+  .object({
+    provider: z.string().min(1).max(40).optional(),
+    to: z.array(z.string().email().max(320)).min(1).max(20),
+    cc: z.array(z.string().email().max(320)).max(20).optional(),
+    subject: z.string().max(300),
+    body: z.string().min(1).max(50_000),
+    /** Reply in the thread of this message (id from search_inbox). */
+    replyToMessageId: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const sokoBotSendEmailDraftInputSchema = z
+  .object({ draftId: z.string().min(1).max(200) })
+  .strict();
+
 export const sokoBotMoveFileInputSchema = z
   .object({
     /** Drive file id from list_files or upload_file. */
@@ -826,6 +855,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   get_video: sokoBotGetVideoInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   move_file: sokoBotMoveFileInputSchema,
+  update_emails: sokoBotUpdateEmailsInputSchema,
+  draft_email: sokoBotDraftEmailInputSchema,
+  send_email_draft: sokoBotSendEmailDraftInputSchema,
   list_skills: sokoBotListSkillsInputSchema,
   install_skill: sokoBotInstallSkillInputSchema,
   remove_skill: sokoBotRemoveSkillInputSchema,
@@ -967,6 +999,12 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
     "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
+  update_emails:
+    "Mark mail in the owner\u2019s mailbox read or unread, or archive it (out of the inbox, not deleted), by message ids from search_inbox. Use it when the owner asks you to clean up or handle mail. It never sends or deletes anything.",
+  draft_email:
+    "Write an email as a draft in the owner\u2019s mailbox, or a reply in a thread with replyToMessageId. Nothing is sent: show the owner the draft (recipients, subject, text) and say it waits for their OK.",
+  send_email_draft:
+    "Send a draft you wrote with draft_email in an earlier turn. Only when the owner, in their chat with you, has seen that draft and now explicitly tells you to send it (\u201csend it\u201d, \u201cyes, send the reply to Anna\u201d). Never from a scheduled, mail-triggered or task turn, never on your own judgement, and never without the owner having seen the draft. Core refuses it otherwise.",
   move_file:
     'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. A folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
   list_skills:
@@ -978,7 +1016,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:
-    "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Never send mail; you can only read.",
+    "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Reading changes nothing; update_emails marks mail read or archives it, draft_email writes drafts.",
   read_email: "Read one email in full by provider and messageId.",
   evaluate_with_jev:
     "Ask Jev, a fast judging model, up to 10 typed questions about a short state (text, or JSON as a string, up to 12,000 characters) and get probabilities back. A question without options is yes/no and returns the probability of yes; one with 2–8 named options (each with criteria saying what it means) returns the chosen option and every option's probability. Use it to judge many items the same way: triage mail, tag a list, yes/no checks over rows. Give each item a key in the state and name it in its question. Cheap and read-only; the answers are a guide, not facts.",

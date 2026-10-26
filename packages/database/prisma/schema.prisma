@@ -2294,6 +2294,7 @@ model SokoBot {
   labRuns               SokoBotLabRun[]
   installedSkills       SokoBotInstalledSkill[]
   integrations          SokoBotIntegration[]
+  mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
   nudges                SokoBotNudge[]
 
@@ -2307,6 +2308,9 @@ model SokoBot {
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
   proactiveDailyLimit Int       @default(20)
+  /// Each mail check marks the mail Jev tags bulk as read in the owner's
+  /// mailbox; urgent and notable mail stays unread for them.
+  mailAutoRead        Boolean   @default(false)
   /// Last morning briefing sent; one per local day.
   lastBriefingAt      DateTime?
 
@@ -6023,4 +6027,26 @@ model DriveShare {
   @@unique([workspaceId, sourceScope, ownerId, folderPath])
   @@index([workspaceId, sourceScope, ownerId])
   @@map("drive_share")
+}
+
+/// A draft the bot wrote in the owner's mailbox. Sending one is allowed only
+/// in a later turn, from the owner's own chat, after the owner saw it.
+model SokoBotMailDraft {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  provider     String
+  /// The provider's draft id.
+  draftId      String
+  to           String[]
+  subject      String
+  turnId       String
+  sentAt       DateTime?
+  sentByTurnId String?
+
+  @@unique([sokoBotId, draftId])
+  @@map("soko_bot_mail_draft")
 }

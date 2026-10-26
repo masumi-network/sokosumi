@@ -22,6 +22,7 @@ import {
   fetchCalendarEvents,
   fetchInboxMessages,
 } from "@/services/soko-bot-integrations.service";
+import { autoReadBulkMail } from "@/services/soko-bot-mail-auto-read.service";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
@@ -215,6 +216,7 @@ export class SokoBotIngestSyncService {
         workspaceId: true,
         ingestTimezone: true,
         lastBriefingAt: true,
+        mailAutoRead: true,
       },
     });
     for (const bot of bots) {
@@ -246,6 +248,7 @@ export class SokoBotIngestSyncService {
       workspaceId: string;
       ingestTimezone: string;
       lastBriefingAt: Date | null;
+      mailAutoRead: boolean;
     },
     abortSignal: AbortSignal,
   ): Promise<"briefings" | "deltas" | "skipped"> {
@@ -373,6 +376,19 @@ export class SokoBotIngestSyncService {
         limit: gate.limit,
         mail: mail.length,
       });
+      // A capped bot is not woken, but its owner's bulk mail is still read.
+      if (bot.mailAutoRead && mail.length > 0) {
+        const tagged = await triageMail({
+          sokoBotId: bot.id,
+          mail: mail.slice(0, MAX_MAIL_PER_BRIEFING),
+          source: kind,
+        });
+        tagged.log.set({
+          outcome: "withheld",
+          mailAutoRead: await autoReadBulkMail(bot.id, tagged.mail),
+        });
+        tagged.log.emit();
+      }
       await stamp(false);
       return "skipped";
     }
@@ -387,6 +403,10 @@ export class SokoBotIngestSyncService {
       ),
       source: kind,
     });
+    if (bot.mailAutoRead)
+      triage.log.set({
+        mailAutoRead: await autoReadBulkMail(bot.id, triage.mail),
+      });
     if (!briefing && !triage.mail.some((item) => item.tag === "URGENT")) {
       triage.log.set({ outcome: "quiet" });
       triage.log.emit();
