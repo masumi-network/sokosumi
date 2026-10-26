@@ -38,6 +38,15 @@ export const ROOM_MESSAGE_MARKDOWN_CLASSNAME =
 export const ROOM_QUOTE_MARKDOWN_CLASSNAME =
   "prose-p:my-0 [&_p+p]:mt-2 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0";
 
+/**
+ * WebKit stops painting a line-clamped quote after its fourth line but still
+ * sizes the box to every block child (the snippet's Markdown paragraphs,
+ * lists and code), leaving a tall empty card above "More" on iOS. The
+ * ceiling is four `leading-5` lines plus three `[&_p+p]:mt-2` gaps, the
+ * tallest a correct four-line clamp can be, so it only bites in that case.
+ */
+export const ROOM_QUOTE_CLAMP_CLASSNAME = "line-clamp-4 max-h-[6.5rem]";
+
 export interface DirectParticipantPreview {
   id: string;
   name: string;

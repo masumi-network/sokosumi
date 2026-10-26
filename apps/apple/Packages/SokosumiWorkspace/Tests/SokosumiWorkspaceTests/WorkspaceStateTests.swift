@@ -237,6 +237,7 @@ private func ephemeralState(
     sleep: recoveryTimersNeverFire
   )
   state.readAttention.setVisible(visible, window: UUID())
+  keepRoomListAtTheEnd(state)
   state.clientResolver = { client }
   return (state, auth, transport, defaults)
 }
@@ -962,7 +963,7 @@ struct WorkspaceStateTests {
 
   @Test func selectRoomPersistsAndOpensTranscript() async throws {
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, _, _, defaults) = try ephemeralState([
+    let (state, _, transport, defaults) = try ephemeralState([
       (200, workspacesBody()),
       (200, userBody),
       (200, roomsBody(names: ["general", "random"])),
@@ -983,6 +984,9 @@ struct WorkspaceStateTests {
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.openRoom.room.timeline.messages.map(\.content) == ["hi"])
+    // A room picked in the sidebar opens at its Unread divider.
+    let pages = transport.paths.filter { $0.contains("/messages") }
+    #expect(!pages.isEmpty && pages.allSatisfy { $0.contains("openAtUnread=true") })
   }
 
   @Test func selectRoomNilKeepsOpenTranscript() async throws {
@@ -2878,6 +2882,8 @@ extension WorkspaceStateTests {
     #expect(state.selectedRoomId == "destination")
     #expect(state.openRoom.messageJump?.messageId == "target")
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
+    // The link's target comes before the Unread divider: the room opens on its newest page.
+    #expect(transport.paths.allSatisfy { !$0.contains("openAtUnread") })
   }
 
   @Test func chatLinkRoomSwitchIsSupersededNotUnavailable() async throws {
@@ -4171,6 +4177,23 @@ extension WorkspaceStateTests {
     state.openRoom.thread.close()
   }
 
+  /// Spec SOK-1481: the room read after a thread change is automatic too, so it waits for the end of the transcript;
+  /// the mute itself still goes through.
+  @Test func aThreadMuteAwayFromTheEndReadsNoRoom() async throws {
+    let (state, _, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (200, Self.threadBody(mutedAt: timestamp))
+    ])
+    await state.openRoom.setAtEnd(false, roomId: Self.muteRoomId)
+    let written = transport.operationIDs.count
+    await state.readThreadMuteIfNeeded()
+    await state.toggleThreadMute()
+    #expect(transport.operationIDs.count == written + 2, "The mute is read and toggled.")
+    #expect(!transport.operationIDs.dropFirst(written).contains("post/chats/rooms/{id}/read"))
+    #expect(transport.remainingStubs == 0)
+    state.openRoom.thread.close()
+  }
+
   @Test func markAllSettlesTheRowOnCoresHalves() async throws {
     let (state, _, transport) = try await Self.openOverview([
       (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),
@@ -4678,7 +4701,8 @@ extension WorkspaceStateTests {
       (200, workspacesBody()), (200, userBody),
       (200, read ? roomsBody(names: ["general"]) : channelUnreadRoomsBody(id: recheckRoomId, channel: 1, updatedAt: timestamp)),
       (200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))
-    ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [])
+      // A room showing Room unread asks for the newest page beside Core's answer (SOK-1481): the same page here.
+    ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [(200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))])
   }
 
   private static func roomGets(_ transport: ScriptedTransport) -> Int {
@@ -4773,13 +4797,14 @@ extension WorkspaceStateTests {
     _ = await state.openRoom.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])
-    #expect(Self.roomGets(transport) == 1 && transport.threadGets == 1)
+    // Two on open: Core's answer and the newest page beside it.
+    #expect(Self.roomGets(transport) == 2 && transport.threadGets == 1)
 
     clock.fireAll()
-    await waitWhile { Self.roomGets(transport) < 2 || transport.threadGets < 2 }
+    await waitWhile { Self.roomGets(transport) < 3 || transport.threadGets < 2 }
     await waitForTranscriptIdle(state)
     _ = await state.openRoom.thread.transcript.loadTask?.value
-    #expect(Self.roomGets(transport) == 2 && transport.threadGets == 2)
+    #expect(Self.roomGets(transport) == 3 && transport.threadGets == 2)
     #expect(!transport.operationIDs.contains { $0.hasPrefix("post/") })
     #expect(transport.remainingStubs == 0)
     state.openRoom.thread.close()

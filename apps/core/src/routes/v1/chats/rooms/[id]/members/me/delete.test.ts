@@ -92,7 +92,6 @@ const MEMBERSHIP_MESSAGE = {
   mentionsAsSource: [],
   reactions: [],
   replies: [],
-  _count: { replies: 0 },
 };
 
 const botFindManyMock = vi.fn(async () => []);

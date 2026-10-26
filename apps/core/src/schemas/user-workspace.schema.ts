@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 
+import { projectSocialProviderSchema } from "./project-social-connection.schema";
+
 const USER_WORKSPACE_KINDS = ["personal", "organization"] as const;
 
 export const userWorkspaceSchema = z
@@ -36,6 +38,10 @@ export const userWorkspaceSchema = z
       description:
         "Organization website from its metadata, or null for none and for a personal workspace",
       example: "https://acme.com",
+    }),
+    enabledSocialProviders: z.array(projectSocialProviderSchema).openapi({
+      description:
+        "Social providers enabled for projects owned by this workspace",
     }),
     preferred: z.boolean().openapi({
       description: "Whether a new session opens this workspace",

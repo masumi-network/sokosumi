@@ -109,6 +109,7 @@ describe("POST /users/{id}/workspaces", () => {
       slug: null,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -143,6 +144,7 @@ describe("POST /users/{id}/workspaces", () => {
       slug: "acme-studio-abc123",
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -184,6 +186,7 @@ describe("POST /users/{id}/workspaces", () => {
       slug: "acme-abc123",
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: ["x", "youtube", "linkedin"],
       preferred: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);

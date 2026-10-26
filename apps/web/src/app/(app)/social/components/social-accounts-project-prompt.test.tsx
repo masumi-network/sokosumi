@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ProjectSocialProvider } from "@sokosumi/core-client";
+import {
+  SOCIAL_BETA_ORGANIZATION_SLUG,
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialProvidersForWorkspace,
+} from "@sokosumi/utils";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -41,10 +48,15 @@ import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function setup(props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {}) {
+function setup(
+  props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {},
+  enabledProviders: readonly ProjectSocialProvider[] = SOCIAL_PUBLIC_PROVIDERS,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <SocialAccountsProjectPrompt {...props} />
+      <SocialProviderAvailabilityProvider enabledProviders={enabledProviders}>
+        <SocialAccountsProjectPrompt {...props} />
+      </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -54,6 +66,27 @@ beforeEach(() => {
 });
 
 describe("SocialAccountsProjectPrompt", () => {
+  it("shows Coming soon badges in the utxo workspace with no project selected", () => {
+    setup(
+      {},
+      socialProvidersForWorkspace({
+        organizationSlug: SOCIAL_BETA_ORGANIZATION_SLUG,
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Choose a project" }),
+    ).toBeVisible();
+    const primary = screen
+      .getByRole("region", { name: "Social platforms" })
+      .querySelector("ul");
+    if (!primary) throw new Error("Primary platform track is missing");
+    expect(
+      [...primary.querySelectorAll("li p")].map((name) => name.textContent),
+    ).toEqual(["X", "LinkedIn", "YouTube", "TikTok", "Instagram", "Facebook"]);
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
+    expect(within(primary).getAllByText("Personal profile")).toHaveLength(1);
+  });
+
   it("asks to choose a project before connecting", () => {
     setup();
     expect(
@@ -91,12 +124,34 @@ describe("SocialAccountsProjectPrompt", () => {
     if (!primary) {
       throw new Error("Primary platform track is missing");
     }
+    for (const track of tracks) {
+      expect(
+        [...track.querySelectorAll("li p")].map((name) => name.textContent),
+      ).toEqual([
+        "X",
+        "LinkedIn",
+        "YouTube",
+        "TikTok",
+        "Instagram",
+        "Facebook",
+      ]);
+    }
     expect(within(primary).getByText("TikTok")).toBeVisible();
-    expect(within(primary).getAllByText("Coming soon")).toHaveLength(
-      SOCIAL_PROVIDERS.filter((provider) => "comingSoon" in provider).length,
-    );
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
     for (const provider of SOCIAL_PROVIDERS) {
-      expect(within(primary).getByText(provider.name)).toBeVisible();
+      const name = within(primary).getByText(provider.name);
+      expect(name).toBeVisible();
+      const card = name.parentElement;
+      expect(card).not.toBeNull();
+      if (!card) throw new Error("Platform card is missing");
+      if (["tiktok", "instagram", "facebook"].includes(provider.id)) {
+        expect(within(card).getByText("Coming soon")).toHaveAttribute(
+          "data-slot",
+          "badge",
+        );
+      } else {
+        expect(within(card).queryByText("Coming soon")).toBeNull();
+      }
     }
     expect(screen.getAllByText("TikTok")).toHaveLength(2);
 

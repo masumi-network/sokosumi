@@ -11,7 +11,10 @@ import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
 import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
-import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import {
+  backfillLinkedInAccountProfile,
+  listProjectSocialConnections,
+} from "@/services/project-social-connections.service";
 import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
 import {
   SOCIAL_SYNC_FRESH_MS,
@@ -265,6 +268,8 @@ export async function runDueSocialAccountSync(
       data: { performanceRefreshAttemptedAt: now },
     });
     if (claimed.count === 0) continue;
+    // Accounts connected before LinkedIn photos were read get one on sync.
+    await backfillLinkedInAccountProfile(account);
 
     try {
       const needHead =

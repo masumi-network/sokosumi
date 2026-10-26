@@ -75,7 +75,7 @@ struct DomainGoldenTests {
       let transport = TestTransport([(fixture.status, body)])
       var failed = false
       do {
-        try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true,
+        try await state.readIfNeeded(.init(room: room, content: .init(messages: []), historyReadable: true, atEnd: true),
                                      client: makeTestClient(transport), organizationSlug: nil)
       } catch {
         failed = true

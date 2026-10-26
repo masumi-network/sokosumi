@@ -55,7 +55,7 @@ interface MenuItemConfig {
 }
 
 /**
- * `socialBetaEnabled` (the Social beta, which Ads shares) is off by default so
+ * `socialBetaEnabled` now gates Ads only; Social scheduling is public. It is off by default so
  * the Instant Nav shell, which has not resolved the reader's beta membership
  * yet, leaves the rows out rather than guessing them: a row that appears once
  * is cheaper than one that appears and then goes away.
@@ -169,19 +169,17 @@ function ScopedMenuItems({
       Icon: ImagePlus,
       feature: AnnouncedFeature.CONTENT_STUDIO,
     },
-    // Social used to be a tab inside a project. It is a destination of its
-    // own now, scoped the same way the studio is, and it is still behind the
-    // beta so the row only exists where the surface does.
+    // Social scheduling is public and follows the studio's project scope.
+    {
+      key: "social",
+      href: "/social",
+      label: t("social"),
+      Icon: Share2,
+      feature: AnnouncedFeature.SOCIAL,
+    },
     ...(socialBetaEnabled
       ? [
-          {
-            key: "social",
-            href: "/social",
-            label: t("social"),
-            Icon: Share2,
-            feature: AnnouncedFeature.SOCIAL,
-          },
-          // Ads rides the same beta and the same project scope.
+          // Ads remains in the utxo beta.
           {
             key: "ads",
             href: "/ads",
