@@ -26,6 +26,8 @@ test("SKILL.md covers the cavemem_offload move", () => {
   assert.match(skill, /cavemem_offload/, "must describe the offload fix kind");
   assert.match(skill, /content_sha256/, "must verify the block against its content hash");
   assert.match(skill, /caveman mem recover/, "must name the byte-exact recovery path");
+  assert.match(skill, /caveman mem remember --stdin/, "must store the block from stdin");
+  assert.doesNotMatch(skill, /mem remember -- "/, "must never put the block on a shell command line");
 });
 
 test("SKILL.md closes the longitudinal outcome loop honestly", () => {
