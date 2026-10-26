@@ -124,7 +124,7 @@ Read the token. Where a canvas or WebGL painter genuinely needs a numeric
 value, resolve it from the CSS variable, or leave a comment naming the token
 the literal mirrors so the two stay in step.
 
-Third-party brand marks (`components/social-icons.tsx`) and user-facing color
+Third-party brand marks (`apps/web/src/components/social-icons.tsx`) and user-facing color
 pickers are data, not UI color. Those keep their literals.
 
 ### Adding a token

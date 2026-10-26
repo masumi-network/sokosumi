@@ -1,9 +1,15 @@
-import type { SocialPostMediaRef } from "@sokosumi/core-client";
+import type {
+  SocialAccountPostMedia,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { Play } from "lucide-react";
 import { Fragment } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+
+/** Imported media stays provider-hosted; draft media belongs to Drive. */
+type PreviewMedia = SocialPostMediaRef | SocialAccountPostMedia;
 
 /** The connected account a preview renders as its author. */
 export interface SocialPostPreviewAccount {
@@ -14,13 +20,13 @@ export interface SocialPostPreviewAccount {
 
 export interface SocialPostPreviewContentProps {
   account: SocialPostPreviewAccount | null;
-  media: SocialPostMediaRef[];
+  media: PreviewMedia[];
   text: string;
   /** Publish time; null reads as "now" (a draft or a post going out now). */
   timestamp: Date | null;
   /** Override the feed's time label, including an unknown publication date. */
   timestampLabel?: string;
-  /** Imported history does not include media yet. */
+  /** The provider did not return media for this imported post. */
   mediaUnavailable?: boolean;
   /**
    * Drafts grid: cap tall LinkedIn/Facebook/X media so a row of cards
@@ -133,29 +139,37 @@ export function PreviewMediaItem({
   className,
   showPlay = false,
 }: {
-  media: SocialPostMediaRef;
+  media: PreviewMedia;
   className?: string;
   /** Feed cards mark a video with a play badge; TikTok/YouTube draw their own. */
   showPlay?: boolean;
 }) {
   const mediaClassName = cn("size-full object-cover", className);
+  const src =
+    "fileUrl" in media
+      ? media.fileUrl
+      : media.kind === "video"
+        ? (media.thumbnailUrl ?? media.url)
+        : media.url;
+  const label = "name" in media ? media.name : media.kind;
   const visual =
-    media.kind === "video" ? (
+    media.kind === "video" &&
+    !("thumbnailUrl" in media && media.thumbnailUrl) ? (
       <video
-        aria-label={media.name}
+        aria-label={label}
         className={mediaClassName}
         muted
         playsInline
         preload="metadata"
-        src={media.fileUrl}
+        src={src}
       />
     ) : (
       <img
-        alt={media.name}
+        alt={label}
         className={mediaClassName}
         decoding="async"
         loading="lazy"
-        src={media.fileUrl}
+        src={src}
       />
     );
   if (media.kind === "video" && showPlay) {
@@ -198,7 +212,7 @@ export function PreviewMediaGrid({
   className,
   compact = false,
 }: {
-  media: SocialPostMediaRef[];
+  media: PreviewMedia[];
   className?: string;
   compact?: boolean;
 }) {
@@ -237,7 +251,10 @@ export function PreviewMediaGrid({
         </div>
       ) : null}
       {rest.slice(0, 3).map((item) => (
-        <div key={item.pathname} className="min-h-0">
+        <div
+          key={"pathname" in item ? item.pathname : item.url}
+          className="min-h-0"
+        >
           <PreviewMediaItem media={item} showPlay />
         </div>
       ))}
