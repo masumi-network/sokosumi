@@ -115,6 +115,7 @@ import {
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
+import { SocialDayAddSlot, SocialMobileCalendar } from "./social-calendar-day";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import {
   isChangeableSocialPost,
@@ -561,8 +562,8 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   socialOnly: boolean;
-  /** Social's own calendar previews posts; the workspace Calendar lists them. */
-  socialPostVariant: "compact" | "preview";
+  /** Social's own calendar draws its chips; the workspace Calendar lists posts. */
+  socialPostVariant: "compact" | "month" | "week";
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
@@ -570,13 +571,16 @@ function CalendarView({
   const router = useRouter();
   const isMobile = useIsMobile();
   const calendarRef = useRef<HTMLDivElement>(null);
-  const [mobileHeight, setMobileHeight] = useState<number | null>(null);
-  const fillMobileSpace = isMobile && socialPostVariant === "preview";
+  const [fillHeight, setFillHeight] = useState<number | null>(null);
+  const socialChips = socialPostVariant !== "compact";
+  // Social's week is one row of days; let it reach the bottom of the screen
+  // rather than stop under the last chip.
+  const fillSpace = socialChips && view === "week" && !isMobile;
   useEffect(() => {
-    if (!fillMobileSpace || !calendarRef.current) return;
+    if (!fillSpace || !calendarRef.current) return;
     const element = calendarRef.current;
     const measure = () => {
-      setMobileHeight(
+      setFillHeight(
         Math.max(
           320,
           window.innerHeight - element.getBoundingClientRect().top - 24,
@@ -591,7 +595,7 @@ function CalendarView({
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [fillMobileSpace]);
+  }, [fillSpace]);
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -687,6 +691,21 @@ function CalendarView({
   }
 
   const dateKey = getCalendarDayKey(date);
+  const todayKey = calendarTodayKey(timeZone);
+
+  if (socialChips && isMobile && view !== "agenda") {
+    return (
+      <SocialMobileCalendar
+        date={date}
+        dayKeyOf={(item) => getCalendarItemDateKey(item.scheduledAt, timeZone)}
+        items={items.filter((item) => item.kind === "socialPost")}
+        key={dateKey}
+        timeZone={timeZone}
+        todayKey={todayKey}
+        view={view}
+      />
+    );
+  }
 
   if (view === "agenda") {
     const days = Map.groupBy(items, (item) =>
@@ -769,7 +788,9 @@ function CalendarView({
           dayCellClass={
             canCreate
               ? "hover:bg-muted motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
-              : undefined
+              : socialChips
+                ? "group/day relative"
+                : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
           plugins={[classicTheme, dayGridPlugin, interactionPlugin]}
@@ -787,13 +808,50 @@ function CalendarView({
           }))}
           timeZone={timeZone}
           headerToolbar={false}
-          height={fillMobileSpace && mobileHeight ? mobileHeight : "auto"}
+          height={fillSpace && fillHeight ? fillHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
           // already carries the time, so the dot was the only leftover. Block
           // mode paints the theme's event blue behind the card; the card is
           // the only fill wanted.
           eventDisplay="block"
           eventColor="transparent"
+          {...(socialChips
+            ? {
+                // A day shows its first few posts; the rest are one tap away
+                // in FullCalendar's day popover, drawn with the same chips.
+                dayMaxEvents: view === "month" ? 3 : false,
+                moreLinkContent: ({ num }: { num: number }) =>
+                  t("socialPost.more", { count: num }),
+                moreLinkHint: (num: number) =>
+                  t("socialPost.moreHint", { count: num }),
+                dayCellTopContent: (cell: {
+                  dayNumberText: string;
+                  inPopover: boolean;
+                }) => (
+                  <>
+                    {cell.dayNumberText}
+                    {cell.inPopover ? null : (
+                      <SocialDayAddSlot
+                        className="absolute top-1 start-1 z-10 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                        todayKey={todayKey}
+                      />
+                    )}
+                  </>
+                ),
+                dayHeaderClass: "relative",
+                dayHeaderContent: (header: { text: string }) => (
+                  <>
+                    {header.text}
+                    {view === "week" ? (
+                      <SocialDayAddSlot
+                        className="absolute end-1 top-1/2 z-10 -translate-y-1/2"
+                        todayKey={todayKey}
+                      />
+                    ) : null}
+                  </>
+                ),
+              }
+            : {})}
           editable={false}
           eventDurationEditable={false}
           eventAllow={(_span, movingEvent) => {
@@ -819,7 +877,11 @@ function CalendarView({
                         ? { ...item, scheduledAt: pendingStart }
                         : item
                     }
-                    showThumb={socialOnly && view === "week"}
+                    showThumb={
+                      socialPostVariant === "compact" &&
+                      socialOnly &&
+                      view === "week"
+                    }
                     timeZone={timeZone}
                     variant={socialPostVariant}
                   />
@@ -950,8 +1012,8 @@ export function WorkspaceCalendar({
   const isMobile = useIsMobile();
   // Phones open on the agenda list; a seven-column grid is a desktop default.
   // Social plans a feed a month at a time, so its own calendar opens on the
-  // month, and on the week on a phone, where a month of posts is too small to
-  // read; the workspace calendar plans the week's runs.
+  // month, on a phone too, where the month is a grid of days over the chosen
+  // day's posts; the workspace calendar plans the week's runs.
   const views: readonly CalendarView[] = socialPostsOnly
     ? SOCIAL_CALENDAR_VIEWS
     : CALENDAR_VIEWS;
@@ -959,9 +1021,7 @@ export function WorkspaceCalendar({
     state.view && views.includes(state.view)
       ? state.view
       : socialPostsOnly
-        ? isMobile
-          ? "week"
-          : "month"
+        ? "month"
         : isMobile
           ? "agenda"
           : "week";
@@ -1578,7 +1638,7 @@ export function WorkspaceCalendar({
           runHandlers={runHandlers}
           socialOnly={socialOnly}
           socialPostVariant={
-            socialPostsOnly && view !== "week" ? "preview" : "compact"
+            socialPostsOnly ? (view === "week" ? "week" : "month") : "compact"
           }
           sources={sources}
           timeZone={timeZone}

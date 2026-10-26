@@ -54,6 +54,11 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
   },
 };
 
+/** The status's hue and weight, for a mark drawn outside the badge. */
+export function socialPostStatusTone(status: SocialPostStatus) {
+  return STATUS_MARKERS[status].tone;
+}
+
 interface SocialPostStatusBadgeProps {
   label: string;
   status: SocialPostStatus;

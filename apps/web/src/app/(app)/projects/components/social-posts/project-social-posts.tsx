@@ -341,6 +341,7 @@ export function ProjectSocialPosts({
       ? ({
           kind: "create",
           ...peekSocialComposePrefill(projectId),
+          scheduledAt: compose.scheduledAt ?? undefined,
         } satisfies SocialPostComposerMode)
       : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);

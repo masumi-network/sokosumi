@@ -396,7 +396,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
     });
 
-    it("opens on the week on a phone", async () => {
+    it("opens on a day grid with the chosen day's posts on a phone, not a sideways grid", async () => {
       const mediaQuery = {
         matches: true,
         media: "(max-width: 767px)",
@@ -420,9 +420,29 @@ describe("WorkspaceCalendar Social-only view", () => {
         );
 
         await waitFor(() =>
-          expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
+          expect(screen.getByTestId("calendar-month")).toBeInTheDocument(),
         );
         expect(screen.queryByTestId("calendar-agenda")).not.toBeInTheDocument();
+        expect(fullCalendarMock).not.toHaveBeenCalled();
+        // January 2030 starts on a Tuesday: five weeks of seven days.
+        expect(screen.getAllByTestId("calendar-mobile-day")).toHaveLength(35);
+        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
+          "dayEmpty",
+        );
+
+        await userEvent.click(
+          screen.getByRole("button", {
+            name: "Thursday, January 3, dayCount",
+          }),
+        );
+        expect(
+          screen.getByRole("button", {
+            name: "Thursday, January 3, dayCount",
+          }),
+        ).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByTestId("calendar-day-list")).toHaveTextContent(
+          "Launch news",
+        );
       } finally {
         vi.unstubAllGlobals();
       }
@@ -499,7 +519,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
-    it("uses compact chips with a square preview in week view so seven columns stay readable", () => {
+    it("draws the week as rich chips: account, words, media and status", () => {
       renderCalendar(
         {
           includeSocialPosts: true,
@@ -519,28 +539,55 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
 
       const chip = screen.getByTestId("calendar-social-post");
-      expect(chip).toHaveTextContent("compactLabel");
-      expect(chip).not.toHaveTextContent("Launch news");
+      expect(chip).toHaveAttribute("data-density", "week");
+      expect(chip).toHaveTextContent("Launch news");
+      expect(chip).toHaveTextContent("@team");
+      expect(chip).toHaveTextContent("Release planning");
       expect(
         screen.getByTestId("calendar-social-post-thumb"),
       ).toBeInTheDocument();
       expect(
-        screen.getByTestId("social-post-provider-icon"),
+        screen.getByTestId("social-post-status-SCHEDULED"),
       ).toBeInTheDocument();
     });
 
-    it("leaves a text-only week chip without a media tile", () => {
+    it("lets the week fill the screen and keeps every post of a day", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
         "?timezone=UTC&view=week",
       );
 
-      expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
-        "compactLabel",
+      expect(fullCalendarMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ dayMaxEvents: false }),
       );
-      expect(
-        screen.queryByTestId("calendar-social-post-thumb"),
-      ).not.toBeInTheDocument();
+    });
+
+    it("shows three posts a day on the month, then a +N more", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=month",
+      );
+
+      const props = fullCalendarMock.mock.lastCall?.[0] as {
+        dayMaxEvents: number;
+        moreLinkContent: (info: { num: number }) => string;
+        moreLinkHint: (num: number) => string;
+      };
+      expect(props.dayMaxEvents).toBe(3);
+      expect(props.moreLinkContent({ num: 2 })).toBe("socialPost.more");
+      expect(props.moreLinkHint(2)).toBe("socialPost.moreHint");
+      expect(screen.getByTestId("calendar-social-post")).toHaveAttribute(
+        "data-density",
+        "month",
+      );
+    });
+
+    it("leaves the workspace calendar's day cells alone", () => {
+      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=month");
+
+      const props = fullCalendarMock.mock.lastCall?.[0] as object;
+      expect(props).not.toHaveProperty("dayMaxEvents");
+      expect(props).not.toHaveProperty("dayCellTopContent");
     });
 
     it("leaves mixed week posts as one line without a media tile", () => {
