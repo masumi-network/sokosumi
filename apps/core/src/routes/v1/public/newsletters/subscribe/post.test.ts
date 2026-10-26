@@ -9,6 +9,7 @@ import {
   NEWSLETTER_ID,
   NEWSLETTER_NOW,
   NEWSLETTER_SUBSCRIBER,
+  NEWSLETTER_WORKSPACE_ID,
 } from "@/test/newsletter";
 
 import router from "../index";
@@ -22,6 +23,9 @@ const m = vi.hoisted(() => ({
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
   transaction: vi.fn(),
+  contactChannel: vi.fn(),
+  contactList: vi.fn(),
+  contactListMember: vi.fn(),
   send: vi.fn(),
   redis: vi.fn(),
 }));
@@ -100,6 +104,8 @@ beforeEach(() => {
   m.updateMany.mockResolvedValue({ count: 1 });
   m.send.mockResolvedValue({ data: { id: "confirmation" }, error: null });
   m.redis.mockResolvedValue(1);
+  m.contactChannel.mockResolvedValue({ contactId: "contact-1" });
+  m.contactList.mockResolvedValue({ id: "list-1", smartFilter: null });
   const tx = {
     newsletterSubscriber: {
       createMany: m.createMany,
@@ -107,6 +113,9 @@ beforeEach(() => {
       updateMany: m.updateMany,
     },
     newsletterEvent: { create: m.eventCreate },
+    contactChannel: { upsert: m.contactChannel },
+    contactList: { upsert: m.contactList },
+    contactListMember: { createMany: m.contactListMember },
   };
   m.transaction.mockImplementation(
     (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
@@ -168,6 +177,93 @@ describe("public newsletter signup", () => {
     });
   });
 
+  it("files the normalized email as a Contact on the newsletter's workspace list", async () => {
+    await signup({ email: " Reader@EXAMPLE.com ", name: "Ada" });
+    expect(m.contactChannel).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        workspaceId_type_value: {
+          workspaceId: NEWSLETTER_WORKSPACE_ID,
+          type: "EMAIL",
+          value: "reader@example.com",
+        },
+      },
+      create: {
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+        type: "EMAIL",
+        value: "reader@example.com",
+        source: "OTHER",
+        isPrimary: true,
+        contact: {
+          create: { workspaceId: NEWSLETTER_WORKSPACE_ID, name: "Ada" },
+        },
+      },
+      update: {},
+      select: { contactId: true },
+    });
+    expect(m.contactList).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        workspaceId_nameKey: {
+          workspaceId: NEWSLETTER_WORKSPACE_ID,
+          nameKey: "weekly news subscribers",
+        },
+      },
+      create: {
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+        name: "Weekly News subscribers",
+        nameKey: "weekly news subscribers",
+        color: "gray",
+      },
+      update: {},
+      select: { id: true, smartFilter: true },
+    });
+    expect(m.contactListMember).toHaveBeenCalledExactlyOnceWith({
+      data: { listId: "list-1", contactId: "contact-1" },
+      skipDuplicates: true,
+    });
+  });
+
+  it("reuses a Contact owned by the email without overwriting its name", async () => {
+    m.contactChannel.mockResolvedValue({ contactId: "existing-contact" });
+    await signup({ name: "Untrusted replacement" });
+    expect(m.contactChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ update: {} }),
+    );
+    expect(m.contactListMember).toHaveBeenCalledWith({
+      data: { listId: "list-1", contactId: "existing-contact" },
+      skipDuplicates: true,
+    });
+  });
+
+  it("retries a concurrent Contact insert before sending one confirmation", async () => {
+    m.contactChannel.mockRejectedValueOnce({ code: "P2002" });
+    await signup();
+    expect(m.transaction).toHaveBeenCalledTimes(2);
+    expect(m.eventCreate).toHaveBeenCalledOnce();
+    expect(m.send).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a smart-list name collision private without adding a member or sending mail", async () => {
+    m.contactList.mockResolvedValue({
+      id: "smart-list",
+      smartFilter: { stages: ["CONTACT"] },
+    });
+    await signup();
+    expect(m.contactListMember).not.toHaveBeenCalled();
+    expect(m.eventCreate).not.toHaveBeenCalled();
+    expect(m.send).not.toHaveBeenCalled();
+  });
+
+  it("does not send a confirmation after an unsubscribe wins before dispatch", async () => {
+    m.subscriber
+      .mockResolvedValueOnce({
+        ...NEWSLETTER_SUBSCRIBER,
+        status: "PENDING",
+      })
+      .mockResolvedValue(null);
+    await signup();
+    expect(m.send).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["en", "Confirm your subscription to Weekly News"],
     ["de", "Bestätige dein Abonnement von Weekly News"],
@@ -177,7 +273,7 @@ describe("public newsletter signup", () => {
     expect(m.send).toHaveBeenCalledWith(expect.objectContaining({ subject }));
   });
 
-  it.each(["ACTIVE", "BOUNCED"])(
+  it.each(["ACTIVE", "BOUNCED", "UNSUBSCRIBED"])(
     "does nothing for %s with the same acknowledgment",
     async (status) => {
       m.createMany.mockResolvedValue({ count: 0 });
@@ -186,6 +282,7 @@ describe("public newsletter signup", () => {
       expect(m.updateMany).not.toHaveBeenCalled();
       expect(m.eventCreate).not.toHaveBeenCalled();
       expect(m.send).not.toHaveBeenCalled();
+      expect(m.contactChannel).not.toHaveBeenCalled();
     },
   );
 
@@ -211,35 +308,26 @@ describe("public newsletter signup", () => {
     await signup();
     await signup();
     expect(m.send).toHaveBeenCalledOnce();
-    expect(m.eventCreate).toHaveBeenCalledOnce();
+    expect(m.eventCreate).not.toHaveBeenCalled();
   });
 
-  it("treats unsubscribed addresses as a fresh opt-in without discarding prior confirmation history", async () => {
-    m.createMany.mockResolvedValue({ count: 0 });
-    m.subscriber.mockResolvedValue({
-      ...NEWSLETTER_SUBSCRIBER,
-      status: "UNSUBSCRIBED",
-      unsubscribedAt: NEWSLETTER_NOW,
-      confirmedAt: NEWSLETTER_NOW,
-    });
-    await signup();
-    expect(m.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: NEWSLETTER_SUBSCRIBER.id,
-        status: "UNSUBSCRIBED",
-        consentAt: NEWSLETTER_NOW,
-      },
-      data: {
+  it.each(["unsubscribedAt", "bouncedAt"])(
+    "honors retained %s even on a pending row",
+    async (field) => {
+      m.createMany.mockResolvedValue({ count: 0 });
+      m.subscriber.mockResolvedValue({
+        ...NEWSLETTER_SUBSCRIBER,
         status: "PENDING",
-        consentAt: NEWSLETTER_NOW,
-        source: "SIGNUP_FORM",
-        name: undefined,
-        unsubscribedAt: null,
-      },
-    });
-    expect(m.send).toHaveBeenCalledOnce();
-    expect(m.eventCreate).toHaveBeenCalledOnce();
-  });
+        consentAt: null,
+        [field]: NEWSLETTER_NOW,
+      });
+      await signup();
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.contactChannel).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not dispatch if a concurrent request already claimed the pending subscriber", async () => {
     m.createMany.mockResolvedValue({ count: 0 });
@@ -311,6 +399,22 @@ describe("public newsletter signup", () => {
     });
     expect(response.status).toBe(404);
     expect(m.transaction).not.toHaveBeenCalled();
+  });
+
+  it("does not sign up readers outside the project's beta organization", async () => {
+    m.newsletter.mockImplementation(async ({ where }) =>
+      where.project?.workspace?.organization?.slug === "utxo"
+        ? null
+        : NEWSLETTER,
+    );
+    const response = await app().request(URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "reader@example.com" }),
+    });
+    expect(response.status).toBe(404);
+    expect(m.transaction).not.toHaveBeenCalled();
+    expect(m.send).not.toHaveBeenCalled();
   });
 
   it.each([{ email: "invalid" }, { source: "API" }, { locale: "fr" }])(

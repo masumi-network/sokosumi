@@ -6748,6 +6748,9 @@ export type SocialAccountPost = {
     provider: ProjectSocialProvider;
     externalId: string;
     text: string;
+    contentType?: SocialAccountPostContentType;
+    postKind?: SocialAccountPostKind;
+    media?: Array<SocialAccountPostMedia>;
     publishedAt: Date | null;
     url: string | null;
     metrics: SocialPostMetrics;
@@ -6755,6 +6758,33 @@ export type SocialAccountPost = {
     fetchedAt: Date;
     strong?: boolean;
     canRecycle?: boolean;
+};
+
+export const SocialAccountPostContentType = {
+    TEXT: 'text',
+    IMAGE: 'image',
+    VIDEO: 'video',
+    CAROUSEL: 'carousel',
+    LINK: 'link',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostContentType = typeof SocialAccountPostContentType[keyof typeof SocialAccountPostContentType];
+
+export const SocialAccountPostKind = {
+    POST: 'post',
+    REPLY: 'reply',
+    QUOTE: 'quote',
+    REPOST: 'repost',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostKind = typeof SocialAccountPostKind[keyof typeof SocialAccountPostKind];
+
+export type SocialAccountPostMedia = {
+    kind: 'image' | 'gif' | 'video';
+    url: string;
+    thumbnailUrl: string | null;
 };
 
 export type SocialPostMetrics = {
@@ -37362,6 +37392,20 @@ export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof Get
 
 export type GetNewsletterAvailabilityData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/newsletter/availability';
@@ -37369,9 +37413,39 @@ export type GetNewsletterAvailabilityData = {
 
 export type GetNewsletterAvailabilityErrors = {
     /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -48556,6 +48630,21 @@ export type DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Suppressed subscriber must be retained
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

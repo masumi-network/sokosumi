@@ -34,6 +34,7 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { formatTimezoneLabel } from "@/lib/schedules/timezones";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
@@ -272,8 +273,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.missingPost": "Couldn't open this post.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.timezone.yours": "Times are in your time zone, {zone}.",
-  "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
-  "composer.timezone.postZone": "Scheduled as {date} in {zone}.",
+  "composer.timezone.goesOut": "Goes out {date} · {zone}",
+  "composer.timezone.postZone": "Scheduled as {date} · {zone}",
   quickPicks: "Quick picks",
   "quick.inAnHour": "In an hour ({time})",
   "quick.tomorrowMorning": "Tomorrow {time}",
@@ -311,6 +312,7 @@ vi.mock("next-intl", async () => {
   return {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
+    useTimeZone: () => "UTC",
     useTranslations:
       () => (key: string, values?: Record<string, string | number>) => {
         const message = MESSAGES[key] ?? key;
@@ -591,16 +593,6 @@ function freezeClock(now: Date = NOW) {
   vi.setSystemTime(now);
 }
 
-function zoneLabel(timezone: string, at: Date = new Date()): string {
-  const nameFor = (timeZoneName: "longGeneric" | "long") =>
-    new Intl.DateTimeFormat("en", { timeZone: timezone, timeZoneName })
-      .formatToParts(at)
-      .find((part) => part.type === "timeZoneName")?.value;
-  const generic = nameFor("longGeneric");
-  if (generic && !/^(?:GMT|UTC)[+-]/.test(generic)) return generic;
-  return nameFor("long") ?? timezone.replaceAll("_", " ");
-}
-
 async function pickInAnHour(
   user: ReturnType<typeof userEvent.setup>,
   dialog: HTMLElement,
@@ -669,6 +661,7 @@ function render(ui: React.ReactElement, searchParams?: string) {
 describe("ProjectSocialPosts", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     sessionStorage.clear();
     Object.defineProperty(navigator, "onLine", {
       configurable: true,
@@ -4817,10 +4810,13 @@ describe("ProjectSocialPosts", () => {
         createTestFormatter().dateTime(
           new Date("2026-09-10T10:05:00.000Z"),
           "dateTime",
-          { timeZoneName: "short" },
         ),
       ),
     ).toBeVisible();
+    await user.hover(within(row).getByRole("button", { name: "UTC" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Coordinated Universal Time",
+    );
     expect(within(row).queryByText(/10:00/)).not.toBeInTheDocument();
 
     expect(within(row).getByText("3 attempts")).toBeVisible();
@@ -5826,7 +5822,11 @@ describe("ProjectSocialPosts", () => {
   it("names the viewer's time zone and the time a post goes out", async () => {
     freezeClock();
     const user = userEvent.setup();
-    const zone = zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const zone = formatTimezoneLabel(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      "en",
+      NOW,
+    );
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -5842,7 +5842,7 @@ describe("ProjectSocialPosts", () => {
 
     await pickInAnHour(user, dialog);
     expect(line).toHaveTextContent(
-      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, IN_AN_HOUR)}).`,
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")} · ${formatTimezoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone, "en", IN_AN_HOUR)}`,
     );
   });
 
@@ -5869,8 +5869,44 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
     ).toHaveTextContent(
-      `in ${zoneLabel(otherZone, SCHEDULED_POST.scheduledAt ?? new Date())}.`,
+      `· ${formatTimezoneLabel(otherZone, "en", SCHEDULED_POST.scheduledAt ?? new Date())}`,
     );
+  });
+
+  it("uses the scheduled season for the composer's Goes out label", async () => {
+    freezeClock(new Date("2026-01-15T12:00:00Z"));
+    const resolved = new Intl.DateTimeFormat().resolvedOptions();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...resolved,
+      timeZone: "Europe/Prague",
+    });
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            timezone: "Europe/Prague",
+            scheduledAt: new Date("2026-10-05T12:00:00Z"),
+          },
+        ]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
+    const label = within(screen.getByRole("dialog")).getByTestId(
+      "social-post-timezone",
+    );
+    expect(label).toHaveTextContent(
+      /Goes out .* · Central European Summer Time \(Prague\)$/,
+    );
+    expect(label).not.toHaveTextContent("Standard Time");
   });
 
   it("schedules from the date and time pickers", async () => {

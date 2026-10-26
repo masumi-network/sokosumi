@@ -1657,6 +1657,7 @@
         "chainLastHop": "This is the last hop — it will not wake anyone else.",
         "source": {
           "inbox": "From your inbox",
+          "briefing": "Morning briefing",
           "standup": "Daily stand-up",
           "weeklyWrap": "Weekly wrap",
           "scheduled": "Scheduled: {name}",
@@ -2606,8 +2607,8 @@
           },
           "timezone": {
             "yours": "Your time zone: {zone}",
-            "goesOut": "Goes out {date} ({zone})",
-            "postZone": "Scheduled as {date} ({zone})"
+            "goesOut": "Goes out {date} · {zone}",
+            "postZone": "Scheduled as {date} · {zone}"
           },
           "platforms": "Limits per platform",
           "platformLimit": "{provider} {format} · {count} / {limit}",
@@ -3128,7 +3129,7 @@
         "Validation": {
           "required": "Enter a value.",
           "email": "Enter a valid email address.",
-          "url": "Enter a full HTTP or HTTPS URL.",
+          "url": "Enter a full HTTPS URL.",
           "color": "Enter a hex color with 3 or 6 digits, starting with #.",
           "maxLength": "Use at most {max} characters."
         },

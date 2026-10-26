@@ -1,11 +1,9 @@
 import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 import { verifyNewsletterUnsubscribeToken } from "@/lib/newsletter/unsubscribe-token";
 
 export async function getNewsletterUnsubscribeSubscriber(token: string) {
-  assertNewsletterEnabled();
   const { subscriberId, newsletterId } = verifyNewsletterUnsubscribeToken(
     token,
     getEnv().BETTER_AUTH_SECRET,

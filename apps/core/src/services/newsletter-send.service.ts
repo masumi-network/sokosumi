@@ -18,6 +18,7 @@ import {
 import {
   assertNewsletterEnabled,
   isNewsletterEnabled,
+  NEWSLETTER_BETA_SCOPE,
 } from "@/lib/newsletter/feature";
 import {
   newsletterBrandSchema,
@@ -25,7 +26,6 @@ import {
 } from "@/schemas/newsletter.schema";
 
 const LEASE_MS = 5 * 60_000;
-
 interface SendNewsletterIssueOptions {
   /** Trusted callers must explicitly allow any status other than SCHEDULED. */
   allowedStatus?: NewsletterIssueStatus;
@@ -45,7 +45,7 @@ export async function sendNewsletterIssue(
   assertNewsletterEnabled();
   newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
-    where: { id: issueId },
+    where: { id: issueId, ...NEWSLETTER_BETA_SCOPE },
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
@@ -65,6 +65,7 @@ export async function sendNewsletterIssue(
   const claimed = await prisma.newsletterIssue.updateMany({
     where: {
       id: issueId,
+      ...NEWSLETTER_BETA_SCOPE,
       status: issue.status,
       revision: issue.revision,
       ...(recovering
@@ -82,7 +83,12 @@ export async function sendNewsletterIssue(
   if (!claimed.count)
     throw conflict("Newsletter issue was claimed or changed by another worker");
 
-  const fence = { id: issueId, status: "SENDING" as const, leaseToken };
+  const fence = {
+    id: issueId,
+    status: "SENDING" as const,
+    leaseToken,
+    ...NEWSLETTER_BETA_SCOPE,
+  };
   const sendFence: Prisma.NewsletterSendWhereInput = { issueId, issue: fence };
   async function renewLease() {
     const now = new Date();
@@ -183,7 +189,17 @@ export async function sendNewsletterIssue(
             data: { status: "FAILED", error: "Subscriber is no longer active" },
           });
         if (deliverable.length) {
-          if (options.shouldContinue && !options.shouldContinue()) return;
+          if (options.shouldContinue && !options.shouldContinue()) {
+            // No provider call was attempted, so these reservations are safe to retry.
+            await prisma.newsletterSend.deleteMany({
+              where: {
+                ...sendFence,
+                id: { in: reserved.map((send) => send.id) },
+                status: "QUEUED",
+              },
+            });
+            return;
+          }
           await renewLease();
           let results: { id: string }[] | undefined;
           try {
@@ -263,6 +279,7 @@ export async function sendDueNewsletterIssues(
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {
+      ...NEWSLETTER_BETA_SCOPE,
       OR: [
         { status: "SCHEDULED", scheduledAt: { lte: now } },
         { status: "SENDING", leaseExpiresAt: { lte: now } },

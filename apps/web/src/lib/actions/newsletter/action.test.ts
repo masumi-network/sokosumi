@@ -121,6 +121,24 @@ describe("saveNewsletterSettings", () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
+  it("rejects HTTP logos before saving settings that emails cannot render", async () => {
+    const result = await saveNewsletterSettings({
+      projectId: PROJECT_ID,
+      values: { ...VALUES, logoUrl: "http://example.com/logo.png" },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        fieldErrors: {
+          logoUrl: [en.App.Projects.Newsletter.Validation.url],
+        },
+      },
+    });
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("rejects a malformed project ID", async () => {
     expect(
       await saveNewsletterSettings({ projectId: "invalid", values: VALUES }),

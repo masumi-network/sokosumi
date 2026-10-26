@@ -21,13 +21,13 @@ Middleware authenticates the actor and may **attach** coworker
 re-check actors with ad-hoc `if (actor === "coworker")` branches. Pick one
 helper at the top of the handler:
 
-| Helper | Import | Use when |
-| --- | --- | --- |
-| `requireUserContext` | `@/middleware/auth` | Task/job grant-gated flows only. Coworker context may be **unbound** (no vendor grant yet) so delegated create can park as `GRANT_PENDING`. |
+| Helper                         | Import                                    | Use when                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requireUserContext`           | `@/middleware/auth`                       | Task/job grant-gated flows only. Coworker context may be **unbound** (no vendor grant yet) so delegated create can park as `GRANT_PENDING`.                                                                                                                                                                                                                                           |
 | `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. A route that binds through it, directly or through a helper, wraps its route in `withCoworkerContextHeaderParameters` (`src/lib/hono-openapi-headers.test.ts` enforces it). |
-| `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker. |
-| `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker. |
-| `resolveUserContext` | `@/middleware/auth` | Task-collaboration routes that accept standalone coworker keys but still apply user-scoped gates (organization seat, Calendar beta). Returns the effective user, or `null` for a standalone coworker key. |
+| `requireOwnerUserContext`      | `@/middleware/auth`                       | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker.                                                                                                                                                                                                                                                             |
+| `requireUserAuthContext`       | `@/middleware/auth`                       | Must be the real interactive session user (admin role, consent). Rejects coworker.                                                                                                                                                                                                                                                                                                    |
+| `resolveUserContext`           | `@/middleware/auth`                       | Task-collaboration routes that accept standalone coworker keys but still apply user-scoped gates (organization seat, Calendar beta). Returns the effective user, or `null` for a standalone coworker key.                                                                                                                                                                             |
 
 **Data from other workspaces.** The binding authorizes the context workspace
 only. An agent-callable route that returns data from the user's other
@@ -44,18 +44,18 @@ for tasks: [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/
 
 The live tree is `apps/core/src/`.
 
-| Area | Role |
-| --- | --- |
-| `routes/v1/` | Versioned HTTP handlers (one file per method) |
-| `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery |
-| `schemas/` | Zod / OpenAPI |
-| `helpers/` | Domain logic used by routes |
-| `lib/` | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog |
-| `lib/soko-bot/` | Soko Bot control plane (sandbox + in-process adapters; contracts from `@sokosumi/soko-bot`) |
-| `soko-bot-runner/` | Agent loop bundled into each bot's Vercel Sandbox (calls Core `/v1/soko-bot-runtime`) |
-| `clients/` | External HTTP clients |
-| `services/` | Longer-lived / legacy service modules |
-| `middleware/` | Auth, org, workspace, coworker context |
+| Area                                                 | Role                                                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
+| `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
+| `schemas/`                                           | Zod / OpenAPI                                                                               |
+| `helpers/`                                           | Domain logic used by routes                                                                 |
+| `lib/`                                               | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog                                |
+| `lib/soko-bot/`                                      | Soko Bot control plane (sandbox + in-process adapters; contracts from `@sokosumi/soko-bot`) |
+| `soko-bot-runner/`                                   | Agent loop bundled into each bot's Vercel Sandbox (calls Core `/v1/soko-bot-runtime`)       |
+| `clients/`                                           | External HTTP clients                                                                       |
+| `services/`                                          | Longer-lived / legacy service modules                                                       |
+| `middleware/`                                        | Auth, org, workspace, coworker context                                                      |
 
 **OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`.
 
@@ -263,18 +263,18 @@ For internal async-ack sync routes (immediate `200` response + background execut
 
 ## App-Specific Commands
 
-| Command                           | Purpose                  |
-| --------------------------------- | ------------------------ |
-| `pnpm core:dev`                   | Start development server on `:8787` |
-| `pnpm portless:dev`               | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`) |
-| `pnpm portless:core`              | Core only via portless (still injects Web's named URL) |
-| `pnpm core:build`                 | Build for production     |
-| `pnpm --filter @sokosumi/core vercel-build` | Vercel: `prisma:generate`, build, then `prisma migrate deploy` |
-| `pnpm core:start`                 | Run production build     |
-| `pnpm --filter core lint`         | Lint core app            |
-| `pnpm --filter core write-openapi-snapshot` | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
-| `pnpm --filter @sokosumi/core-client generate:snapshot` | Runs the snapshot script + regenerates `packages/core-client/src/generated` (no running Core server) |
-| `pnpm --filter @sokosumi/core-client generate` | Regenerates the Core client from `http://localhost:8787/v1/openapi.json` (Core must be running) |
+| Command                                                 | Purpose                                                                                                                                                                      |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm core:dev`                                         | Start development server on `:8787`                                                                                                                                          |
+| `pnpm portless:dev`                                     | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`)                                                                                                 |
+| `pnpm portless:core`                                    | Core only via portless (still injects Web's named URL)                                                                                                                       |
+| `pnpm core:build`                                       | Build for production                                                                                                                                                         |
+| `pnpm --filter @sokosumi/core vercel-build`             | Vercel: `prisma:generate`, build, then `prisma migrate deploy`                                                                                                               |
+| `pnpm core:start`                                       | Run production build                                                                                                                                                         |
+| `pnpm --filter core lint`                               | Lint core app                                                                                                                                                                |
+| `pnpm --filter core write-openapi-snapshot`             | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
+| `pnpm --filter @sokosumi/core-client generate:snapshot` | Runs the snapshot script + regenerates `packages/core-client/src/generated` (no running Core server)                                                                         |
+| `pnpm --filter @sokosumi/core-client generate`          | Regenerates the Core client from `http://localhost:8787/v1/openapi.json` (Core must be running)                                                                              |
 
 ## Common Patterns
 
@@ -429,5 +429,4 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.10.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
-
+- CLI is a Core devDependency (`@evlog/cli` 0.11.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.

@@ -2518,7 +2518,7 @@ export const getImageStudioState = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Read newsletter availability, including when newsletters are disabled.
+ * Read newsletter availability for the current workspace, including when newsletters are disabled.
  */
 export const getNewsletterAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetNewsletterAvailabilityData, ThrowOnError>): RequestResult<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError>({
     responseTransformer: getNewsletterAvailabilityResponseTransformer,
@@ -3588,12 +3588,12 @@ export const postProjectsByIdNewsletterSubscribersImport = <ThrowOnError extends
 });
 
 /**
- * Delete a subscriber from this Project's newsletter.
+ * Delete an active or pending subscriber from this Project's newsletter. Unsubscribed and bounced subscribers are retained to prevent reactivation and return 409.
  */
 export const deleteProjectsByIdNewsletterSubscribersBySubscriberId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdNewsletterSubscribersBySubscriberIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponses, DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdNewsletterSubscribersBySubscriberIdResponses, DeleteProjectsByIdNewsletterSubscribersBySubscriberIdErrors, ThrowOnError>({ url: '/projects/{id}/newsletter/subscribers/{subscriberId}', ...options });
 
 /**
- * Change a subscriber's name or switch between ACTIVE and UNSUBSCRIBED. Pending and bounced subscribers cannot change status manually.
+ * Change a subscriber's name or unsubscribe an active subscriber. Unsubscribed, pending and bounced subscribers cannot change status manually.
  */
 export const patchProjectsByIdNewsletterSubscribersBySubscriberId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdNewsletterSubscribersBySubscriberIdData, ThrowOnError>): RequestResult<PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponses, PatchProjectsByIdNewsletterSubscribersBySubscriberIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdNewsletterSubscribersBySubscriberIdResponses, PatchProjectsByIdNewsletterSubscribersBySubscriberIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdNewsletterSubscribersBySubscriberIdResponseTransformer,
