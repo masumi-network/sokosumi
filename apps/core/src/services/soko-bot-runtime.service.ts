@@ -16,6 +16,7 @@ import {
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
+  sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
   getSokoBotVersion,
   isSokoBotCapability,
@@ -144,6 +145,18 @@ import {
   creditsPerImage,
   IMAGE_ASPECT_RATIOS,
 } from "@/lib/image-studio/image-model";
+import { videoModel } from "@/lib/image-studio/video-catalog";
+import {
+  creditsPerVideo,
+  DEFAULT_ANIMATE_MODEL_ID,
+  DEFAULT_VIDEO_MODEL_ID,
+  defaultVideoSettings,
+  HIGH_QUALITY_ANIMATE_MODEL_ID,
+  HIGH_QUALITY_VIDEO_MODEL_ID,
+  type VideoModel,
+  type VideoSettings,
+  validateVideoSettings,
+} from "@/lib/image-studio/video-model";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   ACTION_CAPABILITIES,
@@ -209,6 +222,7 @@ import {
   runtimeEvent,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
   type SokoBotWriteTargets,
@@ -257,6 +271,7 @@ import { getJob } from "@/services/image-studio-assets.service";
 import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createVideoJob,
   DEFAULT_SETTINGS,
   type ImageJobSettings,
   reconcileProjectJobs,
@@ -405,6 +420,8 @@ const MAX_DIRECTS_OPENED_PER_TURN = 5;
 const MAX_COWORKER_QUESTIONS_PER_TURN = 3;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
+/** A video costs several images and takes minutes; two is a choice, not a batch. */
+const MAX_VIDEOS_PER_TURN = 2;
 
 type SocialMediaInput = NonNullable<
   z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
@@ -2007,6 +2024,156 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /**
+   * Everything that can refuse a video before anything is sent, mirroring
+   * {@link checkImageRequest}: an owner chat turn, a Project the owner can
+   * open, a finished image to animate when one is named, and a price within
+   * maxCredits.
+   */
+  private async checkVideoRequest(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const input = generateVideoInputSchema.parse(raw);
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRuntimeAuthorizationError(
+        "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
+      );
+    const started = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "generate_video",
+        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        NOT: { toolCallId },
+      },
+    });
+    if (started >= MAX_VIDEOS_PER_TURN)
+      throw new SokoBotRuntimeValidationError(
+        `One turn may start at most ${MAX_VIDEOS_PER_TURN} videos. Show your owner these first.`,
+      );
+    this.requireImageProject(authorized, input.projectId);
+    const scope = {
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
+    };
+    try {
+      await requireProjectAccess(scope);
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotRuntimeValidationError(
+          "That Project is not one your owner can open.",
+        );
+      throw error;
+    }
+
+    let sourceAssetId: string | null = null;
+    if (input.imageJobId) {
+      const source = await getJob({ ...scope, jobId: input.imageJobId });
+      if (!source || source.video !== null)
+        throw new SokoBotRuntimeValidationError(
+          "imageJobId must be a generate_image job in this Project.",
+        );
+      if (!source.assetId)
+        throw new SokoBotRuntimeValidationError(
+          "That image is not ready yet. Check it with get_image first.",
+        );
+      sourceAssetId = source.assetId;
+    }
+
+    await ensureImageCatalogFresh();
+    const animate = sourceAssetId !== null;
+    const high = input.quality === "high";
+    let model: VideoModel;
+    let settings: VideoSettings;
+    let credits: number;
+    try {
+      model = videoModel(
+        animate
+          ? high
+            ? HIGH_QUALITY_ANIMATE_MODEL_ID
+            : DEFAULT_ANIMATE_MODEL_ID
+          : high
+            ? HIGH_QUALITY_VIDEO_MODEL_ID
+            : DEFAULT_VIDEO_MODEL_ID,
+      );
+      settings = validateVideoSettings(
+        model,
+        {
+          ...defaultVideoSettings(model),
+          ...(input.aspectRatio && !animate
+            ? { aspectRatio: input.aspectRatio }
+            : {}),
+          ...(input.durationSeconds
+            ? { durationSeconds: input.durationSeconds }
+            : {}),
+        },
+        animate,
+      );
+      credits = creditsPerVideo(model, settings);
+    } catch (error) {
+      throw new SokoBotRuntimeValidationError(
+        error instanceof Error ? error.message : "Invalid video settings",
+      );
+    }
+    if (credits > input.maxCredits)
+      throw new SokoBotRuntimeValidationError(
+        `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      );
+    return { input, model, settings, credits, sourceAssetId };
+  }
+
+  /** Starts a video in a Project's Content Studio, once checked. */
+  private async generateVideo(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const { input, model, settings, credits, sourceAssetId } =
+      await this.checkVideoRequest(authorized, raw, toolCallId).catch(
+        (error: unknown) => {
+          throw new SokoBotImageRefusedError(
+            error instanceof Error ? error.message : "Video refused",
+          );
+        },
+      );
+    let job: Awaited<ReturnType<typeof createVideoJob>>;
+    try {
+      job = await createVideoJob({
+        projectId: input.projectId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: actingMemberOf(authorized),
+        sessionId: null,
+        prompt: input.prompt,
+        modelId: model.id,
+        settings,
+        sourceAssetId,
+        idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotImageRefusedError(error.message);
+      throw error;
+    }
+    return {
+      jobId: job.id,
+      projectId: input.projectId,
+      status: job.status,
+      credits,
+      durationSeconds: settings.durationSeconds,
+      studioUrl: studioLink(input.projectId),
+      note:
+        job.status === "SUBMISSION_UNCERTAIN"
+          ? "The provider did not confirm this request. Do not start it again; tell the owner."
+          : "Started. A video takes a few minutes; check it with get_video.",
+    };
+  }
+
   /** A project bot makes and reads images in its own Project only. */
   private requireImageProject(
     authorized: AuthorizedSokoBotRuntime,
@@ -2017,8 +2184,11 @@ export class SokoBotRuntimeService {
     if (refusal) throw new SokoBotRuntimeValidationError(refusal);
   }
 
-  /** Where an image started with `generate_image` has got to. */
-  private async getImage(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
+  /** Where an image or video started with `generate_image` or `generate_video` has got to. */
+  private async getStudioJob(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+  ) {
     const input = getImageInputSchema.parse(raw);
     this.requireImageProject(authorized, input.projectId);
     const scope = {
@@ -2119,7 +2289,7 @@ export class SokoBotRuntimeService {
         const file = files.find((candidate) => candidate.id === item.fileId);
         if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
           throw new SokoBotRuntimeValidationError(
-            `File ${item.fileId} is not in the owner's Files; use an id from list_files or get_image`,
+            `File ${item.fileId} is not in the owner's Files; use an id from list_files, get_image or get_video`,
           );
         const mimeType = file.mimeType ?? "";
         const kind = socialPostMediaKindForMime(mimeType);
@@ -4566,9 +4736,23 @@ export class SokoBotRuntimeService {
         input = { ...input, toolCallId: existing.toolCallId };
     }
 
-    if (input.capability === "generate_image") {
+    if (
+      input.capability === "generate_image" ||
+      input.capability === "generate_video"
+    ) {
       try {
-        await this.checkImageRequest(authorized, input.input, input.toolCallId);
+        if (input.capability === "generate_image")
+          await this.checkImageRequest(
+            authorized,
+            input.input,
+            input.toolCallId,
+          );
+        else
+          await this.checkVideoRequest(
+            authorized,
+            input.input,
+            input.toolCallId,
+          );
       } catch (error) {
         // Refused before anything was sent: rejected, and the same request
         // may be made again once whatever refused it has changed.
@@ -5407,6 +5591,12 @@ export class SokoBotRuntimeService {
         );
       case "reply_to_task": {
         const { fileIds, ...reply } = replyToTaskInputSchema.parse(input.input);
+        const chaseRefusal = await unattendedChaseRefusal({
+          turn: authorized.turn,
+          comment: reply.comment,
+          shared: !!authorized.reader.sharedScope,
+        });
+        if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);
         const replied = await this.replyToTask(
           authorized,
           {
@@ -5626,7 +5816,11 @@ export class SokoBotRuntimeService {
       case "generate_image":
         return this.generateImage(authorized, input.input, input.toolCallId);
       case "get_image":
-        return this.getImage(authorized, input.input);
+        return this.getStudioJob(authorized, input.input);
+      case "generate_video":
+        return this.generateVideo(authorized, input.input, input.toolCallId);
+      case "get_video":
+        return this.getStudioJob(authorized, input.input);
       case "read_file":
         return this.readFile(
           authorized,

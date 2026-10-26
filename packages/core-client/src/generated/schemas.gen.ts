@@ -6860,7 +6860,14 @@ export const TaskTagIdSchema = {
         'marketing',
         'social',
         'seo',
-        'operations'
+        'operations',
+        'presentations',
+        'dashboards',
+        'monitoring',
+        'media',
+        'communication',
+        'finance',
+        'qa'
     ]
 } as const;
 
@@ -13247,14 +13254,6 @@ export const ContactListSchema = {
                             minItems: 1,
                             maxItems: 4
                         },
-                        ownerUserId: {
-                            type: 'string',
-                            minLength: 1,
-                            maxLength: 200
-                        },
-                        ownedByMe: {
-                            type: 'boolean'
-                        },
                         listIds: {
                             type: 'array',
                             items: {
@@ -13387,6 +13386,16 @@ export const ContactSchema = {
             type: 'string',
             format: 'uuid'
         },
+        score: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactScore'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         name: {
             type: 'string'
         },
@@ -13425,16 +13434,6 @@ export const ContactSchema = {
         },
         kind: {
             $ref: '#/components/schemas/ContactKind'
-        },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ContactPerson'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         },
         nextStep: {
             type: [
@@ -13567,6 +13566,7 @@ export const ContactSchema = {
     },
     required: [
         'id',
+        'score',
         'name',
         'organization',
         'role',
@@ -13575,7 +13575,6 @@ export const ContactSchema = {
         'whyInteresting',
         'stage',
         'kind',
-        'owner',
         'nextStep',
         'followUpAt',
         'avatarUrl',
@@ -13596,6 +13595,52 @@ export const ContactSchema = {
         'channels',
         'lists',
         'knownBy'
+    ]
+} as const;
+
+export const ContactScoreSchema = {
+    type: 'object',
+    properties: {
+        familiarity: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            description: 'How well the reader knows them, 0–100, from the reader\'s own interactions: how many, whether they answer, meetings, how recent.'
+        },
+        importance: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100,
+            description: 'How much they matter to the reader, 0–100; null until judged.'
+        },
+        importanceSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'JEV',
+                'SOKO_BOT',
+                'MANUAL',
+                null
+            ]
+        },
+        importanceReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.'
+        }
+    },
+    required: [
+        'familiarity',
+        'importance',
+        'importanceSource',
+        'importanceReason'
     ]
 } as const;
 
@@ -13623,29 +13668,6 @@ export const ContactKindSchema = {
     enum: [
         'PERSON',
         'ORGANIZATION'
-    ]
-} as const;
-
-export const ContactPersonSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'image'
     ]
 } as const;
 
@@ -13794,6 +13816,29 @@ export const ContactKnownBySchema = {
     ]
 } as const;
 
+export const ContactPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
 export const ContactUpsertResultSchema = {
     type: 'object',
     properties: {
@@ -13904,6 +13949,25 @@ export const ContactImportResultSchema = {
         'skipped',
         'listsCreated',
         'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactOrganizationSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'Cardano Foundation'
+        },
+        count: {
+            type: 'integer',
+            example: 61,
+            description: 'Live contacts'
+        }
+    },
+    required: [
+        'name',
+        'count'
     ]
 } as const;
 
@@ -15047,9 +15111,6 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTableItem'
-        },
-        {
-            $ref: '#/components/schemas/DriveRecentsContactsItem'
         }
     ],
     discriminator: {
@@ -15057,8 +15118,7 @@ export const DriveRecentsItemSchema = {
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
             'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
-            table: '#/components/schemas/DriveRecentsTableItem',
-            contacts: '#/components/schemas/DriveRecentsContactsItem'
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -15100,6 +15160,55 @@ export const DriveRecentsDriveFileItemSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'Latest activity timestamp (blob uploadedAt)'
+        },
+        resourceId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Files catalog id, for the file detail view. Null until the catalog has adopted this blob.'
+        },
+        category: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                labelId: {
+                    type: 'string',
+                    example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                },
+                displayName: {
+                    type: 'string',
+                    example: 'Marketing'
+                }
+            },
+            required: [
+                'labelId',
+                'displayName'
+            ],
+            description: 'What kind of document this is, when one is known.'
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    labelId: {
+                        type: 'string',
+                        example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                    },
+                    displayName: {
+                        type: 'string',
+                        example: 'Marketing'
+                    }
+                },
+                required: [
+                    'labelId',
+                    'displayName'
+                ]
+            },
+            description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
         }
     },
     required: [
@@ -15108,7 +15217,10 @@ export const DriveRecentsDriveFileItemSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'activityAt'
+        'activityAt',
+        'resourceId',
+        'category',
+        'tags'
     ]
 } as const;
 
@@ -15236,48 +15348,6 @@ export const DriveRecentsTableItemSchema = {
         'name',
         'activityAt',
         'projectId'
-    ]
-} as const;
-
-export const DriveRecentsContactsItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'contacts'
-            ],
-            example: 'contacts',
-            description: 'The workspace\'s one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.'
-        },
-        name: {
-            type: 'string',
-            example: 'Contacts'
-        },
-        pinned: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        },
-        contactCount: {
-            type: 'integer',
-            example: 128,
-            description: 'Live contacts (not archived or merged)'
-        },
-        activityAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Latest change to any contact, or now when there are none'
-        }
-    },
-    required: [
-        'kind',
-        'name',
-        'pinned',
-        'contactCount',
-        'activityAt'
     ]
 } as const;
 
@@ -17838,6 +17908,18 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
             }
         },
+        defaultVideoModelId: {
+            type: 'string'
+        },
+        defaultAnimateModelId: {
+            type: 'string'
+        },
+        videoModels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
+            }
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -17851,6 +17933,9 @@ export const ProjectImageStudioCatalogSchema = {
     required: [
         'defaultModelId',
         'models',
+        'defaultVideoModelId',
+        'defaultAnimateModelId',
+        'videoModels',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -18005,6 +18090,105 @@ export const ProjectImageStudioCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioVideoCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        endpoint: {
+            type: 'string'
+        },
+        input: {
+            type: 'string',
+            enum: [
+                'text',
+                'image'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        durations: {
+            type: 'array',
+            items: {
+                type: 'integer'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perSecondUsd: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'number'
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'perSecondUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'endpoint',
+        'input',
+        'aspectRatios',
+        'durations',
+        'resolutions',
+        'curatedRank',
+        'notes',
+        'price'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -18099,6 +18283,23 @@ export const ProjectImageAssetSchema = {
         contentType: {
             type: 'string'
         },
+        mediaType: {
+            type: 'string',
+            enum: [
+                'IMAGE',
+                'VIDEO'
+            ]
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -18128,10 +18329,33 @@ export const ProjectImageAssetSchema = {
         'height',
         'bytes',
         'contentType',
+        'mediaType',
+        'video',
         'createdAt',
         'jobId',
         'settings',
         'contentPath'
+    ]
+} as const;
+
+export const ProjectVideoSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string'
+        },
+        durationSeconds: {
+            type: 'integer',
+            minimum: 1
+        },
+        resolution: {
+            type: 'string'
+        }
+    },
+    required: [
+        'aspectRatio',
+        'durationSeconds',
+        'resolution'
     ]
 } as const;
 
@@ -18212,7 +18436,9 @@ export const ProjectImageJobSchema = {
             type: 'string',
             enum: [
                 'GENERATE',
-                'EDIT'
+                'EDIT',
+                'TEXT_TO_VIDEO',
+                'IMAGE_TO_VIDEO'
             ]
         },
         model: {
@@ -18223,6 +18449,16 @@ export const ProjectImageJobSchema = {
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         referenceAssetIds: {
             type: 'array',
@@ -18322,6 +18558,7 @@ export const ProjectImageJobSchema = {
         'model',
         'prompt',
         'settings',
+        'video',
         'referenceAssetIds',
         'error',
         'failureReason',
@@ -25495,6 +25732,71 @@ export const CreateProjectImageJobRequestSchema = {
             default: []
         },
         parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        settings: {
+            type: 'object',
+            properties: {
+                aspectRatio: {
+                    type: 'string',
+                    enum: [
+                        '9:16',
+                        '16:9',
+                        '1:1',
+                        '4:3',
+                        '3:4'
+                    ]
+                },
+                durationSeconds: {
+                    type: 'integer'
+                },
+                resolution: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20
+                }
+            },
+            default: {}
+        },
+        sourceAssetId: {
             type: [
                 'string',
                 'null'

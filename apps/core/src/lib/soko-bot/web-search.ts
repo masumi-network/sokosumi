@@ -1,9 +1,6 @@
-import {
-  type createGateway,
-  generateText,
-  type LanguageModel,
-  stepCountIs,
-} from "ai";
+import { type createGateway, type LanguageModel, stepCountIs } from "ai";
+
+import { streamModelCall } from "./stream-model-call";
 
 type Gateway = Pick<ReturnType<typeof createGateway>, "tools">;
 
@@ -25,7 +22,7 @@ export async function searchWeb(
     providerMetadata?: unknown;
   }) => Promise<void>,
 ): Promise<{ query: string; results: unknown[] }> {
-  const result = await generateText({
+  const result = await streamModelCall({
     model,
     tools: {
       perplexity_search: gateway.tools.perplexitySearch({ maxResults: 5 }),
@@ -34,7 +31,11 @@ export async function searchWeb(
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
   });
-  await onUsage?.(result);
+  const step = result.steps.at(-1);
+  await onUsage?.({
+    usage: step?.usage,
+    providerMetadata: step?.providerMetadata,
+  });
   return {
     query,
     results: result.steps.flatMap((step) =>

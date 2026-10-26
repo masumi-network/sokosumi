@@ -13,7 +13,9 @@ import {
 import {
   type ContactSort,
   channelLabel,
+  IMPORTANCE_LEVELS,
   isFollowUpDue,
+  nearestImportanceLevel,
   primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
@@ -48,24 +50,25 @@ import {
   ContactAvatar,
   Dot,
   ListChip,
-  PersonAvatar,
   ReplyChip,
+  ScoreMeter,
   StageChip,
 } from "./contact-visuals";
 import { useStageOptions } from "./contacts-toolbar";
 import type { ContactFields } from "./use-contact-update";
-import type { Teammate } from "./use-contacts-data";
 
 type ColumnId =
   | "name"
   | "email"
   | "organization"
+  | "importance"
+  | "familiarity"
   | "stage"
   | "reply"
+  | "firstContact"
   | "lastContact"
   | "lists"
   | "knownBy"
-  | "owner"
   | "followUp"
   | "role"
   | "channels";
@@ -75,12 +78,14 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "name", width: 220, sort: "name" },
   { id: "email", width: 240 },
   { id: "organization", width: 170, sort: "organization" },
+  { id: "importance", width: 128, sort: "importance" },
+  { id: "familiarity", width: 128, sort: "familiarity" },
   { id: "stage", width: 128, sort: "stage" },
   { id: "reply", width: 184 },
+  { id: "firstContact", width: 132, sort: "firstContactAt" },
   { id: "lastContact", width: 124, sort: "lastContactAt" },
   { id: "lists", width: 180 },
   { id: "knownBy", width: 104 },
-  { id: "owner", width: 150 },
   { id: "followUp", width: 116 },
   { id: "role", width: 160 },
   { id: "channels", width: 112 },
@@ -121,17 +126,23 @@ function useColumnWidths() {
 interface Props {
   contacts: Contact[];
   lists: ContactList[];
-  teammates: Teammate[];
   selected: string[];
   onSelectedChange: (ids: string[]) => void;
   sort: ContactSort;
   direction: "asc" | "desc";
   onSort: (sort: ContactSort) => void;
   onOpen: (id: string) => void;
+  /** Shows only the people at this organization. */
+  onOrganization: (organization: string) => void;
   onUpdate: (
     contact: Contact,
     fields: ContactFields,
     optimistic?: Partial<Contact>,
+  ) => Promise<boolean>;
+  /** Sets how much a contact matters to the reader; null lets Jev judge. */
+  onImportance: (
+    contact: Contact,
+    importance: number | null,
   ) => Promise<boolean>;
   hasMore: boolean;
   loadingMore: boolean;
@@ -141,14 +152,15 @@ interface Props {
 
 export function ContactsGrid({
   contacts,
-  teammates,
   selected,
   onSelectedChange,
   sort,
   direction,
   onSort,
   onOpen,
+  onOrganization,
   onUpdate,
+  onImportance,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -173,6 +185,13 @@ export function ContactsGrid({
   );
   const today = new Date();
   const stageChoices = useStageOptions();
+  const importanceChoices = [
+    ...IMPORTANCE_LEVELS.map((level) => ({
+      value: String(level.value),
+      label: t(`importance.${level.id}`),
+    })),
+    { value: "", label: t("importance.auto") },
+  ];
   const [copied, setCopied] = useState<string | null>(null);
 
   function copyEmail(id: string, email: string) {
@@ -206,15 +225,6 @@ export function ContactsGrid({
       timeZone: "UTC",
     });
   }
-
-  const ownerChoices = [
-    { value: "", label: t("grid.noOwner") },
-    ...teammates.map((person) => ({
-      value: person.id,
-      label: person.name,
-      icon: <PersonAvatar person={person} />,
-    })),
-  ];
 
   function textEdit(
     contact: Contact,
@@ -251,6 +261,7 @@ export function ContactsGrid({
               <ContactAvatar
                 name={contact.name}
                 src={contact.avatarUrl}
+                email={primaryEmail(contact.channels)}
                 kind={contact.kind}
               />
               <button
@@ -331,22 +342,70 @@ export function ContactsGrid({
           ),
         };
       case "organization":
+        return {
+          text: contact.organization ?? "",
+          edit: textEdit(contact, "organization"),
+          node: contact.organization ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              data-fit
+              title={t("grid.filterCompany", { name: contact.organization })}
+              onMouseDown={keepCellFocus}
+              onClick={() =>
+                contact.organization && onOrganization(contact.organization)
+              }
+              className="hover:decoration-foreground min-w-0 cursor-pointer truncate text-start underline decoration-transparent underline-offset-4 transition-colors"
+            >
+              {contact.organization}
+            </button>
+          ) : null,
+        };
       case "role":
         return {
           text: contact[column] ?? "",
           edit: textEdit(contact, column),
           node: (
-            <span
-              data-fit
-              className={cn(
-                "truncate",
-                column === "role" && "text-muted-foreground",
-              )}
-            >
+            <span data-fit className="text-muted-foreground truncate">
               {contact[column]}
             </span>
           ),
         };
+      case "importance": {
+        const importance = contact.score?.importance ?? null;
+        return {
+          text: importance === null ? "" : String(importance),
+          edit: {
+            kind: "choice",
+            value:
+              importance === null || contact.score?.importanceSource === "JEV"
+                ? ""
+                : String(nearestImportanceLevel(importance).value),
+            choices: importanceChoices,
+            onSave: (value) =>
+              onImportance(contact, value ? Number(value) : null),
+          },
+          node: (
+            <span data-fit title={contact.score?.importanceReason ?? undefined}>
+              <ScoreMeter value={importance} label={t("columns.importance")} />
+            </span>
+          ),
+        };
+      }
+      case "familiarity": {
+        const familiarity = contact.score?.familiarity ?? null;
+        return {
+          text: familiarity === null ? "" : String(familiarity),
+          node: (
+            <span data-fit title={t("importance.familiarityHint")}>
+              <ScoreMeter
+                value={familiarity}
+                label={t("columns.familiarity")}
+              />
+            </span>
+          ),
+        };
+      }
       case "stage":
         return {
           text: t(`stages.${contact.stage}`),
@@ -399,31 +458,26 @@ export function ContactsGrid({
           ),
         };
       }
-      case "owner":
+      case "firstContact": {
+        const first = contact.firstContactAt
+          ? format.dateTime(new Date(contact.firstContactAt), {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : "";
         return {
-          text: contact.owner?.name ?? "",
-          edit: {
-            kind: "choice",
-            value: contact.owner?.id ?? "",
-            choices: ownerChoices,
-            onSave: (value) => {
-              const person = teammates.find((item) => item.id === value);
-              return onUpdate(
-                contact,
-                { ownerUserId: value || null },
-                { owner: person ?? null },
-              );
-            },
-          },
-          node: contact.owner ? (
-            <span data-fit className="flex min-w-0 items-center gap-2">
-              <PersonAvatar person={contact.owner} />
-              <span className="truncate">{contact.owner.name}</span>
+          text: first,
+          node: (
+            <span
+              data-fit
+              className="text-muted-foreground truncate tabular-nums"
+            >
+              {first || "—"}
             </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
           ),
         };
+      }
       case "lastContact":
         return {
           text: relative(contact.lastContactAt),

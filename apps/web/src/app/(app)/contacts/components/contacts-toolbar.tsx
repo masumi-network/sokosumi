@@ -51,8 +51,6 @@ export interface ContactFilters {
   replyState: ContactReplyState | null;
   kind: ContactKind | null;
   /** `me` or a member's user id. */
-  owner: string | null;
-  /** `me` or a member's user id. */
   knownBy: string | null;
 }
 
@@ -103,8 +101,9 @@ export function useStageOptions(): FilterOption[] {
 }
 
 /**
- * Search, one Filter menu and the filters in force as removable chips, on a
- * single row: the chrome stays one line high however many filters exist.
+ * Search, one Filter menu, `menus` beside it and the filters in force as
+ * removable chips, on a single row: the chrome stays one line high however
+ * many filters exist.
  */
 export function ContactsFilterBar({
   search,
@@ -112,12 +111,14 @@ export function ContactsFilterBar({
   filters,
   onFilter,
   teammates,
+  menus: extraMenus,
 }: {
   search: string;
   onSearch: (value: string) => void;
   filters: ContactFilters;
   onFilter: (key: ContactFilterKey, value: string | null) => void;
   teammates: Teammate[];
+  menus?: ReactNode;
 }) {
   const t = useTranslations("App.Contacts");
   const stageOptions = useStageOptions();
@@ -152,7 +153,6 @@ export function ContactsFilterBar({
         label: t(`kinds.${kind}`),
       })),
     },
-    { key: "owner", label: t("columns.owner"), options: people },
     { key: "knownBy", label: t("columns.knownBy"), options: people },
   ];
   const active = menus.filter((menu) => filters[menu.key]);
@@ -169,7 +169,7 @@ export function ContactsFilterBar({
           placeholder={t("toolbar.searchPlaceholder")}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          className={cn(CONTROL, "ps-9")}
+          className={cn(CONTROL, "border-control-border bg-background ps-9")}
         />
       </div>
       <DropdownMenu>
@@ -203,6 +203,7 @@ export function ContactsFilterBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      {extraMenus}
       {active.map((menu) => {
         const value = menu.options.find(
           (option) => option.value === filters[menu.key],
@@ -237,11 +238,8 @@ export function ContactsBulkBar({
   count,
   lists,
   viewList,
-  teammates,
   onAddToList,
   onRemoveFromList,
-  onStage,
-  onOwner,
   onMerge,
   onClear,
 }: {
@@ -249,28 +247,26 @@ export function ContactsBulkBar({
   lists: ContactList[];
   /** The manual list on screen, offered first for removal. */
   viewList: ContactList | null;
-  teammates: Teammate[];
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
-  onStage: (stage: ContactStage) => void;
-  onOwner: (userId: string | null) => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
   const t = useTranslations("App.Contacts");
-  const stageOptions = useStageOptions();
   const manual = lists.filter((list) => list.kind === "manual");
   const removable = viewList
     ? [viewList, ...manual.filter((list) => list.id !== viewList.id)]
     : manual;
-  const action = cn(CONTROL, "hover:bg-tertiary hover:text-background");
+  // The filter row's own height and buttons, on one line: selecting a row
+  // swaps the controls in place instead of growing the header.
+  const action = cn(CONTROL, "shrink-0");
   return (
     <div
       role="toolbar"
       aria-label={t("bulk.label")}
-      className="bg-foreground text-background flex w-full flex-wrap items-center gap-1 rounded-lg p-1 ps-3"
+      className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      <span className="me-2 text-sm font-medium tabular-nums">
+      <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
         {t("bulk.selected", { count })}
       </span>
       <DropdownMenu>
@@ -315,43 +311,6 @@ export function ContactsBulkBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" className={action}>
-            {t("bulk.setStage")}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
-          <DropdownMenuRadioGroup
-            value=""
-            onValueChange={(value) => onStage(value as ContactStage)}
-          >
-            <GroupedRadioItems options={stageOptions} />
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" className={action}>
-            {t("bulk.setOwner")}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {teammates.map((person) => (
-            <DropdownMenuItem
-              key={person.id}
-              onClick={() => onOwner(person.id)}
-            >
-              <PersonAvatar person={person} />
-              {person.name}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onOwner(null)}>
-            {t("grid.noOwner")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
       <Button
         size="sm"
         variant="ghost"
@@ -366,7 +325,7 @@ export function ContactsBulkBar({
         size="icon"
         variant="ghost"
         aria-label={t("bulk.clear")}
-        className="hover:bg-tertiary hover:text-background ms-auto size-10 md:size-8"
+        className="hit-area size-10 shrink-0 md:size-8"
         onClick={onClear}
       >
         <X aria-hidden className="size-4" />

@@ -163,7 +163,10 @@ export function StudioComposer({
   target,
   showTemplates = true,
   onUndoTemplate,
+  modeSwitch,
 }: {
+  /** The Image / Video switch, when the catalog has video models. */
+  modeSwitch?: React.ReactNode;
   busy: boolean;
   showTemplates?: boolean;
   /**
@@ -572,6 +575,7 @@ export function StudioComposer({
         }
         toolbarStart={
           <>
+            {modeSwitch}
             {showTemplates ? (
               <StudioTemplateMenu
                 labels={labels}

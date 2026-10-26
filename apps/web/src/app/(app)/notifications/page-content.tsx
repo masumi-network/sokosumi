@@ -6,6 +6,11 @@ import { NotificationCenterList } from "@/components/notifications/notification-
 import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
 
 /**
  * The Notification Center at full width, and the only frame it has on a
@@ -53,13 +58,15 @@ export function NotificationsPageContent() {
       </div>
       {/* The strip is the card's top edge, so it reads as this card's own
           control and not as page navigation. */}
-      <div
-        data-notification-frame=""
-        className="bg-card-background border-border overflow-hidden rounded-xl border"
-      >
-        <NotificationCenterViewFilter />
-        <NotificationNeedsYouRequests variant="page" />
-        <NotificationCenterList />
+      <div className={HOLDER_CLASS}>
+        <div
+          data-notification-frame=""
+          className={cn(HOLDER_ITEM_CLASS, "overflow-hidden")}
+        >
+          <NotificationCenterViewFilter />
+          <NotificationNeedsYouRequests variant="page" />
+          <NotificationCenterList />
+        </div>
       </div>
     </div>
   );

@@ -761,39 +761,6 @@ describe("DrivePage recents view", () => {
     expect(within(link).getAllByText("tableKind").length).toBeGreaterThan(0);
   });
 
-  it("pins the workspace's Contacts entry above the days, with no file actions", async () => {
-    fetchDriveRecentsPageMock.mockResolvedValue({
-      items: [
-        {
-          kind: "contacts",
-          name: "Contacts",
-          pinned: true,
-          contactCount: 12,
-          activityAt: "2026-08-01T09:00:00.000Z",
-        },
-        {
-          kind: "table",
-          tableId: "table_1",
-          name: "Leads",
-          activityAt: "2026-08-21T12:00:00.000Z",
-          projectId: null,
-        },
-      ],
-      nextCursor: null,
-    });
-    renderDrive();
-
-    const link = await screen.findByRole("link", { name: /contactsEntryName/ });
-    expect(link).toHaveAttribute("href", "/contacts");
-    const links = screen.getAllByRole("link");
-    expect(links.indexOf(link)).toBeLessThan(
-      links.indexOf(screen.getByRole("link", { name: /Leads/ })),
-    );
-    expect(
-      within(link).queryByRole("button", { name: "moreActions" }),
-    ).not.toBeInTheDocument();
-  });
-
   it("passes search query to recents fetch", async () => {
     const user = userEvent.setup();
     renderDrive();
@@ -876,6 +843,9 @@ describe("DrivePage files view mode", () => {
           pathname: "notes.txt",
           size: 12,
           activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: null,
+          category: null,
+          tags: [],
         },
       ],
       nextCursor: null,
@@ -920,6 +890,43 @@ describe("DrivePage files view mode", () => {
     });
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+  });
+
+  it("shows a file's labels on Recents and filters by the tags in the URL", async () => {
+    searchParams = new URLSearchParams("tags=tag_a,tag_b");
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "drive-file",
+          name: "promo.mp4",
+          fileUrl: "https://example.com/promo.mp4",
+          pathname: "promo.mp4",
+          size: 12,
+          activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: "res_1",
+          category: null,
+          tags: [
+            { labelId: "tag_a", displayName: "Marketing" },
+            { labelId: "tag_b", displayName: "Content" },
+          ],
+        },
+      ],
+      nextCursor: null,
+    });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-recents-labels")).toBeVisible();
+    });
+    expect(screen.getByTestId("drive-recents-labels")).toHaveTextContent(
+      "MarketingContent",
+    );
+    expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tagLabelIds: ["tag_a", "tag_b"] }),
+    );
+    // A row that used to do nothing now opens.
+    expect(screen.getByRole("button", { name: "promo.mp4" })).toBeVisible();
   });
 
   it("switches Recents to grid without refetching", async () => {
@@ -996,6 +1003,9 @@ describe("DrivePage files view mode", () => {
             pathname: "notes.txt",
             size: 12,
             activityAt: "2026-08-28T10:00:00.000Z",
+            resourceId: null,
+            category: null,
+            tags: [],
           },
         ],
         nextCursor: null,

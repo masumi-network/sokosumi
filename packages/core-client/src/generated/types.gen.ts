@@ -1755,7 +1755,14 @@ export const TaskTagId = {
     MARKETING: 'marketing',
     SOCIAL: 'social',
     SEO: 'seo',
-    OPERATIONS: 'operations'
+    OPERATIONS: 'operations',
+    PRESENTATIONS: 'presentations',
+    DASHBOARDS: 'dashboards',
+    MONITORING: 'monitoring',
+    MEDIA: 'media',
+    COMMUNICATION: 'communication',
+    FINANCE: 'finance',
+    QA: 'qa'
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
@@ -3697,8 +3704,6 @@ export type ContactList = {
         stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
         kind?: 'PERSON' | 'ORGANIZATION';
         replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-        ownerUserId?: string;
-        ownedByMe?: boolean;
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
@@ -3735,6 +3740,7 @@ export type ContactListColor = typeof ContactListColor[keyof typeof ContactListC
 
 export type Contact = {
     id: string;
+    score: ContactScore | null;
     name: string;
     organization: string | null;
     role: string | null;
@@ -3743,7 +3749,6 @@ export type Contact = {
     whyInteresting: string | null;
     stage: ContactStage;
     kind: ContactKind;
-    owner: ContactPerson | null;
     nextStep: string | null;
     followUpAt: string | null;
     avatarUrl: string | null;
@@ -3771,6 +3776,22 @@ export type Contact = {
     knownBy: Array<ContactKnownBy>;
 };
 
+export type ContactScore = {
+    /**
+     * How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.
+     */
+    familiarity: number;
+    /**
+     * How much they matter to the reader, 0–100; null until judged.
+     */
+    importance: number | null;
+    importanceSource: 'JEV' | 'SOKO_BOT' | 'MANUAL' | null;
+    /**
+     * Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.
+     */
+    importanceReason: string | null;
+};
+
 export const ContactStage = {
     CONTACT: 'CONTACT',
     PROSPECT: 'PROSPECT',
@@ -3792,12 +3813,6 @@ export type ContactStage = typeof ContactStage[keyof typeof ContactStage];
 export const ContactKind = { PERSON: 'PERSON', ORGANIZATION: 'ORGANIZATION' } as const;
 
 export type ContactKind = typeof ContactKind[keyof typeof ContactKind];
-
-export type ContactPerson = {
-    id: string;
-    name: string;
-    image: string | null;
-};
 
 export const ContactReplyState = {
     AWAITING_REPLY: 'AWAITING_REPLY',
@@ -3859,6 +3874,12 @@ export type ContactKnownBy = ContactPerson & {
     lastInteractionAt: Date | null;
 };
 
+export type ContactPerson = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
 export type ContactUpsertResult = {
     contact: Contact;
     created: boolean;
@@ -3884,6 +3905,14 @@ export type ContactImportResult = {
     skipped: number;
     listsCreated: number;
     mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactOrganization = {
+    name: string;
+    /**
+     * Live contacts
+     */
+    count: number;
 };
 
 export type ContactDetail = Contact & {
@@ -4297,9 +4326,7 @@ export type DriveRecentsItem = ({
     kind: 'task-output';
 } & DriveRecentsTaskOutputItem) | ({
     kind: 'table';
-} & DriveRecentsTableItem) | ({
-    kind: 'contacts';
-} & DriveRecentsContactsItem);
+} & DriveRecentsTableItem);
 
 export type DriveRecentsDriveFileItem = {
     /**
@@ -4326,6 +4353,24 @@ export type DriveRecentsDriveFileItem = {
      * Latest activity timestamp (blob uploadedAt)
      */
     activityAt: Date;
+    /**
+     * Files catalog id, for the file detail view. Null until the catalog has adopted this blob.
+     */
+    resourceId: string | null;
+    /**
+     * What kind of document this is, when one is known.
+     */
+    category: {
+        labelId: string;
+        displayName: string;
+    } | null;
+    /**
+     * Tags on this file, automatic or confirmed. Labels a person removed are never listed.
+     */
+    tags: Array<{
+        labelId: string;
+        displayName: string;
+    }>;
 };
 
 export type DriveRecentsTaskOutputItem = {
@@ -4392,23 +4437,6 @@ export type DriveRecentsTableItem = {
      * Parent project ID, or null
      */
     projectId: string | null;
-};
-
-export type DriveRecentsContactsItem = {
-    /**
-     * The workspace's one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.
-     */
-    kind: 'contacts';
-    name: string;
-    pinned: true;
-    /**
-     * Live contacts (not archived or merged)
-     */
-    contactCount: number;
-    /**
-     * Latest change to any contact, or now when there are none
-     */
-    activityAt: Date;
 };
 
 export type FileSelectionTokenResponse = {
@@ -5185,6 +5213,9 @@ export type HistoryImageItem = {
 export type ProjectImageStudioCatalog = {
     defaultModelId: string;
     models: Array<ProjectImageStudioCatalogModel>;
+    defaultVideoModelId: string;
+    defaultAnimateModelId: string;
+    videoModels: Array<ProjectImageStudioVideoCatalogModel>;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -5220,6 +5251,29 @@ export type ProjectImageStudioCatalogModel = {
     verifiedAt: string;
 };
 
+export type ProjectImageStudioVideoCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    endpoint: string;
+    input: 'text' | 'image';
+    aspectRatios: Array<string>;
+    durations: Array<number>;
+    resolutions: Array<string>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perSecondUsd: {
+            [key: string]: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -5242,10 +5296,18 @@ export type ProjectImageAsset = {
     height: number;
     bytes: number;
     contentType: string;
+    mediaType: 'IMAGE' | 'VIDEO';
+    video: ProjectVideoSettings | null;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+};
+
+export type ProjectVideoSettings = {
+    aspectRatio: string;
+    durationSeconds: number;
+    resolution: string;
 };
 
 export type ProjectImageSettings = {
@@ -5259,10 +5321,11 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
     model: string;
     prompt: string;
     settings: ProjectImageSettings;
+    video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
@@ -7441,6 +7504,19 @@ export type CreateProjectImageJobRequest = {
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     parentAssetId?: string | null;
+    sessionId?: string | null;
+    idempotencyKey: string;
+};
+
+export type CreateProjectVideoJobRequest = {
+    modelId?: string;
+    prompt: string;
+    settings?: {
+        aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4';
+        durationSeconds?: number;
+        resolution?: string;
+    };
+    sourceAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
 };
@@ -27393,8 +27469,6 @@ export type PostContactListsData = {
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-            ownerUserId?: string;
-            ownedByMe?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -27674,8 +27748,6 @@ export type PatchContactListsByIdData = {
             stages?: Array<'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT'>;
             kind?: 'PERSON' | 'ORGANIZATION';
             replyStates?: Array<'AWAITING_REPLY' | 'NO_REPLY' | 'IN_CONVERSATION' | 'REPLIED'>;
-            ownerUserId?: string;
-            ownedByMe?: boolean;
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
@@ -27981,11 +28053,13 @@ export type GetContactsData = {
          */
         limit?: number;
         search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
-        ownerUserId?: string;
-        ownedByMe?: 'true' | 'false';
         /**
          * A manual or smart list; a smart list applies its filter.
          */
@@ -28000,7 +28074,7 @@ export type GetContactsData = {
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts';
@@ -28112,7 +28186,6 @@ export type PostContactsData = {
         whyInteresting?: string | null;
         stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
         kind?: 'PERSON' | 'ORGANIZATION';
-        ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
         avatarUrl?: string | null;
@@ -28280,11 +28353,13 @@ export type GetContactsExportCsvData = {
          */
         limit?: number;
         search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
         stage?: ContactStage;
         kind?: ContactKind;
         replyState?: ContactReplyState;
-        ownerUserId?: string;
-        ownedByMe?: 'true' | 'false';
         /**
          * A manual or smart list; a smart list applies its filter.
          */
@@ -28299,7 +28374,7 @@ export type GetContactsExportCsvData = {
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts/export.csv';
@@ -28785,6 +28860,111 @@ export type PostContactsImportResponses = {
 
 export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
 
+export type GetContactsOrganizationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        limit?: number;
+    };
+    url: '/contacts/organizations';
+};
+
+export type GetContactsOrganizationsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsOrganizationsError = GetContactsOrganizationsErrors[keyof GetContactsOrganizationsErrors];
+
+export type GetContactsOrganizationsResponses = {
+    /**
+     * Organizations
+     */
+    200: {
+        data: Array<ContactOrganization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsOrganizationsResponse = GetContactsOrganizationsResponses[keyof GetContactsOrganizationsResponses];
+
 export type GetContactsByIdData = {
     body?: never;
     headers?: {
@@ -28914,7 +29094,6 @@ export type PatchContactsByIdData = {
         whyInteresting?: string | null;
         stage?: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
         kind?: 'PERSON' | 'ORGANIZATION';
-        ownerUserId?: string | null;
         nextStep?: string | null;
         followUpAt?: string | null;
         avatarUrl?: string | null;
@@ -30011,6 +30190,127 @@ export type DeleteContactsByIdInteractionsByInteractionIdResponses = {
 };
 
 export type DeleteContactsByIdInteractionsByInteractionIdResponse = DeleteContactsByIdInteractionsByInteractionIdResponses[keyof DeleteContactsByIdInteractionsByInteractionIdResponses];
+
+export type PutContactsByIdImportanceData = {
+    body?: {
+        importance: number | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/importance';
+};
+
+export type PutContactsByIdImportanceErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid importance
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceError = PutContactsByIdImportanceErrors[keyof PutContactsByIdImportanceErrors];
+
+export type PutContactsByIdImportanceResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
 
 export type GetContactsByIdActivityData = {
     body?: never;
@@ -33078,6 +33378,10 @@ export type GetDriveRecentsData = {
          */
         q?: string;
         /**
+         * Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs and tables have no labels and are left out.
+         */
+        tags?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -33124,6 +33428,21 @@ export type GetDriveRecentsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -53064,6 +53383,162 @@ export type PostProjectsByIdImageStudioJobsResponses = {
 
 export type PostProjectsByIdImageStudioJobsResponse = PostProjectsByIdImageStudioJobsResponses[keyof PostProjectsByIdImageStudioJobsResponses];
 
+export type PostProjectsByIdImageStudioVideoJobsData = {
+    body: CreateProjectVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/video-jobs';
+};
+
+export type PostProjectsByIdImageStudioVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsError = PostProjectsByIdImageStudioVideoJobsErrors[keyof PostProjectsByIdImageStudioVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioVideoJobsResponses = {
+    /**
+     * Video generation started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
+
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;
     headers?: {
@@ -53244,9 +53719,13 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentError = GetProjectsB
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
     /**
-     * Image bytes
+     * Image or video bytes
      */
     200: Blob | File;
+    /**
+     * The requested byte range of a video
+     */
+    206: Blob | File;
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];

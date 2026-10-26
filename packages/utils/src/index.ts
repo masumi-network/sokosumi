@@ -515,6 +515,11 @@ export {
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
 export {
+  creditsPerVideoCents,
+  type VideoLength,
+  type VideoPriceFigures,
+} from "./video-credits.js";
+export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,
   normalizeWebsiteUrl,

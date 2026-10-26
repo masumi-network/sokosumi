@@ -342,7 +342,9 @@
       "memory": "Memory",
       "social": "Social Scheduling",
       "ads": "Ads",
-      "evaluations": "Model evaluations"
+      "evaluations": "Model evaluations",
+      "catch-up": "Catch up",
+      "contacts": "Contacts"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1611,7 +1613,8 @@
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
           "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours"
+          "trendDown": "{count} fewer than the previous 24 hours",
+          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1624,17 +1627,15 @@
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
-          "intro": "Your Soko Bot",
+          "heading": "What's next?",
+          "headingWithName": "What's next, {name}?",
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
-          "awaitingInput": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
-          "recentTitle": "Recent chats",
-          "recentEmpty": "No chats yet. Ask {name} anything, or start with a suggestion.",
-          "suggestionsLabel": "Suggestions",
+          "quietDay": "Nothing moved yet. Ask {name} to start something.",
           "suggestions": {
-            "today": "What needs me today?",
-            "inbox": "Summarise my inbox",
-            "week": "Plan my week"
+            "catchUp": "Catch me up",
+            "teamWins": "What did we finish?",
+            "planTomorrow": "Plan tomorrow"
           }
         }
       },
@@ -1728,7 +1729,8 @@
         "emptyResults": "No results found.",
         "all": "All",
         "scopeLabel": "Scope",
-        "scopeOwned": "My tasks",
+        "scopeOwned": "Created by me",
+        "assignedToMe": "My tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "humanLabel": "Human",
@@ -1830,8 +1832,6 @@
         "actions": {
           "edit": "Edit",
           "archive": "Archive",
-          "confirmArchive": "Archive this task?",
-          "confirmArchiveDescription": "This hides the task from your list, including any scheduled runs linked to it. In-progress runs must finish or be canceled first. It is not permanently removed from the database.",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
           "reopenToReadyTitle": "Reopen task",
@@ -2268,7 +2268,14 @@
           "marketing": "Marketing",
           "social": "Social media",
           "seo": "SEO",
-          "operations": "Operations"
+          "operations": "Operations",
+          "presentations": "Presentations",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Media editing",
+          "communication": "Communication",
+          "finance": "Finance",
+          "qa": "Review & QA"
         }
       }
     },
@@ -3223,6 +3230,18 @@
         "unknown": "This generation did not finish."
       },
       "failedDetails": "What the provider said",
+      "studioMode": "Make",
+      "modeImage": "Image",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Describe a video",
+      "videoPromptPlaceholder": "Describe the video you want…",
+      "generateVideo": "Generate video",
+      "videoLength": "Length",
+      "videoFollowsImage": "The video keeps the image's frame.",
+      "videoNeedsProject": "Open a project to make a video in it.",
+      "animate": "Animate",
+      "animating": "Animating",
+      "stopAnimating": "Stop animating this image",
       "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
       "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
       "creditsCount": "{count, plural, one {# credit} other {# credits}}",
@@ -7173,11 +7192,9 @@
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "filterOn": "Showing unread only",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
-        "allThreads": "All threads",
         "justRead": "Read just now"
       },
       "ThreadsView": {
@@ -7620,6 +7637,11 @@
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
           "note": "Collected by Jev. Remove a wrong one from its message."
+        },
+        "CatchUpTabs": {
+          "label": "Catch up sections",
+          "overview": "Overview",
+          "threads": "Threads"
         }
       }
     },
@@ -7708,6 +7730,13 @@
       "filterProjectLabel": "Project",
       "filterTaskLabel": "Task",
       "recentsTab": "Recents",
+      "recentsTagFilter": "Tags",
+      "recentsTagFilterWithCount": "Tags ({count})",
+      "recentsTagFilterHeading": "Show files tagged",
+      "recentsTagFilterClear": "Clear tags",
+      "recentsTagFilterLoading": "Loading tags",
+      "recentsTagFilterUnavailable": "Tags could not be loaded.",
+      "recentsTagFilterEmpty": "No tags yet. Files are tagged as they are processed.",
       "recentsEmptyTitle": "No recent files",
       "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
       "loadRecentsError": "Failed to load recent files",
@@ -7855,6 +7884,7 @@
         "viewerDetails": "Details",
         "viewerClose": "Close",
         "viewerNoPreview": "No preview for this file type. Download it to open it.",
+        "viewerDownloadWithSize": "Download ({size})",
         "searchButton": "Search",
         "searchClear": "Clear search",
         "typeAll": "All",
@@ -7866,10 +7896,7 @@
         "allowAgain": "Let the model reconsider {name}",
         "labelReopened": "Reopened. The model may suggest it again; it is not applied."
       },
-      "tableKind": "Table",
-      "contactsEntryName": "Contacts",
-      "contactsEntryCount": "{count, plural, =1 {1 contact} other {# contacts}}",
-      "contactsEntryPinned": "Pinned"
+      "tableKind": "Table"
     },
     "SokoBot": {
       "Metadata": {
@@ -8087,6 +8114,8 @@
           "read_file": "Reading a file",
           "generate_image": "Generating an image",
           "get_image": "Checking an image",
+          "generate_video": "Generating a video",
+          "get_video": "Checking a video",
           "preview_result": "Preparing a result preview"
         },
         "composer": {
@@ -8618,7 +8647,10 @@
         "over": "{item} is over {target}.",
         "dropped": "{item} moved to the place of {target}.",
         "cancelled": "Moving {item} was cancelled."
-      }
+      },
+      "contactsName": "Contacts",
+      "contactsPinned": "Pinned",
+      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
@@ -8684,31 +8716,28 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
-        "noReply": "No reply",
-        "followUps": "Follow-ups due",
-        "recent": "Recently added",
-        "stale": "Stale 90+ days"
+        "recent": "Recently added"
       },
       "emptyViews": {
         "all": "No contacts yet.",
-        "mine": "You don't own any contacts yet. Set yourself as owner on the people you look after.",
-        "followUps": "No follow-ups are due. Nice work.",
+        "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
         "recent": "Nobody was added in the last two weeks.",
-        "stale": "Everyone has been in touch within the last 90 days.",
-        "list": "This list is empty. Select people in All contacts and add them here.",
-        "noReply": "Everyone the team wrote to answered, or it has been less than a week."
+        "list": "This list is empty. Select people in All contacts and add them here."
       },
-      "rail": {
-        "label": "Contact lists",
+      "views": {
+        "label": "Contact views",
         "lists": "Lists",
         "newList": "New list",
         "smartList": "Smart list",
-        "listMenu": "Options for {name}",
         "editList": "Edit list",
         "deleteList": "Delete list",
         "noLists": "No lists yet.",
         "import": "Import from a table",
-        "autoList": "Made automatically from your contacts"
+        "autoList": "Made automatically from your contacts",
+        "companies": "Companies",
+        "findCompany": "Find a company…",
+        "noCompanies": "No companies found.",
+        "clearCompany": "Show every company"
       },
       "columns": {
         "name": "Name",
@@ -8717,16 +8746,17 @@
         "stage": "Relationship",
         "lists": "Lists",
         "channels": "Channels",
-        "owner": "Owner",
+        "firstContact": "First contact",
         "lastContact": "Last contact",
         "knownBy": "Known by",
         "followUp": "Follow-up",
         "email": "Email",
-        "reply": "Reply"
+        "reply": "Reply",
+        "importance": "Importance",
+        "familiarity": "Familiarity"
       },
       "grid": {
         "label": "Contacts",
-        "noOwner": "No owner",
         "openContact": "Open {name}",
         "knownByLabel": "Known by {names}",
         "due": "Due",
@@ -8738,7 +8768,8 @@
         "copyEmail": "Copy {email}",
         "emailCopied": "Email copied",
         "waitingDays": "{days, plural, =0 {today} other {#d}}",
-        "addedAutomatically": "Added to {list} automatically"
+        "addedAutomatically": "Added to {list} automatically",
+        "filterCompany": "Show people at {name}"
       },
       "toolbar": {
         "search": "Search contacts",
@@ -8756,8 +8787,6 @@
         "selected": "{count} selected",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
-        "setStage": "Set stage",
-        "setOwner": "Set owner",
         "merge": "Merge",
         "clear": "Clear selection",
         "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
@@ -8926,7 +8955,6 @@
         "archive": "Archive contact",
         "archived": "{name} archived",
         "changeStage": "Stage: {stage}. Change stage",
-        "changeOwner": "Owner: {owner}. Change owner",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
         "manualLists": "Lists",
@@ -9017,6 +9045,29 @@
       "kinds": {
         "PERSON": "Person",
         "ORGANIZATION": "Organization or shared inbox"
+      },
+      "title": "Contacts",
+      "importance": {
+        "veryHigh": "Very important",
+        "high": "Important",
+        "medium": "Somewhat important",
+        "low": "Not very important",
+        "minimal": "Not important",
+        "auto": "Let Jev decide",
+        "change": "Change how important they are to you",
+        "byJev": "Judged by Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Set by you",
+        "byBot": "Set by your Soko Bot",
+        "notYet": "Not judged yet",
+        "familiarityHint": "From your own emails and meetings with them",
+        "reasons": {
+          "decides": "decision maker",
+          "value": "could move your work forward",
+          "active": "live business",
+          "close": "close relationship",
+          "noise": "looks automated or not personal"
+        }
       }
     }
   },

@@ -26,7 +26,21 @@ vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: { listCoworkers: async () => [] },
 }));
 vi.mock("@/lib/services/task.service", () => ({
-  taskService: { getActivitySummary: async () => ({ awaitingInput: 2 }) },
+  taskService: {
+    getActivitySummary: async () => ({ awaitingInput: 2 }),
+    listTasks: async () => ({
+      tasks: [
+        {
+          id: "task-1",
+          name: "Plan my week",
+          status: "COMPLETED",
+          updatedAt: new Date(),
+          assignee: null,
+          owner: null,
+        },
+      ],
+    }),
+  },
 }));
 vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
@@ -94,7 +108,7 @@ describe("WelcomePage", () => {
     expect(screen.getByText("coworker welcome")).toBeTruthy();
   });
 
-  it("shows the bot home with its room and recent chats", async () => {
+  it("shows the bot home with its room and the team's day", async () => {
     getMine.mockResolvedValue({
       id: "bot-1",
       name: "Joseph",
@@ -107,8 +121,8 @@ describe("WelcomePage", () => {
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: "room-1",
-        awaitingInput: 2,
-        recentChats: [expect.objectContaining({ title: "Plan my week" })],
+        summary: { awaitingInput: 2 },
+        teamTasks: [expect.objectContaining({ name: "Plan my week" })],
       }),
     );
   });

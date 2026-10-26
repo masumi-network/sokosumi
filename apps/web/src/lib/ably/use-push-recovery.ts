@@ -13,6 +13,29 @@ import { forgetUnfinishedPushTeardown } from "./release-push-device.client";
 
 const PUSH_RECOVERY_SUCCESS_THROTTLE_MS = 60_000;
 const PUSH_RECOVERY_FAILURE_THROTTLE_MS = 5_000;
+/**
+ * A repair that succeeded this recently in this tab and session is not
+ * repeated on a reload: each repair re-authorizes a push client, a Core token
+ * mint, and full page loads were paying for one every time.
+ */
+const PUSH_RECOVERY_RELOAD_THROTTLE_MS = 10 * 60_000;
+const PUSH_RECOVERY_STAMP_KEY = "push-recovery-ok";
+
+function readRecoveryStamp(key: string): number | null {
+  try {
+    const value = Number(window.sessionStorage.getItem(key));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRecoveryStamp(key: string, succeeded: boolean): void {
+  try {
+    if (succeeded) window.sessionStorage.setItem(key, String(Date.now()));
+    else window.sessionStorage.removeItem(key);
+  } catch {}
+}
 
 /** SOK-1120: returning to the app retries repair without overlapping work. */
 export function usePushRecovery(
@@ -32,8 +55,14 @@ export function usePushRecovery(
     let disposed = false;
     let inFlight = false;
     let reconnectPending = false;
-    let lastAttemptAt: number | null = null;
-    let lastAttemptSucceeded = false;
+    const stampKey = `${PUSH_RECOVERY_STAMP_KEY}:${userId}:${sessionId ?? ""}`;
+    const stamp = readRecoveryStamp(stampKey);
+    const recentlyRepaired =
+      stamp !== null && Date.now() - stamp < PUSH_RECOVERY_RELOAD_THROTTLE_MS;
+    // A repair from before this reload counts as the last attempt, so the
+    // mount read below waits out the success throttle instead of repeating it.
+    let lastAttemptAt: number | null = recentlyRepaired ? Date.now() : null;
+    let lastAttemptSucceeded = recentlyRepaired;
 
     async function recover(retryFailure = false): Promise<void> {
       if (disposed) return;
@@ -64,6 +93,7 @@ export function usePushRecovery(
       } catch (error) {
         console.error("Failed to recover push notifications", error);
       } finally {
+        writeRecoveryStamp(stampKey, lastAttemptSucceeded);
         lastAttemptAt = Date.now();
         inFlight = false;
         const retryReconnect = reconnectPending && !lastAttemptSucceeded;

@@ -62,7 +62,6 @@ describe("contactFilterWhere", () => {
       contactFilterWhere(
         actor,
         {
-          ownedByMe: true,
           knownByMe: true,
           lastContactOlderThanDays: 90,
           createdWithinDays: 7,
@@ -71,7 +70,6 @@ describe("contactFilterWhere", () => {
         now,
       ),
     ).toEqual([
-      { ownerUserId: "user_me" },
       { interactions: { some: { userId: "user_me" } } },
       { lastContactAt: { lt: new Date("2026-07-24T15:30:00.000Z") } },
       { createdAt: { gte: new Date("2026-10-15T15:30:00.000Z") } },

@@ -8,10 +8,10 @@ import {
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { TASK_TAG_IDS, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
@@ -624,7 +624,7 @@ describe("POST /tasks", () => {
           automaticTags: [...tags],
           tagClassificationState: "complete",
           tagClassificationLease: null,
-          tagVocabularyVersion: 1,
+          tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
         },
       });
       expect(taskCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -2166,18 +2166,7 @@ describe("POST /tasks inline tag classification failure modes", () => {
     return {
       model: "typesafe-ai/jev",
       answers: Object.fromEntries(
-        [
-          "research",
-          "strategy",
-          "writing",
-          "design",
-          "analysis",
-          "development",
-          "marketing",
-          "social",
-          "seo",
-          "operations",
-        ].map((id) => [
+        TASK_TAG_IDS.map((id) => [
           id,
           { type: "boolean", probability: id === "research" ? probability : 0 },
         ]),
@@ -2241,7 +2230,7 @@ describe("POST /tasks inline tag classification failure modes", () => {
           automaticTags: ["research"],
           tagClassificationState: "complete",
           tagClassificationLease: null,
-          tagVocabularyVersion: 1,
+          tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
         },
       });
     },

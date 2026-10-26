@@ -38,6 +38,7 @@ import {
   channelHref,
   channelLabel,
   coreErrorOf,
+  IMPORTANCE_LEVELS,
   isFollowUpDue,
   LIST_COLOR_DOT,
   primaryEmail,
@@ -79,11 +80,12 @@ import {
   ListChip,
   PersonAvatar,
   ReplyChip,
+  ScoreMeter,
   StageChip,
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
-import { useContactUpdate } from "./use-contact-update";
+import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   contactKey,
   refreshContacts,
@@ -218,6 +220,23 @@ function PanelBody({
   const update = useContactUpdate();
   const save = (fields: Parameters<typeof update>[1], optimistic = {}) =>
     update(contact, fields, optimistic);
+  const setImportance = useImportanceUpdate();
+  const importance = contact.score?.importance ?? null;
+  const importanceNote =
+    contact.score?.importanceSource === "JEV"
+      ? contact.score.importanceReason
+        ? t("importance.byJevBecause", {
+            reason: contact.score.importanceReason
+              .split(",")
+              .map((key) => t(`importance.reasons.${key}`))
+              .join(", "),
+          })
+        : t("importance.byJev")
+      : contact.score?.importanceSource === "MANUAL"
+        ? t("importance.byYou")
+        : contact.score?.importanceSource === "SOKO_BOT"
+          ? t("importance.byBot")
+          : t("importance.notYet");
   const creator =
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
   const manualLists = lists.filter((list) => list.kind === "manual");
@@ -258,6 +277,7 @@ function PanelBody({
         <ContactAvatar
           name={contact.name}
           src={contact.avatarUrl}
+          email={email}
           kind={contact.kind}
           className="size-14 [&_[data-slot=avatar-fallback]]:text-base [&_svg]:size-6"
         />
@@ -436,57 +456,61 @@ function PanelBody({
             </DropdownMenuContent>
           </DropdownMenu>
         </Property>
-        <Property label={t("columns.owner")}>
+        <Property label={t("columns.importance")}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                aria-label={t("panel.changeOwner", {
-                  owner: contact.owner?.name ?? t("grid.noOwner"),
-                })}
-                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm outline-none focus-visible:ring-2"
+                aria-label={t("importance.change")}
+                className="hover:bg-quinary focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
               >
-                {contact.owner ? (
-                  <>
-                    <PersonAvatar person={contact.owner} />
-                    <span className="truncate">{contact.owner.name}</span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">
-                    {t("grid.noOwner")}
-                  </span>
-                )}
+                <ScoreMeter
+                  value={importance}
+                  label={t("columns.importance")}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {importanceNote}
+                </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
               <DropdownMenuRadioGroup
-                value={contact.owner?.id ?? ""}
-                onValueChange={(id) =>
-                  void save(
-                    { ownerUserId: id || null },
-                    {
-                      owner:
-                        teammates.find((person) => person.id === id) ?? null,
-                    },
-                  )
+                value={
+                  contact.score?.importanceSource &&
+                  contact.score.importanceSource !== "JEV" &&
+                  importance !== null
+                    ? String(importance)
+                    : ""
+                }
+                onValueChange={(value) =>
+                  void setImportance(contact, value ? Number(value) : null)
                 }
               >
-                <DropdownMenuRadioItem value="">
-                  {t("grid.noOwner")}
-                </DropdownMenuRadioItem>
-                {teammates.map((person) => (
+                {IMPORTANCE_LEVELS.map((level) => (
                   <DropdownMenuRadioItem
-                    key={person.id}
-                    value={person.id}
-                    className="gap-2"
+                    key={level.id}
+                    value={String(level.value)}
                   >
-                    <PersonAvatar person={person} />
-                    {person.name}
+                    {t(`importance.${level.id}`)}
                   </DropdownMenuRadioItem>
                 ))}
+                <DropdownMenuRadioItem value="">
+                  {t("importance.auto")}
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+        </Property>
+        <Property label={t("columns.familiarity")}>
+          <span className="flex min-h-9 flex-wrap items-center gap-x-3">
+            <ScoreMeter
+              value={contact.score?.familiarity ?? 0}
+              label={t("columns.familiarity")}
+            />
+            <span className="text-muted-foreground text-xs">
+              {t("importance.familiarityHint")}
+            </span>
+          </span>
         </Property>
         <Property label={t("columns.lists")}>
           <DropdownMenu>

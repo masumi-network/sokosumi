@@ -326,7 +326,9 @@
       "memory": "Memoria",
       "social": "Programación social",
       "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos"
+      "evaluations": "Evaluaciones de modelos",
+      "catch-up": "Ponerse al día",
+      "contacts": "Contactos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1611,7 +1613,8 @@
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
           "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores"
+          "trendDown": "{count} menos que en las 24 horas anteriores",
+          "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1624,17 +1627,15 @@
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
-          "intro": "Tu Soko Bot",
+          "heading": "¿Qué sigue?",
+          "headingWithName": "¿Qué sigue, {name}?",
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
-          "awaitingInput": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
-          "recentTitle": "Chats recientes",
-          "recentEmpty": "Aún no hay chats. Pregunta a {name} lo que quieras o empieza con una sugerencia.",
-          "suggestionsLabel": "Sugerencias",
+          "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
           "suggestions": {
-            "today": "¿Qué necesita mi atención hoy?",
-            "inbox": "Resume mi bandeja de entrada",
-            "week": "Planifica mi semana"
+            "catchUp": "Ponme al día",
+            "teamWins": "¿Qué terminamos?",
+            "planTomorrow": "Planificar mañana"
           }
         }
       },
@@ -1728,7 +1729,8 @@
         "emptyResults": "No se encontraron resultados.",
         "all": "Todas",
         "scopeLabel": "Ámbito",
-        "scopeOwned": "Mis tareas",
+        "scopeOwned": "Creadas por mí",
+        "assignedToMe": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
         "humanLabel": "Humano",
@@ -1829,8 +1831,6 @@
         "actions": {
           "edit": "Editar",
           "archive": "Archivar",
-          "confirmArchive": "¿Archivar esta tarea?",
-          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista, incluidas las ejecuciones programadas vinculadas. Las ejecuciones en curso deben terminar o cancelarse primero. No se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
           "reopenToReadyTitle": "Reabrir tarea",
@@ -2268,7 +2268,14 @@
           "marketing": "Marketing",
           "social": "Redes sociales",
           "seo": "SEO",
-          "operations": "Operaciones"
+          "operations": "Operaciones",
+          "presentations": "Presentaciones",
+          "dashboards": "Paneles",
+          "monitoring": "Monitorización",
+          "media": "Edición multimedia",
+          "communication": "Comunicación",
+          "finance": "Finanzas",
+          "qa": "Revisión y QA"
         }
       }
     },
@@ -3223,6 +3230,18 @@
         "unknown": "Esta generación no se completó."
       },
       "failedDetails": "Lo que dijo el proveedor",
+      "studioMode": "Crear",
+      "modeImage": "Imagen",
+      "modeVideo": "Vídeo",
+      "videoComposerTitle": "Describe un vídeo",
+      "videoPromptPlaceholder": "Describe el vídeo que quieres…",
+      "generateVideo": "Generar vídeo",
+      "videoLength": "Duración",
+      "videoFollowsImage": "El vídeo mantiene el formato de la imagen.",
+      "videoNeedsProject": "Abre un proyecto para crear un vídeo en él.",
+      "animate": "Animar",
+      "animating": "Animando",
+      "stopAnimating": "Dejar de animar esta imagen",
       "runPlanCredits": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}, {credits, plural, one {# crédito} other {# créditos}}",
       "creditsEach": "{credits, plural, one {# crédito} other {# créditos}} x {count}",
       "creditsCount": "{count, plural, one {# crédito} other {# créditos}}",
@@ -7173,11 +7192,9 @@
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "filterOn": "Mostrando solo lo no leído",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "allThreads": "Todos los hilos",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {
@@ -7620,6 +7637,11 @@
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
           "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+        },
+        "CatchUpTabs": {
+          "label": "Secciones de Ponerse al día",
+          "overview": "Resumen",
+          "threads": "Hilos"
         }
       }
     },
@@ -7708,6 +7730,13 @@
       "filterProjectLabel": "Proyecto",
       "filterTaskLabel": "Tarea",
       "recentsTab": "Recientes",
+      "recentsTagFilter": "Etiquetas",
+      "recentsTagFilterWithCount": "Etiquetas ({count})",
+      "recentsTagFilterHeading": "Mostrar archivos etiquetados",
+      "recentsTagFilterClear": "Quitar etiquetas",
+      "recentsTagFilterLoading": "Cargando etiquetas",
+      "recentsTagFilterUnavailable": "No se pudieron cargar las etiquetas.",
+      "recentsTagFilterEmpty": "Aún no hay etiquetas. Los archivos se etiquetan al procesarse.",
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
@@ -7855,6 +7884,7 @@
         "viewerDetails": "Detalles",
         "viewerClose": "Cerrar",
         "viewerNoPreview": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+        "viewerDownloadWithSize": "Descargar ({size})",
         "searchButton": "Buscar",
         "searchClear": "Borrar búsqueda",
         "typeAll": "Todos",
@@ -7866,10 +7896,7 @@
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
       },
-      "tableKind": "Tabla",
-      "contactsEntryName": "Contactos",
-      "contactsEntryCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
-      "contactsEntryPinned": "Fijado"
+      "tableKind": "Tabla"
     },
     "SokoBot": {
       "Metadata": {
@@ -8087,6 +8114,8 @@
           "read_file": "Leyendo un archivo",
           "generate_image": "Generando una imagen",
           "get_image": "Consultando una imagen",
+          "generate_video": "Generando un vídeo",
+          "get_video": "Consultando un vídeo",
           "preview_result": "Preparando una vista previa"
         },
         "composer": {
@@ -8618,7 +8647,10 @@
         "over": "{item} está sobre {target}.",
         "dropped": "{item} se movió al lugar de {target}.",
         "cancelled": "Se canceló mover {item}."
-      }
+      },
+      "contactsName": "Contactos",
+      "contactsPinned": "Fijado",
+      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
@@ -8684,31 +8716,28 @@
       "presets": {
         "all": "Todos los contactos",
         "mine": "Mis contactos",
-        "noReply": "Sin respuesta",
-        "followUps": "Seguimientos pendientes",
-        "recent": "Añadidos recientemente",
-        "stale": "Sin contacto en 90+ días"
+        "recent": "Añadidos recientemente"
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
-        "mine": "Todavía no eres responsable de ningún contacto. Asígnate a las personas de las que te ocupas.",
-        "followUps": "No hay seguimientos pendientes. Buen trabajo.",
+        "mine": "Todavía nadie con quien hayas hablado. Aquí aparece cada persona a la que escribes o con quien te reúnes.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
-        "stale": "Habéis hablado con todos en los últimos 90 días.",
-        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
-        "noReply": "Todos a quienes el equipo escribió han respondido, o aún no ha pasado una semana."
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
       },
-      "rail": {
-        "label": "Listas de contactos",
+      "views": {
+        "label": "Vistas de contactos",
         "lists": "Listas",
         "newList": "Nueva lista",
         "smartList": "Lista inteligente",
-        "listMenu": "Opciones de {name}",
         "editList": "Editar lista",
         "deleteList": "Eliminar lista",
         "noLists": "Todavía no hay listas.",
         "import": "Importar desde una tabla",
-        "autoList": "Creada automáticamente a partir de tus contactos"
+        "autoList": "Creada automáticamente a partir de tus contactos",
+        "companies": "Empresas",
+        "findCompany": "Buscar una empresa…",
+        "noCompanies": "No se encontraron empresas.",
+        "clearCompany": "Mostrar todas las empresas"
       },
       "columns": {
         "name": "Nombre",
@@ -8717,16 +8746,17 @@
         "stage": "Relación",
         "lists": "Listas",
         "channels": "Canales",
-        "owner": "Responsable",
+        "firstContact": "Primer contacto",
         "lastContact": "Último contacto",
         "knownBy": "Lo conocen",
         "followUp": "Seguimiento",
         "email": "Correo",
-        "reply": "Respuesta"
+        "reply": "Respuesta",
+        "importance": "Importancia",
+        "familiarity": "Cercanía"
       },
       "grid": {
         "label": "Contactos",
-        "noOwner": "Sin responsable",
         "openContact": "Abrir {name}",
         "knownByLabel": "Lo conocen {names}",
         "due": "Pendiente",
@@ -8738,7 +8768,8 @@
         "copyEmail": "Copiar {email}",
         "emailCopied": "Correo copiado",
         "waitingDays": "{days, plural, =0 {hoy} other {# d}}",
-        "addedAutomatically": "Añadido a {list} automáticamente"
+        "addedAutomatically": "Añadido a {list} automáticamente",
+        "filterCompany": "Mostrar personas de {name}"
       },
       "toolbar": {
         "search": "Buscar contactos",
@@ -8756,8 +8787,6 @@
         "selected": "{count} seleccionados",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
-        "setStage": "Cambiar etapa",
-        "setOwner": "Cambiar responsable",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
@@ -8926,7 +8955,6 @@
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
-        "changeOwner": "Responsable: {owner}. Cambiar responsable",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
@@ -9017,6 +9045,29 @@
       "kinds": {
         "PERSON": "Persona",
         "ORGANIZATION": "Organización o buzón compartido"
+      },
+      "title": "Contactos",
+      "importance": {
+        "veryHigh": "Muy importante",
+        "high": "Importante",
+        "medium": "Algo importante",
+        "low": "Poco importante",
+        "minimal": "Sin importancia",
+        "auto": "Que decida Jev",
+        "change": "Cambiar lo importante que es para ti",
+        "byJev": "Valorado por Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Definido por ti",
+        "byBot": "Definido por tu Soko Bot",
+        "notYet": "Aún sin valorar",
+        "familiarityHint": "Según tus propios correos y reuniones con esta persona",
+        "reasons": {
+          "decides": "toma decisiones",
+          "value": "puede impulsar tu trabajo",
+          "active": "negocio en curso",
+          "close": "relación cercana",
+          "noise": "parece automático o impersonal"
+        }
       }
     }
   },

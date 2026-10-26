@@ -61,12 +61,18 @@ vi.mock("./kanban-board", () => ({
     tasks,
     compact,
     columnFooterById,
+    columnHiddenCountById,
   }: {
     tasks: TaskWithCoworker[];
     compact: boolean;
     columnFooterById: Partial<Record<KanbanColumnId, ReactNode>>;
+    columnHiddenCountById?: Partial<Record<KanbanColumnId, number>>;
   }) => (
-    <div data-testid="board-density" data-compact={compact}>
+    <div
+      data-testid="board-density"
+      data-compact={compact}
+      data-done-hidden={columnHiddenCountById?.done ?? 0}
+    >
       {tasks.map((task) => (
         <div
           key={task.id}
@@ -202,6 +208,7 @@ const labels = {
     all: "All",
     scopeLabel: "Scope",
     scopeOwned: "Owned",
+    assignedToMe: "My tasks",
     scopeWorkspace: "Workspace",
     coworkerLabel: "Coworker",
     statusLabel: "Status",
@@ -260,11 +267,19 @@ function boardView(
   tasks: TaskWithCoworker[],
   defaultDensity?: ComponentProps<typeof TasksView>["defaultDensity"],
   doneCursor: string | null = null,
+  doneHidden = 0,
 ) {
   return (
     <TasksView
       tasks={tasks}
       listNextCursor={null}
+      columnHiddenCountById={{
+        backlog: 0,
+        todo: 0,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      }}
       columnNextCursorById={
         {
           backlog: null,
@@ -564,4 +579,23 @@ it("drops a load-more task once it is archived, and keeps the other load-more ro
     screen.queryByTestId(`board-card-${archived.id}`),
   ).not.toBeInTheDocument();
   expect(boardCard(loaded.id)).toBeInTheDocument();
+});
+
+it("keeps the column's unloaded count in step as more Tasks load", async () => {
+  const doneHidden = () =>
+    screen.getByTestId("board-density").getAttribute("data-done-hidden");
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [
+      { ...CANCELED_TASK, id: "done-1" },
+      { ...CANCELED_TASK, id: "done-2" },
+    ],
+    nextCursor: "cursor-2",
+  });
+  render(boardView([TASK], undefined, "cursor-1", 24));
+  expect(doneHidden()).toBe("24");
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(await screen.findByTestId("board-card-done-2")).toBeInTheDocument();
+  // Two came in, so two fewer wait: the header still adds up to the column.
+  expect(doneHidden()).toBe("22");
 });

@@ -95,6 +95,9 @@ export const CONTACT_SORT_FIELDS = [
   "firstContactAt",
   "createdAt",
   "updatedAt",
+  /** The reader's own scores; see `contact_score`. */
+  "familiarity",
+  "importance",
 ] as const;
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];
@@ -285,7 +288,6 @@ export const contactFieldsSchema = z.object({
   whyInteresting: optionalText(2000),
   stage: z.enum(CONTACT_STAGES).optional(),
   kind: z.enum(CONTACT_KINDS).optional(),
-  ownerUserId: z.string().min(1).max(200).nullable().optional(),
   nextStep: optionalText(500),
   /** Calendar date, `YYYY-MM-DD`. */
   followUpAt: calendarDateSchema.nullable().optional(),
@@ -343,9 +345,6 @@ export const contactFilterSchema = z
       .min(1)
       .max(CONTACT_REPLY_STATES.length)
       .optional(),
-    ownerUserId: z.string().min(1).max(200).optional(),
-    /** Owned by whoever reads the list. */
-    ownedByMe: z.boolean().optional(),
     /** On any of these manual lists. */
     listIds: z.array(z.uuid()).min(1).max(20).optional(),
     knownByUserId: z.string().min(1).max(200).optional(),

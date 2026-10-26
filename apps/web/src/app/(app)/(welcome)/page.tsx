@@ -15,9 +15,8 @@ import { userService } from "@/lib/services/user.service";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
-  SOKO_BOT_HOME_MESSAGE_PAGE,
-  type SokoBotHomeChat,
-  toRecentChats,
+  SOKO_BOT_HOME_TASK_LIMIT,
+  toTeamDay,
 } from "./components/soko-bot-home-data";
 
 interface WelcomePageProps {
@@ -26,23 +25,12 @@ interface WelcomePageProps {
   }>;
 }
 
-/** The bot's Direct and the user's recent requests in it; empty on failure. */
-async function loadSokoBotChats(
-  sokoBotId: string,
-  userId: string,
-): Promise<{ roomId: string | null; recentChats: SokoBotHomeChat[] }> {
+/** The bot's Direct, or null when it has none yet or the read fails. */
+async function loadSokoBotRoomId(sokoBotId: string): Promise<string | null> {
   const { rooms } = await chatRoomService
     .listRooms("direct")
     .catch(() => ({ rooms: [] }));
-  const room = findSokoBotDirectRoom(rooms, sokoBotId);
-  if (!room) return { roomId: null, recentChats: [] };
-  const page = await chatRoomService
-    .listMessages(room.id, { limit: SOKO_BOT_HOME_MESSAGE_PAGE })
-    .catch(() => null);
-  return {
-    roomId: room.id,
-    recentChats: page ? toRecentChats(page.messages, userId) : [],
-  };
+  return findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null;
 }
 
 /**
@@ -65,21 +53,30 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session] = await Promise.all([searchParams, getSession()]);
-  const notice =
-    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = <ChatLandingNotice notice={notice} />;
-
-  const [activeOrganizationId, sokoBot] = await Promise.all([
+  const [query, session, activeOrganizationId, sokoBot] = await Promise.all([
+    searchParams,
+    getSession(),
     userService.getActiveOrganizationId(),
     sokoBotService.getMine().catch(() => null),
   ]);
+  const notice =
+    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
+  const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
 
   if (sokoBot && userId) {
-    const [{ roomId, recentChats }, summary] = await Promise.all([
-      loadSokoBotChats(sokoBot.id, userId),
-      taskService.getActivitySummary({ scope: "owned" }),
+    // In an org the day is the team's; in a personal workspace, the user's.
+    const scope = activeOrganizationId ? "workspace" : "owned";
+    const [roomId, summary, recent] = await Promise.all([
+      loadSokoBotRoomId(sokoBot.id),
+      taskService.getActivitySummary({ scope }),
+      taskService
+        .listTasks({
+          scope,
+          sort: "updatedAt",
+          limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
+        })
+        .catch(() => ({ tasks: [] })),
     ]);
     return (
       <>
@@ -93,8 +90,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           }}
           ownerId={userId}
           roomId={roomId}
-          recentChats={recentChats}
-          awaitingInput={summary?.awaitingInput ?? 0}
+          userName={resolveLandingGreetingName(session?.user.name)}
+          summary={summary ?? null}
+          teamTasks={toTeamDay(recent.tasks, new Date())}
         />
       </>
     );

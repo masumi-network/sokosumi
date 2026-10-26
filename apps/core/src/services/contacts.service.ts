@@ -19,6 +19,7 @@ import type { z } from "zod";
 import { resolveTableActor } from "@/helpers/data-table";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { literalSubstringPattern } from "@/helpers/project-activity";
 import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import { isNonPersonName } from "@/lib/contacts/classify";
 import { contactReplyState, replyStateWhere } from "@/lib/contacts/reply-state";
@@ -33,6 +34,12 @@ import type {
   contactMergeSuggestionSchema,
   contactSchema,
 } from "@/schemas/contact.schema";
+import {
+  type ContactScoreDto,
+  readerScores,
+  refreshContactFamiliarity,
+  setContactImportance,
+} from "@/services/contact-scores.service";
 
 type Tx = Prisma.TransactionClient;
 type ContactDto = z.input<typeof contactSchema>;
@@ -91,7 +98,6 @@ export async function inContactTransaction<T>(
 
 const CONTACT_INCLUDE = {
   channels: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
-  owner: { select: { id: true, name: true, image: true } },
   listMemberships: {
     select: {
       addedAutomatically: true,
@@ -110,7 +116,6 @@ const FILLABLE_FIELDS = [
   "location",
   "summary",
   "whyInteresting",
-  "ownerUserId",
   "nextStep",
   "followUpAt",
   "avatarUrl",
@@ -134,8 +139,13 @@ function toInputJson(value: Record<string, unknown>): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(value));
 }
 
-function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
+function toContactDto(
+  row: ContactRow,
+  knownBy: KnownByDto[],
+  score: ContactScoreDto | null,
+): ContactDto {
   return {
+    score,
     id: row.id,
     name: row.name,
     organization: row.organization,
@@ -145,7 +155,6 @@ function toContactDto(row: ContactRow, knownBy: KnownByDto[]): ContactDto {
     whyInteresting: row.whyInteresting,
     stage: row.stage,
     kind: row.kind,
-    owner: row.owner,
     nextStep: row.nextStep,
     followUpAt: isoDate(row.followUpAt),
     avatarUrl: row.avatarUrl,
@@ -229,23 +238,32 @@ async function knownByFor(
   return result;
 }
 
+/** `readerUserId` adds that teammate's own scores; without one, none. */
 export async function contactDtos(
   rows: ContactRow[],
   tx: Tx = prisma,
+  readerUserId?: string,
 ): Promise<ContactDto[]> {
-  const knownBy = await knownByFor(
-    rows.map((row) => row.id),
-    tx,
+  const ids = rows.map((row) => row.id);
+  const [knownBy, scores] = await Promise.all([
+    knownByFor(ids, tx),
+    readerUserId ? readerScores(tx, readerUserId, ids) : null,
+  ]);
+  return rows.map((row) =>
+    toContactDto(row, knownBy.get(row.id) ?? [], scores?.get(row.id) ?? null),
   );
-  return rows.map((row) => toContactDto(row, knownBy.get(row.id) ?? []));
 }
 
-async function loadContactDto(tx: Tx, id: string): Promise<ContactDto> {
+async function loadContactDto(
+  tx: Tx,
+  id: string,
+  readerUserId?: string,
+): Promise<ContactDto> {
   const row = await tx.contact.findUniqueOrThrow({
     where: { id },
     include: CONTACT_INCLUDE,
   });
-  const [dto] = await contactDtos([row], tx);
+  const [dto] = await contactDtos([row], tx, readerUserId);
   if (!dto) throw notFound("Contact not found");
   return dto;
 }
@@ -285,30 +303,6 @@ async function recordActivity(
       changes: toInputJson(changes),
     },
   });
-}
-
-async function requireWorkspaceMember(
-  tx: Tx,
-  workspaceId: string,
-  userId: string,
-) {
-  const workspace = await tx.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { userId: true, organizationId: true },
-  });
-  const member = workspace?.organizationId
-    ? await tx.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId,
-            organizationId: workspace.organizationId,
-          },
-        },
-        select: { id: true },
-      })
-    : workspace?.userId === userId;
-  if (!member)
-    throw unprocessableEntity("The owner must be a member of this workspace");
 }
 
 export interface NormalizedChannel {
@@ -357,7 +351,6 @@ interface ContactFieldData {
   location?: string | null;
   summary?: string | null;
   whyInteresting?: string | null;
-  ownerUserId?: string | null;
   nextStep?: string | null;
   followUpAt?: Date | null;
   avatarUrl?: string | null;
@@ -500,8 +493,6 @@ export async function upsertContact(
   options: { defaultChannelSource?: ChannelInput["source"] } = {},
 ): Promise<UpsertContactResult> {
   const channels = normalizeChannels(input.channels);
-  if (input.ownerUserId)
-    await requireWorkspaceMember(tx, actor.workspaceId, input.ownerUserId);
   const taken = channels.length
     ? await tx.contactChannel.findMany({
         where: {
@@ -538,7 +529,7 @@ export async function upsertContact(
       channels: channels.map(({ type, value }) => `${type}:${value}`),
     });
     return {
-      contact: await loadContactDto(tx, contact.id),
+      contact: await loadContactDto(tx, contact.id, actor.userId),
       created: true,
       changed: true,
       mergeSuggestion: null,
@@ -578,7 +569,7 @@ export async function upsertContact(
       });
   }
   return {
-    contact: await loadContactDto(tx, contact.id),
+    contact: await loadContactDto(tx, contact.id, actor.userId),
     created: false,
     changed,
     mergeSuggestion:
@@ -603,18 +594,16 @@ export async function updateContact(
 ): Promise<ContactDto> {
   const contact = await requireWritableContact(tx, actor, id);
   if (contact.version !== input.version) throw versionConflict();
-  if (input.ownerUserId)
-    await requireWorkspaceMember(tx, actor.workspaceId, input.ownerUserId);
   const data = fieldData(input);
   const changes = changedFields(contact, data);
-  if (!Object.keys(changes).length) return loadContactDto(tx, id);
+  if (!Object.keys(changes).length) return loadContactDto(tx, id, actor.userId);
   const updated = await tx.contact.updateMany({
     where: { id, version: input.version },
     data: { ...data, version: { increment: 1 } },
   });
   if (updated.count !== 1) throw versionConflict();
   await recordActivity(tx, actor, id, "UPDATED", changes);
-  return loadContactDto(tx, id);
+  return loadContactDto(tx, id, actor.userId);
 }
 
 export async function setContactArchived(
@@ -634,7 +623,7 @@ export async function setContactArchived(
     });
     await recordActivity(tx, actor, id, archived ? "ARCHIVED" : "UNARCHIVED");
   }
-  return loadContactDto(tx, id);
+  return loadContactDto(tx, id, actor.userId);
 }
 
 /** Adds one channel; a channel the contact already has is returned as is. */
@@ -668,7 +657,7 @@ export async function addContactChannel(
       channels: [`${channel.type}:${channel.value}`],
     });
   }
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 export async function removeContactChannel(
@@ -701,7 +690,7 @@ export async function removeContactChannel(
   await recordActivity(tx, actor, contactId, "CHANNEL_REMOVED", {
     channels: [`${channel.type}:${channel.value}`],
   });
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 /**
@@ -710,6 +699,7 @@ export async function removeContactChannel(
  * notes say nothing about who is waiting.
  */
 async function refreshDerivedFields(tx: Tx, contactId: string) {
+  await refreshContactFamiliarity(tx, { contactId });
   const [aggregate, inbound] = await Promise.all([
     tx.contactInteraction.aggregate({
       where: { contactId },
@@ -826,7 +816,7 @@ export async function removeContactInteraction(
   });
   if (!removed.count) throw notFound("Interaction not found");
   await refreshDerivedFields(tx, contactId);
-  return loadContactDto(tx, contactId);
+  return loadContactDto(tx, contactId, actor.userId);
 }
 
 /**
@@ -959,7 +949,7 @@ export async function mergeContacts(
     movedChannels: movedChannels.count,
     movedInteractions: movedInteractions.count,
   });
-  return loadContactDto(tx, winnerId);
+  return loadContactDto(tx, winnerId, actor.userId);
 }
 
 /** Mail providers whose domain names no company, for the SQL below. */
@@ -1064,8 +1054,6 @@ export function contactFilterWhere(
     and.push({
       OR: filter.replyStates.map((state) => replyStateWhere(state, now)),
     });
-  if (filter.ownerUserId) and.push({ ownerUserId: filter.ownerUserId });
-  if (filter.ownedByMe) and.push({ ownerUserId: actor.userId });
   if (filter.listIds)
     and.push({ listMemberships: { some: { listId: { in: filter.listIds } } } });
   if (filter.knownByUserId)
@@ -1112,6 +1100,8 @@ type ContactSortField = (typeof CONTACT_SORT_FIELDS)[number];
 export interface ListContactsOptions {
   filter: ContactFilter;
   listId?: string;
+  /** People at the company this name belongs to, by any spelling. */
+  company?: string;
   archived?: boolean;
   sort: ContactSortField;
   direction?: "asc" | "desc";
@@ -1122,9 +1112,18 @@ export interface ListContactsOptions {
 /** Live contacts matching a filter and, optionally, a manual or smart list. */
 export async function contactListWhere(
   actor: ContactActor,
-  options: Pick<ListContactsOptions, "filter" | "listId" | "archived">,
+  options: Pick<
+    ListContactsOptions,
+    "filter" | "listId" | "company" | "archived"
+  >,
 ): Promise<Prisma.ContactWhereInput> {
   const and = contactFilterWhere(actor, options.filter);
+  if (options.company)
+    and.push({
+      id: {
+        in: await contactCompanyMemberIds(actor.workspaceId, options.company),
+      },
+    });
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
       where: { id: options.listId, workspaceId: actor.workspaceId },
@@ -1155,6 +1154,8 @@ function contactOrderBy(
       ? "asc"
       : "desc");
   const nullable = sort === "organization" || sort.endsWith("ContactAt");
+  if (sort === "familiarity" || sort === "importance")
+    throw new Error("Score sorts are ordered by listContactsByScore");
   return [
     nullable ? { [sort]: { sort: dir, nulls: "last" } } : { [sort]: dir },
     { id: dir },
@@ -1166,6 +1167,8 @@ export async function listContacts(
   options: ListContactsOptions,
 ): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
   const where = await contactListWhere(actor, options);
+  if (options.sort === "familiarity" || options.sort === "importance")
+    return listContactsByScore(actor, options, where);
   const [rows, total] = await prisma.$transaction([
     prisma.contact.findMany({
       where,
@@ -1178,10 +1181,173 @@ export async function listContacts(
   ]);
   const page = rows.slice(0, options.limit);
   return {
-    items: await contactDtos(page),
+    items: await contactDtos(page, prisma, actor.userId),
     total,
     nextCursor: rows.length > options.limit ? (page.at(-1)?.id ?? null) : null,
   };
+}
+
+/**
+ * A page ordered by the reader's own score, which lives per teammate in
+ * `contact_score` and so cannot be a Prisma order. Matching ids come first,
+ * then SQL orders them; the cursor is the last contact id, as elsewhere.
+ * Contacts the reader never scored come last.
+ */
+async function listContactsByScore(
+  actor: ContactActor,
+  options: ListContactsOptions,
+  where: Prisma.ContactWhereInput,
+): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
+  const ids = (
+    await prisma.contact.findMany({ where, select: { id: true } })
+  ).map((row) => row.id);
+  const column =
+    options.sort === "importance"
+      ? PrismaRaw.sql`s.importance`
+      : PrismaRaw.sql`s.familiarity`;
+  const direction =
+    options.direction === "asc" ? PrismaRaw.sql`ASC` : PrismaRaw.sql`DESC`;
+  const ordered = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT c.id FROM unnest(${ids}::uuid[]) AS c(id)
+    LEFT JOIN contact_score s
+      ON s."contactId" = c.id AND s."userId" = ${actor.userId}
+    ORDER BY ${column} ${direction} NULLS LAST, c.id ${direction}
+  `;
+  const start = options.cursor
+    ? ordered.findIndex((row) => row.id === options.cursor) + 1
+    : 0;
+  const pageIds = ordered
+    .slice(start, start + options.limit)
+    .map((row) => row.id);
+  const rows = await prisma.contact.findMany({
+    where: { id: { in: pageIds } },
+    include: CONTACT_INCLUDE,
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return {
+    items: await contactDtos(
+      pageIds.flatMap((id) => byId.get(id) ?? []),
+      prisma,
+      actor.userId,
+    ),
+    total: ids.length,
+    nextCursor:
+      start + options.limit < ordered.length ? (pageIds.at(-1) ?? null) : null,
+  };
+}
+
+/**
+ * Free mail and internet-provider domains. Many unrelated people share them,
+ * so an address there says nothing about where someone works.
+ */
+const SHARED_MAIL_DOMAIN =
+  "^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|gmx|web|t-online|bluewin|aon|chello|hin|proton|protonmail|pm|aol|mail|yandex|freenet|posteo|mailbox|arcor|vodafone|online|a1|sunrise|orange|free|wanadoo|libero|tiscali|seznam|wp|o2|qq|163|naver)\\.";
+
+/**
+ * Which company each live contact of a workspace belongs to, as a CTE ending
+ * in `assigned (id, raw, org, key, cluster_org)`.
+ *
+ * People write one company many ways ("House of Communication", "House of
+ * Communications", "House of Communication / Serviceplan Group"), so the name
+ * alone splits it. An email domain is the stronger signal: a domain whose
+ * named people mostly use one name, or names that contain it ("Acme",
+ * "Acme Ltd"), is that company, and its people join it when their own name is
+ * empty or resembles that one. Domains whose people
+ * use the same name are one company. Names compare as lowercase letters and
+ * digits only. Everyone else is grouped by name.
+ */
+function contactCompaniesCte(workspaceId: string) {
+  return PrismaRaw.sql`
+    WITH live AS (
+      SELECT c.id, c.organization AS raw,
+        nullif(regexp_replace(lower(coalesce(c.organization, '')), '[^[:alnum:]]+', '', 'g'), '') AS org
+      FROM contact c
+      WHERE c."workspaceId" = ${workspaceId}::uuid
+        AND c."mergedIntoId" IS NULL AND c."archivedAt" IS NULL
+    ), domains AS (
+      SELECT DISTINCT l.id, lower(split_part(ch.value, '@', 2)) AS domain
+      FROM live l
+      JOIN contact_channel ch ON ch."contactId" = l.id AND ch.type = 'EMAIL'
+      WHERE lower(split_part(ch.value, '@', 2)) !~ ${SHARED_MAIL_DOMAIN}
+    ), domain_names AS (
+      SELECT d.domain, l.org, count(*) AS n
+      FROM domains d JOIN live l USING (id)
+      WHERE l.org IS NOT NULL
+      GROUP BY 1, 2
+    ), top_names AS (
+      SELECT DISTINCT ON (domain) domain, org
+      FROM domain_names
+      ORDER BY domain, n DESC, length(org), org
+    ), company_domains AS (
+      SELECT t.domain, t.org
+      FROM top_names t JOIN domain_names dn ON dn.domain = t.domain
+      GROUP BY t.domain, t.org
+      HAVING 2 * coalesce(sum(dn.n) FILTER (
+        WHERE position(t.org IN dn.org) > 0 OR position(dn.org IN t.org) > 0
+      ), 0) > sum(dn.n)
+    ), canonical AS (
+      SELECT domain, org, min(domain) OVER (PARTITION BY org) AS canonical
+      FROM company_domains
+    ), by_email AS (
+      SELECT DISTINCT ON (d.id) d.id, cd.canonical AS domain, cd.org
+      FROM domains d
+      JOIN canonical cd USING (domain)
+      JOIN live l ON l.id = d.id
+      WHERE l.org IS NULL
+        OR position(cd.org IN l.org) > 0 OR position(l.org IN cd.org) > 0
+      ORDER BY d.id, cd.canonical
+    ), by_name AS (
+      SELECT DISTINCT ON (org) org, canonical AS domain
+      FROM canonical ORDER BY org, canonical
+    ), assigned AS (
+      SELECT l.id, l.raw, l.org,
+        coalesce('d:' || e.domain, 'd:' || n.domain, 'n:' || l.org) AS key,
+        coalesce(e.org, l.org) AS cluster_org
+      FROM live l
+      LEFT JOIN by_email e ON e.id = l.id
+      LEFT JOIN by_name n ON n.org = l.org
+    )
+  `;
+}
+
+/**
+ * The companies the workspace's live contacts work at, biggest first, each
+ * named by its most common spelling. `search` matches any spelling.
+ */
+export async function listContactOrganizations(
+  actor: ContactActor,
+  options: { search?: string; limit: number },
+): Promise<{ name: string; count: number }[]> {
+  const search = options.search
+    ? PrismaRaw.sql`HAVING bool_or(raw ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')`
+    : PrismaRaw.empty;
+  return prisma.$queryRaw<{ name: string; count: number }[]>`
+    ${contactCompaniesCte(actor.workspaceId)}
+    SELECT mode() WITHIN GROUP (ORDER BY raw) FILTER (WHERE org = cluster_org) AS name,
+      count(*)::int AS count
+    FROM assigned
+    WHERE key IS NOT NULL
+    GROUP BY key
+    ${search}
+    ORDER BY count DESC, name ASC
+    LIMIT ${options.limit}
+  `;
+}
+
+/** The live contacts at the company `name` belongs to, by any spelling. */
+async function contactCompanyMemberIds(
+  workspaceId: string,
+  name: string,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    ${contactCompaniesCte(workspaceId)}
+    SELECT id FROM assigned
+    WHERE key IN (
+      SELECT key FROM assigned
+      WHERE org = regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g')
+    )
+  `;
+  return rows.map((row) => row.id);
 }
 
 /** Every match, for export; bounded so one request cannot load a city. */
@@ -1205,12 +1371,32 @@ export async function allContacts(
   return items.slice(0, max);
 }
 
+/**
+ * Sets how much a contact matters to the caller: by hand, or by their Soko
+ * Bot when one acts. Null hands it back to Jev.
+ */
+export async function setReaderImportance(
+  tx: Tx,
+  actor: ContactActor,
+  id: string,
+  importance: number | null,
+): Promise<ContactDto> {
+  await setContactImportance(tx, {
+    workspaceId: actor.workspaceId,
+    userId: actor.userId,
+    contactId: id,
+    importance,
+    source: actor.sokoBotId ? "SOKO_BOT" : "MANUAL",
+  });
+  return loadContactDto(tx, id, actor.userId);
+}
+
 export async function getContactDetail(
   actor: ContactActor,
   id: string,
 ): Promise<ContactDetailDto> {
   await requireContactRow(prisma, actor, id);
-  const contact = await loadContactDto(prisma, id);
+  const contact = await loadContactDto(prisma, id, actor.userId);
   const recent = await prisma.contactInteraction.findMany({
     where: { contactId: id },
     include: INTERACTION_INCLUDE,
@@ -1320,18 +1506,6 @@ const CAPTURE_CHANNEL_SOURCE = {
   NonNullable<ChannelInput["source"]>
 >;
 
-/** The figures the pinned Contacts entry in Files shows. */
-export async function contactsDriveEntry(
-  workspaceId: string,
-): Promise<{ contactCount: number; activityAt: Date }> {
-  const where = { workspaceId, mergedIntoId: null, archivedAt: null };
-  const [contactCount, latest] = await prisma.$transaction([
-    prisma.contact.count({ where }),
-    prisma.contact.aggregate({ where, _max: { updatedAt: true } }),
-  ]);
-  return { contactCount, activityAt: latest._max.updatedAt ?? new Date() };
-}
-
 /** Whether `name` is only what `contactNameFromChannel` made of an address. */
 function isPlaceholderName(
   name: string,
@@ -1421,7 +1595,7 @@ export async function captureContactInteraction(
     changed,
     contact:
       logged.created || changed
-        ? await loadContactDto(tx, current.id)
+        ? await loadContactDto(tx, current.id, actor.userId)
         : current,
     interactionCreated: logged.created,
   };

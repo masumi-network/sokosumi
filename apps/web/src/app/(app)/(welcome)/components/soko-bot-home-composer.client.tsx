@@ -34,18 +34,6 @@ import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const NO_MENTIONS = {};
-const SUGGESTION_KEYS = ["today", "inbox", "week"] as const;
-
-/** A prefilled draft is edited at its end, not its start. */
-function placeCaretAtEnd(element: Element | null) {
-  const selection = window.getSelection();
-  if (!element || !selection) return;
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  range.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
 
 interface SokoBotHomeComposerProps {
   sokoBotId: string;
@@ -53,7 +41,11 @@ interface SokoBotHomeComposerProps {
   /** The bot's Direct when it exists; created on first send otherwise. */
   roomId: string | null;
   header: ReactNode;
-  /** Recent chats and stats, between the composer and the suggestions. */
+  /** Prompts a click puts in the composer, to edit or send. */
+  suggestions: string[];
+  /** What needs the reader, shown before the prompts. */
+  attention: ReactNode;
+  /** What the team did in the last day, below the composer. */
   children: ReactNode;
 }
 
@@ -67,6 +59,8 @@ export function SokoBotHomeComposer({
   botName,
   roomId,
   header,
+  suggestions,
+  attention,
   children,
 }: SokoBotHomeComposerProps) {
   const t = useTranslations("App.Chat.Landing.SokoBotHome");
@@ -126,52 +120,51 @@ export function SokoBotHomeComposer({
     });
   }
 
-  function applySuggestion(prompt: string) {
+  function suggest(prompt: string) {
     setValue(prompt);
-    requestAnimationFrame(() => {
-      composerRef.current?.focus();
-      placeCaretAtEnd(document.activeElement);
-    });
+    composerRef.current?.focus();
   }
 
   return (
-    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-1 flex-col pt-8 md:pt-[14dvh]">
+    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+      {/* The composer sits a little above the middle of the screen, as on a
+          chat entry page; the day's list starts below the fold's edge. */}
+      <div className="flex w-full max-w-3xl flex-col gap-8 pt-[14dvh] md:pt-[22dvh]">
         {header}
-        <RoomComposer
-          ref={composerRef}
-          roomId={roomId ?? undefined}
-          value={value}
-          onValueChange={setValue}
-          mentions={NO_MENTIONS}
-          onSelectedKeysChange={() => {}}
-          showMentionShortcut={false}
-          placeholder={t("placeholder", { name: botName })}
-          attachments={attachments}
-          onAttachmentsChange={setAttachments}
-          onSubmit={handleSubmit}
-          isSending={isSending}
-          sendDisabled={isRoomComposerEmpty(value, attachments)}
-          skills={skills}
-          onSkillsChange={setSkills}
-        />
-        {children}
+        <div className="flex flex-col gap-4">
+          <RoomComposer
+            ref={composerRef}
+            roomId={roomId ?? undefined}
+            value={value}
+            onValueChange={setValue}
+            mentions={NO_MENTIONS}
+            onSelectedKeysChange={() => {}}
+            showMentionShortcut={false}
+            placeholder={t("placeholder", { name: botName })}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            onSubmit={handleSubmit}
+            isSending={isSending}
+            sendDisabled={isRoomComposerEmpty(value, attachments)}
+            skills={skills}
+            onSkillsChange={setSkills}
+          />
+          <div className="flex flex-wrap justify-center gap-2">
+            {attention}
+            {suggestions.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => suggest(prompt)}
+                className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex h-8 items-center rounded-full border px-3 text-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <nav
-        aria-label={t("suggestionsLabel")}
-        className="mx-auto flex w-full max-w-2xl flex-wrap justify-center gap-2 px-3 pt-6 pb-4 md:px-5"
-      >
-        {SUGGESTION_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            className="press bg-card text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring rounded-full border px-3 py-1.5 text-sm outline-none transition-colors focus-visible:ring-2"
-            onClick={() => applySuggestion(t(`suggestions.${key}`))}
-          >
-            {t(`suggestions.${key}`)}
-          </button>
-        ))}
-      </nav>
+      <div className="w-full max-w-3xl pt-16 pb-10">{children}</div>
     </div>
   );
 }

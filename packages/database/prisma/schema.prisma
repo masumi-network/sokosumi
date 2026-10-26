@@ -4956,6 +4956,15 @@ enum ProjectImageJobKind {
   GENERATE
   /// Image to image. Routes to the `/edit` endpoint, which takes `image_urls`.
   EDIT
+  /// Text to video. Routes to a video model's endpoint with a prompt only.
+  TEXT_TO_VIDEO
+  /// Image to video: animates one gallery image, sent as the model's still.
+  IMAGE_TO_VIDEO
+}
+
+enum ProjectImageMediaType {
+  IMAGE
+  VIDEO
 }
 
 enum ProjectImageJobStatus {
@@ -5251,13 +5260,17 @@ model ProjectImageAsset {
 
   /// Private blob pathname. Not a URL: the bytes are only reachable through
   /// the authorized streaming route, which re-checks access per request.
-  blobPathname String
-  contentType  String
-  width        Int
-  height       Int
-  bytes        Int
+  blobPathname    String
+  contentType     String
+  /// What the bytes are. A video plays in the gallery and attaches to Social as one.
+  mediaType       ProjectImageMediaType @default(IMAGE)
+  /// Requested length of a video. Null for images.
+  durationSeconds Int?
+  width           Int
+  height          Int
+  bytes           Int
   /// sha256 of the stored bytes.
-  checksum     String
+  checksum        String
 
   review ProjectImageReview?
 

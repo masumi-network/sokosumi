@@ -143,7 +143,6 @@ describe("contacts tool inputs", () => {
         summary: "Met at a conference.",
         whyInteresting: "Pilot buyer",
         stage: "ACTIVE",
-        ownerUserId: "user_1",
         nextStep: "Send pricing",
         followUpAt: "2026-11-02",
         avatarUrl: "https://example.com/nina.png",

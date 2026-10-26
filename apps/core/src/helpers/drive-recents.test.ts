@@ -30,6 +30,9 @@ function driveFile(pathname: string, activityAt: string): DriveRecentsItem {
     pathname,
     size: 100,
     activityAt,
+    resourceId: null,
+    category: null,
+    tags: [],
   };
 }
 
@@ -397,6 +400,45 @@ describe("fetchDriveRecentsPage", () => {
     ]);
   });
 
+  it("stops paging task outputs once a batch is older than a full pool", async () => {
+    listMock.mockResolvedValue({ blobs: [], hasMore: false });
+    let page = 0;
+    const fetchTaskOutputs = vi.fn(async () => {
+      page += 1;
+      const day = String(29 - page * 3).padStart(2, "0");
+      return {
+        rows: [0, 1, 2].map((offset) => ({
+          id: `tf_${page}_${offset}`,
+          name: `out-${page}-${offset}.md`,
+          fileUrl: `https://blob.example/out-${page}-${offset}.md`,
+          size: 1,
+          updatedAt: new Date(`2026-08-${day}T1${2 - offset}:00:00.000Z`),
+          taskId: "task_1",
+          taskName: "Task",
+          projectId: null,
+          projectName: null,
+        })),
+        hasMore: true,
+        nextCursor: `tf_${page}_2`,
+      };
+    });
+    const result = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 2,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+    });
+    // The second batch proves nothing newer is left; the source never ends.
+    expect(fetchTaskOutputs).toHaveBeenCalledTimes(2);
+    expect(result.items.map(recentsItemKey)).toEqual([
+      "task-output:tf_1_0",
+      "task-output:tf_1_1",
+    ]);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
   it("filters drive filenames in-memory while preserving recency order", async () => {
     listMock.mockResolvedValue({
       blobs: [
@@ -435,6 +477,82 @@ describe("fetchDriveRecentsPage", () => {
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.kind).toBe("drive-file");
     expect(page.items[0]?.name).toBe("report.pdf");
+  });
+
+  it("keeps only tagged drive files and skips the other sources under a tag filter", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/promo.mp4",
+          pathname: "drive/users/u/promo.mp4",
+          size: 100,
+          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+        {
+          url: "https://blob.example/notes.pdf",
+          pathname: "drive/users/u/notes.pdf",
+          size: 100,
+          uploadedAt: new Date("2026-08-22T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+    });
+    const fetchTaskOutputs = vi.fn();
+    const fetchTables = vi.fn();
+    const binding = { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" };
+
+    const page = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 10,
+      driveFilePathnames: new Set(["drive/users/u/promo.mp4"]),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: binding,
+      fetchTaskOutputs,
+      fetchTables,
+    });
+
+    expect(
+      page.items.map((item) => item.kind === "drive-file" && item.name),
+    ).toEqual(["promo.mp4"]);
+    expect(fetchTaskOutputs).not.toHaveBeenCalled();
+    expect(fetchTables).not.toHaveBeenCalled();
+  });
+
+  it("does not walk the store when no file carries the label", async () => {
+    listMock.mockClear();
+    const page = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 10,
+      driveFilePathnames: new Set(),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" },
+      fetchTaskOutputs: vi.fn(),
+    });
+
+    expect(page).toEqual({ items: [], hasMore: false, nextCursor: null });
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cursor minted under a different tag filter", async () => {
+    const cursor = encodeDriveRecentsCursor({
+      lastItem: driveFile("drive/users/u/a.pdf", "2026-08-21T12:00:00.000Z"),
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: { prefix: PREFIX, searchQuery: "", labelIds: "tag-1" },
+    });
+
+    await expect(
+      fetchDriveRecentsPage({
+        prefix: PREFIX,
+        token: "test-token",
+        limit: 10,
+        cursor,
+        cursorSecret: CURSOR_SECRET,
+        cursorBinding: { prefix: PREFIX, searchQuery: "" },
+        fetchTaskOutputs: vi.fn(),
+      }),
+    ).rejects.toThrow("Invalid pagination cursor");
   });
 
   it("paginates by re-scanning with a compact activity cursor", async () => {
@@ -731,9 +849,6 @@ function recentsItemKey(item: DriveRecentsItem): string {
   }
   if (item.kind === "table") {
     return `table:${item.tableId}`;
-  }
-  if (item.kind === "contacts") {
-    return "contacts";
   }
   return `task-output:${item.taskFileId}`;
 }

@@ -64,9 +64,29 @@ export const contactKnownBySchema = personSchema
   })
   .openapi("ContactKnownBy");
 
+export const contactScoreSchema = z
+  .object({
+    familiarity: z.int().min(0).max(100).openapi({
+      description:
+        "How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.",
+    }),
+    importance: z.int().min(0).max(100).nullable().openapi({
+      description:
+        "How much they matter to the reader, 0–100; null until judged.",
+    }),
+    importanceSource: z.enum(["JEV", "SOKO_BOT", "MANUAL"]).nullable(),
+    importanceReason: z.string().nullable().openapi({
+      description:
+        "Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.",
+    }),
+  })
+  .openapi("ContactScore");
+
 export const contactSchema = z
   .object({
     id: z.uuid(),
+    /** The reader's own scores; null for someone they never met. */
+    score: z.union([contactScoreSchema, z.null()]),
     name: z.string(),
     organization: z.string().nullable(),
     role: z.string().nullable(),
@@ -75,7 +95,6 @@ export const contactSchema = z
     whyInteresting: z.string().nullable(),
     stage: contactStageSchema,
     kind: contactKindSchema,
-    owner: z.union([personSchema, z.null()]),
     nextStep: z.string().nullable(),
     followUpAt: calendarDateSchema
       .nullable()
@@ -226,14 +245,23 @@ const booleanQuery = z.enum(["true", "false"]).optional();
 const positiveDays = z.coerce.number().int().min(1).max(3650).optional();
 
 /** `GET /contacts` and the CSV export: a contact filter spelled as query params. */
+export const contactOrganizationSchema = z
+  .object({
+    name: z.string().openapi({ example: "Cardano Foundation" }),
+    count: z.int().openapi({ example: 61, description: "Live contacts" }),
+  })
+  .openapi("ContactOrganization");
+
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
+  company: z.string().trim().min(1).max(200).optional().openapi({
+    description:
+      "Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.",
+  }),
   stage: contactStageSchema.optional(),
   kind: contactKindSchema.optional(),
   replyState: contactReplyStateSchema.optional(),
-  ownerUserId: z.string().min(1).max(200).optional(),
-  ownedByMe: booleanQuery,
   listId: z.uuid().optional().openapi({
     description: "A manual or smart list; a smart list applies its filter.",
   }),

@@ -44,6 +44,7 @@ export const ACTION_LABELS: Record<string, string> = {
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
   generate_image: "Started image",
+  generate_video: "Started video",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
@@ -175,7 +176,10 @@ function actionTarget(
       ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
       : "";
   }
-  if (call.capability === "generate_image") {
+  if (
+    call.capability === "generate_image" ||
+    call.capability === "generate_video"
+  ) {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })
       .safeParse(call.result);

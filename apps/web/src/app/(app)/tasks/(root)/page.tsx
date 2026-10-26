@@ -97,6 +97,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
+function emptyColumnHiddenCountById(): Record<KanbanColumnId, number> {
+  return Object.fromEntries(
+    KANBAN_COLUMNS.map((column) => [column.id, 0]),
+  ) as Record<KanbanColumnId, number>;
+}
+
 function emptyColumnNextCursorById(): Record<KanbanColumnId, string | null> {
   return Object.fromEntries(
     KANBAN_COLUMNS.map((column) => [column.id, null]),
@@ -125,6 +131,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     scope,
     assigneeId,
     assigneeSokoBotId,
+    assigneeUserId,
     coworkerId: legacyCoworkerId,
     status,
     projectId,
@@ -153,9 +160,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
-  const memberOptions =
-    await listTaskAssigneeMemberOptions(activeOrganizationId);
+  const [[taskCoworkers, projectsPage, ownerBot], memberOptions] =
+    await Promise.all([
+      loadTasksPageData(),
+      listTaskAssigneeMemberOptions(activeOrganizationId),
+    ]);
   // Core decides schedule eligibility; start that request before loading the board.
   const coworkerOptionsPromise = listTaskAssigneeOptions(
     activeOrganizationId,
@@ -166,6 +175,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       scope,
       assigneeId,
       assigneeSokoBotId,
+      assigneeUserId,
       coworkerId: legacyCoworkerId,
       status,
       projectId,
@@ -305,6 +315,17 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
+  // Tasks past the first page of each column: its header counts them too.
+  const columnHiddenCountById =
+    tasksPageResult.mode === "list"
+      ? emptyColumnHiddenCountById()
+      : (Object.fromEntries(
+          tasksPageResult.columnPages.map(([columnId, page]) => [
+            columnId,
+            page.nextCursor ? Math.max(0, page.total - page.tasks.length) : 0,
+          ]),
+        ) as Record<KanbanColumnId, number>);
+
   const coworkerOptions = await coworkerOptionsPromise;
   const canCreateTask =
     await organizationSeatService.hasAssignedSeat(activeOrganizationId);
@@ -341,6 +362,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         initialTab={initialTab}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
+        columnHiddenCountById={columnHiddenCountById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
@@ -381,6 +403,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             all: t("Filters.all"),
             scopeLabel: t("Filters.scopeLabel"),
             scopeOwned: t("Filters.scopeOwned"),
+            assignedToMe: t("Filters.assignedToMe"),
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),

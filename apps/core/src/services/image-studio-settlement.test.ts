@@ -16,7 +16,7 @@ const {
   assetFindUniqueMock,
   assetFindFirstMock,
   assetCreateMock,
-  downloadImageMock,
+  downloadMediaMock,
   fetchQueueStatusMock,
   putMock,
   requireProjectAccessForUserMock,
@@ -28,7 +28,7 @@ const {
   assetFindUniqueMock: vi.fn(),
   assetFindFirstMock: vi.fn(),
   assetCreateMock: vi.fn(),
-  downloadImageMock: vi.fn(),
+  downloadMediaMock: vi.fn(),
   fetchQueueStatusMock: vi.fn(),
   putMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
@@ -39,7 +39,7 @@ const {
 // store, the studio must never reach for it, and leaving it set is what lets
 // the fail-closed tests below prove the studio refuses rather than falls back.
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -83,7 +83,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   ...(await vi.importActual<typeof import("@/lib/image-studio/fal-client")>(
     "@/lib/image-studio/fal-client",
   )),
-  downloadImage: downloadImageMock,
+  downloadMedia: downloadMediaMock,
   fetchQueueStatus: fetchQueueStatusMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -92,7 +92,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import {
   reconcileJob,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 const JOB = {
@@ -128,7 +128,7 @@ beforeEach(() => {
     workspaceId: "workspace-1",
     userId: "user-1",
   });
-  downloadImageMock.mockResolvedValue({
+  downloadMediaMock.mockResolvedValue({
     bytes: new Uint8Array([1, 2, 3]),
     contentType: "image/png",
   });
@@ -188,10 +188,10 @@ describe("the settlement lease", () => {
       calls.push(typed);
       return { count: 1 };
     });
-    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    downloadMediaMock.mockRejectedValue(new Error("connection reset"));
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -219,7 +219,7 @@ describe("model and placement provenance", () => {
       settings,
     });
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ model: "fal-ai/flux-2-pro", settings }),
@@ -254,14 +254,14 @@ describe("the stored version's dimensions", () => {
 
   it("takes the provider's figures when fal reports them", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    downloadImageMock.mockResolvedValue({
+    downloadMediaMock.mockResolvedValue({
       bytes: pngBytes(1, 1),
       contentType: "image/png",
     });
 
     // 1344x768 is what nucleus-image really returned at 16:9. The provider knows
     // without anybody guessing, so it wins over the header.
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png", {
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png", {
       width: 1344,
       height: 768,
     });
@@ -277,12 +277,12 @@ describe("the stored version's dimensions", () => {
     // `fal-ai/recraft/v3/text-to-image` — one of the curated five — returns WebP
     // and no dimensions, and every such asset stored 0x0 until this read the bytes.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    downloadImageMock.mockResolvedValue({
+    downloadMediaMock.mockResolvedValue({
       bytes: webpBytes(1024, 1024),
       contentType: "image/webp",
     });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.webp", {
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.webp", {
       width: null,
       height: null,
     });
@@ -296,12 +296,12 @@ describe("the stored version's dimensions", () => {
 
   it("reads the header when the call carries no provider size at all", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    downloadImageMock.mockResolvedValue({
+    downloadMediaMock.mockResolvedValue({
       bytes: pngBytes(832, 1216),
       contentType: "image/png",
     });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -315,12 +315,12 @@ describe("the stored version's dimensions", () => {
     // Throwing away an image we paid for because its header is exotic would be
     // much worse than a missing number.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
-    downloadImageMock.mockResolvedValue({
+    downloadMediaMock.mockResolvedValue({
       bytes: new Uint8Array([1, 2, 3]),
       contentType: "image/avif",
     });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.avif");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.avif");
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -346,11 +346,11 @@ describe("concurrent settlement", () => {
 
     await Promise.all(
       Array.from({ length: 6 }, () =>
-        settleWithImage("job-1", "https://v3b.fal.media/files/a.png"),
+        settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
       ),
     );
 
-    expect(downloadImageMock).toHaveBeenCalledTimes(1);
+    expect(downloadMediaMock).toHaveBeenCalledTimes(1);
     expect(putMock).toHaveBeenCalledTimes(1);
     expect(assetCreateMock).toHaveBeenCalledTimes(1);
   });
@@ -358,7 +358,7 @@ describe("concurrent settlement", () => {
   it("writes one object per job, so a loser cannot leave an orphan", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const options = putMock.mock.calls[0]![2];
     // A random suffix meant each settler wrote its own object and the losers'
@@ -382,7 +382,7 @@ describe("where generated images are stored", () => {
   });
 
   it("writes privately, into the studio's own store", async () => {
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const options = putMock.mock.calls[0]![2];
     expect(options.access).toBe("private");
@@ -390,7 +390,7 @@ describe("where generated images are stored", () => {
   });
 
   it("never reaches for the shared public store's token", async () => {
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(putMock.mock.calls[0]![2].token).not.toBe(
       "shared-public-store-token",
@@ -407,7 +407,7 @@ describe("where generated images are stored", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(putMock).not.toHaveBeenCalled();
   });
@@ -424,7 +424,7 @@ describe("where generated images are stored", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const statuses = jobUpdateManyMock.mock.calls.map(
       (call) => (call[0] as { data: Record<string, unknown> }).data.status,
@@ -456,7 +456,7 @@ describe("where generated images are stored", () => {
       return { count: 1 };
     });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -485,7 +485,7 @@ describe("a settlement whose storage write fails", () => {
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
     await expect(
-      settleWithImage("job-1", "https://v3b.fal.media/files/a.png"),
+      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
     ).resolves.toBeUndefined();
   });
 
@@ -505,7 +505,7 @@ describe("a settlement whose storage write fails", () => {
     });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const claim = calls.find((call) => call.data.settleLeaseOwner != null);
     const release = calls.find(
@@ -521,7 +521,7 @@ describe("a settlement whose storage write fails", () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const noted = jobUpdateMock.mock.calls
       .map((call) => (call[0] as { data: Record<string, unknown> }).data)
@@ -535,5 +535,63 @@ describe("a settlement whose storage write fails", () => {
     // the wrong system.
     expect(noted?.unreachableSource).toBe("storage");
     expect(String(noted?.lastPollError)).toContain("public store");
+  });
+});
+
+describe("settling a video", () => {
+  const VIDEO_JOB = {
+    ...JOB,
+    kind: "TEXT_TO_VIDEO",
+    model: "minimax/h3-max-turbo/text-to-video",
+    settings: { aspectRatio: "9:16", durationSeconds: 10, resolution: "768P" },
+  };
+
+  beforeEach(() => {
+    jobFindUniqueMock.mockResolvedValue(VIDEO_JOB);
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("stores it as a video with its length, under the video size limit", async () => {
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([0, 0, 0, 24]),
+      contentType: "video/mp4",
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.mp4");
+
+    expect(downloadMediaMock).toHaveBeenCalledWith(
+      "https://v3b.fal.media/files/a.mp4",
+      64 * 1024 * 1024,
+      "video/mp4",
+    );
+    expect(assetCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        mediaType: "VIDEO",
+        durationSeconds: 10,
+        contentType: "video/mp4",
+        width: 0,
+        height: 0,
+      }),
+    });
+  });
+
+  it("calls an mp4 a CDN mislabelled a video, so it stays playable", async () => {
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([0, 0, 0, 24]),
+      contentType: "application/octet-stream",
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.mp4", {
+      width: 720,
+      height: 1280,
+    });
+
+    expect(assetCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        contentType: "video/mp4",
+        width: 720,
+        height: 1280,
+      }),
+    });
   });
 });
