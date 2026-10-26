@@ -339,9 +339,9 @@ async function fetchDriveBlobRecentsBatch(input: {
 }
 
 /**
- * Always exhaust every source (pathname-ordered blob pages, task outputs and,
- * when given, tables) into a newest-first pool of size `limit + 1`. The signed
- * cursor stores only the page boundary.
+ * Merge every source (pathname-ordered blob pages, newest-first task outputs
+ * and, when given, newest-first tables) into a newest-first pool of size
+ * `limit + 1`. The signed cursor stores only the page boundary.
  */
 export async function fetchDriveRecentsPage(input: {
   prefix: string;
@@ -356,6 +356,7 @@ export async function fetchDriveRecentsPage(input: {
   driveFilePathnames?: ReadonlySet<string>;
   cursorSecret: string;
   cursorBinding: DriveRecentsCursorBinding;
+  /** Newest first (`updatedAt` desc), the order their `activityAt` sorts in. */
   fetchTaskOutputs: (options: { cursor?: string; take: number }) => Promise<{
     rows: DriveTaskOutputRecentsRow[];
     hasMore: boolean;
@@ -454,31 +455,41 @@ export async function fetchDriveRecentsPage(input: {
     return { items: [], hasMore: false, nextCursor: null };
   }
 
-  const fetchers: DriveRecentsSource[] = [
-    ({ cursor, take }) =>
-      fetchDriveBlobRecentsBatch({
-        prefix: input.prefix,
-        token: input.token,
-        cursor,
-        take,
-      }),
-  ];
-  if (!driveFilePathnames) {
-    fetchers.push(async (options) => {
-      const batch = await input.fetchTaskOutputs(options);
-      return {
-        items: batch.rows.map(mapTaskOutputRowToRecentsItem),
-        hasMore: batch.hasMore,
-        nextCursor: batch.nextCursor,
-      };
-    });
-  }
+  // Blob pages come in pathname order, so that source is read to the end.
+  // Task outputs and tables come newest first and stop once they can only
+  // add items older than a full pool: a workspace with thousands of task
+  // files no longer reads every one of them on each visit.
   const sources: Array<{
     fetch: DriveRecentsSource;
     cursor?: string;
     hasMore: boolean;
     newestFirst?: boolean;
-  }> = fetchers.map((fetch) => ({ fetch, hasMore: true }));
+  }> = [
+    {
+      fetch: ({ cursor, take }) =>
+        fetchDriveBlobRecentsBatch({
+          prefix: input.prefix,
+          token: input.token,
+          cursor,
+          take,
+        }),
+      hasMore: true,
+    },
+  ];
+  if (!driveFilePathnames) {
+    sources.push({
+      fetch: async (options) => {
+        const batch = await input.fetchTaskOutputs(options);
+        return {
+          items: batch.rows.map(mapTaskOutputRowToRecentsItem),
+          hasMore: batch.hasMore,
+          nextCursor: batch.nextCursor,
+        };
+      },
+      hasMore: true,
+      newestFirst: true,
+    });
+  }
   if (input.fetchTables && !driveFilePathnames)
     sources.push({
       fetch: input.fetchTables,
