@@ -1,12 +1,28 @@
 "use client";
-import type { Contact, ContactList, ContactStage } from "@sokosumi/core-client";
+import type {
+  Contact,
+  ContactKind,
+  ContactList,
+  ContactReplyState,
+  ContactStage,
+} from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, MoreHorizontal, UserPlus, Users } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  ListPlus,
+  MoreHorizontal,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useDeferredValue, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
 import {
+  CONTACT_KINDS,
+  CONTACT_REPLY_STATES,
   CONTACT_SORTS,
   CONTACT_STAGES,
   type ContactSort,
@@ -14,6 +30,7 @@ import {
   coreErrorOf,
   defaultDirection,
   isContactPreset,
+  matchesContactSearch,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -33,23 +50,36 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
+import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
 import { ContactListDialog } from "./contact-list-dialog";
 import { ContactPanel } from "./contact-panel";
 import { ContactsEmptyState } from "./contacts-empty-state";
 import { ContactsGrid } from "./contacts-grid";
-import { ContactsRail, ContactsViewPicker } from "./contacts-rail";
-import { ContactsBulkBar, ContactsFilters } from "./contacts-toolbar";
+import { ContactsList } from "./contacts-list";
+import {
+  type ContactFilterKey,
+  type ContactFilters,
+  ContactsBulkBar,
+  ContactsFilterBar,
+} from "./contacts-toolbar";
+import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
-import { useContactUpdate } from "./use-contact-update";
+import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_LISTS_KEY,
   refreshContacts,
   useContactLists,
+  useContactOrganizations,
   useContactRows,
   useTeammates,
 } from "./use-contacts-data";
@@ -61,7 +91,7 @@ type Dialog =
   | { kind: "deleteList"; list: ContactList }
   | { kind: "merge"; contacts: Contact[] };
 
-/** The Contacts tab: lists on the left, the grid, and the person panel. */
+/** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
   connectOffers,
 }: {
@@ -70,20 +100,34 @@ export function ContactsWorkspace({
   const t = useTranslations("App.Contacts");
   const cache = useQueryClient();
   const update = useContactUpdate();
+  const setImportance = useImportanceUpdate();
   const [view, setView] = useQueryState(
     "list",
     parseAsString.withDefault("all"),
   );
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [company, setCompany] = useQueryState("company");
+  const [companySearch, setCompanySearch] = useState("");
+  const [debouncedCompanySearch] = useDebounce(
+    companySearch.trim(),
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
   const [stage, setStage] = useQueryState(
     "stage",
     parseAsStringLiteral(CONTACT_STAGES),
   );
-  const [owner, setOwner] = useQueryState("owner");
+  const [replyState, setReplyState] = useQueryState(
+    "reply",
+    parseAsStringLiteral(CONTACT_REPLY_STATES),
+  );
+  const [kind, setKind] = useQueryState(
+    "kind",
+    parseAsStringLiteral(CONTACT_KINDS),
+  );
   const [knownBy, setKnownBy] = useQueryState("knownBy");
   const [sort, setSort] = useQueryState(
     "sort",
-    parseAsStringLiteral(CONTACT_SORTS).withDefault("updatedAt"),
+    parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
   );
   const [direction, setDirection] = useQueryState(
     "dir",
@@ -94,24 +138,50 @@ export function ContactsWorkspace({
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
   const returnFocus = useRef<HTMLElement | null>(null);
-  const deferredSearch = useDeferredValue(search);
+  // Core searches once per pause in typing; meanwhile every keystroke filters
+  // the rows already on screen, so the table answers as you type.
+  const [debouncedSearch] = useDebounce(
+    search,
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
+  const organizations = useContactOrganizations(debouncedCompanySearch);
+  const filters: ContactFilters = { stage, replyState, kind, knownBy };
   const query = contactQuery({
     view,
-    search: deferredSearch,
-    stage,
-    owner,
-    knownBy,
+    company,
+    search: debouncedSearch,
+    ...filters,
     sort,
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
-  const contacts = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
+  const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
+  const searchPending = search !== debouncedSearch || rows.isPlaceholderData;
+  const contacts =
+    searchPending && search.trim()
+      ? loaded.filter((contact) => matchesContactSearch(contact, search))
+      : loaded;
   const total = rows.data?.pages[0]?.total ?? 0;
   const viewList = lists.data?.find((list) => list.id === view) ?? null;
-  const filtered = !!(search.trim() || stage || owner || knownBy);
+  const filtered =
+    !!search.trim() || !!company || Object.values(filters).some(Boolean);
+  const setFilter: Record<
+    ContactFilterKey,
+    (value: string | null) => Promise<unknown>
+  > = {
+    stage: (value) => setStage(value as ContactStage | null),
+    replyState: (value) => setReplyState(value as ContactReplyState | null),
+    kind: (value) => setKind(value as ContactKind | null),
+    knownBy: setKnownBy,
+  };
+  function clearFilters() {
+    void setSearch(null);
+    void setCompany(null);
+    for (const set of Object.values(setFilter)) void set(null);
+  }
   const selectedContacts = contacts.filter((contact) =>
     selected.includes(contact.id),
   );
@@ -122,6 +192,10 @@ export function ContactsWorkspace({
 
   function changeView(next: string) {
     void setView(next === "all" ? null : next);
+    setSelected([]);
+  }
+  function changeOrganization(next: string | null) {
+    void setCompany(next);
     setSelected([]);
   }
   function handleSort(next: ContactSort) {
@@ -157,20 +231,6 @@ export function ContactsWorkspace({
       await refreshContacts(cache);
     }
   }
-  function bulkUpdate(
-    fields: Parameters<typeof update>[1],
-    optimistic: Partial<Contact>,
-  ) {
-    const targets = selectedContacts;
-    void Promise.all(
-      targets.map((contact) => update(contact, fields, optimistic)),
-    ).then((results) => {
-      const saved = results.filter(Boolean).length;
-      if (saved) toast.success(t("bulk.updated", { count: saved }));
-      void refreshContacts(cache);
-    });
-  }
-
   async function handleExport() {
     setExporting(true);
     try {
@@ -202,51 +262,18 @@ export function ContactsWorkspace({
     }
   }
 
-  const heading = isContactPreset(view)
-    ? t(`presets.${view}`)
-    : (viewList?.name ?? t("presets.all"));
   const workspaceEmpty =
     !rows.isPending && total === 0 && view === "all" && !filtered;
 
-  const rail = (
-    <ContactsRail
-      view={view}
-      onViewChange={changeView}
-      lists={lists.data ?? []}
-      onNewList={() => setDialog({ kind: "list" })}
-      onEditList={(list) => setDialog({ kind: "list", list })}
-      onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-      onImport={() => setDialog({ kind: "import" })}
-    />
-  );
-
   return (
-    <div className="grid min-w-0 gap-6 md:grid-cols-[15rem_minmax(0,1fr)]">
-      <aside className="hidden md:block">
-        <div className="sticky top-0">{rail}</div>
-      </aside>
-      <div className="flex min-w-0 flex-col gap-4">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-xl leading-tight font-semibold tracking-tight">
-              {heading}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {viewList?.description ||
-                (rows.isPending ? " " : t("count", { count: total }))}
-            </p>
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
+        <header className="flex min-w-0 items-start gap-2">
+          <h1 className="sr-only">{t("title")}</h1>
+          <div className="min-w-0 flex-1">
+            <ContactsPresetTabs view={view} onViewChange={changeView} />
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-10 md:h-8"
-              loading={exporting}
-              onClick={() => void handleExport()}
-            >
-              <Download aria-hidden className="size-4" />
-              {t("toolbar.export")}
-            </Button>
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               size="sm"
               variant="primary"
@@ -254,163 +281,188 @@ export function ContactsWorkspace({
               onClick={() => setDialog({ kind: "add" })}
             >
               <UserPlus aria-hidden className="size-4" />
-              {t("toolbar.add")}
+              <span className="sr-only sm:not-sr-only">{t("toolbar.add")}</span>
             </Button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild disabled={exporting}>
                 <Button
                   size="icon"
                   variant="ghost"
                   aria-label={t("toolbar.more")}
                   className="size-10 md:size-8"
+                  loading={exporting}
                 >
                   <MoreHorizontal aria-hidden className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void handleExport()}>
+                  <Download aria-hidden className="size-4" />
+                  {t("toolbar.export")}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setDialog({ kind: "import" })}>
-                  {t("rail.import")}
+                  <FileSpreadsheet aria-hidden className="size-4" />
+                  {t("views.import")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
-                  {t("rail.newList")}
+                  <ListPlus aria-hidden className="size-4" />
+                  {t("views.newList")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
-        <div className="md:hidden">
-          <ContactsViewPicker
-            view={view}
-            onViewChange={changeView}
-            lists={lists.data ?? []}
-            onNewList={() => setDialog({ kind: "list" })}
-          />
-        </div>
-        {selected.length ? (
-          <ContactsBulkBar
-            count={selected.length}
-            lists={lists.data ?? []}
-            viewList={viewList?.kind === "manual" ? viewList : null}
-            teammates={teammates}
-            onAddToList={(list) =>
-              void bulk(
-                () => contactsService.changeMembers(list.id, { add: selected }),
-                t("bulk.addedToList", {
-                  count: selected.length,
-                  list: list.name,
-                }),
-              )
-            }
-            onRemoveFromList={(list) =>
-              void bulk(
-                async () => {
-                  await contactsService.changeMembers(list.id, {
-                    remove: selected,
-                  });
-                  if (view === list.id) setSelected([]);
-                },
-                t("bulk.removedFromList", {
-                  count: selected.length,
-                  list: list.name,
-                }),
-              )
-            }
-            onStage={(next: ContactStage) => bulkUpdate({ stage: next }, {})}
-            onOwner={(userId) =>
-              bulkUpdate(
-                { ownerUserId: userId },
-                {
-                  owner:
-                    teammates.find((person) => person.id === userId) ?? null,
-                },
-              )
-            }
-            onMerge={() =>
-              setDialog({ kind: "merge", contacts: selectedContacts })
-            }
-            onClear={() => setSelected([])}
-          />
-        ) : (
-          <ContactsFilters
-            search={search}
-            onSearch={(value) => {
-              void setSearch(value || null);
-              setSelected([]);
-            }}
-            stage={stage}
-            onStage={(value) => void setStage(value)}
-            owner={owner}
-            onOwner={(value) => void setOwner(value)}
-            knownBy={knownBy}
-            onKnownBy={(value) => void setKnownBy(value)}
-            teammates={teammates}
-          />
-        )}
-        <div className="bg-card-background min-w-0 overflow-hidden rounded-xl border">
-          {rows.isPending ? (
-            <div className="grid gap-2 p-4" role="status">
-              <span className="sr-only">{t("loading")}</span>
-              {Array.from({ length: 8 }, (_, index) => (
-                <Skeleton key={index} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : rows.error ? (
-            <EmptyState
-              title={t("errors.loadTitle")}
-              description={coreErrorOf(rows.error).message ?? t("errors.load")}
-              action={
-                <Button variant="outline" onClick={() => void rows.refetch()}>
-                  {t("retry")}
-                </Button>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {selected.length ? (
+            <ContactsBulkBar
+              count={selected.length}
+              lists={lists.data ?? []}
+              viewList={viewList?.kind === "manual" ? viewList : null}
+              onAddToList={(list) =>
+                void bulk(
+                  () =>
+                    contactsService.changeMembers(list.id, { add: selected }),
+                  t("bulk.addedToList", {
+                    count: selected.length,
+                    list: list.name,
+                  }),
+                )
               }
-            />
-          ) : workspaceEmpty ? (
-            <ContactsEmptyState
-              offers={connectOffers}
-              onAdd={() => setDialog({ kind: "add" })}
-              onImport={() => setDialog({ kind: "import" })}
-            />
-          ) : contacts.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title={t("noMatchesTitle")}
-              description={
-                filtered ? t("noMatches") : t(`emptyViews.${viewKey(view)}`)
+              onRemoveFromList={(list) =>
+                void bulk(
+                  async () => {
+                    await contactsService.changeMembers(list.id, {
+                      remove: selected,
+                    });
+                    if (view === list.id) setSelected([]);
+                  },
+                  t("bulk.removedFromList", {
+                    count: selected.length,
+                    list: list.name,
+                  }),
+                )
               }
-              action={
-                filtered ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      void setSearch(null);
-                      void setStage(null);
-                      void setOwner(null);
-                      void setKnownBy(null);
-                    }}
-                  >
-                    {t("clearFilters")}
-                  </Button>
-                ) : undefined
+              onMerge={() =>
+                setDialog({ kind: "merge", contacts: selectedContacts })
               }
+              onClear={() => setSelected([])}
             />
           ) : (
-            <ContactsGrid
-              contacts={contacts}
-              lists={lists.data ?? []}
+            <ContactsFilterBar
+              search={search}
+              onSearch={(value) => {
+                void setSearch(value || null);
+                setSelected([]);
+              }}
+              filters={filters}
+              onFilter={(key, value) => {
+                void setFilter[key](value);
+                setSelected([]);
+              }}
               teammates={teammates}
-              selected={selected}
-              onSelectedChange={setSelected}
-              sort={sort}
-              direction={direction ?? defaultDirection(sort)}
-              onSort={handleSort}
-              onOpen={open}
-              onUpdate={update}
-              hasMore={!!hasNextPage}
-              loadingMore={isFetchingNextPage}
-              onLoadMore={loadMore}
-              footer={t("showing", { shown: contacts.length, total })}
+              menus={
+                <ContactsViewMenus
+                  view={view}
+                  onViewChange={changeView}
+                  lists={lists.data ?? []}
+                  onNewList={() => setDialog({ kind: "list" })}
+                  onEditList={(list) => setDialog({ kind: "list", list })}
+                  onDeleteList={(list) =>
+                    setDialog({ kind: "deleteList", list })
+                  }
+                  organization={company}
+                  organizations={organizations.data ?? []}
+                  onCompanySearch={setCompanySearch}
+                  onOrganizationChange={changeOrganization}
+                />
+              }
             />
           )}
+          <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
+            {rows.isPending ? null : t("count", { count: total })}
+          </span>
+        </div>
+        {viewList?.description ? (
+          <p className="text-muted-foreground -mt-1 truncate text-sm">
+            {viewList.description}
+          </p>
+        ) : null}
+        <div className={cn(HOLDER_CLASS, "min-w-0")}>
+          <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
+            {rows.isPending || (searchPending && contacts.length === 0) ? (
+              <div className="grid gap-2 p-4" role="status">
+                <span className="sr-only">{t("loading")}</span>
+                {Array.from({ length: 8 }, (_, index) => (
+                  <Skeleton key={index} className="h-8 w-full" />
+                ))}
+              </div>
+            ) : rows.error ? (
+              <EmptyState
+                title={t("errors.loadTitle")}
+                description={
+                  coreErrorOf(rows.error).message ?? t("errors.load")
+                }
+                action={
+                  <Button variant="outline" onClick={() => void rows.refetch()}>
+                    {t("retry")}
+                  </Button>
+                }
+              />
+            ) : workspaceEmpty ? (
+              <ContactsEmptyState
+                offers={connectOffers}
+                onAdd={() => setDialog({ kind: "add" })}
+                onImport={() => setDialog({ kind: "import" })}
+              />
+            ) : contacts.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title={t("noMatchesTitle")}
+                description={
+                  filtered ? t("noMatches") : t(`emptyViews.${viewKey(view)}`)
+                }
+                action={
+                  filtered ? (
+                    <Button variant="outline" onClick={clearFilters}>
+                      {t("clearFilters")}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <div className="md:hidden">
+                  <ContactsList
+                    contacts={contacts}
+                    onOpen={open}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <ContactsGrid
+                    contacts={contacts}
+                    lists={lists.data ?? []}
+                    selected={selected}
+                    onSelectedChange={setSelected}
+                    sort={sort}
+                    direction={direction ?? defaultDirection(sort)}
+                    onSort={handleSort}
+                    onOpen={open}
+                    onOrganization={changeOrganization}
+                    onUpdate={update}
+                    onImportance={setImportance}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

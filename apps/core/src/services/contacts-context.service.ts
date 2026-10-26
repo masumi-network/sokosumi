@@ -3,6 +3,7 @@
  * meetings and in its daily brief: who they are, who on the team knows them,
  * the last touchpoint and their lists. Unknown addresses get nothing.
  */
+import { contactReplyState } from "@/lib/contacts/reply-state";
 import prisma from "@/lib/db/prisma";
 
 const MAX_KNOWN_BY = 3;
@@ -50,7 +51,10 @@ export async function contactLinesByEmail(input: {
           organization: true,
           role: true,
           stage: true,
+          kind: true,
           summary: true,
+          lastInboundAt: true,
+          awaitingReplySince: true,
           listMemberships: {
             select: { list: { select: { name: true } } },
             take: 4,
@@ -96,6 +100,13 @@ export async function contactLinesByEmail(input: {
       .join(" @ ");
     if (job) parts[0] = `${contact.name} — ${job}`;
     parts.push(contact.stage.toLowerCase());
+    if (contact.kind === "ORGANIZATION")
+      parts.push("an organization or shared inbox, not one person");
+    const reply = contactReplyState(contact);
+    if (contact.awaitingReplySince && reply)
+      parts.push(
+        `${reply === "NO_REPLY" ? "no reply" : "awaiting their reply"} since ${shortDate(contact.awaitingReplySince, input.timeZone)}`,
+      );
     const lists = contact.listMemberships.map(
       (membership) => membership.list.name,
     );

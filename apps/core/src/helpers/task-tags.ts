@@ -12,6 +12,15 @@ export const TASK_TAG_VOCABULARY = {
   social: "Social media content and community work",
   seo: "Search engine optimization",
   operations: "Business operations and process work",
+  presentations: "Presentations and slide decks",
+  dashboards: "Dashboards and recurring data deliveries",
+  monitoring: "Monitoring news, mentions, and recurring checks",
+  media: "Photo, video, and audio editing",
+  communication:
+    "Writing, replying to, or sending emails and messages, answering invitations, and arranging meetings",
+  finance:
+    "Money matters: invoices, payments, credits, subscriptions, budgets, costs, and reimbursements",
+  qa: "Testing, quality checks, and reviewing work",
 } as const;
 
 export const TASK_TAG_IDS = Object.keys(TASK_TAG_VOCABULARY) as [
@@ -19,7 +28,7 @@ export const TASK_TAG_IDS = Object.keys(TASK_TAG_VOCABULARY) as [
   ...Array<keyof typeof TASK_TAG_VOCABULARY>,
 ];
 export const taskTagIdSchema = z.enum(TASK_TAG_IDS).openapi("TaskTagId");
-export const TASK_TAG_VOCABULARY_VERSION = 1;
+export const TASK_TAG_VOCABULARY_VERSION = 2;
 export const MAX_TASK_TAGS = 5;
 
 export const taskTagsSchema = z

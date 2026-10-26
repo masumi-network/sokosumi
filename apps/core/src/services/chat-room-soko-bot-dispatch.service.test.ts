@@ -40,9 +40,12 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { startTurn, reconcileTurn },
 }));
 
+const { loadRoomContextMessages } = vi.hoisted(() => ({
+  loadRoomContextMessages: vi.fn(),
+}));
 vi.mock("./chat-room-mention-context", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./chat-room-mention-context")>()),
-  loadRoomContextMessages: vi.fn().mockResolvedValue([]),
+  loadRoomContextMessages,
 }));
 
 import {
@@ -91,6 +94,7 @@ function input(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  loadRoomContextMessages.mockResolvedValue([]);
   findMember.mockResolvedValue({ id: "member-a" });
   claim.mockResolvedValue(true);
   placeholder.mockResolvedValue("response-a");
@@ -110,6 +114,25 @@ describe("Soko Bot mention dispatch", () => {
           mentionId: "mention-a",
           responseMessageId: "response-a",
         }),
+      }),
+    );
+  });
+  it("shows the bot what was said in a direct chat before the new message", async () => {
+    loadRoomContextMessages.mockResolvedValue([
+      {
+        senderName: "Joseph",
+        isCoworker: false,
+        isSokoBot: true,
+        content: "Make — s_New_Registration: two recent errors.",
+      },
+    ]);
+    await runSokoBotMentionDispatch(
+      input({ content: "stop messaging me about these", metadata: null }),
+    );
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "CONTEXT (last 1 messages in this chat):\n- Joseph (personal assistant): Make — s_New_Registration: two recent errors.\n\nNew message:\nstop messaging me about these",
       }),
     );
   });

@@ -10,7 +10,6 @@ import {
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "../tool-contracts.js";
 import {
   composeSystemPrompt,
-  DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotSkill,
   getSokoBotVersion,
 } from "../versions/index.js";
@@ -144,7 +143,6 @@ describe("contacts tool inputs", () => {
         summary: "Met at a conference.",
         whyInteresting: "Pilot buyer",
         stage: "ACTIVE",
-        ownerUserId: "user_1",
         nextStep: "Send pricing",
         followUpAt: "2026-11-02",
         avatarUrl: "https://example.com/nina.png",
@@ -199,10 +197,9 @@ describe("contacts tool inputs", () => {
 });
 
 describe("v28", () => {
-  it("is v27 with the contacts skill, and the default", () => {
+  it("is v27 with the contacts skill", () => {
     const v27 = getSokoBotVersion("v27");
     const v28 = getSokoBotVersion("v28");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v28");
     expect(v28.skills).toEqual([...v27.skills, "contacts"]);
     expect(v28.model).toBe(v27.model);
     expect(v28.capabilities).toBe(v27.capabilities);
@@ -211,9 +208,11 @@ describe("v28", () => {
     expect(prompt).toContain(composeSystemPrompt(v27));
     expect(composeSystemPrompt(v27)).not.toContain("# Contacts");
   });
+});
 
+describe.each(["contacts", "team-contacts"])("the %s skill", (id) => {
   it("teaches search before adding, sources for research, and no spam", () => {
-    const skill = getSokoBotSkill("contacts").content;
+    const skill = getSokoBotSkill(id).content;
     for (const tool of [...READS.slice(0, 3), ...WRITES])
       expect(skill).toContain(`\`${tool}\``);
     expect(skill).toMatch(/Never create a duplicate/);
@@ -222,7 +221,7 @@ describe("v28", () => {
   });
 
   it("walks prospect research step by step, with verified sources only", () => {
-    const skill = getSokoBotSkill("contacts").content;
+    const skill = getSokoBotSkill(id).content;
     const prospects = skill.slice(skill.indexOf("## Prospects"));
     expect(prospects).not.toBe(skill);
     for (const step of [
@@ -239,7 +238,7 @@ describe("v28", () => {
   });
 
   it("knows capture logs mail, meetings and Slack, so it does not log them again", () => {
-    const skill = getSokoBotSkill("contacts").content;
+    const skill = getSokoBotSkill(id).content;
     expect(skill).toMatch(/captured on their own/);
     expect(skill).toMatch(/Do not log those touchpoints again/);
     expect(skill).toContain("`find_contact_duplicates`");

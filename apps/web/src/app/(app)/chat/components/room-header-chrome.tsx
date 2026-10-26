@@ -8,6 +8,7 @@ import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-r
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -288,6 +289,13 @@ export function RoomHeaderChrome({
               isOpen={pinnedOpen}
               onToggle={onTogglePinned}
               openLabel={t("PinnedMessages.open")}
+            />
+          )}
+          {isDirectRoom ? null : (
+            <RoomDecisionsPopover
+              key={`decisions-${room.id}`}
+              room={room}
+              onJumpToMessage={onJumpToMessage}
             />
           )}
           <UnreadThreadsPanel

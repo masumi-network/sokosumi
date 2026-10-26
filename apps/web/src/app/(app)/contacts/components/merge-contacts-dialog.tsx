@@ -3,7 +3,7 @@ import type { Contact } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
-import { coreErrorOf } from "@/app/contacts/contacts-view";
+import { coreErrorOf, primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -93,6 +93,7 @@ export function MergeContactsDialog({
                 <ContactAvatar
                   name={contact.name}
                   src={contact.avatarUrl}
+                  email={primaryEmail(contact.channels)}
                   className="size-8"
                 />
                 <span className="grid min-w-0 flex-1 gap-0.5">

@@ -127,10 +127,6 @@ interface SetTaskPriorityParameters extends AuthenticatedRequest {
   priority: TaskPriority;
 }
 
-interface DeleteTaskParameters extends AuthenticatedRequest {
-  taskId: string;
-}
-
 interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
   taskId: string;
   organizationId: string | null;
@@ -728,22 +724,6 @@ export const setTaskPriority = withSession<
     );
   }
 });
-
-export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
-  async ({ taskId }) => {
-    try {
-      await taskService.deleteTask(taskId);
-      revalidateTaskMutationRoutes();
-      return { taskId };
-    } catch (error) {
-      rethrowTaskActionError(
-        error,
-        "Failed to delete task",
-        "Failed to delete task",
-      );
-    }
-  },
-);
 
 export const moveTaskToWorkspace = withSession<
   MoveTaskToWorkspaceParameters,

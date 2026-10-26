@@ -10,6 +10,11 @@ import {
   IMAGE_RESOLUTIONS,
 } from "@/lib/image-studio/image-model";
 import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
+import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
+import {
+  VIDEO_ASPECT_RATIOS,
+  VIDEO_DURATIONS_SECONDS,
+} from "@/lib/image-studio/video-model";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -65,6 +70,18 @@ export const imageStudioSettingsSchema = z
   })
   .openapi("ProjectImageSettings");
 
+/** What a video was made with. The video counterpart of `settings`. */
+export const imageStudioVideoSettingsSchema = z
+  .object({
+    aspectRatio: z.string(),
+    durationSeconds: z.number().int().min(1),
+    /** The provider's own resolution value, e.g. `768P` or `720p`. */
+    resolution: z.string(),
+  })
+  .openapi("ProjectVideoSettings");
+
+export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
+
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
@@ -80,6 +97,10 @@ export const imageStudioAssetSchema = z
     height: z.number().int().min(0),
     bytes: z.number().int().min(0),
     contentType: z.string(),
+    /** A video plays in place and attaches to Social as a video. */
+    mediaType: z.enum(IMAGE_STUDIO_MEDIA_TYPES),
+    /** How the video was made. Null for an image. */
+    video: z.union([imageStudioVideoSettingsSchema, z.null()]),
     createdAt: dateTimeSchema,
     jobId: z.string().uuid(),
     /**
@@ -101,11 +122,16 @@ export const imageStudioJobSchema = z
     id: z.string().uuid(),
     projectId: z.string().uuid(),
     status: z.enum(IMAGE_JOB_STATUSES),
-    kind: z.enum(["GENERATE", "EDIT"]),
+    kind: z.enum(["GENERATE", "EDIT", "TEXT_TO_VIDEO", "IMAGE_TO_VIDEO"]),
     model: z.string(),
     prompt: z.string(),
-    /** What this job asked the provider for, so a retry can ask the same. */
+    /**
+     * What this job asked the provider for, so a retry can ask the same. For a
+     * video only `aspectRatio` is meaningful; read `video` instead.
+     */
     settings: imageStudioSettingsSchema,
+    /** A video job's own settings. Null for an image job. */
+    video: z.union([imageStudioVideoSettingsSchema, z.null()]),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
     /**
@@ -207,6 +233,49 @@ export const createImageJobRequestSchema = z
   })
   .openapi("CreateProjectImageJobRequest");
 
+export const createVideoJobRequestSchema = z
+  .object({
+    /**
+     * A video catalog model id. Omitted, the studio's default for the input:
+     * text-to-video, or image-to-video when `sourceAssetId` is set. Checked
+     * against the resolved catalog, for the same reason as `modelId` above.
+     */
+    modelId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .optional()
+      .refine(
+        (id) =>
+          id === undefined ||
+          getVideoCatalog().models.some((model) => model.id === id),
+        { message: "Unknown video model. Choose one from the studio catalog." },
+      ),
+    prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    /** Missing fields take the model's defaults: 9:16, 5 seconds, its first resolution. */
+    settings: z
+      .object({
+        aspectRatio: z.enum(VIDEO_ASPECT_RATIOS).optional(),
+        durationSeconds: z
+          .number()
+          .int()
+          .refine(
+            (value) =>
+              (VIDEO_DURATIONS_SECONDS as readonly number[]).includes(value),
+            { message: "Choose 5, 10 or 15 seconds." },
+          )
+          .optional(),
+        resolution: z.string().trim().min(1).max(20).optional(),
+      })
+      .default({}),
+    /** A gallery image to animate. Null or omitted makes a video from the prompt. */
+    sourceAssetId: z.string().uuid().nullable().default(null),
+    sessionId: z.string().uuid().nullable().default(null),
+    idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .openapi("CreateProjectVideoJobRequest");
+
 export const imageStudioStateQuerySchema = z.object({
   /**
    * A version the caller is looking at. It is returned whatever its age, so a
@@ -282,10 +351,47 @@ export const imageStudioCatalogModelSchema = z
   })
   .openapi("ProjectImageStudioCatalogModel");
 
+/** One video catalog row: everything a client needs to offer and price it. */
+export const imageStudioVideoCatalogModelSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    description: z.string(),
+    endpoint: z.string(),
+    /** `text` makes a video from a prompt; `image` animates a gallery image. */
+    input: z.enum(["text", "image"]),
+    /** Empty means the frame follows the image and no ratio is offered. */
+    aspectRatios: z.array(z.string()),
+    durations: z.array(z.number().int()),
+    /** First is the default. */
+    resolutions: z.array(z.string()),
+    curatedRank: z.number().int().nullable(),
+    notes: z.string(),
+    /**
+     * A client computes credits with `creditsPerVideoCents` from
+     * `@sokosumi/utils`, the same function Core charges with.
+     */
+    price: z.object({
+      unit: z.string(),
+      unitPriceUsd: z.number(),
+      /** Hand-verified USD per second by resolution: the figure billed. */
+      perSecondUsd: z.record(z.string(), z.number()),
+      basis: z.string(),
+      sourceUrl: z.string(),
+      verifiedAt: z.string(),
+    }),
+  })
+  .openapi("ProjectImageStudioVideoCatalogModel");
+
 export const imageStudioCatalogSchema = z
   .object({
     defaultModelId: z.string(),
     models: z.array(imageStudioCatalogModelSchema),
+    /** The text-to-video default. */
+    defaultVideoModelId: z.string(),
+    /** The image-to-video default, for "animate this image". */
+    defaultAnimateModelId: z.string(),
+    videoModels: z.array(imageStudioVideoCatalogModelSchema),
     /** When the committed cold-start snapshot behind this catalog was captured. */
     snapshotDate: z.string(),
     /** When this instance last refreshed from fal. Null on a cold start. */

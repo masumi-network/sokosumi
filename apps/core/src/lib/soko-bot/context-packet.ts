@@ -51,6 +51,7 @@ const TEXT_LIMITS = {
   inputSchema: 1_000,
   decisionReason: 300,
   turnMessage: 500,
+  selfStartedTurnMessage: 80,
   turnAnswer: 600,
   /** The newest reply in full: its closing question is what "yes" answers. */
   latestTurnAnswer: 4_000,
@@ -100,6 +101,45 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   classification: TurnClassification;
   referencedTaskIds?: readonly string[];
+  /** A person typed this turn: it holds every tool, and the route is a guess. */
+  personAsked?: boolean;
+  /** The lasting preference saved from this message before the turn. */
+  capturedPreference?: string | null;
+}
+
+/** A signal at or above this becomes a hint. */
+const LIKELY_SIGNAL = 0.6;
+/** Below this the message is not about the board, so fewer Tasks come along. */
+const UNLIKELY_SIGNAL = 0.2;
+/** Tasks a typed turn carries when it is not about the board. */
+const OFF_TOPIC_TASKS = 8;
+
+/**
+ * What Core noticed about a typed message, in plain words. Each hint adds
+ * context; none narrows the turn, which holds every tool whatever Jev said.
+ */
+export function triggerHints(input: BuildContextPacketInput): string[] {
+  if (!input.personAsked) return [];
+  const { signals } = input.classification;
+  return [
+    ...((signals?.refersToEarlier ?? 0) >= LIKELY_SIGNAL
+      ? [
+          "The message likely points back at earlier messages in this chat, your own posts included: read the CONTEXT block and recentTurns first.",
+        ]
+      : []),
+    ...((signals?.aboutMail ?? 0) >= LIKELY_SIGNAL
+      ? [
+          "The message is likely about mail, the calendar, or alerts you posted.",
+        ]
+      : []),
+    ...(input.capturedPreference
+      ? [
+          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
+        ]
+      : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL
+        ? ["The message may state a lasting preference."]
+        : []),
+  ];
 }
 
 export interface BuiltContextPacket {
@@ -340,12 +380,20 @@ function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
   };
 }
 
+/**
+ * The conversation the bot can never read back with a tool, kept even when
+ * Tasks have to give way: trimmed to its last three turns, "stop messaging me
+ * about these" lost the inbox post it pointed at.
+ */
+const MIN_RECENT_TURNS = 8;
+
 /** Drops one item: the oldest turn, or the last of any other collection. */
 function trimOne(
   packet: ContextPacketWithoutHash,
 ): ContextPacketWithoutHash | null {
   for (const key of PACKET_TRIM_ORDER) {
     const items = packet[key];
+    if (key === "recentTurns" && items.length <= MIN_RECENT_TURNS) continue;
     const index = key === "recentTurns" ? 0 : items.length - 1;
     const item = items[index];
     if (!item || ("requiredReference" in item && item.requiredReference))
@@ -355,7 +403,10 @@ function trimOne(
       [key]: items.filter((_, position) => position !== index),
     };
   }
-  return null;
+  // Nothing else is left to give: the oldest turn goes before memory does.
+  return packet.recentTurns.length
+    ? { ...packet, recentTurns: packet.recentTurns.slice(1) }
+    : null;
 }
 
 function fitPacketToBudget(
@@ -464,6 +515,13 @@ export class ContextPacketBuilder {
 
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;
+    // The bot can list Tasks itself; a message about something else leaves
+    // their room to the conversation.
+    const taskLimit =
+      input.personAsked &&
+      (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
+        ? OFF_TOPIC_TASKS
+        : LIMITS.tasks;
     const [
       user,
       projects,
@@ -513,13 +571,13 @@ export class ContextPacketBuilder {
             ? [
                 {
                   where: { id: { in: [...input.referencedTaskIds] } },
-                  take: LIMITS.tasks,
+                  take: taskLimit,
                 },
               ]
             : []),
           {
             where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
-            take: LIMITS.tasks - LIMITS.finishedTasks,
+            take: Math.max(taskLimit - LIMITS.finishedTasks, 1),
           },
           {
             where: {
@@ -593,7 +651,7 @@ export class ContextPacketBuilder {
       ).then((pages) =>
         [
           ...new Map(pages.flat().map((task) => [task.id, task])).values(),
-        ].slice(0, LIMITS.tasks),
+        ].slice(0, taskLimit),
       ),
       prisma.coworker.findMany({
         where: {
@@ -760,6 +818,7 @@ export class ContextPacketBuilder {
     const safeMemoryMarkdown = sanitizeMemory(
       memoryRevision?.markdown ?? "# Soko Bot memory",
     );
+    const hints = triggerHints(input);
     const packetWithoutHash: ContextPacketWithoutHash = {
       schemaVersion: 1,
       generatedAt,
@@ -770,6 +829,7 @@ export class ContextPacketBuilder {
         ...(input.classification.unsureRoute
           ? { unsureRoute: input.classification.unsureRoute }
           : {}),
+        ...(hints.length ? { hints } : {}),
         requestedOutcome:
           sanitizeText(
             input.classification.requestedOutcome,
@@ -961,7 +1021,14 @@ export class ContextPacketBuilder {
         source: turn.source,
         status: turn.status,
         route: turn.route,
-        userMessage: sanitizeText(turn.userMessage, TEXT_LIMITS.turnMessage),
+        // A self-started turn's message is Core's prompt, not the owner's:
+        // its first words say what kind of post it was, the rest is noise.
+        userMessage: sanitizeText(
+          turn.userMessage,
+          turn.source === "CHAT"
+            ? TEXT_LIMITS.turnMessage
+            : TEXT_LIMITS.selfStartedTurnMessage,
+        ),
         finalAnswer: sanitizeText(
           turn.finalAnswer,
           index === turns.length - 1

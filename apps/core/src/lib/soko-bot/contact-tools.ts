@@ -22,6 +22,7 @@ import {
   mergeContacts,
   removeContactChannel,
   setContactArchived,
+  setReaderImportance,
   updateContact,
   upsertContact,
 } from "@/services/contacts.service";
@@ -134,6 +135,7 @@ export async function runContactTool(
         addChannels,
         removeChannelIds,
         archived,
+        importance,
         ...fields
       } = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_contact.parse(rawInput);
       return write(
@@ -153,6 +155,13 @@ export async function runContactTool(
             );
           if (archived !== undefined)
             contact = await setContactArchived(tx, actor, contactId, archived);
+          if (importance !== undefined)
+            contact = await setReaderImportance(
+              tx,
+              actor,
+              contactId,
+              importance,
+            );
           return contact;
         },
         (contact) => contact.id,

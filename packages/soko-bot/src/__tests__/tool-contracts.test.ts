@@ -137,3 +137,66 @@ describe("Soko Bot tool contracts", () => {
     ).toBe(false);
   });
 });
+
+describe("evaluate_with_jev input", () => {
+  const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
+  const triage = {
+    key: "mail0",
+    question: "How urgent is mail0 for the owner?",
+    options: [
+      { name: "URGENT", criteria: "Needs the owner today." },
+      { name: "BULK", criteria: "Nothing to do." },
+    ],
+  };
+  const yesNo = { key: "asksForMoney", question: "Does mail0 ask for money?" };
+
+  it("takes a short state and 1–10 yes/no or choice questions", () => {
+    expect(
+      schema.safeParse({
+        state: '{"mail0":{"subject":"Payout failed"}}',
+        questions: [triage, yesNo],
+      }).success,
+    ).toBe(true);
+    expect(schema.safeParse({ state: "x", questions: [] }).success).toBe(false);
+    expect(
+      schema.safeParse({
+        state: "x",
+        questions: Array.from({ length: 11 }, (_, index) => ({
+          ...yesNo,
+          key: `q${index}`,
+        })),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("bounds the state and refuses ambiguous keys and options", () => {
+    const invalid = (input: unknown) => !schema.safeParse(input).success;
+    expect(invalid({ state: "x".repeat(12_001), questions: [yesNo] })).toBe(
+      true,
+    );
+    expect(invalid({ state: "x", questions: [yesNo, yesNo] })).toBe(true);
+    expect(
+      invalid({ state: "x", questions: [{ ...yesNo, key: "1 bad" }] }),
+    ).toBe(true);
+    expect(
+      invalid({
+        state: "x",
+        questions: [{ ...triage, options: [triage.options[0]] }],
+      }),
+    ).toBe(true);
+    expect(
+      invalid({
+        state: "x",
+        questions: [
+          { ...triage, options: [triage.options[0], triage.options[0]] },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("converts to a plain object schema for the model", () => {
+    const jsonSchema = z.toJSONSchema(schema);
+    expect(jsonSchema.type).toBe("object");
+    expect(jsonSchema.required).toEqual(["state", "questions"]);
+  });
+});

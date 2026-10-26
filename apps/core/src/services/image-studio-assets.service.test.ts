@@ -63,6 +63,7 @@ describe("image studio versions", () => {
     getMock.mockResolvedValue({
       statusCode: 200,
       stream: new ReadableStream(),
+      headers: new Headers(),
       blob: { contentType: "image/png", size: 42 },
     });
 
@@ -86,7 +87,36 @@ describe("image studio versions", () => {
       "contentType",
       "size",
       "checksum",
+      "contentRange",
     ]);
+    expect(result.contentRange).toBeNull();
+  });
+
+  it("passes a video's byte range to the store and reports the partial answer", async () => {
+    assetFindFirstMock.mockResolvedValue({
+      blobPathname: "projects/p/image-studio/clip",
+      contentType: "video/mp4",
+      checksum: "abc",
+    });
+    getMock.mockResolvedValue({
+      statusCode: 200,
+      stream: new ReadableStream(),
+      headers: new Headers({ "content-range": "bytes 0-99/1000" }),
+      blob: { contentType: "video/mp4", size: 100 },
+    });
+
+    const result = await openAssetStream({
+      ...SCOPE,
+      assetId: "asset-1",
+      range: "bytes=0-99",
+    });
+
+    expect(getMock).toHaveBeenCalledWith(
+      "projects/p/image-studio/clip",
+      expect.objectContaining({ headers: { range: "bytes=0-99" } }),
+    );
+    expect(result.contentRange).toBe("bytes 0-99/1000");
+    expect(result.size).toBe(100);
   });
 
   it("flags only an unconfirmed submission as possibly duplicating a charge", async () => {

@@ -1,4 +1,4 @@
-import { creditsPerImageCents } from "@sokosumi/utils";
+import { creditsPerImageCents, creditsPerVideoCents } from "@sokosumi/utils";
 
 import type {
   StudioAsset,
@@ -6,6 +6,7 @@ import type {
   StudioJob,
   StudioModel,
   StudioSettings,
+  StudioVideoModel,
 } from "./types";
 
 /**
@@ -50,9 +51,34 @@ export function resolveModel(
     (model) =>
       model.generateEndpoint === endpoint || model.editEndpoint === endpoint,
   );
-  return match
-    ? { id: match.id, label: match.label, known: true }
+  if (match) return { id: match.id, label: match.label, known: true };
+  // A video version names its model too. Its id is not an image model's, so a
+  // caller that repeats by id cannot mistake it for one.
+  const video = catalog.videoModels.find(
+    (model) => model.endpoint === endpoint,
+  );
+  return video
+    ? { id: null, label: video.label, known: true }
     : { id: null, label: endpoint, known: false };
+}
+
+/** The video models for one input, curated order kept. */
+export function videoModelsFor(
+  catalog: StudioCatalog,
+  input: StudioVideoModel["input"],
+): StudioVideoModel[] {
+  return catalog.videoModels.filter((model) => model.input === input);
+}
+
+/**
+ * What one video costs in credits, by the function Core charges with.
+ * Null when no verified figure covers these settings.
+ */
+export function creditsForVideo(
+  model: StudioVideoModel,
+  settings: { resolution: string; durationSeconds: number },
+): number | null {
+  return creditsPerVideoCents(model.price, settings);
 }
 
 export function modelById(

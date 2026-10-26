@@ -92,6 +92,8 @@ const {
   dispatchChatRoomMentionMock,
   serializableTransactionMock,
   turnUpdateManyMock,
+  turnUpdateMock,
+  jevToolMock,
   workspaceFindFirstMock,
   availabilityMock,
   applyGuardedTaskStatusUpdateMock,
@@ -137,6 +139,7 @@ const {
   images: {
     access: vi.fn(),
     create: vi.fn(),
+    createVideo: vi.fn(),
     getJob: vi.fn(),
     reconcile: vi.fn(),
     credits: vi.fn(),
@@ -209,6 +212,8 @@ const {
   dispatchChatRoomMentionMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
+  turnUpdateMock: vi.fn(),
+  jevToolMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
   applyGuardedTaskStatusUpdateMock: vi.fn(),
@@ -308,6 +313,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
+  createVideoJob: images.createVideo,
   reconcileProjectJobs: images.reconcile,
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
@@ -384,6 +390,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
+      update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
@@ -415,6 +422,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
+}));
+vi.mock("@/lib/soko-bot/jev-tool", () => ({
+  evaluateWithJevForBot: jevToolMock,
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
@@ -2279,7 +2289,12 @@ describe("SokoBotRuntimeService authorization", () => {
 
     const [{ where }] = transactionToolCallCountMock.mock.calls[0];
     expect(where.capability.in).toEqual(
-      expect.arrayContaining(["get_task_status", "search_inbox", "read_table"]),
+      expect.arrayContaining([
+        "get_task_status",
+        "search_inbox",
+        "read_table",
+        "evaluate_with_jev",
+      ]),
     );
     for (const notARead of [
       "write_table_rows",
@@ -2897,6 +2912,51 @@ describe("SokoBotRuntimeService authorization", () => {
         expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
       },
     );
+
+    it("asks Jev for the bot and books the call as turn overhead", async () => {
+      sharedTurn("evaluate_with_jev", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      const result = {
+        answers: [{ key: "q", type: "boolean", probability: 0.8 }],
+        unanswered: [],
+        note: "guide",
+      };
+      jevToolMock.mockResolvedValue({ result, costUsd: 0.000_25 });
+      const input = {
+        state: "Payout failed",
+        questions: [{ key: "q", question: "Money?" }],
+      };
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev",
+          input,
+        }),
+      ).resolves.toEqual(result);
+      expect(jevToolMock).toHaveBeenCalledWith(input);
+      expect(turnUpdateMock).toHaveBeenCalledWith({
+        where: { id: SCOPE.turnId },
+        data: { overheadCostUsdMicros: { increment: 250n } },
+      });
+    });
+
+    it("tells the bot to judge itself when Jev is down", async () => {
+      sharedTurn("evaluate_with_jev", PROJECT_BOT);
+      jevToolMock.mockRejectedValue(new Error("timeout"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev_down",
+          input: { state: "x", questions: [{ key: "q", question: "Yes?" }] },
+        }),
+      ).rejects.toThrow("Jev is unavailable right now");
+      expect(turnUpdateMock).not.toHaveBeenCalled();
+    });
 
     it("finds Coworkers without the member's own assignments", async () => {
       sharedTurn("find_coworkers", PROJECT_BOT);
@@ -7600,7 +7660,7 @@ describe("Content Studio image tools", () => {
       generate(projectBotChat("project-2"), request, "call-p"),
     ).rejects.toThrow("works only in its own Project");
     await expect(
-      service["getImage"](projectBotChat("project-2") as never, {
+      service["getStudioJob"](projectBotChat("project-2") as never, {
         projectId: "project-1",
         jobId: "job-1",
       }),
@@ -7712,7 +7772,7 @@ describe("Content Studio image tools", () => {
       failureReason: null,
     });
     await expect(
-      service["getImage"](ownerChat as never, {
+      service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: "job-1",
       }),
@@ -7753,7 +7813,7 @@ describe("Content Studio image tools", () => {
 
     it("copies it once into a Content Studio folder and returns its file id", async () => {
       files.resourceFindUnique.mockResolvedValue(null);
-      const result = await service["getImage"](ownerChat as never, {
+      const result = await service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: ready.id,
       });
@@ -7778,7 +7838,7 @@ describe("Content Studio image tools", () => {
         tombstonedAt: null,
       });
       await expect(
-        service["getImage"](ownerChat as never, {
+        service["getStudioJob"](ownerChat as never, {
           projectId: "project-1",
           jobId: ready.id,
         }),
@@ -7791,7 +7851,7 @@ describe("Content Studio image tools", () => {
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(
-        service["getImage"](ownerChat as never, {
+        service["getStudioJob"](ownerChat as never, {
           projectId: "project-1",
           jobId: ready.id,
         }),
@@ -7869,7 +7929,7 @@ describe("Content Studio image tools", () => {
   it("returns nothing for a job that is not in the Project", async () => {
     images.getJob.mockResolvedValue(null);
     await expect(
-      service["getImage"](ownerChat as never, {
+      service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: "missing",
       }),
@@ -7958,6 +8018,155 @@ describe("Content Studio image tools", () => {
       operationKey: null,
     });
     expect(images.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("Content Studio video tools", () => {
+  const ownerChat = {
+    askedByKind: "OWNER",
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+    turn: {
+      id: SCOPE.turnId,
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+  };
+  const service = new SokoBotRuntimeService();
+  const generate = (authorized: unknown, input: unknown, callId: string) =>
+    service["generateVideo"](authorized as never, input, callId);
+  const request = {
+    projectId: "project-1",
+    prompt: "A product turning on a plinth",
+    maxCredits: 100,
+  };
+  beforeEach(() => {
+    images.access.mockResolvedValue({ organizationId: null });
+    images.createVideo.mockReset();
+    images.getJob.mockReset();
+    toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("starts a 9:16 five second video on the default model, keyed to the call", async () => {
+    images.createVideo.mockResolvedValue({ id: "job-v", status: "QUEUED" });
+    const result = await generate(ownerChat, request, "call-v1");
+    expect(images.createVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        modelId: "h3-max-turbo",
+        settings: {
+          aspectRatio: "9:16",
+          durationSeconds: 5,
+          resolution: "768P",
+        },
+        sourceAssetId: null,
+        idempotencyKey: `soko-bot:${SCOPE.turnId}:call-v1`,
+      }),
+    );
+    expect(result).toMatchObject({
+      jobId: "job-v",
+      status: "QUEUED",
+      credits: 20,
+      studioUrl: "/studio?projectId=project-1",
+    });
+  });
+
+  it("uses the quality model when asked, and prices it before sending", async () => {
+    await expect(
+      generate(
+        ownerChat,
+        { ...request, quality: "high", durationSeconds: 15, maxCredits: 50 },
+        "call-v2",
+      ),
+    ).rejects.toThrow("costs 120 credits, more than the 50 allowed");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("animates a finished image from this Project by its job id", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-i",
+      status: "SUCCEEDED",
+      assetId: "asset-i",
+      video: null,
+    });
+    images.createVideo.mockResolvedValue({ id: "job-v", status: "QUEUED" });
+    await generate(
+      ownerChat,
+      { ...request, imageJobId: "job-i", aspectRatio: "16:9" },
+      "call-v3",
+    );
+    expect(images.createVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "h3-max-turbo-animate",
+        sourceAssetId: "asset-i",
+        // The frame follows the image; the requested ratio is not sent.
+        settings: expect.objectContaining({ aspectRatio: "" }),
+      }),
+    );
+  });
+
+  it("refuses an image that is not ready, or a job that is a video", async () => {
+    images.getJob.mockResolvedValueOnce({
+      id: "job-i",
+      assetId: null,
+      video: null,
+    });
+    await expect(
+      generate(ownerChat, { ...request, imageJobId: "job-i" }, "call-v4"),
+    ).rejects.toThrow("not ready yet");
+    images.getJob.mockResolvedValueOnce({
+      id: "job-v",
+      assetId: "asset-v",
+      video: { aspectRatio: "9:16", durationSeconds: 5, resolution: "768P" },
+    });
+    await expect(
+      generate(ownerChat, { ...request, imageJobId: "job-v" }, "call-v5"),
+    ).rejects.toThrow("must be a generate_image job");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("stops a turn after two videos and spends only when a person asks in chat", async () => {
+    toolCallCountMock.mockResolvedValue(2);
+    await expect(generate(ownerChat, request, "call-v6")).rejects.toThrow(
+      "at most 2 videos",
+    );
+    toolCallCountMock.mockResolvedValue(0);
+    await expect(
+      generate(
+        { ...ownerChat, turn: { ...ownerChat.turn, source: "SCHEDULE" } },
+        request,
+        "call-v7",
+      ),
+    ).rejects.toThrow("only when a person asks in chat");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("refuses a length the studio does not offer", async () => {
+    await expect(
+      generate(ownerChat, { ...request, durationSeconds: 8 }, "call-v8"),
+    ).rejects.toThrow("does not support this length");
+  });
+
+  it("reports a running video through the same job read as an image", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-v",
+      status: "RUNNING",
+      assetId: null,
+      failureReason: null,
+    });
+    await expect(
+      service["getStudioJob"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "job-v",
+      }),
+    ).resolves.toEqual({
+      jobId: "job-v",
+      status: "RUNNING",
+      failureReason: null,
+      studioUrl: "/studio?projectId=project-1",
+    });
   });
 });
 

@@ -1,4 +1,12 @@
+import { createGateway, stepCountIs, tool } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import {
+  MODEL_CALL_MAX_MS,
+  MODEL_STREAM_IDLE_MS,
+  ModelStreamStalledError,
+  streamModelCall,
+} from "@/lib/soko-bot/stream-model-call";
 
 const {
   authorizeMock,
@@ -81,7 +89,7 @@ function modelRequest(overrides: Record<string, string> = {}) {
   return {
     headers: new Headers({
       "ai-language-model-id": "google/gemini-3.6-flash",
-      "ai-language-model-streaming": "false",
+      "ai-language-model-streaming": "true",
       "ai-language-model-specification-version": "4",
       ...overrides,
     }),
@@ -99,23 +107,31 @@ function headersTimeoutError() {
   });
 }
 
-function gatewayAnswer(content: unknown[] = []) {
-  return new Response(
-    JSON.stringify({
-      content,
-      usage: {
-        inputTokens: { total: 1_000, cacheRead: 200 },
-        outputTokens: { total: 50 },
-      },
-      providerMetadata: {
-        gateway: {
-          cost: "0.004",
-          routing: { finalProvider: "vertex" },
-        },
-      },
-    }),
-    { status: 200 },
-  );
+/** The Gateway's streamed answer: one SSE `data:` line per part. */
+function sse(parts: unknown[]): string {
+  return parts.map((part) => `data: ${JSON.stringify(part)}\n\n`).join("");
+}
+
+const FINISH = {
+  type: "finish",
+  finishReason: { unified: "stop", raw: "stop" },
+  usage: {
+    inputTokens: { total: 1_000, cacheRead: 200 },
+    outputTokens: { total: 50 },
+  },
+  providerMetadata: {
+    gateway: {
+      cost: "0.004",
+      routing: { finalProvider: "vertex" },
+    },
+  },
+};
+
+function gatewayAnswer(parts: unknown[] = []) {
+  return new Response(sse([...parts, FINISH]), {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
 }
 
 describe("sandbox turn service", () => {
@@ -152,13 +168,13 @@ describe("sandbox turn service", () => {
     });
   });
 
-  it("refuses streaming and any model but the turn's", async () => {
+  it("refuses an unstreamed call and any model but the turn's", async () => {
     await expect(
       proxySandboxModelCall(
         claims,
-        modelRequest({ "ai-language-model-streaming": "true" }),
+        modelRequest({ "ai-language-model-streaming": "false" }),
       ),
-    ).rejects.toThrow("Streaming");
+    ).rejects.toThrow("must stream");
     await expect(
       proxySandboxModelCall(
         claims,
@@ -176,8 +192,10 @@ describe("sandbox turn service", () => {
     );
 
     expect(result.status).toBe(200);
+    expect(result.contentType).toBe("text/event-stream");
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentHeaders = new Headers(init.headers);
+    expect(sentHeaders.get("ai-language-model-streaming")).toBe("true");
     expect(sentHeaders.get("authorization")).toBe("Bearer gateway-key");
     expect(sentHeaders.get("ai-o11y-sneaky")).toBeNull();
     const sent = JSON.parse(String(init.body));
@@ -228,33 +246,243 @@ describe("sandbox turn service", () => {
   it("still meters a call whose region is rejected", async () => {
     fetchMock.mockResolvedValue(
       new Response(
-        JSON.stringify({
-          usage: { inputTokens: 10, outputTokens: 1 },
-          providerMetadata: {
-            gateway: {
-              cost: "0.001",
-              routing: {
-                modelAttempts: [
-                  {
-                    providerAttempts: [
-                      {
-                        provider: "openai",
-                        inferenceEndpoint: { geoRegion: "us" },
-                      },
-                    ],
-                  },
-                ],
+        sse([
+          {
+            type: "tool-call",
+            toolCallId: "call_1",
+            toolName: "post_chat",
+            input: "{}",
+          },
+          {
+            type: "finish",
+            usage: { inputTokens: 10, outputTokens: 1 },
+            providerMetadata: {
+              gateway: {
+                cost: "0.001",
+                routing: {
+                  modelAttempts: [
+                    {
+                      providerAttempts: [
+                        {
+                          provider: "openai",
+                          inferenceEndpoint: { geoRegion: "us" },
+                        },
+                      ],
+                    },
+                  ],
+                },
               },
             },
           },
-        }),
+        ]),
         { status: 200 },
       ),
     );
     await expect(
       proxySandboxModelCall(claims, modelRequest()),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ status: 502 });
     expect(events().map((event) => event.type)).toContain("step.completed");
+  });
+
+  /** A Gateway answer that sends one part every `gapMs`, then maybe stalls. */
+  function slowGateway(parts: unknown[], gapMs: number, stall = false) {
+    const encoder = new TextEncoder();
+    const cancelled = vi.fn();
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(
+          new ReadableStream({
+            async start(controller) {
+              for (const part of parts) {
+                await new Promise((resolve) => setTimeout(resolve, gapMs));
+                controller.enqueue(encoder.encode(sse([part])));
+              }
+              if (!stall) controller.close();
+            },
+            cancel: cancelled,
+          }),
+          { status: 200, headers: { "content-type": "text/event-stream" } },
+        ),
+    );
+    return { cancelled };
+  }
+
+  /** The runner's own Gateway client, pointed at Core's proxy. */
+  function runnerGateway() {
+    return createGateway({
+      baseURL: "https://core.test/gateway",
+      apiKey: "sandbox",
+      fetch: async (_url, init) => {
+        const proxied = await proxySandboxModelCall(claims, {
+          headers: new Headers(init?.headers),
+          body: String(init?.body),
+        });
+        return new Response(proxied.body, {
+          status: proxied.status,
+          headers: { "content-type": proxied.contentType },
+        });
+      },
+    });
+  }
+
+  it("runs one long tool call that streams for minutes, metered once", async () => {
+    // The preview's failing step: one upload_file call carrying a whole
+    // month's calendar. A non-streamed Gateway call dies at about 60 seconds;
+    // this one arrives over two and a half minutes.
+    const content = Array.from(
+      { length: 30 },
+      (_, day) => `Day ${day + 1}: ${"draft ".repeat(16)}`,
+    );
+    const input = JSON.stringify({
+      name: "calendar.md",
+      content: content.join(""),
+    });
+    const slices = input.match(/.{1,200}/g) ?? [];
+    slowGateway(
+      [
+        { type: "tool-input-start", id: "call_1", toolName: "save_file" },
+        ...slices.map((delta) => ({
+          type: "tool-input-delta",
+          id: "call_1",
+          delta,
+        })),
+        { type: "tool-input-end", id: "call_1" },
+        {
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "save_file",
+          input,
+        },
+        {
+          ...FINISH,
+          finishReason: { unified: "tool-calls", raw: "tool_calls" },
+        },
+      ],
+      10_000,
+    );
+    const execute = vi.fn(
+      async (_input: { name: string; content: string }) => ({ saved: true }),
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pending = streamModelCall({
+        model: runnerGateway()("google/gemini-3.6-flash"),
+        prompt: "Save the month's calendar as one file",
+        maxRetries: 0,
+        tools: {
+          save_file: tool({
+            inputSchema: z.object({ name: z.string(), content: z.string() }),
+            execute,
+          }),
+        },
+        stopWhen: stepCountIs(1),
+      });
+      await vi.advanceTimersByTimeAsync((slices.length + 5) * 10_000);
+      const result = await pending;
+      expect(result.finishReason).toBe("tool-calls");
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(slices.length * 10_000).toBeGreaterThan(120_000);
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute.mock.calls[0]?.[0]).toEqual(JSON.parse(input));
+    expect(events().map((event) => event.type)).toEqual([
+      "step.started",
+      "step.completed",
+    ]);
+    expect(events()[1]?.data).toMatchObject({
+      usage: { inputTokens: 1_000, outputTokens: 50, costUsd: 0.004 },
+    });
+  });
+
+  it("fails a stalled Gateway stream fast with a 502 the runner retries", async () => {
+    // The preview hit this: the Gateway left a streamed answer open and
+    // silent, and Core waited until Vercel killed it at 300 seconds.
+    const { cancelled } = slowGateway(
+      [{ type: "tool-input-start", id: "call_1", toolName: "save_file" }],
+      1_000,
+      true,
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const settled = proxySandboxModelCall(claims, modelRequest()).then(
+        () => expect.unreachable("expected 502"),
+        (caught: unknown) => caught,
+      );
+      await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_MS + 2_000);
+      const error = await settled;
+      expect(error).toMatchObject({ status: 502 });
+      expect((error as Error).cause).toBeInstanceOf(ModelStreamStalledError);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(cancelled).toHaveBeenCalled();
+    expect(events().map((event) => event.type)).toEqual(["step.started"]);
+  });
+
+  it("gives every Gateway call a deadline inside Core's function limit", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, modelRequest());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(MODEL_CALL_MAX_MS).toBeLessThan(300_000);
+  });
+
+  it("keeps a stream that broke off from the runner, unmetered", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        sse([
+          {
+            type: "tool-call",
+            toolCallId: "call_1",
+            toolName: "post_chat",
+            input: "{}",
+          },
+          { type: "error", error: { message: "Provider overloaded" } },
+        ]),
+        { status: 200 },
+      ),
+    );
+    await expect(
+      proxySandboxModelCall(claims, modelRequest()),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(events().map((event) => event.type)).toEqual(["step.started"]);
+  });
+
+  it("answers the runner's own Gateway client with a stream it can read", async () => {
+    fetchMock.mockResolvedValue(
+      gatewayAnswer([
+        { type: "text-start", id: "answer" },
+        { type: "text-delta", id: "answer", delta: "Hi Patrick." },
+        { type: "text-end", id: "answer" },
+      ]),
+    );
+    const result = await streamModelCall({
+      model: runnerGateway()("google/gemini-3.6-flash"),
+      prompt: "hi",
+      maxRetries: 0,
+    });
+
+    expect(result.text).toBe("Hi Patrick.");
+    expect(result.steps).toHaveLength(1);
+    expect(
+      events().filter((event) => event.type === "step.completed"),
+    ).toHaveLength(1);
+  });
+
+  it("passes a Gateway error through with its status", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
+        status: 429,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await expect(
+      proxySandboxModelCall(claims, modelRequest()),
+    ).resolves.toMatchObject({ status: 429, contentType: "application/json" });
+    expect(events().map((event) => event.type)).toEqual(["step.started"]);
   });
 
   it("maps an AI Gateway fetch timeout to 502 instead of an unexpected 500", async () => {
@@ -348,7 +576,14 @@ describe("sandbox turn service", () => {
 
   it("marks the turn once the Gateway ran a web search", async () => {
     fetchMock.mockResolvedValue(
-      gatewayAnswer([{ type: "tool-result", toolName: "web_search" }]),
+      gatewayAnswer([
+        {
+          type: "tool-result",
+          toolCallId: "search_1",
+          toolName: "web_search",
+          result: {},
+        },
+      ]),
     );
     await proxySandboxModelCall(claims, modelRequest());
     expect(events().map((event) => event.type)).toContain(
