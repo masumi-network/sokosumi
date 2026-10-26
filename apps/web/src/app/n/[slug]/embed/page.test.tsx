@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,6 +57,14 @@ describe("newsletter signup embed", () => {
     expect(
       container.querySelector("[data-newsletter-embed]"),
     ).toBeInTheDocument();
+  });
+
+  it("keeps an opaque theme background so dark-mode text stays readable on any host site", () => {
+    const css = readFileSync(
+      join(process.cwd(), "src/app/n/[slug]/embed/embed.css"),
+      "utf8",
+    );
+    expect(css).not.toMatch(/background\s*:\s*transparent/);
   });
 
   it("sets metadata and keeps the embed out of search indexes", async () => {
