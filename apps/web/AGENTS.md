@@ -183,17 +183,17 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ## App-Specific Commands
 
-| Command           | Purpose                   |
-| ----------------- | ------------------------- |
-| `pnpm web:dev`       | Start development server on `:3000` |
-| `pnpm portless:dev`  | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
-| `pnpm portless:web`  | Web only via portless (still injects Core's named URL) |
-| `pnpm web:build`  | Build for production      |
-| `pnpm web:start`  | Test production build     |
-| `pnpm --filter web lint` | Run Biome lint rules for the web app |
-| `pnpm --filter web check` | Run full Biome checks for the web app |
-| `pnpm web:test`   | Run web app tests         |
-| `pnpm --filter web format` | Format code with Biome |
+| Command                    | Purpose                                                                     |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `pnpm web:dev`             | Start development server on `:3000`                                         |
+| `pnpm portless:dev`        | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
+| `pnpm portless:web`        | Web only via portless (still injects Core's named URL)                      |
+| `pnpm web:build`           | Build for production                                                        |
+| `pnpm web:start`           | Test production build                                                       |
+| `pnpm --filter web lint`   | Run Biome lint rules for the web app                                        |
+| `pnpm --filter web check`  | Run full Biome checks for the web app                                       |
+| `pnpm web:test`            | Run web app tests                                                           |
+| `pnpm --filter web format` | Format code with Biome                                                      |
 
 ## App-Specific Testing
 
@@ -252,12 +252,12 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 
 #### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
 
-| Category | Examples | Canonical home | Rule |
-| -------- | -------- | -------------- | ---- |
-| Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
-| UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
-| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
-| Localized view models | `TaskWithCoworker` | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+| Category                   | Examples                                             | Canonical home                                                                     | Rule                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stable API error kinds     | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind`           | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`)                    | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map.                                                                              |
+| UI-only display values     | `expired` invitation status                          | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
+| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils`                                                                  | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5).                                                                                               |
+| Localized view models      | `TaskWithCoworker`                                   | Feature folders next to UI                                                         | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos).                                                                                                                                                                                  |
 
 **Decision test:** If a value is (a) a stable error `kind`, (b) UI-derived display state, (c) Better Auth `/auth` shape, or (d) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
 

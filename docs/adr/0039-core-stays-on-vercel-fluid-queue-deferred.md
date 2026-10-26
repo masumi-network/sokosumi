@@ -75,7 +75,7 @@ A consumer-placement spike ran while a queue was still the proposal, then
 Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
 
 - [`routes/sync/handler.ts`](../../apps/core/src/routes/sync/handler.ts)
-  already *is* a drain-with-deadline loop (cron-secret auth, lease, async-ack
+  already _is_ a drain-with-deadline loop (cron-secret auth, lease, async-ack
   200, `waitUntil`, `abortSignal` / `msRemaining()` / `shouldContinue()`).
   Worst-case gap between overlapping ticks is about **25s**
   (`LOCK_TIMEOUT` 120s minus `LOCK_TIMEOUT_BUFFER` 25s against a 60s cron).
