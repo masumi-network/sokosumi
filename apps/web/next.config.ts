@@ -116,12 +116,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // The largest body any Server Action needs is the coworker image
-      // upload: COWORKER_IMAGE_MAX_SIZE_BYTES (2 MB) plus multipart framing.
-      // Every other action carries small JSON. Job and task files are
-      // uploaded straight to Core, not through a Server Action. Core keeps
-      // its own authoritative caps.
-      bodySizeLimit: "4mb",
+      // Newsletter CSV imports carry up to 5 MB of multipart text plus framing.
+      // The import action and Core enforce the authoritative 5 MB CSV cap.
+      bodySizeLimit: "6mb",
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
     optimizePackageImports: ["lucide-react", "radix-ui", "@lobehub/icons"],
