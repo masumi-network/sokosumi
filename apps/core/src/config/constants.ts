@@ -94,6 +94,9 @@ export const LIMITS = {
   /** Largest generated image the studio will store. */
   IMAGE_STUDIO_MAX_ASSET_BYTES: 24 * 1024 * 1024,
 
+  /** Largest generated video the studio will store. 15 s at 768P is ~10 MB. */
+  IMAGE_STUDIO_MAX_VIDEO_BYTES: 64 * 1024 * 1024,
+
   /**
    * Maximum pending guest invitations per external channel. Bounds email blast
    * abuse and keeps host invite lists usable.

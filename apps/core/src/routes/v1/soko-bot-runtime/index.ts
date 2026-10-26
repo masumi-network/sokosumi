@@ -110,7 +110,7 @@ app.post("/turns/:turnId/gateway/language-model", async (c) => {
   });
   return new Response(proxied.body, {
     status: proxied.status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": proxied.contentType },
   });
 });
 

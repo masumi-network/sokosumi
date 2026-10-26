@@ -1,10 +1,10 @@
 import {
-  generateText,
   type LanguageModel,
   type ModelMessage,
   stepCountIs,
   type ToolSet,
 } from "ai";
+import { streamModelCall } from "../lib/soko-bot/stream-model-call";
 import { compactHistory } from "./history";
 import {
   isFinalReport,
@@ -66,7 +66,7 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   for (let round = 0; ; round++) {
-    const result = await generateText({
+    const result = await streamModelCall({
       model: input.model,
       system: input.system,
       messages: compactHistory(messages) ?? messages,
@@ -113,7 +113,7 @@ export async function runTurnLoop(
     !isFinalReport(text) &&
     idleRounds < MAX_IDLE_ROUNDS
   ) {
-    const result = await generateText({
+    const result = await streamModelCall({
       model: input.model,
       system: input.system,
       messages: [

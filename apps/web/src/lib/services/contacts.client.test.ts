@@ -26,7 +26,7 @@ describe("contactsService", () => {
       },
     });
     await expect(
-      contactsService.list({ ownedByMe: "true", limit: 50 }),
+      contactsService.list({ knownByMe: "true", limit: 50 }),
     ).resolves.toEqual({
       contacts: [{ id: "c-1" }],
       nextCursor: "c-1",
@@ -35,7 +35,7 @@ describe("contactsService", () => {
     expect(sdk.getContacts).toHaveBeenCalledWith({
       client: "client",
       throwOnError: true,
-      query: { ownedByMe: "true", limit: 50 },
+      query: { knownByMe: "true", limit: 50 },
     });
   });
 

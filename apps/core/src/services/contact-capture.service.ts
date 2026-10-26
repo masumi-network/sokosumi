@@ -44,6 +44,11 @@ import {
   workspacesWithPendingEnrichment,
 } from "@/services/contact-enrichment.service";
 import {
+  type ImportanceStats,
+  judgeWorkspaceImportance,
+  refreshContactFamiliarity,
+} from "@/services/contact-scores.service";
+import {
   type ContactActor,
   captureContactInteraction,
   inContactTransaction,
@@ -98,6 +103,8 @@ export interface CaptureLimits {
   judgeBatch: number;
   enrichmentsPerWorkspace: number;
   enrichmentUsdPerWorkspace: number;
+  /** Jev importance judgements per workspace per run. */
+  importanceJudgmentsPerWorkspace: number;
   /** Workspaces whose queued contacts are enriched per run. */
   enrichmentWorkspaces: number;
   slackCallsPerRun: number;
@@ -124,6 +131,7 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   judgeBatch: 20,
   enrichmentsPerWorkspace: 40,
   enrichmentUsdPerWorkspace: 0.1,
+  importanceJudgmentsPerWorkspace: 40,
   enrichmentWorkspaces: 10,
   slackCallsPerRun: 60,
   slackHistoryPagesPerConversation: 5,
@@ -399,6 +407,7 @@ export class ContactCaptureService {
     const log = createCoreLogger({ operation: "contact_capture" });
     const stats = emptyStats();
     const enrichment = emptyEnrichmentStats();
+    const importance: ImportanceStats = { judged: 0, failed: 0 };
     const budget: WorkspaceBudget = {
       captures: this.limits.capturesPerWorkspace,
       judgeCalls: this.limits.judgeCallsPerWorkspace,
@@ -424,6 +433,14 @@ export class ContactCaptureService {
           usd: this.limits.enrichmentUsdPerWorkspace,
         },
         stats: enrichment,
+        shouldContinue,
+      });
+      // Familiarity fades with time even without new interactions.
+      await refreshContactFamiliarity(prisma, { workspaceId });
+      await judgeWorkspaceImportance({
+        workspaceId,
+        budget: this.limits.importanceJudgmentsPerWorkspace,
+        stats: importance,
         shouldContinue,
       });
     } catch (error) {
@@ -456,6 +473,7 @@ export class ContactCaptureService {
             exhausted: budget.captures <= 0,
           },
         },
+        contactImportance: importance,
         contactEnrichment: {
           ...enrichment,
           costUsd: Math.round(enrichment.costUsd * 1e6) / 1e6,

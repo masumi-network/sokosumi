@@ -7,11 +7,10 @@ import {
   Download,
   Edit3,
   Folder,
+  Link2,
   MoreHorizontal,
-  Pin,
   Table2,
   Trash2,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -28,9 +27,11 @@ import {
   DriveFilePreview,
   DriveItemCard,
   driveItemActivation,
+  forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
+import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
   driveItemArticleClass,
@@ -43,6 +44,7 @@ import {
   driveRecentsDayItemsClass,
 } from "@/app/drive/components/drive-view-layout";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,18 +59,11 @@ import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveRecentsPage } from "@/lib/utils/drive-recents-list.client";
-import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
-
-function appendDownloadParam(url: string): string {
-  const parsed = new URL(url);
-  parsed.searchParams.set("download", "1");
-  return parsed.toString();
-}
 
 function handleDownload(fileUrl: string, fileName: string) {
   const link = document.createElement("a");
-  link.href = appendDownloadParam(fileUrl);
+  link.href = forcedDownloadUrl(fileUrl);
   link.download = fileName;
   link.rel = "noopener";
   document.body.appendChild(link);
@@ -80,9 +75,13 @@ interface DriveRecentsPanelProps {
   driveStore: DriveWorkspaceStore;
   activeOrganizationId: string | null;
   searchQuery: string;
+  /** Label ids. Only Drive files carrying any of them are listed. */
+  tagLabelIds: string[];
   reloadToken?: number;
   viewMode?: FilesViewMode;
   onOpenMoveDialog: (item: DriveItem) => void;
+  /** Opens the link dialog for an uploaded file the catalog knows. */
+  onShareFile: (item: DriveShareItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
   onOpenCopyDialog: (item: DriveRecentsItem & { kind: "task-output" }) => void;
@@ -105,7 +104,6 @@ function toDriveFileItem(
 function recentsItemKey(item: DriveRecentsItem): string {
   if (item.kind === "drive-file") return item.pathname;
   if (item.kind === "table") return item.tableId;
-  if (item.kind === "contacts") return "contacts";
   return item.taskFileId;
 }
 
@@ -120,9 +118,11 @@ export function DriveRecentsPanel({
   driveStore,
   activeOrganizationId,
   searchQuery,
+  tagLabelIds,
   reloadToken = 0,
   viewMode = "list",
   onOpenMoveDialog,
+  onShareFile,
   onOpenDeleteDialog,
   onRenameFile,
   onOpenCopyDialog,
@@ -142,18 +142,12 @@ export function DriveRecentsPanel({
   const workspaceIdRef = useRef(activeOrganizationId);
   workspaceIdRef.current = activeOrganizationId;
   const trimmedSearchQuery = searchQuery.trim();
+  // A stable key, so a new array with the same ids does not refetch.
+  const tagFilterKey = tagLabelIds.join(",");
+  const isFiltered = trimmedSearchQuery.length > 0 || tagFilterKey.length > 0;
 
-  // The workspace's contacts are one pinned entry, above the days.
-  const contactsEntry = items.find(
-    (item): item is DriveRecentsItem & { kind: "contacts" } =>
-      item.kind === "contacts",
-  );
   const dayGroups = useMemo(
-    () =>
-      buildDriveRecentsDayGroups(
-        items.filter((item) => item.kind !== "contacts"),
-        locale,
-      ),
+    () => buildDriveRecentsDayGroups(items, locale),
     [items, locale],
   );
 
@@ -188,6 +182,7 @@ export function DriveRecentsPanel({
           ? { organizationId: activeOrganizationId }
           : {}),
         ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
+        ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
         signal: controller.signal,
       });
 
@@ -224,6 +219,7 @@ export function DriveRecentsPanel({
     reloadToken,
     t,
     trimmedSearchQuery,
+    tagFilterKey,
   ]);
 
   useEffect(() => {
@@ -254,6 +250,7 @@ export function DriveRecentsPanel({
           : {}),
         cursor: nextCursor,
         ...(searchQueryAtRequest ? { q: searchQueryAtRequest } : {}),
+        ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
         signal: controller.signal,
       });
 
@@ -311,10 +308,10 @@ export function DriveRecentsPanel({
       >
         <div className="max-w-sm">
           <h2 className="text-foreground text-lg font-semibold">
-            {trimmedSearchQuery ? t("noMatchTitle") : t("recentsEmptyTitle")}
+            {isFiltered ? t("noMatchTitle") : t("recentsEmptyTitle")}
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
-            {trimmedSearchQuery
+            {isFiltered
               ? t("noMatchDescription")
               : t("recentsEmptyDescription")}
           </p>
@@ -331,63 +328,6 @@ export function DriveRecentsPanel({
       }
     >
       <div className={cn(viewMode === "grid" ? "py-1" : "py-2")}>
-        {contactsEntry ? (
-          <section className="mb-4">
-            <ul className={driveRecentsDayItemsClass(viewMode)}>
-              <li>
-                <Link
-                  href="/contacts"
-                  className={cn(
-                    driveItemArticleClass(viewMode),
-                    "focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
-                  )}
-                >
-                  <div className={driveItemBodyClass(viewMode)}>
-                    <div
-                      className={cn(
-                        driveItemIconWellClass(viewMode),
-                        "bg-primary-quinary rounded-lg",
-                      )}
-                    >
-                      <Users
-                        aria-hidden
-                        className={cn(
-                          "text-primary",
-                          viewMode === "grid" ? "size-4" : "size-5",
-                        )}
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className={driveItemNameClass()}>
-                          {t("contactsEntryName")}
-                        </span>
-                        <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
-                          <Pin aria-hidden className="size-3" />
-                          {t("contactsEntryPinned")}
-                        </span>
-                      </span>
-                      <div className={driveItemMetaMobileClass(viewMode)}>
-                        <span>
-                          {t("contactsEntryCount", {
-                            count: contactsEntry.contactCount,
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={driveItemMetaDesktopClass(viewMode)}>
-                      <span>
-                        {t("contactsEntryCount", {
-                          count: contactsEntry.contactCount,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            </ul>
-          </section>
-        ) : null}
         {dayGroups.map((group) => (
           <section key={group.key} className="mb-4">
             <div className="text-muted-foreground px-4 pb-2 text-xs font-medium capitalize">
@@ -399,10 +339,6 @@ export function DriveRecentsPanel({
                   const driveItem = toDriveFileItem(item);
                   const isEditing = editingPathname === item.pathname;
                   const extension = getExtensionFromUrl(item.name);
-                  const { isImage, documentKind } = classifyFilePreview(
-                    item.fileUrl,
-                    item.name,
-                  );
                   const activityLabel = formatActivityAt(
                     formatter,
                     item.activityAt,
@@ -424,10 +360,7 @@ export function DriveRecentsPanel({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onSelect={() => {
-                            handleDownload(
-                              appendDownloadParam(item.fileUrl),
-                              item.name,
-                            );
+                            handleDownload(item.fileUrl, item.name);
                           }}
                         >
                           <Download className="size-4" aria-hidden />
@@ -452,6 +385,23 @@ export function DriveRecentsPanel({
                           <Folder className="size-4" aria-hidden />
                           {t("moveAction")}
                         </DropdownMenuItem>
+                        {item.resourceId ? (
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              if (item.resourceId)
+                                onShareFile({
+                                  target: {
+                                    kind: "file",
+                                    resourceId: item.resourceId,
+                                  },
+                                  name: item.name,
+                                });
+                            }}
+                          >
+                            <Link2 className="size-4" aria-hidden />
+                            {t("shareAction")}
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem
                           variant="destructive"
                           onSelect={(event) => {
@@ -471,8 +421,12 @@ export function DriveRecentsPanel({
                       <DriveFilePreview
                         name={item.name}
                         fileUrl={item.fileUrl}
-                        isImage={isImage}
-                        documentKind={documentKind}
+                        sizeBytes={item.size}
+                        detailsHref={
+                          item.resourceId
+                            ? `/drive/files/${item.resourceId}`
+                            : null
+                        }
                       >
                         {({ activate, nameEl, viewers }) => (
                           <DriveItemCard
@@ -513,6 +467,11 @@ export function DriveRecentsPanel({
                               <>
                                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                   {nameEl}
+                                  <DriveRecentsLabels
+                                    category={item.category}
+                                    tags={item.tags}
+                                    viewMode={viewMode}
+                                  />
                                   <div
                                     className={driveItemMetaMobileClass(
                                       viewMode,
@@ -539,8 +498,6 @@ export function DriveRecentsPanel({
                     </li>
                   );
                 }
-
-                if (item.kind === "contacts") return null;
 
                 if (item.kind === "table") {
                   const activityLabel = formatActivityAt(
@@ -588,10 +545,6 @@ export function DriveRecentsPanel({
                 }
 
                 const extension = getExtensionFromUrl(item.name);
-                const { isImage, documentKind } = classifyFilePreview(
-                  item.fileUrl,
-                  item.name,
-                );
                 const searchContext = [
                   item.taskName,
                   item.projectName ??
@@ -611,8 +564,8 @@ export function DriveRecentsPanel({
                     <DriveFilePreview
                       name={item.name}
                       fileUrl={item.fileUrl}
-                      isImage={isImage}
-                      documentKind={documentKind}
+                      sizeBytes={item.size}
+                      detailsHref={null}
                     >
                       {({ activate, nameEl, viewers }) => (
                         <DriveItemCard
@@ -637,10 +590,7 @@ export function DriveRecentsPanel({
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                   onSelect={() => {
-                                    handleDownload(
-                                      appendDownloadParam(item.fileUrl),
-                                      item.name,
-                                    );
+                                    handleDownload(item.fileUrl, item.name);
                                   }}
                                 >
                                   <Download className="size-4" aria-hidden />
@@ -706,5 +656,54 @@ export function DriveRecentsPanel({
         ) : null}
       </div>
     </div>
+  );
+}
+
+type DriveRecentsLabel = (DriveRecentsItem & {
+  kind: "drive-file";
+})["tags"][number];
+
+/** Labels shown inline before the rest are counted. */
+const VISIBLE_LABELS = { list: 3, grid: 2 } as const;
+
+/**
+ * What a file is about, as compact chips under its name. Read-only here: a
+ * tag is removed from the file's detail view, where removing it can be undone.
+ */
+function DriveRecentsLabels({
+  category,
+  tags,
+  viewMode,
+}: {
+  category: DriveRecentsLabel | null;
+  tags: DriveRecentsLabel[];
+  viewMode: FilesViewMode;
+}): ReactElement | null {
+  const labels = category ? [category, ...tags] : tags;
+  if (labels.length === 0) return null;
+  const visible = labels.slice(0, VISIBLE_LABELS[viewMode]);
+  const hidden = labels.length - visible.length;
+
+  return (
+    <ul
+      className="flex min-w-0 flex-wrap items-center gap-1"
+      data-testid="drive-recents-labels"
+    >
+      {visible.map((label, index) => (
+        <li key={label.labelId} className="min-w-0">
+          <Badge
+            variant={category && index === 0 ? "secondary" : "outline"}
+            className="max-w-40 truncate"
+          >
+            {label.displayName}
+          </Badge>
+        </li>
+      ))}
+      {hidden > 0 ? (
+        <li className="text-muted-foreground text-xs tabular-nums">
+          +{hidden}
+        </li>
+      ) : null}
+    </ul>
   );
 }

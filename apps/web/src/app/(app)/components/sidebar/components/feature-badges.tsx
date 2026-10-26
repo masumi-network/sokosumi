@@ -181,8 +181,10 @@ function useCampaigns(value: FeatureBadgesValue) {
   const query = useQuery({
     queryKey: ["badge-campaigns", value.userId],
     initialData: initial,
+    // Campaigns change rarely: a returning tab reads them again once they
+    // are a minute old, and an open one every ten minutes.
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 10 * 60_000,
     queryFn: async ({ signal }) => {
       const response = await fetchBackgroundJson(
         "/api/badge-campaigns",

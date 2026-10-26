@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import type {
   SokoBotCapability,
   SokoBotRoute,
+  SokoBotTurnSignals,
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
@@ -82,8 +83,30 @@ const CONFIRMATION_INSTRUCTIONS =
 const WITHDRAWAL_INSTRUCTIONS =
   "Does the latest message call off or replace the pending proposal the assistant made earlier (cancel that, no, don't do that, instead do …, forget that)?";
 
+/**
+ * Soft reads of the message, asked in the same call as the route. They only
+ * add context — a hint, a saved preference, a smaller Task list — and never
+ * narrow what a person's turn may do.
+ */
+const SIGNAL_INSTRUCTIONS = {
+  refersToEarlier:
+    "Does the latest message point back at something said earlier in the conversation (these, that, the ones above, it) rather than standing on its own?",
+  statesPreference:
+    "Does the latest message tell the assistant how to behave from now on: a lasting preference such as what to stop or keep telling the owner, what to always or never do, or how to write?",
+  aboutMail:
+    "Is the latest message about the owner's email, inbox, calendar, or notifications and alerts the assistant posted?",
+  aboutTasks:
+    "Is the latest message about Tasks, Coworkers or Agent Jobs on the Taskboard?",
+} as const;
+
 export function routeQuestions(hasPendingProposals: boolean) {
   return {
+    ...Object.fromEntries(
+      Object.entries(SIGNAL_INSTRUCTIONS).map(([key, instructions]) => [
+        key,
+        { type: "boolean" as const, instructions },
+      ]),
+    ),
     route: {
       type: "choice" as const,
       instructions: ROUTE_INSTRUCTIONS,
@@ -207,6 +230,10 @@ const routeAnswersSchema = z.object({
   writeScope: choiceAnswer,
   confirmsPending: z.object({ probability }).optional(),
   withdrawsPending: z.object({ probability }).optional(),
+  refersToEarlier: z.object({ probability }).optional(),
+  statesPreference: z.object({ probability }).optional(),
+  aboutMail: z.object({ probability }).optional(),
+  aboutTasks: z.object({ probability }).optional(),
 });
 export type RouteAnswers = z.infer<typeof routeAnswersSchema>;
 
@@ -300,6 +327,31 @@ function percent(probability: number): string {
  * Anything malformed or unsure falls to CLARIFY, which only grants reads.
  */
 export function classificationFromAnswers(
+  message: string,
+  answers: RouteAnswers,
+  pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,
+): TurnClassification {
+  const signals = signalsFromAnswers(answers);
+  const classification = routedClassification(message, answers, pendingIntents);
+  return signals ? { ...classification, signals } : classification;
+}
+
+/** Missing when Jev answered none of the signal questions. */
+function signalsFromAnswers(
+  answers: RouteAnswers,
+): SokoBotTurnSignals | undefined {
+  const { refersToEarlier, statesPreference, aboutMail, aboutTasks } = answers;
+  if (!refersToEarlier && !statesPreference && !aboutMail && !aboutTasks)
+    return undefined;
+  return {
+    refersToEarlier: refersToEarlier?.probability ?? 0,
+    statesPreference: statesPreference?.probability ?? 0,
+    aboutMail: aboutMail?.probability ?? 0,
+    aboutTasks: aboutTasks?.probability ?? 0,
+  };
+}
+
+function routedClassification(
   message: string,
   answers: RouteAnswers,
   pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,

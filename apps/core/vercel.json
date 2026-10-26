@@ -142,6 +142,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/chat-message-signals",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/social-posts-publish",
       "schedule": "* * * * *"
     }

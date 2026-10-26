@@ -30,10 +30,8 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { useDebouncedCallback } from "use-debounce";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
-import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -54,6 +52,7 @@ import {
   TASKS_TAB_PARAM,
   type TasksTabValue,
 } from "@/app/tasks/utils/tasks-tab";
+import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -173,6 +172,8 @@ interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
   columnNextCursorById: Record<KanbanColumnId, string | null>;
+  /** Tasks past the loaded pages of each column, counted in its header. */
+  columnHiddenCountById: Record<KanbanColumnId, number>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -200,6 +201,7 @@ interface TasksViewProps {
       all: string;
       scopeLabel: string;
       scopeOwned: string;
+      assignedToMe: string;
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
@@ -230,6 +232,7 @@ export function TasksView({
   tasks,
   listNextCursor: initialListNextCursor,
   columnNextCursorById: initialColumnNextCursorById,
+  columnHiddenCountById: initialColumnHiddenCountById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
   projectOptions,
@@ -292,6 +295,9 @@ export function TasksView({
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
+  const [columnHiddenById, setColumnHiddenById] = useState(
+    initialColumnHiddenCountById,
+  );
   const [listCursor, setListCursor] = useState<string | null>(
     initialListNextCursor,
   );
@@ -325,10 +331,7 @@ export function TasksView({
   const isLoadingListMoreRef = useRef(isLoadingListMore);
   const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useDebouncedCallback(
-    () => router.refresh(),
-    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
-  );
+  const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
@@ -348,12 +351,6 @@ export function TasksView({
     refreshRoute();
   };
 
-  useEffect(() => {
-    return () => {
-      refreshRoute.cancel();
-    };
-  }, [refreshRoute]);
-
   useLayoutEffect(() => {
     if (
       previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
@@ -370,6 +367,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -398,6 +396,7 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setColumnHiddenById(initialColumnHiddenCountById);
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -430,6 +429,7 @@ export function TasksView({
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
+      setColumnHiddenById(initialColumnHiddenCountById);
       setListCursor(initialListNextCursor);
       listCursorRef.current = initialListNextCursor;
       setLoadingColumnIds(new Set());
@@ -672,6 +672,12 @@ export function TasksView({
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
+        setColumnHiddenById((prev) => ({
+          ...prev,
+          [columnId]: nextCursor
+            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
+            : 0,
+        }));
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: nextCursor,
@@ -871,6 +877,7 @@ export function TasksView({
             <TasksViewToolbarActions
               filters={{
                 activeOrganizationId,
+                userId,
                 coworkerOptions,
                 projectOptions,
                 labels: labels.filters,
@@ -911,6 +918,7 @@ export function TasksView({
                   <KanbanBoard
                     tasks={items}
                     columns={columns}
+                    columnHiddenCountById={columnHiddenById}
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
@@ -964,6 +972,7 @@ export function TasksView({
               <KanbanBoard
                 tasks={items}
                 columns={columns}
+                columnHiddenCountById={columnHiddenById}
                 columnFooterById={columnFooterById}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}

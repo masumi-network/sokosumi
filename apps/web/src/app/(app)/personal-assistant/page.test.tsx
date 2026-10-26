@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const chatStateMock = vi.fn();
 const consoleMock = vi.fn();
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));

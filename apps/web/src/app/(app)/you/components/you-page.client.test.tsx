@@ -81,7 +81,8 @@ describe("YouPageClient", () => {
 
     const shell = screen.getByTestId("you-page");
     expect(shell).toBeInTheDocument();
-    expect(shell.className).toContain("md:max-w-4xl");
+    // Fills the width like every app page (DESIGN.md, Fill the width).
+    expect(shell.className).not.toContain("max-w-");
     expect(shell.className).not.toContain("px-4");
     expect(shell.className).not.toContain("max-w-lg");
     expect(

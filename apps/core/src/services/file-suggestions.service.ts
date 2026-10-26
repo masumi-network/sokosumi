@@ -1,4 +1,5 @@
 import {
+  FileExtractionState,
   FileFieldOverrideDecision,
   FileIndexJobPipeline,
   FileLabelKind,
@@ -6,7 +7,10 @@ import {
   FileMetadataState,
 } from "@sokosumi/database";
 
+import { driveFolderPathFromSourceId } from "@sokosumi/utils";
+
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   ensureEvidenceScope,
@@ -21,11 +25,16 @@ import {
 } from "@/lib/files/index-jobs";
 import { admitJevRequest, recordJevDispatch } from "@/lib/files/jev-admission";
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
-import { gatewayJevEvaluator, isJevConfigured } from "@/lib/files/jev-client";
+import {
+  gatewayJevEvaluator,
+  isJevConfigured,
+  METADATA_LABEL_MIN_PROBABILITY,
+} from "@/lib/files/jev-client";
 import {
   buildJevLabelRequest,
   isJevRequestRejection,
   labelExcerptFromChunks,
+  labelExcerptFromMetadata,
 } from "@/lib/files/jev-request";
 import { FILES_RANKING_MODEL } from "@/lib/files/jev-rubrics";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
@@ -219,6 +228,13 @@ export interface SuggestionRunOutcome {
    * declined, and from one this document's reader has pinned.
    */
   noVocabulary?: boolean;
+  /**
+   * True when the file had no readable text and was judged on its name,
+   * type, size, folder and project instead.
+   */
+  metadataOnly?: boolean;
+  /** What the provider reported charging for this call, when it did. */
+  costUsd?: number | null;
 }
 
 export async function runSuggestionJob(
@@ -242,6 +258,10 @@ export async function runSuggestionJob(
       id: true,
       workspaceId: true,
       displayName: true,
+      mimeType: true,
+      sizeBytes: true,
+      sourceId: true,
+      sourceProjectId: true,
       sourceKind: true,
       sourceScope: true,
       ownerUserId: true,
@@ -252,6 +272,7 @@ export async function runSuggestionJob(
         where: { revision: job.contentRevision },
         select: {
           id: true,
+          extractionState: true,
           chunks: {
             orderBy: { ordinal: "asc" },
             take: 3,
@@ -266,11 +287,19 @@ export async function runSuggestionJob(
     !resource ||
     resource.tombstonedAt ||
     resource.versions.length === 0 ||
-    resource.versions[0].chunks.length === 0
+    // Held back as unsafe. Nothing about it, not even its name, goes out.
+    resource.versions[0].extractionState === FileExtractionState.QUARANTINED
   ) {
     await completeFileIndexJob({ jobId: job.id, leaseOwner });
     return { suggested: 0, skipped: "no-text" };
   }
+
+  /**
+   * A video, an archive or an image has no text, and used to stop here with
+   * no labels for good. It is judged on what the catalog knows about it
+   * instead, against a bar set for that thinner evidence.
+   */
+  const metadataOnly = resource.versions[0].chunks.length === 0;
 
   const scope = await ensureEvidenceScope({
     workspaceId: resource.workspaceId,
@@ -432,7 +461,25 @@ export async function runSuggestionJob(
   // `labelExcerptFromChunks`: joining every chunk built an 800,000
   // character string to send 2,048 tokens of it, which PDFs turned from a
   // rare case into the ordinary one.
-  const excerpt = labelExcerptFromChunks(resource.versions[0].chunks);
+  const excerpt = metadataOnly
+    ? labelExcerptFromMetadata({
+        displayName: resource.displayName,
+        mimeType: resource.mimeType,
+        sizeBytes: resource.sizeBytes,
+        folderPath:
+          resource.sourceKind === "DRIVE_UPLOAD"
+            ? driveFolderPathFromSourceId(resource.sourceId)
+            : null,
+        projectName: resource.sourceProjectId
+          ? ((
+              await prisma.project.findUnique({
+                where: { id: resource.sourceProjectId },
+                select: { name: true },
+              })
+            )?.name ?? null)
+          : null,
+      })
+    : labelExcerptFromChunks(resource.versions[0].chunks);
 
   const scheduler = getJevScheduler();
   const evaluator = dependencies.evaluator ?? gatewayJevEvaluator;
@@ -576,6 +623,7 @@ export async function runSuggestionJob(
     // The builder hands back exactly what it measured. Asking about
     // anything else would make the charged envelope a fiction again.
     labels: request.askedLabels,
+    ...(metadataOnly ? { minProbability: METADATA_LABEL_MIN_PROBABILITY } : {}),
   });
   scheduler.settle(verdict.ok ? "ok" : "failed");
   await recordJevDispatch({
@@ -612,12 +660,14 @@ export async function runSuggestionJob(
       suggested: 0,
       skipped: verdict.reason ?? "evaluation-failed",
       failed: true,
+      metadataOnly,
+      costUsd: costOf(verdict.costUsd),
       vocabularyTruncated: allocation.truncated,
     };
   }
 
   const chosen = new Set(verdict.chosen);
-  const evidence = resource.versions[0].chunks[0];
+  const evidence = resource.versions[0].chunks[0] ?? null;
 
   for (const entry of shortlist) {
     if (!chosen.has(entry.id)) continue;
@@ -640,8 +690,10 @@ export async function runSuggestionJob(
         // An extracted span, quoted, never a generated explanation — but
         // the document's opening, not the passage supporting this label.
         // Identical for every label on this document. See rule 3.
-        evidenceSnippet: evidence.text.slice(0, 240),
-        evidenceAnchor: evidence.anchor ?? undefined,
+        // Null for a file judged on its metadata: there is no span to quote,
+        // and a generated reason is the one thing this column must not hold.
+        evidenceSnippet: evidence ? evidence.text.slice(0, 240) : null,
+        evidenceAnchor: evidence?.anchor ?? undefined,
         contentRevision: resource.contentRevision,
         vocabularyVersion: entry.vocabularyVersion,
       },
@@ -655,8 +707,16 @@ export async function runSuggestionJob(
   return {
     suggested,
     skipped: null,
+    metadataOnly,
+    costUsd: costOf(verdict.costUsd),
     vocabularyTruncated: allocation.truncated,
   };
+}
+
+function costOf(reported: string | null | undefined): number | null {
+  if (reported === null || reported === undefined) return null;
+  const value = Number(reported);
+  return Number.isFinite(value) ? value : null;
 }
 
 export interface SuggestionSyncResult {
@@ -689,6 +749,10 @@ export interface SuggestionSyncResult {
    * frame short of anybody who could act on it.
    */
   vocabularyTruncated: { tags: number; categories: number };
+  /** Files labelled from their metadata because they had no readable text. */
+  metadataOnly: number;
+  /** Provider-reported spend for this run, summed. Unknown costs add nothing. */
+  costUsd: number;
 }
 
 export async function processFileSuggestionJobs(input: {
@@ -708,6 +772,8 @@ export async function processFileSuggestionJobs(input: {
     deferred: 0,
     noVocabulary: 0,
     vocabularyTruncated: { tags: 0, categories: 0 },
+    metadataOnly: 0,
+    costUsd: 0,
   };
 
   // Bounded by jobs *looked at*, not jobs processed: a deferral does not
@@ -725,6 +791,8 @@ export async function processFileSuggestionJobs(input: {
     try {
       const outcome = await runSuggestionJob(leased, input.dependencies ?? {});
       result.suggested += outcome.suggested;
+      if (outcome.metadataOnly) result.metadataOnly += 1;
+      result.costUsd += outcome.costUsd ?? 0;
       if (outcome.deferred) {
         result.deferred += 1;
         // A deferred job was not processed — it is still waiting. Counting
@@ -774,5 +842,28 @@ export async function processFileSuggestionJobs(input: {
     }
   }
 
+  if (result.processed + result.failed + result.deferred > 0) {
+    emitAutoTagRun(result);
+  }
   return result;
+}
+
+/**
+ * One wide event per run that looked at anything: counts and spend only, never
+ * a file name, a label or a byte of content. A quiet minute emits nothing.
+ */
+function emitAutoTagRun(result: SuggestionSyncResult): void {
+  const log = createCoreLogger({ operation: "files_auto_tag" });
+  log.set({
+    processed: result.processed,
+    suggested: result.suggested,
+    failed: result.failed,
+    deferred: result.deferred,
+    noVocabulary: result.noVocabulary,
+    metadataOnly: result.metadataOnly,
+    costUsd: result.costUsd,
+    vocabularyTruncatedTags: result.vocabularyTruncated.tags,
+    vocabularyTruncatedCategories: result.vocabularyTruncated.categories,
+  });
+  log.emit();
 }
