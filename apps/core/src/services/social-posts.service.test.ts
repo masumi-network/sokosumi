@@ -14,6 +14,7 @@ const {
   socialPostUpdateManyMock,
   transactionMock,
   queryRawMock,
+  resolveXSubscriptionTypeMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
@@ -25,6 +26,11 @@ const {
   socialPostUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
+  resolveXSubscriptionTypeMock: vi.fn(),
+}));
+
+vi.mock("@/services/x-subscription-tier.service", () => ({
+  resolveXSubscriptionType: resolveXSubscriptionTypeMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -57,6 +63,7 @@ const activeConnection = {
   projectId: PROJECT_ID,
   provider: "x",
   externalHandle: "sokosumi",
+  subscriptionType: null,
   status: "active",
 };
 
@@ -164,6 +171,9 @@ describe("social posts service", () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    resolveXSubscriptionTypeMock.mockImplementation(
+      async (connection) => connection.subscriptionType ?? null,
+    );
     transactionMock.mockImplementation(async (callback) =>
       callback({ ...prisma }),
     );
@@ -176,6 +186,219 @@ describe("social posts service", () => {
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it.each([
+    ["Basic", true],
+    ["Premium", true],
+    ["PremiumPlus", true],
+    ["None", false],
+    [null, false],
+  ])(
+    "validates long X drafts for tier %s",
+    async (subscriptionType, accepted) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        subscriptionType,
+      });
+      const { createSocialPost } = await loadService();
+      const result = createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        text: "x".repeat(5000),
+      });
+      if (accepted) {
+        await result;
+        expect(socialPostCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ text: "x".repeat(5000) }),
+          }),
+        );
+      } else {
+        await expect(result).rejects.toMatchObject({
+          message: "Text must be at most 280 characters for X",
+        });
+        expect(socialPostCreateMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("rejects X text above the Premium limit with the formatted limit", async () => {
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...activeConnection,
+      subscriptionType: "Premium",
+    });
+    const { createSocialPost } = await loadService();
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        text: "x".repeat(25_001),
+      }),
+    ).rejects.toMatchObject({
+      message: "Text must be at most 25,000 characters for X",
+    });
+  });
+
+  it("allows 300 raw characters when a URL puts the weighted length below 280", async () => {
+    const text = `${"x".repeat(220)} https://example.com/${"p".repeat(59)}`;
+    expect(text.length).toBe(300);
+    const { createSocialPost } = await loadService();
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      text,
+      firstComment: text,
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ text, firstComment: text }),
+      }),
+    );
+  });
+
+  it("allows long first comments for a freshly upgraded Basic account", async () => {
+    resolveXSubscriptionTypeMock.mockResolvedValue("Basic");
+    const { createSocialPost } = await loadService();
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      text: "Hello",
+      firstComment: "x".repeat(5000),
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ firstComment: "x".repeat(5000) }),
+      }),
+    );
+  });
+
+  it.each(["create", "update", "schedule", "duplicate"] as const)(
+    "validates %s against a refreshed downgrade",
+    async (action) => {
+      const connection = { ...activeConnection, subscriptionType: "Premium" };
+      socialConnectionFindFirstMock.mockResolvedValue(connection);
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        text: "x".repeat(5000),
+        status: action === "duplicate" ? "PUBLISHED" : "DRAFT",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        socialConnection: connection,
+      });
+      resolveXSubscriptionTypeMock.mockResolvedValue("None");
+      const service = await loadService();
+      const scope = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        postId: POST_ID,
+        revision: 0,
+      };
+      const result =
+        action === "create"
+          ? service.createSocialPost({
+              ...scope,
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+              text: "x".repeat(5000),
+            })
+          : action === "update"
+            ? service.updateSocialPost({
+                ...scope,
+                firstComment: "Only editing the comment",
+              })
+            : action === "schedule"
+              ? service.scheduleSocialPost({ ...scope, scheduledAt: FUTURE })
+              : service.duplicateSocialPost(scope);
+      await expect(result).rejects.toMatchObject({
+        message: "Text must be at most 280 characters for X",
+      });
+      expect(resolveXSubscriptionTypeMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: SOCIAL_CONNECTION_ID,
+          subscriptionType: "Premium",
+        }),
+      );
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([null, "None"])(
+    "revalidates text when switching from Premium to tier %s",
+    async (subscriptionType) => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        text: "x".repeat(1000),
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        socialConnection: { ...activeConnection, subscriptionType: "Premium" },
+      });
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        subscriptionType,
+      });
+      const { updateSocialPost } = await loadService();
+      await expect(
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          organizationId: null,
+          postId: POST_ID,
+          revision: 0,
+          socialConnectionId: "other-connection",
+        }),
+      ).rejects.toMatchObject({
+        message: "Text must be at most 280 characters for X",
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["update", "schedule", "duplicate"] as const)(
+    "allows long Premium X text through %s",
+    async (action) => {
+      const connection = { ...activeConnection, subscriptionType: "Premium" };
+      socialConnectionFindFirstMock.mockResolvedValue(connection);
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        text: "x".repeat(1000),
+        status: action === "duplicate" ? "PUBLISHED" : "DRAFT",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        socialConnection: connection,
+      });
+      const service = await loadService();
+      const input = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        postId: POST_ID,
+        revision: 0,
+      };
+      if (action === "update")
+        await service.updateSocialPost({ ...input, text: "x".repeat(1000) });
+      if (action === "schedule")
+        await service.scheduleSocialPost({ ...input, scheduledAt: FUTURE });
+      if (action === "duplicate") await service.duplicateSocialPost(input);
+      expect(
+        action === "duplicate"
+          ? socialPostCreateMock
+          : socialPostUpdateManyMock,
+      ).toHaveBeenCalled();
+    },
+  );
 
   describe.each(["closingAt", "closedAt"] as const)(
     "a Project with %s",

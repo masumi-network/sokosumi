@@ -6,6 +6,8 @@ import {
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   type SocialPostProvider,
+  socialPostTextLength,
+  X_PREMIUM_TEXT_LIMIT,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
@@ -52,16 +54,27 @@ export const socialPostStatusSchema = z
   .openapi("SocialPostStatus");
 
 /** Text may be empty when media is attached; the service enforces the combination. */
+// X weights can be shorter than the raw string; the service enforces each account's limit.
 const socialPostTextSchema = z
   .string()
   .trim()
-  .max(SOCIAL_POST_TEXT_MAX)
+  .refine(
+    (value) =>
+      value.length <= SOCIAL_POST_TEXT_MAX ||
+      socialPostTextLength("x", value) <= X_PREMIUM_TEXT_LIMIT,
+    { message: "Text exceeds every provider's character limit" },
+  )
   .openapi({ example: "Shipping the new Calendar today." });
 
 const socialPostFirstCommentSchema = z
   .string()
   .trim()
-  .max(SOCIAL_POST_FIRST_COMMENT_MAX)
+  .refine(
+    (value) =>
+      value.length <= SOCIAL_POST_FIRST_COMMENT_MAX ||
+      socialPostTextLength("x", value) <= X_PREMIUM_TEXT_LIMIT,
+    { message: "First comment exceeds every provider's character limit" },
+  )
   .openapi({ example: "#launch" });
 
 export const socialPostMediaRefSchema = z
@@ -101,6 +114,7 @@ export const socialPostSocialConnectionSchema = z
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
     displayName: projectSocialConnectionSchema.shape.displayName,
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
+    subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
     status: projectSocialConnectionSchema.shape.status,
   })
   .openapi("SocialPostSocialConnection");

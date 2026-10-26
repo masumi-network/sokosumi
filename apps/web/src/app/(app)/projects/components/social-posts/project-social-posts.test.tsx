@@ -50,6 +50,9 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes: (
       ...args: unknown[]
     ) => getSuggestedTimesMock(...args),
+    getProjectsByIdSocialConnectionsByConnectionIdSubscription: (
+      ...args: unknown[]
+    ) => getSubscriptionMock(...args),
   },
 }));
 
@@ -67,6 +70,7 @@ const {
   drivePickerVideoFile,
   getSocialConnectionsMock,
   getSuggestedTimesMock,
+  getSubscriptionMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -75,6 +79,7 @@ const {
   uploadDriveFileMock: vi.fn(),
   getSocialConnectionsMock: vi.fn(),
   getSuggestedTimesMock: vi.fn(),
+  getSubscriptionMock: vi.fn(),
   drivePickerFile: {
     name: "launch.png",
     fileUrl:
@@ -425,6 +430,7 @@ function buildConnection(
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -481,6 +487,7 @@ const SCHEDULED_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
@@ -526,6 +533,7 @@ const FAILED_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   lastError: "X rejected the post (403 forbidden)",
@@ -558,6 +566,7 @@ const PUBLISHING_POST = buildPost({
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   attemptCount: 1,
@@ -680,6 +689,9 @@ describe("ProjectSocialPosts", () => {
       new Error("photo lookup unavailable"),
     );
     getSuggestedTimesMock.mockResolvedValue({ data: { hours: [] } });
+    getSubscriptionMock
+      .mockReset()
+      .mockRejectedValue(new Error("subscription lookup unavailable"));
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ id: "post-new", text: "Fresh" }),
@@ -1193,6 +1205,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1204,6 +1217,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: null,
               displayName: "Sokosumi Co",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1258,6 +1272,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
             media: [IMAGE_REF, gif],
@@ -1289,6 +1304,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1322,6 +1338,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -1365,6 +1382,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
@@ -1543,6 +1561,7 @@ describe("ProjectSocialPosts", () => {
         externalHandle: "sokosumi",
         displayName: "Sokosumi HQ",
         avatarUrl: null,
+        subscriptionType: null,
         status: "active",
       },
     });
@@ -1570,6 +1589,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -2408,6 +2428,221 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeEnabled();
   });
 
+  it("uses the Premium X account limit in the counter and platform list", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ subscriptionType: "Premium" }),
+          buildConnection({
+            id: "linkedin",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "x".repeat(1000) },
+    });
+    expect(
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("1000 / 25000");
+    expect(
+      within(dialog).queryByTestId("social-post-too-long"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("X post · 1000 / 25000");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+  });
+
+  it.each([
+    [null, "Premium", 280, 25000],
+    ["Premium", "None", 25000, 280],
+  ] as const)(
+    "refreshes the stored %s tier to %s after the subscription endpoint returns",
+    async (stored, fresh, oldLimit, newLimit) => {
+      const lookup = Promise.withResolvers<{
+        data: { subscriptionType: string | null; textLimit: number };
+      }>();
+      getSubscriptionMock.mockReturnValueOnce(lookup.promise);
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ subscriptionType: stored })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText("Text"), {
+        target: { value: "x".repeat(5000) },
+      });
+      fireEvent.change(
+        within(dialog).getByTestId("social-post-first-comment"),
+        { target: { value: "x".repeat(5000) } },
+      );
+      expect(
+        within(dialog).getByTestId("social-post-character-count"),
+      ).toHaveTextContent(`5000 / ${oldLimit}`);
+      await act(async () =>
+        lookup.resolve({
+          data: { subscriptionType: fresh, textLimit: newLimit },
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          within(dialog).getByTestId("social-post-character-count"),
+        ).toHaveTextContent(`5000 / ${newLimit}`),
+      );
+      expect(
+        within(dialog).getByTestId("social-post-first-comment-count"),
+      ).toHaveTextContent(`5000 / ${newLimit}`);
+      const save = within(dialog).getByRole("button", { name: "Save draft" });
+      if (newLimit > 5000) expect(save).toBeEnabled();
+      else expect(save).toBeDisabled();
+      expect(getSubscriptionMock).toHaveBeenCalledExactlyOnceWith(
+        PROJECT_ID,
+        "connection-1",
+      );
+    },
+  );
+
+  it("refreshes an X account once per open when selected, including deselecting and reselecting", async () => {
+    getSubscriptionMock.mockResolvedValue({
+      data: { subscriptionType: "Basic", textLimit: 25000 },
+    });
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({
+            id: "linkedin",
+            provider: "linkedin",
+            externalHandle: "team",
+          }),
+          buildConnection(),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    let dialog = screen.getByRole("dialog");
+    expect(getSubscriptionMock).not.toHaveBeenCalled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await waitFor(() => expect(getSubscriptionMock).toHaveBeenCalledTimes(1));
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    expect(getSubscriptionMock).toHaveBeenCalledTimes(1);
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    dialog = screen.getByRole("dialog");
+    const account = within(dialog).getByRole("button", { name: "X @sokosumi" });
+    if (account.getAttribute("aria-pressed") !== "true")
+      await user.click(account);
+    await waitFor(() => expect(getSubscriptionMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the stored Premium limit silently when the refresh fails", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ subscriptionType: "Premium" })]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "x".repeat(5000) },
+    });
+    await waitFor(() => expect(getSubscriptionMock).toHaveBeenCalledOnce());
+    expect(
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("5000 / 25000");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    );
+    expect(getSubscriptionMock).toHaveBeenCalledOnce();
+  });
+
+  it("counts URLs, CJK, and emoji by X weights in the text, reply, and platform counters", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "linkedin",
+            provider: "linkedin",
+            externalHandle: "team",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const text = `${"界".repeat(100)} 👨‍👩‍👧‍👦 https://example.com/${"p".repeat(200)}`;
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: text },
+    });
+    fireEvent.change(within(dialog).getByTestId("social-post-first-comment"), {
+      target: { value: text },
+    });
+    expect(
+      within(dialog).getByTestId("social-post-character-count"),
+    ).toHaveTextContent("227 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-first-comment-count"),
+    ).toHaveTextContent("227 / 280");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @team" }),
+    );
+    expect(
+      within(dialog).getByTestId("social-post-platform-x"),
+    ).toHaveTextContent("227 / 280");
+    expect(
+      within(dialog).getByTestId("social-post-platform-linkedin"),
+    ).toHaveTextContent(`${text.length} / 3000`);
+  });
+
   it("closes an empty composer without asking", async () => {
     const user = userEvent.setup();
     render(
@@ -2762,6 +2997,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi-co",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           }),
@@ -4325,6 +4561,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: "Sokosumi HQ",
               avatarUrl: null,
+              subscriptionType: null,
               status: "active",
             },
           },
@@ -4755,6 +4992,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
@@ -4787,6 +5025,7 @@ describe("ProjectSocialPosts", () => {
               externalHandle: "sokosumi",
               displayName: null,
               avatarUrl: null,
+              subscriptionType: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
@@ -4927,7 +5166,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it.each(["reauthorization_required", "disconnected"] as const)(
-    "reconnects a failed post's %s account inside the composer before scheduling",
+    "reconnects a failed post's %s account and refreshes its Premium limit before scheduling",
     async (status) => {
       const restore = stubLoadedImage();
       try {
@@ -4943,6 +5182,10 @@ describe("ProjectSocialPosts", () => {
           id: status === "disconnected" ? "connection-2" : connection.id,
           status: "active",
           connectedAt: new Date("2026-09-15T12:00:00.000Z"),
+        });
+        const text = "Fixed copy ".repeat(100).trim();
+        getSubscriptionMock.mockResolvedValue({
+          data: { subscriptionType: "Premium", textLimit: 25000 },
         });
         vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
           ok: true,
@@ -4963,7 +5206,8 @@ describe("ProjectSocialPosts", () => {
           ok: true,
           value: {
             ...post,
-            text: "Fixed copy",
+            text,
+            firstComment: text,
             socialConnection: restored,
             revision: 6,
           },
@@ -5006,6 +5250,7 @@ describe("ProjectSocialPosts", () => {
         expect(
           within(dialog).getByRole("button", { name: "Save" }),
         ).toBeEnabled();
+        expect(getSubscriptionMock).not.toHaveBeenCalled();
         await user.click(
           within(account).getByRole("button", { name: "Reconnect" }),
         );
@@ -5040,7 +5285,35 @@ describe("ProjectSocialPosts", () => {
         });
         expect(options).toHaveLength(1);
         expect(options[0]).toHaveAttribute("aria-pressed", "true");
+        fireEvent.change(within(dialog).getByLabelText("Text"), {
+          target: { value: text },
+        });
+        fireEvent.change(
+          within(dialog).getByTestId("social-post-first-comment"),
+          { target: { value: text } },
+        );
+        await waitFor(() => {
+          expect(
+            within(dialog).getByTestId("social-post-character-count"),
+          ).toHaveTextContent(`${text.length} / 25000`);
+          expect(
+            within(dialog).getByTestId("social-post-first-comment-count"),
+          ).toHaveTextContent(`${text.length} / 25000`);
+          expect(schedule).toBeEnabled();
+        });
+        expect(getSubscriptionMock).toHaveBeenCalledExactlyOnceWith(
+          PROJECT_ID,
+          restored.id,
+        );
         await user.click(schedule);
+        expect(updateProjectSocialPost).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          postId: post.id,
+          text,
+          firstComment: text,
+          media: [],
+          revision: 5,
+        });
         await waitFor(() =>
           expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -5173,10 +5446,14 @@ describe("ProjectSocialPosts", () => {
   });
 
   it.each(["FAILED", "MISSED"] as const)(
-    "edits a %s post and saves text, media, and account without rescheduling",
+    "edits a %s post with long Premium text and saves media and account without rescheduling",
     async (status) => {
       freezeClock();
       const user = userEvent.setup();
+      const text = "Fixed copy ".repeat(100).trim();
+      getSubscriptionMock.mockResolvedValue({
+        data: { subscriptionType: "Premium", textLimit: 25000 },
+      });
       const connection = buildConnection({
         id: "connection-2",
         externalHandle: "other",
@@ -5186,7 +5463,7 @@ describe("ProjectSocialPosts", () => {
         ok: true,
         value: {
           ...post,
-          text: "Fixed copy",
+          text,
           media: [IMAGE_REF],
           socialConnection: connection,
           lastError: null,
@@ -5221,10 +5498,15 @@ describe("ProjectSocialPosts", () => {
       const textarea = within(dialog).getByLabelText("Text");
       expect(textarea).toHaveValue("Failed text");
       expect(
+        within(dialog).queryByTestId("social-post-scheduled-too-soon"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByRole("button", { name: "Schedule" }),
+      ).not.toBeInTheDocument();
+      expect(
         within(dialog).getByRole("button", { name: "Save" }),
       ).toBeEnabled();
-      await user.clear(textarea);
-      await user.type(textarea, "Fixed copy");
+      fireEvent.change(textarea, { target: { value: text } });
       await user.click(
         within(dialog).getByRole("button", { name: "X @other" }),
       );
@@ -5232,13 +5514,18 @@ describe("ProjectSocialPosts", () => {
         within(dialog).getByRole("button", { name: "Add from Drive" }),
       );
       await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+      await waitFor(() =>
+        expect(
+          within(dialog).getByTestId("social-post-character-count"),
+        ).toHaveTextContent(`${text.length} / 25000`),
+      );
       await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
         expect(updateProjectSocialPost).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           postId: "post-failed",
-          text: "Fixed copy",
+          text,
           firstComment: "",
           media: [IMAGE_REF],
           socialConnectionId: "connection-2",
@@ -5253,9 +5540,7 @@ describe("ProjectSocialPosts", () => {
       );
       expect(toastSuccessMock).toHaveBeenCalledWith("Post updated.");
       expect(
-        within(screen.getByTestId("social-post-post-failed")).getByText(
-          "Fixed copy",
-        ),
+        within(screen.getByTestId("social-post-post-failed")).getByText(text),
       ).toBeVisible();
 
       vi.mocked(publishProjectSocialPost).mockResolvedValue({
