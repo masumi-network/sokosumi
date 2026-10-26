@@ -1109,6 +1109,7 @@ export type SokoBot = {
     avatarImageUrl?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
+    mailAutoRead?: boolean;
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
@@ -8081,6 +8082,7 @@ export type SokoBotState = {
         avatarImageUrl?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
+        mailAutoRead?: boolean;
         ingestTimezone?: string;
         proactivePaused?: boolean;
         proactiveDailyLimit?: number;
@@ -8224,6 +8226,7 @@ export type UpdateSokoBotProactiveRequest = {
     paused?: boolean;
     dailyLimit?: number;
     timezone?: string;
+    mailAutoRead?: boolean;
 };
 
 export type SokoBotTurnFeedbackRequest = {

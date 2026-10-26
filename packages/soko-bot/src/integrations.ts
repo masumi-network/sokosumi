@@ -16,6 +16,10 @@ export interface SokoBotIntegrationProvider {
     listMessages?: string;
     getMessage?: string;
     listEvents?: string;
+    /** Adds and removes labels on many messages: read, unread, archive. */
+    modifyMessages?: string;
+    createDraft?: string;
+    sendDraft?: string;
   };
 }
 
@@ -29,6 +33,9 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
       tools: {
         listMessages: "GMAIL_FETCH_EMAILS",
         getMessage: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
+        modifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
+        createDraft: "GMAIL_CREATE_EMAIL_DRAFT",
+        sendDraft: "GMAIL_SEND_DRAFT",
       },
     },
     {
