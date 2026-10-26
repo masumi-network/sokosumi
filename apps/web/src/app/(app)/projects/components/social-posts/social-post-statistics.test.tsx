@@ -35,6 +35,7 @@ vi.mock("next-intl", async () => {
   const { createFormatter, createTranslator } =
     await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
+    useLocale: () => "en",
     useFormatter: () => ({
       ...createTestFormatter({ timeZone: "America/Los_Angeles" }),
       relativeTime: createFormatter({
@@ -461,7 +462,6 @@ describe("SocialPostStatistics account history", () => {
       screen.getByText(
         reader.dateTime(new Date(post.publishedAt), "dateTime", {
           timeZone: "UTC",
-          timeZoneName: "short",
         }),
       ),
     ).toBeVisible();
@@ -837,7 +837,7 @@ describe("SocialPostStatistics account history", () => {
     );
     const badge = within(card).getByText("Strong");
     expect(badge.parentElement).toContainElement(
-      within(card).getByText("Oct 1, 12:15 AM UTC"),
+      within(card).getByText("Oct 1, 12:15 AM"),
     );
     const recycle = within(card).getByRole("button", { name: "Recycle" });
     expect(recycle.parentElement).toContainElement(

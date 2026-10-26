@@ -14,6 +14,9 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
+  "draft_email",
+  "send_email_draft",
+  "save_email_attachment",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -45,6 +48,10 @@ export const ACTION_CAPABILITIES = new Set([
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
+  "move_file",
+  "update_emails",
+  "install_skill",
+  "remove_skill",
 ]);
 
 /** Object key order is not part of an operation's identity. */
