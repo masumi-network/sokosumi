@@ -4,7 +4,8 @@ import { unified } from "unified";
 interface MarkdownNode {
   type: string;
   lang?: string | null;
-  value?: string;
+  // @m2d/mdast augments svg.value with Promise<RenderResult>. Code fences stay strings.
+  value?: string | Promise<unknown>;
   children?: MarkdownNode[];
   // unist points are independently optional: `mdast-util-to-hast` builds
   // `position` from `pointStart`/`pointEnd`, either of which can be undefined.
@@ -60,7 +61,7 @@ export function prepareMermaidMarkdown({
           .trim() ?? "";
       tokens.set(token, {
         raw,
-        source: node.value ?? "",
+        source: typeof node.value === "string" ? node.value : "",
         overLimit: tokens.size >= 8,
         complete: Boolean(
           fence &&

@@ -264,16 +264,6 @@ export async function collectOrgPeriodSentinelSpecs(
   };
 }
 
-export async function orgPeriodFingerprintExists(
-  prisma: PrismaClient | Prisma.TransactionClient,
-  referenceId: OrgPeriodIdempotencyReferenceId,
-): Promise<boolean> {
-  const existing = await listExistingOrgPeriodFingerprints(prisma, [
-    referenceId,
-  ]);
-  return existing.has(referenceId);
-}
-
 export async function listExistingOrgPeriodFingerprints(
   prisma: PrismaClient | Prisma.TransactionClient,
   referenceIds: readonly OrgPeriodIdempotencyReferenceId[],
