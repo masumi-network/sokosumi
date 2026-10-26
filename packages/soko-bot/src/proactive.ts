@@ -187,7 +187,7 @@ export const SOKO_BOT_PROACTIVE_RULES: readonly SokoBotProactiveRule[] = [
     id: "limits",
     title: "Stays within its limits",
     description:
-      "Never sends mail. One initiative per turn, capped by your daily limit, and at most three comments per Task per day. Pause everything it starts on its own at any time.",
+      "Never sends mail on its own. One initiative per turn, capped by your daily limit, and at most three comments per Task per day. Pause everything it starts on its own at any time.",
   },
 ];
 

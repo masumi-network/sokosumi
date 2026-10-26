@@ -14,7 +14,7 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-import { generateText, stepCountIs, type ToolSet, tool } from "ai";
+import { stepCountIs, type ToolSet, tool } from "ai";
 import prisma from "@/lib/db/prisma";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -24,6 +24,7 @@ import {
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { streamModelCall } from "@/lib/soko-bot/stream-model-call";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   evaluationBinding,
@@ -99,7 +100,7 @@ async function runTurn(
     );
     await log.append(runtimeEvent("step.started", { modelId: turn.model }));
     const result = await withEvaluationTurn(input.turnId, () =>
-      generateText({
+      streamModelCall({
         ...sokoBotModelRequest({
           role: "agent",
           model: turn.model,
@@ -135,7 +136,7 @@ async function runTurn(
       }),
     );
 
-    assertSokoBotInferenceRegion(result.providerMetadata, {
+    assertSokoBotInferenceRegion(result.steps.at(-1)?.providerMetadata, {
       model: turn.model,
       role: "agent",
     });

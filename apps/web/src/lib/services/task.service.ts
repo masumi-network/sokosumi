@@ -31,7 +31,7 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt";
+  sort?: "createdAt" | "updatedAt";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
 }

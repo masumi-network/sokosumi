@@ -5,6 +5,7 @@ import {
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { CHAT_SIGNAL_TAGS } from "@/lib/chat-signals/tags";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
 import {
   chatRoomPresenceSchema,
@@ -260,6 +261,11 @@ export const chatRoomSchema = z
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+      example: 1,
+    }),
+    unreadNeedsYouCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.",
       example: 1,
     }),
     starredAt: dateTimeSchema.nullable().openapi({
@@ -677,6 +683,46 @@ export const removeChatRoomMessageUnfurlRequestSchema = z
   })
   .openapi("RemoveChatRoomMessageUnfurlRequest");
 
+export const chatSignalTagSchema = z
+  .enum(CHAT_SIGNAL_TAGS)
+  .openapi("ChatSignalTag", {
+    description:
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
+  });
+
+/**
+ * Viewer-neutral, because it rides on realtime message events every member
+ * receives: a client derives "needs you" from `addressedUserIds` and the
+ * `question` / `needsDecision` tags.
+ */
+export const chatMessageSignalSchema = z
+  .object({
+    tags: z.array(chatSignalTagSchema).openapi({
+      description:
+        "Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message.",
+    }),
+    probabilities: z
+      .partialRecord(chatSignalTagSchema, z.number().min(0).max(1))
+      .openapi({ description: "Jev's probability per tag, as it answered." }),
+    addressedUserIds: z.array(z.string()).openapi({
+      description:
+        "Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.",
+    }),
+    commitmentDueAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.",
+    }),
+    loopClosedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a reader closed this open loop, by making a Task of it or dismissing it.",
+    }),
+    loopTaskId: z.string().uuid().nullable(),
+    correctedTags: z.array(chatSignalTagSchema).openapi({
+      description: "Tags a reader corrected by hand.",
+    }),
+  })
+  .openapi("ChatMessageSignal");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -721,6 +767,10 @@ export const chatRoomMessageSchema = z
     skills: z.array(chatRoomMessageSkillSchema).max(3).optional().openapi({
       description:
         "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.",
+    }),
+    signal: z.union([chatMessageSignalSchema, z.null()]).optional().openapi({
+      description:
+        "Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.",
     }),
   })
   .openapi("ChatRoomMessage");

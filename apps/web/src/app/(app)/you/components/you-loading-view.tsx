@@ -6,10 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function YouPageSkeleton(): React.ReactElement {
   return (
-    <div
-      className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
-      data-testid="you-loading"
-    >
+    <div className="w-full py-6 md:py-8" data-testid="you-loading">
       <div className="space-y-6">
         <header
           data-testid="you-loading-identity"

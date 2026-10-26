@@ -8,8 +8,8 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 /**
- * Whether the owner's bot still lacks mail or calendar, for the chat's
- * connect prompt. A Route Handler (not a server action) because the chat
+ * Whether the owner's bot has no connection yet, for the chat's connect
+ * prompt. A Route Handler (not a server action) because the chat
  * reads it on mount, and a mount read must not queue behind the user's sends.
  */
 export async function GET() {
@@ -21,7 +21,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const prompt = await sokoBotService.getConnectPromptState();
+    const prompt = await sokoBotService.getConnectPromptState({
+      untilAnyConnected: true,
+    });
     return NextResponse.json(
       { prompt },
       { headers: { "Cache-Control": "no-store" } },

@@ -1,4 +1,6 @@
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
  * Sync Instant Nav shell for `/connections` (no cookies/`connection()`/i18n).
@@ -7,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function ConnectionsPageSkeleton(): React.ReactElement {
   return (
     <div data-testid="connections-loading" className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl space-y-8 px-4">
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="space-y-6">
           <div className="space-y-3" data-testid="connections-loading-sign-in">
             <div className="space-y-1">

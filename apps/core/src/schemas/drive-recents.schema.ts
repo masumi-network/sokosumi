@@ -4,6 +4,13 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
+const driveRecentsLabelSchema = z.object({
+  labelId: z
+    .string()
+    .openapi({ example: "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f" }),
+  displayName: z.string().openapi({ example: "Marketing" }),
+});
+
 const driveRecentsDriveFileItemSchema = z
   .object({
     kind: z.literal("drive-file").openapi({
@@ -29,6 +36,17 @@ const driveRecentsDriveFileItemSchema = z
     activityAt: dateTimeSchema.openapi({
       example: "2026-08-18T10:00:00.000Z",
       description: "Latest activity timestamp (blob uploadedAt)",
+    }),
+    resourceId: z.string().nullable().openapi({
+      description:
+        "Files catalog id, for the file detail view. Null until the catalog has adopted this blob.",
+    }),
+    category: driveRecentsLabelSchema.nullable().openapi({
+      description: "What kind of document this is, when one is known.",
+    }),
+    tags: z.array(driveRecentsLabelSchema).openapi({
+      description:
+        "Tags on this file, automatic or confirmed. Labels a person removed are never listed.",
     }),
   })
   .openapi("DriveRecentsDriveFileItem");
@@ -103,32 +121,11 @@ const driveRecentsTableItemSchema = z
   })
   .openapi("DriveRecentsTableItem");
 
-const driveRecentsContactsItemSchema = z
-  .object({
-    kind: z.literal("contacts").openapi({
-      example: "contacts",
-      description:
-        "The workspace's one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.",
-    }),
-    name: z.string().openapi({ example: "Contacts" }),
-    pinned: z.literal(true),
-    contactCount: z.int().openapi({
-      example: 128,
-      description: "Live contacts (not archived or merged)",
-    }),
-    activityAt: dateTimeSchema.openapi({
-      example: "2026-08-18T10:00:00.000Z",
-      description: "Latest change to any contact, or now when there are none",
-    }),
-  })
-  .openapi("DriveRecentsContactsItem");
-
 const driveRecentsItemSchema = z
   .discriminatedUnion("kind", [
     driveRecentsDriveFileItemSchema,
     driveRecentsTaskOutputItemSchema,
     driveRecentsTableItemSchema,
-    driveRecentsContactsItemSchema,
   ])
   .openapi("DriveRecentsItem");
 
@@ -160,6 +157,23 @@ export const driveRecentsQuerySchema = z
         example: "report",
         description:
           "Search recents by file name (Drive blobs), task/file name and task description (task outputs) or title (tables). Case-insensitive substring.",
+      }),
+    tags: z
+      .string()
+      .optional()
+      .refine(
+        (value) =>
+          value === undefined ||
+          value
+            .split(",")
+            .every((id) => z.string().uuid().safeParse(id.trim()).success),
+        { message: "tags must be comma-separated label ids" },
+      )
+      .openapi({
+        param: { name: "tags", in: "query" },
+        example: "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f",
+        description:
+          "Comma-separated label ids. Only Drive files carrying any of them are listed; task outputs and tables have no labels and are left out.",
       }),
   })
   .merge(cursorPaginationQuerySchema)

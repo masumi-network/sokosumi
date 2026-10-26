@@ -7,6 +7,7 @@ import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { contactsService } from "@/lib/services/contacts.client";
 import {
   CONTACT_LISTS_KEY,
+  CONTACTS_KEY,
   contactKey,
   refreshContacts,
   writeContact,
@@ -16,6 +17,43 @@ export type ContactFields = Omit<
   NonNullable<PatchContactsByIdData["body"]>,
   "version"
 >;
+
+/**
+ * Sets how much a contact matters to the reader, or hands it back to Jev
+ * with null. The row changes at once and goes back on failure.
+ */
+export function useImportanceUpdate() {
+  const t = useTranslations("App.Contacts");
+  const cache = useQueryClient();
+  return async function setImportance(
+    contact: Contact,
+    importance: number | null,
+  ): Promise<boolean> {
+    writeContact(cache, {
+      ...contact,
+      score: {
+        familiarity: contact.score?.familiarity ?? 0,
+        importance,
+        importanceSource: importance === null ? null : "MANUAL",
+        importanceReason: null,
+      },
+    });
+    try {
+      writeContact(
+        cache,
+        await contactsService.setImportance(contact.id, importance),
+      );
+      void cache.invalidateQueries({ queryKey: contactKey(contact.id) });
+      // A list sorted by importance has a new order.
+      void cache.invalidateQueries({ queryKey: CONTACTS_KEY });
+      return true;
+    } catch (error) {
+      writeContact(cache, contact);
+      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
+      return false;
+    }
+  };
+}
 
 /**
  * Saves fields on the version the reader saw. The row changes at once; a

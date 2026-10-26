@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
+import { usePrefetchScopeProjects } from "@/app/components/project-scope/use-scope-projects";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -36,6 +37,7 @@ export function ProjectScopePicker({
 }) {
   const { projectId, select } = useProjectScopeSwitch();
   const [open, setOpen] = useState(false);
+  const prefetch = usePrefetchScopeProjects();
 
   return (
     <div
@@ -55,7 +57,12 @@ export function ProjectScopePicker({
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button className="mt-5" type="button">
+          <Button
+            className="mt-5"
+            type="button"
+            onPointerEnter={prefetch}
+            onFocus={prefetch}
+          >
             {action}
           </Button>
         </PopoverTrigger>

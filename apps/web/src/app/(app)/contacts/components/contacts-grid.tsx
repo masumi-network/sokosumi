@@ -1,6 +1,6 @@
 "use client";
 import type { Contact, ContactList } from "@sokosumi/core-client";
-import { ArrowDown, ArrowUp, PanelRightOpen } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Copy, PanelRightOpen } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type CSSProperties,
@@ -11,11 +11,12 @@ import {
   useState,
 } from "react";
 import {
-  CONTACT_STAGES,
   type ContactSort,
   channelLabel,
+  IMPORTANCE_LEVELS,
   isFollowUpDue,
-  STAGE_DOT,
+  nearestImportanceLevel,
+  primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
@@ -49,37 +50,45 @@ import {
   ContactAvatar,
   Dot,
   ListChip,
-  PersonAvatar,
+  ReplyChip,
+  ScoreMeter,
   StageChip,
 } from "./contact-visuals";
+import { useStageOptions } from "./contacts-toolbar";
 import type { ContactFields } from "./use-contact-update";
-import type { Teammate } from "./use-contacts-data";
 
 type ColumnId =
   | "name"
+  | "email"
   | "organization"
-  | "role"
+  | "importance"
+  | "familiarity"
   | "stage"
-  | "lists"
-  | "channels"
-  | "owner"
+  | "reply"
+  | "firstContact"
   | "lastContact"
+  | "lists"
   | "knownBy"
   | "followUp"
-  | "updated";
+  | "role"
+  | "channels";
 
+/** Who, how to reach them, what they are, and whether they answered, first. */
 const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
-  { id: "name", width: 240, sort: "name" },
-  { id: "organization", width: 180, sort: "organization" },
-  { id: "role", width: 170 },
-  { id: "stage", width: 132, sort: "stage" },
-  { id: "lists", width: 200 },
-  { id: "channels", width: 150 },
-  { id: "owner", width: 160 },
-  { id: "lastContact", width: 136, sort: "lastContactAt" },
-  { id: "knownBy", width: 120 },
-  { id: "followUp", width: 132 },
-  { id: "updated", width: 132, sort: "updatedAt" },
+  { id: "name", width: 220, sort: "name" },
+  { id: "email", width: 240 },
+  { id: "organization", width: 170, sort: "organization" },
+  { id: "importance", width: 128, sort: "importance" },
+  { id: "familiarity", width: 128, sort: "familiarity" },
+  { id: "stage", width: 128, sort: "stage" },
+  { id: "reply", width: 184 },
+  { id: "firstContact", width: 132, sort: "firstContactAt" },
+  { id: "lastContact", width: 124, sort: "lastContactAt" },
+  { id: "lists", width: 180 },
+  { id: "knownBy", width: 104 },
+  { id: "followUp", width: 116 },
+  { id: "role", width: 160 },
+  { id: "channels", width: 112 },
 ];
 
 /** A click on the name opens the person but leaves focus on the cell. */
@@ -88,7 +97,7 @@ function keepCellFocus(event: MouseEvent<HTMLElement>) {
   event.currentTarget.closest<HTMLElement>('[role="gridcell"]')?.focus();
 }
 
-const WIDTHS_KEY = "contacts-grid-widths";
+const WIDTHS_KEY = "contacts-grid-widths-v2";
 
 /** Column widths are a per-viewer convenience, kept in this browser only. */
 function useColumnWidths() {
@@ -117,17 +126,23 @@ function useColumnWidths() {
 interface Props {
   contacts: Contact[];
   lists: ContactList[];
-  teammates: Teammate[];
   selected: string[];
   onSelectedChange: (ids: string[]) => void;
   sort: ContactSort;
   direction: "asc" | "desc";
   onSort: (sort: ContactSort) => void;
   onOpen: (id: string) => void;
+  /** Shows only the people at this organization. */
+  onOrganization: (organization: string) => void;
   onUpdate: (
     contact: Contact,
     fields: ContactFields,
     optimistic?: Partial<Contact>,
+  ) => Promise<boolean>;
+  /** Sets how much a contact matters to the reader; null lets Jev judge. */
+  onImportance: (
+    contact: Contact,
+    importance: number | null,
   ) => Promise<boolean>;
   hasMore: boolean;
   loadingMore: boolean;
@@ -137,14 +152,15 @@ interface Props {
 
 export function ContactsGrid({
   contacts,
-  teammates,
   selected,
   onSelectedChange,
   sort,
   direction,
   onSort,
   onOpen,
+  onOrganization,
   onUpdate,
+  onImportance,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -168,6 +184,22 @@ export function ContactsGrid({
     ROW_NUMBER_WIDTH,
   );
   const today = new Date();
+  const stageChoices = useStageOptions();
+  const importanceChoices = [
+    ...IMPORTANCE_LEVELS.map((level) => ({
+      value: String(level.value),
+      label: t(`importance.${level.id}`),
+    })),
+    { value: "", label: t("importance.auto") },
+  ];
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyEmail(id: string, email: string) {
+    void navigator.clipboard?.writeText(email).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  }
 
   // Infinite scroll: the sentinel under the last row asks for the next page.
   useEffect(() => {
@@ -193,20 +225,6 @@ export function ContactsGrid({
       timeZone: "UTC",
     });
   }
-
-  const ownerChoices = [
-    { value: "", label: t("grid.noOwner") },
-    ...teammates.map((person) => ({
-      value: person.id,
-      label: person.name,
-      icon: <PersonAvatar person={person} />,
-    })),
-  ];
-  const stageChoices = CONTACT_STAGES.map((stage) => ({
-    value: stage,
-    label: t(`stages.${stage}`),
-    icon: <Dot className={STAGE_DOT[stage]} />,
-  }));
 
   function textEdit(
     contact: Contact,
@@ -240,7 +258,12 @@ export function ContactsGrid({
           onOpen: () => onOpen(contact.id),
           node: (
             <span className="flex min-w-0 flex-1 items-center gap-2">
-              <ContactAvatar name={contact.name} src={contact.avatarUrl} />
+              <ContactAvatar
+                name={contact.name}
+                src={contact.avatarUrl}
+                email={primaryEmail(contact.channels)}
+                kind={contact.kind}
+              />
               <button
                 type="button"
                 tabIndex={-1}
@@ -264,23 +287,125 @@ export function ContactsGrid({
             </span>
           ),
         };
+      case "email": {
+        const email = primaryEmail(contact.channels);
+        if (!email)
+          return {
+            text: "",
+            node: <span className="text-muted-foreground">—</span>,
+          };
+        return {
+          text: email,
+          node: (
+            <span className="flex min-w-0 flex-1 items-center gap-1">
+              <a
+                href={`mailto:${email}`}
+                tabIndex={-1}
+                data-fit
+                className="hover:decoration-foreground min-w-0 truncate underline decoration-transparent underline-offset-4 transition-colors"
+              >
+                {email}
+              </a>
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={t("grid.copyEmail", { email })}
+                onMouseDown={keepCellFocus}
+                onClick={() => copyEmail(contact.id, email)}
+                className="text-muted-foreground hover:text-foreground ms-auto hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm group-hover/row:inline-flex group-aria-selected/cell:inline-flex pointer-coarse:inline-flex"
+              >
+                {copied === contact.id ? (
+                  <Check aria-hidden className="size-3.5" />
+                ) : (
+                  <Copy aria-hidden className="size-3.5" />
+                )}
+              </button>
+            </span>
+          ),
+        };
+      }
+      case "reply":
+        return {
+          text: contact.replyState
+            ? t(`replyStates.${contact.replyState}`)
+            : "",
+          node: contact.replyState ? (
+            <span data-fit className="min-w-0">
+              <ReplyChip
+                state={contact.replyState}
+                since={contact.awaitingReplySince}
+                now={today}
+              />
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+        };
       case "organization":
+        return {
+          text: contact.organization ?? "",
+          edit: textEdit(contact, "organization"),
+          node: contact.organization ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              data-fit
+              title={t("grid.filterCompany", { name: contact.organization })}
+              onMouseDown={keepCellFocus}
+              onClick={() =>
+                contact.organization && onOrganization(contact.organization)
+              }
+              className="hover:decoration-foreground min-w-0 cursor-pointer truncate text-start underline decoration-transparent underline-offset-4 transition-colors"
+            >
+              {contact.organization}
+            </button>
+          ) : null,
+        };
       case "role":
         return {
           text: contact[column] ?? "",
           edit: textEdit(contact, column),
           node: (
-            <span
-              data-fit
-              className={cn(
-                "truncate",
-                column === "role" && "text-muted-foreground",
-              )}
-            >
+            <span data-fit className="text-muted-foreground truncate">
               {contact[column]}
             </span>
           ),
         };
+      case "importance": {
+        const importance = contact.score?.importance ?? null;
+        return {
+          text: importance === null ? "" : String(importance),
+          edit: {
+            kind: "choice",
+            value:
+              importance === null || contact.score?.importanceSource === "JEV"
+                ? ""
+                : String(nearestImportanceLevel(importance).value),
+            choices: importanceChoices,
+            onSave: (value) =>
+              onImportance(contact, value ? Number(value) : null),
+          },
+          node: (
+            <span data-fit title={contact.score?.importanceReason ?? undefined}>
+              <ScoreMeter value={importance} label={t("columns.importance")} />
+            </span>
+          ),
+        };
+      }
+      case "familiarity": {
+        const familiarity = contact.score?.familiarity ?? null;
+        return {
+          text: familiarity === null ? "" : String(familiarity),
+          node: (
+            <span data-fit title={t("importance.familiarityHint")}>
+              <ScoreMeter
+                value={familiarity}
+                label={t("columns.familiarity")}
+              />
+            </span>
+          ),
+        };
+      }
       case "stage":
         return {
           text: t(`stages.${contact.stage}`),
@@ -299,13 +424,21 @@ export function ContactsGrid({
           node: (
             <span data-fit className="flex min-w-0 gap-1 overflow-hidden">
               {contact.lists.map((list) => (
-                <ListChip key={list.id} name={list.name} color={list.color} />
+                <ListChip
+                  key={list.id}
+                  name={list.name}
+                  color={list.color}
+                  automatic={list.addedAutomatically}
+                />
               ))}
             </span>
           ),
         };
       case "channels": {
-        const channels = sortChannels(contact.channels);
+        // Email has its own column; this one shows the other ways in.
+        const channels = sortChannels(contact.channels).filter(
+          (channel) => channel.type !== "EMAIL",
+        );
         const types = [...new Set(channels.map((channel) => channel.type))];
         return {
           text: channels.map(channelLabel).join(", "),
@@ -325,31 +458,26 @@ export function ContactsGrid({
           ),
         };
       }
-      case "owner":
+      case "firstContact": {
+        const first = contact.firstContactAt
+          ? format.dateTime(new Date(contact.firstContactAt), {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : "";
         return {
-          text: contact.owner?.name ?? "",
-          edit: {
-            kind: "choice",
-            value: contact.owner?.id ?? "",
-            choices: ownerChoices,
-            onSave: (value) => {
-              const person = teammates.find((item) => item.id === value);
-              return onUpdate(
-                contact,
-                { ownerUserId: value || null },
-                { owner: person ?? null },
-              );
-            },
-          },
-          node: contact.owner ? (
-            <span data-fit className="flex min-w-0 items-center gap-2">
-              <PersonAvatar person={contact.owner} />
-              <span className="truncate">{contact.owner.name}</span>
+          text: first,
+          node: (
+            <span
+              data-fit
+              className="text-muted-foreground truncate tabular-nums"
+            >
+              {first || "—"}
             </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
           ),
         };
+      }
       case "lastContact":
         return {
           text: relative(contact.lastContactAt),
@@ -402,18 +530,6 @@ export function ContactsGrid({
           ),
         };
       }
-      case "updated":
-        return {
-          text: relative(contact.updatedAt),
-          node: (
-            <span
-              data-fit
-              className="text-muted-foreground truncate tabular-nums"
-            >
-              {relative(contact.updatedAt)}
-            </span>
-          ),
-        };
     }
   }
 
@@ -438,7 +554,7 @@ export function ContactsGrid({
         className="table-fixed border-separate border-spacing-0"
         style={{ width: gridWidth }}
         containerClassName={cn(
-          "max-h-[calc(100dvh-15rem)]",
+          "max-h-[calc(100dvh-10rem)]",
           GRID_SCROLL_CONTAINER,
         )}
       >
@@ -485,7 +601,7 @@ export function ContactsGrid({
                       : undefined
                   }
                   className={cn(
-                    "bg-card-background relative h-10 border-e border-b px-3",
+                    "bg-card-background relative h-9 border-e border-b px-3",
                     columnIndex === 0 && GRID_STICKY_FIRST_COLUMN,
                   )}
                 >
@@ -552,7 +668,7 @@ export function ContactsGrid({
                     "border-e border-b p-0 font-normal",
                   )}
                 >
-                  <div className="relative h-10">
+                  <div className="relative h-9">
                     <span
                       className={cn(
                         "text-muted-foreground absolute inset-0 flex items-center justify-center text-xs tabular-nums",

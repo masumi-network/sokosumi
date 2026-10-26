@@ -1,14 +1,43 @@
 import { z } from "zod";
 
+/**
+ * What a contact is to the team. `CONTACT` is the plain default; the sales
+ * steps (prospect, lead, active, customer) apply only to people the team
+ * sells to; the rest name the relationship; `DORMANT` is gone quiet.
+ */
 export const CONTACT_STAGES = [
+  "CONTACT",
   "PROSPECT",
   "LEAD",
   "ACTIVE",
+  "CUSTOMER",
   "PARTNER",
   "INVESTOR",
-  "CUSTOMER",
+  "VENDOR",
+  "ADVISOR",
+  "COMMUNITY",
+  "PRESS",
+  "FRIEND",
   "DORMANT",
 ] as const;
+
+/** A person, or an organization or shared inbox (a practice, `info@`). */
+export const CONTACT_KINDS = ["PERSON", "ORGANIZATION"] as const;
+
+/**
+ * Where the latest outreach stands, from the interactions' directions:
+ * waiting for an answer, unanswered for `CONTACT_REPLY_WAIT_DAYS`, talking
+ * (they answered within `CONTACT_CONVERSATION_DAYS`), or answered before.
+ */
+export const CONTACT_REPLY_STATES = [
+  "AWAITING_REPLY",
+  "NO_REPLY",
+  "IN_CONVERSATION",
+  "REPLIED",
+] as const;
+
+export const CONTACT_REPLY_WAIT_DAYS = 7;
+export const CONTACT_CONVERSATION_DAYS = 30;
 
 export const CONTACT_CHANNEL_TYPES = [
   "EMAIL",
@@ -66,6 +95,9 @@ export const CONTACT_SORT_FIELDS = [
   "firstContactAt",
   "createdAt",
   "updatedAt",
+  /** The reader's own scores; see `contact_score`. */
+  "familiarity",
+  "importance",
 ] as const;
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];
@@ -255,7 +287,7 @@ export const contactFieldsSchema = z.object({
   summary: optionalText(4000),
   whyInteresting: optionalText(2000),
   stage: z.enum(CONTACT_STAGES).optional(),
-  ownerUserId: z.string().min(1).max(200).nullable().optional(),
+  kind: z.enum(CONTACT_KINDS).optional(),
   nextStep: optionalText(500),
   /** Calendar date, `YYYY-MM-DD`. */
   followUpAt: calendarDateSchema.nullable().optional(),
@@ -301,10 +333,18 @@ export const contactFilterSchema = z
   .object({
     /** Name, organization or any channel value. */
     search: z.string().trim().min(1).max(200).optional(),
-    stages: z.array(z.enum(CONTACT_STAGES)).min(1).max(7).optional(),
-    ownerUserId: z.string().min(1).max(200).optional(),
-    /** Owned by whoever reads the list. */
-    ownedByMe: z.boolean().optional(),
+    stages: z
+      .array(z.enum(CONTACT_STAGES))
+      .min(1)
+      .max(CONTACT_STAGES.length)
+      .optional(),
+    kind: z.enum(CONTACT_KINDS).optional(),
+    /** Where the latest outreach stands; see `CONTACT_REPLY_STATES`. */
+    replyStates: z
+      .array(z.enum(CONTACT_REPLY_STATES))
+      .min(1)
+      .max(CONTACT_REPLY_STATES.length)
+      .optional(),
     /** On any of these manual lists. */
     listIds: z.array(z.uuid()).min(1).max(20).optional(),
     knownByUserId: z.string().min(1).max(200).optional(),

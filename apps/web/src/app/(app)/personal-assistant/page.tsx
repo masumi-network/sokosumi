@@ -1,5 +1,6 @@
 import { hasAdminRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
@@ -52,6 +53,7 @@ interface SokoBotPageProps {
 
 /** The assistant console; the conversation itself lives in chat. */
 export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
+  await connection();
   const [session, load, t, params, activeOrganizationId] = await Promise.all([
     getSessionOrRedirect(),
     loadState(),
@@ -66,7 +68,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
 
   if (load.kind === "disabled") {
     return (
-      <div className="content-in mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="content-in w-full py-6">
         <Alert>
           <AlertTitle>{t("Disabled.title")}</AlertTitle>
           <AlertDescription>
@@ -78,7 +80,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   }
   if (load.kind === "unavailable") {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="w-full py-6">
         <Alert>
           <AlertTitle>{t("Unavailable.title")}</AlertTitle>
           <AlertDescription>{t("Unavailable.description")}</AlertDescription>

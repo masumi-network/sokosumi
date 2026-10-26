@@ -2136,6 +2136,17 @@ export const ChatRoomMessageSchema = {
             },
             maxItems: 3,
             description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+        },
+        signal: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatMessageSignal'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
         }
     },
     required: [
@@ -2848,6 +2859,140 @@ export const ChatRoomMessageSkillSchema = {
         'description',
         'url'
     ]
+} as const;
+
+export const ChatMessageSignalSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags that apply: Jev\'s probability at or above the threshold, with readers\' corrections on top. A guide for sorting and highlighting; it never hides a message.'
+        },
+        probabilities: {
+            type: 'object',
+            properties: {
+                question: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                needsDecision: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                commitment: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                blocker: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                decisionMade: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                fyi: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                urgent: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                chitChat: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                workRequest: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                escalation: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                }
+            },
+            description: 'Jev\'s probability per tag, as it answered.'
+        },
+        addressedUserIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.'
+        },
+        commitmentDueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.'
+        },
+        loopClosedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a reader closed this open loop, by making a Task of it or dismissing it.'
+        },
+        loopTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        correctedTags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatSignalTag'
+            },
+            description: 'Tags a reader corrected by hand.'
+        }
+    },
+    required: [
+        'tags',
+        'probabilities',
+        'addressedUserIds',
+        'commitmentDueAt',
+        'loopClosedAt',
+        'loopTaskId',
+        'correctedTags'
+    ]
+} as const;
+
+export const ChatSignalTagSchema = {
+    type: 'string',
+    enum: [
+        'question',
+        'needsDecision',
+        'commitment',
+        'blocker',
+        'decisionMade',
+        'fyi',
+        'urgent',
+        'chitChat',
+        'workRequest',
+        'escalation'
+    ],
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -3567,6 +3712,18 @@ export const SokoBotDelegationSchema = {
             ]
         },
         jobId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUp: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        followUpTurnId: {
             type: [
                 'string',
                 'null'
@@ -4388,6 +4545,9 @@ export const SokoBotSchema = {
             ]
         },
         followWholeBoard: {
+            type: 'boolean'
+        },
+        mailAutoRead: {
             type: 'boolean'
         },
         ingestTimezone: {
@@ -6590,7 +6750,14 @@ export const TaskTagIdSchema = {
         'marketing',
         'social',
         'seo',
-        'operations'
+        'operations',
+        'presentations',
+        'dashboards',
+        'monitoring',
+        'media',
+        'communication',
+        'finance',
+        'qa'
     ]
 } as const;
 
@@ -10059,6 +10226,13 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
+        unreadNeedsYouCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.',
+            example: 1
+        },
         starredAt: {
             type: [
                 'string',
@@ -10834,6 +11008,17 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     },
                     maxItems: 3,
                     description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+                },
+                signal: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/ChatMessageSignal'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
                 }
             },
             required: [
@@ -12254,6 +12439,370 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const ChatSignalListItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'needsYou',
+                'question',
+                'decision',
+                'commitment'
+            ],
+            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
+        },
+        room: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'channel',
+                        'direct'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        message: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'room',
+        'message',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatCatchUpSummarySchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            description: '`all` or the room id.'
+        },
+        unreadTaggedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        counts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count'
+                ]
+            }
+        },
+        headline: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.'
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    roomId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    roomName: {
+                        type: 'string'
+                    },
+                    line: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'roomId',
+                    'roomName',
+                    'line'
+                ]
+            }
+        },
+        generatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        needsYou: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        decisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        openLoops: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        highlights: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        }
+    },
+    required: [
+        'scope',
+        'unreadTaggedCount',
+        'counts',
+        'headline',
+        'rooms',
+        'generatedAt',
+        'needsYou',
+        'decisions',
+        'openLoops',
+        'highlights'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'decisionMade',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt'
+    ]
+} as const;
+
+export const ChatRoomCatchUpSchema = {
+    type: 'object',
+    properties: {
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread top-level messages from others, tagged or not.'
+        },
+        taggedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'How many of those Jev has read; the rest are too short or still waiting.'
+        },
+        buckets: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    bucket: {
+                        $ref: '#/components/schemas/ChatCatchUpBucket'
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    messageIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'Oldest first, so a jump lands on the first one.'
+                    }
+                },
+                required: [
+                    'bucket',
+                    'count',
+                    'messageIds'
+                ]
+            }
+        }
+    },
+    required: [
+        'unreadCount',
+        'taggedCount',
+        'buckets'
+    ]
+} as const;
+
+export const ChatSignalCorrectionRequestSchema = {
+    type: 'object',
+    properties: {
+        tag: {
+            $ref: '#/components/schemas/ChatSignalTag'
+        },
+        applies: {
+            type: 'boolean',
+            description: 'Whether the tag applies to the message, as the reader sees it.'
+        }
+    },
+    required: [
+        'tag',
+        'applies'
+    ]
+} as const;
+
+export const ChatSignalLoopRequestSchema = {
+    type: 'object',
+    properties: {
+        closed: {
+            type: 'boolean',
+            description: 'True closes the open loop; false reopens it.'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Task the loop was made into, when closing it so.'
+        }
+    },
+    required: [
+        'closed'
+    ]
+} as const;
+
+export const ChatSignalRoutingSuggestionSchema = {
+    type: 'object',
+    properties: {
+        coworkerId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        fit: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            description: 'Jev\'s probability that this Coworker can do the request.'
+        }
+    },
+    required: [
+        'coworkerId',
+        'name',
+        'caption',
+        'fit'
+    ]
+} as const;
+
 export const ChatSkillCatalogItemSchema = {
     type: 'object',
     properties: {
@@ -12556,25 +13105,44 @@ export const ContactListSchema = {
                             items: {
                                 type: 'string',
                                 enum: [
+                                    'CONTACT',
                                     'PROSPECT',
                                     'LEAD',
                                     'ACTIVE',
+                                    'CUSTOMER',
                                     'PARTNER',
                                     'INVESTOR',
-                                    'CUSTOMER',
+                                    'VENDOR',
+                                    'ADVISOR',
+                                    'COMMUNITY',
+                                    'PRESS',
+                                    'FRIEND',
                                     'DORMANT'
                                 ]
                             },
                             minItems: 1,
-                            maxItems: 7
+                            maxItems: 13
                         },
-                        ownerUserId: {
+                        kind: {
                             type: 'string',
-                            minLength: 1,
-                            maxLength: 200
+                            enum: [
+                                'PERSON',
+                                'ORGANIZATION'
+                            ]
                         },
-                        ownedByMe: {
-                            type: 'boolean'
+                        replyStates: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                enum: [
+                                    'AWAITING_REPLY',
+                                    'NO_REPLY',
+                                    'IN_CONVERSATION',
+                                    'REPLIED'
+                                ]
+                            },
+                            minItems: 1,
+                            maxItems: 4
                         },
                         listIds: {
                             type: 'array',
@@ -12655,6 +13223,9 @@ export const ContactListSchema = {
                 'null'
             ]
         },
+        createdAutomatically: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -12676,6 +13247,7 @@ export const ContactListSchema = {
         'count',
         'createdByUserId',
         'createdBySokoBotId',
+        'createdAutomatically',
         'createdAt',
         'updatedAt'
     ]
@@ -12703,6 +13275,16 @@ export const ContactSchema = {
         id: {
             type: 'string',
             format: 'uuid'
+        },
+        score: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactScore'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         name: {
             type: 'string'
@@ -12740,15 +13322,8 @@ export const ContactSchema = {
         stage: {
             $ref: '#/components/schemas/ContactStage'
         },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ContactPerson'
-                },
-                {
-                    type: 'null'
-                }
-            ]
+        kind: {
+            $ref: '#/components/schemas/ContactKind'
         },
         nextStep: {
             type: [
@@ -12792,6 +13367,33 @@ export const ContactSchema = {
         },
         interactionCount: {
             type: 'integer'
+        },
+        lastInboundAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        awaitingReplySince: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        replyState: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactReplyState'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.'
         },
         createdByUserId: {
             type: [
@@ -12854,6 +13456,7 @@ export const ContactSchema = {
     },
     required: [
         'id',
+        'score',
         'name',
         'organization',
         'role',
@@ -12861,7 +13464,7 @@ export const ContactSchema = {
         'summary',
         'whyInteresting',
         'stage',
-        'owner',
+        'kind',
         'nextStep',
         'followUpAt',
         'avatarUrl',
@@ -12869,6 +13472,9 @@ export const ContactSchema = {
         'firstContactAt',
         'lastContactAt',
         'interactionCount',
+        'lastInboundAt',
+        'awaitingReplySince',
+        'replyState',
         'createdByUserId',
         'createdBySokoBotId',
         'mergedIntoId',
@@ -12882,39 +13488,86 @@ export const ContactSchema = {
     ]
 } as const;
 
+export const ContactScoreSchema = {
+    type: 'object',
+    properties: {
+        familiarity: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            description: 'How well the reader knows them, 0–100, from the reader\'s own interactions: how many, whether they answer, meetings, how recent.'
+        },
+        importance: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100,
+            description: 'How much they matter to the reader, 0–100; null until judged.'
+        },
+        importanceSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'JEV',
+                'SOKO_BOT',
+                'MANUAL',
+                null
+            ]
+        },
+        importanceReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.'
+        }
+    },
+    required: [
+        'familiarity',
+        'importance',
+        'importanceSource',
+        'importanceReason'
+    ]
+} as const;
+
 export const ContactStageSchema = {
     type: 'string',
     enum: [
+        'CONTACT',
         'PROSPECT',
         'LEAD',
         'ACTIVE',
+        'CUSTOMER',
         'PARTNER',
         'INVESTOR',
-        'CUSTOMER',
+        'VENDOR',
+        'ADVISOR',
+        'COMMUNITY',
+        'PRESS',
+        'FRIEND',
         'DORMANT'
     ]
 } as const;
 
-export const ContactPersonSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'image'
+export const ContactKindSchema = {
+    type: 'string',
+    enum: [
+        'PERSON',
+        'ORGANIZATION'
+    ]
+} as const;
+
+export const ContactReplyStateSchema = {
+    type: 'string',
+    enum: [
+        'AWAITING_REPLY',
+        'NO_REPLY',
+        'IN_CONVERSATION',
+        'REPLIED'
     ]
 } as const;
 
@@ -13012,12 +13665,16 @@ export const ContactListRefSchema = {
         },
         color: {
             $ref: '#/components/schemas/ContactListColor'
+        },
+        addedAutomatically: {
+            type: 'boolean'
         }
     },
     required: [
         'id',
         'name',
-        'color'
+        'color',
+        'addedAutomatically'
     ]
 } as const;
 
@@ -13046,6 +13703,29 @@ export const ContactKnownBySchema = {
                 'lastInteractionAt'
             ]
         }
+    ]
+} as const;
+
+export const ContactPersonSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
     ]
 } as const;
 
@@ -13159,6 +13839,25 @@ export const ContactImportResultSchema = {
         'skipped',
         'listsCreated',
         'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactOrganizationSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'Cardano Foundation'
+        },
+        count: {
+            type: 'integer',
+            example: 61,
+            description: 'Live contacts'
+        }
+    },
+    required: [
+        'name',
+        'count'
     ]
 } as const;
 
@@ -14302,9 +15001,6 @@ export const DriveRecentsItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveRecentsTableItem'
-        },
-        {
-            $ref: '#/components/schemas/DriveRecentsContactsItem'
         }
     ],
     discriminator: {
@@ -14312,8 +15008,7 @@ export const DriveRecentsItemSchema = {
         mapping: {
             'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
             'task-output': '#/components/schemas/DriveRecentsTaskOutputItem',
-            table: '#/components/schemas/DriveRecentsTableItem',
-            contacts: '#/components/schemas/DriveRecentsContactsItem'
+            table: '#/components/schemas/DriveRecentsTableItem'
         }
     }
 } as const;
@@ -14355,6 +15050,55 @@ export const DriveRecentsDriveFileItemSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'Latest activity timestamp (blob uploadedAt)'
+        },
+        resourceId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Files catalog id, for the file detail view. Null until the catalog has adopted this blob.'
+        },
+        category: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                labelId: {
+                    type: 'string',
+                    example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                },
+                displayName: {
+                    type: 'string',
+                    example: 'Marketing'
+                }
+            },
+            required: [
+                'labelId',
+                'displayName'
+            ],
+            description: 'What kind of document this is, when one is known.'
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    labelId: {
+                        type: 'string',
+                        example: '0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f'
+                    },
+                    displayName: {
+                        type: 'string',
+                        example: 'Marketing'
+                    }
+                },
+                required: [
+                    'labelId',
+                    'displayName'
+                ]
+            },
+            description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
         }
     },
     required: [
@@ -14363,7 +15107,10 @@ export const DriveRecentsDriveFileItemSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'activityAt'
+        'activityAt',
+        'resourceId',
+        'category',
+        'tags'
     ]
 } as const;
 
@@ -14491,48 +15238,6 @@ export const DriveRecentsTableItemSchema = {
         'name',
         'activityAt',
         'projectId'
-    ]
-} as const;
-
-export const DriveRecentsContactsItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'contacts'
-            ],
-            example: 'contacts',
-            description: 'The workspace\'s one contacts set, pinned first. Opens the Contacts tab; it cannot be moved, renamed or deleted.'
-        },
-        name: {
-            type: 'string',
-            example: 'Contacts'
-        },
-        pinned: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        },
-        contactCount: {
-            type: 'integer',
-            example: 128,
-            description: 'Live contacts (not archived or merged)'
-        },
-        activityAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Latest change to any contact, or now when there are none'
-        }
-    },
-    required: [
-        'kind',
-        'name',
-        'pinned',
-        'contactCount',
-        'activityAt'
     ]
 } as const;
 
@@ -14700,6 +15405,14 @@ export const FileResourceSchema = {
                 'STUDIO_ASSET'
             ],
             description: 'Canonical source this document comes from'
+        },
+        pathname: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.',
+            example: 'drive/organizations/org_123/report.pdf'
         },
         sourceTaskId: {
             type: [
@@ -15105,6 +15818,7 @@ export const FileResourceSchema = {
         'mimeType',
         'sizeBytes',
         'sourceKind',
+        'pathname',
         'sourceTaskId',
         'sourceProjectId',
         'updatedAt',
@@ -15347,6 +16061,102 @@ export const FileSearchMetaSchema = {
         'restarted',
         'catalogIncomplete',
         'indexCoverage'
+    ]
+} as const;
+
+export const DriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        share: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DriveShare'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'share'
+    ]
+} as const;
+
+export const DriveShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        token: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        hasPassword: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'kind',
+        'hasPassword',
+        'createdAt'
+    ]
+} as const;
+
+export const UpsertDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Catalog id of the uploaded file to share.'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder to share, e.g. "Masumi Fundraising".',
+            example: 'Masumi Fundraising'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string',
+                    minLength: 4,
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set or change the password; null removes it; omit to keep the current one.'
+        }
+    },
+    required: [
+        'scope'
     ]
 } as const;
 
@@ -17093,6 +17903,18 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
             }
         },
+        defaultVideoModelId: {
+            type: 'string'
+        },
+        defaultAnimateModelId: {
+            type: 'string'
+        },
+        videoModels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
+            }
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -17106,6 +17928,9 @@ export const ProjectImageStudioCatalogSchema = {
     required: [
         'defaultModelId',
         'models',
+        'defaultVideoModelId',
+        'defaultAnimateModelId',
+        'videoModels',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -17260,6 +18085,105 @@ export const ProjectImageStudioCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioVideoCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        endpoint: {
+            type: 'string'
+        },
+        input: {
+            type: 'string',
+            enum: [
+                'text',
+                'image'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        durations: {
+            type: 'array',
+            items: {
+                type: 'integer'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perSecondUsd: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'number'
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'perSecondUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'endpoint',
+        'input',
+        'aspectRatios',
+        'durations',
+        'resolutions',
+        'curatedRank',
+        'notes',
+        'price'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -17354,6 +18278,23 @@ export const ProjectImageAssetSchema = {
         contentType: {
             type: 'string'
         },
+        mediaType: {
+            type: 'string',
+            enum: [
+                'IMAGE',
+                'VIDEO'
+            ]
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -17383,10 +18324,33 @@ export const ProjectImageAssetSchema = {
         'height',
         'bytes',
         'contentType',
+        'mediaType',
+        'video',
         'createdAt',
         'jobId',
         'settings',
         'contentPath'
+    ]
+} as const;
+
+export const ProjectVideoSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string'
+        },
+        durationSeconds: {
+            type: 'integer',
+            minimum: 1
+        },
+        resolution: {
+            type: 'string'
+        }
+    },
+    required: [
+        'aspectRatio',
+        'durationSeconds',
+        'resolution'
     ]
 } as const;
 
@@ -17467,7 +18431,9 @@ export const ProjectImageJobSchema = {
             type: 'string',
             enum: [
                 'GENERATE',
-                'EDIT'
+                'EDIT',
+                'TEXT_TO_VIDEO',
+                'IMAGE_TO_VIDEO'
             ]
         },
         model: {
@@ -17478,6 +18444,16 @@ export const ProjectImageJobSchema = {
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         referenceAssetIds: {
             type: 'array',
@@ -17577,6 +18553,7 @@ export const ProjectImageJobSchema = {
         'model',
         'prompt',
         'settings',
+        'video',
         'referenceAssetIds',
         'error',
         'failureReason',
@@ -25174,6 +26151,71 @@ export const CreateProjectImageJobRequestSchema = {
     ]
 } as const;
 
+export const CreateProjectVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        settings: {
+            type: 'object',
+            properties: {
+                aspectRatio: {
+                    type: 'string',
+                    enum: [
+                        '9:16',
+                        '16:9',
+                        '1:1',
+                        '4:3',
+                        '3:4'
+                    ]
+                },
+                durationSeconds: {
+                    type: 'integer'
+                },
+                resolution: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20
+                }
+            },
+            default: {}
+        },
+        sourceAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
 export const CancelProjectImageJobResponseSchema = {
     type: 'object',
     properties: {
@@ -26549,6 +27591,98 @@ export const GetInvitationResultSchema = {
     ]
 } as const;
 
+export const PublicDriveShareSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        locked: {
+            type: 'boolean'
+        },
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicDriveShareItem'
+            }
+        },
+        truncated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'locked'
+    ]
+} as const;
+
+export const PublicDriveShareItemSchema = {
+    type: 'object',
+    properties: {
+        path: {
+            type: 'string'
+        },
+        size: {
+            type: 'integer'
+        },
+        uploadedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'path',
+        'size',
+        'uploadedAt'
+    ]
+} as const;
+
+export const UnlockDriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        proof: {
+            type: 'string'
+        }
+    },
+    required: [
+        'proof'
+    ]
+} as const;
+
+export const UnlockDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        password: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'password'
+    ]
+} as const;
+
+export const DriveShareDownloadSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const PublicSharedResourceResponseSchema = {
     oneOf: [
         {
@@ -27241,6 +28375,9 @@ export const SokoBotStateSchema = {
                 followWholeBoard: {
                     type: 'boolean'
                 },
+                mailAutoRead: {
+                    type: 'boolean'
+                },
                 ingestTimezone: {
                     type: 'string'
                 },
@@ -27916,6 +29053,9 @@ export const UpdateSokoBotProactiveRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 64
+        },
+        mailAutoRead: {
+            type: 'boolean'
         }
     },
     additionalProperties: false

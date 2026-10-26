@@ -292,13 +292,11 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         version: contact.version,
         stage: "PARTNER",
         followUpAt: "2026-11-02",
-        ownerUserId: bob,
       }),
     );
     expect(updated).toMatchObject({
       stage: "PARTNER",
       followUpAt: "2026-11-02",
-      owner: { id: bob, name: "Bob" },
       version: contact.version + 1,
     });
     await expect(
@@ -312,14 +310,6 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       status: 409,
       cause: { kind: "contact_version_conflict" },
     });
-    await expect(
-      inContactTransaction((tx) =>
-        updateContact(tx, asAlice, contact.id, {
-          version: updated.version,
-          ownerUserId: outsider,
-        }),
-      ),
-    ).rejects.toMatchObject({ status: 422 });
 
     const activity = await listContactActivity(asAlice, contact.id, {
       limit: 10,
@@ -329,7 +319,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       "CREATED",
     ]);
     expect(activity.items[0]?.changes).toMatchObject({
-      stage: { before: "LEAD", after: "PARTNER" },
+      stage: { before: "CONTACT", after: "PARTNER" },
     });
     expect(activity.items[1]?.sokoBot).toBeNull();
     expect(activity.items[1]?.user).toMatchObject({ name: "Alice" });
@@ -525,14 +515,13 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     await inContactTransaction((tx) => deleteContactList(tx, asAlice, list.id));
   });
 
-  it("filters by stage, owner, follow-up, staleness, channel and search", async () => {
+  it("filters by stage, who knows them, follow-up, staleness, channel and search", async () => {
     const now = Date.now();
     const days = (count: number) =>
       new Date(now - count * 86_400_000).toISOString();
     const stale = await create(asAlice, {
       name: "Filter Stale",
       stage: "INVESTOR",
-      ownerUserId: alice,
       followUpAt: "2020-01-01",
       channels: [{ type: "GITHUB", value: "https://github.com/FilterStale" }],
     });
@@ -550,7 +539,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           .filter((name) => name.startsWith("Filter")),
       );
     expect(await query({ stages: ["INVESTOR"] })).toEqual(["Filter Stale"]);
-    expect(await query({ ownedByMe: true })).toEqual(["Filter Stale"]);
+    expect(await query({ knownByMe: true })).toEqual(["Filter Stale"]);
     expect(await query({ followUpDue: true })).toEqual(["Filter Stale"]);
     expect(await query({ lastContactOlderThanDays: 90 })).toEqual([
       "Filter Stale",
@@ -563,6 +552,110 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       "Filter Fresh",
       "Filter Stale",
     ]);
+  });
+
+  it("derives the reply state from directions and filters by it", async () => {
+    const now = Date.now();
+    const days = (count: number) =>
+      new Date(now - count * 86_400_000).toISOString();
+    const touch = (
+      contactId: string,
+      when: string,
+      direction: "IN" | "OUT" | "BOTH" | null,
+      sourceRef: string,
+    ) =>
+      inContactTransaction((tx) =>
+        logContactInteraction(tx, asAlice, contactId, {
+          occurredAt: when,
+          channel: "EMAIL",
+          direction,
+          summary: "Reply state",
+          sourceRef,
+        }),
+      );
+    const ignored = await create(asAlice, { name: "Reply Ignored" });
+    await touch(ignored.contact.id, days(21), "OUT", "reply-ignored-1");
+    await touch(ignored.contact.id, days(12), "OUT", "reply-ignored-2");
+    const waiting = await create(asAlice, { name: "Reply Waiting" });
+    await touch(waiting.contact.id, days(2), "OUT", "reply-waiting-1");
+    const talking = await create(asAlice, { name: "Reply Talking" });
+    await touch(talking.contact.id, days(5), "OUT", "reply-talking-1");
+    await touch(talking.contact.id, days(4), "IN", "reply-talking-2");
+    const met = await create(asAlice, { name: "Reply Met" });
+    await touch(met.contact.id, days(60), "OUT", "reply-met-1");
+    await touch(met.contact.id, days(50), "BOTH", "reply-met-2");
+    await touch(met.contact.id, days(1), null, "reply-met-3");
+
+    const stored = await prisma.contact.findUniqueOrThrow({
+      where: { id: ignored.contact.id },
+    });
+    // The clock runs from the first unanswered outreach, not the nudge.
+    expect(stored.awaitingReplySince?.toISOString()).toBe(days(21));
+    expect(stored.lastInboundAt).toBeNull();
+
+    const states = async (
+      filter: Parameters<typeof listContacts>[1]["filter"],
+    ) =>
+      (await listContacts(asAlice, { filter, sort: "name", limit: 100 })).items
+        .filter((contact) => contact.name.startsWith("Reply "))
+        .map((contact) => [contact.name, contact.replyState]);
+    expect(await states({})).toEqual([
+      ["Reply Ignored", "NO_REPLY"],
+      ["Reply Met", "REPLIED"],
+      ["Reply Talking", "IN_CONVERSATION"],
+      ["Reply Waiting", "AWAITING_REPLY"],
+    ]);
+    expect(await states({ replyStates: ["NO_REPLY"] })).toEqual([
+      ["Reply Ignored", "NO_REPLY"],
+    ]);
+    expect(
+      await states({ replyStates: ["AWAITING_REPLY", "IN_CONVERSATION"] }),
+    ).toEqual([
+      ["Reply Talking", "IN_CONVERSATION"],
+      ["Reply Waiting", "AWAITING_REPLY"],
+    ]);
+
+    // Their answer clears the wait in the same transaction.
+    await touch(ignored.contact.id, days(0), "IN", "reply-ignored-3");
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: ignored.contact.id },
+        })
+      ).awaitingReplySince,
+    ).toBeNull();
+  });
+
+  it("files a captured practice inbox as an organization and new people as plain contacts", async () => {
+    const capture = (name: string, email: string, sourceRef: string) =>
+      inContactTransaction((tx) =>
+        captureContactInteraction(tx, asAlice, {
+          name,
+          channels: [{ type: "EMAIL", value: email }],
+          interaction: {
+            occurredAt: "2026-10-01T08:00:00Z",
+            channel: "EMAIL",
+            direction: "OUT",
+            summary: "Terminanfrage",
+            sourceRef,
+          },
+          teammateUserId: alice,
+        }),
+      );
+    const praxis = await capture("Praxis", "info@praxis-kind.test", "kind-1");
+    const person = await capture("Anna Kind", "anna@kind.test", "kind-2");
+    expect(praxis.contact).toMatchObject({
+      kind: "ORGANIZATION",
+      stage: "CONTACT",
+    });
+    expect(person.contact).toMatchObject({ kind: "PERSON", stage: "CONTACT" });
+    const { items } = await listContacts(asAlice, {
+      filter: { kind: "ORGANIZATION" },
+      sort: "name",
+      limit: 100,
+    });
+    expect(items.map((contact) => contact.name)).toContain("Praxis");
+    expect(items.map((contact) => contact.name)).not.toContain("Anna Kind");
   });
 
   it("pages through contacts sorted by last contact with never-contacted last", async () => {

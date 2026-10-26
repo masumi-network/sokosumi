@@ -16,6 +16,7 @@ import {
   chatRoomMessageSchema,
   updateChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import { requeueEditedChatMessageSignal } from "@/services/chat-message-signals.service";
 import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
 import {
@@ -133,6 +134,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         messageId: message.id,
       });
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      waitUntil(requeueEditedChatMessageSignal(message.id));
     }
 
     return ok(

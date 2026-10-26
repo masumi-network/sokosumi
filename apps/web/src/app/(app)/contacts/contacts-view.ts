@@ -1,19 +1,19 @@
 import type {
   ContactChannel,
   ContactChannelType,
+  ContactKind,
   ContactListColor,
+  ContactReplyState,
   ContactStage,
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
+import { isUuidString } from "@/lib/utils/uuid";
 
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
   all: {},
-  mine: { ownedByMe: "true" },
-  followUps: { followUpDue: "true" },
+  mine: { knownByMe: "true" },
   recent: { createdWithinDays: 14 },
-  stale: { lastContactOlderThanDays: 90 },
-  prospects: { stage: "PROSPECT" },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
@@ -34,6 +34,8 @@ export const CONTACT_SORTS = [
   "firstContactAt",
   "createdAt",
   "updatedAt",
+  "familiarity",
+  "importance",
 ] as const satisfies readonly ContactQuery["sort"][];
 
 export type ContactSort = (typeof CONTACT_SORTS)[number];
@@ -42,10 +44,12 @@ export type ContactSort = (typeof CONTACT_SORTS)[number];
 export interface ContactView {
   /** A preset id, or a list's id. */
   view: string;
+  /** People at this company only, by any spelling or its email domain. */
+  company: string | null;
   search: string;
   stage: ContactStage | null;
-  /** `me` or a member's user id. */
-  owner: string | null;
+  replyState: ContactReplyState | null;
+  kind: ContactKind | null;
   /** `me` or a member's user id. */
   knownBy: string | null;
   sort: ContactSort;
@@ -54,19 +58,63 @@ export interface ContactView {
 
 /** The `GET /contacts` query for a view; a toolbar filter narrows its preset. */
 export function contactQuery(view: ContactView): ContactQuery {
+  // A view that is neither a preset nor a list id, like a link to a removed
+  // tab, shows everyone instead of failing.
   const preset = isContactPreset(view.view)
     ? CONTACT_PRESETS[view.view]
-    : { listId: view.view };
+    : isUuidString(view.view)
+      ? { listId: view.view }
+      : {};
   const query: ContactQuery = { ...preset, sort: view.sort };
   query.direction = view.direction;
   const search = view.search.trim();
   if (search) query.search = search;
+  if (view.company) query.company = view.company;
   if (view.stage) query.stage = view.stage;
-  if (view.owner === "me") query.ownedByMe = "true";
-  else if (view.owner) query.ownerUserId = view.owner;
+  if (view.replyState) query.replyState = view.replyState;
+  if (view.kind) query.kind = view.kind;
   if (view.knownBy === "me") query.knownByMe = "true";
   else if (view.knownBy) query.knownByUserId = view.knownBy;
   return query;
+}
+
+/** The rows Core's `search` would keep, judged on the client: name, organization or any channel value. */
+export function matchesContactSearch(
+  contact: {
+    name: string;
+    organization: string | null;
+    channels: ContactChannel[];
+  },
+  search: string,
+): boolean {
+  const needle = search.trim().toLowerCase();
+  return [
+    contact.name,
+    contact.organization,
+    ...contact.channels.map((channel) => channel.value),
+  ].some((value) => value?.toLowerCase().includes(needle));
+}
+
+/**
+ * The importance a person picks from the menu, highest first. Jev's scores
+ * fall between them; the menu shows the nearest.
+ */
+export const IMPORTANCE_LEVELS = [
+  { id: "veryHigh", value: 90 },
+  { id: "high", value: 70 },
+  { id: "medium", value: 50 },
+  { id: "low", value: 25 },
+  { id: "minimal", value: 5 },
+] as const;
+
+export function nearestImportanceLevel(
+  importance: number,
+): (typeof IMPORTANCE_LEVELS)[number] {
+  return IMPORTANCE_LEVELS.reduce((best, level) =>
+    Math.abs(level.value - importance) < Math.abs(best.value - importance)
+      ? level
+      : best,
+  );
 }
 
 /** Ascending reads naturally for text, newest-first for dates. */
@@ -90,26 +138,78 @@ export const LIST_COLOR_DOT: Record<ContactListColor, string> = {
   pink: "bg-chart-2",
 };
 
-export const CONTACT_STAGES: ContactStage[] = [
-  "PROSPECT",
-  "LEAD",
-  "ACTIVE",
-  "PARTNER",
-  "INVESTOR",
-  "CUSTOMER",
-  "DORMANT",
-];
+/**
+ * What a contact is to the team, grouped the way the menus show it: the plain
+ * default, the sales steps, the other relationships, and gone quiet.
+ */
+export const STAGE_GROUPS = {
+  general: ["CONTACT", "FRIEND"],
+  sales: ["PROSPECT", "LEAD", "ACTIVE", "CUSTOMER"],
+  relationships: [
+    "PARTNER",
+    "INVESTOR",
+    "VENDOR",
+    "ADVISOR",
+    "COMMUNITY",
+    "PRESS",
+  ],
+  status: ["DORMANT"],
+} as const satisfies Record<string, readonly ContactStage[]>;
+
+export type StageGroup = keyof typeof STAGE_GROUPS;
+
+export const CONTACT_STAGES: ContactStage[] =
+  Object.values(STAGE_GROUPS).flat();
 
 /** Stage chips stay neutral; the dot carries the stage, the label says it. */
 export const STAGE_DOT: Record<ContactStage, string> = {
+  CONTACT: "bg-muted-foreground",
+  FRIEND: "bg-status-done",
   PROSPECT: "bg-primary",
   LEAD: "bg-chart-4",
   ACTIVE: "bg-semantic-success",
-  PARTNER: "bg-chart-3",
-  INVESTOR: "bg-status-working",
   CUSTOMER: "bg-chart-1",
-  DORMANT: "bg-muted-foreground",
+  PARTNER: "bg-chart-2",
+  INVESTOR: "bg-status-working",
+  VENDOR: "bg-chart-5",
+  ADVISOR: "bg-chart-3",
+  COMMUNITY: "bg-status-external",
+  PRESS: "bg-semantic-warning",
+  DORMANT: "bg-quaternary",
 };
+
+export const CONTACT_REPLY_STATES: ContactReplyState[] = [
+  "NO_REPLY",
+  "AWAITING_REPLY",
+  "IN_CONVERSATION",
+  "REPLIED",
+];
+
+/** Only the unanswered states call for attention. */
+export const REPLY_DOT: Record<ContactReplyState, string> = {
+  NO_REPLY: "bg-semantic-destructive",
+  AWAITING_REPLY: "bg-semantic-warning",
+  IN_CONVERSATION: "bg-semantic-success",
+  REPLIED: "bg-muted-foreground",
+};
+
+export const CONTACT_KINDS: ContactKind[] = ["PERSON", "ORGANIZATION"];
+
+/** Whole days between `since` and `now`, never negative. */
+export function daysSince(since: Date | string, now: Date): number {
+  return Math.max(
+    0,
+    Math.floor((now.getTime() - new Date(since).getTime()) / 86_400_000),
+  );
+}
+
+/** The address a person writes to: the primary email, else the first one. */
+export function primaryEmail(channels: ContactChannel[]): string | null {
+  const emails = channels.filter((channel) => channel.type === "EMAIL");
+  return (
+    (emails.find((channel) => channel.isPrimary) ?? emails[0])?.value ?? null
+  );
+}
 
 /** Channel order in a row and the panel: the most direct ways first. */
 export const CHANNEL_ORDER: ContactChannelType[] = [
