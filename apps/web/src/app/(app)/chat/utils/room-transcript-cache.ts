@@ -288,11 +288,15 @@ export class RoomTranscriptCache {
     });
   }
 
-  /** Latest + visible dirty window; never downloads the rest of retained history. */
+  /**
+   * Latest + visible dirty window; never downloads the rest of retained history.
+   * `onHead` hears each head read, which names the room's Unread divider.
+   */
   async refresh(
     roomId: string,
     lifetime: object,
     isCurrent: () => boolean,
+    onHead?: (head: RoomMessagesPage) => void,
   ): Promise<"stale" | "done"> {
     const entry = this.get(roomId);
     if (!entry || !this.current(roomId, lifetime)) return "done";
@@ -307,6 +311,7 @@ export class RoomTranscriptCache {
       }));
       return "done";
     }
+    onHead?.(head);
     if (this.get(roomId)?.revision !== revision) return "stale";
     this.update(roomId, lifetime, (value) => ({
       ...value,

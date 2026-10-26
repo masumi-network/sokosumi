@@ -135,6 +135,57 @@ function sqlUnreadThreadReplies(
 }
 
 /**
+ * SQL `FROM … WHERE` for every top-level message that is Room unread to the
+ * viewer: after Room last-read, not their own, not deleted.
+ *
+ * One fragment for the Room unread number and for the Unread divider, so the
+ * divider can never sit above a message the number leaves out. Exposes the
+ * `message` and `read_state` aliases.
+ */
+function sqlUnreadRoomMessages(
+  roomIdPlaceholders: string,
+  userIdSql: string,
+): string {
+  return `FROM "chat_room_message" message
+      LEFT JOIN "chat_room_read_state" read_state
+        ON read_state."roomId" = message."roomId"
+        AND read_state."userId" = ${userIdSql}
+      WHERE message."roomId" IN (${roomIdPlaceholders})
+        AND message."parentMessageId" IS NULL
+        AND message."deletedAt" IS NULL
+        -- A Group name change has no sender, so it would be unread even for
+        -- whoever made it; a rename never marks the room unread.
+        AND message."metadata"->'groupNameChange' IS NULL
+        AND ${sqlMessageAttentionAt("message")} > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
+        AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdSql})`;
+}
+
+/**
+ * The message the viewer's Unread divider sits above: the oldest Room unread
+ * message in reading order, or null when the room has no Room unread.
+ *
+ * Marked unread alone names no message, and Thread replies are never top
+ * level, so neither places it.
+ */
+export async function getChatRoomFirstUnreadMessage(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ id: string; createdAt: Date } | null> {
+  const rows = await tx.$queryRawUnsafe<Array<{ id: string; createdAt: Date }>>(
+    `
+    SELECT message.id, message."createdAt"
+    ${sqlUnreadRoomMessages("$1::uuid", "$2")}
+    ORDER BY message."createdAt" ASC, message.id ASC
+    LIMIT 1
+  `,
+    roomId,
+    userId,
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * A room's unread, as its two addends: Room unread and Thread unread
  * (ADR-0037).
  *
@@ -219,18 +270,7 @@ export async function getChatRoomUnreadCounts(
       COUNT(*)::int AS "unreadCount"
     FROM (
       SELECT message.id, message."roomId", 'channel'::text AS source
-      FROM "chat_room_message" message
-      LEFT JOIN "chat_room_read_state" read_state
-        ON read_state."roomId" = message."roomId"
-        AND read_state."userId" = ${userIdPlaceholder}
-      WHERE message."roomId" IN (${roomIdPlaceholders})
-        AND message."parentMessageId" IS NULL
-        AND message."deletedAt" IS NULL
-        -- A Group name change has no sender, so it would be unread even for
-        -- whoever made it; a rename never marks the room unread.
-        AND message."metadata"->'groupNameChange' IS NULL
-        AND ${sqlMessageAttentionAt("message")} > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
-        AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdPlaceholder})
+      ${sqlUnreadRoomMessages(roomIdPlaceholders, userIdPlaceholder)}
 
       UNION ALL
 

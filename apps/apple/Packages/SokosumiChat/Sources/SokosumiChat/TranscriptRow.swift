@@ -27,19 +27,23 @@ public struct TranscriptRow: Equatable {
   public let gap: PageBoundaryStatus?
   /// The day pill above this message; nil when it continues the previous message's day.
   public let dayLabel: String?
+  /// The Unread divider sits above this message, sharing the day pill's row when both do.
+  public let startsUnread: Bool
   public let content: Content
 }
 
 public extension TranscriptSession {
   /// Row `index` of `messages`, the list this Transcript shows. Built per row as the list realizes it, so a long
   /// history never derives rows it does not draw. A gap resets the avatar grouping but not the day pill: messages
-  /// missing between two of the same day are of that day too. `newestId` marks the row that may hold Seen by.
+  /// missing between two of the same day are of that day too. `newestId` marks the row that may hold Seen by, and
+  /// `unreadDividerId` the row the Unread divider sits above (`unreadDividerRowId(in:)`).
   func row(
     at index: Int,
     of messages: [Components.Schemas.ChatRoomMessage],
     context: TranscriptContext,
     streamBusy: Bool,
     newestId: String? = nil,
+    unreadDividerId: String? = nil,
     now: Date,
     calendar: Calendar = .current
   ) -> TranscriptRow {
@@ -49,7 +53,7 @@ public extension TranscriptSession {
     let dayLabel = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: now, calendar: calendar)
     let outbound = outbox.shells.first { $0.id == message.id }
     guard MessageKind(message, outbound: outbound) != .statusRow else {
-      return TranscriptRow(gap: gap, dayLabel: dayLabel, content: .status)
+      return TranscriptRow(gap: gap, dayLabel: dayLabel, startsUnread: message.id == unreadDividerId, content: .status)
     }
     let bubble = TranscriptRow.Bubble(
       row: MessageRow(message, in: context, previous: gap == nil ? previous : nil, isNewest: message.id == newestId),
@@ -58,6 +62,6 @@ public extension TranscriptSession {
       jumpMark: jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
       thinking: streamBusy && isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty
     )
-    return TranscriptRow(gap: gap, dayLabel: dayLabel, content: .bubble(bubble))
+    return TranscriptRow(gap: gap, dayLabel: dayLabel, startsUnread: message.id == unreadDividerId, content: .bubble(bubble))
   }
 }

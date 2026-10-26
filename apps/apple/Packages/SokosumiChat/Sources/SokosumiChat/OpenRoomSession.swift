@@ -26,7 +26,7 @@ public final class OpenRoomSession: ObservableObject {
   }
 
   /// What the session asks the workspace for: this account's client and slug, sign-out when Core rejects the
-  /// session (returning whether it signed out), the read sync after a landed page, the Look before a Thread's first
+  /// session (returning whether it signed out), the read sync after a landed page or on reaching the end, the Look before a Thread's first
   /// page, whether any window shows the room, the room as the sidebar lists it now, the reader and their workspace.
   public struct Hooks {
     public var access: () -> (client: Client, organizationSlug: String?)?
@@ -88,6 +88,13 @@ public final class OpenRoomSession: ObservableObject {
   /// Whether the socket reports the room's live updates as healthy, which lets recovery poll less.
   public private(set) var realtimeHealthy = false
   private var observations: Set<AnyCancellable> = []
+  /// Message navigations in flight. Each is about to move the list to its target, so the room reads nothing meanwhile.
+  private var readHolds = 0
+
+  /// Whether the room may count as read now: its Transcript is at its end and no explicit target is about to move it.
+  public var isAtEnd: Bool {
+    room.isAtEnd && readHolds == 0 && messageJump == nil
+  }
 
   /// `now`, `makeId` and `sleep` are the Transcripts' clock, ids and timer pacing.
   public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString },
@@ -115,14 +122,16 @@ public final class OpenRoomSession: ObservableObject {
 
   /// Opens `chatRoom` for `userId` in the workspace `organizationId`: its first page loads, a coworker stream still
   /// running reconnects and recovery starts. Reopening the open room keeps its live health and a Thread overview
-  /// request for it; opening any other room drops both.
-  public func open(_ chatRoom: Components.Schemas.ChatRoom, userId: String, organizationId: String?) {
+  /// request for it; opening any other room drops both. A room opens at its Unread divider unless an explicit target
+  /// (a Message link or notification) is about to land it elsewhere.
+  public func open(_ chatRoom: Components.Schemas.ChatRoom, userId: String, organizationId: String?, atUnreadDivider: Bool = true) {
     let reopening = room.timeline.roomId == chatRoom.id
     resetVisit(keepingOverviewFor: chatRoom.id)
     directStream.reset(room: chatRoom, userId: userId, organizationId: organizationId)
     realtimeHealthy = reopening && realtimeHealthy
     pins.reset(roomId: chatRoom.id)
-    room.open(roomId: chatRoom.id)
+    // Room unread as Core counts it, never the sum with Thread unread: a room without the count only waits longer.
+    room.open(roomId: chatRoom.id, atUnreadDivider: atUnreadDivider, showsRoomUnread: (chatRoom.channelUnreadCount ?? 0) > 0)
     let generation = room.timeline.generation
     room.load(.initial)
     resumeStream()
@@ -150,6 +159,32 @@ public final class OpenRoomSession: ObservableObject {
     thread.close()
     threadOverview.reset()
     pendingPins = []
+  }
+
+  /// The room's list reports whether it is at its end (Jump to latest hidden). Reaching it syncs the read.
+  public func setAtEnd(_ atEnd: Bool, roomId: String) async {
+    guard room.timeline.roomId == roomId else { return }
+    let reachesEnd = atEnd && !room.isAtEnd
+    room.setAtEnd(atEnd)
+    guard reachesEnd, isAtEnd else { return }
+    await hooks.pageLanded()
+  }
+
+  /// Runs a message navigation with the read held, then syncs it: a jump has left the end by then, anything else
+  /// leaves the list where it was.
+  func holdingReads(_ navigate: () async throws -> MessageNavigationResult) async throws -> MessageNavigationResult {
+    readHolds += 1
+    let result: Result<MessageNavigationResult, Error>
+    do {
+      result = try await .success(navigate())
+    } catch {
+      result = .failure(error)
+    }
+    readHolds -= 1
+    if readHolds == 0 {
+      await hooks.pageLanded()
+    }
+    return try result.get()
   }
 
   /// Starts a message navigation and returns its id; a newer one, or a room change, supersedes it.

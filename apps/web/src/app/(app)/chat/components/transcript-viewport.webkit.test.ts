@@ -352,6 +352,160 @@ it("keeps following latest when streaming resumes after a cancelled touch", asyn
   }
 });
 
+/** Where the divider's row and the scroller's height stand, in px. */
+async function dividerGeometry(page: Page) {
+  return page.evaluate(() => {
+    const scroller = document.querySelector<HTMLElement>(".overflow-y-auto");
+    const row = document
+      .querySelector('[role="separator"]')
+      ?.closest<HTMLElement>("[data-index]");
+    return scroller && row
+      ? {
+          top:
+            row.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top,
+          height: scroller.clientHeight,
+        }
+      : null;
+  });
+}
+
+async function dividerPage(): Promise<Page> {
+  const address = server.httpServer?.address();
+  if (!address || typeof address === "string")
+    throw new Error("the page server has no port");
+  const page = await browser.newPage({ viewport: PHONE_VIEWPORT });
+  await page.goto(`http://127.0.0.1:${address.port}/?divider`);
+  await page.waitForSelector('[role="separator"]');
+  return page;
+}
+
+it("opens at the Unread divider a third of the way down, with read messages above it", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(async () => {
+        const geometry = await dividerGeometry(page);
+        return geometry ? Math.abs(geometry.top - geometry.height / 3) : null;
+      })
+      .toBeLessThan(2);
+    // Read messages Core sends above the divider are on screen.
+    expect(await rowTop(page, "win-001")).toBeGreaterThanOrEqual(0);
+    // Above the end: Jump to latest is offered.
+    expect(
+      await page.getByRole("button", { name: "Jump to latest" }).count(),
+    ).toBe(1);
+  } finally {
+    await page.close();
+  }
+});
+
+it("tells the room it opened above the end, and never that it was at it", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("false");
+    await expect
+      .poll(async () => {
+        const geometry = await dividerGeometry(page);
+        return geometry ? Math.abs(geometry.top - geometry.height / 3) : null;
+      })
+      .toBeLessThan(2);
+    expect(await page.getAttribute("body", "data-was-at-end")).toBeNull();
+  } finally {
+    await page.close();
+  }
+});
+
+it("tells the room when the reader leaves the end and comes back", async () => {
+  const page = await behaviorPage();
+  try {
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("true");
+    await scrollToOffset(page, 0);
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("false");
+    await page
+      .locator(".overflow-y-auto")
+      .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("true");
+  } finally {
+    await page.close();
+  }
+});
+
+it.each(["short", "empty"])(
+  "tells the room it is at the end of a list that never scrolls (%s)",
+  async (mode) => {
+    const address = server.httpServer?.address();
+    if (!address || typeof address === "string")
+      throw new Error("the page server has no port");
+    const page = await browser.newPage({ viewport: PHONE_VIEWPORT });
+    try {
+      await page.goto(`http://127.0.0.1:${address.port}/?${mode}`);
+      await expect
+        .poll(() => page.getAttribute("body", "data-at-end"))
+        .toBe("true");
+    } finally {
+      await page.close();
+    }
+  },
+);
+
+it("reaches the newest page through the gap row below a long unread run", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(async () => (await dividerGeometry(page))?.top ?? Infinity)
+      .toBeLessThan(400);
+    const scroller = page.locator(".overflow-y-auto");
+    // Read down through the window until the gap row comes into view.
+    await expect
+      .poll(async () => {
+        await scroller.evaluate((element) => {
+          element.scrollTop += 300;
+        });
+        return page.getByTestId("gap-row").isVisible();
+      })
+      .toBe(true);
+    const gap = await page.getByTestId("gap-row").boundingBox();
+    const lastWindowRow = await page
+      .locator('[data-message-id="win-032"]')
+      .boundingBox();
+    const firstHeadRow = await page
+      .locator('[data-message-id="msg-000"]')
+      .boundingBox();
+    expect(lastWindowRow && gap && lastWindowRow.y < gap.y).toBe(true);
+    expect(firstHeadRow && gap && gap.y < firstHeadRow.y).toBe(true);
+  } finally {
+    await page.close();
+  }
+});
+
+it("jumps to latest from the Unread divider", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(async () => (await dividerGeometry(page))?.top ?? Infinity)
+      .toBeLessThan(400);
+    await page.getByRole("button", { name: "Jump to latest" }).click();
+    await expect.poll(() => distanceFromEnd(page)).toBeLessThan(1);
+    await expect
+      .poll(() => page.locator('[data-message-id="msg-039"]').count())
+      .toBe(1);
+    await expect
+      .poll(() => page.getByRole("button", { name: "Jump to latest" }).count())
+      .toBe(0);
+  } finally {
+    await page.close();
+  }
+});
+
 it("waits for scrolling to settle after touch release before inserting older rows", async () => {
   const page = await behaviorPage();
   try {

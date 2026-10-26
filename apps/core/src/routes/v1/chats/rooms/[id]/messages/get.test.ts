@@ -614,7 +614,11 @@ describe("GET /chats/rooms/{id}/messages", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data[0].threadUnreadReplyCount).toBe(0);
-    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+    // Only the Unread divider's query runs; no thread aggregate.
+    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    expect(String(queryRawUnsafeMock.mock.calls[0]?.[0])).not.toContain(
+      "chat_room_thread_read_state",
+    );
   });
 
   it("reports no unread reply count on search hits", async () => {
@@ -740,6 +744,290 @@ describe("GET /chats/rooms/{id}/messages", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data[0].threadRepliers).toEqual([]);
+  });
+
+  describe("Unread divider", () => {
+    const FIRST_UNREAD_ID = "550e8400-e29b-41d4-a716-446655440050";
+    const FIRST_UNREAD_AT = "2026-01-10T00:00:00.000Z";
+
+    /** A top-level message `day` days into January, id ending in `suffix`. */
+    function topLevel(suffix: number, day: number) {
+      return {
+        ...message(),
+        id: `550e8400-e29b-41d4-a716-4466554400${String(suffix).padStart(2, "0")}`,
+        createdAt: new Date(
+          `2026-01-${String(day).padStart(2, "0")}T00:00:00.000Z`,
+        ),
+      };
+    }
+
+    /**
+     * The database answers the first-unread query with `firstUnread`, and the
+     * thread aggregate query with nothing.
+     */
+    function firstUnreadIs(
+      firstUnread: { id: string; createdAt: Date } | null,
+    ) {
+      queryRawUnsafeMock.mockImplementation(async (sql: string) =>
+        sql.includes("chat_room_thread_read_state") || !firstUnread
+          ? []
+          : [firstUnread],
+      );
+    }
+
+    function firstUnreadSql(): string {
+      const call = queryRawUnsafeMock.mock.calls.find(
+        ([sql]) => !String(sql).includes("chat_room_thread_read_state"),
+      );
+      return String(call?.[0]);
+    }
+
+    async function get(query: string) {
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages${query}`,
+      );
+      expect(response.status).toBe(200);
+      return response.json();
+    }
+
+    it("names the first unread message on the plain newest page", async () => {
+      const firstUnread = { ...topLevel(50, 10) };
+      messageFindManyMock.mockResolvedValue([firstUnread, topLevel(10, 1)]);
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get("");
+
+      expect(body.meta.pagination.firstUnreadMessageId).toBe(FIRST_UNREAD_ID);
+    });
+
+    it("answers null on the plain newest page when nothing is Room unread", async () => {
+      firstUnreadIs(null);
+
+      const body = await get("");
+
+      expect(body.meta.pagination.firstUnreadMessageId).toBeNull();
+    });
+
+    it("names the first unread message on an around window", async () => {
+      messageFindFirstMock.mockResolvedValue(message());
+      messageFindManyMock.mockResolvedValue([]);
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get(`?around=${MESSAGE_ID}`);
+
+      expect(body.meta.pagination.firstUnreadMessageId).toBe(FIRST_UNREAD_ID);
+    });
+
+    it("leaves older pages and search hits without a first unread message", async () => {
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const older = await get(`?cursor=${OLDER_MESSAGE_ID}`);
+      const search = await get("?q=Hello");
+
+      expect(older.meta.pagination).not.toHaveProperty("firstUnreadMessageId");
+      expect(search.meta.pagination).not.toHaveProperty("firstUnreadMessageId");
+      expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+    });
+
+    it("opens at the newest page when the first unread message is on it", async () => {
+      messageFindManyMock.mockResolvedValue([
+        topLevel(51, 11),
+        topLevel(50, 10),
+        topLevel(10, 1),
+      ]);
+      messageCountMock.mockResolvedValue(3);
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get("?openAtUnread=true&limit=100");
+
+      expect(body.data.map((row: { id: string }) => row.id)).toEqual([
+        topLevel(10, 1).id,
+        FIRST_UNREAD_ID,
+        topLevel(51, 11).id,
+      ]);
+      expect(body.meta.pagination).toMatchObject({
+        firstUnreadMessageId: FIRST_UNREAD_ID,
+        nextCursor: null,
+      });
+      expect(messageFindManyMock).toHaveBeenCalledOnce();
+    });
+
+    it("opens at three read messages above an older first unread message and thirty from it", async () => {
+      // Newest page of 5: the first unread message is further back.
+      const newestPage = [95, 94, 93, 92, 91, 90].map((suffix, index) =>
+        topLevel(suffix, 28 - index),
+      );
+      // Four older rows come back for three places: more history above.
+      const above = [4, 3, 2, 1].map((suffix) => topLevel(suffix, 5 + suffix));
+      const fromFirst = [
+        topLevel(50, 10),
+        ...Array.from({ length: 29 }, (_, index) => topLevel(60 + index, 11)),
+      ];
+      messageFindManyMock.mockImplementation(
+        async (args: {
+          where: { AND?: unknown };
+          orderBy: Array<{ createdAt: string }>;
+        }) => {
+          if (!args.where.AND) {
+            return newestPage;
+          }
+          return args.orderBy[0]?.createdAt === "asc" ? fromFirst : above;
+        },
+      );
+      messageCountMock.mockResolvedValue(200);
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get("?openAtUnread=true&limit=5");
+
+      const ids = body.data.map((row: { id: string }) => row.id);
+      expect(ids.slice(0, 4)).toEqual([
+        topLevel(2, 7).id,
+        topLevel(3, 8).id,
+        topLevel(4, 9).id,
+        FIRST_UNREAD_ID,
+      ]);
+      expect(ids).toHaveLength(33);
+      expect(body.meta.pagination).toMatchObject({
+        firstUnreadMessageId: FIRST_UNREAD_ID,
+        nextCursor: topLevel(2, 7).id,
+        total: 200,
+      });
+      const windowQueries = messageFindManyMock.mock.calls
+        .map(([args]) => args)
+        .filter((args) => args.where.AND);
+      expect(windowQueries).toEqual([
+        expect.objectContaining({
+          take: 4,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+        expect.objectContaining({
+          take: 30,
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        }),
+      ]);
+      expect(JSON.stringify(windowQueries)).toContain(FIRST_UNREAD_AT);
+    });
+
+    it("gives no older cursor when nothing is above the window", async () => {
+      messageFindManyMock.mockImplementation(
+        async (args: {
+          where: { AND?: unknown };
+          orderBy: Array<{ createdAt: string }>;
+        }) => {
+          if (!args.where.AND) {
+            return [topLevel(91, 20), topLevel(90, 19)];
+          }
+          return args.orderBy[0]?.createdAt === "asc"
+            ? [topLevel(50, 10)]
+            : [topLevel(1, 6)];
+        },
+      );
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get("?openAtUnread=true&limit=1");
+
+      expect(body.data.map((row: { id: string }) => row.id)).toEqual([
+        topLevel(1, 6).id,
+        FIRST_UNREAD_ID,
+      ]);
+      expect(body.meta.pagination.nextCursor).toBeNull();
+    });
+
+    it("opens at the newest page with no divider when nothing is Room unread", async () => {
+      messageFindManyMock.mockResolvedValue([topLevel(11, 2), topLevel(10, 1)]);
+      firstUnreadIs(null);
+
+      const body = await get("?openAtUnread=true");
+
+      expect(body.data.map((row: { id: string }) => row.id)).toEqual([
+        topLevel(10, 1).id,
+        topLevel(11, 2).id,
+      ]);
+      expect(body.meta.pagination.firstUnreadMessageId).toBeNull();
+      expect(messageFindManyMock).toHaveBeenCalledOnce();
+    });
+
+    it("places the divider by Room unread's own rules", async () => {
+      firstUnreadIs(null);
+
+      await get("?openAtUnread=true");
+
+      const sql = firstUnreadSql();
+      expect(queryRawUnsafeMock).toHaveBeenCalledWith(sql, ROOM_ID, USER_ID);
+      // Top-level only: Thread replies, and User mentions inside a Thread,
+      // never place it.
+      expect(sql).toContain('message."parentMessageId" IS NULL');
+      expect(sql).not.toContain("chat_room_user_mention");
+      // Never the viewer's own message.
+      expect(sql).toContain('message."senderUserId" <> $2');
+      // Newer than Room last-read, which joining the room sets, so messages
+      // from before the viewer joined never place it.
+      expect(sql).toMatch(
+        /> COALESCE\(read_state\."lastReadAt", '-infinity'::timestamp\)/,
+      );
+      // Marked unread names no message.
+      expect(sql).not.toContain("markedUnreadAt");
+      expect(sql).toContain('message."deletedAt" IS NULL');
+      expect(sql).toMatch(
+        /ORDER BY message\."createdAt" ASC, message\.id ASC\s+LIMIT 1/,
+      );
+    });
+
+    it("gives a Guest on an External channel the same divider as a member", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        organizationId: ORG_ID,
+        kind: "channel",
+        userMembers: [{ access: "guest" }],
+      });
+      memberFindUniqueMock.mockResolvedValue(null);
+      messageFindManyMock.mockResolvedValue([topLevel(50, 10)]);
+      firstUnreadIs({
+        id: FIRST_UNREAD_ID,
+        createdAt: new Date(FIRST_UNREAD_AT),
+      });
+
+      const body = await get("?openAtUnread=true");
+
+      expect(body.meta.pagination.firstUnreadMessageId).toBe(FIRST_UNREAD_ID);
+      expect(queryRawUnsafeMock).toHaveBeenCalledWith(
+        expect.any(String),
+        ROOM_ID,
+        USER_ID,
+      );
+    });
+
+    it.each([
+      ["q", "q=Hello"],
+      ["cursor", `cursor=${OLDER_MESSAGE_ID}`],
+      ["around", `around=${MESSAGE_ID}`],
+    ])("rejects openAtUnread combined with %s", async (_, query) => {
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages?openAtUnread=true&${query}`,
+      );
+
+      expect(response.status).toBe(422);
+      expect(messageFindFirstMock).not.toHaveBeenCalled();
+      expect(messageFindManyMock).not.toHaveBeenCalled();
+    });
   });
 
   it("reclaims stale mentions on the timeline path without q", async () => {
