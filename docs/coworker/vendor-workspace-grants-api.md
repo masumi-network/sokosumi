@@ -14,7 +14,6 @@ implicitly through task and job endpoints.
 > ([ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md)) receives
 > short-lived, turn-scoped grants and invokes capability tools through Core.
 > Delegated Coworker work still follows this vendor-grant model.
-
 - **Source of truth (behavior):** `apps/core/src/helpers/access-control.ts`,
   `apps/core/src/helpers/vendor-grants.ts`, `apps/core/src/routes/v1/tasks/*`
 - **Source of truth (OpenAPI shape):** `apps/core/src/schemas/task.schema.ts`
@@ -27,11 +26,11 @@ implicitly through task and job endpoints.
 
 One **workspace** grant per `(vendorId, workspaceId)`:
 
-| Grant status | Coworker effect |
-| --- | --- |
-| **None / PENDING** | Baseline task access only (see below). Out-of-scope read/comment → upsert **PENDING** grant, return **403** `grant_required`. Delegated create → task parked as **`GRANT_PENDING`**. |
-| **GRANTED** | Read, list, comment, and create across the whole workspace (all non-DRAFT tasks). |
-| **DENIED / REVOKED** | **403** `grant_denied` / `grant_revoked`. Terminal — Core does not auto-reopen. |
+| Grant status         | Coworker effect                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **None / PENDING**   | Baseline task access only (see below). Out-of-scope read/comment → upsert **PENDING** grant, return **403** `grant_required`. Delegated create → task parked as **`GRANT_PENDING`**. |
+| **GRANTED**          | Read, list, comment, and create across the whole workspace (all non-DRAFT tasks).                                                                                                    |
+| **DENIED / REVOKED** | **403** `grant_denied` / `grant_revoked`. Terminal — Core does not auto-reopen.                                                                                                      |
 
 Read, list, comment, and create are **all-or-nothing** when granted (no separate
 read vs create permissions).
@@ -43,11 +42,11 @@ read vs create permissions).
 
 ## Task API fields
 
-| Field | Type | When set | Purpose |
-| --- | --- | --- | --- |
-| `status` | enum | always | New value **`GRANT_PENDING`** while waiting on workspace grant approval |
-| `grantResumeStatus` | `DRAFT` \| `READY` \| `null` | `status === GRANT_PENDING` | Target status after approval; `null` when not parked |
-| `pendingVendorGrantId` | uuid \| `null` | `status === GRANT_PENDING` | **Exposed on the task API** so integrators can correlate the parked task with the blocking grant. Cleared when not parked. |
+| Field                  | Type                         | When set                   | Purpose                                                                                                                    |
+| ---------------------- | ---------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `status`               | enum                         | always                     | New value **`GRANT_PENDING`** while waiting on workspace grant approval                                                    |
+| `grantResumeStatus`    | `DRAFT` \| `READY` \| `null` | `status === GRANT_PENDING` | Target status after approval; `null` when not parked                                                                       |
+| `pendingVendorGrantId` | uuid \| `null`               | `status === GRANT_PENDING` | **Exposed on the task API** so integrators can correlate the parked task with the blocking grant. Cleared when not parked. |
 
 Both `grantResumeStatus` and `pendingVendorGrantId` are returned as **`null`**
 when the task is not parked (not omitted from the JSON payload).
@@ -68,11 +67,11 @@ propagate to the generated Core client via `pnpm --filter @sokosumi/core-client 
 
 ## Access tiers
 
-| Tier | Read single task | List `GET /v1/tasks` | `POST /v1/tasks` (delegated) | Comment |
-| --- | --- | --- | --- | --- |
-| **Baseline** | Assignee + same-vendor sibling (non-DRAFT) | Same OR filter | Parks as **`GRANT_PENDING`** if no **GRANTED** grant | Baseline tasks only |
-| **PENDING** grant | **403** `grant_required` (grant row upserted) | Still baseline-only | **201** + `GRANT_PENDING` + `pendingVendorGrantId` | **403** on out-of-scope |
-| **GRANTED** grant | Any non-DRAFT task in workspace | All non-DRAFT workspace tasks | Create at requested `DRAFT`/`READY` | Any readable non-parked task |
+| Tier              | Read single task                              | List `GET /v1/tasks`          | `POST /v1/tasks` (delegated)                         | Comment                      |
+| ----------------- | --------------------------------------------- | ----------------------------- | ---------------------------------------------------- | ---------------------------- |
+| **Baseline**      | Assignee + same-vendor sibling (non-DRAFT)    | Same OR filter                | Parks as **`GRANT_PENDING`** if no **GRANTED** grant | Baseline tasks only          |
+| **PENDING** grant | **403** `grant_required` (grant row upserted) | Still baseline-only           | **201** + `GRANT_PENDING` + `pendingVendorGrantId`   | **403** on out-of-scope      |
+| **GRANTED** grant | Any non-DRAFT task in workspace               | All non-DRAFT workspace tasks | Create at requested `DRAFT`/`READY`                  | Any readable non-parked task |
 
 **Unchanged:**
 
@@ -111,11 +110,11 @@ org membership when an org header is set). It does **not** authorize
 user-scoped act-as-user. Handlers pick a shared helper — do not branch on
 `actor` in route files:
 
-| Helper | Coworker + `X-Context-*` |
-| --- | --- |
-| `requireUserContext` | Allowed without grant check (task/job grant gates only) |
+| Helper                         | Coworker + `X-Context-*`                                                                                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `requireUserContext`           | Allowed without grant check (task/job grant gates only)                                                                                                                                                                        |
 | `requireAuthorizedUserContext` | Allowed only after binding: **DENIED/REVOKED** reject (assignment does not override); **GRANTED** allow; else **baseline** assignee/sibling task; else reject. Default for user-scoped routes (credits, profile, projects, …). |
-| `requireOwnerUserContext` | Always **403** (notifications, billing, member lists, …) |
+| `requireOwnerUserContext`      | Always **403** (notifications, billing, member lists, …)                                                                                                                                                                       |
 
 See `apps/core/AGENTS.md` (Handler actor menu) and
 `apps/core/src/helpers/coworker-user-context-binding.ts`.
@@ -131,14 +130,14 @@ Coworkers (with `X-Context-User-Id`) may call only these `GET` routes, for
 their context user (`me` or the matching id). Every other method and subpath
 answers **403** (`agentUserRouteAllowlistMiddleware`).
 
-| Route | Returns |
-| --- | --- |
-| `GET /v1/users/{id}` | Profile |
-| `GET /v1/users/{id}/credits` | Credits for the context workspace |
-| `GET /v1/users/{id}/organizations` | The user's organizations whose workspace the vendor may act in |
-| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403** |
-| `GET /v1/users/{id}/workspaces` | The user's workspaces the vendor may act in (see below) |
-| `GET /v1/users/{id}/workspaces/preferred` | The user's preferred workspace, when the vendor may act in it (see below) |
+| Route                                                       | Returns                                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `GET /v1/users/{id}`                                        | Profile                                                                   |
+| `GET /v1/users/{id}/credits`                                | Credits for the context workspace                                         |
+| `GET /v1/users/{id}/organizations`                          | The user's organizations whose workspace the vendor may act in            |
+| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403**          |
+| `GET /v1/users/{id}/workspaces`                             | The user's workspaces the vendor may act in (see below)                   |
+| `GET /v1/users/{id}/workspaces/preferred`                   | The user's preferred workspace, when the vendor may act in it (see below) |
 
 "May act in" is the binding rule above: never on a **DENIED** or **REVOKED**
 grant, always on **GRANTED**, otherwise when a baseline task exists in that
@@ -246,15 +245,15 @@ request creates one Task.
 The old per-Task schedule routes answer **410 Gone** with `kind`
 `task_schedule_moved` and the route to call instead in `replacement`:
 
-| Removed route | `replacement` |
-| --- | --- |
-| `POST /v1/tasks/scheduled` | `POST /v1/tasks/schedules` |
-| `PUT /v1/tasks/{id}/schedule` | `POST /v1/tasks/schedules` (a one-time start is `runAt` on `POST /v1/tasks`) |
-| `DELETE /v1/tasks/{id}/schedule` | `DELETE /v1/tasks/schedules/{id}` |
-| `PUT /v1/tasks/{id}/calendar-schedule` | `PATCH /v1/tasks/schedules/{id}` |
-| `PUT /v1/tasks/{id}/calendar-source` | `PATCH /v1/tasks/schedules/{id}` |
-| `GET /v1/tasks/{id}/schedule/occurrences` | `GET /v1/tasks/schedules/{id}/runs` |
-| `PATCH /v1/tasks/{id}/schedule/occurrences/{occurrenceId}` | `PATCH /v1/tasks/schedules/{id}/runs/{runId}` |
+| Removed route                                              | `replacement`                                                                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `POST /v1/tasks/scheduled`                                 | `POST /v1/tasks/schedules`                                                   |
+| `PUT /v1/tasks/{id}/schedule`                              | `POST /v1/tasks/schedules` (a one-time start is `runAt` on `POST /v1/tasks`) |
+| `DELETE /v1/tasks/{id}/schedule`                           | `DELETE /v1/tasks/schedules/{id}`                                            |
+| `PUT /v1/tasks/{id}/calendar-schedule`                     | `PATCH /v1/tasks/schedules/{id}`                                             |
+| `PUT /v1/tasks/{id}/calendar-source`                       | `PATCH /v1/tasks/schedules/{id}`                                             |
+| `GET /v1/tasks/{id}/schedule/occurrences`                  | `GET /v1/tasks/schedules/{id}/runs`                                          |
+| `PATCH /v1/tasks/{id}/schedule/occurrences/{occurrenceId}` | `PATCH /v1/tasks/schedules/{id}/runs/{runId}`                                |
 
 The Task DTO no longer carries `metadata`, `nextRunAt`, or `scheduleRevision`,
 and `GET /v1/tasks` no longer accepts `hasSchedule` or `sort=nextRunAt`. It
@@ -268,20 +267,20 @@ Tasks a schedule created. Task events no longer carry `scheduleKind`,
 
 ## Endpoint reference (coworker-facing)
 
-| Method | Route | Behavior |
-| --- | --- | --- |
-| GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
-| GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
-| POST | `/v1/tasks` | Delegated create flow above. Optional `runAt` (future time, Coworker or Soko Bot assignee required) creates the Task in `QUEUED`; Core moves it to `READY` at that time and clears `runAt`. `runAt` cannot park: while the grant is pending it answers **422**. |
-| GET, POST | `/v1/tasks/schedules` | List (filters `projectId`, `state`) and create Task Schedules. See Task Schedules above. |
-| GET, PATCH, DELETE | `/v1/tasks/schedules/{id}` | Read, edit (revision-checked), or delete a Task Schedule. Deleting keeps the Tasks it created. |
-| POST | `/v1/tasks/schedules/{id}/pause`, `/resume`, `/end` | Change the schedule's state (Active, Paused, Ended). |
-| GET | `/v1/tasks/schedules/{id}/runs` | List the schedule's Runs. |
-| PATCH | `/v1/tasks/schedules/{id}/runs/{runId}` | Skip, move, or restore one upcoming Run. |
-| POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
-| POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
-| PATCH | `/v1/tasks/{id}` | Collaborators cannot mutate parked tasks. |
-| GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
+| Method             | Route                                               | Behavior                                                                                                                                                                                                                                                       |
+| ------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET                | `/v1/tasks`                                         | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**.                                                                                                                                                                |
+| GET                | `/v1/tasks/{id}`                                    | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list.                                                                                                                               |
+| POST               | `/v1/tasks`                                         | Delegated create flow above. Optional `runAt` (future time, Coworker or Soko Bot assignee required) creates the Task in `QUEUED`; Core moves it to `READY` at that time and clears `runAt`.`runAt` cannot park: while the grant is pending it answers **422**. |
+| GET, POST          | `/v1/tasks/schedules`                               | List (filters `projectId`, `state`) and create Task Schedules. See Task Schedules above.                                                                                                                                                                       |
+| GET, PATCH, DELETE | `/v1/tasks/schedules/{id}`                          | Read, edit (revision-checked), or delete a Task Schedule. Deleting keeps the Tasks it created.                                                                                                                                                                 |
+| POST               | `/v1/tasks/schedules/{id}/pause`, `/resume`, `/end` | Change the schedule's state (Active, Paused, Ended).                                                                                                                                                                                                           |
+| GET                | `/v1/tasks/schedules/{id}/runs`                     | List the schedule's Runs.                                                                                                                                                                                                                                      |
+| PATCH              | `/v1/tasks/schedules/{id}/runs/{runId}`             | Skip, move, or restore one upcoming Run.                                                                                                                                                                                                                       |
+| POST               | `/v1/tasks/{id}/events`                             | **`GRANT_PENDING`** → **403** `task_parked`.                                                                                                                                                                                                                   |
+| POST               | `/v1/tasks/{id}/jobs`                               | Parent **`GRANT_PENDING`** → **403** `task_parked`.                                                                                                                                                                                                            |
+| PATCH              | `/v1/tasks/{id}`                                    | Collaborators cannot mutate parked tasks.                                                                                                                                                                                                                      |
+| GET                | `/v1/jobs/{id}`                                     | Sibling read uses workspace grant gate; writes blocked if parent task parked.                                                                                                                                                                                  |
 
 On these Task-collaboration routes, a standalone Coworker key (no
 `X-Context-*` headers) skips the user-scoped gates and is scoped by the Task
@@ -296,12 +295,12 @@ need `X-Context-*` headers.
 
 All use the standard Core error envelope. Relevant `error.kind` values:
 
-| `kind` | When | `extensions` |
-| --- | --- | --- |
+| `kind`           | When                                                              | `extensions`              |
+| ---------------- | ----------------------------------------------------------------- | ------------------------- |
 | `grant_required` | Workspace access needed; PENDING grant created or already waiting | `permission: "workspace"` |
-| `grant_denied` | Grant denied; will not auto-reopen | `permission: "workspace"` |
-| `grant_revoked` | Grant revoked | `permission: "workspace"` |
-| `task_parked` | Task is **`GRANT_PENDING`** — mutations, comments, jobs frozen | — |
+| `grant_denied`   | Grant denied; will not auto-reopen                                | `permission: "workspace"` |
+| `grant_revoked`  | Grant revoked                                                     | `permission: "workspace"` |
+| `task_parked`    | Task is **`GRANT_PENDING`** — mutations, comments, jobs frozen    | —                         |
 
 Integrators should handle `grant_required` by surfacing approval UX to the human
 and polling task/coworker events until the grant resolves or the task unparks.
