@@ -155,6 +155,7 @@ describe("WorkspaceCalendar", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
   it("clears Calendar details and pagination immediately when access is revoked", () => {
     // The next page never answers, so the drain stays in flight for the test.
@@ -825,6 +826,35 @@ describe("WorkspaceCalendar", () => {
       ),
     );
   });
+
+  // The formatter renders in UTC, as the server does before the browser's
+  // time zone cookie exists; the runtime zone must not shift the labels.
+  it.each([
+    "UTC",
+    "Europe/Berlin",
+    "America/Los_Angeles",
+    "Pacific/Kiritimati",
+  ])(
+    "labels the week and month by calendar day when the runtime zone is %s",
+    (runtimeZone) => {
+      vi.stubEnv("TZ", runtimeZone);
+
+      const { unmount } = render(
+        <NuqsTestingAdapter searchParams="?view=week&date=2027-02-18&timezone=UTC">
+          <WorkspaceCalendar initialDate="2027-02-18" items={[]} />
+        </NuqsTestingAdapter>,
+      );
+      expect(screen.getByText("Feb 14 - Feb 20, 2027")).toBeInTheDocument();
+      unmount();
+
+      render(
+        <NuqsTestingAdapter searchParams="?view=month&date=2027-03-01&timezone=UTC">
+          <WorkspaceCalendar initialDate="2027-03-01" items={[]} />
+        </NuqsTestingAdapter>,
+      );
+      expect(screen.getByText("March 2027")).toBeInTheDocument();
+    },
+  );
 
   it("leaves URL dates unbounded when no latest date is supplied", () => {
     render(
