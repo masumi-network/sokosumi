@@ -235,6 +235,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 3. **Take + 1 Pattern**: Always fetch `take + 1` items to detect if there are more pages without an extra count query
 
 4. **Ordering**: Always include `id` as a secondary sort field for stable pagination:
+
    ```typescript
    orderBy: [{ createdAt: "asc" }, { id: "asc" }]
    ```
@@ -246,6 +247,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
    - Sets `nextCursor` (ID of last item if hasMore, otherwise null)
 
 6. **Response Helper**: Pass pagination metadata as the third parameter to `ok()`:
+
    ```typescript
    return ok(c, data, paginationMeta);
    ```

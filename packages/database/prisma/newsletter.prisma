@@ -107,6 +107,10 @@ model NewsletterIssue {
   publicSlug String @unique(map: "newsletter_issue_publicSlug_key")
   revision   Int    @default(0)
 
+  leaseToken     String?   @db.Uuid
+  leaseExpiresAt DateTime?
+  lastError      String?
+
   sends  NewsletterSend[]
   events NewsletterEvent[]
 
@@ -114,6 +118,7 @@ model NewsletterIssue {
   @@index([projectId, status, scheduledAt], map: "newsletter_issue_projectId_status_scheduledAt_idx")
   @@index([workspaceId, scheduledAt], map: "newsletter_issue_workspaceId_scheduledAt_idx")
   @@index([status, scheduledAt], map: "newsletter_issue_status_scheduledAt_idx")
+  @@index([status, leaseExpiresAt], map: "newsletter_issue_status_leaseExpiresAt_idx")
   @@index([taskId], map: "newsletter_issue_taskId_idx")
   @@map("newsletter_issue")
 }
@@ -141,6 +146,7 @@ model NewsletterSubscriber {
 
   @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
   @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([newsletterId, status, id], map: "newsletter_subscriber_newsletterId_status_id_idx")
   @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
   @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")
   @@map("newsletter_subscriber")

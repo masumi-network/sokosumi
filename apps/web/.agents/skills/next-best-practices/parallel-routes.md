@@ -169,12 +169,12 @@ Using `push` or `Link` to "close" a modal:
 
 Matchers match **route segments**, not filesystem paths:
 
-| Matcher | Matches | Example |
-|---------|---------|---------|
-| `(.)` | Same level | `@modal/(.)photos` intercepts `/photos` |
-| `(..)` | One level up | `@modal/(..)settings` from `/dashboard/@modal` intercepts `/settings` |
-| `(..)(..)` | Two levels up | Rarely used |
-| `(...)` | From root | `@modal/(...)photos` intercepts `/photos` from anywhere |
+| Matcher    | Matches       | Example                                                               |
+| ---------- | ------------- | --------------------------------------------------------------------- |
+| `(.)`      | Same level    | `@modal/(.)photos` intercepts `/photos`                               |
+| `(..)`     | One level up  | `@modal/(..)settings` from `/dashboard/@modal` intercepts `/settings` |
+| `(..)(..)` | Two levels up | Rarely used                                                           |
+| `(...)`    | From root     | `@modal/(...)photos` intercepts `/photos` from anywhere               |
 
 **Common mistake**: Thinking `(..)` means "parent folder" - it means "parent route segment".
 
