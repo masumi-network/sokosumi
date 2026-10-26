@@ -248,12 +248,12 @@ Claims use provenance labels:
 
 ## Payment paths and ownership
 
-| Path | Use | Payment owner | Fit |
-| --- | --- | --- | --- |
-| [VERIFIED] Existing Masumi Task claim | Sokosumi Task payment candidate | MPS purchase flow, linked by Core | Requires the Coworker to provide `masumiPayment`. Seller receipt still needs Preprod proof. |
-| [VERIFIED] MPS `POST /payment/x402` | Existing MPS payment request | MPS builder and escrow lifecycle | Returns unsigned CBOR for the buyer to sign and submit. An x402 adapter and SDK compatibility test remain open. |
-| [VERIFIED] SDK `exact/masumi` | x402 with Masumi escrow | SDK-aware escrow lifecycle | Uses Masumi's contract. Current SDK seller authorization is incompatible with the MPS node. |
-| [VERIFIED, NOT SELECTED] SDK `exact/default` | SDK direct-transfer capability | Recipient set by `payTo` | Pays `payTo` directly. Does not use MPS escrow. Not part of the MPS-first MVP. |
+| Path                                         | Use                             | Payment owner                     | Fit                                                                                                             |
+| -------------------------------------------- | ------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [VERIFIED] Existing Masumi Task claim        | Sokosumi Task payment candidate | MPS purchase flow, linked by Core | Requires the Coworker to provide `masumiPayment`. Seller receipt still needs Preprod proof.                     |
+| [VERIFIED] MPS `POST /payment/x402`          | Existing MPS payment request    | MPS builder and escrow lifecycle  | Returns unsigned CBOR for the buyer to sign and submit. An x402 adapter and SDK compatibility test remain open. |
+| [VERIFIED] SDK `exact/masumi`                | x402 with Masumi escrow         | SDK-aware escrow lifecycle        | Uses Masumi's contract. Current SDK seller authorization is incompatible with the MPS node.                     |
+| [VERIFIED, NOT SELECTED] SDK `exact/default` | SDK direct-transfer capability  | Recipient set by `payTo`          | Pays `payTo` directly. Does not use MPS escrow. Not part of the MPS-first MVP.                                  |
 
 [PROPOSED] Use MPS for the Sokosumi Task MVP. Test its existing Task purchase path for seller receipt before choosing another payment rail. Route later Cardano x402 buyers through Sokosumi and test SDK compatibility first.
 

@@ -30,7 +30,7 @@ Vercel custom events are listed under
 [Vercel Analytics events](#vercel-analytics-events).
 
 **One container, one property, both domains.** The marketing site and the app
-load the *same* GTM container and feed the *same* GA4 property, so a visit that
+load the _same_ GTM container and feed the _same_ GA4 property, so a visit that
 starts on a landing page and ends as an active, paying user is a single journey
 in one place. GA4 cross-domain measurement links `sokosumi.com` ↔
 `app.sokosumi.com` so it is one session, not two.
@@ -61,11 +61,11 @@ outside it; see above.
 
 - Categories → Consent Mode signals:
 
-  | Category   | Signals set to granted                                            |
-  |------------|-------------------------------------------------------------------|
-  | necessary  | always on (`functionality_storage`, `security_storage`)           |
-  | analytics  | `analytics_storage`                                               |
-  | marketing  | `ad_storage`, `ad_user_data`, `ad_personalization`               |
+  | Category  | Signals set to granted                                  |
+  | --------- | ------------------------------------------------------- |
+  | necessary | always on (`functionality_storage`, `security_storage`) |
+  | analytics | `analytics_storage`                                     |
+  | marketing | `ad_storage`, `ad_user_data`, `ad_personalization`      |
 
 - Consent can be changed anytime: call `openConsentPreferences()` (from
   `cookie-banner.tsx`) from a "Cookie settings" control.
@@ -77,16 +77,16 @@ push a small set of business events to the dataLayer. In this app they all go
 through **`lib/gtm-events`** (`fireGTMEvent.*`, which wraps `sendGTMEvent`).
 Consent Mode gates whether GTM forwards them to GA4/Ads.
 
-| Event                 | Fires when…                                    | Where |
-|-----------------------|------------------------------------------------|-------|
-| `sign_up` `{provider}`| account created. Credential and email code fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`. A password sign-up is sent with the email code ([ADR 0050](../../docs/adr/0050-password-sign-up-proves-the-address.md)) and still counts once, as `credential`. Social fires once per new account, on whichever page claims it first: the callback page, or the OAuth hand-back during a Sign in with Sokosumi request — see [Social sign-ups](#social-sign-ups) | `components/use-email-code.ts` (from `signup/components/form.tsx`), `components/social-auth-callback.tsx`, `components/oauth-hand-back.tsx` |
-| `login` `{provider}`  | signed in. Social fires on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`), passkey (`social-buttons.tsx`) and email code (`use-email-code.ts`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx`, `components/use-email-code.ts` |
-| `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
-| `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
-| `purchase` `{transaction_id, value, currency, items}` | **a checkout succeeds**: credits/coupon (Stripe returns with `session_id`) or subscription (returns with `checkout_session_id`) — see [Purchase tracking](#purchase-tracking) | `components/billing/purchase-tracker.tsx`, mounted by `credits-checkout-return.tsx` and `subscription-checkout-return.tsx` |
-| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start` | funnel context | various |
-| `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made (banner) **and** on every full page load when the cookie already exists (`consent-mode-init.tsx`). Not re-pushed on SPA route changes — see [Why events go missing](#why-events-go-missing) | banner, `consent-mode-init.tsx` |
-| `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
+| Event                                                                                                                 | Fires when…                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Where                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign_up` `{provider}`                                                                                                | account created. Credential and email code fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`. A password sign-up is sent with the email code ([ADR 0050](../../docs/adr/0050-password-sign-up-proves-the-address.md)) and still counts once, as `credential`. Social fires once per new account, on whichever page claims it first: the callback page, or the OAuth hand-back during a Sign in with Sokosumi request — see [Social sign-ups](#social-sign-ups) | `components/use-email-code.ts` (from `signup/components/form.tsx`), `components/social-auth-callback.tsx`, `components/oauth-hand-back.tsx` |
+| `login` `{provider}`                                                                                                  | signed in. Social fires on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`), passkey (`social-buttons.tsx`) and email code (`use-email-code.ts`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`                                                                                                                                                                                                                  | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx`, `components/use-email-code.ts`        |
+| `message_start` `{room_id}`                                                                                           | **a coworker DM is started** (first send per room)                                                                                                                                                                                                                                                                                                                                                                                                                                             | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts`                                                                                   |
+| `begin_checkout` `{plan?, seats?}`                                                                                    | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`)                                                                                                                                                                                                                                                                                                                                                                                             | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx`                                                            |
+| `purchase` `{transaction_id, value, currency, items}`                                                                 | **a checkout succeeds**: credits/coupon (Stripe returns with `session_id`) or subscription (returns with `checkout_session_id`) — see [Purchase tracking](#purchase-tracking)                                                                                                                                                                                                                                                                                                                  | `components/billing/purchase-tracker.tsx`, mounted by `credits-checkout-return.tsx` and `subscription-checkout-return.tsx`                  |
+| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start` | funnel context                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | various                                                                                                                                     |
+| `consent_status` `{consent_analytics, consent_marketing}`                                                             | cookie choice made (banner) **and** on every full page load when the cookie already exists (`consent-mode-init.tsx`). Not re-pushed on SPA route changes — see [Why events go missing](#why-events-go-missing)                                                                                                                                                                                                                                                                                 | banner, `consent-mode-init.tsx`                                                                                                             |
+| `set_user_id` `{user_id}`                                                                                             | login state resolves (and on logout, null)                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `components/analytics/analytics-user-id.tsx`                                                                                                |
 
 Marketplace app Hire (`agent_hired` / `use-job-submission`) was removed with
 SOK-805. Job starts via Soko Bot/Coworker/Core API are not tracked as a web GTM
@@ -107,7 +107,7 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
 
 - **Better Auth hard-redirects whenever `callbackURL` is set.** `signIn.email`
   and `signUp.email` with a `callbackURL` make the Better Auth client set
-  `window.location.href` inside its fetch hook, *before* the caller's code
+  `window.location.href` inside its fetch hook, _before_ the caller's code
   after `await` runs. A `fireGTMEvent.*` placed after such a call is dead code
   (GA4 showed 0 credential logins against 145 `login_area_form_start`, and
   credential `sign_up` lost the same race until Sept 2026, along with the
@@ -132,7 +132,7 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
   [Social sign-ups](#social-sign-ups).
 - **Hard navigations after a push are a race.** `begin_checkout` is pushed and
   then `window.location.href = stripeUrl` runs on the next line. GA4 sends via
-  `sendBeacon`, so it mostly survives, but push *before* navigating, never after.
+  `sendBeacon`, so it mostly survives, but push _before_ navigating, never after.
 - **GTM trigger groups fire once per page load.** Every GA4 event tag in the
   container is gated by a trigger group `consent_status & <event>`. A trigger
   group fires at most once per page load, so in this SPA the second
@@ -185,11 +185,11 @@ claim response, a closed page, or a blocked tag can lose the browser event.
 Custom events sent with `track` from `@vercel/analytics`. They record intent
 (the button or form used), not success, and are not consent-gated.
 
-| Event | Properties | Fires when… | Where |
-|-------|------------|-------------|-------|
-| `Sign In` | `provider` (`google`, `microsoft`, `passkey`, `credential`, `email-otp`); `direct_signup_link: false` on provider buttons | a sign-in method is chosen on `/signin` | `signin/components/form.tsx`, `components/social-buttons.tsx` |
-| `Sign Up` | `provider` (`google`, `microsoft`, `credential`, `email-otp`); `direct_signup_link` on provider sign-ups (`true` for `/auth/google` and `/auth/microsoft`) | a sign-up method is chosen on `/signup`, or a direct sign-up link starts | `signup/components/form.tsx`, `components/social-buttons.tsx`, `components/social-signup-auto-initiator.tsx` |
-| `Project created` | `source`, `variant` | a project is created | `projects/components/create-project-wizard.tsx`, `projects/components/project-form.tsx` |
+| Event             | Properties                                                                                                                                                 | Fires when…                                                              | Where                                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `Sign In`         | `provider` (`google`, `microsoft`, `passkey`, `credential`, `email-otp`); `direct_signup_link: false` on provider buttons                                  | a sign-in method is chosen on `/signin`                                  | `signin/components/form.tsx`, `components/social-buttons.tsx`                                                |
+| `Sign Up`         | `provider` (`google`, `microsoft`, `credential`, `email-otp`); `direct_signup_link` on provider sign-ups (`true` for `/auth/google` and `/auth/microsoft`) | a sign-up method is chosen on `/signup`, or a direct sign-up link starts | `signup/components/form.tsx`, `components/social-buttons.tsx`, `components/social-signup-auto-initiator.tsx` |
+| `Project created` | `source`, `variant`                                                                                                                                        | a project is created                                                     | `projects/components/create-project-wizard.tsx`, `projects/components/project-form.tsx`                      |
 
 Before Oct 2026 the provider buttons on `/signup` and the direct sign-up links
 sent `Sign In`, so earlier `Sign Up` counts lack social sign-ups.
@@ -262,14 +262,14 @@ dedupes on `transaction_id`.
 
 ### Event parameters worth registering as GA4 custom dimensions
 
-| Parameter | On event | Registered? |
-|-----------|----------|-------------|
-| `provider` | `sign_up`, `login` (`google`, `microsoft`, `credential`, `email-otp`, `passkey`) | yes |
-| `agent_name`, `agent_price` | `view_agent` | yes |
-| `plan`, `seats` | `begin_checkout` (subscriptions) | yes — but the GTM `GA4 - begin_checkout` tag must forward them |
-| `room_id` | `message_start` | no — high cardinality; only register if you want per-coworker DM reports. GTM tag does not forward it today |
-| `transaction_id`, `value`, `currency`, `items` | `purchase` | standard ecommerce — no dimension needed |
-| `consent_analytics`, `consent_marketing` | `consent_status` | no GA4 tag; not needed |
+| Parameter                                      | On event                                                                         | Registered?                                                                                                 |
+| ---------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `provider`                                     | `sign_up`, `login` (`google`, `microsoft`, `credential`, `email-otp`, `passkey`) | yes                                                                                                         |
+| `agent_name`, `agent_price`                    | `view_agent`                                                                     | yes                                                                                                         |
+| `plan`, `seats`                                | `begin_checkout` (subscriptions)                                                 | yes — but the GTM `GA4 - begin_checkout` tag must forward them                                              |
+| `room_id`                                      | `message_start`                                                                  | no — high cardinality; only register if you want per-coworker DM reports. GTM tag does not forward it today |
+| `transaction_id`, `value`, `currency`, `items` | `purchase`                                                                       | standard ecommerce — no dimension needed                                                                    |
+| `consent_analytics`, `consent_marketing`       | `consent_status`                                                                 | no GA4 tag; not needed                                                                                      |
 
 ## Internal traffic
 

@@ -147,13 +147,13 @@ export function ClientForm({ onSubmit }: { onSubmit: (data: FormData) => Promise
 
 ## Quick Reference
 
-| Pattern | Valid? | Fix |
-|---------|--------|-----|
-| `'use client'` + `async function` | No | Fetch in server parent, pass data |
-| Pass `() => {}` to client | No | Define in client or use server action |
-| Pass `new Date()` to client | No | Use `.toISOString()` |
-| Pass `new Map()` to client | No | Convert to object/array |
-| Pass class instance to client | No | Pass plain object |
-| Pass server action to client | Yes | - |
-| Pass `string/number/boolean` | Yes | - |
-| Pass plain object/array | Yes | - |
+| Pattern                           | Valid? | Fix                                   |
+| --------------------------------- | ------ | ------------------------------------- |
+| `'use client'` + `async function` | No     | Fetch in server parent, pass data     |
+| Pass `() => {}` to client         | No     | Define in client or use server action |
+| Pass `new Date()` to client       | No     | Use `.toISOString()`                  |
+| Pass `new Map()` to client        | No     | Convert to object/array               |
+| Pass class instance to client     | No     | Pass plain object                     |
+| Pass server action to client      | Yes    | -                                     |
+| Pass `string/number/boolean`      | Yes    | -                                     |
+| Pass plain object/array           | Yes    | -                                     |

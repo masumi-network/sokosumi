@@ -9,7 +9,7 @@ metadata:
 
 # React View Transitions
 
-Animate between UI states using the browser's native `document.startViewTransition`. Declare *what* with `<ViewTransition>`, trigger *when* with `startTransition` / `useDeferredValue` / `Suspense`, control *how* with CSS classes. Unsupported browsers skip animations gracefully.
+Animate between UI states using the browser's native `document.startViewTransition`. Declare _what_ with `<ViewTransition>`, trigger _when_ with `startTransition` / `useDeferredValue` / `Suspense`, control _how_ with CSS classes. Unsupported browsers skip animations gracefully.
 
 ## When to Animate
 
@@ -17,24 +17,24 @@ Every `<ViewTransition>` should communicate a spatial relationship or continuity
 
 Implement **all** applicable patterns from this list, in this order:
 
-| Priority | Pattern | What it communicates |
-|----------|---------|---------------------|
-| 1 | **Shared element** (`name`) | "Same thing — going deeper" |
-| 2 | **Suspense reveal** | "Data loaded" |
-| 3 | **List identity** (per-item `key`) | "Same items, new arrangement" |
-| 4 | **State change** (`enter`/`exit`) | "Something appeared/disappeared" |
-| 5 | **Route change** (page-level) | "Going to a new place" |
+| Priority | Pattern                            | What it communicates             |
+| -------- | ---------------------------------- | -------------------------------- |
+| 1        | **Shared element** (`name`)        | "Same thing — going deeper"      |
+| 2        | **Suspense reveal**                | "Data loaded"                    |
+| 3        | **List identity** (per-item `key`) | "Same items, new arrangement"    |
+| 4        | **State change** (`enter`/`exit`)  | "Something appeared/disappeared" |
+| 5        | **Route change** (page-level)      | "Going to a new place"           |
 
 This is an implementation order, not a "pick one" list. Implement every pattern that fits the app. Only skip a pattern if the app has no use case for it.
 
 ### Choosing Animation Style
 
-| Context | Animation | Why |
-|---------|-----------|-----|
-| Hierarchical navigation (list → detail) | Type-keyed `nav-forward` / `nav-back` | Communicates spatial depth |
-| Lateral navigation (tab-to-tab) | Bare `<ViewTransition>` (fade) or `default="none"` | No depth to communicate |
-| Suspense reveal | `enter`/`exit` string props | Content arriving |
-| Revalidation / background refresh | `default="none"` | Silent — no animation needed |
+| Context                                 | Animation                                          | Why                          |
+| --------------------------------------- | -------------------------------------------------- | ---------------------------- |
+| Hierarchical navigation (list → detail) | Type-keyed `nav-forward` / `nav-back`              | Communicates spatial depth   |
+| Lateral navigation (tab-to-tab)         | Bare `<ViewTransition>` (fade) or `default="none"` | No depth to communicate      |
+| Suspense reveal                         | `enter`/`exit` string props                        | Content arriving             |
+| Revalidation / background refresh       | `default="none"`                                   | Silent — no animation needed |
 
 Reserve directional slides for hierarchical navigation (list → detail) and ordered sequences (prev/next photo, carousel, paginated results). For ordered sequences, the direction communicates position: "next" slides from right, "previous" from left. Lateral/unordered navigation (tab-to-tab) should not use directional slides — it falsely implies spatial depth.
 
@@ -70,12 +70,12 @@ React auto-assigns a unique `view-transition-name` and calls `document.startView
 
 ### Animation Triggers
 
-| Trigger | When it fires |
-|---------|--------------|
-| **enter** | `<ViewTransition>` first inserted during a Transition |
-| **exit** | `<ViewTransition>` first removed during a Transition |
+| Trigger    | When it fires                                                                                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **enter**  | `<ViewTransition>` first inserted during a Transition                                                                                                                        |
+| **exit**   | `<ViewTransition>` first removed during a Transition                                                                                                                         |
 | **update** | DOM mutations inside a `<ViewTransition>`, or the boundary itself changing size/position due to an immediate sibling. With nested VTs, mutation applies to the innermost one |
-| **share** | Named VT unmounts and another with same `name` mounts in the same Transition |
+| **share**  | Named VT unmounts and another with same `name` mounts in the same Transition                                                                                                 |
 
 Only `startTransition`, `useDeferredValue`, or `Suspense` activate VTs. Regular `setState` does not animate.
 
@@ -204,7 +204,7 @@ Same `name` on two VTs — one unmounting, one mounting — creates a shared ele
 </ViewTransition>
 ```
 
-- Only one VT with a given `name` can be mounted at a time — use unique names (`photo-${id}`). Watch for reusable components: if a component with a named VT is rendered in both a modal/popover *and* a page, both mount simultaneously and break the morph. Either make the name conditional (via a prop) or move the named VT out of the shared component into the specific consumer.
+- Only one VT with a given `name` can be mounted at a time — use unique names (`photo-${id}`). Watch for reusable components: if a component with a named VT is rendered in both a modal/popover _and_ a page, both mount simultaneously and break the morph. Either make the name conditional (via a prop) or move the named VT out of the shared component into the specific consumer.
 - `share` takes precedence over `enter`/`exit`. Think through each navigation path: when no matching pair forms (e.g., the target page doesn't have the same name), `enter`/`exit` fires instead. Consider whether the element needs a fallback animation for those paths.
 - Two ways a wired-up morph silently never fires: (1) `default="none"` with no explicit `share` prop — share resolves to none; (2) type-keyed `share` where the navigation never adds the type — a plain link click resolves the map's `default`. Every link that should morph must add the type (`transitionTypes` on `next/link`, or `addTransitionType`).
 - Never use a fade-out exit on pages with shared morphs — use a directional slide instead.
@@ -292,7 +292,7 @@ Every VT matching the trigger fires simultaneously in a single `document.startVi
 
 Without it, every VT fires the browser cross-fade on **every** transition — Suspense resolves, `useDeferredValue` updates, background revalidations. Use `default="none"` on named/shared elements and type-keyed page VTs.
 
-But it also turns off `update` (layout/reflow morphs) and `share` (a named pair with no explicit `share` prop never morphs). Keyed list items and displaced siblings *want* update — leave them bare or set `update="auto"`.
+But it also turns off `update` (layout/reflow morphs) and `share` (a named pair with no explicit `share` prop never morphs). Keyed list items and displaced siblings _want_ update — leave them bare or set `update="auto"`.
 
 ### Two Patterns Coexist
 
@@ -303,7 +303,7 @@ They coexist because they fire at different moments. `default="none"` on both pr
 
 ### Nested VT Limitation
 
-When a parent VT mounts/unmounts **as one unit** with nested VTs inside it, the nested ones do not fire their own enter/exit — only the outermost VT animates. (A child VT mounted inside a *persistent* parent VT fires enter/exit normally.) Per-item staggered animations during page navigation are not currently available in Next.js; see [troubleshooting](references/troubleshooting.md) for the upstream experimental status.
+When a parent VT mounts/unmounts **as one unit** with nested VTs inside it, the nested ones do not fire their own enter/exit — only the outermost VT animates. (A child VT mounted inside a _persistent_ parent VT fires enter/exit normally.) Per-item staggered animations during page navigation are not currently available in Next.js; see [troubleshooting](references/troubleshooting.md) for the upstream experimental status.
 
 ---
 

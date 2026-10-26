@@ -1254,7 +1254,7 @@ time {
 /* Spotlight: the rest of the transcript steps back while the hold lasts. It
    runs on the same timeline as the mark, so the dim never outlives it. */
 [data-chat-message-list]:has([data-search-landed])
-[data-message-id]:not([data-search-landed]) {
+  [data-message-id]:not([data-search-landed]) {
   animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
 }
 
@@ -1387,9 +1387,9 @@ time {
    one whose menu or emoji picker is open — that focus sits in a portal, and a
    live message can scroll the transcript out from under an open menu. */
 [data-chat-scrolling]
-[data-message-actions="hover"]:not(:focus-within):not(
-  :has([aria-expanded="true"])
-) {
+  [data-message-actions="hover"]:not(:focus-within):not(
+    :has([aria-expanded="true"])
+  ) {
   opacity: 0;
   pointer-events: none;
   transition-delay: 0ms;

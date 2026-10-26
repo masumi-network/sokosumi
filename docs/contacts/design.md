@@ -11,9 +11,11 @@ Owner decisions (Patrick, final):
 - Visually nice; reuse the spreadsheet grid from PR #6469 (`apps/web/src/app/(app)/drive/tables/`: resizable columns, selection, keyboard editing, gridlines, row numbers, sticky header/first column) — extract shared grid pieces rather than copying.
 
 ## Architecture decision
+
 Dedicated Core models (not generic Files `DataTable` rows), because channel uniqueness across the workspace, merges, list counts and derived fields (Last contact, Known by) must be enforced by the database. Core owns all data (Web uses the generated client only). Versioned routes under `apps/core/src/routes/v1/contacts/` with OpenAPI schemas; regenerate `packages/core-client`.
 
 ## Data model (Prisma, `packages/database/prisma/schema.prisma`, new migration — never rename existing migrations)
+
 - `Contact`: id uuid(7), workspaceId, name, organization?, role?, location?, summary? (bot-written about text), whyInteresting?, stage enum (PROSPECT, LEAD, ACTIVE, PARTNER, INVESTOR, CUSTOMER, DORMANT) default LEAD, ownerUserId?, nextStep?, followUpAt? (date), avatarUrl?, customFields Json default {}, firstContactAt?, lastContactAt?, interactionCount int default 0 (derived, maintained by Core on interaction writes), mergedIntoId? (tombstone after merge), createdByUserId?, createdBySokoBotId?, createdAt, updatedAt, archivedAt?, version int (optimistic concurrency like tables).
 - `ContactChannel`: id, workspaceId, contactId, type enum (EMAIL, PHONE, SLACK, LINKEDIN, X, WEBSITE, TELEGRAM, WHATSAPP, GITHUB, OTHER), value (normalized: lowercased email, E.164 phone when parseable, canonical URL/handle; Slack = `teamId:userId`), label?, isPrimary, source enum (MANUAL, EMAIL, CALENDAR, SLACK, WEB_RESEARCH, IMPORT, OTHER), sourceUrl?, verified bool, createdAt. **@@unique([workspaceId, type, value])** — adding an existing channel attaches to that contact (or returns a merge suggestion if it belongs to another).
 - `ContactInteraction`: id, workspaceId, contactId, userId? (teammate), sokoBotId?, occurredAt, channel enum (EMAIL, MEETING, SLACK, CALL, MANUAL, OTHER), direction? (IN/OUT/BOTH), summary (one line), sourceRef? (provider message/event id — @@unique([workspaceId, channel, sourceRef]) for idempotent capture), sourceUrl?, createdAt. Writing/removing updates contact.firstContactAt/lastContactAt/interactionCount in the same transaction.
@@ -24,6 +26,7 @@ Dedicated Core models (not generic Files `DataTable` rows), because channel uniq
 - History: record field changes (who: user or bot) — reuse an existing history/audit pattern if one fits (search `TableBatch`/history in drive tables); minimal is fine (contact activity entries).
 
 ## Core API (v1, OpenAPI, auth like other workspace routes; coworker/Soko Bot context per apps/core/AGENTS.md)
+
 - `GET /v1/contacts` — list with cursor pagination, search (name/org/channel value), filters (stage, owner, listId, knownByUserId, lastContactBefore/After, hasChannel type), sort (name, organization, lastContactAt, firstContactAt, updatedAt, stage), plus counts.
 - `GET /v1/contacts/{id}` — contact + channels + lists + knownBy + recent interactions (paged sub-resource `GET /v1/contacts/{id}/interactions`).
 - `POST /v1/contacts` (create; with channels; dedupe → 409 with existing contact id if a channel is taken, or `upsert=true` attaches), `PATCH /v1/contacts/{id}` (version check), `POST /v1/contacts/{id}/channels`, `DELETE …/channels/{channelId}`, `POST /v1/contacts/{id}/interactions`, `POST /v1/contacts/merge`, archive/unarchive.
@@ -33,11 +36,13 @@ Dedicated Core models (not generic Files `DataTable` rows), because channel uniq
 - Files: the drive listing shows one pinned virtual "Contacts" entry per workspace (special kind, links to /contacts), not deletable.
 
 ## Soko Bot (packages/soko-bot + Core runtime)
+
 - New capability `contacts` with an action-style input (search | get | upsert | update | add_channel | remove_channel | log_interaction | merge | suggest_merge | list_lists | create_list | update_list | add_to_list | remove_from_list | archive) — or a small set of capabilities if that fits the existing pattern better (follow tool-contracts.ts conventions; reads go in the read-only set used for the read budget (`CORE_READ_CAPABILITIES` regex: get_/list_/read_/search_/find_ prefixes) — so prefer separate names like `search_contacts`, `get_contact`, `upsert_contact`, `update_contact`, `log_contact_interaction`, `merge_contacts`, `manage_contact_lists`). Writes are ACTION_CAPABILITIES with receipts. Bots may set every field. Script calls via $SOKO_TOOLS_URL work automatically.
 - Add to every version's grant/route ceiling as appropriate; new skill `contacts` (what a contact is, upsert-by-channel, never create duplicates — search first, log interactions with one-line topics, lists, prospects research with sources, no spam/automated senders, cite sources). Compose a new version **v28 = v27 + contacts skill**; make it the code default and note that the admin promote/migrate is done by the parent session through the admin UI.
 - Meeting prep and daily brief: include contacts context (who is this, who on the team knows them, last interaction) — Phase 3.
 
 ## Automatic capture (Core, deterministic first, model only for judgment)
+
 - Sources per connected integration of every Soko Bot in the workspace: email (gmail/outlook: From/To/Cc of messages the owner SENT or REPLIED to, plus inbound threads the owner answered), calendar (googlecalendar/outlook: attendees of real meetings, excluding resources/rooms/self), Slack (Phase 3: DMs and small channels the owner participates in; `teamId:userId` channel + profile email/name/title).
 - Spam/automation filters (deterministic): noreply/no-reply/notifications/mailer-daemon/bounce local parts, List-Unsubscribe / Precedence bulk headers or provider categories promotions/social/updates/forums, known SaaS sending domains list, one-way inbound never answered → skip; self/teammates (workspace members) are not contacts. Borderline → Jev (the cheap judge already used for mail triage: `apps/core/src/lib/soko-bot/mail-triage.ts` pattern).
 - Backfill when an integration is connected (or on first run after deploy for existing connections): last 12 months, in a durable background job (Core job/cron with progress + resume; not a model loop). Incremental: hook into the existing 15-min `/sync/soko-bot-ingest` cron/service (`apps/core/src/services/soko-bot-ingest.service.ts`).
@@ -45,6 +50,7 @@ Dedicated Core models (not generic Files `DataTable` rows), because channel uniq
 - Rate/cost guardrails: cap per run, per workspace; log via evlog wide events.
 
 ## Web UI (apps/web)
+
 - Sidebar item **Contacts** (icon users) after Schedules, for every member. Route `/contacts`.
 - Layout: left rail of lists (smart lists first: All contacts, My contacts, Follow-ups due, Recently added, Stale 90+ days, Prospects; then team lists with color dot + count; "+ New list"). Main: toolbar (search, filters, Add contact, Export) + spreadsheet grid (reuse/extract from drive tables grid): Name (avatar initial), Organization, Role, Stage chip, Lists chips, Channels icons (mail/slack/linkedin/x/phone…), Owner avatar, Last contact, Known by avatars, Follow-up, Updated. Resizable/sortable; bulk select → Add to list / Remove / Set stage / Set owner / Merge.
 - Person side panel (sheet/drawer): header (avatar, name, role @ org, Stage, Owner, Lists), Channels block (icon + value, copy/open, source tooltip, add channel), About (summary, why interesting), Next step + Follow-up, Timeline (date · teammate avatar/name · channel icon · one-line topic · source link), bot-added marker ("added by Joseph"), merge suggestion banner.
@@ -53,6 +59,7 @@ Dedicated Core models (not generic Files `DataTable` rows), because channel uniq
 - Design: minimal black/white + Wisteria accent, semantic tokens, design guards (icon touch targets `size-10 md:size-8`, whole pixels, no literal font sizes, sentence case, en/de/es parity with real translations).
 
 ## Phases (each = tested PR(s), merged by the parent)
+
 1. Core foundation: models + migration, services, routes, OpenAPI + client regen, import endpoint, contacts bot tools + skill + v28, Files virtual entry. Tests: unit + PostgreSQL integration (uniqueness, upsert attach, merge, derived fields, lists, smart list filters, import idempotency), soko-bot contract tests.
 2. Web: Contacts tab, lists rail, grid, side panel, add/merge/bulk actions, export, Files entry. Tests + real browser verification with screenshots.
 3. Capture: email + calendar backfill/incremental, spam filters, enrichment + merge suggestions; Slack; prospect research flow; meeting prep/daily brief hooks. Tests with recorded fixtures (no live Composio calls in tests).
@@ -63,20 +70,20 @@ Migration `packages/database/prisma/migrations/20261022151847_contacts` (schema 
 
 ### Routes (`/v1`)
 
-| Route | What it does |
-| --- | --- |
-| `GET /contacts` | Filters (`search`, `stage`, `ownerUserId`, `ownedByMe`, `listId`, `knownByUserId`, `knownByMe`, `lastContactAfter/Before`, `lastContactOlderThanDays`, `createdWithinDays`, `followUpDue`, `hasChannel`, `hasInteractions`, `archived`), `sort` + `direction`, cursor pagination; `meta.pagination.total` is the match count |
-| `POST /contacts` | Create; a taken channel is 409 `contact_channel_taken` with `existingContactId`; `upsert: true` attaches instead (200) and can return a `mergeSuggestion` |
-| `GET /contacts/{id}` | Contact + channels + lists + `knownBy` + 10 recent interactions + same-name `mergeSuggestions` |
-| `PATCH /contacts/{id}` | Fields with `version`; stale version is 409 `contact_version_conflict` |
-| `POST /contacts/{id}/archive`, `/unarchive` | Archive state |
-| `POST /contacts/{id}/channels`, `DELETE /contacts/{id}/channels/{channelId}` | Channels (removing a primary promotes the next) |
-| `GET/POST /contacts/{id}/interactions`, `DELETE …/interactions/{interactionId}` | Timeline; idempotent by `sourceRef` |
-| `GET /contacts/{id}/activity` | Field-change history (person or Soko Bot) |
-| `POST /contacts/merge`, `GET /contacts/duplicates` | Merge; same-name duplicate groups |
-| `GET /contacts/export.csv` | Same filters as the list |
-| `POST /contacts/import` | Files table + column mapping |
-| `GET/POST /contact-lists`, `PATCH/DELETE /contact-lists/{id}`, `POST /contact-lists/{id}/members` | Lists; smart lists through `smartFilter` |
+| Route                                                                                             | What it does                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /contacts`                                                                                   | Filters (`search`, `stage`, `ownerUserId`, `ownedByMe`, `listId`, `knownByUserId`, `knownByMe`, `lastContactAfter/Before`, `lastContactOlderThanDays`, `createdWithinDays`, `followUpDue`, `hasChannel`, `hasInteractions`, `archived`), `sort` + `direction`, cursor pagination; `meta.pagination.total` is the match count |
+| `POST /contacts`                                                                                  | Create; a taken channel is 409 `contact_channel_taken` with `existingContactId`; `upsert: true` attaches instead (200) and can return a `mergeSuggestion`                                                                                                                                                                    |
+| `GET /contacts/{id}`                                                                              | Contact + channels + lists + `knownBy` + 10 recent interactions + same-name `mergeSuggestions`                                                                                                                                                                                                                               |
+| `PATCH /contacts/{id}`                                                                            | Fields with `version`; stale version is 409 `contact_version_conflict`                                                                                                                                                                                                                                                       |
+| `POST /contacts/{id}/archive`, `/unarchive`                                                       | Archive state                                                                                                                                                                                                                                                                                                                |
+| `POST /contacts/{id}/channels`, `DELETE /contacts/{id}/channels/{channelId}`                      | Channels (removing a primary promotes the next)                                                                                                                                                                                                                                                                              |
+| `GET/POST /contacts/{id}/interactions`, `DELETE …/interactions/{interactionId}`                   | Timeline; idempotent by `sourceRef`                                                                                                                                                                                                                                                                                          |
+| `GET /contacts/{id}/activity`                                                                     | Field-change history (person or Soko Bot)                                                                                                                                                                                                                                                                                    |
+| `POST /contacts/merge`, `GET /contacts/duplicates`                                                | Merge; same-name duplicate groups                                                                                                                                                                                                                                                                                            |
+| `GET /contacts/export.csv`                                                                        | Same filters as the list                                                                                                                                                                                                                                                                                                     |
+| `POST /contacts/import`                                                                           | Files table + column mapping                                                                                                                                                                                                                                                                                                 |
+| `GET/POST /contact-lists`, `PATCH/DELETE /contact-lists/{id}`, `POST /contact-lists/{id}/members` | Lists; smart lists through `smartFilter`                                                                                                                                                                                                                                                                                     |
 
 ### Deviations and decisions
 
