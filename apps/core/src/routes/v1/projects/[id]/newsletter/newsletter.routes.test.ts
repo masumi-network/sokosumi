@@ -22,6 +22,7 @@ import mountAdd from "./subscribers/post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspaceFindUnique: vi.fn(),
   projectFindFirst: vi.fn(),
   newsletterFindUnique: vi.fn(),
   newsletterUpsert: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspaceFindUnique },
     project: { findFirst: m.projectFindFirst },
     newsletter: {
       findUnique: m.newsletterFindUnique,
@@ -172,6 +174,7 @@ function allOperations(app = createApp()) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspaceFindUnique.mockResolvedValue({ organization: { slug: "utxo" } });
   m.projectFindFirst.mockResolvedValue({
     id: PROJECT_ID,
     closingAt: null,
@@ -194,6 +197,24 @@ beforeEach(() => {
 });
 
 describe("Project newsletter access", () => {
+  it.each([null, { slug: "other" }])(
+    "hides every authenticated newsletter route for a non-beta workspace: %s",
+    async (organization) => {
+      m.workspaceFindUnique.mockResolvedValue({ organization });
+      const responses = await Promise.all(allOperations());
+      expect(responses.map((response) => response.status)).toEqual(
+        Array(7).fill(404),
+      );
+      expect(m.projectFindFirst).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+      expect(m.deleteMany).not.toHaveBeenCalled();
+      expect(m.workspaceFindUnique).toHaveBeenCalledWith({
+        where: { id: WORKSPACE_ID },
+        select: { organization: { select: { slug: true } } },
+      });
+    },
+  );
+
   it("returns 404 on every route before access checks or DB work when disabled", async () => {
     m.enabled = false;
     const responses = await Promise.all(allOperations(createApp(AUTH, null)));
@@ -475,7 +496,7 @@ describe("newsletter subscribers", () => {
     });
   });
 
-  it("reactivates an unsubscribed subscriber and clears the unsubscribe time", async () => {
+  it("does not reactivate an unsubscribed subscriber", async () => {
     m.findUnique.mockResolvedValue({
       ...SUBSCRIBER,
       status: "UNSUBSCRIBED",
@@ -485,12 +506,27 @@ describe("newsletter subscribers", () => {
       `${BASE}/subscribers/${SUBSCRIBER_ID}`,
       json("PATCH", { status: "ACTIVE" }),
     );
-    expect(response.status).toBe(200);
-    expect(m.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { name: undefined, status: "ACTIVE", unsubscribedAt: null },
+    expect(response.status).toBe(409);
+    expect(m.update).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite a concurrent bounce when an active subscriber is saved as active", async () => {
+    m.findUnique.mockResolvedValue(SUBSCRIBER);
+    m.update.mockImplementation(
+      ({ data }: { data: Prisma.NewsletterSubscriberUpdateInput }) => ({
+        ...SUBSCRIBER,
+        status: data.status ?? "BOUNCED",
+        bouncedAt: NOW,
       }),
     );
+    const response = await createApp().request(
+      `${BASE}/subscribers/${SUBSCRIBER_ID}`,
+      json("PATCH", { status: "ACTIVE" }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { status: "BOUNCED" },
+    });
   });
 
   it.each(["PENDING", "BOUNCED"])(
@@ -564,9 +600,14 @@ describe("newsletter subscribers", () => {
     expect(response.status).toBe(204);
     expect(await response.text()).toBe("");
     expect(m.deleteMany).toHaveBeenCalledWith({
-      where: { id: SUBSCRIBER_ID, newsletterId: NEWSLETTER_ID },
+      where: {
+        id: SUBSCRIBER_ID,
+        newsletterId: NEWSLETTER_ID,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
     });
     m.deleteMany.mockResolvedValue({ count: 0 });
+    m.findUnique.mockResolvedValue(null);
     expect(
       (
         await app.request(`${BASE}/subscribers/${SUBSCRIBER_ID}`, {
@@ -575,6 +616,28 @@ describe("newsletter subscribers", () => {
       ).status,
     ).toBe(404);
   });
+
+  it.each(["UNSUBSCRIBED", "BOUNCED"])(
+    "keeps a %s suppression record even for a stale or forged removal request",
+    async (status) => {
+      m.findUnique.mockResolvedValue({ ...SUBSCRIBER, status });
+      m.deleteMany.mockImplementation(
+        ({ where }: { where: Prisma.NewsletterSubscriberWhereInput }) => {
+          const filter = where.status;
+          const allowed =
+            typeof filter === "object" && filter.in && Array.isArray(filter.in)
+              ? filter.in.includes(status as "UNSUBSCRIBED" | "BOUNCED")
+              : true;
+          return { count: allowed ? 1 : 0 };
+        },
+      );
+      const response = await createApp().request(
+        `${BASE}/subscribers/${SUBSCRIBER_ID}`,
+        { method: "DELETE" },
+      );
+      expect(response.status).toBe(403);
+    },
+  );
 });
 
 describe("newsletter subscriber CSV import", () => {

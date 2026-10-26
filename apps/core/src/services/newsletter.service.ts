@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import slugify from "slugify";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -136,17 +136,15 @@ export async function patchNewsletterSubscriber(
   if (
     input.status &&
     subscriber.status !== "ACTIVE" &&
-    subscriber.status !== "UNSUBSCRIBED"
+    (input.status === "ACTIVE" || subscriber.status !== "UNSUBSCRIBED")
   ) {
-    throw conflict(
-      "Only active or unsubscribed subscribers can change status manually",
-    );
+    throw conflict("This subscriber's status cannot be changed manually");
   }
   return prisma.newsletterSubscriber.update({
     where,
     data: {
       name: input.name,
-      status: input.status,
+      status: input.status === "UNSUBSCRIBED" ? input.status : undefined,
       ...(input.status && input.status !== subscriber.status
         ? {
             unsubscribedAt: input.status === "UNSUBSCRIBED" ? new Date() : null,
@@ -161,10 +159,18 @@ export async function deleteNewsletterSubscriber(
   subscriberId: string,
 ) {
   const newsletter = await getNewsletter(scope);
+  const where = { id: subscriberId, newsletterId: newsletter.id };
   const { count } = await prisma.newsletterSubscriber.deleteMany({
-    where: { id: subscriberId, newsletterId: newsletter.id },
+    where: { ...where, status: { in: ["ACTIVE", "PENDING"] } },
   });
-  if (!count) throw notFound("Subscriber not found");
+  if (!count) {
+    const subscriber = await prisma.newsletterSubscriber.findUnique({ where });
+    if (subscriber)
+      throw forbidden(
+        "Unsubscribed and bounced subscribers must be kept to prevent re-adding them",
+      );
+    throw notFound("Subscriber not found");
+  }
 }
 
 export async function importNewsletterSubscribers(

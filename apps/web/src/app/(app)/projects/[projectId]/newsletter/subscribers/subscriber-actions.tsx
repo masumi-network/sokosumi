@@ -53,9 +53,10 @@ export function SubscriberActions({
   const nextStatus =
     subscriber.status === NewsletterSubscriberStatus.ACTIVE
       ? NewsletterSubscriberStatus.UNSUBSCRIBED
-      : subscriber.status === NewsletterSubscriberStatus.UNSUBSCRIBED
-        ? NewsletterSubscriberStatus.ACTIVE
-        : null;
+      : null;
+  const canRemove =
+    subscriber.status === NewsletterSubscriberStatus.ACTIVE ||
+    subscriber.status === NewsletterSubscriberStatus.PENDING;
 
   async function handleStatus() {
     if (!nextStatus) return;
@@ -70,13 +71,7 @@ export function SubscriberActions({
         toast.error(result.error.message, errorToastOptions);
         return;
       }
-      toast.success(
-        t(
-          nextStatus === NewsletterSubscriberStatus.ACTIVE
-            ? "resubscribed"
-            : "unsubscribed",
-        ),
-      );
+      toast.success(t("unsubscribed"));
       router.refresh();
     } catch {
       toast.error(t("updateError"), errorToastOptions);
@@ -107,6 +102,8 @@ export function SubscriberActions({
     }
   }
 
+  if (!canRemove) return null;
+
   return (
     <>
       <DropdownMenu>
@@ -125,11 +122,7 @@ export function SubscriberActions({
         <DropdownMenuContent align="end">
           {nextStatus ? (
             <DropdownMenuItem onSelect={() => void handleStatus()}>
-              {t(
-                nextStatus === NewsletterSubscriberStatus.ACTIVE
-                  ? "resubscribe"
-                  : "unsubscribe",
-              )}
+              {t("unsubscribe")}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
