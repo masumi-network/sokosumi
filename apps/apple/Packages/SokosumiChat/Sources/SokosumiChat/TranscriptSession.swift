@@ -46,6 +46,10 @@ public final class TranscriptSession: ObservableObject {
   static let signInMissing = "Sign-in is not configured."
 
   @Published public private(set) var jumpTarget: JumpTarget?
+  /// Whether the reader is at the end of this Transcript: the list follows the latest message outside a jump window,
+  /// the state that hides Jump to latest. A room counts as read only there (SOK-1481). Every open starts away from it,
+  /// so opening reads nothing until the list reports reaching it, and a jump leaves it.
+  public private(set) var isAtEnd = false
   /// The room opened at its Unread divider and the list has not placed it yet. An explicit target replaces it.
   @Published public private(set) var placesUnreadDivider = false
   public let timeline = RoomTimeline()
@@ -94,6 +98,7 @@ public final class TranscriptSession: ObservableObject {
   /// once, in `open` or `close`, so it never publishes an empty scope between two rooms.
   private func stop() {
     clearJump()
+    isAtEnd = false
     unreadDividerPlaced()
     loadTask?.cancel()
     loadTask = nil
@@ -101,6 +106,13 @@ public final class TranscriptSession: ObservableObject {
     gapTask = nil
     recovery.stop()
     outbox.reset()
+  }
+
+  /// The list reports whether it is at its end; true when the reader has just reached it.
+  @discardableResult
+  public func setAtEnd(_ atEnd: Bool) -> Bool {
+    defer { isAtEnd = atEnd }
+    return atEnd && !isAtEnd
   }
 
   public func requestJump(to messageId: String) {
@@ -196,6 +208,7 @@ public final class TranscriptSession: ObservableObject {
 
   private func replaceJump(with target: JumpTarget) {
     finishLanding(false)
+    isAtEnd = false
     jumpTarget = target
   }
 
@@ -296,6 +309,8 @@ public final class TranscriptSession: ObservableObject {
       }
       if page == .initial, timeline.opensAtUnread, timeline.unreadDividerMessageId != nil, jumpTarget == nil {
         placesUnreadDivider = true
+        // The list reported the end on mount, before it moves to the divider: opening at the divider reads nothing.
+        isAtEnd = false
       }
       await hooks.pageLanded(page)
       return timeline.generation == generation && !Task.isCancelled

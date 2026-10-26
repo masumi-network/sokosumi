@@ -5138,6 +5138,33 @@ Review follow-up, after #6431 merged (squash `7951fdf18`), taken from Cursor's d
 
 Not taken from #6432: its tests, which did not compile (calls on `NSObject` in its Apple CI run); a test comparing color constants with themselves; and a Larger Text test, since macOS ignored `dynamicTypeSize` set from the environment in a harness render. Verified the same way as above: the harness rendered every state in light and dark and at 420pt. Tests and lint run in CI only.
 
+## 05b (SOK-1484) — a room counts as read only at the end of its transcript
+
+Built from spec SOK-1481, ticket SOK-1484, not mirrored from web. Opening a room no longer reads it by itself.
+
+### Behaviour
+
+- `TranscriptSession.isAtEnd` is false on every open and close and after any jump. The room's list reports `!scroll.showsJumpToLatest(anchored:)` per visit (`RoomTimelineView`), the state that hides Jump to latest.
+- `OpenRoomSession.isAtEnd` adds two holds: a message navigation in flight (`openLinkTarget`, `openMessage`, `openMessageReply` run in `holdingReads`) and a room jump the list has not taken yet. Reaching the end, and a navigation settling, run the workspace's read sync.
+- `RoomReadAttention.readIfNeeded` takes `atEnd`. Away from the end the room is not read, whatever arrives and whatever the scene phase; an open Thread is still Looked. Back at the end the room reads once; scrolling down again to content already read sends nothing.
+- A room with nothing unread opens at its end and is read on open as before. A room that opens at its Unread divider (04b, SOK-1486) reads nothing on open: the list reports the end as it mounts, before it moves to the divider, so `TranscriptSession.run` sets the Transcript away from the end where it asks the list to place the divider.
+
+### Tests
+
+- `RoomReadAttentionTests`: `onlyTheEndOfTheTranscriptReadsTheRoom`, `awayFromTheEndTheOpenThreadIsLookedButTheRoomIsNotRead`.
+- `TranscriptSessionTests.everyOpenStartsAwayFromTheEndAndAJumpLeavesIt`.
+- `OpenRoomSessionTests`: `reachingTheEndSyncsTheRead`, `anExplicitTargetHoldsTheReadUntilTheReaderIsBackAtTheEnd`, `aRoomLinkReadsOnceItsNavigationSettles`, `openingAtTheDividerReadsNothing` (fails with the `run` line removed).
+- `WorkspaceRealtimeTests.aLiveMessageWhileScrolledUpWaitsForTheEnd`. The workspace suites have no list, so `keepRoomListAtTheEnd` stands in for one that mounts at the bottom.
+
+### Verification
+
+From `apps/apple`:
+- `swift test --package-path Packages/SokosumiChat`: **1353 tests in 151 suites passed** (after merging SOK-1486); `Packages/SokosumiWorkspace`: **206 tests in 4 suites passed**.
+- `xcodebuild … build`: **BUILD SUCCEEDED**. `xcodebuild test … -enableCodeCoverage NO`: **2,137 tests, 2,136 passed, 1 failed**: `NativeWindowTests/SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` (Vision read the row as "AL YoU"). It fails the same way on the integration base `f69937351`, so it is not caused by this change.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0`: **Build complete**.
+- `mint run swiftformat --lint .`: **0/646 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 643 files**.
+
+Unverified: the running app was not launched, so the list's report at the end, and a room left halfway staying bold, were not checked live.
 ## 04b — a room opens at its Unread divider (SOK-1486)
 
 Built from spec SOK-1481's acceptance list, not from web's code. Core's part is SOK-1482 (`openAtUnread` and `meta.pagination.firstUnreadMessageId` on `GET /chats/rooms/{id}/messages`); Apple's `openapi.json` already carried that operation. The read-at-the-end rule is SOK-1484's.

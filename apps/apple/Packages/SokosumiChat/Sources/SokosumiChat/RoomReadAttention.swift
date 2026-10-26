@@ -28,9 +28,15 @@ public final class RoomReadAttention: ObservableObject {
     }
   }
 
+  /// What the last read handled: the content, and whether it read the room or only Looked the open Thread.
   private struct Marker: Equatable {
     let roomId: String
     let content: Content
+    let readsRoom: Bool
+
+    func covers(_ next: Self) -> Bool {
+      roomId == next.roomId && content == next.content && (readsRoom || !next.readsRoom)
+    }
   }
 
   /// What a room holds about what is unread in it (web `RoomReadOverlay`): both halves of `unreadCount`
@@ -164,15 +170,17 @@ public final class RoomReadAttention: ObservableObject {
   }
 
   /// With a thread open this Looks it first. `threadLooked` runs as soon as a Look reaches Core, whatever
-  /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts.
+  /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts. The room is read
+  /// only while its transcript is `atEnd` (SOK-1481); away from it the open Thread is still Looked.
   @discardableResult
-  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, client: Client, organizationSlug: String?,
-                           threadLooked: () -> Void = {}) async throws -> Bool {
-    let next = Marker(roomId: room.id, content: content)
-    if marker != next || !historyReadable {
+  // swiftlint:disable:next function_parameter_count
+  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, atEnd: Bool, client: Client,
+                           organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
+    let next = Marker(roomId: room.id, content: content, readsRoom: atEnd)
+    if marker?.covers(next) != true || !historyReadable {
       marker = nil
     }
-    guard isVisible, historyReadable, marker != next else { return false }
+    guard isVisible, historyReadable, marker == nil, atEnd || content.parentMessageId != nil else { return false }
     marker = next
     let attempt = generation
     let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)
@@ -181,6 +189,13 @@ public final class RoomReadAttention: ObservableObject {
     }
     guard attempt == generation, marker == next, isVisible, !Task.isCancelled else {
       clearMarker(matching: next)
+      return false
+    }
+    guard atEnd else {
+      if let lookError {
+        clearMarker(matching: next)
+        throw lookError
+      }
       return false
     }
     do {

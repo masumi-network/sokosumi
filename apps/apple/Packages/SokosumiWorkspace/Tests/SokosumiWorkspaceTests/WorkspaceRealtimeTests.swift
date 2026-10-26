@@ -238,6 +238,7 @@ private func realtimeState(
     sleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
+  keepRoomListAtTheEnd(state)
   state.clientResolver = { client }
   return (state, auth, transport)
 }
@@ -1220,6 +1221,39 @@ struct WorkspaceRealtimeTests {
     await state.realtimeReadSync?.value
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == reads + 1)
     #expect(state.rooms.first?.unreadCount == 0)
+  }
+
+  /// SOK-1484: scrolled up, a live message stays unread, as does the scene coming back to the foreground; reaching
+  /// the end reads it.
+  @Test func aLiveMessageWhileScrolledUpWaitsForTheEnd() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, _, transport) = try realtimeState([
+      (200, workspacesBody()),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440750", roomId: roomA, content: "first")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimeTokenBody()),
+      (200, realtimeReadBody(id: roomA))
+    ], realtime: { fake })
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    let reads = { transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count }
+    let opened = reads()
+    await state.openRoom.setAtEnd(false, roomId: roomA)
+    let live = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440751", roomId: roomA, content: "over the wire",
+                          createdAt: "2026-01-01T00:00:01.000Z")
+    ])
+    fake.deliver(.message(roomId: roomA, eventType: .create, message: live[0]))
+    for _ in 0 ..< 1000 where state.realtimeReadSync == nil {
+      await Task.yield()
+    }
+    await state.realtimeReadSync?.value
+    await state.syncReadAttention()
+    #expect(reads() == opened, "Away from the end the arrival stays unread.")
+    await state.openRoom.setAtEnd(true, roomId: roomA)
+    #expect(reads() == opened + 1, "Reaching the end reads it.")
   }
 
   /// Events arriving while a read is in flight queue exactly one more read after it, however many there are.
