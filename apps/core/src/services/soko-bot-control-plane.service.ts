@@ -91,13 +91,21 @@ import {
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import {
+  capturePreference,
+  MIN_PREFERENCE_CONFIDENCE,
+} from "@/lib/soko-bot/preference-capture";
+import { logSokoBotRouteOutcome } from "@/lib/soko-bot/route-outcome";
 import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
   matchSokoBotRuntimeTurnBoundary,
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
-import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
+import {
+  systemScheduleRoute,
+  withOwnScheduleTools,
+} from "@/lib/soko-bot/system-routes";
 import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
@@ -1608,6 +1616,9 @@ export class SokoBotControlPlane {
         }
         if (settled) {
           waitUntil(
+            logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
+          );
+          waitUntil(
             import("@/services/soko-bot-delivery.service")
               .then(({ deliverSokoBotTurnOutbox }) =>
                 deliverSokoBotTurnOutbox(input.turnId),
@@ -1748,6 +1759,11 @@ export class SokoBotControlPlane {
         !input.scheduleReservation.leaseToken)
     ) {
       throw new SokoBotValidationError("Invalid schedule turn reservation");
+    }
+    if (input.ownScheduleId && !input.scheduleReservation) {
+      throw new SokoBotValidationError(
+        "Only a schedule run may manage its own schedule",
+      );
     }
     if (
       input.adminScheduleReservation &&
@@ -2163,7 +2179,9 @@ export class SokoBotControlPlane {
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
-        : routeCapabilities) as readonly SokoBotCapability[],
+        : input.ownScheduleId
+          ? withOwnScheduleTools(routeCapabilities)
+          : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +
@@ -2192,6 +2210,18 @@ export class SokoBotControlPlane {
           },
         })
       : null;
+    // A mute or standing instruction the owner typed is saved before the turn
+    // reads memory, whether or not the model would have thought to.
+    const capturedPreference =
+      personAsked &&
+      !askedByTeammate &&
+      (classification.classification.signals?.statesPreference ?? 0) >=
+        MIN_PREFERENCE_CONFIDENCE
+        ? await capturePreference({
+            sokoBotId: bot.id,
+            message: input.chat?.classifyMessage ?? message,
+          })
+        : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -2199,6 +2229,8 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       classification: classification.classification,
+      personAsked,
+      capturedPreference,
       audience: askedByTeammate ? "TEAMMATE" : "OWNER",
       askedByKind: input.chat?.askedByBot
         ? "ASSISTANT"
@@ -2426,6 +2458,23 @@ export class SokoBotControlPlane {
                 lastSeenEventAt: occurrence.delegationEventAt,
               },
             });
+          }
+          if (occurrence.followUpDelegationIds?.length) {
+            const claimed = await tx.sokoBotDelegation.updateMany({
+              where: {
+                id: { in: occurrence.followUpDelegationIds },
+                followUp: { not: null },
+                followUpTurnId: null,
+                turn: { sokoBotId: bot.id, workspaceId: input.workspaceId },
+              },
+              data: { followUpTurnId: created.id },
+            });
+            // Another turn took a plan first; the next tick rebuilds the
+            // message without it rather than running it twice.
+            if (claimed.count !== occurrence.followUpDelegationIds.length)
+              throw new SokoBotBusyError(
+                "A follow-up plan in this batch was already handed over",
+              );
           }
           if (occurrence.taskCursorAt) {
             await tx.sokoBotTaskWatch.upsert({

@@ -1,43 +1,54 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONTACT_PRESET_IDS,
+  CONTACT_STAGES,
   type ContactView,
   channelHref,
   channelLabel,
   contactQuery,
   coreErrorOf,
+  daysSince,
   defaultDirection,
   guessImportMapping,
   initials,
   isFollowUpDue,
+  matchesContactSearch,
+  primaryEmail,
+  STAGE_DOT,
   sortChannels,
 } from "./contacts-view";
 
 const base: ContactView = {
   view: "all",
+  company: null,
   search: "",
   stage: null,
-  owner: null,
+  replyState: null,
+  kind: null,
   knownBy: null,
   sort: "updatedAt",
   direction: "desc",
 };
 
 describe("contactQuery", () => {
-  it("maps each rail preset to the documented query params", () => {
+  it("narrows to one company inside any view", () => {
+    expect(
+      contactQuery({
+        ...base,
+        view: "mine",
+        company: "Cardano Foundation",
+      }),
+    ).toMatchObject({ knownByMe: "true", company: "Cardano Foundation" });
+    expect(contactQuery(base)).not.toHaveProperty("company");
+  });
+
+  it("maps each preset tab to the documented query params", () => {
+    expect(CONTACT_PRESET_IDS).toEqual(["all", "mine", "recent"]);
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
-      ownedByMe: "true",
-    });
-    expect(contactQuery({ ...base, view: "followUps" })).toMatchObject({
-      followUpDue: "true",
+      knownByMe: "true",
     });
     expect(contactQuery({ ...base, view: "recent" })).toMatchObject({
       createdWithinDays: 14,
-    });
-    expect(contactQuery({ ...base, view: "stale" })).toMatchObject({
-      lastContactOlderThanDays: 90,
-    });
-    expect(contactQuery({ ...base, view: "prospects" })).toMatchObject({
-      stage: "PROSPECT",
     });
     expect(contactQuery(base)).toEqual({
       sort: "updatedAt",
@@ -46,7 +57,11 @@ describe("contactQuery", () => {
   });
 
   it("treats any other view as a list id", () => {
-    expect(contactQuery({ ...base, view: "list-1" }).listId).toBe("list-1");
+    const listId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f";
+    expect(contactQuery({ ...base, view: listId }).listId).toBe(listId);
+    expect(contactQuery({ ...base, view: "stale" })).not.toHaveProperty(
+      "listId",
+    );
   });
 
   it("narrows the view with the toolbar filters", () => {
@@ -55,18 +70,59 @@ describe("contactQuery", () => {
         ...base,
         search: "  ada ",
         stage: "LEAD",
-        owner: "me",
         knownBy: "user-2",
       }),
     ).toMatchObject({
       search: "ada",
       stage: "LEAD",
-      ownedByMe: "true",
       knownByUserId: "user-2",
     });
+    expect(contactQuery({ ...base, knownBy: "me" })).toMatchObject({
+      knownByMe: "true",
+    });
     expect(
-      contactQuery({ ...base, owner: "user-3", knownBy: "me" }),
-    ).toMatchObject({ ownerUserId: "user-3", knownByMe: "true" });
+      contactQuery({
+        ...base,
+        replyState: "AWAITING_REPLY",
+        kind: "ORGANIZATION",
+      }),
+    ).toMatchObject({ replyState: "AWAITING_REPLY", kind: "ORGANIZATION" });
+  });
+});
+
+describe("classification", () => {
+  it("offers every stage once, the plain default first", () => {
+    expect(CONTACT_STAGES[0]).toBe("CONTACT");
+    expect(new Set(CONTACT_STAGES).size).toBe(CONTACT_STAGES.length);
+    expect(Object.keys(STAGE_DOT).sort()).toEqual([...CONTACT_STAGES].sort());
+  });
+});
+
+describe("email and reply", () => {
+  const channel = (value: string, isPrimary: boolean, type = "EMAIL") => ({
+    id: value,
+    type: type as "EMAIL",
+    value,
+    label: null,
+    isPrimary,
+    source: "EMAIL" as const,
+    sourceUrl: null,
+    verified: false,
+    createdAt: new Date(),
+  });
+
+  it("shows the primary email, else the first one, else nothing", () => {
+    expect(
+      primaryEmail([channel("b@x.co", false), channel("a@x.co", true)]),
+    ).toBe("a@x.co");
+    expect(primaryEmail([channel("b@x.co", false)])).toBe("b@x.co");
+    expect(primaryEmail([channel("+41790000000", true, "PHONE")])).toBeNull();
+  });
+
+  it("counts whole days waited, never below zero", () => {
+    const now = new Date("2026-10-23T12:00:00Z");
+    expect(daysSince("2026-10-11T13:00:00Z", now)).toBe(11);
+    expect(daysSince("2026-10-24T00:00:00Z", now)).toBe(0);
   });
 });
 
@@ -173,5 +229,20 @@ describe("helpers", () => {
       lists: "4",
       summary: "5",
     });
+  });
+});
+
+describe("matchesContactSearch", () => {
+  const ada = {
+    name: "Ada Lovelace",
+    organization: "Analytical Engines",
+    channels: [{ value: "ada@engines.test" }],
+  } as Parameters<typeof matchesContactSearch>[0];
+
+  it("matches name, organization or a channel, whatever the case", () => {
+    expect(matchesContactSearch(ada, "LOVE")).toBe(true);
+    expect(matchesContactSearch(ada, " engines ")).toBe(true);
+    expect(matchesContactSearch(ada, "ada@")).toBe(true);
+    expect(matchesContactSearch(ada, "babbage")).toBe(false);
   });
 });

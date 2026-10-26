@@ -14,6 +14,7 @@ import {
 
 export const CONTACTS_KEY = ["contacts"] as const;
 export const CONTACT_LISTS_KEY = ["contact-lists"] as const;
+export const CONTACT_ORGANIZATIONS_KEY = ["contact-organizations"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -39,6 +40,15 @@ export function useContactLists() {
   return useQuery({
     queryKey: CONTACT_LISTS_KEY,
     queryFn: () => contactsService.lists(),
+  });
+}
+
+/** The biggest companies, or Core's matches for `search` among all of them. */
+export function useContactOrganizations(search: string) {
+  return useQuery({
+    queryKey: [...CONTACT_ORGANIZATIONS_KEY, search],
+    queryFn: () => contactsService.organizations(search || undefined),
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -102,6 +112,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
   await Promise.all([
     cache.invalidateQueries({ queryKey: CONTACTS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_ORGANIZATIONS_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,

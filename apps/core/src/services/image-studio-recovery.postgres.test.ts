@@ -20,13 +20,13 @@ import {
 const {
   fetchQueueStatusMock,
   fetchQueueResultMock,
-  downloadImageMock,
+  downloadMediaMock,
   putMock,
   accessMock,
 } = vi.hoisted(() => ({
   fetchQueueStatusMock: vi.fn(),
   fetchQueueResultMock: vi.fn(),
-  downloadImageMock: vi.fn(),
+  downloadMediaMock: vi.fn(),
   putMock: vi.fn(),
   accessMock: vi.fn(),
 }));
@@ -51,7 +51,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
 vi.mock("@/lib/image-studio/access", () => ({
@@ -64,7 +64,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   )),
   fetchQueueStatus: fetchQueueStatusMock,
   fetchQueueResult: fetchQueueResultMock,
-  downloadImage: downloadImageMock,
+  downloadMedia: downloadMediaMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
@@ -75,7 +75,7 @@ import {
   reconcileJob,
   reconcileProjectJobs,
   reconcileStaleJobs,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 let userId: string;
@@ -133,14 +133,14 @@ async function makeJob(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   accessMock.mockResolvedValue({ projectId, workspaceId, userId });
-  downloadImageMock.mockResolvedValue({
+  downloadMediaMock.mockResolvedValue({
     bytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3]),
     contentType: "image/png",
   });
   putMock.mockResolvedValue({ pathname: `projects/${projectId}/x` });
   fetchQueueResultMock.mockResolvedValue({
-    kind: "images",
-    images: [{ url: "https://v3b.fal.media/files/a.png" }],
+    kind: "media",
+    media: [{ url: "https://v3b.fal.media/files/a.png" }],
   });
 });
 
@@ -166,7 +166,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
       where: { id: job.id },
     });
     expect(row.status).toBe("SUCCEEDED");
-    expect(downloadImageMock).toHaveBeenCalledTimes(1);
+    expect(downloadMediaMock).toHaveBeenCalledTimes(1);
   });
 
   it("recovers a job already written off as uncertain", async () => {
@@ -177,7 +177,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
     });
 
     // The completion callback the webhook drives.
-    await settleWithImage(job.id, "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(job.id, "https://v3b.fal.media/files/a.png");
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -224,7 +224,7 @@ describe.skipIf(!enabled)(
       );
 
       // One settler, held inside the upload.
-      const settling = settleWithImage(job.id, "https://v3b.fal.media/a.png");
+      const settling = settleWithMedia(job.id, "https://v3b.fal.media/a.png");
       await vi.waitFor(() => expect(putMock).toHaveBeenCalled());
 
       const held = await prisma.projectImageJob.findUniqueOrThrow({
@@ -248,8 +248,8 @@ describe.skipIf(!enabled)(
       expect(during.settleLeaseOwner).toBe(held.settleLeaseOwner);
 
       // A second settler is refused while the first still holds it.
-      await settleWithImage(job.id, "https://v3b.fal.media/a.png");
-      expect(downloadImageMock).toHaveBeenCalledTimes(1);
+      await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
+      expect(downloadMediaMock).toHaveBeenCalledTimes(1);
 
       releaseUpload?.();
       await settling;
@@ -261,7 +261,7 @@ describe.skipIf(!enabled)(
         settleLeaseOwner: "dead-worker",
       });
 
-      await settleWithImage(job.id, "https://v3b.fal.media/a.png");
+      await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
 
       const row = await prisma.projectImageJob.findUniqueOrThrow({
         where: { id: job.id },
@@ -314,7 +314,7 @@ describe.skipIf(!enabled)("outage clocks are per dependency", () => {
 
     // Now the ownership lookup fails again, on its own long-running outage.
     accessMock.mockRejectedValue(new Error("P1001 cannot reach database"));
-    await settleWithImage(job.id, "https://v3b.fal.media/a.png");
+    await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
 
     row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },

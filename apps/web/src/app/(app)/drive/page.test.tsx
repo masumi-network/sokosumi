@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
+const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
@@ -136,7 +137,7 @@ vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
-  patchDriveFilesMove: vi.fn(),
+  patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
   patchDriveFilesRename: vi.fn(),
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
@@ -149,6 +150,18 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
   return {
     ...actual,
     listDriveItems: (...args: unknown[]) => listDriveItemsMock(...args),
+  };
+});
+
+const fetchWorkspaceFoldersMock = vi.fn();
+
+vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/file-search.client")>();
+  return {
+    ...actual,
+    fetchWorkspaceFolders: (...args: unknown[]) =>
+      fetchWorkspaceFoldersMock(...args),
   };
 });
 
@@ -248,12 +261,14 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     onFolderChange,
     folderActions,
     virtualFolder,
+    onMoveFiles,
   }: {
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
     folderActions?: React.ReactNode;
     virtualFolder?: { label: string; onOpen: () => void };
+    onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
   }) => (
     <div
       data-testid="drive-all-files"
@@ -272,6 +287,19 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       {/* The page's own folder controls, which the real panel seats beside
           the folder trail. */}
       {folderActions}
+      {/* Two ticked uploads, handed to the page's move dialog. */}
+      <button
+        type="button"
+        data-testid="drive-all-files-move"
+        onClick={() =>
+          onMoveFiles?.([
+            { pathname: "drive/users/u1/deck.pdf", name: "deck.pdf" },
+            { pathname: "drive/users/u1/notes.md", name: "notes.md" },
+          ])
+        }
+      >
+        move
+      </button>
       {virtualFolder ? (
         <button
           type="button"
@@ -531,34 +559,16 @@ describe("DrivePage workspace remount", () => {
 
   it("ignores a stale move-folder list after the workspace changes", async () => {
     const user = userEvent.setup();
-    const orgAOnly = {
-      type: "folder" as const,
-      name: "OrgAOnly",
-      path: "OrgAOnly",
-    };
-    const orgBOnly = {
-      type: "folder" as const,
-      name: "OrgBOnly",
-      path: "OrgBOnly",
-    };
-    let resolveOrgAFolders: ((items: (typeof orgAOnly)[]) => void) | undefined;
-    let listCalls = 0;
-
-    listDriveItemsMock.mockImplementation(() => {
-      listCalls += 1;
-      if (listCalls === 1) {
-        return Promise.resolve([reportsFolder()]);
-      }
-      if (listCalls === 2) {
-        return new Promise<(typeof orgAOnly)[]>((resolve) => {
-          resolveOrgAFolders = resolve;
-        });
-      }
-      if (listCalls === 3) {
-        return Promise.resolve([reportsFolder()]);
-      }
-      return Promise.resolve([orgBOnly]);
-    });
+    let resolveOrgAFolders: ((paths: string[]) => void) | undefined;
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchWorkspaceFoldersMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<string[]>((resolve) => {
+            resolveOrgAFolders = resolve;
+          }),
+      )
+      .mockResolvedValue(["OrgBOnly"]);
 
     // With a folder applied, so the page head offers the folder actions the
     // folder cards used to carry.
@@ -602,11 +612,36 @@ describe("DrivePage workspace remount", () => {
     });
 
     await act(async () => {
-      resolveOrgAFolders?.([orgAOnly]);
+      resolveOrgAFolders?.(["OrgAOnly"]);
     });
 
     expect(screen.queryByText("OrgAOnly")).not.toBeInTheDocument();
     expect(screen.getByText("OrgBOnly")).toBeVisible();
+  });
+});
+
+describe("DrivePage move dialog", () => {
+  it("offers nested folders as destinations", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchWorkspaceFoldersMock.mockResolvedValue([
+      "Reports",
+      "Clients",
+      "Clients/Acme",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Clients / Acme")).toBeVisible();
+    });
   });
 });
 
@@ -761,39 +796,6 @@ describe("DrivePage recents view", () => {
     expect(within(link).getAllByText("tableKind").length).toBeGreaterThan(0);
   });
 
-  it("pins the workspace's Contacts entry above the days, with no file actions", async () => {
-    fetchDriveRecentsPageMock.mockResolvedValue({
-      items: [
-        {
-          kind: "contacts",
-          name: "Contacts",
-          pinned: true,
-          contactCount: 12,
-          activityAt: "2026-08-01T09:00:00.000Z",
-        },
-        {
-          kind: "table",
-          tableId: "table_1",
-          name: "Leads",
-          activityAt: "2026-08-21T12:00:00.000Z",
-          projectId: null,
-        },
-      ],
-      nextCursor: null,
-    });
-    renderDrive();
-
-    const link = await screen.findByRole("link", { name: /contactsEntryName/ });
-    expect(link).toHaveAttribute("href", "/contacts");
-    const links = screen.getAllByRole("link");
-    expect(links.indexOf(link)).toBeLessThan(
-      links.indexOf(screen.getByRole("link", { name: /Leads/ })),
-    );
-    expect(
-      within(link).queryByRole("button", { name: "moreActions" }),
-    ).not.toBeInTheDocument();
-  });
-
   it("passes search query to recents fetch", async () => {
     const user = userEvent.setup();
     renderDrive();
@@ -876,6 +878,9 @@ describe("DrivePage files view mode", () => {
           pathname: "notes.txt",
           size: 12,
           activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: null,
+          category: null,
+          tags: [],
         },
       ],
       nextCursor: null,
@@ -920,6 +925,43 @@ describe("DrivePage files view mode", () => {
     });
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+  });
+
+  it("shows a file's labels on Recents and filters by the tags in the URL", async () => {
+    searchParams = new URLSearchParams("tags=tag_a,tag_b");
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "drive-file",
+          name: "promo.mp4",
+          fileUrl: "https://example.com/promo.mp4",
+          pathname: "promo.mp4",
+          size: 12,
+          activityAt: "2026-08-28T10:00:00.000Z",
+          resourceId: "res_1",
+          category: null,
+          tags: [
+            { labelId: "tag_a", displayName: "Marketing" },
+            { labelId: "tag_b", displayName: "Content" },
+          ],
+        },
+      ],
+      nextCursor: null,
+    });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-recents-labels")).toBeVisible();
+    });
+    expect(screen.getByTestId("drive-recents-labels")).toHaveTextContent(
+      "MarketingContent",
+    );
+    expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tagLabelIds: ["tag_a", "tag_b"] }),
+    );
+    // A row that used to do nothing now opens.
+    expect(screen.getByRole("button", { name: "promo.mp4" })).toBeVisible();
   });
 
   it("switches Recents to grid without refetching", async () => {
@@ -996,6 +1038,9 @@ describe("DrivePage files view mode", () => {
             pathname: "notes.txt",
             size: 12,
             activityAt: "2026-08-28T10:00:00.000Z",
+            resourceId: null,
+            category: null,
+            tags: [],
           },
         ],
         nextCursor: null,
@@ -1108,6 +1153,36 @@ describe("DrivePage files view mode", () => {
     });
     expect(screen.queryByRole("button", { name: "Reports" })).toBeNull();
     expect(screen.queryByTestId("drive-item-more-actions")).toBeNull();
+  });
+
+  it("moves ticked files into a new folder in one go", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+    patchDriveFilesMoveMock.mockResolvedValue({ data: {} });
+
+    renderDrive();
+    await user.click(await screen.findByTestId("drive-all-files-move"));
+    expect(await screen.findByText("moveFilesDialogTitle")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText("moveNewFolderLabel"),
+      "Masumi Fundraising",
+    );
+    await user.click(screen.getByRole("button", { name: "moveHere" }));
+
+    await waitFor(() =>
+      expect(patchDriveFilesMoveMock).toHaveBeenCalledTimes(2),
+    );
+    expect(patchDriveFilesMoveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          sourcePathname: "drive/users/u1/deck.pdf",
+          targetFolderPath: "Masumi Fundraising",
+          itemType: "file",
+        },
+      }),
+    );
   });
 
   it("carries a folder deep link into the catalog as a facet", async () => {

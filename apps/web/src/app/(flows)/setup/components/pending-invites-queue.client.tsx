@@ -272,7 +272,7 @@ export function PendingInvitesQueue({
           return (
             <li
               key={`${item.kind}:${key}`}
-              className="border-input flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="border-border flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 items-center gap-3">
                 {showBatchActions ? (

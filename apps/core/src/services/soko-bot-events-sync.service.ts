@@ -55,6 +55,75 @@ interface Change {
   note: string | null;
   /** Credits charged on the Task so far, set once it has finished. */
   creditsCharged?: number;
+  /** The plan the bot attached to this delegation, while it has not run. */
+  followUp?: string | null;
+}
+
+/** A follow-up plan the bot attached to delegated work, as one wake reports it. */
+export interface FollowUpPlan {
+  kind: Change["kind"];
+  entityId: string;
+  name: string;
+  status: string;
+  plans: string[];
+  delegationIds: string[];
+  /** The work settled: this wake carries the plan out, and it never comes back. */
+  due: boolean;
+}
+
+/**
+ * A Task that FAILED can be restarted with reply_to_task, so its plan waits;
+ * a Job that failed is over. Cancelled or finished work settles the plan.
+ */
+function settlesFollowUp(kind: Change["kind"], status: string): boolean {
+  return kind === "TASK"
+    ? status === "COMPLETED" || status === "CANCELED"
+    : status === "COMPLETED" || status === "FAILED";
+}
+
+/** The plans pending on the entities `changes` report, from every delegation on them. */
+export function followUpPlans(
+  changes: readonly Change[],
+  delegations: readonly Change[] = changes,
+): FollowUpPlan[] {
+  const byEntity = new Map<string, FollowUpPlan>();
+  for (const change of changes) {
+    const plan = byEntity.get(change.entityId) ?? {
+      kind: change.kind,
+      entityId: change.entityId,
+      name: change.name,
+      status: change.to,
+      plans: [],
+      delegationIds: [],
+      due: false,
+    };
+    plan.status = change.to;
+    plan.due = settlesFollowUp(change.kind, change.to);
+    byEntity.set(change.entityId, plan);
+  }
+  for (const delegation of delegations) {
+    const plan = byEntity.get(delegation.entityId);
+    if (
+      !plan ||
+      !delegation.followUp ||
+      plan.delegationIds.includes(delegation.delegationId)
+    )
+      continue;
+    plan.delegationIds.push(delegation.delegationId);
+    if (!plan.plans.includes(delegation.followUp))
+      plan.plans.push(delegation.followUp);
+  }
+  return Array.from(byEntity.values()).filter((plan) => plan.plans.length);
+}
+
+function followUpLine(plan: FollowUpPlan): string {
+  const label = `${plan.kind === "TASK" ? "Task" : "Job"} "${plan.name}" (id ${plan.entityId})`;
+  const planned = plan.plans.map((text) => `"${text}"`).join(" and ");
+  if (plan.status === "COMPLETED")
+    return `- ${label} is COMPLETED. Your plan: ${planned}. Do it now: read the full result with ${plan.kind === "TASK" ? "get_task_status" : "get_job_status"}, put its substance into what you hand on (not only a link or a one-line summary), and report what you did. This plan will not be handed to you again.`;
+  if (plan.due)
+    return `- ${label} is ${plan.status}, so your plan ${planned} will not run. Tell the owner if it mattered; to try again, attach the plan as followUp to the new ${plan.kind === "TASK" ? "Task" : "hire"}.`;
+  return `- ${label} is ${plan.status}. Your plan for when it completes: ${planned}. Not due yet: Core hands it back to you when the work completes, so do not create a schedule for it.`;
 }
 
 interface BotWork {
@@ -79,7 +148,10 @@ export function sokoBotEventClientTurnId(changes: Change[]): string {
   return `event:${createHash("sha256").update(JSON.stringify(occurrences)).digest("hex")}`;
 }
 
-export function buildEventMessage(changes: Change[]): string {
+export function buildEventMessage(
+  changes: Change[],
+  plans: readonly FollowUpPlan[] = followUpPlans(changes),
+): string {
   const lines = changes.map((change) => {
     const label = change.kind === "TASK" ? "Task" : "Job";
     const from = change.from ? ` (was ${change.from})` : "";
@@ -96,6 +168,13 @@ export function buildEventMessage(changes: Change[]): string {
     "Delegated work changed status:",
     ...lines,
     "",
+    ...(plans.length
+      ? [
+          "Follow-up plans you attached to this work:",
+          ...plans.map(followUpLine),
+          "",
+        ]
+      : []),
     ...(changes.some((change) => change.kind === "TASK")
       ? [
           "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over.",
@@ -108,6 +187,13 @@ export function buildEventMessage(changes: Change[]): string {
       : []),
     "Update memory and any related schedule, then report briefly.",
   ].join("\n");
+}
+
+function pendingFollowUp(delegation: {
+  followUp: string | null;
+  followUpTurnId: string | null;
+}): string | null {
+  return delegation.followUpTurnId ? null : delegation.followUp;
 }
 
 const BACKGROUND_RUN_ACTIVE_STATUSES = new Set<string>([
@@ -169,6 +255,8 @@ export class SokoBotEventsSyncService {
           lastSeenStatus: true,
           lastSeenEventId: true,
           lastSeenEventAt: true,
+          followUp: true,
+          followUpTurnId: true,
           task: {
             select: {
               id: true,
@@ -384,6 +472,7 @@ export class SokoBotEventsSyncService {
             from: delegation.lastSeenStatus,
             to: event.status ?? current.status,
             note: event.comment,
+            followUp: pendingFollowUp(delegation),
           });
         }
         if (!actionable.length && events.length) {
@@ -430,6 +519,7 @@ export class SokoBotEventsSyncService {
         from: delegation.lastSeenStatus,
         to: current.status,
         note: current.note ?? null,
+        followUp: pendingFollowUp(delegation),
       });
     }
 
@@ -514,13 +604,24 @@ export class SokoBotEventsSyncService {
           change.creditsCharged = roundCredits(
             charged.get(change.entityId) ?? 0,
           );
+      const plans = followUpPlans(changes, work.changes);
+      // The last occurrence of an entity claims its plans, so a batch with two
+      // events on one Task hands the plan over once.
+      const claimsOf = new Map(
+        plans.flatMap((plan) => {
+          const last = changes.findLast(
+            (change) => change.entityId === plan.entityId,
+          );
+          return plan.due && last ? [[last, plan.delegationIds] as const] : [];
+        }),
+      );
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
           sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
           clientTurnId: sokoBotEventClientTurnId(changes),
-          message: buildEventMessage(changes),
+          message: buildEventMessage(changes, plans),
           source: "EVENT",
           presetRoute: SYSTEM_TURN_ROUTES.events,
           eventBatch: changes.map((change) => ({
@@ -536,6 +637,7 @@ export class SokoBotEventsSyncService {
             delegationIds: work.changes
               .filter((item) => item.entityId === change.entityId)
               .map((item) => item.delegationId),
+            followUpDelegationIds: claimsOf.get(change),
           })),
         });
         result.woken += 1;

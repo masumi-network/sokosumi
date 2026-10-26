@@ -9,6 +9,11 @@ export function markTaskArchived(taskId: string) {
   archivedTaskIds.add(taskId);
 }
 
+/** The archive failed: the board shows the task again. */
+export function unmarkTaskArchived(taskId: string) {
+  archivedTaskIds.delete(taskId);
+}
+
 export function isTaskArchived(taskId: string) {
   return archivedTaskIds.has(taskId);
 }

@@ -1,16 +1,30 @@
 "use client";
 import type {
   ContactChannelType,
+  ContactKind,
   ContactListColor,
   ContactPerson,
+  ContactReplyState,
   ContactStage,
 } from "@sokosumi/core-client";
-import { AtSign, Globe, Mail, MessageCircle, Phone, Send } from "lucide-react";
+import gravatarUrl from "gravatar-url";
+import {
+  AtSign,
+  Building2,
+  Globe,
+  Mail,
+  MessageCircle,
+  Phone,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ComponentProps, ComponentType } from "react";
 import {
+  daysSince,
   initials,
   LIST_COLOR_DOT,
+  REPLY_DOT,
   STAGE_DOT,
 } from "@/app/contacts/contacts-view";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,19 +101,45 @@ export function ChannelIcon({
   );
 }
 
-/** A contact's initials in a neutral circle. */
+/**
+ * A contact's initials in a neutral circle; an organization or shared inbox
+ * gets a building in a rounded square instead, so it never passes for a person.
+ */
+/**
+ * A person's photo: the one saved on the contact, else their Gravatar, else
+ * their initials. Gravatar answers 404 for an address it does not know, so
+ * the initials show instead of a generic face.
+ */
 export function ContactAvatar({
   name,
   src,
+  email,
+  kind = "PERSON",
   className,
 }: {
   name: string;
   src?: string | null;
+  email?: string | null;
+  kind?: ContactKind;
   className?: string;
 }) {
+  const photo =
+    src ?? (email ? gravatarUrl(email, { size: 80, default: "404" }) : null);
+  if (kind === "ORGANIZATION")
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "bg-quinary text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md",
+          className,
+        )}
+      >
+        <Building2 className="size-3.5" />
+      </span>
+    );
   return (
     <Avatar aria-hidden className={cn("size-6", className)}>
-      {src ? <AvatarImage src={src} alt="" /> : null}
+      {photo ? <AvatarImage src={photo} alt="" /> : null}
       <AvatarFallback className="bg-quinary text-muted-foreground text-2xs font-medium">
         {initials(name)}
       </AvatarFallback>
@@ -167,6 +207,40 @@ export function Dot({ className }: { className: string }) {
   );
 }
 
+/**
+ * A 0–100 score as a short bar and its number, in the accent color. Null
+ * reads as a dash: not judged yet.
+ */
+export function ScoreMeter({
+  value,
+  label,
+}: {
+  value: number | null;
+  label: string;
+}) {
+  if (value === null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value}
+      className="inline-flex items-center gap-2"
+    >
+      <span className="bg-quinary h-1.5 w-14 overflow-hidden rounded-full">
+        <span
+          className="bg-primary block h-full rounded-full"
+          style={{ width: `${value}%` }}
+        />
+      </span>
+      <span className="text-muted-foreground w-6 text-xs tabular-nums">
+        {value}
+      </span>
+    </span>
+  );
+}
+
 export function StageChip({ stage }: { stage: ContactStage }) {
   const t = useTranslations("App.Contacts.stages");
   return (
@@ -177,17 +251,72 @@ export function StageChip({ stage }: { stage: ContactStage }) {
   );
 }
 
+/**
+ * A list a contact is on. `automatic` marks one the classifier chose, so a
+ * person can tell it from their own and undo it.
+ */
 export function ListChip({
   name,
   color,
+  automatic = false,
 }: {
   name: string;
   color: ContactListColor;
+  automatic?: boolean;
 }) {
+  const t = useTranslations("App.Contacts.grid");
   return (
-    <span className="border-border text-foreground inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs whitespace-nowrap">
+    <span
+      title={automatic ? t("addedAutomatically", { list: name }) : undefined}
+      className={cn(
+        "text-foreground inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs whitespace-nowrap",
+        automatic ? "border-dashed" : "border-border",
+      )}
+    >
       <Dot className={LIST_COLOR_DOT[color]} />
       <span className="truncate">{name}</span>
+      {automatic ? (
+        <>
+          <Sparkles
+            aria-hidden
+            className="text-muted-foreground size-3 shrink-0"
+          />
+          <span className="sr-only">
+            {t("addedAutomatically", { list: name })}
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * Where the team's latest outreach stands. Waiting states say for how long;
+ * the dot is the only color, and only unanswered states take a warm one.
+ */
+export function ReplyChip({
+  state,
+  since,
+  now,
+}: {
+  state: ContactReplyState;
+  since: Date | string | null;
+  now: Date;
+}) {
+  const t = useTranslations("App.Contacts");
+  const waiting =
+    since && (state === "NO_REPLY" || state === "AWAITING_REPLY")
+      ? daysSince(since, now)
+      : null;
+  return (
+    <span className="bg-quinary text-foreground inline-flex h-6 max-w-full items-center gap-1.5 rounded-full px-2 text-xs whitespace-nowrap">
+      <Dot className={REPLY_DOT[state]} />
+      <span className="truncate">{t(`replyStates.${state}`)}</span>
+      {waiting !== null ? (
+        <span className="text-muted-foreground tabular-nums">
+          {t("grid.waitingDays", { days: waiting })}
+        </span>
+      ) : null}
     </span>
   );
 }

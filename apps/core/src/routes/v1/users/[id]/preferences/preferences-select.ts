@@ -16,6 +16,7 @@ export const USER_PREFERENCES_SELECT = {
   notificationsOptIn: true,
   pushOptIn: true,
   hideRoomUnreadCount: true,
+  tagDirectMessages: true,
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
@@ -26,6 +27,7 @@ interface UserPreferencesRow {
   notificationsOptIn: boolean;
   pushOptIn: boolean;
   hideRoomUnreadCount: boolean;
+  tagDirectMessages: boolean;
   notificationPreferences: StoredNotificationPreference[];
 }
 
@@ -44,6 +46,7 @@ export function toUserPreferencesResponse(user: UserPreferencesRow) {
     // is what starts every reader on the count, with no backfill. The wire
     // field keeps its name, so no client, the Apple app included, has to move.
     showRoomUnreadCount: !user.hideRoomUnreadCount,
+    tagDirectMessages: user.tagDirectMessages,
     notificationPreferences: resolveNotificationMatrix(
       user.notificationPreferences,
     ),
