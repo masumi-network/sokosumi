@@ -3,8 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectSocialProvider } from "@sokosumi/core-client";
 import {
-  SOCIAL_BETA_PROVIDERS,
+  SOCIAL_BETA_ORGANIZATION_SLUG,
   SOCIAL_PUBLIC_PROVIDERS,
+  socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -65,20 +66,24 @@ beforeEach(() => {
 });
 
 describe("SocialAccountsProjectPrompt", () => {
-  it("shows no Coming soon badges in a beta workspace with no project selected", () => {
-    setup({}, SOCIAL_BETA_PROVIDERS);
+  it("shows Coming soon badges in the utxo workspace with no project selected", () => {
+    setup(
+      {},
+      socialProvidersForWorkspace({
+        organizationSlug: SOCIAL_BETA_ORGANIZATION_SLUG,
+      }),
+    );
     expect(
       screen.getByRole("heading", { name: "Choose a project" }),
     ).toBeVisible();
-    expect(screen.queryByText("Coming soon")).toBeNull();
     const primary = screen
       .getByRole("region", { name: "Social platforms" })
       .querySelector("ul");
+    if (!primary) throw new Error("Primary platform track is missing");
     expect(
-      [...(primary?.querySelectorAll("li p") ?? [])].map(
-        (name) => name.textContent,
-      ),
-    ).toEqual(SOCIAL_PROVIDERS.map(({ name }) => name));
+      [...primary.querySelectorAll("li p")].map((name) => name.textContent),
+    ).toEqual(["X", "LinkedIn", "YouTube", "TikTok", "Instagram", "Facebook"]);
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
   });
 
   it("asks to choose a project before connecting", () => {

@@ -3,8 +3,9 @@ import type {
   ProjectSocialConnection,
 } from "@sokosumi/core-client";
 import {
-  SOCIAL_BETA_PROVIDERS,
+  SOCIAL_BETA_ORGANIZATION_SLUG,
   socialPostProviderLabel,
+  socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 import {
   act,
@@ -24,6 +25,7 @@ import {
   vi,
 } from "vitest";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import { SOCIAL_POST_PROVIDERS } from "@/components/social-platform-filter";
 import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import {
@@ -313,13 +315,13 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
-  it.each(SOCIAL_BETA_PROVIDERS)(
+  it.each(SOCIAL_POST_PROVIDERS)(
     "enables connecting %s when Core enables every provider",
     async (provider) => {
       const user = userEvent.setup();
       render(
         <SocialProviderAvailabilityProvider
-          enabledProviders={SOCIAL_BETA_PROVIDERS}
+          enabledProviders={SOCIAL_POST_PROVIDERS}
         >
           <ProjectSocialAccounts
             projectId={PROJECT_ID}
@@ -393,29 +395,38 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
-  it("lists connectable platforms before Coming soon ones", async () => {
-    const user = userEvent.setup();
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await user.click(screen.getByRole("button", { name: "Connect account" }));
-    expect(
-      screen
-        .getAllByRole("menuitem")
-        .map((item) => item.getAttribute("aria-label")),
-    ).toEqual([
-      "Connect X account",
-      "Connect LinkedIn account",
-      "Connect YouTube account",
-      "TikTok (coming soon)",
-      "Instagram (coming soon)",
-      "Facebook (coming soon)",
-    ]);
-  });
+  it.each([null, SOCIAL_BETA_ORGANIZATION_SLUG])(
+    "lists connectable platforms before Coming soon ones in workspace %s",
+    async (organizationSlug) => {
+      const user = userEvent.setup();
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={socialProvidersForWorkspace({ organizationSlug })}
+        >
+          <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "Connect account" }));
+      expect(
+        screen
+          .getAllByRole("menuitem")
+          .map((item) => item.getAttribute("aria-label")),
+      ).toEqual([
+        "Connect X account",
+        "Connect LinkedIn account",
+        "Connect YouTube account",
+        "TikTok (coming soon)",
+        "Instagram (coming soon)",
+        "Facebook (coming soon)",
+      ]);
+    },
+  );
 
   it("keeps the platform order when Core enables every provider", async () => {
     const user = userEvent.setup();
     render(
       <SocialProviderAvailabilityProvider
-        enabledProviders={SOCIAL_BETA_PROVIDERS}
+        enabledProviders={SOCIAL_POST_PROVIDERS}
       >
         <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />
       </SocialProviderAvailabilityProvider>,

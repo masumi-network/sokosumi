@@ -117,52 +117,50 @@ describe("completeComposioCallback", () => {
         });
       });
 
-      if (organizationSlug !== "utxo") {
-        it.each(
-          providers.filter(
-            (provider) =>
-              !isSocialProviderEnabled(provider, { organizationSlug }),
-          ),
-        )(
-          "rejects a disabled %s callback without redeeming its OAuth session",
-          async (provider) => {
-            socialConnectionIntentFindUniqueMock.mockResolvedValue({
-              initiatingUserId: "user_123",
-              provider,
-              authConfigId: `ac_${provider}`,
-              callbackRedeemedAt: null,
-              expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-              project: {
-                closingAt: null,
-                closedAt: null,
-                workspace: {
-                  organization: organizationSlug
-                    ? { slug: organizationSlug }
-                    : null,
-                },
+      it.each(
+        providers.filter(
+          (provider) =>
+            !isSocialProviderEnabled(provider, { organizationSlug }),
+        ),
+      )(
+        "rejects a disabled %s callback without redeeming its OAuth session",
+        async (provider) => {
+          socialConnectionIntentFindUniqueMock.mockResolvedValue({
+            initiatingUserId: "user_123",
+            provider,
+            authConfigId: `ac_${provider}`,
+            callbackRedeemedAt: null,
+            expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+            project: {
+              closingAt: null,
+              closedAt: null,
+              workspace: {
+                organization: organizationSlug
+                  ? { slug: organizationSlug }
+                  : null,
               },
-            });
-            const { completeComposioCallback } = await import(
-              "./composio-callback-completion.service"
-            );
+            },
+          });
+          const { completeComposioCallback } = await import(
+            "./composio-callback-completion.service"
+          );
 
-            await expect(
-              completeComposioCallback({
-                connectionId: "ca_123",
-                sessionUri: "single-use",
-                userId: "user_123",
-              }),
-            ).rejects.toMatchObject({
-              status: 400,
-              message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
-            });
-            expect(completeComposioAuthMock).not.toHaveBeenCalled();
-            expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
-            expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
-            expect(memberFindFirstMock).not.toHaveBeenCalled();
-          },
-        );
-      }
+          await expect(
+            completeComposioCallback({
+              connectionId: "ca_123",
+              sessionUri: "single-use",
+              userId: "user_123",
+            }),
+          ).rejects.toMatchObject({
+            status: 400,
+            message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          });
+          expect(completeComposioAuthMock).not.toHaveBeenCalled();
+          expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+          expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+          expect(memberFindFirstMock).not.toHaveBeenCalled();
+        },
+      );
     },
   );
 

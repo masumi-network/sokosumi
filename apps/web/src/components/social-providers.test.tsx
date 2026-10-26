@@ -1,6 +1,6 @@
 import {
-  SOCIAL_BETA_PROVIDERS,
-  SOCIAL_PUBLIC_PROVIDERS,
+  SOCIAL_BETA_ORGANIZATION_SLUG,
+  socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
@@ -10,16 +10,28 @@ import {
 } from "./social-providers";
 
 describe("socialProvidersEnabledFirst", () => {
-  it("lists connectable platforms first, each group in its original order", () => {
-    expect(
-      socialProvidersEnabledFirst(SOCIAL_PUBLIC_PROVIDERS).map(({ id }) => id),
-    ).toEqual(["x", "linkedin", "youtube", "tiktok", "instagram", "facebook"]);
-  });
+  it.each([null, SOCIAL_BETA_ORGANIZATION_SLUG])(
+    "lists connectable platforms first in workspace %s, each group in its original order",
+    (organizationSlug) => {
+      expect(
+        socialProvidersEnabledFirst(
+          socialProvidersForWorkspace({ organizationSlug }),
+        ).map(({ id }) => id),
+      ).toEqual([
+        "x",
+        "linkedin",
+        "youtube",
+        "tiktok",
+        "instagram",
+        "facebook",
+      ]);
+    },
+  );
 
   it("keeps the original order when every platform is connectable", () => {
-    expect(socialProvidersEnabledFirst(SOCIAL_BETA_PROVIDERS)).toEqual(
-      SOCIAL_PROVIDERS,
-    );
+    expect(
+      socialProvidersEnabledFirst(SOCIAL_PROVIDERS.map(({ id }) => id)),
+    ).toEqual(SOCIAL_PROVIDERS);
   });
 });
 

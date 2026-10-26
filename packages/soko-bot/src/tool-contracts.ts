@@ -909,7 +909,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   delete_schedule: sokoBotScheduleIdInputSchema,
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
-const SOCIAL_PUBLISHING_AVAILABILITY = `Social scheduling is public. Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}. The beta workspace enables every platform. Use enabledProviders from list_project_social_accounts for the Project's workspace; other platforms are Coming soon; choose an enabled account to create, edit, schedule, or publish. Historical accounts and posts remain readable.`;
+const SOCIAL_PUBLISHING_AVAILABILITY = `Social scheduling is public. Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}. Use enabledProviders from list_project_social_accounts for the Project's workspace; other platforms are Coming soon; choose an enabled account to create, edit, schedule, or publish. Historical accounts and posts remain readable.`;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   start_background_run:

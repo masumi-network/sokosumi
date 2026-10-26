@@ -1,11 +1,8 @@
-import type {
-  ProjectSocialProvider,
-  SocialPostStatus,
-} from "@sokosumi/core-client";
 import {
-  SOCIAL_BETA_PROVIDERS,
-  socialPostProviderLabel,
-} from "@sokosumi/utils";
+  ProjectSocialProvider,
+  type SocialPostStatus,
+} from "@sokosumi/core-client";
+import { socialPostProviderLabel } from "@sokosumi/utils";
 
 /**
  * Lean copy for a Failed or Missed publish: outcome / errorKind first.
@@ -56,7 +53,7 @@ export function publishFailureCopy(
   )
     ? post.lastAttempt.errorKind.slice("provider_coming_soon:".length)
     : null;
-  const provider = SOCIAL_BETA_PROVIDERS.find((provider) =>
+  const provider = Object.values(ProjectSocialProvider).find((provider) =>
     unavailableProvider
       ? provider === unavailableProvider
       : post.lastError?.startsWith(

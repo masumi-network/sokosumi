@@ -1,6 +1,7 @@
 import {
-  SOCIAL_BETA_PROVIDERS,
+  SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_PUBLIC_PROVIDERS,
+  type SocialPostProvider,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
@@ -162,6 +163,10 @@ const syncContext = {
   deadlineMs: NOW.getTime() + 60_000,
   shouldContinue: () => true,
 };
+
+const ALL_PROVIDERS = Object.keys(
+  SOCIAL_POST_TEXT_LIMITS,
+) as SocialPostProvider[];
 
 const DISABLED_PROVIDERS = [
   ["tiktok", "TikTok"],
@@ -655,7 +660,7 @@ describe("social post publisher service", () => {
   describe.each([null, "other", "utxo"])(
     "publishing in Project workspace %s",
     (organizationSlug) => {
-      it.each(SOCIAL_BETA_PROVIDERS)(
+      it.each(ALL_PROVIDERS)(
         "checks the owning workspace before dispatching due %s",
         async (provider) => {
           const project = {
@@ -681,9 +686,9 @@ describe("social post publisher service", () => {
             .mockResolvedValue(null);
           const { publishDueSocialPosts } = await loadService();
           const result = await publishDueSocialPosts(syncContext);
-          const enabled =
-            organizationSlug === "utxo" ||
-            (SOCIAL_PUBLIC_PROVIDERS as readonly string[]).includes(provider);
+          const enabled = (
+            SOCIAL_PUBLIC_PROVIDERS as readonly string[]
+          ).includes(provider);
           expect(result).toMatchObject({
             published: enabled ? 1 : 0,
             failed: enabled ? 0 : 1,
@@ -702,7 +707,7 @@ describe("social post publisher service", () => {
         },
       );
 
-      it.each(SOCIAL_BETA_PROVIDERS)(
+      it.each(ALL_PROVIDERS)(
         "checks availability before immediate publication of %s",
         async (provider) => {
           const project = {
@@ -733,7 +738,6 @@ describe("social post publisher service", () => {
             revision: 1,
           };
           if (
-            organizationSlug !== "utxo" &&
             !(SOCIAL_PUBLIC_PROVIDERS as readonly string[]).includes(provider)
           ) {
             await expect(publishSocialPostNow(input)).rejects.toMatchObject({

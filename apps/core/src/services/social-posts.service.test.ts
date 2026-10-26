@@ -1,7 +1,4 @@
-import {
-  SOCIAL_BETA_PROVIDERS,
-  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
-} from "@sokosumi/utils";
+import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
@@ -825,11 +822,7 @@ describe("social posts service", () => {
   describe.each([null, "other", "utxo"])(
     "enabled providers in Project workspace %s",
     (organizationSlug) => {
-      const enabledProviders =
-        organizationSlug === "utxo"
-          ? SOCIAL_BETA_PROVIDERS
-          : ["x", "youtube", "linkedin"];
-      it.each(enabledProviders)(
+      it.each(["x", "youtube", "linkedin"])(
         "allows all post mutations for %s",
         async (provider) => {
           const owningProject = {
@@ -927,8 +920,8 @@ describe("social posts service", () => {
     },
   );
 
-  describe.each([null, "other"])(
-    "non-beta Project workspace %s",
+  describe.each([null, "other", "utxo"])(
+    "Project workspace %s",
     (organizationSlug) => {
       describe.each([
         ["tiktok", "TikTok"],

@@ -3,11 +3,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import {
-  CORE_API_ERROR_KINDS,
-  SOCIAL_BETA_PROVIDERS,
-  socialPostProviderLabel,
-} from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, socialPostProviderLabel } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -25,6 +21,7 @@ import {
   SocialComposeProvider,
   useSocialCompose,
 } from "@/app/social/components/social-compose-context";
+import { SOCIAL_POST_PROVIDERS } from "@/components/social-platform-filter";
 import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
@@ -2214,14 +2211,14 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
-  it.each(SOCIAL_BETA_PROVIDERS)(
-    "lets a beta workspace pick %s in the composer",
+  it.each(SOCIAL_POST_PROVIDERS)(
+    "lets a workspace pick %s in the composer once Core enables it",
     async (provider) => {
       const user = userEvent.setup();
       const connection = buildConnection({ provider });
       render(
         <SocialProviderAvailabilityProvider
-          enabledProviders={SOCIAL_BETA_PROVIDERS}
+          enabledProviders={SOCIAL_POST_PROVIDERS}
         >
           <ProjectSocialPosts
             connections={[connection]}

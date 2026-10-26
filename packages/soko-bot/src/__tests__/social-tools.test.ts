@@ -209,9 +209,7 @@ describe("Social tool contracts", () => {
       );
       expect(descriptions[key]).toContain("Coming soon");
       expect(descriptions[key]).toContain("enabledProviders");
-      expect(descriptions[key]).toContain(
-        "beta workspace enables every platform",
-      );
+      expect(descriptions[key]).not.toContain("beta workspace");
     }
     expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
     expect(descriptions.create_social_post).toMatch(/video/);

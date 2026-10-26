@@ -181,7 +181,7 @@ describe("publishFailureCopy", () => {
   );
 
   it.each(["tiktok", "instagram", "facebook", "linkedin", "youtube"])(
-    "does not mislabel a beta workspace's %s failure as coming soon",
+    "does not mislabel a non-availability %s failure as coming soon",
     (provider) => {
       expect(
         publishFailureCopy(

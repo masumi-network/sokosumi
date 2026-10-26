@@ -156,7 +156,7 @@ describe("GET /users/{id}/workspaces", () => {
     });
   });
 
-  it("returns provider availability for each owning workspace even when the user belongs to utxo", async () => {
+  it("returns the public providers for every workspace, including utxo", async () => {
     workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
     memberFindManyMock.mockResolvedValue(
       ["utxo", "other"].map((slug, index) => ({
@@ -183,17 +183,11 @@ describe("GET /users/{id}/workspaces", () => {
       "youtube",
       "linkedin",
     ]);
-    expect(data.workspaces[1].enabledSocialProviders).toEqual(
-      expect.arrayContaining([
-        "x",
-        "tiktok",
-        "instagram",
-        "linkedin",
-        "facebook",
-        "youtube",
-      ]),
-    );
-    expect(data.workspaces[1].enabledSocialProviders).toHaveLength(6);
+    expect(data.workspaces[1].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
     expect(data.workspaces[2].enabledSocialProviders).toEqual([
       "x",
       "youtube",

@@ -1,4 +1,3 @@
-import { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
 
 /**
@@ -26,20 +25,15 @@ export const SOCIAL_PUBLIC_PROVIDERS = [
   "linkedin",
 ] as const satisfies readonly SocialPostProvider[];
 
-export const SOCIAL_BETA_PROVIDERS: readonly SocialPostProvider[] = Object.keys(
-  SOCIAL_POST_TEXT_LIMITS,
-) as SocialPostProvider[];
-
 export interface SocialProviderWorkspace {
   organizationSlug: string | null;
 }
 
-export function socialProvidersForWorkspace({
-  organizationSlug,
-}: SocialProviderWorkspace): readonly SocialPostProvider[] {
-  return organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
-    ? SOCIAL_BETA_PROVIDERS
-    : SOCIAL_PUBLIC_PROVIDERS;
+/** Every workspace gets the public list; the workspace argument keeps call sites stable. */
+export function socialProvidersForWorkspace(
+  _workspace: SocialProviderWorkspace,
+): readonly SocialPostProvider[] {
+  return SOCIAL_PUBLIC_PROVIDERS;
 }
 
 export function isSocialProviderEnabled(

@@ -1,5 +1,4 @@
 import {
-  SOCIAL_BETA_PROVIDERS,
   SOCIAL_PUBLIC_PROVIDERS,
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
@@ -275,7 +274,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
 
   it.each([
     [null, SOCIAL_PUBLIC_PROVIDERS],
-    ["utxo", SOCIAL_BETA_PROVIDERS],
+    ["utxo", SOCIAL_PUBLIC_PROVIDERS],
     ["other", SOCIAL_PUBLIC_PROVIDERS],
   ] as const)(
     "supplies the active workspace's Social providers: %s",

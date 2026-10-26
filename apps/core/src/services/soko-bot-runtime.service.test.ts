@@ -6544,10 +6544,7 @@ describe("Soko Bot project social tools", () => {
         workspaceId: SCOPE.workspaceId,
       });
       expect(result).toEqual({
-        enabledProviders:
-          organizationSlug === "utxo"
-            ? ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube"]
-            : ["x", "youtube", "linkedin"],
+        enabledProviders: ["x", "youtube", "linkedin"],
         accounts: [
           expect.objectContaining({
             provider: "youtube",
