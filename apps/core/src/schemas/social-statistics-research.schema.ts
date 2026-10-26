@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
+  socialAccountPostKindSchema,
   socialAccountPostSchema,
   socialPerformanceHeadlineTotalsSchema,
 } from "@/schemas/social-account-statistics.schema";
@@ -58,22 +59,7 @@ export const socialPerformanceContactSchema = z
 
 export const socialStatisticsResearchPostSchema = socialAccountPostSchema
   .extend({
-    contentType: z
-      .enum(["text", "image", "video", "carousel", "link", "unknown"])
-      .default("unknown"),
-    postKind: z
-      .enum(["post", "reply", "quote", "repost", "unknown"])
-      .default("post"),
-    media: z
-      .array(
-        z.object({
-          kind: z.enum(["image", "video", "gif"]),
-          url: z.url({ protocol: /^https?$/ }),
-          thumbnailUrl: z.url({ protocol: /^https?$/ }).nullable(),
-        }),
-      )
-      .max(20)
-      .default([]),
+    postKind: socialAccountPostKindSchema.default("post"),
   })
   .openapi("SocialStatisticsResearchPost");
 

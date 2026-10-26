@@ -69,10 +69,12 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) => {
       if (key === "event.accessibleName") {
         return `${values?.task}, ${values?.source}`;
       }
+      if (key === "timezone.showing") return `Times in ${values?.zone}`;
       return key;
     },
   };
@@ -453,16 +455,40 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
     });
 
-    it("names the time zone its grid reads posts in", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=America/New_York",
-      );
+    it.each([
+      ["2026-10-05", "Central European Summer Time (Prague)"],
+      ["2026-01-15", "Central European Standard Time (Prague)"],
+    ])(
+      "names the time zone for the shown date %s in its legend and picker",
+      (date, label) => {
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true },
+          `?timezone=Europe/Prague&date=${date}`,
+        );
 
-      expect(screen.getByTestId("calendar-timezone")).toHaveTextContent(
-        "timezone.showing",
-      );
-    });
+        expect(screen.getByTestId("calendar-timezone")).toHaveTextContent(
+          `Times in ${label}`,
+        );
+        expect(filterDropdownMenuMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sections: expect.arrayContaining([
+              expect.objectContaining({
+                id: "timezone",
+                value: "Europe/Prague",
+                options: expect.arrayContaining([
+                  expect.objectContaining({
+                    value: "Europe/Prague",
+                    label,
+                    shortLabel: date.includes("10-05") ? "GMT+2" : "GMT+1",
+                    searchKeywords: ["Europe/Prague"],
+                  }),
+                ]),
+              }),
+            ]),
+          }),
+        );
+      },
+    );
 
     it("keeps a view the reader picked", () => {
       renderCalendar(

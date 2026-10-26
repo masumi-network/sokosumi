@@ -269,6 +269,27 @@ describe("durable delivery", () => {
     );
   });
 
+  it("keeps a stopped background run quiet: whoever stopped it already said so", async () => {
+    mocks.turn.mockResolvedValue(
+      turn({
+        source: "CHAT",
+        status: "CANCELLED",
+        finalAnswer: null,
+        parentTurnId: "parent",
+        backgroundTitle: "Agent frameworks",
+      }),
+    );
+    await enqueueSokoBotDelivery(prisma, "turn");
+    expect(mocks.upsertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          status: "SUPPRESSED",
+          reason: "CANCELLED",
+        }),
+      }),
+    );
+  });
+
   it("creates one stable keyed message and records PERSISTED before transport", async () => {
     mocks.publish.mockImplementation(async () => {
       expect(mocks.update).toHaveBeenCalledWith(

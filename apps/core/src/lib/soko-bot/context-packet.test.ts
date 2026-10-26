@@ -79,6 +79,7 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   ContextPacketBuilder,
   SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+  triggerHints,
 } from "./context-packet";
 
 const NOW = new Date("2026-08-18T10:00:00.000Z");
@@ -374,6 +375,35 @@ describe("ContextPacketBuilder", () => {
     // Turns arrive newest first and are shown oldest first; the newest stays.
     const turns = result.packet.recentTurns;
     if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
+  });
+
+  it("keeps the last eight turns of the conversation even when Tasks must give way", async () => {
+    const longText = "x".repeat(3_000);
+    const blockers = Array.from({ length: 5 }, (_, index) => ({
+      fromTask: { id: `blocker-${index}`, name: longText, status: "RUNNING" },
+    }));
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, longText),
+        events: [{ status: "RUNNING", comment: longText, createdAt: NOW }],
+        linksTo: blockers,
+        _count: { linksTo: 5 },
+      })),
+    );
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${index}`, longText, longText),
+      ),
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    // The bot can list Tasks again; it cannot read the conversation back.
+    expect(result.packet.tasks.length).toBeLessThan(24);
+    expect(result.packet.recentTurns.map((turn) => turn.id)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `turn-${7 - index}`),
+    );
   });
 
   it("keeps the newest reply long enough to hold the question it ended with", async () => {
@@ -936,6 +966,18 @@ describe("ContextPacketBuilder", () => {
             { chatMention: { message: { roomId: "room-one" } } },
             // What a background run reported into this room.
             { parentTurnId: { not: null }, destinationRoomId: "room-one" },
+            // What the bot posted here on its own: an inbox check, a schedule.
+            {
+              chatMentionId: null,
+              destinationRoomId: "room-one",
+              deliveries: {
+                some: {
+                  purpose: "FINAL",
+                  status: "PUBLISHED",
+                  roomId: "room-one",
+                },
+              },
+            },
           ],
         }),
       }),
@@ -955,5 +997,61 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.sourceCoverage?.calendar.availability).toBe(
       "NOT_FETCHED",
     );
+  });
+});
+
+describe("triggerHints", () => {
+  const typed = (classification: object, extra: object = {}) =>
+    triggerHints({
+      userId: "user-1",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      sharedScope: null,
+      source: "CHAT",
+      classification: { ...CLASSIFICATION, ...classification },
+      personAsked: true,
+      ...extra,
+    });
+
+  it("leaves an unsure route to the trigger, without telling the bot to act anyway", () => {
+    // "every tool is available" on a CLARIFY at 51% made the bot guess the
+    // client in the ambiguous-request scenario and create a Task.
+    expect(typed({ route: "CLARIFY", confidence: 0.51 })).toEqual([]);
+  });
+
+  it("turns likely signals into context, and a saved preference into a note", () => {
+    const hints = typed(
+      {
+        signals: {
+          refersToEarlier: 0.9,
+          statesPreference: 0.95,
+          aboutMail: 0.8,
+          aboutTasks: 0.05,
+        },
+      },
+      { capturedPreference: "Do not flag Make scenario errors." },
+    );
+    expect(hints.join("\n")).toMatch(/points back at earlier messages/);
+    expect(hints.join("\n")).toMatch(/about mail/);
+    expect(hints.join("\n")).toMatch(
+      /Saved to your memory's preferences .*"Do not flag Make scenario errors\."/,
+    );
+  });
+
+  it("adds nothing for a sure route, or for a turn nobody typed", () => {
+    expect(typed({})).toEqual([]);
+    expect(
+      typed(
+        {
+          signals: {
+            refersToEarlier: 0.9,
+            statesPreference: 0,
+            aboutMail: 0,
+            aboutTasks: 0,
+          },
+        },
+        { personAsked: false },
+      ),
+    ).toEqual([]);
   });
 });

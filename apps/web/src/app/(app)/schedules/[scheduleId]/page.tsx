@@ -30,12 +30,18 @@ import {
 } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { Badge } from "@/components/ui/badge";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import { getSession } from "@/lib/auth/auth.server";
 import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import { userService } from "@/lib/services/user.service";
+import { cn } from "@/lib/utils";
 
 const UPCOMING_RUNS_LIMIT = 10;
 // ponytail: one max page, then drop CANCELED. Page further if a schedule can cancel more than 100 future runs.
@@ -180,7 +186,7 @@ async function TaskScheduleDetailContent({
                     : t("Detail.noUpcomingRunsInactive")}
                 </p>
               ) : (
-                <ul className="divide-border divide-y rounded-lg border">
+                <ul className={cn(HOLDER_CLASS, "flex flex-col gap-1")}>
                   {upcomingRuns.map((run) => {
                     const isMoved =
                       run.originalScheduledAt !== null &&
@@ -189,7 +195,10 @@ async function TaskScheduleDetailContent({
                     return (
                       <li
                         key={run.id}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                        className={cn(
+                          HOLDER_ITEM_CLASS,
+                          "flex items-center justify-between gap-3 px-4 py-2.5 text-sm",
+                        )}
                       >
                         <span
                           className={
@@ -228,12 +237,16 @@ async function TaskScheduleDetailContent({
                   {t("Detail.noCreatedTasks")}
                 </p>
               ) : (
-                <ul className="divide-border divide-y rounded-lg border">
+                <ul className={cn(HOLDER_CLASS, "flex flex-col gap-1")}>
                   {createdTasks.tasks.map((task) => (
                     <li key={task.id}>
                       <Link
                         href={taskHref(task)}
-                        className="hover:bg-card-background-hover flex items-center justify-between gap-3 px-4 py-2.5 transition-colors"
+                        className={cn(
+                          HOLDER_ITEM_CLASS,
+                          HOLDER_ITEM_HOVER_CLASS,
+                          "flex items-center justify-between gap-3 px-4 py-2.5 transition-colors",
+                        )}
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {task.name}

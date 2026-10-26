@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { dataTableSchema } from "@/schemas/data-table.schema";
+import { dataTableSummarySchema } from "@/schemas/data-table.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { tableActor } from "./context";
 
@@ -33,8 +33,8 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(dataTableSchema),
-        "Table operation completed",
+        z.array(dataTableSummarySchema),
+        "Tables, most recently changed first",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),

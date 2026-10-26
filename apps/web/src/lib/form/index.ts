@@ -5,9 +5,11 @@ import type { ZodSchema } from "zod";
 // Find form namespaces without expanding every message path in the catalog.
 type FormNamespaceKeys<Messages> = Messages extends object
   ? {
-      [Key in keyof Messages & string]: Key extends "Form"
-        ? Key
-        : `${Key}.${FormNamespaceKeys<Messages[Key]>}`;
+      [Key in keyof Messages & string]: Messages[Key] extends object
+        ? Key extends "Form"
+          ? Key
+          : `${Key}.${FormNamespaceKeys<Messages[Key]>}`
+        : never;
     }[keyof Messages & string]
   : never;
 

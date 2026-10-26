@@ -18,6 +18,8 @@ const envDefaults: Record<string, string> = {
   WEB_APP_BASE_URL: "https://example.com",
   RESEND_API_KEY: "test-resend-api-key",
   RESEND_FROM_EMAIL: "no-reply@example.com",
+  NEWSLETTER_ENABLED: "false",
+  NEWSLETTER_FROM_DOMAIN: "news.example.com",
   PAYMENT_API_URL: "https://example.com/payment",
   PAYMENT_API_KEY: "test-payment-key",
   REGISTRY_API_URL: "https://example.com/registry",

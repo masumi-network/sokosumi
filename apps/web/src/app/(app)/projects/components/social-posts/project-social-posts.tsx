@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import {
   parseAsString,
   parseAsStringEnum,
@@ -29,6 +29,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
@@ -39,6 +40,7 @@ import {
   SocialPlatformFilter,
 } from "@/components/social-platform-filter";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import { TimezoneLabel } from "@/components/timezone-label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +68,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
   type ActionError,
   toActionRejectionError,
@@ -121,7 +124,13 @@ interface ProjectSocialPostsProps {
   connectDisabled?: boolean;
   managedConnections?: ProjectSocialConnection[];
   affectedPosts?: SocialPost[];
+  /** The Accounts first page failed, so do not pretend there are none. */
+  accountsFailed?: boolean;
+  /** The Calendar first page failed, so do not pretend there are no posts. */
+  calendarFailed?: boolean;
   posts: SocialPost[];
+  /** List tabs whose first page failed to load. */
+  failedSections?: readonly SectionKey[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
@@ -133,6 +142,8 @@ interface ProjectSocialPostsProps {
   selectedPostId?: string;
   /** The same `?postId=` even when that post is gone, so the page can say so. */
   requestedPostId?: string;
+  /** The named post request failed, so do not pretend the link is gone. */
+  selectedPostFailed?: boolean;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -275,14 +286,18 @@ export function ProjectSocialPosts({
   connectDisabled = false,
   managedConnections,
   affectedPosts = [],
+  accountsFailed = false,
   actions,
   calendar,
+  calendarFailed = false,
   connections,
   posts: initialPosts,
+  failedSections = [],
   nextCursors,
   projectId,
   selectedPostId,
   requestedPostId,
+  selectedPostFailed = false,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
@@ -290,6 +305,7 @@ export function ProjectSocialPosts({
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
@@ -356,12 +372,13 @@ export function ProjectSocialPosts({
   }
 
   useEffect(() => {
-    if (!requestedPostId || selectedPostId) return;
+    // A failed load is not a missing post; the inline error says so instead.
+    if (!requestedPostId || selectedPostId || selectedPostFailed) return;
     toast.error(t("toasts.missingPost"), {
       duration: Infinity,
       closeButton: true,
     });
-  }, [requestedPostId, selectedPostId, t]);
+  }, [requestedPostId, selectedPostId, selectedPostFailed, t]);
 
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
@@ -442,21 +459,23 @@ export function ProjectSocialPosts({
 
   // Needs attention is a tab only while something needs it. Once the last
   // post in it is dealt with, the page goes back to its first tab.
+  const hasCalendar = calendar !== undefined || calendarFailed;
   const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
-    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "calendar") return hasCalendar;
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
       postsIn(candidate).length > 0 ||
       reconnections.length > 0 ||
-      Boolean(cursors[candidate])
+      Boolean(cursors[candidate]) ||
+      failedSections.includes(candidate)
     );
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts"
+    accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -555,7 +574,7 @@ export function ProjectSocialPosts({
       attentionRemains;
     const openCalendar =
       nextSection === undefined &&
-      (previewOnly || (calendar !== undefined && !stayOnAttention));
+      (previewOnly || (hasCalendar && !stayOnAttention));
     if (openCalendar && post.scheduledAt) {
       const zone =
         timezone && isValidTimezone(timezone) ? timezone : getDefaultTimezone();
@@ -571,7 +590,7 @@ export function ProjectSocialPosts({
     if (stayOnAttention) {
       return;
     }
-    showTab(calendar !== undefined ? "calendar" : null);
+    showTab(hasCalendar ? "calendar" : null);
   }
 
   async function handleDuplicate(post: SocialPost): Promise<void> {
@@ -1004,9 +1023,12 @@ export function ProjectSocialPosts({
                 dateTime={leadingAt.toISOString()}
               >
                 {/* Named, so a reader in another zone does not misread it. */}
-                {formatter.dateTime(leadingAt, "dateTime", {
-                  timeZoneName: "short",
-                })}
+                {formatter.dateTime(leadingAt, "dateTime")}{" "}
+                <TimezoneLabel
+                  timeZone={displayTimezone}
+                  at={leadingAt}
+                  variant="short"
+                />
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
@@ -1230,12 +1252,28 @@ export function ProjectSocialPosts({
             </div>
           ) : null}
 
-          {calendar !== undefined ? (
+          {/* A slim line, not a card: the tabs below still work. */}
+          {selectedPostFailed ? (
+            <SocialLoadError
+              data-testid="social-selected-post-load-error"
+              kind="post"
+              variant="banner"
+            />
+          ) : null}
+
+          {hasCalendar ? (
             <TabsContent
               data-testid="social-posts-section-calendar"
               value="calendar"
             >
-              {calendar}
+              {calendarFailed ? (
+                <SocialLoadError
+                  data-testid="social-calendar-load-error"
+                  kind="calendar"
+                />
+              ) : (
+                calendar
+              )}
             </TabsContent>
           ) : null}
 
@@ -1311,7 +1349,23 @@ export function ProjectSocialPosts({
                       </Button>
                     </div>
                   ) : null}
-                  {sectionPosts.length > 0 || loadingSection === section ? (
+                  {/* A linked post can still show while its list failed:
+                      keep the retry, as a slim line above it. */}
+                  {failedSections.includes(section) &&
+                  sectionPosts.length > 0 ? (
+                    <SocialLoadError
+                      data-testid={`social-posts-load-error-${section}`}
+                      kind={section}
+                      variant="banner"
+                    />
+                  ) : null}
+                  {failedSections.includes(section) &&
+                  sectionPosts.length === 0 ? (
+                    <SocialLoadError
+                      data-testid={`social-posts-load-error-${section}`}
+                      kind={section}
+                    />
+                  ) : sectionPosts.length > 0 || loadingSection === section ? (
                     <ul
                       className={
                         section === "drafts"
@@ -1393,7 +1447,14 @@ export function ProjectSocialPosts({
               data-testid="social-posts-section-accounts"
               value="accounts"
             >
-              {accounts}
+              {accountsFailed ? (
+                <SocialLoadError
+                  data-testid="social-accounts-load-error"
+                  kind="accounts"
+                />
+              ) : (
+                accounts
+              )}
             </TabsContent>
           ) : null}
         </Tabs>

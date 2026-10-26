@@ -98,4 +98,31 @@ describe("GET image studio asset content", () => {
     // Permission to read is not cacheable even though the bytes are stable.
     expect(response.headers.get("cache-control")).toBe("private, no-cache");
   });
+
+  it("forwards a video's byte range and answers with Core's partial content", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(new Uint8Array([1, 2]), {
+        status: 206,
+        headers: {
+          "content-type": "video/mp4",
+          "content-range": "bytes 0-1/1000",
+          "accept-ranges": "bytes",
+        },
+      }),
+    );
+
+    const response = await GET(
+      new NextRequest(
+        "https://app.test/api/projects/project-1/image-studio/assets/asset-1/content",
+        { headers: { range: "bytes=0-1" } },
+      ),
+      { params },
+    );
+
+    const sent = fetchMock.mock.calls[0]![1] as { headers: Headers };
+    expect(sent.headers.get("range")).toBe("bytes=0-1");
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe("bytes 0-1/1000");
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+  });
 });

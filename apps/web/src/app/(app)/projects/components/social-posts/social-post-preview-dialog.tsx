@@ -3,8 +3,9 @@
 import type { SocialPost } from "@sokosumi/core-client";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import { useState } from "react";
+import { TimezoneLabel } from "@/components/timezone-label";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action";
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
@@ -37,6 +39,7 @@ export function SocialPostPreviewDialog({
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [statisticsPost, setStatisticsPost] = useState<SocialPost | null>(null);
   const [refreshingPostId, setRefreshingPostId] = useState<string | null>(null);
   const [statisticsErrorPostId, setStatisticsErrorPostId] = useState<
@@ -70,11 +73,17 @@ export function SocialPostPreviewDialog({
         <DialogHeader>
           <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
           <DialogDescription>
-            {post?.scheduledAt
-              ? formatter.dateTime(post.scheduledAt, "dateTime")
-              : post
-                ? t(`status.${post.status}`)
-                : null}
+            {post?.scheduledAt ? (
+              <>
+                {formatter.dateTime(post.scheduledAt, "dateTime")} ·{" "}
+                <TimezoneLabel
+                  timeZone={displayTimezone}
+                  at={post.scheduledAt}
+                />
+              </>
+            ) : post ? (
+              t(`status.${post.status}`)
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         {post?.connectionNeedsReconnect ? (

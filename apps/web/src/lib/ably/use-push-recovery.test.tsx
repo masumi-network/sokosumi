@@ -61,6 +61,7 @@ describe("usePushRecovery", () => {
       defaultOptions: { queries: { retry: false } },
     });
     localStorage.clear();
+    sessionStorage.clear();
     vi.useFakeTimers();
     vi.setSystemTime(0);
     heal.mockReset();
@@ -88,6 +89,43 @@ describe("usePushRecovery", () => {
     vi.advanceTimersByTime(60_000);
     await dispatchWindowEvent("focus");
     expect(heal).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not repeat a recent successful repair after a reload", async () => {
+    vi.setSystemTime(1_000);
+    const first = renderHook(() => usePushRecovery("reader", "session-1"), {
+      wrapper,
+    });
+    await act(async () => {});
+    expect(heal).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    vi.setSystemTime(5 * 60_000);
+    renderHook(() => usePushRecovery("reader", "session-1"), { wrapper });
+    await act(async () => {});
+    expect(heal).toHaveBeenCalledTimes(1);
+  });
+
+  it("repairs on a reload after a failed repair or ten minutes", async () => {
+    vi.setSystemTime(1_000);
+    heal.mockResolvedValueOnce(false);
+    const failed = renderHook(() => usePushRecovery("reader", "session-1"), {
+      wrapper,
+    });
+    await act(async () => {});
+    failed.unmount();
+
+    const healthy = renderHook(() => usePushRecovery("reader", "session-1"), {
+      wrapper,
+    });
+    await act(async () => {});
+    expect(heal).toHaveBeenCalledTimes(2);
+    healthy.unmount();
+
+    vi.setSystemTime(11 * 60_000);
+    renderHook(() => usePushRecovery("reader", "session-1"), { wrapper });
+    await act(async () => {});
+    expect(heal).toHaveBeenCalledTimes(3);
   });
 
   it.each(["focus", "pageshow"])(

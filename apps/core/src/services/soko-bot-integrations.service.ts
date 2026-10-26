@@ -12,6 +12,7 @@ import {
   isSokoBotEmailProvider,
   SOKO_BOT_POPULAR_TOOLKITS,
   type SokoBotCalendarEvent,
+  type SokoBotInboxAttachment,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,
   type SokoBotIntegrationProvider,
@@ -230,7 +231,7 @@ export async function revokeSokoBotIntegrationAccounts(
 // Reading data through Composio tools, normalised per provider.
 // ---------------------------------------------------------------------------
 
-interface ActiveIntegration {
+export interface ActiveIntegration {
   id: string;
   sokoBotId: string;
   provider: SokoBotIntegrationProvider;
@@ -588,6 +589,86 @@ function normaliseEvent(
   };
 }
 
+/** Gmail's label ids for what the inbox tools change. */
+const GMAIL_LABEL = { unread: "UNREAD", inbox: "INBOX" } as const;
+
+function requireMailTool(
+  integration: ActiveIntegration,
+  tool: "modifyMessages" | "createDraft" | "sendDraft" | "getAttachment",
+): string {
+  const slug = integration.provider.tools[tool];
+  if (!slug)
+    throw new SokoBotIntegrationError(
+      `${integration.provider.name} mail can only be read for now`,
+    );
+  return slug;
+}
+
+/**
+ * Marks mail read or unread and archives it, in the owner's mailbox. Only
+ * the changes asked for are made; nothing is sent or deleted.
+ */
+export async function modifyInboxMessages(
+  integration: ActiveIntegration,
+  messageIds: readonly string[],
+  change: { read?: boolean; archive?: boolean },
+): Promise<void> {
+  if (messageIds.length === 0) return;
+  const slug = requireMailTool(integration, "modifyMessages");
+  const addLabelIds: string[] = [];
+  const removeLabelIds: string[] = [];
+  if (change.read === true) removeLabelIds.push(GMAIL_LABEL.unread);
+  if (change.read === false) addLabelIds.push(GMAIL_LABEL.unread);
+  if (change.archive) removeLabelIds.push(GMAIL_LABEL.inbox);
+  if (addLabelIds.length === 0 && removeLabelIds.length === 0) return;
+  await execute(integration, slug, {
+    messageIds: [...messageIds],
+    ...(addLabelIds.length ? { addLabelIds } : {}),
+    ...(removeLabelIds.length ? { removeLabelIds } : {}),
+  });
+}
+
+/** Writes a draft in the owner's mailbox; nothing is sent. Returns its id. */
+export async function createInboxDraft(
+  integration: ActiveIntegration,
+  draft: {
+    to: readonly string[];
+    cc?: readonly string[];
+    subject: string;
+    body: string;
+    threadId?: string;
+  },
+): Promise<string> {
+  const slug = requireMailTool(integration, "createDraft");
+  const [first, ...rest] = draft.to;
+  const data = await execute(integration, slug, {
+    ...(first ? { recipient_email: first } : {}),
+    ...(rest.length ? { extra_recipients: rest } : {}),
+    ...(draft.cc?.length ? { cc: [...draft.cc] } : {}),
+    // A reply keeps the thread's subject; a subject would start a new one.
+    ...(draft.threadId
+      ? { thread_id: draft.threadId }
+      : { subject: draft.subject }),
+    body: draft.body,
+  });
+  const draftId =
+    str(pick(data, "draft_id", "id")) ||
+    str(pick(pick(data, "draft", "data"), "id"));
+  if (!draftId)
+    throw new SokoBotIntegrationError("The mailbox did not return a draft id");
+  return draftId;
+}
+
+/** Sends a draft that is already in the owner's mailbox. */
+export async function sendInboxDraft(
+  integration: ActiveIntegration,
+  draftId: string,
+): Promise<void> {
+  await execute(integration, requireMailTool(integration, "sendDraft"), {
+    draft_id: draftId,
+  });
+}
+
 export async function fetchInboxMessages(
   integration: ActiveIntegration,
   options: {
@@ -600,31 +681,44 @@ export async function fetchInboxMessages(
   return (await fetchInboxPage(integration, options)).messages;
 }
 
-/** One page of mail; Gmail hands back a token for the next page. */
+/**
+ * One page of mail, newest first. Gmail hands back a page token; Outlook
+ * pages by offset, so its token is the next `skip`. `raw` is the provider's
+ * own items, for readers that need headers or recipients the normalised
+ * shape leaves out (contact capture).
+ */
 export async function fetchInboxPage(
   integration: ActiveIntegration,
   options: {
     since?: Date;
+    before?: Date;
     query?: string;
     unreadOnly?: boolean;
+    /** Outlook folder; Gmail selects folders in `query` (`in:sent`). */
+    folder?: "sentitems";
+    /** Gmail: include the headers (List-Unsubscribe, Cc, …). */
+    includePayload?: boolean;
     limit: number;
     pageToken?: string;
   },
 ): Promise<{
   messages: SokoBotInboxMessage[];
+  raw: unknown[];
   nextPageToken: string | null;
 }> {
   const slug = integration.provider.tools.listMessages;
-  if (!slug) return { messages: [], nextPageToken: null };
+  if (!slug) return { messages: [], raw: [], nextPageToken: null };
   const gmail = integration.provider.id === "gmail";
   const args: Record<string, unknown> = { max_results: options.limit };
   if (gmail) {
     const parts = [options.query ?? ""];
     if (options.since)
       parts.push(`after:${Math.floor(options.since.getTime() / 1000)}`);
+    if (options.before)
+      parts.push(`before:${Math.floor(options.before.getTime() / 1000)}`);
     if (options.unreadOnly) parts.push("is:unread");
     args.query = parts.filter(Boolean).join(" ");
-    args.include_payload = false;
+    args.include_payload = options.includePayload ?? false;
     args.verbose = false;
     if (options.pageToken) args.page_token = options.pageToken;
   } else if (options.query) {
@@ -636,10 +730,14 @@ export async function fetchInboxPage(
     const filters: string[] = [];
     if (options.since)
       filters.push(`receivedDateTime ge ${options.since.toISOString()}`);
+    if (options.before)
+      filters.push(`receivedDateTime lt ${options.before.toISOString()}`);
     if (options.unreadOnly) filters.push("isRead eq false");
     if (filters.length) args.filter = filters.join(" and ");
     args.top = options.limit;
     args.orderby = "receivedDateTime desc";
+    if (options.folder) args.folder = options.folder;
+    if (options.pageToken) args.skip = Number(options.pageToken) || 0;
   }
   const data = await execute(integration, slug, args);
   const items = asList(pick(data, "messages", "value", "items", "data"));
@@ -656,8 +754,10 @@ export async function fetchInboxPage(
     );
   const nextPageToken = gmail
     ? str(pick(data, "nextPageToken", "next_page_token")) || null
-    : null;
-  return { messages, nextPageToken };
+    : !searched && items.length >= options.limit
+      ? String((Number(options.pageToken) || 0) + items.length)
+      : null;
+  return { messages, raw: items, nextPageToken };
 }
 
 export async function fetchInboxMessage(
@@ -679,31 +779,108 @@ export async function fetchInboxMessage(
   return {
     ...normaliseMessage(integration.provider.id, raw),
     body: body.slice(0, 20_000),
+    attachments: messageAttachments(raw),
   };
+}
+
+function attachmentOf(entry: unknown): SokoBotInboxAttachment | null {
+  const id = str(
+    pick(entry, "attachmentId", "attachment_id") ??
+      pick(pick(entry, "body"), "attachmentId"),
+  );
+  const filename = str(pick(entry, "filename", "fileName", "name"));
+  if (!id || !filename) return null;
+  const size = Number(pick(entry, "size") ?? pick(pick(entry, "body"), "size"));
+  return {
+    id,
+    filename,
+    mimeType:
+      str(pick(entry, "mimeType", "mimetype", "contentType")) ||
+      "application/octet-stream",
+    size: Number.isFinite(size) && size > 0 ? size : null,
+  };
+}
+
+/** Gmail lists attachments in `attachmentList`, and always in the payload's parts. */
+function messageAttachments(raw: unknown): SokoBotInboxAttachment[] {
+  const found = new Map<string, SokoBotInboxAttachment>();
+  const add = (entry: unknown) => {
+    const attachment = attachmentOf(entry);
+    if (attachment && !found.has(attachment.id))
+      found.set(attachment.id, attachment);
+  };
+  asList(pick(raw, "attachmentList", "attachments")).forEach(add);
+  const walk = (part: unknown, depth: number) => {
+    if (depth > 8) return;
+    add(part);
+    for (const child of asList(pick(part, "parts"))) walk(child, depth + 1);
+  };
+  walk(pick(raw, "payload"), 0);
+  return [...found.values()];
+}
+
+/** Mail attachments a bot may save; Gmail's own limit is 25 MB. */
+export const INBOX_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+function base64Bytes(value: string): Buffer | null {
+  const text = value.replace(/^data:[^,]*,/, "").trim();
+  if (!text || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(text)) return null;
+  return Buffer.from(text.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+}
+
+async function downloadBytes(url: string): Promise<Buffer> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok)
+    throw new SokoBotIntegrationError(
+      `The attachment download failed (HTTP ${response.status})`,
+    );
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > INBOX_ATTACHMENT_MAX_BYTES)
+    throw new SokoBotIntegrationError("The attachment is larger than 25 MB");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * The bytes of one attachment. Composio documents the result only as
+ * `data`, so a file link (`s3url`/`url`) and inline base64 are both read.
+ */
+export async function fetchInboxAttachment(
+  integration: ActiveIntegration,
+  input: { messageId: string; attachmentId: string; filename: string },
+): Promise<Buffer> {
+  const slug = requireMailTool(integration, "getAttachment");
+  const data = await execute(integration, slug, {
+    message_id: input.messageId,
+    attachment_id: input.attachmentId,
+    file_name: input.filename,
+  });
+  const candidates = [data, pick(data, "file", "data", "attachment")];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      if (/^https:\/\//.test(candidate)) return downloadBytes(candidate);
+      const bytes = base64Bytes(candidate);
+      if (bytes) return bytes;
+      continue;
+    }
+    const url = str(pick(candidate, "s3url", "s3_url", "url", "downloadUrl"));
+    if (/^https:\/\//.test(url)) return downloadBytes(url);
+    const inline = str(pick(candidate, "data", "content", "base64"));
+    const bytes = inline ? base64Bytes(inline) : null;
+    if (bytes) return bytes;
+  }
+  console.warn("[soko-bot-mail] unreadable attachment result", {
+    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  });
+  throw new SokoBotIntegrationError(
+    "The mailbox returned the attachment in a form Sokosumi cannot read",
+  );
 }
 
 export async function fetchCalendarEvents(
   integration: ActiveIntegration,
   options: { from: Date; to: Date; limit: number },
 ): Promise<SokoBotCalendarEvent[]> {
-  const slug = integration.provider.tools.listEvents;
-  if (!slug) return [];
-  const args: Record<string, unknown> =
-    integration.provider.id === "googlecalendar"
-      ? {
-          calendar_id: "primary",
-          timeMin: options.from.toISOString(),
-          timeMax: options.to.toISOString(),
-          single_events: true,
-          order_by: "startTime",
-          max_results: options.limit,
-        }
-      : {
-          start_datetime: options.from.toISOString(),
-          end_datetime: options.to.toISOString(),
-          top: options.limit,
-        };
-  const data = await execute(integration, slug, args);
+  const { events } = await fetchCalendarPage(integration, options);
   // A calendar is read inside the stand-up, meeting prep and briefings, not
   // by the hourly mail ingest, so the read itself records that it worked.
   try {
@@ -714,10 +891,51 @@ export async function fetchCalendarEvents(
   } catch {
     // A missed stamp only affects the console tile, never the read itself.
   }
+  return events;
+}
+
+/**
+ * One page of events between `from` and `to`, in start order. Google hands
+ * back a page token; Outlook pages by offset. `raw` keeps the provider's
+ * attendee details (responses, rooms) for contact capture.
+ */
+export async function fetchCalendarPage(
+  integration: ActiveIntegration,
+  options: { from: Date; to: Date; limit: number; pageToken?: string },
+): Promise<{
+  events: SokoBotCalendarEvent[];
+  raw: unknown[];
+  nextPageToken: string | null;
+}> {
+  const slug = integration.provider.tools.listEvents;
+  if (!slug) return { events: [], raw: [], nextPageToken: null };
+  const google = integration.provider.id === "googlecalendar";
+  const args: Record<string, unknown> = google
+    ? {
+        calendar_id: "primary",
+        timeMin: options.from.toISOString(),
+        timeMax: options.to.toISOString(),
+        single_events: true,
+        order_by: "startTime",
+        max_results: options.limit,
+        ...(options.pageToken ? { page_token: options.pageToken } : {}),
+      }
+    : {
+        start_datetime: options.from.toISOString(),
+        end_datetime: options.to.toISOString(),
+        top: options.limit,
+        ...(options.pageToken ? { skip: Number(options.pageToken) || 0 } : {}),
+      };
+  const data = await execute(integration, slug, args);
   const items = asList(pick(data, "event_data", "events", "items", "value"));
   const events = items
     .map((item) => normaliseEvent(integration.provider.id, item))
     .filter((event) => event.id && event.startsAt);
   events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  return events;
+  const nextPageToken = google
+    ? str(pick(data, "nextPageToken", "next_page_token")) || null
+    : items.length >= options.limit
+      ? String((Number(options.pageToken) || 0) + items.length)
+      : null;
+  return { events, raw: items, nextPageToken };
 }

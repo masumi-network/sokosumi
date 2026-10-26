@@ -4,11 +4,11 @@ import { v25 } from "./v25.js";
 export const v26: SokoBotVersion = {
   ...v25,
   id: "v26",
-  name: "v26 · Social performance insights",
-  createdAt: "2026-10-20",
+  name: "v26 · Coding with tools",
+  createdAt: "2026-10-21",
   summary:
-    "v25 with X audience, public benchmark, topic discovery, and a performance alias over cached account statistics.",
+    "v25 that writes a script for repetitive tool work — paging years of mail, every row of a table — and keeps its own judgment for what the script finds.",
   releaseNote:
-    "I can read X audience samples, public handle benchmarks, and recent topic discovery through an authorized X connection, and I can list cached Social account performance with the same headline totals as account statistics. I state sample sizes, freshness, and platform limits.",
-  skills: [...v25.skills, "social-performance-insights"],
+    "For big jobs like going through years of mail, I now write a small script that pages through everything, instead of searching by hand and missing months. I still judge what it finds myself.",
+  skills: [...v25.skills, "code-tools"],
 };

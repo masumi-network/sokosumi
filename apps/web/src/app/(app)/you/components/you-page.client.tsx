@@ -103,10 +103,7 @@ export function YouPageClient({
   }
 
   return (
-    <div
-      className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
-      data-testid="you-page"
-    >
+    <div className="w-full py-6 md:py-8" data-testid="you-page">
       <div className="space-y-6">
         <header className="flex items-start gap-4">
           <YouPageAvatar sessionUser={sessionUser} displayName={displayName} />
