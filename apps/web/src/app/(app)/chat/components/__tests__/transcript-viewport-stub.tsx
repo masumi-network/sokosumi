@@ -80,11 +80,15 @@ export function TranscriptViewport({
   transcriptViewportSpies.position({ initialPosition, onPositionChange });
   const atEndRef = useRef(onAtEndChange);
   atEndRef.current = onAtEndChange;
+  const opensAboveEndRef = useRef(
+    initialPosition != null && !initialPosition.atLiveEdge,
+  );
   useEffect(() => {
     if (!atEndRef.current) return;
     const report = (atEnd: boolean) => atEndRef.current?.(atEnd);
     transcriptViewportEnd.report = report;
-    report(transcriptViewportEnd.openAtEnd);
+    // A position above the end opens there, as the real viewport does.
+    report(!opensAboveEndRef.current && transcriptViewportEnd.openAtEnd);
   }, []);
   useImperativeHandle(ref, () => ({
     ...transcriptViewportSpies,

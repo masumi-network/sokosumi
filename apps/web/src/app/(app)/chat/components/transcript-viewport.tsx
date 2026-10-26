@@ -79,6 +79,11 @@ export interface TranscriptPosition {
   anchorId: string | null;
   anchorCreatedAt: number;
   offset: number;
+  /**
+   * Opens the anchor this share of the scroller's height below its top, on
+   * top of `offset`: the Unread divider sits a third of the way down.
+   */
+  viewportShare?: number;
   atLiveEdge: boolean;
   visibleMessageIds: string[];
 }
@@ -547,9 +552,18 @@ export function TranscriptViewport({
       const correction = anchor
         ? anchor.getBoundingClientRect().top -
           scroller.getBoundingClientRect().top +
-          saved.offset
+          saved.offset -
+          (saved.viewportShare ?? 0) * scroller.clientHeight
         : null;
-      if (correction != null && Math.abs(correction) >= 1) {
+      // Too little history above or below cannot put the anchor in its
+      // place: a scroller already at that edge has gone as far as it can.
+      const clamped =
+        correction != null &&
+        (correction < 0
+          ? scroller.scrollTop <= 0
+          : scroller.scrollTop >=
+            scroller.scrollHeight - scroller.clientHeight - 1);
+      if (correction != null && Math.abs(correction) >= 1 && !clamped) {
         virtualizer.scrollBy(correction);
         settledFrames = 0;
       } else {
@@ -690,6 +704,10 @@ export function TranscriptViewport({
             size="sm"
             className="text-primary border-primary-tertiary bg-background hover:bg-primary-quaternary hover:text-foreground dark:bg-background dark:hover:bg-primary-quaternary pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
             onClick={() => {
+              // Ends a restore still placing its anchor, which would pull
+              // the view back up.
+              restoreRef.current = undefined;
+              landingRef.current += 1;
               setHeld(false);
               virtualizer.scrollToEnd();
             }}

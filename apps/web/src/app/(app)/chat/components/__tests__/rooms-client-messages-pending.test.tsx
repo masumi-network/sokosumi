@@ -380,7 +380,16 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     render(
       <RoomsClient
         {...baseProps}
-        rooms={[{ ...channelRoom(), unreadCount: 4, unreadMentionCount: 1 }]}
+        // Thread unread only: Room unread would open at the Unread divider,
+        // above the end, where nothing is read.
+        rooms={[
+          {
+            ...channelRoom(),
+            unreadCount: 4,
+            channelUnreadCount: 0,
+            unreadMentionCount: 1,
+          },
+        ]}
         messagesPromise={messagesPromise}
       />,
     );
@@ -474,7 +483,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     render(
       <RoomsClient
         {...baseProps}
-        rooms={[{ ...channelRoom(), unreadCount: 4 }]}
+        rooms={[{ ...channelRoom(), unreadCount: 4, channelUnreadCount: 0 }]}
         messages={[sampleMessage()]}
       />,
     );
@@ -500,6 +509,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     const unreadRoom = {
       ...channelRoom(),
       unreadCount: 4,
+      channelUnreadCount: 0,
       unreadMentionCount: 1,
     };
     const { unmount } = render(

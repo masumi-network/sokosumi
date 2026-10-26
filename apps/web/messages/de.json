@@ -7193,6 +7193,10 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "jumpToLatest": "Zu den neuesten Nachrichten",
+      "UnreadDivider": {
+        "label": "Neu",
+        "accessibleName": "Neue Nachrichten"
+      },
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
