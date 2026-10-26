@@ -2932,6 +2932,7 @@
           "add": "Añadir al hilo",
           "limit": "Los hilos pueden tener hasta {max} partes.",
           "part": "Parte {part}",
+          "text": "Texto de la parte {part}",
           "position": "{part}/{total}",
           "positionLabel": "Parte {part} de {total}",
           "moveUp": "Subir la parte {part}",

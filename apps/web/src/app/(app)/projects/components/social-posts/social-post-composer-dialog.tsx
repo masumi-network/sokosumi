@@ -947,6 +947,7 @@ export function SocialPostComposerDialog({
       <span className="ms-auto flex flex-col items-end gap-0.5">
         <span
           aria-live="polite"
+          id={`${errorId}-count`}
           className={cn(
             "text-xs tabular-nums",
             metrics.overLimit ? "text-destructive" : "text-muted-foreground",
@@ -1284,10 +1285,10 @@ export function SocialPostComposerDialog({
                     id={textId}
                     aria-describedby={
                       displayedOverLimit
-                        ? tooLongId
+                        ? `${tooLongId}-count ${tooLongId}`
                         : isThread && composerIssue
-                          ? `${textId}-empty`
-                          : undefined
+                          ? `${tooLongId}-count ${textId}-empty`
+                          : `${tooLongId}-count`
                     }
                     aria-invalid={
                       displayedOverLimit ||
@@ -1454,6 +1455,7 @@ export function SocialPostComposerDialog({
                         </div>
                         <Textarea
                           id={fieldId}
+                          aria-label={t("thread.text", { part: position })}
                           value={part.text}
                           disabled={isBusy}
                           aria-invalid={
@@ -1461,10 +1463,10 @@ export function SocialPostComposerDialog({
                           }
                           aria-describedby={
                             metrics.overLimit
-                              ? errorId
+                              ? `${errorId}-count ${errorId}`
                               : issue
-                                ? emptyId
-                                : undefined
+                                ? `${errorId}-count ${emptyId}`
+                                : `${errorId}-count`
                           }
                           onChange={(event) =>
                             setThreadParts((parts) =>

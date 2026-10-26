@@ -2434,7 +2434,10 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-post-character-count").parentElement,
     ).toContainElement(tooLong);
-    expect(textarea).toHaveAttribute("aria-describedby", tooLong.id);
+    expect(textarea).toHaveAttribute(
+      "aria-describedby",
+      `${tooLong.id}-count ${tooLong.id}`,
+    );
     expect(saveDraft).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Post now" }),
@@ -6225,6 +6228,44 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    "DRAFT",
+    "NEEDS_APPROVAL",
+    "PUBLISHING",
+    "FAILED",
+    "MISSED",
+  ] as const)(
+    "keeps the thread count compact beside status in the %s list",
+    async (status) => {
+      const user = userEvent.setup();
+      const post = buildThread({ status });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      if (status === "FAILED" || status === "MISSED") {
+        await openTab(user, "Needs attention");
+      }
+      const row = screen.getByTestId(`social-post-${post.id}`);
+      const badge = within(row).getByTestId("social-post-thread-count");
+      expect(badge).toHaveTextContent("1/3");
+      expect(badge).toHaveAttribute("data-slot", "badge");
+      expect(badge).toHaveClass("w-fit", "shrink-0");
+      expect(badge.parentElement).toHaveClass("flex", "items-center");
+      expect(badge.parentElement).not.toBe(row);
+      if (status !== "DRAFT") {
+        const statusBadge = within(row).getByTestId(
+          `social-post-status-${status}`,
+        );
+        expect(badge.parentElement).toBe(statusBadge.parentElement);
+        expect(badge.previousElementSibling).toBe(statusBadge);
+      }
+    },
+  );
+
   it("adds, reorders and removes thread parts, keeping each part's media in the saved payload", async () => {
     const user = userEvent.setup();
     render(
@@ -6239,6 +6280,9 @@ describe("ProjectSocialPosts", () => {
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "Opener" },
     });
+    expect(
+      within(dialog).getByRole("textbox", { name: "Text" }),
+    ).toHaveAccessibleDescription(`6 / ${SOCIAL_POST_TEXT_LIMITS.x}`);
     await user.click(
       within(dialog).getByRole("button", { name: "Add to thread" }),
     );
@@ -6248,9 +6292,14 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
-    fireEvent.change(
-      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
-      { target: { value: "Second" } },
+    const reply = within(dialog).getByRole("textbox", { name: "Part 2 text" });
+    expect(reply).toHaveAttribute("aria-label", "Part 2 text");
+    expect(reply).toHaveAccessibleDescription(
+      `0 / ${SOCIAL_POST_TEXT_LIMITS.x} Part 2 is empty. Add text or media.`,
+    );
+    fireEvent.change(reply, { target: { value: "Second" } });
+    expect(reply).toHaveAccessibleDescription(
+      `6 / ${SOCIAL_POST_TEXT_LIMITS.x}`,
     );
     const part2 = within(dialog).getByRole("region", { name: "Part 2" });
     await user.click(
@@ -6261,18 +6310,24 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: "Add to thread" }),
     );
     fireEvent.change(
-      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+      within(dialog).getByRole("textbox", { name: "Part 3 text" }),
       { target: { value: "Third" } },
     );
     await user.click(
       within(dialog).getByRole("button", { name: "Move part 2 down" }),
     );
     expect(
-      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      within(dialog).getByRole("textbox", { name: "Part 2 text" }),
     ).toHaveValue("Third");
     expect(
-      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+      within(dialog).getByRole("textbox", { name: "Part 2 text" }),
+    ).toHaveAccessibleDescription(`5 / ${SOCIAL_POST_TEXT_LIMITS.x}`);
+    expect(
+      within(dialog).getByRole("textbox", { name: "Part 3 text" }),
     ).toHaveValue("Second");
+    expect(
+      within(dialog).getByRole("textbox", { name: "Part 3 text" }),
+    ).toHaveAccessibleDescription(`6 / ${SOCIAL_POST_TEXT_LIMITS.x}`);
     expect(
       within(within(dialog).getByRole("region", { name: "Part 3" })).getByRole(
         "button",
@@ -6283,13 +6338,13 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: "Move part 3 up" }),
     );
     expect(
-      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      within(dialog).getByRole("textbox", { name: "Part 2 text" }),
     ).toHaveValue("Second");
     await user.click(
       within(dialog).getByRole("button", { name: "Remove part 3" }),
     );
     expect(
-      within(dialog).queryByLabelText("Part 3", { selector: "textarea" }),
+      within(dialog).queryByRole("textbox", { name: "Part 3 text" }),
     ).not.toBeInTheDocument();
     expect(within(dialog).getByText("1/2")).toBeVisible();
     expect(within(dialog).getAllByTestId("social-post-x-preview")).toHaveLength(
@@ -6336,6 +6391,10 @@ describe("ProjectSocialPosts", () => {
       `${SOCIAL_POST_TEXT_LIMITS.x + 1} / ${SOCIAL_POST_TEXT_LIMITS.x}`,
     );
     expect(within(part).getByText("Part 2 is over the limit.")).toBeVisible();
+    expect(textarea).toHaveAccessibleName("Part 2 text");
+    expect(textarea).toHaveAccessibleDescription(
+      `${SOCIAL_POST_TEXT_LIMITS.x + 1} / ${SOCIAL_POST_TEXT_LIMITS.x} Part 2 is over the limit.`,
+    );
     expect(textarea).toHaveAttribute("aria-invalid", "true");
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
@@ -6346,6 +6405,9 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(part).queryByText("Part 2 is over the limit."),
     ).not.toBeInTheDocument();
+    expect(textarea).toHaveAccessibleDescription(
+      `${SOCIAL_POST_TEXT_LIMITS.x} / ${SOCIAL_POST_TEXT_LIMITS.x}`,
+    );
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeEnabled();
