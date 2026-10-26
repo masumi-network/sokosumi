@@ -92,6 +92,7 @@ function parseStoredStatistics(
         historyError: parsed.historyError,
         metricWarning: parsed.metricWarning,
         error: parsed.error,
+        refreshAttemptedAt: parsed.refreshAttemptedAt,
       }
     : null;
 }
