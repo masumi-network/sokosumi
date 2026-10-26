@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/subscribers/import",
     tags: ["Projects"],
     description:
-      "Import up to 5 MB / 50,000 CSV data rows with consent: true. Accepts email, e-mail or Email Address headers and an optional name column. Existing subscribers keep their status. Invalid rows are reported by record number (header is row 1), up to 100 entries.",
+      "Import up to 5 MB / 50,000 CSV data rows. CONFIRMED records existing consent; ASK sends double opt-in emails. Accepts email, e-mail or Email Address headers and an optional name column. Existing subscribers keep their status. Invalid rows are reported by record number (header is row 1), up to 100 entries.",
     request: {
       params: newsletterProjectParamsSchema,
       body: {
@@ -40,6 +40,7 @@ const route = withCoworkerContextHeaderParameters(
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Invalid CSV or missing consent"),
+      429: jsonErrorResponse("Confirmation request limit exceeded"),
     },
   }),
 );
@@ -50,8 +51,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const scope = await newsletterScope(c, id);
     const result = await importNewsletterSubscribers(
       scope,
-      c.req.valid("json").csv,
+      c.req.valid("json"),
       c.var.authContext,
+      c.req.raw,
     );
     return ok(c, newsletterImportResultSchema.parse(result));
   });

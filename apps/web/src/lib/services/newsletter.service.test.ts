@@ -410,7 +410,7 @@ describe("newsletterService", () => {
 
   it("forwards subscriber mutations to generated Core operations", async () => {
     const subscriber = { id: "s1" };
-    const input = { email: "one@example.com", consent: true } as const;
+    const input = { email: "one@example.com", consent: "CONFIRMED" } as const;
     core.postProjectsByIdNewsletterSubscribers.mockResolvedValue({
       data: subscriber,
     });
@@ -420,7 +420,10 @@ describe("newsletterService", () => {
       input,
     );
     const summary = { imported: 1, skippedExisting: 0, invalid: [] };
-    const csv = { csv: "email\none@example.com", consent: true } as const;
+    const csv = {
+      csv: "email\none@example.com",
+      consent: "CONFIRMED",
+    } as const;
     core.postProjectsByIdNewsletterSubscribersImport.mockResolvedValue({
       data: summary,
     });
@@ -461,13 +464,13 @@ describe("newsletterService", () => {
     await expect(
       newsletterService.addSubscriber("p1", {
         email: "one@example.com",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(
       newsletterService.importSubscribers("p1", {
         csv: "email",
-        consent: true,
+        consent: "CONFIRMED",
       }),
     ).rejects.toBe(error);
     await expect(

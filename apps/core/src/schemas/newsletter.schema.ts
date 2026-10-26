@@ -271,13 +271,43 @@ export const newsletterSubscriberListSchema = z
   })
   .openapi("NewsletterSubscriberList");
 
+export const newsletterConsentSchema = z
+  .enum(["CONFIRMED", "ASK"])
+  .openapi("NewsletterConsent");
+
 export const addNewsletterSubscriberRequestSchema = z
   .object({
     email: newsletterEmailSchema,
     name: z.string().trim().max(200).nullable().optional(),
-    consent: z.literal(true),
+    consent: newsletterConsentSchema,
   })
   .openapi("AddNewsletterSubscriberRequest");
+
+export const addNewsletterSubscribersFromContactsRequestSchema = z
+  .object({
+    contactIds: z.array(z.uuid()).max(1000).optional(),
+    listIds: z.array(z.uuid()).max(20).optional(),
+    consent: newsletterConsentSchema,
+  })
+  .refine(
+    (input) =>
+      (input.contactIds?.length ?? 0) + (input.listIds?.length ?? 0) > 0,
+    {
+      message: "Provide at least one contact or list id",
+    },
+  )
+  .openapi("AddNewsletterSubscribersFromContactsRequest");
+
+export const newsletterAddFromContactsResultSchema = z
+  .object({
+    added: z.int().nonnegative(),
+    alreadySubscribed: z.int().nonnegative(),
+    skippedUnsubscribed: z.int().nonnegative(),
+    skippedBounced: z.int().nonnegative(),
+    skippedNoEmail: z.int().nonnegative(),
+    pendingConfirmation: z.int().nonnegative(),
+  })
+  .openapi("NewsletterAddFromContactsResult");
 
 export const patchNewsletterSubscriberRequestSchema = z
   .object({
@@ -297,7 +327,7 @@ export const importNewsletterSubscribersRequestSchema = z
       .refine((csv) => Buffer.byteLength(csv, "utf8") <= 5_000_000, {
         message: "CSV exceeds 5 MB",
       }),
-    consent: z.literal(true),
+    consent: newsletterConsentSchema,
   })
   .openapi("ImportNewsletterSubscribersRequest");
 
@@ -308,6 +338,9 @@ export const newsletterImportResultSchema = z
       description:
         "Valid rows skipped because the email already exists in the newsletter or CSV.",
     }),
+    skippedUnsubscribed: z.int().nonnegative(),
+    skippedBounced: z.int().nonnegative(),
+    pendingConfirmation: z.int().nonnegative(),
     invalid: z
       .array(z.object({ row: z.int().min(2), value: z.string() }))
       .max(100),
@@ -320,6 +353,13 @@ export type ListNewsletterSubscribersQuery = z.infer<
 >;
 export type AddNewsletterSubscriberRequest = z.infer<
   typeof addNewsletterSubscriberRequestSchema
+>;
+export type AddNewsletterSubscribersFromContactsRequest = z.infer<
+  typeof addNewsletterSubscribersFromContactsRequestSchema
+>;
+export type NewsletterConsent = z.infer<typeof newsletterConsentSchema>;
+export type ImportNewsletterSubscribersRequest = z.infer<
+  typeof importNewsletterSubscribersRequestSchema
 >;
 export type PatchNewsletterSubscriberRequest = z.infer<
   typeof patchNewsletterSubscriberRequestSchema
