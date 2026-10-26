@@ -7,6 +7,8 @@ import {
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
+  socialPostTextLength,
+  socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -29,7 +31,10 @@ import {
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
-import { classifyPublishError } from "@/helpers/social-post-publish-errors";
+import {
+  classifyPublishError,
+  SocialPostTextLimitError,
+} from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -42,6 +47,7 @@ import {
   getSocialPost,
   type SocialPostSummary,
 } from "@/services/social-posts.service";
+import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 export const LEASE_MS = 5 * 60_000;
 export const MAX_ATTEMPTS = 3;
@@ -103,6 +109,7 @@ const publisherInclude = {
       composioConnectedAccountId: true,
       externalAccountId: true,
       externalHandle: true,
+      subscriptionType: true,
     },
   },
 } satisfies Prisma.SocialPostInclude;
@@ -693,11 +700,43 @@ async function attemptPublish(
   let lastExternalId: string | undefined;
   let threadPublishedAt: Date | null = null;
   let media: SocialPostMediaRef[] = [];
+  let subscriptionType = connection.subscriptionType;
   try {
     if (Date.now() >= deadlineMs)
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
     media = requireValidPublishMedia(post.media, provider, post.id);
+    if (provider === "x") {
+      subscriptionType = await resolveXSubscriptionType(
+        { ...connection, provider, projectId: post.projectId },
+        { signal },
+      );
+      const limit = socialPostTextLimit(provider, subscriptionType);
+      const account = connection.externalHandle
+        ? `@${connection.externalHandle.replace(/^@/, "")}`
+        : "this account";
+      // Parts already on X are not re-checked; a resumed thread only needs the rest to fit.
+      const unpublished: [string, string][] = [
+        ...(post.publishedExternalId
+          ? []
+          : [["This post", post.text] as [string, string]]),
+        ...post.threadParts
+          .filter((part) => !part.externalPostId)
+          .map((part): [string, string] => [
+            `Thread part ${part.position}`,
+            part.text,
+          ]),
+        ["The first comment", post.firstComment ?? ""],
+      ];
+      for (const [subject, text] of unpublished) {
+        const length = socialPostTextLength(provider, text);
+        if (length > limit) {
+          throw new SocialPostTextLimitError(
+            `${subject} is ${length.toLocaleString("en-US")} characters, but ${account} can now post at most ${limit.toLocaleString("en-US")} characters on X${limit === 280 ? " (no X Premium)" : ""}. Shorten it${limit === 280 ? " or renew Premium" : ""}, then retry.`,
+          );
+        }
+      }
+    }
     const accessOutcome = await checkSchedulingCoworkerAccess(
       post,
       options,
@@ -807,6 +846,7 @@ async function attemptPublish(
     try {
       await publishSocialPostFirstComment({
         provider,
+        subscriptionType,
         connectedAccountId: connection.composioConnectedAccountId,
         executorUserId: projectExecutorUserId(post.projectId),
         externalAccountId: connection.externalAccountId,

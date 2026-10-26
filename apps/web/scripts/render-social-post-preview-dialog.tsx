@@ -29,6 +29,7 @@ const POST: SocialPost = {
     externalHandle: "sokosumi",
     displayName: "Sokosumi",
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   creator: { kind: "user", id: "user-1", name: "Alice" },

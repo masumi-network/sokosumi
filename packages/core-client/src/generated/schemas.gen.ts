@@ -18569,6 +18569,18 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const NewsletterAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -22907,6 +22919,14 @@ export const ProjectSocialConnectionSchema = {
             ],
             example: 'Sokosumi'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         avatarUrl: {
             type: [
                 'string',
@@ -22948,6 +22968,7 @@ export const ProjectSocialConnectionSchema = {
         'provider',
         'externalHandle',
         'displayName',
+        'subscriptionType',
         'avatarUrl',
         'status',
         'connectedAt',
@@ -22966,6 +22987,26 @@ export const ProjectSocialProviderSchema = {
         'youtube'
     ],
     example: 'x'
+} as const;
+
+export const ProjectSocialConnectionSubscriptionSchema = {
+    type: 'object',
+    properties: {
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        textLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'subscriptionType',
+        'textLimit'
+    ]
 } as const;
 
 export const SocialAccountStatisticsPageSchema = {
@@ -26124,6 +26165,14 @@ export const SocialPostSocialConnectionSchema = {
             description: 'Profile picture copy in Sokosumi storage',
             example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
+        subscriptionType: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'X subscription tier; null when unknown or not X',
+            example: 'Premium'
+        },
         status: {
             type: 'string',
             enum: [
@@ -26140,6 +26189,7 @@ export const SocialPostSocialConnectionSchema = {
         'externalHandle',
         'displayName',
         'avatarUrl',
+        'subscriptionType',
         'status'
     ]
 } as const;
@@ -26298,12 +26348,10 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch',
             description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
@@ -26322,7 +26370,6 @@ export const CreateSocialPostRequestSchema = {
                 properties: {
                     text: {
                         type: 'string',
-                        maxLength: 63206,
                         example: 'Shipping the new Calendar today.'
                     },
                     media: {
@@ -26420,12 +26467,10 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 10000,
             example: '#launch',
             description: 'Posted after publishing succeeds. For X threads, replies to the last thread part.'
         },
@@ -26444,7 +26489,6 @@ export const UpdateSocialPostRequestSchema = {
                 properties: {
                     text: {
                         type: 'string',
-                        maxLength: 63206,
                         example: 'Shipping the new Calendar today.'
                     },
                     media: {
@@ -26879,6 +26923,76 @@ export const PatchProjectRequestSchema = {
             example: 'SOK'
         }
     }
+} as const;
+
+export const PublicNewsletterSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        senderName: {
+            type: 'string'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        }
+    },
+    required: [
+        'name',
+        'senderName',
+        'brand'
+    ]
+} as const;
+
+export const NewsletterSignupAcceptedSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'check_your_inbox'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const SubscribeNewsletterRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string'
+        },
+        name: {
+            type: 'string',
+            maxLength: 200
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'SIGNUP_FORM'
+            ]
+        },
+        website: {
+            type: 'string',
+            maxLength: 2048
+        },
+        locale: {
+            type: 'string',
+            enum: [
+                'en',
+                'de',
+                'es'
+            ],
+            default: 'en'
+        }
+    },
+    required: [
+        'email'
+    ]
 } as const;
 
 export const JobSchema = {
