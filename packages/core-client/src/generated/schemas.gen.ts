@@ -13519,7 +13519,8 @@ export const ContactScoreSchema = {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            description: 'Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.'
         }
     },
     required: [
@@ -17794,6 +17795,18 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
             }
         },
+        defaultVideoModelId: {
+            type: 'string'
+        },
+        defaultAnimateModelId: {
+            type: 'string'
+        },
+        videoModels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
+            }
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -17807,6 +17820,9 @@ export const ProjectImageStudioCatalogSchema = {
     required: [
         'defaultModelId',
         'models',
+        'defaultVideoModelId',
+        'defaultAnimateModelId',
+        'videoModels',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -17961,6 +17977,105 @@ export const ProjectImageStudioCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioVideoCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        endpoint: {
+            type: 'string'
+        },
+        input: {
+            type: 'string',
+            enum: [
+                'text',
+                'image'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        durations: {
+            type: 'array',
+            items: {
+                type: 'integer'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perSecondUsd: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'number'
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'perSecondUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'endpoint',
+        'input',
+        'aspectRatios',
+        'durations',
+        'resolutions',
+        'curatedRank',
+        'notes',
+        'price'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -18055,6 +18170,23 @@ export const ProjectImageAssetSchema = {
         contentType: {
             type: 'string'
         },
+        mediaType: {
+            type: 'string',
+            enum: [
+                'IMAGE',
+                'VIDEO'
+            ]
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -18084,10 +18216,33 @@ export const ProjectImageAssetSchema = {
         'height',
         'bytes',
         'contentType',
+        'mediaType',
+        'video',
         'createdAt',
         'jobId',
         'settings',
         'contentPath'
+    ]
+} as const;
+
+export const ProjectVideoSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string'
+        },
+        durationSeconds: {
+            type: 'integer',
+            minimum: 1
+        },
+        resolution: {
+            type: 'string'
+        }
+    },
+    required: [
+        'aspectRatio',
+        'durationSeconds',
+        'resolution'
     ]
 } as const;
 
@@ -18168,7 +18323,9 @@ export const ProjectImageJobSchema = {
             type: 'string',
             enum: [
                 'GENERATE',
-                'EDIT'
+                'EDIT',
+                'TEXT_TO_VIDEO',
+                'IMAGE_TO_VIDEO'
             ]
         },
         model: {
@@ -18179,6 +18336,16 @@ export const ProjectImageJobSchema = {
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        video: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectVideoSettings'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         referenceAssetIds: {
             type: 'array',
@@ -18278,6 +18445,7 @@ export const ProjectImageJobSchema = {
         'model',
         'prompt',
         'settings',
+        'video',
         'referenceAssetIds',
         'error',
         'failureReason',
@@ -25451,6 +25619,71 @@ export const CreateProjectImageJobRequestSchema = {
             default: []
         },
         parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        settings: {
+            type: 'object',
+            properties: {
+                aspectRatio: {
+                    type: 'string',
+                    enum: [
+                        '9:16',
+                        '16:9',
+                        '1:1',
+                        '4:3',
+                        '3:4'
+                    ]
+                },
+                durationSeconds: {
+                    type: 'integer'
+                },
+                resolution: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20
+                }
+            },
+            default: {}
+        },
+        sourceAssetId: {
             type: [
                 'string',
                 'null'

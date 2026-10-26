@@ -3230,6 +3230,18 @@
         "unknown": "Diese Generierung wurde nicht abgeschlossen."
       },
       "failedDetails": "Meldung des Anbieters",
+      "studioMode": "Erstellen",
+      "modeImage": "Bild",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Video beschreiben",
+      "videoPromptPlaceholder": "Beschreibe das gewünschte Video …",
+      "generateVideo": "Video erstellen",
+      "videoLength": "Länge",
+      "videoFollowsImage": "Das Video übernimmt das Format des Bildes.",
+      "videoNeedsProject": "Öffne ein Projekt, um darin ein Video zu erstellen.",
+      "animate": "Animieren",
+      "animating": "Wird animiert",
+      "stopAnimating": "Dieses Bild nicht animieren",
       "runPlanCredits": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, {credits, plural, one {# Credit} other {# Credits}}",
       "creditsEach": "{credits, plural, one {# Credit} other {# Credits}} x {count}",
       "creditsCount": "{count, plural, one {# Credit} other {# Credits}}",
@@ -8072,6 +8084,8 @@
           "read_file": "Datei wird gelesen",
           "generate_image": "Bild wird erstellt",
           "get_image": "Bild wird geprüft",
+          "generate_video": "Video wird erstellt",
+          "get_video": "Video wird geprüft",
           "preview_result": "Ergebnisvorschau vorbereiten"
         },
         "composer": {

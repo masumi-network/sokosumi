@@ -400,6 +400,45 @@ describe("fetchDriveRecentsPage", () => {
     ]);
   });
 
+  it("stops paging task outputs once a batch is older than a full pool", async () => {
+    listMock.mockResolvedValue({ blobs: [], hasMore: false });
+    let page = 0;
+    const fetchTaskOutputs = vi.fn(async () => {
+      page += 1;
+      const day = String(29 - page * 3).padStart(2, "0");
+      return {
+        rows: [0, 1, 2].map((offset) => ({
+          id: `tf_${page}_${offset}`,
+          name: `out-${page}-${offset}.md`,
+          fileUrl: `https://blob.example/out-${page}-${offset}.md`,
+          size: 1,
+          updatedAt: new Date(`2026-08-${day}T1${2 - offset}:00:00.000Z`),
+          taskId: "task_1",
+          taskName: "Task",
+          projectId: null,
+          projectName: null,
+        })),
+        hasMore: true,
+        nextCursor: `tf_${page}_2`,
+      };
+    });
+    const result = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 2,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+    });
+    // The second batch proves nothing newer is left; the source never ends.
+    expect(fetchTaskOutputs).toHaveBeenCalledTimes(2);
+    expect(result.items.map(recentsItemKey)).toEqual([
+      "task-output:tf_1_0",
+      "task-output:tf_1_1",
+    ]);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
   it("filters drive filenames in-memory while preserving recency order", async () => {
     listMock.mockResolvedValue({
       blobs: [

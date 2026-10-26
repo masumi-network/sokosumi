@@ -1,6 +1,6 @@
 import { act, render } from "@testing-library/react";
-import { useEffect } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, useState } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
@@ -34,25 +34,57 @@ function SidebarList() {
 
 describe("useLiveChatRooms", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ rooms: [] });
+    window.innerWidth = 1280;
   });
+  afterEach(() => vi.useRealTimers());
 
-  it("leaves the read to a sidebar that mounts in the same commit", async () => {
-    const view = render(
-      <>
-        <TabUnread />
-        <SidebarList />
-      </>,
-    );
-    await act(async () => {});
+  it("leaves the read to a desktop sidebar that mounts a moment later", async () => {
+    function Page() {
+      const [sidebar, setSidebar] = useState(false);
+      useEffect(() => {
+        const timer = setTimeout(() => setSidebar(true), 300);
+        return () => clearTimeout(timer);
+      }, []);
+      return (
+        <>
+          <TabUnread />
+          {sidebar ? <SidebarList /> : null}
+        </>
+      );
+    }
+    const view = render(<Page />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
     expect(fetchMock).not.toHaveBeenCalled();
     view.unmount();
   });
 
-  it("reads the rooms itself when no sidebar is mounted", async () => {
+  it("reads the rooms itself on desktop when no sidebar comes", async () => {
     const view = render(<TabUnread />);
-    await act(async () => {});
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(fetchMock).toHaveBeenCalledWith("active");
+    view.unmount();
+  });
+
+  it("reads at once on a phone", async () => {
+    window.innerWidth = 390;
+    const view = render(<TabUnread />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(fetchMock).toHaveBeenCalledWith("active");
     view.unmount();
   });

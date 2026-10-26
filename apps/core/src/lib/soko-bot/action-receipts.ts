@@ -13,6 +13,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "publish_social_post",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
+  "generate_video",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -222,7 +223,7 @@ export function externalActionReceipt(capability: string, result: unknown) {
   let targetId: string | null = null;
   // The studio refused before sending, and refunded: nothing happened.
   if (
-    capability === "generate_image" &&
+    (capability === "generate_image" || capability === "generate_video") &&
     z.object({ status: z.literal("FAILED") }).safeParse(result).success
   )
     return {
@@ -249,7 +250,10 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
-  } else if (capability === "generate_image") {
+  } else if (
+    capability === "generate_image" ||
+    capability === "generate_video"
+  ) {
     // Only a job the provider took; an uncertain submission stays UNKNOWN.
     const acknowledged = z
       .object({
