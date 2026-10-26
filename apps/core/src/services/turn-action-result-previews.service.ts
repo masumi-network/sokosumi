@@ -31,6 +31,7 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   generate_image: "studio_job",
   generate_video: "studio_job",
   upload_file: "file",
+  move_file: "file",
   hire_agent: "job",
   provide_job_input: "job",
 };

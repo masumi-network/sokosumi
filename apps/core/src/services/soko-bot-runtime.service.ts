@@ -3,6 +3,7 @@ import {
   AgentJobStatus,
   Channel,
   FileSourceKind,
+  FileSourceScope,
   jobInclude,
   type Prisma,
   TaskStatus,
@@ -40,16 +41,20 @@ import {
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAskCoworkerInputSchema,
   sokoBotEvaluateWithJevInputSchema,
+  sokoBotInstallSkillInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotListSkillsInputSchema,
   sokoBotManageReminderInputSchema,
+  sokoBotMoveFileInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotPreviewResultInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
+  sokoBotRemoveSkillInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotStartBackgroundRunInputSchema,
@@ -99,6 +104,7 @@ import {
   resolveTableActor,
   type TableOperationCompletion,
 } from "@/helpers/data-table";
+import { moveDriveFile } from "@/helpers/drive-file-move";
 import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -210,6 +216,10 @@ import {
   sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
+import {
+  skillChangeRefusal,
+  sokoBotDriveFolder,
+} from "@/lib/soko-bot/self-config-guards";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
@@ -297,6 +307,13 @@ import {
   SokoBotScheduleValidationError,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
+import {
+  installSkill,
+  listInstalledSkills,
+  removeInstalledSkill,
+  SokoBotSkillError,
+  searchSkillsSh,
+} from "@/services/soko-bot-skills.service";
 import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
@@ -544,6 +561,27 @@ function actingMemberOf(authorized: {
       "This action runs as a member, and nobody asked for this turn. Say what you would do in your chat; a member's request starts a turn that can do it.",
     );
   return actingUserId;
+}
+
+/** A Drive folder a tool may write into, normalized; "" is the top level. */
+function driveFolderFor(folder: string | undefined): string {
+  const result = sokoBotDriveFolder(folder);
+  if ("refusal" in result) throw new SokoBotRefusedUnsentError(result.refusal);
+  return result.folder;
+}
+
+/** The member a skill change runs as, once the owner asked for it in chat. */
+function requireOwnerSkillRequest(
+  authorized: AuthorizedSokoBotRuntime,
+): string {
+  const refusal = skillChangeRefusal({
+    source: authorized.turn.source,
+    chainDepth: authorized.turn.chainDepth,
+    askedByAssistant: authorized.askedByKind === "ASSISTANT",
+    shared: Boolean(authorized.reader.sharedScope),
+  });
+  if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+  return actingMemberOf(authorized);
 }
 
 /** Who an action's operation key belongs to: the member, or the bot acting on its own. */
@@ -2487,8 +2525,10 @@ export class SokoBotRuntimeService {
       attachmentUrl?: string;
       contentType?: string;
       overwrite?: boolean;
+      folder?: string;
     },
   ) {
+    const folder = driveFolderFor(input.folder);
     if (input.attachmentUrl) {
       if (input.content !== undefined)
         throw new SokoBotRefusedUnsentError(
@@ -2498,6 +2538,7 @@ export class SokoBotRuntimeService {
         filename: input.filename,
         url: input.attachmentUrl,
         overwrite: input.overwrite,
+        folder,
       });
     }
     if (input.content === undefined)
@@ -2505,7 +2546,9 @@ export class SokoBotRuntimeService {
         "Give the file's text as content, or a chat attachment's link as attachmentUrl",
       );
     const drive = await this.ownerDrive(authorized);
-    const pathname = drive.pathname(input.filename);
+    const pathname = folder
+      ? drive.pathnameIn(folder, input.filename)
+      : drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
     // Text only: this tool writes what the model composed, never binary.
     if (!isTextMimeType(contentType)) {
@@ -2557,12 +2600,169 @@ export class SokoBotRuntimeService {
       replaced: Boolean(existing),
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
+      folder: folder || null,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"
           : "Files in the owner's personal workspace",
     };
+  }
+
+  /** The receipt for a write that already happened outside a transaction. */
+  private async commitReceipt<T>(
+    authorized: AuthorizedSokoBotRuntime,
+    toolCallId: string,
+    targetId: string,
+    result: T,
+  ): Promise<T> {
+    await prisma.$transaction((tx) =>
+      commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId,
+        result: persistedToolResult(result),
+      }),
+    );
+    return result;
+  }
+
+  /** Moves one of the owner's Drive files into a folder of the same Drive. */
+  private async moveFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; folder: string },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const drive = await this.ownerDrive(authorized);
+    const resource = await prisma.fileResource.findFirst({
+      where: {
+        id: input.fileId,
+        workspaceId: drive.key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope:
+          drive.key.scope === "organization"
+            ? FileSourceScope.ORGANIZATION
+            : FileSourceScope.USER,
+        tombstonedAt: null,
+        ...(drive.key.scope === "organization"
+          ? { ownerOrganizationId: drive.key.ownerId }
+          : { ownerUserId: drive.key.ownerId }),
+      },
+      select: { id: true, sourceId: true, displayName: true },
+    });
+    if (!resource)
+      throw new SokoBotRefusedUnsentError(
+        "No file with that id in your owner's Files; files from Tasks stay with their Task",
+      );
+    const token = getEnv().BLOB_READ_WRITE_TOKEN;
+    if (!token)
+      throw new SokoBotRuntimeValidationError("File storage is not configured");
+    try {
+      await moveDriveFile({
+        sourcePathname: resource.sourceId,
+        targetFolderPath: folder,
+        scope: drive.key.scope,
+        ownerId: drive.key.ownerId,
+        workspaceId: drive.key.workspaceId,
+        token,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+    return this.commitReceipt(authorized, toolCallId, resource.id, {
+      id: resource.id,
+      filename: resource.displayName,
+      folder: folder || null,
+      link: `/drive/files/${resource.id}`,
+    });
+  }
+
+  private async listSkills(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { query?: string },
+  ) {
+    const userId = actingMemberOf(authorized);
+    const [installed, catalog] = await Promise.all([
+      listInstalledSkills(userId, authorized.turn.workspaceId),
+      input.query ? searchSkillsSh(input.query).catch(() => null) : [],
+    ]);
+    return {
+      installed: installed.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        source: skill.slug,
+      })),
+      ...(input.query
+        ? catalog === null
+          ? { catalogUnavailable: true }
+          : { catalog }
+        : {}),
+    };
+  }
+
+  private async installSkill(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { source: string; skillName?: string },
+    toolCallId: string,
+  ) {
+    const userId = requireOwnerSkillRequest(authorized);
+    try {
+      const result = await installSkill({
+        userId,
+        workspaceId: authorized.turn.workspaceId,
+        source: input.source,
+        skillName: input.skillName ?? null,
+      });
+      return result.skill
+        ? await this.commitReceipt(authorized, toolCallId, result.skill.id, {
+            installed: {
+              id: result.skill.id,
+              name: result.skill.name,
+              description: result.skill.description,
+            },
+          })
+        : {
+            installed: null,
+            chooseOne: result.candidates.map((candidate) => ({
+              skillName: candidate.name,
+              description: candidate.description,
+            })),
+          };
+    } catch (error) {
+      if (error instanceof SokoBotSkillError)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+  }
+
+  private async removeSkill(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { skill: string },
+    toolCallId: string,
+  ) {
+    const userId = requireOwnerSkillRequest(authorized);
+    const installed = await listInstalledSkills(
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const wanted = input.skill.toLowerCase();
+    const skill = installed.find(
+      (entry) =>
+        entry.id === input.skill || entry.name.toLowerCase() === wanted,
+    );
+    if (!skill)
+      throw new SokoBotRefusedUnsentError(
+        "No installed skill by that id or name; list_skills shows them",
+      );
+    await removeInstalledSkill(userId, skill.id);
+    return this.commitReceipt(authorized, toolCallId, skill.id, {
+      removed: { id: skill.id, name: skill.name },
+    });
   }
 
   /**
@@ -2574,7 +2774,12 @@ export class SokoBotRuntimeService {
    */
   private async saveChatAttachment(
     authorized: AuthorizedSokoBotRuntime,
-    input: { filename: string; url: string; overwrite?: boolean },
+    input: {
+      filename: string;
+      url: string;
+      overwrite?: boolean;
+      folder: string;
+    },
   ) {
     const file = parseChatRoomFileUrl(input.url);
     if (!file)
@@ -2612,7 +2817,9 @@ export class SokoBotRuntimeService {
       resolveUserUploadContentType(input.filename, meta.contentType) ??
       meta.contentType;
     const drive = await this.ownerDrive(authorized);
-    const pathname = drive.pathname(input.filename);
+    const pathname = input.folder
+      ? drive.pathnameIn(input.folder, input.filename)
+      : drive.pathname(input.filename);
     const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
       (blob) => blob.pathname === pathname,
     );
@@ -2654,6 +2861,7 @@ export class SokoBotRuntimeService {
       replaced: Boolean(existing),
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: bytes.byteLength,
+      folder: input.folder || null,
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"
@@ -5611,6 +5819,29 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotUploadFileInputSchema.parse(input.input);
         return this.uploadFile(authorized, parsed);
       }
+      case "move_file":
+        return this.moveFile(
+          authorized,
+          sokoBotMoveFileInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "list_skills":
+        return this.listSkills(
+          authorized,
+          sokoBotListSkillsInputSchema.parse(input.input),
+        );
+      case "install_skill":
+        return this.installSkill(
+          authorized,
+          sokoBotInstallSkillInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "remove_skill":
+        return this.removeSkill(
+          authorized,
+          sokoBotRemoveSkillInputSchema.parse(input.input),
+          input.toolCallId,
+        );
       case "generate_image":
         return this.generateImage(authorized, input.input, input.toolCallId);
       case "get_image":
