@@ -22,9 +22,8 @@ overrides:
   # Patched floor is 4.3.1; pin latest 4.x patch.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c.
-  # The old `undici@<6.27.0` floor is already behind the tree (6.29.0).
-  # Oct 2026 advisories still match every resolved copy: @vercel/blob → 6.29.0,
-  # @scalar → 7.29.1, ai-sdk/openai/sandbox → 7.30.0, eve@0.83.2 pins 8.10.2.
+  # After #6555, main still resolves 6.29.0, 7.30.0, and eve's 8.10.2
+  # (an unrelated 8.12.3 copy is already present). No undici override on main.
   # Patched floors are 6.29.1, 7.30.1, and 8.12.2; pin the latest patch on each line.
   "undici@6": "6.29.1"
   "undici@7": "7.30.1"
