@@ -75,7 +75,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
   }
 
   /// Web's `<dl>` rows, in web's order.
-  public enum Detail: Equatable, Sendable {
+  public enum Detail: Equatable, Hashable, Sendable {
     case assignee(String)
     /// The project's name, with web's `ProjectAvatar` when Core sends `projectInfo`.
     case project(String, mark: ProjectMark?)
@@ -86,7 +86,7 @@ public struct ResultPreviewCard: Equatable, Sendable {
   }
 
   /// Web `ProjectAvatar`: the logo, else the name's first letter (or "P").
-  public struct ProjectMark: Equatable, Sendable {
+  public struct ProjectMark: Equatable, Hashable, Sendable {
     public let name: String
     public let logoURL: String?
 
