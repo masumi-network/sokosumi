@@ -13,7 +13,7 @@ import {
 } from "@/schemas/newsletter.schema";
 import { importNewsletterSubscribers } from "@/services/newsletter.service";
 
-import { newsletterScope } from "../../context";
+import { newsletterScope, newsletterSubscriberAdder } from "../../context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -52,8 +52,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const result = await importNewsletterSubscribers(
       scope,
       c.req.valid("json"),
-      c.var.authContext,
-      c.req.raw,
+      await newsletterSubscriberAdder(c, scope),
     );
     return ok(c, newsletterImportResultSchema.parse(result));
   });

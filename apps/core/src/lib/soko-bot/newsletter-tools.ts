@@ -1,5 +1,6 @@
 import type { NewsletterIssue, Prisma } from "@sokosumi/database";
 import {
+  SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
@@ -7,13 +8,20 @@ import { type NewsletterBlock, newsletterSignupLinks } from "@sokosumi/utils";
 
 import { getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  addNewsletterSubscriberRequestSchema,
+  addNewsletterSubscribersFromContactsRequestSchema,
   createNewsletterIssueRequestSchema,
+  importNewsletterSubscribersRequestSchema,
+  newsletterAddFromContactsResultSchema,
   newsletterBrandSchema,
+  newsletterImportResultSchema,
   newsletterIssueSchema,
   newsletterSchema,
   newsletterSubscriberSchema,
   patchNewsletterIssueRequestSchema,
+  patchNewsletterSubscriberRequestSchema,
   putNewsletterRequestSchema,
 } from "@/schemas/newsletter.schema";
 import {
@@ -22,10 +30,17 @@ import {
   newsletterIssueAnalyticsSchema,
 } from "@/schemas/newsletter-analytics.schema";
 import {
+  addNewsletterSubscriber,
+  addNewsletterSubscribersFromContacts,
   countNewsletterSubscribers,
+  deleteNewsletterSubscriber,
   getNewsletter,
+  importNewsletterSubscribers,
   listNewsletterSubscribers,
   type NewsletterScope,
+  type NewsletterSubscriberAdder,
+  type NewsletterSubscriberWrite,
+  patchNewsletterSubscriber,
   putNewsletter,
 } from "@/services/newsletter.service";
 import {
@@ -60,6 +75,223 @@ type NewsletterWriteCapability = Extract<
   | "delete_newsletter_issue"
   | "submit_newsletter_issue"
 >;
+
+type NewsletterSubscriberWriteCapability = Extract<
+  SokoBotCapability,
+  | "add_newsletter_subscriber"
+  | "import_newsletter_subscribers"
+  | "add_newsletter_subscribers_from_contacts"
+  | "update_newsletter_subscriber"
+  | "remove_newsletter_subscriber"
+>;
+
+const NEWSLETTER_SUBSCRIBER_WRITES: readonly SokoBotCapability[] = [
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+] satisfies NewsletterSubscriberWriteCapability[];
+
+export function isNewsletterSubscriberWrite(
+  capability: SokoBotCapability,
+): capability is NewsletterSubscriberWriteCapability {
+  return NEWSLETTER_SUBSCRIBER_WRITES.includes(capability);
+}
+
+/** Tools on subscribers' personal data: their owner's, never a shared bot's. */
+export function isNewsletterSubscriberCapability(
+  capability: SokoBotCapability,
+) {
+  return (
+    capability === "list_newsletter_subscribers" ||
+    isNewsletterSubscriberWrite(capability)
+  );
+}
+
+/**
+ * Who a subscriber write would add with consent the owner must vouch for:
+ * the people, described for the owner's-words check, or null when the call
+ * asks them first, or adds nobody.
+ */
+export function newsletterConsentClaim(
+  capability: NewsletterSubscriberWriteCapability,
+  rawInput: unknown,
+): string | null {
+  switch (capability) {
+    case "add_newsletter_subscriber": {
+      const input =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscriber.parse(rawInput);
+      return input.consent === "CONFIRMED"
+        ? [input.name, input.email].filter(Boolean).join(" ")
+        : null;
+    }
+    case "import_newsletter_subscribers": {
+      const input =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.import_newsletter_subscribers.parse(
+          rawInput,
+        );
+      return input.consent === "CONFIRMED"
+        ? "everyone in the CSV file the owner pointed to"
+        : null;
+    }
+    case "add_newsletter_subscribers_from_contacts": {
+      const input =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscribers_from_contacts.parse(
+          rawInput,
+        );
+      return input.consent === "CONFIRMED"
+        ? "the chosen workspace contacts and contact lists"
+        : null;
+    }
+    default:
+      return null;
+  }
+}
+
+function subscribersUrl(projectId: string) {
+  return `/projects/${projectId}/newsletter/subscribers`;
+}
+
+/**
+ * Runs a subscriber write in a scope the caller has already authorized,
+ * through the Subscribers page's own schemas and services. `hooks.authorize`
+ * and `hooks.commit` run in the write's transaction; additions are capped at
+ * SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX people before anything is written
+ * or emailed. People who unsubscribed or bounced are never re-activated.
+ */
+export async function runNewsletterSubscriberTool(
+  capability: NewsletterSubscriberWriteCapability,
+  rawInput: unknown,
+  scope: NewsletterScope,
+  {
+    adder,
+    hooks,
+    readCsv,
+  }: {
+    adder: NewsletterSubscriberAdder;
+    hooks: Omit<NewsletterSubscriberWrite, "maxPeople">;
+    /** A Drive file's text, read only when a CSV is imported. */
+    readCsv: (fileId: string) => Promise<string>;
+  },
+) {
+  const url = subscribersUrl(scope.projectId);
+  // Every write commits the result the model reads, so a replay returns it too.
+  const write = <T>(
+    shape: (result: unknown) => T,
+  ): NewsletterSubscriberWrite => ({
+    maxPeople: SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
+    authorize: hooks.authorize,
+    commit: (tx, targetId, result) => hooks.commit(tx, targetId, shape(result)),
+  });
+  const added = (result: unknown) => ({
+    ...newsletterSubscriberSchema
+      .pick({ id: true, email: true, name: true, status: true })
+      .parse(result),
+    projectId: scope.projectId,
+    url,
+  });
+  const summary =
+    <T>(schema: { parse: (value: unknown) => T }) =>
+    (result: unknown) => ({
+      ...schema.parse(result),
+      projectId: scope.projectId,
+      url,
+    });
+  switch (capability) {
+    case "add_newsletter_subscriber": {
+      const { projectId: _projectId, ...input } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscriber.parse(rawInput);
+      return added(
+        await addNewsletterSubscriber(
+          scope,
+          addNewsletterSubscriberRequestSchema.parse(input),
+          adder,
+          write(added),
+        ),
+      );
+    }
+    case "import_newsletter_subscribers": {
+      const { fileId, consent } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.import_newsletter_subscribers.parse(
+          rawInput,
+        );
+      const shape = summary(newsletterImportResultSchema);
+      return shape(
+        await importNewsletterSubscribers(
+          scope,
+          importNewsletterSubscribersRequestSchema.parse({
+            csv: await readCsv(fileId),
+            consent,
+          }),
+          adder,
+          write(shape),
+        ),
+      );
+    }
+    case "add_newsletter_subscribers_from_contacts": {
+      const { contactIds, contactListIds, consent } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscribers_from_contacts.parse(
+          rawInput,
+        );
+      const shape = summary(newsletterAddFromContactsResultSchema);
+      return shape(
+        await addNewsletterSubscribersFromContacts(
+          scope,
+          addNewsletterSubscribersFromContactsRequestSchema.parse({
+            contactIds,
+            listIds: contactListIds,
+            consent,
+          }),
+          adder,
+          write(shape),
+        ),
+      );
+    }
+    case "update_newsletter_subscriber": {
+      const {
+        projectId: _projectId,
+        subscriberId,
+        ...input
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_subscriber.parse(
+        rawInput,
+      );
+      return serializableTransaction(async (tx) => {
+        await hooks.authorize(tx);
+        // The page's rule: only an active subscriber's status changes, and
+        // only to UNSUBSCRIBED; nobody who left is set ACTIVE again.
+        const result = added(
+          await patchNewsletterSubscriber(
+            scope,
+            subscriberId,
+            patchNewsletterSubscriberRequestSchema.parse(input),
+            tx,
+          ),
+        );
+        await hooks.commit(tx, result.id, result);
+        return result;
+      }, "Newsletter subscriber changed concurrently");
+    }
+    case "remove_newsletter_subscriber": {
+      const { subscriberId } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.remove_newsletter_subscriber.parse(
+          rawInput,
+        );
+      return serializableTransaction(async (tx) => {
+        await hooks.authorize(tx);
+        await deleteNewsletterSubscriber(scope, subscriberId, tx);
+        const result = {
+          id: subscriberId,
+          projectId: scope.projectId,
+          removed: true,
+          url,
+        };
+        await hooks.commit(tx, subscriberId, result);
+        return result;
+      }, "Newsletter subscriber changed concurrently");
+    }
+  }
+}
 
 const settingsSchema = newsletterSchema.pick({
   id: true,

@@ -97,6 +97,26 @@ describe("action lines the owner reads", () => {
       "update_newsletter_settings",
       "Updated newsletter settings ([Open settings](/newsletter/settings?projectId={p})).",
     ],
+    [
+      "add_newsletter_subscriber",
+      "Added newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+    ],
+    [
+      "import_newsletter_subscribers",
+      "Imported newsletter subscribers ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+    ],
+    [
+      "add_newsletter_subscribers_from_contacts",
+      "Added contacts to the newsletter ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+    ],
+    [
+      "update_newsletter_subscriber",
+      "Updated newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+    ],
+    [
+      "remove_newsletter_subscriber",
+      "Removed newsletter subscriber ([Open subscribers](/projects/{p}/newsletter/subscribers)).",
+    ],
   ])("links a verified %s to the Newsletter", async (capability, line) => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([

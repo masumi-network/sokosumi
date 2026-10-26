@@ -22,6 +22,11 @@ export const ACTION_LABELS: Record<string, string> = {
   delete_newsletter_issue: "Deleted newsletter issue",
   submit_newsletter_issue: "Submitted newsletter issue for approval",
   update_newsletter_settings: "Updated newsletter settings",
+  add_newsletter_subscriber: "Added newsletter subscriber",
+  import_newsletter_subscribers: "Imported newsletter subscribers",
+  add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",
+  update_newsletter_subscriber: "Updated newsletter subscriber",
+  remove_newsletter_subscriber: "Removed newsletter subscriber",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -89,6 +94,14 @@ const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "update_newsletter_issue",
   "delete_newsletter_issue",
   "submit_newsletter_issue",
+]);
+
+const NEWSLETTER_SUBSCRIBER_CAPABILITIES = new Set([
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
 ]);
 
 const TABLE_CAPABILITIES = new Set([
@@ -203,6 +216,14 @@ function actionTarget(
     const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return newsletter.success
       ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
+      : "";
+  }
+  if (NEWSLETTER_SUBSCRIBER_CAPABILITIES.has(call.capability)) {
+    const subscribers = z
+      .object({ projectId: z.uuid() })
+      .safeParse(call.result);
+    return subscribers.success
+      ? `([Open subscribers](/projects/${subscribers.data.projectId}/newsletter/subscribers))`
       : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))
