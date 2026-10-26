@@ -255,11 +255,20 @@ import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
 
+/** The active organization as a room reads it. */
+export interface RoomWorkspace {
+  id: Organization["id"];
+  slug: Organization["slug"] | null;
+}
+
 export interface RoomsClientProps {
   /** Channel history is owned by the client cache, not server navigation. */
   loadHistoryOnClient?: boolean;
-  /** Null in personal workspace. */
-  activeOrganization: Organization | null;
+  /**
+   * Null in personal workspace. Slug is null while a room paints from the
+   * sidebar before its page registers.
+   */
+  activeOrganization: RoomWorkspace | null;
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;

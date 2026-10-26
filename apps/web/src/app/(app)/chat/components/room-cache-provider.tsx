@@ -11,10 +11,47 @@ import {
   useState,
 } from "react";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
+import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { shouldUseCoworkerRoomStream } from "./room-helpers";
+import type { RoomsClientProps } from "./rooms-client";
+
+/**
+ * Room chrome from the sidebar's row, until the room page registers its own.
+ * Roster and the caller's channel-admin role arrive with that page. Coworker
+ * stream rooms wait for it: their stream needs the organization slug.
+ */
+export function provisionalRoomBootstrap(
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+): RoomsClientProps | null {
+  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+  if (
+    snapshot?.currentUserId !== currentUserId ||
+    snapshot.organizationId !== workspaceId
+  )
+    return null;
+  const room = snapshot.rooms.find((row) => row.id === roomId);
+  if (!room || shouldUseCoworkerRoomStream(room)) return null;
+  return {
+    loadHistoryOnClient: true,
+    activeOrganization: workspaceId ? { id: workspaceId, slug: null } : null,
+    rooms: [room],
+    organizationMembers: [],
+    currentUserId,
+    isOrgOwnerOrAdmin: false,
+    coworkers: [],
+    selectedRoomId: roomId,
+    messageLoadFailed: false,
+    membersLoadFailed: false,
+    messages: [],
+    messagesNextCursor: null,
+  };
+}
 
 const RoomSelectionContext = createContext<string | null>(null);
 export function useRoomSelection() {
@@ -75,7 +112,10 @@ function RoomCacheSession({
     const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
       const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
-      if (roomId) cache.prefetch(roomId);
+      if (roomId)
+        cache.prefetch(roomId, () =>
+          provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
+        );
     };
     const clicked = (event: MouseEvent) => {
       if (
@@ -111,7 +151,7 @@ function RoomCacheSession({
       window.removeEventListener("click", clicked, true);
       window.removeEventListener("popstate", popped);
     };
-  }, [cache, pathname]);
+  }, [cache, currentUserId, pathname, workspaceId]);
   useEffect(() => {
     cache.activate();
     const ended = () => {

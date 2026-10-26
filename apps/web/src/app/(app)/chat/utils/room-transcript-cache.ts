@@ -204,15 +204,31 @@ export class RoomTranscriptCache {
    * Start a room's first head read when the reader clicks it, alongside the
    * route navigation, instead of after the room mounts. A room already painted
    * from cache reads for itself on mount.
+   *
+   * A page proves membership: Core answers it only for a member. When it
+   * lands before the room page registers, `provisional` seeds the room so it
+   * paints from this read; the page's bootstrap then replaces those props.
    */
-  prefetch(roomId: string) {
+  prefetch(roomId: string, provisional?: () => RoomsClientProps | null) {
     const entry = this.get(roomId);
     if (!this.available(roomId) || entry?.resolved) return;
+    const page = this.fetch(roomId);
     this.prefetched.set(roomId, {
       // A seeded entry starts at revision 0.
       revision: entry?.revision ?? 0,
       at: Date.now(),
-      page: this.fetch(roomId),
+      page,
+    });
+    if (!provisional || entry) return;
+    void page.then((head) => {
+      if (!head || !this.available(roomId) || this.get(roomId)) return;
+      const props = provisional();
+      if (!props) return;
+      this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), {
+        ...this.seed(props),
+        transcript: mergeRoomHeadPage(emptyRoomTranscript(), head),
+        resolved: true,
+      });
     });
   }
 
