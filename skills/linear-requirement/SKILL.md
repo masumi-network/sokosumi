@@ -35,15 +35,15 @@ Canonical files: `skills/linear-requirement/`. Invoke by name or explicit ask (`
 
 ## Defaults
 
-| Field | Value |
-|-------|-------|
-| Linear team | `SOK` |
-| Linear project | `sokosumi-6357694ddd23` (Sōkosumi) |
-| Linear state | `Triage` |
-| Linear priority | `3` (Medium) unless user overrides |
-| Linear assignee | unassigned (omit `--assignee`) unless user overrides |
-| Linear label | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
-| Title | Plain product title (not Conventional Commit) |
+| Field           | Value                                                 |
+| --------------- | ----------------------------------------------------- |
+| Linear team     | `SOK`                                                 |
+| Linear project  | `sokosumi-6357694ddd23` (Sōkosumi)                    |
+| Linear state    | `Triage`                                              |
+| Linear priority | `3` (Medium) unless user overrides                    |
+| Linear assignee | unassigned (omit `--assignee`) unless user overrides  |
+| Linear label    | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
+| Title           | Plain product title (not Conventional Commit)         |
 
 Do not ask for the Linear project by default.
 
@@ -115,10 +115,10 @@ Do not ask for the Linear project by default.
 
 ## Label classification
 
-| Label | Use when |
-|-------|----------|
-| `Feature` | New user-facing capability, new route/page/API, greenfield behavior |
-| `Bug` | Broken or incorrect existing behavior, regression, crash, wrong data |
+| Label         | Use when                                                                  |
+| ------------- | ------------------------------------------------------------------------- |
+| `Feature`     | New user-facing capability, new route/page/API, greenfield behavior       |
+| `Bug`         | Broken or incorrect existing behavior, regression, crash, wrong data      |
 | `Improvement` | Enhancement to something that already works: UX, perf, refactor, DX, a11y |
 
 Decision order:

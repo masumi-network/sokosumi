@@ -289,9 +289,9 @@ function ClientComponent() {
 
 ## Quick Reference
 
-| Pattern | Use Case | HTTP Method | Caching |
-|---------|----------|-------------|---------|
-| Server Component fetch | Internal reads | Any | Full Next.js caching |
-| Server Action | Mutations, form submissions | POST only | No |
-| Route Handler | External APIs, webhooks | Any | GET can be cached |
-| Client fetch to API | Client-side reads | Any | HTTP cache headers |
+| Pattern                | Use Case                    | HTTP Method | Caching              |
+| ---------------------- | --------------------------- | ----------- | -------------------- |
+| Server Component fetch | Internal reads              | Any         | Full Next.js caching |
+| Server Action          | Mutations, form submissions | POST only   | No                   |
+| Route Handler          | External APIs, webhooks     | Any         | GET can be cached    |
+| Client fetch to API    | Client-side reads           | Any         | HTTP cache headers   |
