@@ -19,6 +19,9 @@ const POST: SocialAccountPost = {
   externalId: "outside-123",
   publishedAt: new Date("2026-10-01T00:15:00Z"),
   text: "Published outside Sokosumi",
+  contentType: "text",
+  postKind: "post",
+  media: [],
   url: "https://x.com/launch/status/123",
   metrics: {
     views: 0,
@@ -99,6 +102,114 @@ describe("SocialPublishedPost", () => {
     expect(within(preview).getByText("LA")).toBeVisible();
   });
 
+  it.each(["x", "linkedin", "instagram", "facebook"] as const)(
+    "shows imported photos inside the compact %s preview and keeps the shared metrics grid",
+    (provider) => {
+      renderPost({
+        provider,
+        contentType: "image",
+        media: [
+          {
+            kind: "image",
+            url: "https://media.example.com/photo.jpg",
+            thumbnailUrl: null,
+          },
+        ],
+      });
+      const card = screen.getByRole("listitem");
+      const preview = within(card).getByTestId("social-post-preview");
+      expect(preview).toHaveAttribute("data-compact", "true");
+      expect(
+        within(preview).getByRole("img", { name: "image" }),
+      ).toHaveAttribute("src", "https://media.example.com/photo.jpg");
+      expect(
+        within(preview).queryByText(
+          en.App.Projects.SocialPosts.preview.mediaUnavailable,
+        ),
+      ).not.toBeInTheDocument();
+      expect(within(card).getByText("Views").closest("div")).toHaveTextContent(
+        "0",
+      );
+      expect(within(card).getByText("Quotes").closest("dl")).toBe(
+        within(card).getByText("Views").closest("dl"),
+      );
+      expect(within(card).queryByText("Impressions")).not.toBeInTheDocument();
+      expect(within(card).getAllByText(/^Updated /)).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    "x",
+    "linkedin",
+    "instagram",
+    "facebook",
+    "youtube",
+    "tiktok",
+  ] as const)(
+    "shows an imported video thumbnail inside the %s preview",
+    (provider) => {
+      renderPost({
+        provider,
+        contentType: "video",
+        media: [
+          {
+            kind: "video",
+            url: "https://media.example.com/clip.mp4",
+            thumbnailUrl: "https://media.example.com/thumbnail.jpg",
+          },
+        ],
+      });
+      const preview = screen.getByTestId("social-post-preview");
+      expect(
+        within(preview).getByRole("img", { name: "video" }),
+      ).toHaveAttribute("src", "https://media.example.com/thumbnail.jpg");
+      expect(preview.querySelector("video")).toBeNull();
+      expect(
+        within(preview).queryByText(
+          en.App.Projects.SocialPosts.preview.mediaUnavailable,
+        ),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("keeps imported carousel photos in the existing preview grid", () => {
+    renderPost({
+      provider: "facebook",
+      contentType: "carousel",
+      media: ["one", "two", "three"].map((name) => ({
+        kind: "image",
+        url: `https://media.example.com/${name}.jpg`,
+        thumbnailUrl: null,
+      })),
+    });
+    const grid = screen.getByTestId("social-post-preview-media-grid");
+    expect(within(grid).getAllByRole("img")).toHaveLength(3);
+    expect(screen.getByTestId("social-post-preview")).toContainElement(grid);
+  });
+
+  it("keeps the empty-metrics message beside imported media when nothing was measured", () => {
+    renderPost({
+      metrics: EMPTY_METRICS,
+      additionalMetrics: [],
+      media: [
+        {
+          kind: "image",
+          url: "https://media.example.com/photo.jpg",
+          thumbnailUrl: null,
+        },
+      ],
+    });
+    expect(
+      within(screen.getByTestId("social-post-preview")).getByRole("img", {
+        name: "image",
+      }),
+    ).toBeVisible();
+    expect(screen.getByRole("listitem").querySelector("dl")).toBeNull();
+    expect(
+      screen.getByText(en.App.Projects.SocialPosts.statistics.noPostMetrics),
+    ).toBeVisible();
+  });
+
   it("falls back to Your account when the connected account is unknown", () => {
     renderPost({}, null);
     expect(
@@ -172,11 +283,14 @@ describe("SocialPublishedPost", () => {
     ).toHaveTextContent("5");
   });
 
-  it("shows the exact UTC publication date even for a viewer in another zone", () => {
+  it("shows the exact UTC publication date with its full zone in a tooltip even for a viewer in another zone", async () => {
     renderPost();
-    expect(screen.getByText("Oct 1, 12:15 AM UTC")).toHaveAttribute(
-      "dateTime",
-      "2026-10-01T00:15:00.000Z",
+    const time = screen.getByRole("listitem").querySelector("time");
+    expect(time).toHaveTextContent("Oct 1, 12:15 AM UTC");
+    expect(time).toHaveAttribute("dateTime", "2026-10-01T00:15:00.000Z");
+    await userEvent.setup().hover(screen.getByRole("button", { name: "UTC" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Coordinated Universal Time",
     );
   });
 
@@ -281,7 +395,8 @@ describe("SocialPublishedPost", () => {
 
   it("shows the Strong badge beside the UTC date above the metrics", () => {
     renderPost({ strong: true });
-    const date = screen.getByText("Oct 1, 12:15 AM UTC");
+    const date = screen.getByText("Oct 1, 12:15 AM");
+    expect(date).toHaveTextContent("Oct 1, 12:15 AM UTC");
     const badge = screen.getByText("Strong");
     expect(badge).toHaveAttribute("data-slot", "badge");
     expect(date.parentElement).toContainElement(badge);

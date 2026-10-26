@@ -5,7 +5,9 @@ export const MAX_DOCX_REMOTE_IMAGE_BYTES = 20_000_000;
 
 interface DocumentNode {
   type: string;
-  value?: string;
+  // @m2d/mdast augments svg.value with Promise<RenderResult>, so a Root walk
+  // has to accept that. HTML image counting only reads string values.
+  value?: string | Promise<unknown>;
   children?: DocumentNode[];
 }
 
@@ -25,10 +27,10 @@ export function assertDocxImageCount(
       node.type === "svg"
     ) {
       count += 1;
-    } else if (node.type === "html") {
+    } else if (node.type === "html" && typeof node.value === "string") {
       // Count conservatively without rendering untrusted HTML. This includes
       // commented image tags; the HTML plugin runs after the image plugin.
-      count += node.value?.match(/<(?:img|svg)\b/gi)?.length ?? 0;
+      count += node.value.match(/<(?:img|svg)\b/gi)?.length ?? 0;
     }
     if (count > MAX_DOCX_IMAGES) {
       throw new ExportLimitError("DOCX image count exceeds limit");

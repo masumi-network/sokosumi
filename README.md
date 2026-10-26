@@ -95,8 +95,11 @@ Agents should use `verify-sokosumi launch` (see [AGENTS.md](./AGENTS.md)) so `.e
 Other available scripts:
 
 - `pnpm build` — TypeScript build
-- `pnpm check` — Biome check; CI and the husky hook run this
+- `pnpm check` — Biome check
+- `pnpm typecheck` — workspace typecheck
 - `pnpm format` — Write Biome formatting (not the gate)
+
+The husky hook runs `pnpm precommit` (`pnpm check && pnpm typecheck`). CI gates the same pair as `Biome` and `Typecheck`.
 
 ## Testing
 
