@@ -16,23 +16,22 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 
 ## Integrations (all via Composio)
 
-| Need | Toolkit / call | Auth |
-|---|---|---|
-| Google Ads accounts | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client` | Per-user OAuth; Composio auth config holds our Google Ads developer token |
-| Google campaigns + metrics | `GOOGLEADS_SEARCH_STREAM_GAQL` | same |
-| Google status / budget | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` | same |
-| Google create | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords or display ad in one atomic call; Display images are uploaded first, one `BATCH_MUTATE` call each. See [Google campaign builder](#google-campaign-builder) | same |
-| Meta ad accounts | `METAADS_GET_AD_ACCOUNTS` | Per-user OAuth; our own Meta app (no Composio-managed OAuth) |
-| Meta campaigns + metrics | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign) | same |
-| Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
-| Meta create | `METAADS_CREATE_CAMPAIGN` (objective, `special_ad_categories: []`, `daily_budget`, PAUSED) | same |
-| Trending keywords | DataForSEO `POST /v3/keywords_data/google_ads/keywords_for_keywords/live` | One platform DataForSEO connection (basic auth) |
-| Search competitors | DataForSEO queued `POST /v3/serp/google/organic/task_post` (`keyword`, `location_code`, `language_code`, `depth` 10), one task per keyword, all in one request; read with `GET …/organic/task_get/advanced/{id}` | same |
-| Competitors' ads (with `preview_image`) | DataForSEO queued `POST /v3/serp/google/ads_search/task_post` (`target` domain, `location_code`, `date_from`/`date_to`, `depth` 40), one task per competitor (≤10), all in one request; read with `GET …/ads_search/task_get/advanced/{id}` | same |
-
+| Need                                    | Toolkit / call                                                                                                                                                                                                                                                        | Auth                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Google Ads accounts                     | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client`                                                                                                                                                                                         | Per-user OAuth; Composio auth config holds our Google Ads developer token |
+| Google campaigns + metrics              | `GOOGLEADS_SEARCH_STREAM_GAQL`                                                                                                                                                                                                                                        | same                                                                      |
+| Google status / budget                  | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS`                                                                                                                                                                                                     | same                                                                      |
+| Google create                           | `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`): budget, PAUSED campaign, criteria, ad group, keywords or display ad in one atomic call; Display images are uploaded first, one `BATCH_MUTATE` call each. See [Google campaign builder](#google-campaign-builder) | same                                                                      |
+| Meta ad accounts                        | `METAADS_GET_AD_ACCOUNTS`                                                                                                                                                                                                                                             | Per-user OAuth; our own Meta app (no Composio-managed OAuth)              |
+| Meta campaigns + metrics                | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign)                                                                                                                                                                                                     | same                                                                      |
+| Meta status / budget                    | `METAADS_UPDATE_CAMPAIGN` (one budget field per call)                                                                                                                                                                                                                 | same                                                                      |
+| Meta create                             | `METAADS_CREATE_CAMPAIGN` (objective, `special_ad_categories: []`, `daily_budget`, PAUSED)                                                                                                                                                                            | same                                                                      |
+| Trending keywords                       | DataForSEO `POST /v3/keywords_data/google_ads/keywords_for_keywords/live`                                                                                                                                                                                             | One platform DataForSEO connection (basic auth)                           |
+| Search competitors                      | DataForSEO queued `POST /v3/serp/google/organic/task_post` (`keyword`, `location_code`, `language_code`, `depth` 10), one task per keyword, all in one request; read with `GET …/organic/task_get/advanced/{id}`                                                      | same                                                                      |
+| Competitors' ads (with `preview_image`) | DataForSEO queued `POST /v3/serp/google/ads_search/task_post` (`target` domain, `location_code`, `date_from`/`date_to`, `depth` 40), one task per competitor (≤10), all in one request; read with `GET …/ads_search/task_get/advanced/{id}`                           | same                                                                      |
 - Execution of per-user toolkits: reuse the restricted `tool_router` session pattern in `apps/core/src/clients/composio.client.ts` (`getConnectedSocialIdentity`, `publishXPost`): pin toolkit, connected account and an allow-list of tools.
 - DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints (`POST /api/v3/tools/execute/proxy`, no tool session). Parse DataForSEO's documented response with zod. Keywords stay live (one task per request). SERPs and ads are queued tasks: live ones hit 60s timeouts half the time when run in parallel, queued ones are ready in about 2.5 min and cost $0.0006 instead of $0.002. See [Market ads job](#market-ads-job).
-- Market ads are the **search competitors'** ads: the 10 domains ranking organically for the keywords (most keywords, then best position), each one's 4 newest Transparency Center ads. Not the paid results: DataForSEO SERPs contain no `paid` items (checked 2026-10-07, incl. "car insurance" desktop + mobile), and the `ads_advertisers` endpoint matches advertiser *names*, not keywords.
+- Market ads are the **search competitors'** ads: the 10 domains ranking organically for the keywords (most keywords, then best position), each one's 4 newest Transparency Center ads. Not the paid results: DataForSEO SERPs contain no `paid` items (checked 2026-10-07, incl. "car insurance" desktop + mobile), and the `ads_advertisers` endpoint matches advertiser _names_, not keywords.
 - Google Ads v1 supports directly accessible customer accounts only. Composio's `googleads` tools have no `login-customer-id` parameter, so manager accounts and their client accounts are not offered; `loginCustomerId` stays null (column kept for later), and `login-customer-id` is deliberately not sent.
 - Money in API responses: decimal number in account currency + `currency` (ISO code). Google micros ÷ 1e6, Meta minor units ÷ the currency's minor-unit exponent (`fromMinorUnits`: USD 100, JPY 1). The campaigns response carries one `currency` for the whole account, not one per campaign. Writes differ: `METAADS_UPDATE_CAMPAIGN` takes `daily_budget` as a decimal in account currency, Google budgets are sent as `amount_micros`.
 - Tool versions: tool-router sessions always use the latest published toolkit version (Composio supports no version pin on `/api/v3.1/tool_router/session`; only direct tool execution takes one). Tool contracts were checked against `metaads` `20260915_00` and `googleads` `20260922_00`.
@@ -48,24 +47,24 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 
 ## Core API (`/v1/projects/{id}/ads/...`, beta + Project access like social connections)
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/ads/accounts` | Connected ad accounts |
-| POST | `/ads/connections/initiate` `{provider}` | Composio link → `{redirectUrl, connectionId}` |
-| POST | `/ads/connections/finalize` `{connectionId}` | Store connection, return `availableAccounts[]`; a grant with no ad accounts is revoked and returns `connection: null` |
-| DELETE | `/ads/connections/{adConnectionId}` | Discard a finalized connection with no attached accounts (picker closed without attaching); 409 if any account is still attached; revoke Composio then delete |
-| POST | `/ads/accounts` `{adConnectionId, externalAccountIds[]}` | Attach chosen accounts; already attached accounts are returned unchanged |
-| DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
-| GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
-| GET | `/ads/accounts/{accountId}/campaigns/{campaignId}?range=LAST_7_DAYS\|LAST_30_DAYS` | One Google campaign's details (Meta account, unknown or removed campaign: 404). See [Campaign details](#campaign-details) |
-| PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
-| PUT | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{name, dailyBudget, google}` | Edit an editable Google campaign in one atomic call → 204 (also when nothing changed). See [Editing](#editing) |
-| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder) |
-| GET | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840` | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
-| GET | `/ads/accounts/{accountId}/targeting/languages` | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name |
-| GET / PUT | `/ads/market` | Market profile |
-| GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
-| GET | `/ads/market/ads` | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering` |
+| Method    | Path                                                                                                                 | Purpose                                                                                                                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET       | `/ads/accounts`                                                                                                      | Connected ad accounts                                                                                                                                                                                                                                             |
+| POST      | `/ads/connections/initiate` `{provider}`                                                                             | Composio link → `{redirectUrl, connectionId}`                                                                                                                                                                                                                     |
+| POST      | `/ads/connections/finalize` `{connectionId}`                                                                         | Store connection, return `availableAccounts[]`; a grant with no ad accounts is revoked and returns `connection: null`                                                                                                                                             |
+| DELETE    | `/ads/connections/{adConnectionId}`                                                                                  | Discard a finalized connection with no attached accounts (picker closed without attaching); 409 if any account is still attached; revoke Composio then delete                                                                                                     |
+| POST      | `/ads/accounts` `{adConnectionId, externalAccountIds[]}`                                                             | Attach chosen accounts; already attached accounts are returned unchanged                                                                                                                                                                                          |
+| DELETE    | `/ads/accounts/{accountId}`                                                                                          | Detach; revoke the Composio account when its last ad account goes                                                                                                                                                                                                 |
+| GET       | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS`                                                | Campaigns + spend, impressions, clicks, CTR, CPC, conversions                                                                                                                                                                                                     |
+| GET       | `/ads/accounts/{accountId}/campaigns/{campaignId}?range=LAST_7_DAYS\|LAST_30_DAYS`                                   | One Google campaign's details (Meta account, unknown or removed campaign: 404). See [Campaign details](#campaign-details)                                                                                                                                         |
+| PATCH     | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}`                         | Pause/resume, budget                                                                                                                                                                                                                                              |
+| PUT       | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{name, dailyBudget, google}`                                     | Edit an editable Google campaign in one atomic call → 204 (also when nothing changed). See [Editing](#editing)                                                                                                                                                    |
+| POST      | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required), google? (Google, required)}` | Create, always PAUSED → 201 `{id}`. Google: `google` spec, `objective` is 422; Meta: `google` is 422. See [Google campaign builder](#google-campaign-builder)                                                                                                     |
+| GET       | `/ads/accounts/{accountId}/targeting/locations?q=<1-80>` or `?ids=2276,2840`                                         | Google only (Meta is 404): `{locations: {id, name, canonicalName, targetType, countryCode}[]}`, enabled Google locations. Send exactly one of `q` (a place name, any characters) or `ids` (1-25 digit ids), else 422. See [Targeting lookups](#targeting-lookups) |
+| GET       | `/ads/accounts/{accountId}/targeting/languages`                                                                      | Google only (Meta is 404): `{languages: {id, code, name}[]}`, targetable languages sorted by name                                                                                                                                                                 |
+| GET / PUT | `/ads/market`                                                                                                        | Market profile                                                                                                                                                                                                                                                    |
+| GET       | `/ads/market/keywords`                                                                                               | Trending keywords (volume, 12-month trend, competition, CPC range)                                                                                                                                                                                                |
+| GET       | `/ads/market/ads`                                                                                                    | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering`                                                    |
 
 ### Market ads job
 
@@ -79,7 +78,7 @@ The ads endpoint drives a job; there is no cron. Each call moves it one step:
    - SERP: rank the competitors; none → empty snapshot, job deleted. Else post one ads task per competitor and move to `ADS`. All refused → `FAILED`. A transport error leaves the lease held, so the stage is retried when it expires.
    - ADS: dedupe and sort, write the snapshot (other keys dropped) and delete the job in one transaction: `ready`.
    - No task of the stage gave a result: `FAILED`.
-   A check ends by moving `nextCheckAt` 20s ahead.
+     A check ends by moving `nextCheckAt` 20s ahead.
 6. Every write after the claim matches `{projectId, requestKey, nextCheckAt: <our lease>}`. If it matches nothing, a profile change or an expired lease gave the job to someone else: the request writes nothing more (a snapshot is only written together with its successful job delete) and answers `gathering`.
 7. A `FAILED` job under 1h old: `failed`, nothing is reposted. That caps what a broken lookup costs.
 
@@ -91,21 +90,21 @@ Goal: "New campaign" for Google produces a campaign that can run. Still always c
 
 ### Gap map (Google Ads UI walk, 2026-10-12)
 
-| Google Ads UI step | Decision |
-|---|---|
-| Objective | Not an API field; not needed |
-| Campaign type | Search + Display. PMax, Demand Gen, Video, Shopping later |
-| Bidding | Maximize clicks (`target_spend: {}`); the old Manual CPC came from Composio's `MUTATE_CAMPAIGNS` having no such field |
-| Networks | Search: Google Search only. Display: Display Network |
-| Locations, languages | Geo target constant / language constant ids; empty = all. Web prefills them from the Market profile (DataForSEO `location_code` is the geo target constant id) |
-| EU political ads | Unchanged: does not contain |
-| Start / end dates | Optional |
-| Ad group + keywords | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT |
-| Responsive search ad | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions |
-| Sitelinks, callouts | Yes: optional on Search |
-| Responsive display ad | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, square logo) |
-| Budget | Daily, unchanged |
-| Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope |
+| Google Ads UI step                                                                | Decision                                                                                                                                                       |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Objective                                                                         | Not an API field; not needed                                                                                                                                   |
+| Campaign type                                                                     | Search + Display. PMax, Demand Gen, Video, Shopping later                                                                                                      |
+| Bidding                                                                           | Maximize clicks (`target_spend: {}`); the old Manual CPC came from Composio's `MUTATE_CAMPAIGNS` having no such field                                          |
+| Networks                                                                          | Search: Google Search only. Display: Display Network                                                                                                           |
+| Locations, languages                                                              | Geo target constant / language constant ids; empty = all. Web prefills them from the Market profile (DataForSEO `location_code` is the geo target constant id) |
+| EU political ads                                                                  | Unchanged: does not contain                                                                                                                                    |
+| Start / end dates                                                                 | Optional                                                                                                                                                       |
+| Ad group + keywords                                                               | One ad group "Ad group 1"; keywords with BROAD / PHRASE / EXACT                                                                                                |
+| Responsive search ad                                                              | Final URL, 2 display paths, 3-15 headlines, 2-4 descriptions                                                                                                   |
+| Sitelinks, callouts                                                               | Yes: optional on Search                                                                                                                                        |
+| Responsive display ad                                                             | Yes: business name, headlines, long headline, descriptions, images from Drive (landscape, square, square logo)                                                 |
+| Budget                                                                            | Daily, unchanged                                                                                                                                               |
+| Audiences, ad schedule, AI Max, page feeds, promotions, prices, calls, lead forms | Out of scope                                                                                                                                                   |
 
 ### Contract
 
@@ -228,15 +227,15 @@ Responses: 204, also when nothing differs (then no mutate call is made). 404: Me
 
 Core reads the campaign with the details queries (same session, no metrics query; the campaign query also reads `campaign.campaign_budget` and `campaign_budget.explicitly_shared`, the criteria query `criterion_id`), refuses, uploads new Display images (one `BATCH_MUTATE` call each, as in a create), then sends ONE `GOOGLEADS_BATCH_MUTATE` (`partial_failure: false`) with the operations below, ordered removals, updates, creations. Compared exactly (strings, ordered lists) unless noted; `X` = campaign id, `C` = customer id.
 
-| What | Operation |
-| --- | --- |
-| Name | `campaign_operation.update` `{resource_name: customers/C/campaigns/X, name}`, `update_mask: "name"` |
-| Start / end date | same operation, `start_date_time` `YYYY-MM-DD 00:00:00`, `end_date_time` `YYYY-MM-DD 23:59:59` (as in a create); mask `startDateTime` / `endDateTime`. An omitted `startDate` keeps the current start date; an omitted `endDate` removes the end date by sending Google's far-future `2037-12-30 23:59:59` (what Google reports for "no end"). Masks list only changed fields |
-| Budget | `campaign_budget_operation.update` `{resource_name: campaign.campaign_budget, amount_micros}`, mask `amountMicros` (422 on a shared budget, see below) |
-| Locations, languages | immutable: removed ids `campaign_criterion_operation.remove` `customers/C/campaignCriteria/X~<criterionId>`; added ids created as in a create. Matched by constant id; a repeated id counts once |
-| Keywords (Search) | immutable: removed `ad_group_criterion_operation.remove` `customers/C/adGroupCriteria/<adGroupId>~<criterionId>`; added created as in a create. Key = match type + lower-cased trimmed text (the create dedupe) |
-| Ad | `ad_operation.update` `{resource_name: customers/C/ads/<adId>, final_urls?, responsive_search_ad? \| responsive_display_ad?}` with a mask of the changed fields only, e.g. `finalUrls,responsiveSearchAd.headlines`. Repeated fields are replaced whole; a removed `path1` / `path2` is in the mask only (clears it). Display images: `marketingImages`, `squareMarketingImages`, `squareLogoImages` as `[{asset: customers/C/assets/<id>}]` from the kept and the newly uploaded ones, per role |
-| Sitelinks, callouts | assets cannot be removed and a shared asset would change other campaigns, so they are matched by content (sitelink: text, final URL, both descriptions; callout: text; case-sensitive). Unchanged: nothing. Current one missing from the request: `campaign_asset_operation.remove` `customers/C/campaignAssets/X~<assetId>~SITELINK\|CALLOUT`. New or changed: `asset_operation.create` under a temporary id, then `campaign_asset_operation.create`, as in a create |
+| What                 | Operation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Name                 | `campaign_operation.update` `{resource_name: customers/C/campaigns/X, name}`, `update_mask: "name"`                                                                                                                                                                                                                                                                                                                                                                                              |
+| Start / end date     | same operation, `start_date_time` `YYYY-MM-DD 00:00:00`, `end_date_time` `YYYY-MM-DD 23:59:59` (as in a create); mask `startDateTime` / `endDateTime`. An omitted `startDate` keeps the current start date; an omitted `endDate` removes the end date by sending Google's far-future `2037-12-30 23:59:59` (what Google reports for "no end"). Masks list only changed fields                                                                                                                    |
+| Budget               | `campaign_budget_operation.update` `{resource_name: campaign.campaign_budget, amount_micros}`, mask `amountMicros` (422 on a shared budget, see below)                                                                                                                                                                                                                                                                                                                                           |
+| Locations, languages | immutable: removed ids `campaign_criterion_operation.remove` `customers/C/campaignCriteria/X~<criterionId>`; added ids created as in a create. Matched by constant id; a repeated id counts once                                                                                                                                                                                                                                                                                                 |
+| Keywords (Search)    | immutable: removed `ad_group_criterion_operation.remove` `customers/C/adGroupCriteria/<adGroupId>~<criterionId>`; added created as in a create. Key = match type + lower-cased trimmed text (the create dedupe)                                                                                                                                                                                                                                                                                  |
+| Ad                   | `ad_operation.update` `{resource_name: customers/C/ads/<adId>, final_urls?, responsive_search_ad? \| responsive_display_ad?}` with a mask of the changed fields only, e.g. `finalUrls,responsiveSearchAd.headlines`. Repeated fields are replaced whole; a removed `path1` / `path2` is in the mask only (clears it). Display images: `marketingImages`, `squareMarketingImages`, `squareLogoImages` as `[{asset: customers/C/assets/<id>}]` from the kept and the newly uploaded ones, per role |
+| Sitelinks, callouts  | assets cannot be removed and a shared asset would change other campaigns, so they are matched by content (sitelink: text, final URL, both descriptions; callout: text; case-sensitive). Unchanged: nothing. Current one missing from the request: `campaign_asset_operation.remove` `customers/C/campaignAssets/X~<assetId>~SITELINK\|CALLOUT`. New or changed: `asset_operation.create` under a temporary id, then `campaign_asset_operation.create`, as in a create                            |
 
 `update_mask` is a comma-separated FieldMask in the proto3 JSON form (lowerCamelCase, dots for nested fields). Field values in `update` keep snake_case keys, as in the create operations.
 
@@ -279,30 +278,30 @@ Plain branches, each based on the one below. Draft PRs. Before every PR: `code-r
 
 **Collapse (2026-10-13):** layers **01–05** reviewed and folded into `#5528` (`ads/05-core-campaigns-create` → `main`). Closed: `#5506`, `#5521`, `#5522`, `#5526`.
 
-| # | Branch | Layer | Scope |
-|---|---|---|---|
-| 01 | `ads/01-core-schema` | Core | ~~Prisma models + migration, env vars, ads provider config, CONTEXT.md glossary, this spec~~ → folded into 05 |
-| 02 | `ads/02-core-connect` | Core | ~~Initiate / finalize / attach / list / detach ad accounts~~ → folded into 05 |
-| 03 | `ads/03-core-campaigns-read` | Core | ~~List campaigns + metrics (Google GAQL, Meta insights)~~ → folded into 05 |
-| 04 | `ads/04-core-campaigns-update` | Core | ~~Pause/resume, daily budget~~ → folded into 05 |
-| 05 | `ads/05-core-campaigns-create` | Core | Create campaign (PAUSED) + collapsed 01–04 (current bottom PR) |
-| 06 | `ads/06-core-market-keywords` | Core | Market profile + trending keywords (DataForSEO, 24h cache) |
-| 07 | `ads/07-core-market-ads` | Core | Market ads with preview images (DataForSEO, 24h cache) |
-| 08 | `ads/08-web-shell` | Web | Sidebar + You entry, `/ads` page shell, tabs, empty states, core snapshot |
-| 09 | `ads/09-web-accounts` | Web | Connect / pick / disconnect ad accounts |
-| 10 | `ads/10-web-campaigns` | Web | Campaign list, pause/resume, budget |
-| 11 | `ads/11-web-campaign-create` | Web | New campaign sheet |
-| 12 | `ads/12-web-market` | Web | Market profile, trending keywords, ads gallery |
-| 13 | `ads/13-core-market-ads-async` | Core | Market ads as a queued DataForSEO job polled by the page |
-| 14 | `ads/14-web-market-gathering` | Web | Market ads gathering, refreshing and failed states |
-| 15 | `ads/15-core-google-search-create` | Core | Atomic BATCH_MUTATE create: Search type, keywords, RSA, location / language ids, Maximize clicks, dates, 422 mapping. Deletes the two-step create |
-| 16 | `ads/16-core-google-targeting` | Core | Location search / by ids, language list (Google accounts) |
-| 17 | `ads/17-core-google-search-assets` | Core | Sitelinks + callouts in the Search tree |
-| 18 | `ads/18-core-google-display` | Core | Display type: Drive image refs → image assets → responsive display ad. Drive-ref helper shared with social posts |
-| 19 | `ads/19-web-create-page` | Web | Create page (replaces the sheet): basics, dates, keywords (+ from Market), responsive search ad; Meta path |
-| 20 | `ads/20-web-targeting` | Web | Location + language pickers, Market defaults |
-| 21 | `ads/21-web-search-assets` | Web | Sitelinks + callouts editors |
-| 22 | `ads/22-web-display` | Web | Type picker, Display ad editor, image upload / pick |
-| 23 | `ads/23-core-campaign-details` | Core | Google campaign details: settings, targeting, keywords, ad, sitelinks, callouts, daily performance |
+| #   | Branch                             | Layer | Scope                                                                                                                                             |
+| --- | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | `ads/01-core-schema`               | Core  | ~~Prisma models + migration, env vars, ads provider config, CONTEXT.md glossary, this spec~~ → folded into 05                                     |
+| 02  | `ads/02-core-connect`              | Core  | ~~Initiate / finalize / attach / list / detach ad accounts~~ → folded into 05                                                                     |
+| 03  | `ads/03-core-campaigns-read`       | Core  | ~~List campaigns + metrics (Google GAQL, Meta insights)~~ → folded into 05                                                                        |
+| 04  | `ads/04-core-campaigns-update`     | Core  | ~~Pause/resume, daily budget~~ → folded into 05                                                                                                   |
+| 05  | `ads/05-core-campaigns-create`     | Core  | Create campaign (PAUSED) + collapsed 01–04 (current bottom PR)                                                                                    |
+| 06  | `ads/06-core-market-keywords`      | Core  | Market profile + trending keywords (DataForSEO, 24h cache)                                                                                        |
+| 07  | `ads/07-core-market-ads`           | Core  | Market ads with preview images (DataForSEO, 24h cache)                                                                                            |
+| 08  | `ads/08-web-shell`                 | Web   | Sidebar + You entry, `/ads` page shell, tabs, empty states, core snapshot                                                                         |
+| 09  | `ads/09-web-accounts`              | Web   | Connect / pick / disconnect ad accounts                                                                                                           |
+| 10  | `ads/10-web-campaigns`             | Web   | Campaign list, pause/resume, budget                                                                                                               |
+| 11  | `ads/11-web-campaign-create`       | Web   | New campaign sheet                                                                                                                                |
+| 12  | `ads/12-web-market`                | Web   | Market profile, trending keywords, ads gallery                                                                                                    |
+| 13  | `ads/13-core-market-ads-async`     | Core  | Market ads as a queued DataForSEO job polled by the page                                                                                          |
+| 14  | `ads/14-web-market-gathering`      | Web   | Market ads gathering, refreshing and failed states                                                                                                |
+| 15  | `ads/15-core-google-search-create` | Core  | Atomic BATCH_MUTATE create: Search type, keywords, RSA, location / language ids, Maximize clicks, dates, 422 mapping. Deletes the two-step create |
+| 16  | `ads/16-core-google-targeting`     | Core  | Location search / by ids, language list (Google accounts)                                                                                         |
+| 17  | `ads/17-core-google-search-assets` | Core  | Sitelinks + callouts in the Search tree                                                                                                           |
+| 18  | `ads/18-core-google-display`       | Core  | Display type: Drive image refs → image assets → responsive display ad. Drive-ref helper shared with social posts                                  |
+| 19  | `ads/19-web-create-page`           | Web   | Create page (replaces the sheet): basics, dates, keywords (+ from Market), responsive search ad; Meta path                                        |
+| 20  | `ads/20-web-targeting`             | Web   | Location + language pickers, Market defaults                                                                                                      |
+| 21  | `ads/21-web-search-assets`         | Web   | Sitelinks + callouts editors                                                                                                                      |
+| 22  | `ads/22-web-display`               | Web   | Type picker, Display ad editor, image upload / pick                                                                                               |
+| 23  | `ads/23-core-campaign-details`     | Core  | Google campaign details: settings, targeting, keywords, ad, sitelinks, callouts, daily performance                                                |
 
 Ops (no PR): Google Ads developer token + Composio `googleads` auth config; Meta app (ads_read, ads_management, App Review, Business Verification) + Composio `metaads` auth config; DataForSEO account + Composio platform connection.

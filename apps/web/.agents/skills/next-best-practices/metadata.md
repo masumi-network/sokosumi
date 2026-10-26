@@ -83,16 +83,16 @@ Reference: https://nextjs.org/docs/app/getting-started/project-structure#metadat
 
 Place these files in `app/` directory (or route segments):
 
-| File | Purpose |
-|------|---------|
-| `favicon.ico` | Favicon |
-| `icon.png` / `icon.svg` | App icon |
-| `apple-icon.png` | Apple app icon |
-| `opengraph-image.png` | OG image |
-| `twitter-image.png` | Twitter card image |
-| `sitemap.ts` / `sitemap.xml` | Sitemap (use `generateSitemaps` for multiple) |
-| `robots.ts` / `robots.txt` | Robots directives |
-| `manifest.ts` / `manifest.json` | Web app manifest |
+| File                            | Purpose                                       |
+| ------------------------------- | --------------------------------------------- |
+| `favicon.ico`                   | Favicon                                       |
+| `icon.png` / `icon.svg`         | App icon                                      |
+| `apple-icon.png`                | Apple app icon                                |
+| `opengraph-image.png`           | OG image                                      |
+| `twitter-image.png`             | Twitter card image                            |
+| `sitemap.ts` / `sitemap.xml`    | Sitemap (use `generateSitemaps` for multiple) |
+| `robots.ts` / `robots.txt`      | Robots directives                             |
+| `manifest.ts` / `manifest.json` | Web app manifest                              |
 
 ## SEO Best Practice: Static Files Are Often Enough
 

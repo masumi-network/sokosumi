@@ -327,13 +327,13 @@ async function Notifications() {
 
 ## Migration from Previous Versions
 
-| Old Config | Replacement |
-|-----------|-------------|
-| `experimental.ppr` | `cacheComponents: true` |
-| `dynamic = 'force-dynamic'` | Remove (default behavior) |
-| `dynamic = 'force-static'` | `'use cache'` + `cacheLife('max')` |
-| `revalidate = N` | `cacheLife({ revalidate: N })` |
-| `unstable_cache()` | `'use cache'` directive |
+| Old Config                  | Replacement                        |
+| --------------------------- | ---------------------------------- |
+| `experimental.ppr`          | `cacheComponents: true`            |
+| `dynamic = 'force-dynamic'` | Remove (default behavior)          |
+| `dynamic = 'force-static'`  | `'use cache'` + `cacheLife('max')` |
+| `revalidate = N`            | `cacheLife({ revalidate: N })`     |
+| `unstable_cache()`          | `'use cache'` directive            |
 
 ### Migrating `unstable_cache` to `use cache`
 
