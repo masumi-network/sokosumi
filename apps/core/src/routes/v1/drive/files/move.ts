@@ -96,14 +96,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // in each branch: resolving it afterwards means a failure here leaves
     // the objects moved and the catalog pointing at where they used to be.
     let resolvedWorkspaceId: string | null = null;
-    const workspaceIdFor = async (scope: "user" | "organization") => {
+    // A file move names its store only through the pathname, so the owner
+    // parsed from it stands in for a missing organizationId; the Drive gate
+    // has already admitted that owner.
+    const workspaceIdFor = async (
+      scope: "user" | "organization",
+      ownerId?: string,
+    ) => {
       if (resolvedWorkspaceId !== null) return resolvedWorkspaceId;
       const workspace = await resolveDriveTasksWorkspace({
         userContext,
         scope: scope === "user" ? "me" : "org",
         organizationId:
           scope === "organization"
-            ? (body.organizationId ?? undefined)
+            ? (body.organizationId ?? ownerId)
             : undefined,
       });
       resolvedWorkspaceId = workspace.workspaceId;
@@ -146,7 +152,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         token,
         // Before the mutation, so a workspace-resolution failure cannot
         // leave a moved object with a stale catalog entry.
-        workspaceId: await workspaceIdFor(scope),
+        workspaceId: await workspaceIdFor(scope, ownerId),
       });
 
       return ok(c, body);
