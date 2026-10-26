@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { badRequest } from "@/helpers/error";
@@ -6952,7 +6953,10 @@ describe("Soko Bot project social tools", () => {
   ] as const)(
     "%s propagates disabled-provider refusal without recording a completed mutation",
     async (capability, mock, input) => {
-      const message = "LinkedIn is coming soon. Only X is available right now.";
+      const message = socialProviderUnavailableMessage("instagram", {
+        organizationSlug: null,
+      });
+      if (!message) throw new Error("Expected an unavailable provider");
       social[mock].mockRejectedValue(badRequest(message));
 
       await expect(

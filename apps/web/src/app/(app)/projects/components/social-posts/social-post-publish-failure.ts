@@ -1,7 +1,9 @@
-import type { SocialPostStatus } from "@sokosumi/core-client";
+import type {
+  ProjectSocialProvider,
+  SocialPostStatus,
+} from "@sokosumi/core-client";
 import {
   SOCIAL_BETA_PROVIDERS,
-  SOCIAL_PUBLIC_PROVIDERS,
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 
@@ -47,6 +49,7 @@ export function publishFailureCopy(
   post: PublishFailureSource,
   t: (key: PublishFailureCopyKey, values?: Record<string, string>) => string,
   formatList: (values: string[]) => string,
+  enabledProviders: readonly ProjectSocialProvider[],
 ): string {
   const unavailableProvider = post.lastAttempt?.errorKind?.startsWith(
     "provider_coming_soon:",
@@ -63,9 +66,7 @@ export function publishFailureCopy(
   if (provider) {
     return t("failures.providerComingSoon", {
       provider: socialPostProviderLabel(provider),
-      providers: formatList(
-        SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel),
-      ),
+      providers: formatList(enabledProviders.map(socialPostProviderLabel)),
     });
   }
   const outcome = post.lastAttempt?.outcome;

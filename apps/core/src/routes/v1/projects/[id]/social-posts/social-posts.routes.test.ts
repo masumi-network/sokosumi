@@ -1,5 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  socialProviderUnavailableMessage,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -904,7 +907,10 @@ describe("Project social post routes", () => {
   });
 
   it("propagates disabled-provider refusals for every post mutation", async () => {
-    const message = "LinkedIn is coming soon. Only X is available right now.";
+    const message = socialProviderUnavailableMessage("instagram", {
+      organizationSlug: null,
+    });
+    if (!message) throw new Error("Expected an unavailable provider");
     for (const mock of [
       createSocialPostMock,
       updateSocialPostMock,

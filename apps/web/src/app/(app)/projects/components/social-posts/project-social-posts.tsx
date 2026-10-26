@@ -298,7 +298,8 @@ export function ProjectSocialPosts({
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
-  const { isProviderEnabled } = useSocialProviderAvailability();
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   function canRetryPost(post: SocialPost): boolean {
     return (
       isProviderEnabled(post.provider) &&
@@ -446,8 +447,11 @@ export function ProjectSocialPosts({
               remaining.push(result.value);
               toast.error(
                 t("toasts.publishFailed", {
-                  error: publishFailureCopy(result.value, t, (values) =>
-                    formatter.list(values, { type: "conjunction" }),
+                  error: publishFailureCopy(
+                    result.value,
+                    t,
+                    (values) => formatter.list(values, { type: "conjunction" }),
+                    enabledProviders,
                   ),
                 }),
               );
@@ -672,8 +676,11 @@ export function ProjectSocialPosts({
         toast.success(t("toasts.published"));
       } else if (post.lastError || post.lastAttempt?.errorKind) {
         const error =
-          publishFailureCopy(post, t, (values) =>
-            formatter.list(values, { type: "conjunction" }),
+          publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
           ) ?? t("toasts.failed");
         toast.error(t("toasts.publishFailed", { error }));
       } else {
@@ -754,8 +761,11 @@ export function ProjectSocialPosts({
           label: retryLabel(post),
           ok: false,
           error:
-            publishFailureCopy(next, t, (values) =>
-              formatter.list(values, { type: "conjunction" }),
+            publishFailureCopy(
+              next,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
             ) ?? t("toasts.failed"),
         });
       } catch (error) {
@@ -1000,8 +1010,11 @@ export function ProjectSocialPosts({
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
     const failureReason =
       post.status === "FAILED" || post.status === "MISSED"
-        ? publishFailureCopy(post, t, (values) =>
-            formatter.list(values, { type: "conjunction" }),
+        ? publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
           )
         : null;
 

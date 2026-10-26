@@ -1,3 +1,9 @@
+import {
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialPostProviderLabel,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
+} from "@sokosumi/utils";
 import { createFormatter, createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import de from "@/../messages/de.json";
@@ -58,6 +64,7 @@ describe("publishFailureCopy", () => {
         }),
         t,
         formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe(copy);
   });
@@ -72,7 +79,14 @@ describe("publishFailureCopy", () => {
     ["media_missing", "A file is missing."],
     ["media_type_mismatch", "That file type is not allowed."],
   ] as const)("maps errorKind %s", (errorKind, copy) => {
-    expect(publishFailureCopy(post({ errorKind }), t, formatList)).toBe(copy);
+    expect(
+      publishFailureCopy(
+        post({ errorKind }),
+        t,
+        formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
+      ),
+    ).toBe(copy);
   });
 
   it("never returns a raw provider error", () => {
@@ -87,6 +101,7 @@ describe("publishFailureCopy", () => {
         },
         t,
         formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe("Couldn't publish. Open the post for details.");
   });
@@ -97,24 +112,17 @@ describe("publishFailureCopy", () => {
         { status: "FAILED", lastAttempt: null },
         t,
         formatList,
+        SOCIAL_PUBLIC_PROVIDERS,
       ),
     ).toBe("Couldn't publish. Open the post for details.");
   });
   it.each([
-    [
-      "en",
-      en,
-      "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
-    ],
-    [
-      "de",
-      de,
-      "TikTok ist bald verfügbar. Jetzt verfügbar: X, YouTube und LinkedIn.",
-    ],
+    ["en", en, "TikTok is coming soon. Available now: {providers}."],
+    ["de", de, "TikTok ist bald verfügbar. Jetzt verfügbar: {providers}."],
     [
       "es",
       es,
-      "TikTok estará disponible próximamente. Disponible ahora: X, YouTube y LinkedIn.",
+      "TikTok estará disponible próximamente. Disponible ahora: {providers}.",
     ],
   ] as const)(
     "translates stored availability failures in %s",
@@ -131,14 +139,31 @@ describe("publishFailureCopy", () => {
         },
         {
           status: "FAILED" as const,
-          lastError: "TikTok is coming soon. Only X is available right now.",
+          lastError: socialProviderUnavailableMessage("tiktok", {
+            organizationSlug: null,
+          }),
         },
       ]) {
-        expect(
-          publishFailureCopy(source, translate, (values) =>
-            formatter.list(values, { type: "conjunction" }),
-          ),
-        ).toBe(expected);
+        for (const organizationSlug of [null, "utxo"]) {
+          const enabledProviders = socialProvidersForWorkspace({
+            organizationSlug,
+          });
+          expect(
+            publishFailureCopy(
+              source,
+              translate,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ),
+          ).toBe(
+            expected.replace(
+              "{providers}",
+              formatter.list(enabledProviders.map(socialPostProviderLabel), {
+                type: "conjunction",
+              }),
+            ),
+          );
+        }
       }
     },
   );
@@ -151,6 +176,7 @@ describe("publishFailureCopy", () => {
           { ...post({ errorKind: "rate_limited" }), provider },
           t,
           formatList,
+          SOCIAL_PUBLIC_PROVIDERS,
         ),
       ).toBe(COPY["failures.rateLimited"]);
     },

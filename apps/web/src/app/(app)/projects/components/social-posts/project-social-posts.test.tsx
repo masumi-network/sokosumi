@@ -2283,7 +2283,10 @@ describe("ProjectSocialPosts", () => {
       expect(
         within(accounts).getByRole("button", { name: "X @sokosumi" }),
       ).toHaveAttribute("aria-pressed", "true");
-      await user.type(within(dialog).getByLabelText("Text"), "Only X");
+      await user.type(
+        within(dialog).getByLabelText("Text"),
+        "Account-specific text",
+      );
       await user.click(
         within(dialog).getByRole("button", { name: "Save draft" }),
       );
@@ -2291,7 +2294,7 @@ describe("ProjectSocialPosts", () => {
         expect(createProjectSocialPost).toHaveBeenCalledExactlyOnceWith(
           expect.objectContaining({
             socialConnectionId: "connection-1",
-            text: "Only X",
+            text: "Account-specific text",
           }),
         ),
       );

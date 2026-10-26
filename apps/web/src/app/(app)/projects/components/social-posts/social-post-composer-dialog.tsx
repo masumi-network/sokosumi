@@ -671,8 +671,11 @@ export function SocialPostComposerDialog({
           published += 1;
         } else {
           const reason =
-            publishFailureCopy(result.value, t, (values) =>
-              formatter.list(values, { type: "conjunction" }),
+            publishFailureCopy(
+              result.value,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
             ) ?? t("toasts.failed");
           failures.push(nameIfMany(connection, reason));
         }

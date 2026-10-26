@@ -2,6 +2,7 @@
 
 import type { SocialPost } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 
 import { publishFailureCopy } from "./social-post-publish-failure";
 
@@ -18,11 +19,15 @@ function failureReason(
 export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const { enabledProviders } = useSocialProviderAvailability();
   const reason =
     post.lastAttempt?.errorKind?.startsWith("provider_coming_soon:") ||
     post.lastError?.includes(" is coming soon.")
-      ? publishFailureCopy(post, t, (values) =>
-          formatter.list(values, { type: "conjunction" }),
+      ? publishFailureCopy(
+          post,
+          t,
+          (values) => formatter.list(values, { type: "conjunction" }),
+          enabledProviders,
         )
       : failureReason(post, t("outcomes.authorizationRevoked"));
   const failedAt = post.lastAttempt?.finishedAt ?? null;

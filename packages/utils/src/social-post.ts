@@ -57,7 +57,7 @@ export function socialProviderUnavailableMessage(
 ): string | null {
   return isSocialProviderEnabled(provider, workspace)
     ? null
-    : `${socialPostProviderLabel(provider)} is coming soon. Available now: ${new Intl.ListFormat("en", { type: "conjunction" }).format(SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel))}.`;
+    : `${socialPostProviderLabel(provider)} is coming soon. Available now: ${new Intl.ListFormat("en", { type: "conjunction" }).format(socialProvidersForWorkspace(workspace).map(socialPostProviderLabel))}.`;
 }
 
 /** Whether a provider accepts a post with text only, media only, or needs video. */
