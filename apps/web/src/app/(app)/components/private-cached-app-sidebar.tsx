@@ -15,6 +15,7 @@ interface PrivateCachedAppSidebarProps {
   adminMenuEnabled: boolean;
   /** Resolved by the frame: Social is still a beta surface. */
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }
 
 /**
@@ -28,10 +29,12 @@ export default function PrivateCachedAppSidebar({
   activeOrganizationId,
   adminMenuEnabled,
   socialBetaEnabled,
+  newsletterEnabled,
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
       socialBetaEnabled={socialBetaEnabled}
+      newsletterEnabled={newsletterEnabled}
       chatList={
         <Suspense
           fallback={

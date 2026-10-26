@@ -4070,6 +4070,16 @@
         "retry": "Try again"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Choose a project to manage its newsletter.",
+      "nextPage": "Next projects",
+      "empty": {
+        "title": "No projects yet",
+        "description": "Create a project to start a newsletter.",
+        "action": "Create project"
+      }
+    },
     "Social": {
       "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
@@ -4155,6 +4165,7 @@
           "schedules": "Schedules",
           "social": "Social Scheduling",
           "ads": "Ads",
+          "newsletter": "Newsletter",
           "contacts": "Contacts"
         },
         "ChatLists": {
