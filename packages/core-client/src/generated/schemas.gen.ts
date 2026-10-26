@@ -25876,12 +25876,10 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 25000,
             example: '#launch'
         },
         media: {
@@ -25971,12 +25969,10 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         firstComment: {
             type: 'string',
-            maxLength: 25000,
             example: '#launch'
         },
         media: {
