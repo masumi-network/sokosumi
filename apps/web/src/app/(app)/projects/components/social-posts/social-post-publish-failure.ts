@@ -80,6 +80,8 @@ export function publishFailureCopy(
     return t("outcomes.missed");
   }
   const kind = post.lastAttempt?.errorKind;
+  // This message is authored by Core's length guard, without provider error text.
+  if (kind === "text_limit" && post.lastError) return post.lastError;
   if (kind && isPublishFailureKind(kind)) {
     return t(PUBLISH_FAILURE_KIND_COPY[kind]);
   }

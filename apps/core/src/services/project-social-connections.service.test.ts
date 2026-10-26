@@ -142,6 +142,7 @@ const socialConnection = {
   externalHandle: "sokosumi",
   displayName: null as string | null,
   avatarUrl: null as string | null,
+  subscriptionType: null as string | null,
   composioConnectedAccountId: "ca_old",
   status: "reauthorization_required",
   activeExternalAccountKey: "x:123",
@@ -195,6 +196,7 @@ describe("project social connections service", () => {
       handle: "sokosumi",
       displayName: null,
       avatarUrl: null,
+      subscriptionType: null,
     });
     snapshotSocialAccountAvatarMock.mockResolvedValue(null);
     socialConnectionCreateMock.mockResolvedValue({
@@ -1234,6 +1236,7 @@ describe("project social connections service", () => {
         connectorUserId: `sokosumi:user:${USER_ID}`,
         externalHandle: "sokosumi",
         displayName: null,
+        subscriptionType: null,
         status: "active",
         activeExternalAccountKey: "x:123",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
@@ -1252,6 +1255,7 @@ describe("project social connections service", () => {
       id: "123",
       handle: "sokosumi",
       displayName: "Sokosumi",
+      subscriptionType: "Premium",
       avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
     });
     snapshotSocialAccountAvatarMock.mockResolvedValue(newAvatar);
@@ -1268,6 +1272,7 @@ describe("project social connections service", () => {
     socialConnectionUpdateMock.mockResolvedValue({
       ...socialConnection,
       displayName: "Sokosumi",
+      subscriptionType: "Premium",
       avatarUrl: newAvatar,
       status: "active",
     });
@@ -1282,7 +1287,11 @@ describe("project social connections service", () => {
         userId: USER_ID,
         connectionId: CONNECTION_ID,
       }),
-    ).resolves.toMatchObject({ displayName: "Sokosumi", avatarUrl: newAvatar });
+    ).resolves.toMatchObject({
+      displayName: "Sokosumi",
+      avatarUrl: newAvatar,
+      subscriptionType: "Premium",
+    });
 
     expect(snapshotSocialAccountAvatarMock).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
@@ -1294,6 +1303,7 @@ describe("project social connections service", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           displayName: "Sokosumi",
+          subscriptionType: "Premium",
           avatarUrl: newAvatar,
         }),
       }),
@@ -1771,6 +1781,7 @@ describe("project social connections service", () => {
         externalHandle: "sokosumi",
         displayName: null,
         avatarUrl: null,
+        subscriptionType: null,
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,

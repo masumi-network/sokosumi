@@ -34,6 +34,7 @@ export interface ProjectSocialConnectionSummary {
   externalHandle: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  subscriptionType: string | null;
   status: string;
   connectedAt: Date | null;
   disconnectedAt: Date | null;
@@ -82,6 +83,7 @@ interface ProjectSocialConnectionRecord {
   externalHandle: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  subscriptionType: string | null;
   composioConnectedAccountId: string;
   status: string;
   activeExternalAccountKey: string | null;
@@ -119,6 +121,7 @@ function mapProjectSocialConnection(
     externalHandle: connection.externalHandle,
     displayName: connection.displayName,
     avatarUrl: connection.avatarUrl,
+    subscriptionType: connection.subscriptionType,
     status: connection.status,
     connectedAt: connection.connectedAt,
     disconnectedAt: connection.disconnectedAt,
@@ -491,6 +494,7 @@ export async function finalizeProjectSocialConnection(
             connectorUserId,
             externalHandle: identity.handle,
             displayName: identity.displayName,
+            subscriptionType: identity.subscriptionType,
             // A failed avatar copy keeps the previous one.
             ...(avatarUrl ? { avatarUrl } : {}),
             status: "active",
@@ -507,6 +511,7 @@ export async function finalizeProjectSocialConnection(
             externalAccountId: identity.id,
             externalHandle: identity.handle,
             displayName: identity.displayName,
+            subscriptionType: identity.subscriptionType,
             avatarUrl,
             composioConnectedAccountId: input.connectionId,
             status: "active",

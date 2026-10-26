@@ -7,6 +7,8 @@ import {
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
+  socialPostTextLength,
+  socialPostTextLimit,
   socialProviderUnavailableMessage,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
@@ -30,7 +32,10 @@ import {
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
-import { classifyPublishError } from "@/helpers/social-post-publish-errors";
+import {
+  classifyPublishError,
+  SocialPostTextLimitError,
+} from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -43,6 +48,7 @@ import {
   getSocialPost,
   type SocialPostSummary,
 } from "@/services/social-posts.service";
+import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 export const LEASE_MS = 5 * 60_000;
 export const MAX_ATTEMPTS = 3;
@@ -105,6 +111,7 @@ const publisherInclude = {
       composioConnectedAccountId: true,
       externalAccountId: true,
       externalHandle: true,
+      subscriptionType: true,
     },
   },
 } satisfies Prisma.SocialPostInclude;
@@ -531,6 +538,7 @@ async function attemptPublish(
     : timeoutSignal;
   let published: SocialPostPublishResult;
   let media: SocialPostMediaRef[] = [];
+  let subscriptionType = connection.subscriptionType;
   try {
     if (Date.now() >= deadlineMs)
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
@@ -546,6 +554,27 @@ async function attemptPublish(
         "media_type_mismatch",
         `The attached media no longer matches ${socialPostProviderLabel(provider)} publishing rules`,
       );
+    }
+    if (provider === "x") {
+      subscriptionType = await resolveXSubscriptionType(
+        { ...connection, provider, projectId: post.projectId },
+        { signal },
+      );
+      const limit = socialPostTextLimit(provider, subscriptionType);
+      const account = connection.externalHandle
+        ? `@${connection.externalHandle.replace(/^@/, "")}`
+        : "this account";
+      for (const [subject, text] of [
+        ["This post", post.text],
+        ["The first comment", post.firstComment ?? ""],
+      ]) {
+        const length = socialPostTextLength(provider, text);
+        if (length > limit) {
+          throw new SocialPostTextLimitError(
+            `${subject} is ${length.toLocaleString("en-US")} characters, but ${account} can now post at most ${limit.toLocaleString("en-US")} characters on X${limit === 280 ? " (no X Premium)" : ""}. Shorten it${limit === 280 ? " or renew Premium" : ""}, then retry.`,
+          );
+        }
+      }
     }
     const accessOutcome = await checkSchedulingCoworkerAccess(
       post,
@@ -641,6 +670,7 @@ async function attemptPublish(
     try {
       await publishSocialPostFirstComment({
         provider,
+        subscriptionType,
         connectedAccountId: connection.composioConnectedAccountId,
         executorUserId: projectExecutorUserId(post.projectId),
         externalAccountId: connection.externalAccountId,

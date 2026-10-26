@@ -109,6 +109,8 @@ const SUBSCRIBER: NewsletterSubscriber = {
   source: "MANUAL",
   consentAt: NOW,
   confirmedAt: null,
+  welcomeSentAt: null,
+  welcomeLeaseExpiresAt: null,
   unsubscribedAt: null,
   bouncedAt: null,
   createdAt: NOW,
