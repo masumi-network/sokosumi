@@ -20,6 +20,11 @@ export interface StartSokoBotTurnInput {
     purpose: string;
     designatedHandlerBotId: string | null;
     delegationIds?: string[];
+    /**
+     * Delegations whose follow-up plan this turn carries out. Claimed with
+     * the turn, so a plan reaches exactly one turn; a lost claim aborts it.
+     */
+    followUpDelegationIds?: string[];
     status: string;
     taskCursorAt?: Date;
     delegationEventAt?: Date;
@@ -62,6 +67,11 @@ export interface StartSokoBotTurnInput {
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };
+  /**
+   * The bot's own schedule this run belongs to. The turn may update or delete
+   * that schedule even when its route has no schedule tools.
+   */
+  ownScheduleId?: string;
   scheduleReservation?: {
     runId: string;
     attempt: number;

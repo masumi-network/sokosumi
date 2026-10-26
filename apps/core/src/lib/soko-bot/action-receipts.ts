@@ -13,6 +13,10 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "publish_social_post",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
+  "generate_video",
+  "draft_email",
+  "send_email_draft",
+  "save_email_attachment",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -44,6 +48,10 @@ export const ACTION_CAPABILITIES = new Set([
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
+  "move_file",
+  "update_emails",
+  "install_skill",
+  "remove_skill",
 ]);
 
 /** Object key order is not part of an operation's identity. */
@@ -222,7 +230,7 @@ export function externalActionReceipt(capability: string, result: unknown) {
   let targetId: string | null = null;
   // The studio refused before sending, and refunded: nothing happened.
   if (
-    capability === "generate_image" &&
+    (capability === "generate_image" || capability === "generate_video") &&
     z.object({ status: z.literal("FAILED") }).safeParse(result).success
   )
     return {
@@ -249,7 +257,10 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
-  } else if (capability === "generate_image") {
+  } else if (
+    capability === "generate_image" ||
+    capability === "generate_video"
+  ) {
     // Only a job the provider took; an uncertain submission stays UNKNOWN.
     const acknowledged = z
       .object({

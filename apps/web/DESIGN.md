@@ -160,9 +160,11 @@ fits, add one in `globals.css`. Tokens may mix with `transparent` inside `global
 
 Black/White plus the neutral ramp (`--background` / `--card-background` through
 `--foreground`) and the step ramp (`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`).
-Values live in `globals.css`. Elevated surfaces are **lighter** (`--card-background` on
-`--muted`), not heavier. Default border = `--border`; `--input` is a separate, stronger
-control boundary. The base layer applies `border-border` + `outline-ring` to all elements.
+Values live in `globals.css`. Pages stack three surfaces (see **Page surfaces** under Layout):
+white `--background`, the light-gray `--card-background` panel, and white components with a
+`--border` hairline on top of it. Default border = `--border`; `--input` is a separate, stronger
+boundary for fields (input, textarea, select, checkbox, radio). Labelled controls (outline
+buttons, toggles, triggers, option cards) take the soft `--control-border`. The base layer applies `border-border` + `outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
@@ -234,12 +236,53 @@ never hardcoded hex, never an opacity modifier on a colour utility.
   header sticky). `2xl` is effectively unused.
 - **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
   (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
-- **Container:** one custom `.container` — centered, full-width from `sm`, capped at **1400px**.
+- **Container:** the custom `.container` (centered, capped at 1400px) is for marketing pages
+  only. App pages fill the width (below).
 - **Spacing:** Tailwind 4-pt scale (no custom token). Common: gaps `gap-2/3/4`, vertical rhythm
   `space-y-4/6`, top-level page sections `space-y-12`; tight inline groups `gap-1/1.5`.
 - **Grid patterns:** marketplace companies are master-detail (a company rail beside a detail
   column, `md:grid-cols-[13.5rem_1fr]`); offer cards `sm:grid-cols-2 xl:grid-cols-3`;
   forms/content `sm:grid-cols-2`.
+### Page surfaces
+
+Every app page uses the same three layers. The Tasks board is the reference.
+
+1. **Page:** white `bg-background`. Only the sidebar and the top bar differ.
+2. **Panel:** `bg-card-background rounded-xl`, **no border**. Panels hold the page's main
+   content: a board column, a list, a group of settings. Use `HOLDER_CLASS`
+   (`components/ui/holder-surface.ts`), padding `p-2` (lists) or `p-3` (settings).
+3. **Component:** white again, with a light-gray border: `HOLDER_ITEM_CLASS`
+   (`bg-background rounded-lg border border-border`; hover `HOLDER_ITEM_HOVER_CLASS`) for
+   list rows and Task cards, or the `Card` component (`bg-card rounded-xl border`) for a form
+   or settings block.
+
+Never put a component straight on the white page (white on white with only a border), and
+never give a panel a border. A section label sits inside the panel, above its components, in
+`text-muted-foreground text-xs font-medium`.
+
+```tsx
+// The pattern, as the Tasks board, Files, Schedules and Projects draw it.
+<div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>   {/* layer 2: light gray, no border */}
+  <h2 className="text-muted-foreground px-2 pt-1 text-xs font-medium">Yesterday</h2>
+  <Link className={cn(HOLDER_ITEM_CLASS, HOLDER_ITEM_HOVER_CLASS, "px-4 py-3")}>
+    {/* layer 3: white, bordered */}
+  </Link>
+</div>
+```
+
+### Fill the width
+
+App pages use the full width of `main` (inside its one `p-4` gutter). No `mx-auto max-w-*`
+page column, including on settings, catch-up and empty-data pages. Wide content gets more
+columns, not more margin: lay settings and cards out in a grid (`md:grid-cols-2`,
+`xl:grid-cols-3`). Limits that stay: dialogs and sheets have their own `max-w-*`, a paragraph
+may cap its own line length (`max-w-prose`), and a centered **empty state** message is fine
+inside a full-width panel.
+
+- **Entry page:** the home (`/`) is the one page that is not a working surface. Like a chat
+  app's start screen, it centers a `max-w-3xl` column: the bot, a greeting, the composer a
+  little above the middle of the screen, prompt chips, then a quiet list with no panel or
+  borders.
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping through
   `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).
@@ -283,8 +326,8 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
   without that the scrollbar takes its width out of the content box on the right only and
   every rule stops further from the right edge than the left. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
-  A centred column inside a `max-w-*` wrapper keeps its own padding and is out of scope: no
-  rule crosses the view there.
+  App pages have no centred `max-w-*` column (see **Fill the width**), so every page shares
+  this one gutter.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
 - **Whole pixels:** every layout and border length is a whole number of CSS pixels. A 1x
   display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
@@ -468,6 +511,8 @@ primary on a neutral background. Brand names are always lowercase.
   charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
 - Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
+- Build pages from the three layers: white page, borderless light-gray panel, white bordered
+  components. Fill the width of `main`.
 - Reuse the documented focus rings; give every icon-only control an `aria-label`.
 - Reference semantic tokens; edit values in `globals.css` (no JS config).
 
@@ -483,3 +528,5 @@ primary on a neutral background. Brand names are always lowercase.
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
   `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
 - Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
+- A centred `mx-auto max-w-*` page column, a bordered panel, or a white component sitting
+  directly on the white page.

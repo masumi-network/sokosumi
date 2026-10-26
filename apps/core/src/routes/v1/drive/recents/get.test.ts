@@ -18,17 +18,17 @@ const {
   prismaTaskFileFindManyMock,
   prismaTaskFileFindFirstMock,
   prismaMemberFindUniqueMock,
+  prismaFileResourceFindManyMock,
   listMock,
   listDataTablesMock,
-  contactsDriveEntryMock,
 } = vi.hoisted(() => ({
-  contactsDriveEntryMock: vi.fn(),
   workspaceRepositoryMock: {
     resolveWorkspaceForContext: vi.fn(),
   },
   prismaTaskFileFindManyMock: vi.fn(),
   prismaTaskFileFindFirstMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
+  prismaFileResourceFindManyMock: vi.fn(),
   listMock: vi.fn(),
   listDataTablesMock: vi.fn(),
 }));
@@ -41,10 +41,6 @@ vi.mock("@/helpers/data-table", () => ({
     actorKind: "user",
   })),
   listDataTables: listDataTablesMock,
-}));
-
-vi.mock("@/services/contacts.service", () => ({
-  contactsDriveEntry: contactsDriveEntryMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
@@ -64,6 +60,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: prismaMemberFindUniqueMock,
+    },
+    fileResource: {
+      findMany: prismaFileResourceFindManyMock,
     },
   },
 }));
@@ -142,10 +141,6 @@ function createRecentsApp(
 describe("GET /v1/drive/recents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    contactsDriveEntryMock.mockResolvedValue({
-      contactCount: 12,
-      activityAt: new Date("2026-08-01T09:00:00.000Z"),
-    });
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
       userId: "user_123",
@@ -153,6 +148,7 @@ describe("GET /v1/drive/recents", () => {
     });
     prismaTaskFileFindFirstMock.mockResolvedValue(null);
     prismaTaskFileFindManyMock.mockResolvedValue([]);
+    prismaFileResourceFindManyMock.mockResolvedValue([]);
     listDataTablesMock.mockResolvedValue({
       total: 0,
       items: [],
@@ -194,32 +190,10 @@ describe("GET /v1/drive/recents", () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.data).toHaveLength(3);
-    expect(body.data[0]).toEqual({
-      kind: "contacts",
-      name: "Contacts",
-      pinned: true,
-      contactCount: 12,
-      activityAt: "2026-08-01T09:00:00.000Z",
-    });
-    expect(body.data[1].kind).toBe("task-output");
-    expect(body.data[2].kind).toBe("drive-file");
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0].kind).toBe("task-output");
+    expect(body.data[1].kind).toBe("drive-file");
     expect(body.meta.pagination.nextCursor).toBeNull();
-    expect(contactsDriveEntryMock).toHaveBeenCalledWith("ws_personal");
-  });
-
-  it("pins the Contacts entry only on the first page and for a matching search", async () => {
-    const app = createRecentsApp();
-    const matching = await (
-      await app.request("/?scope=me&limit=20&q=Cont")
-    ).json();
-    expect(matching.data[0].kind).toBe("contacts");
-    const other = await (
-      await app.request("/?scope=me&limit=20&q=report")
-    ).json();
-    expect(
-      other.data.some((item: { kind: string }) => item.kind === "contacts"),
-    ).toBe(false);
   });
 
   it("includes recently changed tables, filtered by the search", async () => {
@@ -281,8 +255,7 @@ describe("GET /v1/drive/recents", () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.data).toHaveLength(3);
-    expect(body.data[0].kind).toBe("contacts");
+    expect(body.data).toHaveLength(2);
     expect(body.meta.pagination.nextCursor).toBeTruthy();
   });
 
@@ -327,9 +300,8 @@ describe("GET /v1/drive/recents", () => {
     expect(firstResponse.status).toBe(200);
 
     const firstBody = await firstResponse.json();
-    expect(firstBody.data).toHaveLength(2);
-    expect(firstBody.data[0].kind).toBe("contacts");
-    expect(firstBody.data[1].name).toBe("file-0.pdf");
+    expect(firstBody.data).toHaveLength(1);
+    expect(firstBody.data[0].name).toBe("file-0.pdf");
     expect(firstBody.meta.pagination.nextCursor).toBeTruthy();
 
     const secondResponse = await app.request(
@@ -519,5 +491,112 @@ describe("GET /v1/drive/recents", () => {
     expect(
       body.data.map((item: { kind: string; name: string }) => item.name),
     ).toEqual(["newer-report.pdf", "mid-report.pdf", "older-report.pdf"]);
+  });
+
+  it("attaches the catalog id, category and tags to drive files", async () => {
+    prismaFileResourceFindManyMock.mockResolvedValue([
+      {
+        id: "res_1",
+        sourceId: "drive/users/user_123/report.pdf",
+        labels: [
+          {
+            state: "SUGGESTED",
+            label: { id: "tag_b", kind: "TAG", displayName: "Marketing" },
+          },
+          {
+            state: "CONFIRMED",
+            label: { id: "cat_1", kind: "CATEGORY", displayName: "Report" },
+          },
+          {
+            state: "CONFIRMED",
+            label: { id: "tag_a", kind: "TAG", displayName: "Finance" },
+          },
+        ],
+      },
+    ]);
+
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&limit=20");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const file = body.data.find(
+      (item: { kind: string }) => item.kind === "drive-file",
+    );
+    expect(file).toMatchObject({
+      resourceId: "res_1",
+      category: { labelId: "cat_1", displayName: "Report" },
+      tags: [
+        { labelId: "tag_a", displayName: "Finance" },
+        { labelId: "tag_b", displayName: "Marketing" },
+      ],
+    });
+    expect(prismaFileResourceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "ws_personal",
+          sourceId: { in: ["drive/users/user_123/report.pdf"] },
+        }),
+      }),
+    );
+  });
+
+  it("lists a file the catalog has not adopted with no id and no labels", async () => {
+    const app = createRecentsApp();
+    const body = await (await app.request("/?scope=me&limit=20")).json();
+    const file = body.data.find(
+      (item: { kind: string }) => item.kind === "drive-file",
+    );
+    expect(file).toMatchObject({ resourceId: null, category: null, tags: [] });
+  });
+
+  it("narrows to tagged drive files and drops the other sources", async () => {
+    const tagId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f";
+    prismaFileResourceFindManyMock.mockImplementation(
+      async (args: { where: { labels?: unknown } }) =>
+        args.where.labels
+          ? [{ sourceId: "drive/users/user_123/report.pdf" }]
+          : [],
+    );
+    prismaTaskFileFindManyMock.mockResolvedValue([
+      {
+        id: "tf_1",
+        name: "output.pdf",
+        fileUrl: "https://blob.example/output.pdf",
+        size: BigInt(500),
+        updatedAt: new Date("2026-08-21T12:00:00.000Z"),
+        task: { id: "task_1", name: "Design", projectId: null, project: null },
+      },
+    ]);
+
+    const app = createRecentsApp();
+    const response = await app.request(`/?scope=me&limit=20&tags=${tagId}`);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(
+      body.data.map((item: { kind: string; name: string }) => [
+        item.kind,
+        item.name,
+      ]),
+    ).toEqual([["drive-file", "report.pdf"]]);
+    expect(prismaFileResourceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          labels: {
+            some: {
+              labelId: { in: [tagId] },
+              state: { in: ["CONFIRMED", "SUGGESTED"] },
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("refuses a tag filter that is not label ids", async () => {
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&tags=not-an-id");
+    expect(response.status).toBe(422);
   });
 });

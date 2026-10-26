@@ -1,8 +1,26 @@
 import {
+  capabilitiesForClassification,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-import type { PresetRoute } from "./classifier";
+import { type PresetRoute, presetClassificationResult } from "./classifier";
+
+/**
+ * A mail check may also file attachments the owner's saved rules ask for
+ * ("put invoices in Finance/Invoices"); nothing else it reads can change.
+ */
+function withMailFiling(preset: PresetRoute): PresetRoute {
+  return {
+    ...preset,
+    capabilities: [
+      ...capabilitiesForClassification(
+        presetClassificationResult("", preset).classification,
+      ),
+      "save_email_attachment",
+    ],
+  };
+}
 
 /**
  * Routes for turns whose prompt Core writes itself. Core knows what each one
@@ -21,17 +39,19 @@ export const SYSTEM_TURN_ROUTES = {
     route: "DELEGATE_TASK",
     reason: "Delegation event: follow up on delegated work.",
   },
-  /** New mail: flag what matters, change nothing. */
-  "ingest:delta": {
+  /** New mail: flag what matters, file what the owner's rules say. */
+  "ingest:delta": withMailFiling({
     route: "DIRECT_RESPONSE",
-    reason: "Inbox check: report what matters, change nothing.",
-  },
+    reason:
+      "Inbox check: report what matters; file attachments only as the owner's saved rules say.",
+  }),
   /** Morning briefing: brief, update memory follow-ups, propose work. */
-  "ingest:briefing": {
+  "ingest:briefing": withMailFiling({
     route: "MANAGE_WORK",
     writeScope: "MEMORY",
-    reason: "Morning briefing: brief and update memory follow-ups.",
-  },
+    reason:
+      "Morning briefing: brief, update memory follow-ups, and file attachments the owner's saved rules ask for.",
+  }),
   /**
    * Daily stand-up: brief, nudge stuck work, start one Task when it is worth
    * it. No schedules, chat posts or files: on a quiet morning those tools
@@ -112,4 +132,20 @@ export function inheritedScheduleRoute(
     capabilities,
     sandbox: capabilities.some(isSokoBotSandboxCapability),
   };
+}
+
+/**
+ * A run of a schedule the bot or owner wrote may always change or remove that
+ * schedule, so "check until it is done" can end itself. The runtime limits
+ * these extra tools to the run's own schedule.
+ */
+export const OWN_SCHEDULE_CAPABILITIES = [
+  "update_schedule",
+  "delete_schedule",
+] as const satisfies readonly SokoBotCapability[];
+
+export function withOwnScheduleTools(
+  capabilities: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  return [...new Set([...capabilities, ...OWN_SCHEDULE_CAPABILITIES])];
 }

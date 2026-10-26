@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
+import type { StudioAsset } from "./types";
 
 /**
  * The template presses, driven through the real composer.
@@ -31,9 +32,11 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   prepareStudioAssetSocialMedia: vi.fn(),
 }));
 
+const mocks = vi.hoisted(() => ({ assets: [] as unknown[] }));
+
 vi.mock("./use-studio-state", () => ({
   useStudioState: () => ({
-    state: { assets: [], jobs: [] },
+    state: { assets: mocks.assets, jobs: [] },
     selectedAsset: null,
     selectAsset: vi.fn(),
     activeJobs: [],
@@ -197,5 +200,105 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+const RESULT = {
+  id: "a",
+  projectId: "p",
+  projectName: "Launch",
+  rootId: "a",
+  parentId: null,
+  version: 1,
+  prompt: "an earlier brief",
+  model: "vendor/model-a",
+  width: 1024,
+  height: 1024,
+  bytes: 1000,
+  contentType: "image/png",
+  createdAt: "2026-09-26T12:00:00Z",
+  jobId: "job-a",
+  settings: {
+    aspectRatio: "1:1",
+    resolution: "1K",
+    outputFormat: "png",
+    seed: null,
+  },
+  contentPath: "/a",
+} as unknown as StudioAsset;
+
+describe("templates once there are images", () => {
+  afterEach(() => {
+    mocks.assets = [];
+    vi.unstubAllGlobals();
+  });
+
+  it("applies a template from the toolbar menu and undoes it there", () => {
+    mocks.assets = [RESULT];
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    const form = prompt.closest("form") as HTMLFormElement;
+    fireEvent.change(prompt, { target: { value: "Original brief" } });
+
+    const menu = screen.getByRole("button", { name: "templates" });
+    expect(form).toContainElement(menu);
+    fireEvent.click(menu);
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "templates" }),
+    ).not.toBeInTheDocument();
+    expect(prompt).toHaveValue(POSTER.prompt);
+    expect(prompt).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "templateReplacedBrief",
+    );
+    const undo = screen.getByRole("button", { name: "undoTemplate" });
+    expect(form).toContainElement(undo);
+
+    fireEvent.click(undo);
+    expect(prompt).toHaveValue("Original brief");
+    expect(prompt).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "undoTemplate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets a growing brief rise over the feed instead of shrinking it", () => {
+    let resize: () => void = () => undefined;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resize = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    mocks.assets = [RESULT];
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    const dock = prompt.closest("section")?.parentElement as HTMLElement;
+    const slot = dock.parentElement as HTMLElement;
+    prompt.style.minHeight = "48px";
+    const size = (dockHeight: number, promptHeight: number) => {
+      Object.defineProperty(dock, "offsetHeight", {
+        configurable: true,
+        value: dockHeight,
+      });
+      Object.defineProperty(prompt, "offsetHeight", {
+        configurable: true,
+        value: promptHeight,
+      });
+      act(() => resize());
+    };
+
+    size(150, 48);
+    expect(slot.style.height).toBe("150px");
+    // Four more lines of brief: the card grows, the space it takes from the
+    // feed does not.
+    size(262, 160);
+    expect(slot.style.height).toBe("150px");
   });
 });

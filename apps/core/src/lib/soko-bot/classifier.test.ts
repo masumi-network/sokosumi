@@ -5,6 +5,7 @@ import {
   type ClassifierContextSummary,
   JevTurnClassifier,
   type RouteEvaluator,
+  routeQuestions,
   SOKO_BOT_ROUTE_MODEL,
   unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
@@ -66,6 +67,37 @@ describe("Jev route selection", () => {
     expect(result.classification.confidence).toBe(0.98);
     expect(result.model).toBe(SOKO_BOT_ROUTE_MODEL);
     expect(result.failed).toBe(false);
+  });
+
+  it("reads Jev's signals as soft hints without changing the route", async () => {
+    const result = await new JevTurnClassifier(
+      answering(
+        jevRoute("CLARIFY", {
+          probability: 0.51,
+          signals: { statesPreference: 0.9, refersToEarlier: 0.8 },
+        }),
+      ),
+    ).classify("stop messaging me about these", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("CLARIFY");
+    expect(result.classification.signals).toEqual({
+      refersToEarlier: 0.8,
+      statesPreference: 0.9,
+      aboutMail: 0,
+      aboutTasks: 0,
+    });
+  });
+
+  it("asks Jev every signal question alongside the route", () => {
+    expect(Object.keys(routeQuestions(false))).toEqual(
+      expect.arrayContaining([
+        "route",
+        "writeScope",
+        "refersToEarlier",
+        "statesPreference",
+        "aboutMail",
+        "aboutTasks",
+      ]),
+    );
   });
 
   function split(probabilities: Record<string, number>, choice: string) {

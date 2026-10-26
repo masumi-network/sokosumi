@@ -7,11 +7,17 @@ import {
   type SokoBotInboxMessage,
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
+import { buildChatMessagePreview } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  MAIL_TRIAGE_GUIDE,
+  triagedMailLines,
+  triageMail,
+} from "@/lib/soko-bot/mail-triage";
 import {
   foreignTasksBlock,
   memoryTasks,
@@ -22,6 +28,7 @@ import {
   rhythmTaskScope,
 } from "@/lib/soko-bot/rhythm-task-scope";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
+import { listChatOpenLoops } from "@/services/chat-signal-views.service";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   activityStats,
@@ -40,6 +47,7 @@ import {
 } from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
+const STANDUP_MAIL_LIMIT = 40;
 const STALE_RUNNING_MS = 24 * HOUR_MS;
 const UNANSWERED_MS = 4 * HOUR_MS;
 const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
@@ -399,6 +407,56 @@ export async function stageSokoBotNudges(
   }, "Reminder staging collided with delivery");
 }
 
+const OPEN_LOOP_LIMIT = 8;
+const OPEN_LOOP_LABEL = {
+  question: "Unanswered question for you",
+  decision: "Decision waiting on you",
+  commitment: "Your commitment, now due",
+} as const;
+
+/**
+ * The owner's open chat loops, as Jev read them: questions and decisions
+ * asked of them a few hours ago and still unanswered, and their own promises
+ * whose date passed. The stand-up offers to close them; it never answers in
+ * the owner's name.
+ */
+export async function chatOpenLoopsBlock(
+  bot: { userId: string | null; workspaceId: string },
+  now: Date,
+): Promise<string[]> {
+  if (!bot.userId) return [];
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: bot.workspaceId },
+    select: { organizationId: true },
+  });
+  const loops = (
+    await listChatOpenLoops(bot.userId, workspace?.organizationId ?? null, now)
+  ).slice(0, OPEN_LOOP_LIMIT);
+  if (loops.length === 0) return [];
+  return [
+    "## Open loops in chat",
+    "Offer to help close these (draft a reply, make a Task); never reply in the owner's name.",
+    ...loops.map((loop) => {
+      const author =
+        loop.message.senderUser?.name ??
+        loop.message.senderCoworker?.name ??
+        "Someone";
+      const text = buildChatMessagePreview(loop.message.content, new Map())
+        .replace(/\s+/g, " ")
+        .slice(0, 200);
+      const label =
+        loop.kind === "needsYou"
+          ? OPEN_LOOP_LABEL.question
+          : OPEN_LOOP_LABEL[loop.kind];
+      const due = loop.dueAt
+        ? ` · due ${loop.dueAt.toISOString().slice(0, 10)}`
+        : "";
+      return `- ${label} · ${author} in ${loop.room.name}${due}: "${text}" (room ${loop.room.id}, message ${loop.message.id})`;
+    }),
+    "",
+  ];
+}
+
 export function attentionBlock(items: AttentionItem[]): string[] {
   if (items.length === 0) return [];
   return ["## Needs attention", ...items.map((item) => `- ${item.line}`), ""];
@@ -433,6 +491,7 @@ export async function followUpsBlock(
       (item) => `- ${item.overdue ? "overdue" : "today"}: ${item.text}`,
     ),
     "A follow-up about a Task that is no longer open is done: drop it from memory instead of raising it.",
+    "A follow-up is yours and your owner's to act on: read the Task with get_task_status and tell your owner what changed. Never comment on a Task to ask its people for a status update.",
     "",
   ];
 }
@@ -479,6 +538,7 @@ export async function buildSystemBeatMessage(input: {
   }
   if (input.key === "standup") {
     lines.push(...(await dueSoonBlock(bot, now)));
+    lines.push(...(await chatOpenLoopsBlock(bot, now).catch(() => [])));
     const events: SokoBotCalendarEvent[] = [];
     for (const integration of await activeIntegrationsForBot(
       bot.id,
@@ -521,18 +581,26 @@ export async function buildSystemBeatMessage(input: {
       mail.push(
         ...(await fetchInboxMessages(integration, {
           since: new Date(now.getTime() - 24 * HOUR_MS),
-          limit: 40,
+          limit: STANDUP_MAIL_LIMIT,
         }).catch(() => [])),
       );
     }
     if (mail.length > 0) {
-      lines.push("## Mail (last 24h)");
-      for (const message of mail.slice(0, 40)) {
-        lines.push(
-          `- from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${message.provider}:${message.id}]`,
-        );
-      }
-      lines.push("");
+      const triage = await triageMail({
+        sokoBotId: bot.id,
+        mail: mail.slice(0, STANDUP_MAIL_LIMIT),
+        source: "standup",
+      });
+      triage.log.emit();
+      lines.push(
+        `The mail below is from the last 24 hours. ${MAIL_TRIAGE_GUIDE}`,
+        "",
+        ...triagedMailLines({
+          timeZone: bot.ingestTimezone,
+          mail: triage.mail,
+          limit: STANDUP_MAIL_LIMIT,
+        }),
+      );
     }
   }
   {

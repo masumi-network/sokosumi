@@ -4,7 +4,9 @@ import {
   CONTACT_CHANNEL_TYPES,
   CONTACT_INTERACTION_CHANNELS,
   CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_KINDS,
   CONTACT_LIST_COLORS,
+  CONTACT_REPLY_STATES,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
   calendarDateSchema,
@@ -16,6 +18,10 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 export const contactStageSchema = z
   .enum(CONTACT_STAGES)
   .openapi("ContactStage");
+export const contactKindSchema = z.enum(CONTACT_KINDS).openapi("ContactKind");
+export const contactReplyStateSchema = z
+  .enum(CONTACT_REPLY_STATES)
+  .openapi("ContactReplyState");
 export const contactChannelTypeSchema = z
   .enum(CONTACT_CHANNEL_TYPES)
   .openapi("ContactChannelType");
@@ -42,7 +48,13 @@ export const contactChannelSchema = z
   .openapi("ContactChannel");
 
 const contactListRefSchema = z
-  .object({ id: z.uuid(), name: z.string(), color: contactListColorSchema })
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    color: contactListColorSchema,
+    /** Put there by the background classifier, not by a person or a bot. */
+    addedAutomatically: z.boolean(),
+  })
   .openapi("ContactListRef");
 
 export const contactKnownBySchema = personSchema
@@ -52,9 +64,29 @@ export const contactKnownBySchema = personSchema
   })
   .openapi("ContactKnownBy");
 
+export const contactScoreSchema = z
+  .object({
+    familiarity: z.int().min(0).max(100).openapi({
+      description:
+        "How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent.",
+    }),
+    importance: z.int().min(0).max(100).nullable().openapi({
+      description:
+        "How much they matter to the reader, 0–100; null until judged.",
+    }),
+    importanceSource: z.enum(["JEV", "SOKO_BOT", "MANUAL"]).nullable(),
+    importanceReason: z.string().nullable().openapi({
+      description:
+        "Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.",
+    }),
+  })
+  .openapi("ContactScore");
+
 export const contactSchema = z
   .object({
     id: z.uuid(),
+    /** The reader's own scores; null for someone they never met. */
+    score: z.union([contactScoreSchema, z.null()]),
     name: z.string(),
     organization: z.string().nullable(),
     role: z.string().nullable(),
@@ -62,7 +94,7 @@ export const contactSchema = z
     summary: z.string().nullable(),
     whyInteresting: z.string().nullable(),
     stage: contactStageSchema,
-    owner: z.union([personSchema, z.null()]),
+    kind: contactKindSchema,
     nextStep: z.string().nullable(),
     followUpAt: calendarDateSchema
       .nullable()
@@ -72,6 +104,12 @@ export const contactSchema = z
     firstContactAt: dateTimeSchema.nullable(),
     lastContactAt: dateTimeSchema.nullable(),
     interactionCount: z.int(),
+    lastInboundAt: dateTimeSchema.nullable(),
+    awaitingReplySince: dateTimeSchema.nullable(),
+    replyState: z.union([contactReplyStateSchema, z.null()]).openapi({
+      description:
+        "Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions.",
+    }),
     createdByUserId: z.string().nullable(),
     createdBySokoBotId: z.string().nullable(),
     mergedIntoId: z.uuid().nullable(),
@@ -178,6 +216,7 @@ export const contactListSchema = z
     count: z.int(),
     createdByUserId: z.string().nullable(),
     createdBySokoBotId: z.string().nullable(),
+    createdAutomatically: z.boolean(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -206,12 +245,23 @@ const booleanQuery = z.enum(["true", "false"]).optional();
 const positiveDays = z.coerce.number().int().min(1).max(3650).optional();
 
 /** `GET /contacts` and the CSV export: a contact filter spelled as query params. */
+export const contactOrganizationSchema = z
+  .object({
+    name: z.string().openapi({ example: "Cardano Foundation" }),
+    count: z.int().openapi({ example: 61, description: "Live contacts" }),
+  })
+  .openapi("ContactOrganization");
+
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
+  company: z.string().trim().min(1).max(200).optional().openapi({
+    description:
+      "Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.",
+  }),
   stage: contactStageSchema.optional(),
-  ownerUserId: z.string().min(1).max(200).optional(),
-  ownedByMe: booleanQuery,
+  kind: contactKindSchema.optional(),
+  replyState: contactReplyStateSchema.optional(),
   listId: z.uuid().optional().openapi({
     description: "A manual or smart list; a smart list applies its filter.",
   }),

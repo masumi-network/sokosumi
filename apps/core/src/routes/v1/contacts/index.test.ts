@@ -75,7 +75,8 @@ const CONTACT = {
   location: null,
   summary: null,
   whyInteresting: null,
-  stage: "LEAD",
+  stage: "CONTACT",
+  kind: "PERSON",
   owner: null,
   nextStep: null,
   followUpAt: null,
@@ -84,6 +85,9 @@ const CONTACT = {
   firstContactAt: null,
   lastContactAt: null,
   interactionCount: 0,
+  lastInboundAt: null,
+  awaitingReplySince: null,
+  replyState: null,
   createdByUserId: "user_1",
   createdBySokoBotId: null,
   mergedIntoId: null,
@@ -94,6 +98,7 @@ const CONTACT = {
   channels: [],
   lists: [],
   knownBy: [],
+  score: null,
 };
 
 function request(path: string, init: RequestInit = {}) {
@@ -230,7 +235,7 @@ describe("contacts routes", () => {
     });
     const listId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e90";
     const response = await request(
-      `/contacts?stage=INVESTOR&ownedByMe=true&lastContactOlderThanDays=90&listId=${listId}&sort=lastContactAt&limit=5`,
+      `/contacts?stage=INVESTOR&replyState=NO_REPLY&kind=PERSON&knownByMe=true&lastContactOlderThanDays=90&listId=${listId}&sort=lastContactAt&limit=5`,
     );
     expect(response.status).toBe(200);
     expect(services.listContacts).toHaveBeenCalledWith(
@@ -238,7 +243,9 @@ describe("contacts routes", () => {
       expect.objectContaining({
         filter: expect.objectContaining({
           stages: ["INVESTOR"],
-          ownedByMe: true,
+          replyStates: ["NO_REPLY"],
+          kind: "PERSON",
+          knownByMe: true,
           lastContactOlderThanDays: 90,
         }),
         listId,

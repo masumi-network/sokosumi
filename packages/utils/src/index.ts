@@ -136,9 +136,13 @@ export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-type
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
+  CONTACT_CONVERSATION_DAYS,
   CONTACT_INTERACTION_CHANNELS,
   CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_KINDS,
   CONTACT_LIST_COLORS,
+  CONTACT_REPLY_STATES,
+  CONTACT_REPLY_WAIT_DAYS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
   type ContactChannelType,
@@ -509,6 +513,11 @@ export {
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
+export {
+  creditsPerVideoCents,
+  type VideoLength,
+  type VideoPriceFigures,
+} from "./video-credits.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,
