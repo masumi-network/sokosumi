@@ -1657,6 +1657,7 @@
         "chainLastHop": "Este es el último paso: ya no despertará a nadie.",
         "source": {
           "inbox": "De tu bandeja de entrada",
+          "briefing": "Resumen de la mañana",
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
