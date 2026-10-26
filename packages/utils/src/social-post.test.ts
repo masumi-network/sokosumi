@@ -162,6 +162,7 @@ describe("socialPostTextLength", () => {
     ["https://example.com/a-very-long-url", 23],
     ["Read https://example.com/a-very-long-url", 28],
     ["https://example.com/hello.", 24],
+    ["example.com.", 24],
     ["https://example.com/hello_(world)", 23],
     ["(https://example.com/hello)", 25],
     ["example.com", 23],
@@ -185,6 +186,27 @@ describe("socialPostTextLength", () => {
     ["example.com.unknown", 19],
     ["example.世界", 23],
     ["example.中国/x", 23],
+    ["https://example.com/path😀", 25],
+    ["https://example.com/path中文", 27],
+    ["https://example.com/path?x=one😀", 25],
+    ['https://example.com/path"hello"', 30],
+    ["https://example.com/path】abc", 28],
+    ["https://example.com/path\\abc", 27],
+    [`中文https://example.com/${"a".repeat(260)}`, 27],
+    ["中文example.com/path", 27],
+    ["example.com中文", 27],
+    ["https://example.com中文", 27],
+    ["https://example.com/路径https://example.org/path", 50],
+    ["https://✪df.ws/ejp", 23],
+    ["https://☃.net/long/path", 23],
+    ["https://example.com/path@", 24],
+    ["https://example.com/path[", 24],
+    ["https://example.com/path]", 24],
+    ["https://example.com/path|", 24],
+    ["https://example.com/path&", 24],
+    ["https://example.com/path(foo", 27],
+    ["https://example.com/path?[]", 26],
+    ["_https://example.com/path", 24],
     ["😀", 2],
     ["👨‍👩‍👧‍👦", 2],
     ["👍🏽", 2],
@@ -234,6 +256,26 @@ describe("socialPostTextLength", () => {
     expect(socialPostTextLength("x", text)).toBe(264);
     expect(socialPostTextLength("x", text)).toBeLessThanOrEqual(
       socialPostTextLimit("x"),
+    );
+  });
+
+  it("counts emoji immediately after a URL toward the free X account limit", () => {
+    const text = `${"a".repeat(255)} https://example.com/path😀`;
+    expect(socialPostTextLength("x", text)).toBe(281);
+    expect(socialPostTextLength("x", text)).toBeGreaterThan(
+      socialPostTextLimit("x"),
+    );
+  });
+
+  it("counts a long dangling-dot hostname as plain text", () => {
+    const text = `${"a".repeat(100_000)}.`;
+    expect(socialPostTextLength("x", text)).toBe(text.length);
+  });
+
+  it.each(["a", "中"])("counts long %s text before a URL", (character) => {
+    const text = character.repeat(100_000);
+    expect(socialPostTextLength("x", `${text} https://example.com/`)).toBe(
+      socialPostTextLength("x", text) + 24,
     );
   });
 

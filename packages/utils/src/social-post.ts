@@ -41,8 +41,28 @@ export function socialPostTextLimit(
 const X_GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
 const X_EMOJI = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F|[0-9#*]\uFE0F?\u20E3/u;
 // Bare hosts use twitter-text's TLD lists and short ccTLD rule.
-const X_URL =
-  /https?:\/\/[^\s<>]+|((?:[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+[\p{L}\p{M}\p{N}_-]+)(\/[^\s<>]*)?/giu;
+const X_URL_DOMAIN = String.raw`(?:[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+`;
+const X_URL_TLD_PREFIX = new RegExp(
+  `^(?:${[...X_GENERIC_TLDS, ...X_COUNTRY_TLDS].sort((a, b) => b.length - a.length).join("|")})(?=[^a-z0-9@+-]|$)`,
+  "iu",
+);
+// Path/query character sets follow twitter-text (Apache-2.0, Copyright 2018 Twitter, Inc.).
+// https://github.com/twitter/twitter-text/tree/master/js/src/regexp
+const X_LATIN_ACCENTS = String.raw`\xC0-\xD6\xD8-\xF6\xF8-\xFF\u0100-\u024F\u0253\u0254\u0256\u0257\u0259\u025B\u0263\u0268\u026F\u0272\u0289\u028B\u02BB\u0300-\u036F\u1E00-\u1EFF`;
+const X_URL_HOST = String.raw`[^\s\x00-\x1f\x7f!"#$%&'()*+,/:;<=>?@\[\]^\x60{|}~\\\uFFFE\uFEFF\uFFFF\u202A-\u202E\u2066-\u2069]+`;
+const X_URL_PATH_CHARS = String.raw`[a-z0-9${X_LATIN_ACCENTS}\u0400-\u04FF!*';:=+,.$/%#\[\]\u2013_~@|&\-]`;
+const X_URL_PARENS = String.raw`\((?:${X_URL_PATH_CHARS}+|${X_URL_PATH_CHARS}*\(${X_URL_PATH_CHARS}+\)${X_URL_PATH_CHARS}*)\)`;
+const X_URL_PATH_END = String.raw`(?:[+\-a-z0-9${X_LATIN_ACCENTS}\u0400-\u04FF=_#\/]|${X_URL_PARENS})`;
+const X_URL_PATH = String.raw`(?:${X_URL_PATH_CHARS}*(?:${X_URL_PARENS}${X_URL_PATH_CHARS}*)*${X_URL_PATH_END}|@${X_URL_PATH_CHARS}+/)`;
+const X_URL_QUERY = String.raw`[a-z0-9!?*'@();:&=+$/%#\[\]_.,~|\-]`;
+const X_ASCII_DOMAIN_PREFIX = new RegExp(
+  String.raw`[a-z0-9${X_LATIN_ACCENTS}\-]+(?:\.[a-z0-9${X_LATIN_ACCENTS}\-]+)*\.$`,
+  "iu",
+);
+const X_URL = new RegExp(
+  String.raw`(?:(?<![a-z0-9@＠])https?:\/\/(${X_URL_HOST})|(?<![\p{L}\p{M}\p{N}._@＠$#＃])(${X_URL_DOMAIN}[\p{L}\p{M}\p{N}_-]*))(?::[0-9]+)?(\/${X_URL_PATH}*)?(?:\?${X_URL_QUERY}*[a-z0-9\-_&=#/])?`,
+  "giu",
+);
 
 function xCharacterLength(text: string): number {
   let length = 0;
@@ -72,18 +92,55 @@ export function socialPostTextLength(
 ): number {
   if (provider !== "x") return text.length;
   const normalized = text.normalize("NFC");
+  if (!normalized.includes(".")) return xCharacterLength(normalized);
   let length = 0;
   let end = 0;
-  for (const match of normalized.matchAll(X_URL)) {
-    const hostname = match[1];
-    const preceding = normalized.slice(0, match.index);
+  const urls = new RegExp(X_URL);
+  for (
+    let match = urls.exec(normalized);
+    match;
+    match = urls.exec(normalized)
+  ) {
+    let start = match.index;
+    let candidate = match[0];
+    const explicit = match[1] !== undefined;
+    let hostname = match[1] ?? match[2];
+    let hasPath = Boolean(match[3]);
+    if (!explicit && hostname.endsWith(".")) {
+      hostname = hostname.replace(/\.+$/, "");
+      candidate = hostname;
+      hasPath = false;
+    }
+    const tldStart = hostname.lastIndexOf(".") + 1;
+    const tld = hostname.slice(tldStart);
+    const knownTld = tld.match(X_URL_TLD_PREFIX)?.[0];
+    if (knownTld && knownTld.length < tld.length) {
+      hostname = hostname.slice(0, tldStart + knownTld.length);
+      candidate = candidate.slice(
+        0,
+        (explicit ? candidate.indexOf("://") + 3 : 0) + hostname.length,
+      );
+      hasPath = false;
+    }
+    if (!explicit) {
+      const dot = hostname.lastIndexOf(".");
+      const prefix = hostname
+        .slice(0, dot + 1)
+        .match(X_ASCII_DOMAIN_PREFIX)?.[0];
+      if (!prefix) continue;
+      const skipped = dot + 1 - prefix.length;
+      start += skipped;
+      candidate = candidate.slice(skipped);
+      hostname = hostname.slice(skipped);
+    }
+    const preceding = normalized.slice(0, start);
     if (
-      /[\p{L}\p{N}_@＠]$/u.test(preceding) ||
-      (hostname && /[$#＃]$/.test(preceding))
+      /[a-z0-9@＠]$/i.test(preceding) ||
+      (!explicit && /[_$#＃]$/.test(preceding))
     ) {
       continue;
     }
-    if (hostname) {
+    if (!explicit) {
       const labels = hostname.toLowerCase().split(".");
       const tld = labels[labels.length - 1];
       const isCountry = X_COUNTRY_TLDS.has(tld);
@@ -91,14 +148,13 @@ export function socialPostTextLength(
       if (
         isCountry &&
         labels.length === 2 &&
-        !match[2] &&
+        !hasPath &&
         tld !== "co" &&
         tld !== "tv"
       ) {
         continue;
       }
     }
-    const candidate = match[0];
     // Sentence punctuation stays outside the link, as do unmatched closing parentheses.
     let url = candidate.replace(/[.,!?;:'"…]+$/, "");
     while (
@@ -115,8 +171,9 @@ export function socialPostTextLength(
     } catch {
       continue;
     }
-    length += xCharacterLength(normalized.slice(end, match.index)) + 23;
-    end = match.index + url.length;
+    length += xCharacterLength(normalized.slice(end, start)) + 23;
+    end = start + url.length;
+    urls.lastIndex = end;
   }
   return length + xCharacterLength(normalized.slice(end));
 }
