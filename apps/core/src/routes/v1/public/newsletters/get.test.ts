@@ -59,7 +59,10 @@ describe("public newsletter info", () => {
       brand: { primaryColor: "#123456" },
     });
     expect(m.newsletter).toHaveBeenCalledExactlyOnceWith({
-      where: { publicSlug: NEWSLETTER.publicSlug },
+      where: {
+        publicSlug: NEWSLETTER.publicSlug,
+        project: { workspace: { organization: { slug: "utxo" } } },
+      },
       select: { name: true, senderName: true, brand: true },
     });
     expect(m.subscriber).not.toHaveBeenCalled();
@@ -68,6 +71,16 @@ describe("public newsletter info", () => {
   it("returns 404 when missing", async () => {
     m.newsletter.mockResolvedValue(null);
     expect((await app().request(URL)).status).toBe(404);
+  });
+
+  it("hides newsletter metadata outside the project's beta organization", async () => {
+    m.newsletter.mockImplementation(async ({ where }) =>
+      where.project?.workspace?.organization?.slug === "utxo"
+        ? null
+        : NEWSLETTER,
+    );
+    expect((await app().request(URL)).status).toBe(404);
+    expect(m.subscriber).not.toHaveBeenCalled();
   });
 
   it("returns 404 without data access when disabled", async () => {

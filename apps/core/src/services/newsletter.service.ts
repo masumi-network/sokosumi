@@ -7,7 +7,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  isPrismaRecordNotFoundError,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import type {
@@ -136,24 +139,34 @@ export async function patchNewsletterSubscriber(
   if (
     input.status &&
     subscriber.status !== "ACTIVE" &&
-    subscriber.status !== "UNSUBSCRIBED"
+    !(subscriber.status === "UNSUBSCRIBED" && input.status === "UNSUBSCRIBED")
   ) {
     throw conflict(
-      "Only active or unsubscribed subscribers can change status manually",
+      "Unsubscribed, pending and bounced subscribers cannot change status manually",
     );
   }
-  return prisma.newsletterSubscriber.update({
-    where,
-    data: {
-      name: input.name,
-      status: input.status,
-      ...(input.status && input.status !== subscriber.status
-        ? {
-            unsubscribedAt: input.status === "UNSUBSCRIBED" ? new Date() : null,
-          }
-        : {}),
-    },
-  });
+  try {
+    return await prisma.newsletterSubscriber.update({
+      where: {
+        ...where,
+        ...(input.status ? { status: subscriber.status } : {}),
+      },
+      data: {
+        name: input.name,
+        status: input.status,
+        ...(input.status === "UNSUBSCRIBED" && subscriber.status === "ACTIVE"
+          ? { unsubscribedAt: new Date() }
+          : {}),
+      },
+    });
+  } catch (error) {
+    if (isPrismaRecordNotFoundError(error)) {
+      if (input.status)
+        throw conflict("Subscriber status changed; reload and try again");
+      throw notFound("Subscriber not found");
+    }
+    throw error;
+  }
 }
 
 export async function deleteNewsletterSubscriber(
@@ -161,10 +174,16 @@ export async function deleteNewsletterSubscriber(
   subscriberId: string,
 ) {
   const newsletter = await getNewsletter(scope);
+  const where = { id: subscriberId, newsletterId: newsletter.id };
   const { count } = await prisma.newsletterSubscriber.deleteMany({
-    where: { id: subscriberId, newsletterId: newsletter.id },
+    where: { ...where, status: { in: ["ACTIVE", "PENDING"] } },
   });
-  if (!count) throw notFound("Subscriber not found");
+  if (!count) {
+    const subscriber = await prisma.newsletterSubscriber.findUnique({ where });
+    if (subscriber)
+      throw conflict("Unsubscribed and bounced subscribers must be retained");
+    throw notFound("Subscriber not found");
+  }
 }
 
 export async function importNewsletterSubscribers(

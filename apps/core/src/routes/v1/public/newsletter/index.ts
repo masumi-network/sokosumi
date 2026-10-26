@@ -9,7 +9,7 @@ import mountGet from "./unsubscribe/get.js";
 import mountPost from "./unsubscribe/post.js";
 
 const app = new OpenAPIHono({ defaultHook: defaultValidationHook });
-app.use("*", async (_c, next) => {
+app.use("/confirm", async (_c, next) => {
   assertNewsletterEnabled();
   await next();
 });

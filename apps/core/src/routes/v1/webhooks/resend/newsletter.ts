@@ -26,6 +26,7 @@ const eventSchema = z.object({
   created_at: z.string().pipe(z.coerce.date()),
   data: z.object({
     email_id: z.string().min(1),
+    tags: z.record(z.string(), z.string()).optional(),
     click: z.object({ link: z.string().min(1) }).optional(),
     bounce: z.object({ type: z.string().optional() }).optional(),
   }),
@@ -92,7 +93,13 @@ app.openapi(route, async (c) => {
       issue: { select: { newsletterId: true } },
     },
   });
-  if (!send) return ok(c, { received: true });
+  if (!send) {
+    // Resend can notify us before the sender persists the provider message ID.
+    if (data.tags?.category === "newsletter") {
+      throw serviceUnavailable("Newsletter send is not available yet");
+    }
+    return ok(c, { received: true });
+  }
 
   await prisma.$transaction(async (tx) => {
     // Insert first so a duplicate never repeats subscriber side effects.
