@@ -117,6 +117,7 @@ const connection = {
   externalHandle: "sokosumi",
   displayName: "Sokosumi",
   avatarUrl: null,
+  subscriptionType: null,
   status: "active",
   connectedAt: new Date("2026-09-03T10:00:00.000Z"),
   disconnectedAt: null,
