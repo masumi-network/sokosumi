@@ -6,6 +6,8 @@
  *   a  today
  *   b  recommended (labelled scope, live Soko Bot row, grouped nav)
  *   c  recommended with the Soko Bot card
+ *   d  b, with New task in the top bar instead of the sidebar
+ *   e  b, with New task as an icon beside the sidebar collapse button
  * The choice also lives in sessionStorage, so it survives in-app navigation,
  * which drops the query string. Off in production. Delete once a variant wins.
  */
@@ -19,6 +21,8 @@ const VARIANTS = [
   { key: "a", name: "Today" },
   { key: "b", name: "Recommended" },
   { key: "c", name: "Recommended, bot card" },
+  { key: "d", name: "New task in top bar" },
+  { key: "e", name: "New task icon in sidebar" },
 ] as const;
 
 export type SidebarPrototypeVariant = (typeof VARIANTS)[number]["key"];

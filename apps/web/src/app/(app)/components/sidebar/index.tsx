@@ -1,6 +1,7 @@
 import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
+import { NewTaskPrototypeSidebarIcon } from "@/app/components/new-task.prototype.client";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import { SidebarPrototypeOnly } from "@/components/prototype/sidebar-prototype.client";
 import {
@@ -105,7 +106,13 @@ export default function Sidebar({
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
-          <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+          {/* PROTOTYPE: variant e puts New task beside the collapse button. */}
+          <div className="flex shrink-0 items-center gap-1 group-data-[collapsible=icon]:hidden">
+            <Suspense fallback={null}>
+              <NewTaskPrototypeSidebarIcon />
+            </Suspense>
+            <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">

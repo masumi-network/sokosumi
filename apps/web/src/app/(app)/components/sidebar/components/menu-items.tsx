@@ -103,7 +103,10 @@ function ScopedMenuItems({
   const markFeatureSeen = useMarkFeatureSeen();
   // PROTOTYPE: variants b and c group the nav under small headings and drop
   // New task's rule.
-  const prototype = useSidebarPrototypeVariant() !== "a";
+  const variant = useSidebarPrototypeVariant();
+  const prototype = variant !== "a";
+  // d and e move New task out of the nav (top bar, sidebar header).
+  const newTaskElsewhere = variant === "d" || variant === "e";
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -328,7 +331,9 @@ function ScopedMenuItems({
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
             {(prototype
-              ? items.filter(({ key }) => key === "new-task")
+              ? items.filter(
+                  ({ key }) => key === "new-task" && !newTaskElsewhere,
+                )
               : items
             ).map(renderItem)}
           </SidebarMenu>

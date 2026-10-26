@@ -13,6 +13,7 @@ import {
 import HeaderProfileSection from "./header/header-profile-section";
 import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
+import { NewTaskPrototypeHeaderButton } from "./new-task.prototype.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -35,6 +36,11 @@ export default function Header({ className, session }: HeaderProps) {
       <Suspense fallback={null}>
         <SidebarScopeMobileChip />
         <ProjectScopeGuard />
+      </Suspense>
+
+      {/* PROTOTYPE: variant d puts New task here. */}
+      <Suspense fallback={null}>
+        <NewTaskPrototypeHeaderButton />
       </Suspense>
 
       <HeaderSearchTrigger />
