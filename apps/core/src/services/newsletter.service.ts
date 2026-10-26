@@ -8,7 +8,12 @@ import type {
 import { PrismaRaw } from "@sokosumi/database/client";
 import slugify from "slugify";
 
-import { conflict, notFound, tooManyRequests } from "@/helpers/error";
+import {
+  conflict,
+  notFound,
+  tooManyRequests,
+  unprocessableEntity,
+} from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -38,7 +43,7 @@ import {
   resolveContactSummaries,
 } from "@/services/contacts.service";
 import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
-import { sendNewsletterConfirmation } from "@/services/newsletter-signup.service";
+import { sendNewsletterConfirmations } from "@/services/newsletter-signup.service";
 import { requireScopedProject } from "@/services/project-social-connections.service";
 
 export interface NewsletterScope {
@@ -159,7 +164,7 @@ export async function addNewsletterSubscriber(
 ) {
   const newsletter = await getNewsletter(scope);
   const actor = await resolveContactActor(auth, scope.workspaceId);
-  await requireConfirmationBudget(newsletter.id, input.consent, request);
+  await requireConfirmationBudget(newsletter.id, input.consent, 1, request);
   const result = await createSubscriberChunk(
     newsletter,
     [input],
@@ -278,7 +283,12 @@ export async function importNewsletterSubscribers(
   const newsletter = await getNewsletter(scope);
   const actor = await resolveContactActor(auth, scope.workspaceId);
   const { subscribers, validRows, invalid } = parseNewsletterCsv(input.csv);
-  await requireConfirmationBudget(newsletter.id, input.consent, request);
+  await requireConfirmationBudget(
+    newsletter.id,
+    input.consent,
+    subscribers.length,
+    request,
+  );
   const result = await createSubscriberChunks(
     newsletter,
     subscribers,
@@ -344,7 +354,12 @@ export async function addNewsletterSubscribersFromContacts(
       ? [{ email: contact.channels[0].value, name: contact.name }]
       : [],
   );
-  await requireConfirmationBudget(newsletter.id, input.consent, request);
+  await requireConfirmationBudget(
+    newsletter.id,
+    input.consent,
+    subscribers.length,
+    request,
+  );
   const result = await createSubscriberChunks(
     newsletter,
     subscribers,
@@ -355,11 +370,19 @@ export async function addNewsletterSubscribersFromContacts(
   return { ...result, skippedNoEmail: contacts.length - subscribers.length };
 }
 
+/** One rate-limit token covers one request, so the request itself is bounded. */
+export const NEWSLETTER_ASK_MAX_PEOPLE = 1000;
+
 async function requireConfirmationBudget(
   newsletterId: string,
   consent: NewsletterConsent,
+  people: number,
   request: Request,
 ) {
+  if (consent === "ASK" && people > NEWSLETTER_ASK_MAX_PEOPLE)
+    throw unprocessableEntity(
+      `Ask them first works for up to ${NEWSLETTER_ASK_MAX_PEOPLE.toLocaleString("en-US")} people at a time`,
+    );
   if (
     consent === "ASK" &&
     !(await allowNewsletterSignup(newsletterId, request))
@@ -422,8 +445,37 @@ async function createSubscriberChunk(
           ? "MANUAL"
           : "OTHER",
     );
+    // An opt-out belongs to the person, so another of their emails must not re-add them.
+    const people = [...new Set([...contacts.values()].map(({ id }) => id))];
+    const suppressedPeople = new Map<string, "UNSUBSCRIBED" | "BOUNCED">();
+    for (const subscriber of await tx.newsletterSubscriber.findMany({
+      where: {
+        newsletterId: newsletter.id,
+        status: { in: ["UNSUBSCRIBED", "BOUNCED"] },
+        contact: {
+          OR: [{ id: { in: people } }, { mergedIntoId: { in: people } }],
+        },
+      },
+      select: {
+        status: true,
+        contact: { select: { id: true, mergedIntoId: true } },
+      },
+    })) {
+      const person = subscriber.contact?.mergedIntoId ?? subscriber.contact?.id;
+      if (
+        person &&
+        (subscriber.status === "UNSUBSCRIBED" ||
+          subscriber.status === "BOUNCED")
+      )
+        suppressedPeople.set(person, subscriber.status);
+    }
+    const suppressed = subscribers.map((subscriber) => {
+      const contact = contacts.get(subscriber.email);
+      return contact ? suppressedPeople.get(contact.id) : undefined;
+    });
+    const candidates = subscribers.filter((_, index) => !suppressed[index]);
     const created = await tx.newsletterSubscriber.createManyAndReturn({
-      data: subscribers.map((subscriber) => {
+      data: candidates.map((subscriber) => {
         const contact = contacts.get(subscriber.email);
         if (!contact) throw notFound("Contact not found");
         return {
@@ -439,11 +491,11 @@ async function createSubscriberChunk(
       skipDuplicates: true,
     });
     const existing =
-      created.length < subscribers.length
+      created.length < candidates.length
         ? await tx.newsletterSubscriber.findMany({
             where: {
               newsletterId: newsletter.id,
-              email: { in: subscribers.map((subscriber) => subscriber.email) },
+              email: { in: candidates.map((subscriber) => subscriber.email) },
               id: { notIn: created.map((subscriber) => subscriber.id) },
             },
             select: { status: true },
@@ -469,6 +521,10 @@ async function createSubscriberChunk(
           occurredAt: consentAt,
         })),
       });
+    const skipped = [
+      ...existing.map((subscriber) => subscriber.status),
+      ...suppressed,
+    ];
     return {
       contacts,
       created,
@@ -476,21 +532,16 @@ async function createSubscriberChunk(
         (subscriber) =>
           subscriber.status === "ACTIVE" || subscriber.status === "PENDING",
       ).length,
-      skippedUnsubscribed: existing.filter(
-        (subscriber) => subscriber.status === "UNSUBSCRIBED",
-      ).length,
-      skippedBounced: existing.filter(
-        (subscriber) => subscriber.status === "BOUNCED",
-      ).length,
+      skippedUnsubscribed: skipped.filter((status) => status === "UNSUBSCRIBED")
+        .length,
+      skippedBounced: skipped.filter((status) => status === "BOUNCED").length,
       pendingConfirmation: consent === "ASK" ? created.length : 0,
     };
   });
-  if (consent === "ASK") {
-    for (const subscriber of result.created)
-      await sendNewsletterConfirmation(newsletter, {
-        ...subscriber,
-        consentAt,
-      });
-  }
+  if (consent === "ASK")
+    await sendNewsletterConfirmations(
+      newsletter,
+      result.created.map((subscriber) => ({ ...subscriber, consentAt })),
+    );
   return result;
 }
