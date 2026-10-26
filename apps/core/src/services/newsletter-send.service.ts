@@ -1,10 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { NewsletterIssueStatus, Prisma } from "@sokosumi/database";
 import { renderNewsletterEmail } from "@sokosumi/email";
-import {
-  newsletterContentSchema,
-  SOCIAL_BETA_ORGANIZATION_SLUG,
-} from "@sokosumi/utils";
+import { newsletterContentSchema } from "@sokosumi/utils";
 
 import {
   RESEND_BATCH_MAX_SIZE,
@@ -21,6 +18,7 @@ import {
 import {
   assertNewsletterEnabled,
   isNewsletterEnabled,
+  NEWSLETTER_BETA_SCOPE,
 } from "@/lib/newsletter/feature";
 import {
   newsletterBrandSchema,
@@ -28,12 +26,6 @@ import {
 } from "@/schemas/newsletter.schema";
 
 const LEASE_MS = 5 * 60_000;
-const NEWSLETTER_BETA_SCOPE = {
-  project: {
-    workspace: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
-  },
-} satisfies Prisma.NewsletterIssueWhereInput;
-
 interface SendNewsletterIssueOptions {
   /** Trusted callers must explicitly allow any status other than SCHEDULED. */
   allowedStatus?: NewsletterIssueStatus;

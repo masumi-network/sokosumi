@@ -21,7 +21,21 @@ const m = vi.hoisted(() => ({
   eventCreate: vi.fn(),
   transaction: vi.fn(),
   send: vi.fn(),
+  afterRender: vi.fn(),
 }));
+vi.mock("@sokosumi/email", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sokosumi/email")>();
+  return {
+    ...actual,
+    renderNewsletterEmail: async (
+      ...args: Parameters<typeof actual.renderNewsletterEmail>
+    ) => {
+      const rendered = await actual.renderNewsletterEmail(...args);
+      await m.afterRender();
+      return rendered;
+    },
+  };
+});
 vi.mock("resend", () => ({
   Resend: class {
     emails = { send: m.send };
@@ -89,10 +103,19 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NEWSLETTER_NOW);
   m.enabled = true;
-  m.findUnique.mockResolvedValue(pending());
-  m.updateMany
-    .mockResolvedValueOnce({ count: 1 })
-    .mockResolvedValue({ count: 0 });
+  let subscriber = pending();
+  m.findUnique.mockImplementation(async ({ where }) =>
+    where.status && where.status !== subscriber.status ? null : subscriber,
+  );
+  m.updateMany.mockImplementation(async () => {
+    if (subscriber.status !== "PENDING") return { count: 0 };
+    subscriber = {
+      ...subscriber,
+      status: "ACTIVE",
+      confirmedAt: NEWSLETTER_NOW,
+    };
+    return { count: 1 };
+  });
   m.send.mockResolvedValue({ data: { id: "welcome" }, error: null });
   const tx = {
     newsletterSubscriber: { updateMany: m.updateMany },
@@ -185,7 +208,45 @@ describe("public newsletter confirmation", () => {
     expect(m.send).not.toHaveBeenCalled();
   });
 
-  it("does not send another welcome on a fresh opt-in after prior confirmation", async () => {
+  it.each(["UNSUBSCRIBED", "BOUNCED"])(
+    "does not send a welcome when %s wins during rendering",
+    async (status) => {
+      m.afterRender.mockImplementation(async () => {
+        m.findUnique.mockImplementation(async ({ where }) =>
+          where.status === "ACTIVE" ? null : pending({ status }),
+        );
+      });
+      expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+      expect(m.eventCreate).toHaveBeenCalledOnce();
+      expect(m.afterRender).toHaveBeenCalledOnce();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["UNSUBSCRIBED", "BOUNCED", "PENDING"])(
+    "does not claim confirmation when a concurrent %s state wins activation",
+    async (status) => {
+      m.updateMany.mockReset().mockResolvedValue({ count: 0 });
+      m.findUnique.mockResolvedValueOnce(pending()).mockResolvedValue(
+        pending({
+          status,
+          consentAt:
+            status === "PENDING"
+              ? new Date(NEWSLETTER_NOW.getTime() + 1)
+              : NEWSLETTER_NOW,
+        }),
+      );
+      const response = await app().request(url(), { method: "POST" });
+      expect(response.status).toBe(400);
+      expect(await response.text()).not.toContain(
+        "Your subscription is confirmed",
+      );
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not send another welcome when a pending row has prior confirmation history", async () => {
     m.findUnique.mockResolvedValue(
       pending({ confirmedAt: new Date("2026-10-01T00:00:00Z") }),
     );
@@ -240,6 +301,30 @@ describe("public newsletter confirmation", () => {
         pending({ consentAt: new Date(NEWSLETTER_NOW.getTime() + 1) }),
       );
       expect((await app().request(url(fresh), { method })).status).toBe(400);
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["GET", "POST"])(
+    "does not confirm outside the project's beta organization on %s",
+    async (method) => {
+      m.findUnique.mockImplementation(async ({ where }) =>
+        where.newsletter?.project?.workspace?.organization?.slug === "utxo"
+          ? null
+          : pending(),
+      );
+      expect((await app().request(url(), { method })).status).toBe(404);
+      expect(m.transaction).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["unsubscribedAt", "bouncedAt"])(
+    "never confirms pending rows with retained %s",
+    async (field) => {
+      m.findUnique.mockResolvedValue(pending({ [field]: NEWSLETTER_NOW }));
+      expect((await app().request(url(), { method: "POST" })).status).toBe(400);
       expect(m.updateMany).not.toHaveBeenCalled();
       expect(m.send).not.toHaveBeenCalled();
     },
