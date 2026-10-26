@@ -107,6 +107,9 @@ function fixture({
       patch: async () => {
         throw new Error("Unexpected PATCH");
       },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
+      },
     },
   };
   return {

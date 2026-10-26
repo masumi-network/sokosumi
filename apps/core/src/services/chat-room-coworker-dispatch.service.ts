@@ -12,6 +12,7 @@ import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
@@ -126,6 +127,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           senderSokoBot: {
             select: {
               id: true,
+              name: true,
               userId: true,
               archivedAt: true,
             },
@@ -336,7 +338,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       });
     }
 
-    const senderName = mention.message.senderUser?.name ?? "A teammate";
+    // A Soko Bot asking is named as one, so the Coworker knows who it answers.
+    const senderName =
+      mention.message.senderUser?.name ??
+      (senderBot
+        ? `${sokoBotDisplayName(senderBot)} (personal assistant)`
+        : "A teammate");
     const baseURL = coworker.baseURL.trim();
     const threadRootId = mention.message.parentMessageId;
     let providerResponseId: string | null = null;

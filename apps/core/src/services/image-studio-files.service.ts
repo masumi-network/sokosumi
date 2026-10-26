@@ -28,10 +28,11 @@ const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
+  "video/mp4": "mp4",
 };
 
 /** `a-red-fox-3f2a9c1d.png`, so two images of one prompt never share a name. */
-export function imageFileName(
+export function studioAssetFileName(
   prompt: string,
   jobId: string,
   contentType: string,
@@ -42,7 +43,9 @@ export function imageFileName(
     .replace(/^-+|-+$/g, "")
     .slice(0, 48)
     .replace(/-+$/g, "");
-  return `${slug || "image"}-${jobId.slice(0, 8)}.${EXTENSIONS[contentType] ?? "png"}`;
+  const video = contentType.startsWith("video/");
+  const extension = EXTENSIONS[contentType] ?? (video ? "mp4" : "png");
+  return `${slug || (video ? "video" : "image")}-${jobId.slice(0, 8)}.${extension}`;
 }
 
 /** The project's "Content Studio Outputs" Task, created on first use. */
@@ -103,14 +106,14 @@ export async function folderTaskId(input: {
 }
 
 /**
- * Put one delivered image into Files.
+ * Put one delivered image or video into Files.
  *
  * Best effort by design: the image is already stored, paid for and visible in
  * the studio, so a failure here is logged and never fails settlement.
  * ponytail: no retry, so an image that fails here is missing from Files until
  * a backfill exists.
  */
-export async function publishImageToFiles(input: {
+export async function publishStudioAssetToFiles(input: {
   jobId: string;
   projectId: string;
   workspaceId: string;
@@ -124,7 +127,11 @@ export async function publishImageToFiles(input: {
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
     const taskId = await folderTaskId(input);
-    const name = imageFileName(input.prompt, input.jobId, input.contentType);
+    const name = studioAssetFileName(
+      input.prompt,
+      input.jobId,
+      input.contentType,
+    );
     const blob = await put(
       buildTaskFilePathname(taskId, name),
       input.bytes as unknown as Buffer,

@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Agent skills
 
-First-party sources in `skills/` are only `linear-requirement`, `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party sources in `skills/` are only `linear-requirement`, `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three, and `.agents/skills/sokosumi` links to the CLI's bundled [`apps/cli/skills/sokosumi/`](../../apps/cli/skills/sokosumi/) (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Manage installations with the skills CLI
 
@@ -54,6 +54,10 @@ The user types `/create-new-in-sokosumi` with a PR, a description or screenshots
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
 
+### Steward
+
+When watching a pull request, fixing its CI, or merging `main` into it, read [`.agents/skills/steward/`](../../.agents/skills/steward/). Commit, check, and preview rules stay in [`delivery.md`](./delivery.md).
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](../../.agents/skills/caveman/).
@@ -71,6 +75,10 @@ Do **not** invent or file Linear issues during implement work. Filing a new requ
 ### Translations
 
 When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`.agents/skills/translations/`](../../.agents/skills/translations/).
+
+### Sokosumi Tasks and CLI
+
+To create, update, link, or move Sokosumi Tasks, or to drive the `sokosumi` CLI, load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/). Its "Track work as Tasks" section covers tickets, specs, priority, links, and status events.
 
 ### Verify Sokosumi
 

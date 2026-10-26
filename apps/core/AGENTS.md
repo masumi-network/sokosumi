@@ -110,11 +110,11 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 const app = new OpenAPIHonoWithAuth();
 ```
 
-**Important**: This class automatically applies `requireAuth` middleware - do not add it manually.
+This class applies `authMiddleware` (`src/middleware/auth.ts`) itself. Do not add it again.
 
 ### Response Handling
 
-**CRITICAL**: Always use standardized response helpers.
+Never call `c.json()` directly. Use the standardized response helpers: they keep every response in the same envelope.
 
 #### Success Responses
 
@@ -133,7 +133,7 @@ return empty(c);
 
 #### Error Responses
 
-**NEVER** use `c.json({ error: "..." }, statusCode)` directly:
+Never build error bodies with `c.json({ error: "..." }, statusCode)`. The global error handler writes the envelope:
 
 ```typescript
 import {
@@ -149,10 +149,10 @@ import {
 return c.json({ error: "Forbidden" }, 403);
 
 // ✅ Correct
-forbidden("You can only access your own user data");
+throw forbidden("You can only access your own user data");
 ```
 
-Error helpers throw exceptions and have `never` return type - no `return` needed.
+Error helpers return an `HTTPException`. `throw` the result. A bare call does nothing.
 
 A request whose body, query, or params fail the route's Zod schema returns **422** via `unprocessableEntity` (`defaultValidationHook` in `src/lib/hono.ts`), not 400. Tests for invalid input expect 422.
 
@@ -208,50 +208,7 @@ Cross-origin calls from the web app require the web deployment to use a hostname
 
 ### Authentication Context
 
-Routes using `OpenAPIHonoWithAuth` have access to `AuthContext`:
-
-```typescript
-const auth = c.get("auth");
-
-if (auth.type === "user") {
-  // User token with userId and organizationId
-  const userId = auth.userId;
-  const orgId = auth.organizationId;
-  const sessionId = auth.sessionId; // null for API keys, string for session cookies
-}
-```
-
-**Type narrowing**: When checking auth type, use type assertions for TypeScript:
-
-```typescript
-import type { UserAuthContext } from "@/middleware/auth";
-
-if (auth.type !== "user") {
-  forbidden("Internal tokens cannot access user data");
-}
-
-const userAuth = auth as UserAuthContext;
-const userId = userAuth.userId; // Now type-safe
-const sessionId = userAuth.sessionId;
-```
-
-**Alternative**: Access user directly from context variables:
-
-```typescript
-const { user } = c.var;
-
-if (!user) {
-  throw unauthorized("Unauthorized");
-}
-
-// user.id and user.organizationId are now available
-```
-
-**Authentication sources**: The shared `requireAuth` middleware accepts:
-
-- Static API key (internal automation)
-- User API key issued via Better Auth
-- Better Auth session cookies (see [Better Auth Hono middleware](https://www.better-auth.com/docs/integrations/hono#middleware))
+`authMiddleware` sets `c.var.authContext` (`AuthenticationContext` in `src/middleware/auth.ts`). It is a union on `actor`: `"user"`, `"coworker"`, or `"sokoBot"`. Do not branch on `actor` in a handler. Pick one helper from the [handler actor menu](#handler-actor-menu-user-scoped-auth). `authMiddleware` lists the credentials it accepts.
 
 ### Credit Conversion
 
@@ -348,16 +305,14 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 ### Authentication
 
-- `OpenAPIHonoWithAuth` automatically applies auth middleware
-- Don't manually call `app.use("*", requireAuth)` when using this class
-- Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
+- `OpenAPIHonoWithAuth` applies `authMiddleware`. Do not add it again with `app.use`.
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
-- Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
+- Read the actor through the handler actor menu helpers, not `c.var.authContext` directly
 - Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, `/organizations/{id}/credits`, `/workspaces`, and `/workspaces/preferred` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Both workspace reads skip the context binding and narrow their result instead (`AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS`). Mounting a new user route for agents means extending that allowlist
 
 ### Error Handling
 
-- Error helpers throw exceptions - they don't return
+- Error helpers return an `HTTPException`; `throw` it
 - Always provide clear, user-facing error messages
 - Global error handler formats all errors consistently
 
@@ -474,5 +429,5 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.10.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.11.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 

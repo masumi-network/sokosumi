@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import "server-only";
 
 import type { SessionUser } from "@sokosumi/utils";
@@ -66,6 +67,8 @@ export async function readOAuthRequest(
   if (!query || !clientId) {
     return undefined;
   }
+  // The expiry check reads the clock, so it runs per request.
+  await connection();
   if (oauthRequestHasExpired(query)) {
     return {
       query,

@@ -217,6 +217,21 @@ function MentionAnnouncement({ count }: { count: number }) {
   );
 }
 
+/** The needs-you pill in words, for the same reason the mention has some. */
+function NeedsYouAnnouncement({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.Signals");
+
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <span className="group-data-[collapsible=icon]:hidden sr-only">
+      {t("needsYouCount", { count })}
+    </span>
+  );
+}
+
 /**
  * The row's one number, drawn in the room menu's column: the mention pill,
  * or the reader's opt-in count where there is no mention.
@@ -244,9 +259,12 @@ function MentionAnnouncement({ count }: { count: number }) {
  */
 function MentionBadge({
   count,
+  needsYouCount,
   unreadTextCount,
   crossfadesWithMenu,
 }: {
+  /** Messages waiting on the reader; drawn in place of the `@` pill. */
+  needsYouCount: number;
   /** Mentions to draw as the `@` pill. Zero in a Direct of two. */
   count: number;
   /**
@@ -261,13 +279,19 @@ function MentionBadge({
   unreadTextCount: number;
   crossfadesWithMenu: boolean;
 }) {
-  if (count <= 0 && unreadTextCount <= 0) {
+  if (count <= 0 && needsYouCount <= 0 && unreadTextCount <= 0) {
     return null;
   }
 
   return (
     <span
-      data-slot={count > 0 ? "room-mention-badge" : "room-unread-count"}
+      data-slot={
+        needsYouCount > 0
+          ? "room-needs-you-badge"
+          : count > 0
+            ? "room-mention-badge"
+            : "room-unread-count"
+      }
       aria-hidden
       className={cn(
         "pointer-events-none inline-flex size-8 shrink-0 items-center justify-center md:size-7",
@@ -278,7 +302,11 @@ function MentionBadge({
         ],
       )}
     >
-      <RowCountMark mentionCount={count} count={unreadTextCount} />
+      <RowCountMark
+        mentionCount={count}
+        needsYouCount={needsYouCount}
+        count={unreadTextCount}
+      />
     </span>
   );
 }
@@ -349,11 +377,12 @@ export function ChatRoomSidebarRow({
   const canLeave = canLeaveChannel(room);
   const badgeCountsMentions = roomBadgeCountsMentions(room);
   const showUnreadCount = useShowRoomUnreadCount();
-  const { bold, badgeCount, mentionCount, unreadTextCount } =
+  const { bold, badgeCount, mentionCount, needsYouCount, unreadTextCount } =
     resolveRoomAttention({
       unreadCount: room.unreadCount,
       channelUnreadCount: room.channelUnreadCount,
       unreadMentionCount: room.unreadMentionCount,
+      unreadNeedsYouCount: room.unreadNeedsYouCount,
       markedUnread: room.markedUnread,
       isMuted,
       showUnreadCount,
@@ -361,7 +390,8 @@ export function ChatRoomSidebarRow({
     });
   // The row's one number, whichever it is, stands in the badge's slot, so
   // the hole that keeps the name clear of it has to be held open for either.
-  const hasRowCount = mentionCount > 0 || unreadTextCount > 0;
+  const hasRowCount =
+    mentionCount > 0 || needsYouCount > 0 || unreadTextCount > 0;
   const railVariant = badgeCount > 0 ? "mention" : bold ? "unread" : null;
 
   function runRoomAction(
@@ -534,6 +564,7 @@ export function ChatRoomSidebarRow({
         ) : null}
       </span>
       <MentionAnnouncement count={mentionCount} />
+      <NeedsYouAnnouncement count={needsYouCount} />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
@@ -655,6 +686,7 @@ export function ChatRoomSidebarRow({
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           <MentionBadge
             count={mentionCount}
+            needsYouCount={needsYouCount}
             unreadTextCount={unreadTextCount}
             crossfadesWithMenu={reorderHandle == null}
           />

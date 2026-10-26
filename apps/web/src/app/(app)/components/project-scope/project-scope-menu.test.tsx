@@ -26,9 +26,22 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({
-  loadMoreProjects: mocks.load,
-  loadPinnedProjects: mocks.loadPinned,
+vi.mock("@/lib/project-scope-list.client", () => ({
+  // The two Route Handler reads, as the old action calls the tests assert.
+  fetchScopeList: (
+    path: string,
+    expectedScope: { userId: string; organizationId: string | null },
+  ) => {
+    if (path.startsWith("/api/project-scope/pinned")) {
+      return mocks.loadPinned({ expectedScope });
+    }
+    const query = new URL(path, "http://test").searchParams.get("q");
+    return mocks.load({
+      cursor: null,
+      query: query ?? undefined,
+      expectedScope,
+    });
+  },
 }));
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
@@ -106,7 +119,8 @@ beforeEach(() => {
       project("active-1", "Active One"),
       project("closed-1", "Closed One", "2026-09-01T00:00:00Z"),
     ],
-    nextCursor: null,
+    // More projects than the first page: a search has to ask Core.
+    nextCursor: "page-2",
   });
 });
 
@@ -153,6 +167,23 @@ describe("ProjectScopeMenu", () => {
     );
     expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
     expect(screen.queryByText("pinned")).toBeNull();
+  });
+
+  it("filters a complete list at once, without asking Core", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [project("active-1", "Active One"), project("far-1", "Far")],
+      nextCursor: null,
+    });
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("Active One");
+
+    await user.type(screen.getByPlaceholderText("searchPlaceholder"), "far");
+
+    expect(screen.getByText("Far")).toBeInTheDocument();
+    expect(screen.queryByText("Active One")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("");
+    expect(mocks.load).toHaveBeenCalledTimes(1);
   });
 
   it("says so when a search finds nothing", async () => {

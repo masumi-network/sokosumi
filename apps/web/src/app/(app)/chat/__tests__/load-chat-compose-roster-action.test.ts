@@ -89,7 +89,10 @@ describe("loadChatComposeRosterAction", () => {
 
   it("forwards self-only creation through the existing Core service without an organization", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
-    createRoomMock.mockResolvedValue({ id: "self-room", isSelfDirect: true });
+    createRoomMock.mockResolvedValue({
+      room: { id: "self-room", isSelfDirect: true },
+      created: true,
+    });
     await expect(
       createDirectRoomAction({ memberUserIds: ["user-self"] }),
     ).resolves.toMatchObject({

@@ -14,11 +14,13 @@ import {
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
+  assetFileExtension,
   formatElapsed,
+  isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
   type StudioLabels,
@@ -40,6 +42,7 @@ export function StudioLightbox({
   creditsByAssetId,
   elapsedByAssetId,
   labels,
+  onAnimate,
   onClose,
   onRegenerate,
   onSchedule,
@@ -54,6 +57,8 @@ export function StudioLightbox({
   /** How long the provider took per version, in milliseconds. */
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
+  /** Opens the video composer on this image. Absent when no video model exists. */
+  onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
   onRegenerate: (asset: StudioAsset) => void;
   /** Opens Social with this image attached. Absent when Social is not available. */
@@ -77,7 +82,6 @@ export function StudioLightbox({
 
   if (single) {
     const url = assetContentUrl(single);
-    const ext = single.settings?.outputFormat ?? "png";
     return (
       <ImageViewer
         activeSrc={url}
@@ -104,27 +108,42 @@ export function StudioLightbox({
                   {labels.schedule}
                 </Button>
               ) : null}
-              <Button
-                onClick={() => onRegenerate(single)}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.regenerate}
-              </Button>
-              <Button
-                onClick={() => onUseAsReference(single)}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.refine}
-              </Button>
+              {supportsVariation(catalog, single.model) ? (
+                <Button
+                  onClick={() => onRegenerate(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {labels.regenerate}
+                </Button>
+              ) : null}
+              {isVideoAsset(single) ? null : (
+                <Button
+                  onClick={() => onUseAsReference(single)}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.refine}
+                </Button>
+              )}
+              {onAnimate && !isVideoAsset(single) ? (
+                <Button
+                  onClick={() => onAnimate(single)}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.animate}
+                </Button>
+              ) : null}
             </div>
           </>
         }
         images={siblings.map((asset) => ({
           src: assetContentUrl(asset),
           alt: asset.prompt,
-          downloadFilename: `v${asset.version}.${asset.settings?.outputFormat ?? ext}`,
+          downloadFilename: `v${asset.version}.${assetFileExtension(asset)}`,
+          isVideo: isVideoAsset(asset),
         }))}
         onActiveSrcChange={(src) => {
           const next = siblings.find((asset) => assetContentUrl(asset) === src);
@@ -206,7 +225,7 @@ function ImagePane({
 }) {
   return (
     <figure className="bg-muted relative flex min-h-0 flex-1 items-center justify-center p-3">
-      <StudioImage asset={asset} fit="contain" labels={labels} />
+      <StudioImage asset={asset} controls fit="contain" labels={labels} />
       <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">
         {labels.version} {asset.version}
       </figcaption>
@@ -248,17 +267,29 @@ function Metadata({
           </span>
         ) : null}
       </Field>
-      <Field label={labels.dimensions}>
-        <span className="tabular-nums">
-          {asset.width}×{asset.height} · {asset.settings?.aspectRatio ?? "—"} ·{" "}
-          {asset.settings?.resolution ?? "—"}
-        </span>
-      </Field>
-      <Field label={labels.seed}>
-        <span className="tabular-nums">
-          {asset.settings?.seed ?? labels.noSeed}
-        </span>
-      </Field>
+      {asset.video ? (
+        <Field label={labels.videoLength}>
+          <span className="tabular-nums">
+            {asset.video.durationSeconds}s · {asset.video.aspectRatio || "—"} ·{" "}
+            {asset.video.resolution}
+          </span>
+        </Field>
+      ) : (
+        <>
+          <Field label={labels.dimensions}>
+            <span className="tabular-nums">
+              {asset.width}×{asset.height} ·{" "}
+              {asset.settings?.aspectRatio ?? "—"} ·{" "}
+              {asset.settings?.resolution ?? "—"}
+            </span>
+          </Field>
+          <Field label={labels.seed}>
+            <span className="tabular-nums">
+              {asset.settings?.seed ?? labels.noSeed}
+            </span>
+          </Field>
+        </>
+      )}
       {elapsed === null ? null : (
         <Field label={labels.generationTime}>
           <span className="tabular-nums">{formatElapsed(elapsed)}</span>

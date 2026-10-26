@@ -20,17 +20,16 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipContent: () => null,
 }));
 
-// Against the real `SidebarMenuButton`, because the defect lived in its
-// merge: tint classes on the child sat beside the primitive's grey hover
-// fill, and the grey won on screen (PR #5119).
-describe("All unreads row under the pointer", () => {
+// The filter is a mode, not a place: switched on, its tint holds under the
+// pointer and the press instead of giving way to the grey hover fill
+// (PR #5119).
+describe("All unreads filter under the pointer", () => {
   it("keeps its tint on hover and press rather than the grey fill", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
         <SidebarProvider>
           <ChatUnreadNavRows
             rooms={[]}
-            currentUserId="user-1"
             dismissSheetOnNavigate={false}
             unreadOnly
             onUnreadOnlyChange={vi.fn()}
@@ -40,11 +39,12 @@ describe("All unreads row under the pointer", () => {
     );
 
     const classes = screen
-      .getByRole("button", { name: /^Unreads/ })
+      .getByRole("button", { name: "Unreads" })
       .className.split(/\s+/);
     expect(classes).toContain("hover:bg-primary-quaternary");
     expect(classes).toContain("active:bg-primary-quaternary");
-    expect(classes).not.toContain("hover:bg-sidebar-accent");
-    expect(classes).not.toContain("active:bg-sidebar-accent");
+    expect(classes.filter((c) => c.startsWith("hover:bg-"))).toEqual([
+      "hover:bg-primary-quaternary",
+    ]);
   });
 });

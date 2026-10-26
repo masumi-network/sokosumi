@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 import {
-  CHAT_THREADS_PATH,
+  CHAT_CATCH_UP_PATH,
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
 
@@ -139,6 +139,7 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
       pathname === "/drive" ||
       pathname === "/calendar" ||
       pathname === "/schedules" ||
+      pathname === "/contacts" ||
       pathname === "/social" ||
       pathname === "/studio" ||
       pathname === "/notifications" ||
@@ -158,11 +159,11 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "chats",
     icon: MessageCircle,
-    // Threads sits above the room list in this tab, so the tab stays lit
+    // Catch up sits above the room list in this tab, so the tab stays lit
     // while the reader is in it.
     isActive: (pathname, searchParams) =>
       classifyChatChromeSurface(pathname, searchParams) === "chats" ||
-      pathname === CHAT_THREADS_PATH,
+      pathname.startsWith(CHAT_CATCH_UP_PATH),
   },
   {
     id: "projects",

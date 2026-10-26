@@ -30,6 +30,7 @@ const CMO = {
   logoUri: "https://cmo.xyz/logo.png",
 };
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("@/lib/services/organization.service", () => ({
   organizationService: {
     getPendingInvitation: (id: string) => getPendingInvitationMock(id),

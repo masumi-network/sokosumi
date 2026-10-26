@@ -12,6 +12,8 @@ export const tableColumnSchema = tableColumnInputSchema
     tableId: z.uuid(),
     position: z.int(),
     version: z.int(),
+    width: z.int().nullable(),
+    wrap: z.boolean().nullable(),
   })
   .openapi("TableColumn");
 export const tableRowSchema = z
@@ -51,6 +53,10 @@ export const dataTableSchema = z
     views: z.array(tableViewSchema),
   })
   .openapi("DataTable");
+export const dataTableSummarySchema = dataTableSchema
+  .omit({ columns: true, views: true })
+  .extend({ columnCount: z.int() })
+  .openapi("DataTableSummary");
 export const tableChangeSchema = z
   .object({
     id: z.uuid(),
