@@ -44,24 +44,24 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 ### Required (typical local setup)
 
-| Variable | Purpose |
-| -------- | ------- |
-| `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
-| `DATABASE_URL_UNPOOLED` | Set by GitHub Actions for Preview and the Neon integration for Production. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
-| `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET` |
-| `OAUTH_PROXY_SECRET` | Vercel only, 32+ characters, one value shared by Production and Preview. Previews sign in with Google and Microsoft through production Core (`oAuthProxy`), which encrypts the hand-off with this key. Needed because `BETTER_AUTH_SECRET` differs between the two environments; unset, the proxy falls back to that secret and preview social sign-in fails with `state_mismatch`. Production rejects the proxy completion endpoints, so the key cannot mint a production session |
-| `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
-| `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
-| `RESEND_API_KEY` | Resend API key for transactional email |
-| `RESEND_FROM_EMAIL` | From-address for transactional email (default `noreply@sokosumi.com`) |
-| `NEWSLETTER_ENABLED` | Newsletter feature flag (default `false`; only a trimmed, case-insensitive `true` enables it) |
-| `NEWSLETTER_FROM_DOMAIN` | Optional newsletter sending hostname, e.g. `news.sokosumi.com`. Required for newsletter sending; never falls back to transactional email configuration. |
-| `RESEND_NEWSLETTER_WEBHOOK_SECRET` | Optional Resend webhook signing secret (`whsec_...`) for `POST /v1/webhooks/resend/newsletter`. The endpoint returns 503 until configured and 404 while newsletters are disabled. |
-| `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
-| `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |
-| `STRIPE_SECRET_KEY` | Stripe server secret |
-| `ABLY_PUBLISH_ONLY_KEY` | Ably publish key |
-| `ABLY_SUBSCRIBE_ONLY_KEY` | Ably key for minting client TokenRequests (`POST /v1/realtime/ably-token`); must allow subscribe on app channels and `presence`+`subscribe` on `presence:org_*` (ADR-0003) |
+| Variable                               | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                         | Postgres connection string (Neon pooled URL at runtime on Vercel)                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `DATABASE_URL_UNPOOLED`                | Set by GitHub Actions for Preview and the Neon integration for Production. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres                                                                                                                                                                                                                                                                                                   |
+| `BETTER_AUTH_SECRET`                   | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET`                                                                                                                                                                               |
+| `OAUTH_PROXY_SECRET`                   | Vercel only, 32+ characters, one value shared by Production and Preview. Previews sign in with Google and Microsoft through production Core (`oAuthProxy`), which encrypts the hand-off with this key. Needed because `BETTER_AUTH_SECRET` differs between the two environments; unset, the proxy falls back to that secret and preview social sign-in fails with `state_mismatch`. Production rejects the proxy completion endpoints, so the key cannot mint a production session |
+| `BETTER_AUTH_URL`                      | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview                                                                                                                                                                                                                                                                                                                                               |
+| `BETTER_AUTH_COOKIE_DOMAIN`            | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies                                                                                                                                                                                                                                                                                                          |
+| `RESEND_API_KEY`                       | Resend API key for transactional email                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `RESEND_FROM_EMAIL`                    | From-address for transactional email (default `noreply@sokosumi.com`)                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `NEWSLETTER_ENABLED`                   | Newsletter feature flag (default `false`; only a trimmed, case-insensitive `true` enables it)                                                                                                                                                                                                                                                                                                                                                                                      |
+| `NEWSLETTER_FROM_DOMAIN`               | Optional newsletter sending hostname, e.g. `news.sokosumi.com`. Required for newsletter sending; never falls back to transactional email configuration.                                                                                                                                                                                                                                                                                                                            |
+| `RESEND_NEWSLETTER_WEBHOOK_SECRET`     | Optional Resend webhook signing secret (`whsec_...`) for `POST /v1/webhooks/resend/newsletter`. The endpoint returns 503 until configured and 404 while newsletters are disabled.                                                                                                                                                                                                                                                                                                  |
+| `PAYMENT_API_URL`, `PAYMENT_API_KEY`   | Masumi payment API                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `STRIPE_SECRET_KEY`                    | Stripe server secret                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `ABLY_PUBLISH_ONLY_KEY`                | Ably publish key                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `ABLY_SUBSCRIBE_ONLY_KEY`              | Ably key for minting client TokenRequests (`POST /v1/realtime/ably-token`); must allow subscribe on app channels and `presence`+`subscribe` on `presence:org_*` (ADR-0003)                                                                                                                                                                                                                                                                                                         |
 
 `PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
 
@@ -81,14 +81,14 @@ on the Core deployment. Create each OAuth configuration in the same Composio
 environment as that API key. Omit unconfigured variables; connecting that
 provider returns a setup error without starting authorization.
 
-| Provider | Composio toolkit | Core environment variable | Identity access | Publishing scope |
-| --- | --- | --- | --- | --- |
-| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) | — |
-| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` | `video.publish` |
-| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` | `instagram_business_content_publish` |
-| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` | `w_member_social` |
-| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
-| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload` |
+| Provider  | Composio toolkit | Core environment variable           | Identity access                                    | Publishing scope                                                 |
+| --------- | ---------------- | ----------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| X         | `twitter`        | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                |
+| TikTok    | `tiktok`         | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`    | `user.info.basic`                                  | `video.publish`                                                  |
+| Instagram | `instagram`      | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                             |
+| LinkedIn  | `linkedin`       | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                |
+| Facebook  | `facebook`       | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
+| YouTube   | `youtube`        | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                 |
 
 Use the provider OAuth callback shown by Composio when registering your OAuth
 app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
@@ -122,21 +122,21 @@ Preview may point at a separate Composio project, but every auth-config ID must
 come from the same Composio project as that environment's API key. Redeploy
 Core after changing them. The **Web** project needs no new variables.
 
-| Variable | Required | Value |
-| --- | --- | --- |
-| `COMPOSIO_API_KEY` | Yes | Composio project API key (starts with `ak_`). Mark it sensitive. |
-| `COMPOSIO_X_AUTH_CONFIG_ID` | Per provider | Composio auth-config ID (`ac_…`) for X. |
-| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup). |
-| `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Instagram. |
-| `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | Per provider | Auth-config ID for LinkedIn. |
-| `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Facebook. |
-| `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | Per provider | Auth-config ID for YouTube. |
-| `COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Google Ads (Ads management). |
-| `COMPOSIO_METAADS_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Meta Ads (Ads management). |
-| `COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID` | No | Platform DataForSEO connected-account ID for Ads market lookups. |
-| `COMPOSIO_API_BASE_URL` | No | Leave unset to use Composio's default API. |
-| `CRON_SECRET` | Yes | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
-| `BLOB_READ_WRITE_TOKEN` | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public. |
+| Variable                                   | Required       | Value                                                                                                                                                                                |
+| ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `COMPOSIO_API_KEY`                         | Yes            | Composio project API key (starts with `ak_`). Mark it sensitive.                                                                                                                     |
+| `COMPOSIO_X_AUTH_CONFIG_ID`                | Per provider   | Composio auth-config ID (`ac_…`) for X.                                                                                                                                              |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup).                                                                                                                        |
+| `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Instagram.                                                                                                                                                        |
+| `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for LinkedIn.                                                                                                                                                         |
+| `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for Facebook.                                                                                                                                                         |
+| `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`          | Per provider   | Auth-config ID for YouTube.                                                                                                                                                          |
+| `COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Google Ads (Ads management).                                                                                                                                      |
+| `COMPOSIO_METAADS_AUTH_CONFIG_ID`          | Per provider   | Auth-config ID for Meta Ads (Ads management).                                                                                                                                        |
+| `COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID` | No             | Platform DataForSEO connected-account ID for Ads market lookups.                                                                                                                     |
+| `COMPOSIO_API_BASE_URL`                    | No             | Leave unset to use Composio's default API.                                                                                                                                           |
+| `CRON_SECRET`                              | Yes            | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
+| `BLOB_READ_WRITE_TOKEN`                    | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public.             |
 
 A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
 the connect menu, and choosing it returns "This integration is not configured
@@ -214,13 +214,13 @@ no email was sent. The test-only badge does not appear with real widget keys.
 
 ### URLs: web app, Core, and Vercel Preview
 
-| Variable | Purpose |
-| -------- | ------- |
-| `WEB_APP_BASE_URL` | Defaults to `http://localhost:3000`. Used by `getWebAppBaseUrl()` (with Vercel [related projects](https://vercel.com/docs/monorepos#related-projects) when deployed) so Core knows the browser origin for the web app |
-| `VERCEL_ENV` | Optional. `preview` \| `production` \| `development` — set on Vercel |
-| `VERCEL_URL` | Optional. Current deployment hostname/URL on Vercel (often set automatically) |
-| `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
-| `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project |
+| Variable                        | Purpose                                                                                                                                                                                                               |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WEB_APP_BASE_URL`              | Defaults to `http://localhost:3000`. Used by `getWebAppBaseUrl()` (with Vercel [related projects](https://vercel.com/docs/monorepos#related-projects) when deployed) so Core knows the browser origin for the web app |
+| `VERCEL_ENV`                    | Optional. `preview` \| `production` \| `development` — set on Vercel                                                                                                                                                  |
+| `VERCEL_URL`                    | Optional. Current deployment hostname/URL on Vercel (often set automatically)                                                                                                                                         |
+| `VERCEL_BRANCH_URL`             | Optional. Stable branch URL on Vercel Preview                                                                                                                                                                         |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project                                                          |
 
 **Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`. When `VERCEL_ENV=preview`, Core prefers the branch URL (`VERCEL_BRANCH_URL`) over the deployment URL (`VERCEL_URL`), then `BETTER_AUTH_URL`. When only one of those is on a `*.sokosumi.com` host, that one wins. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so Core can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
 
@@ -275,6 +275,7 @@ To enable Sentry:
 
 1. Get your Sentry DSN from your Sentry project settings
 2. Add to your `.env` file:
+
    ```bash
    SENTRY_DSN=https://your-dsn@sentry.io/project-id
    ```
@@ -360,10 +361,10 @@ See [AGENTS.md](./AGENTS.md) for detailed development guidelines.
 
 Browser `Origin` headers are allowed only when `resolveCorsAllowOrigin()` in `src/config/cors-allow-origin.ts` returns that origin (otherwise `Access-Control-Allow-Origin` is omitted):
 
-| Environment | Allowed origins |
-| ------------- | ---------------- |
-| Production / staging (`NODE_ENV` not `development`) | `https:` only, host `sokosumi.com` or `*.sokosumi.com` |
-| Local development (`NODE_ENV=development`) | Same as above, plus `http:` / `https:` with host `localhost` or `*.localhost` (any port; portless named URLs) |
+| Environment                                         | Allowed origins                                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Production / staging (`NODE_ENV` not `development`) | `https:` only, host `sokosumi.com` or `*.sokosumi.com`                                                        |
+| Local development (`NODE_ENV=development`)          | Same as above, plus `http:` / `https:` with host `localhost` or `*.localhost` (any port; portless named URLs) |
 
 Wildcard preview hosts such as `*.vercel.app` are **not** allowlisted for CORS. Use a `*.sokosumi.com` deployment or local dev.
 

@@ -36,12 +36,12 @@ Used by Core, Web, `@sokosumi/database`, and `@sokosumi/ai-provider`.
 
 ## Package-Specific Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @sokosumi/utils build` | Compile `src/` to `dist/` |
-| `pnpm --filter @sokosumi/utils test` | Run Vitest |
-| `pnpm --filter @sokosumi/utils typecheck` | Typecheck |
-| `pnpm --filter @sokosumi/utils lint` | Lint |
+| Command                                   | Purpose                   |
+| ----------------------------------------- | ------------------------- |
+| `pnpm --filter @sokosumi/utils build`     | Compile `src/` to `dist/` |
+| `pnpm --filter @sokosumi/utils test`      | Run Vitest                |
+| `pnpm --filter @sokosumi/utils typecheck` | Typecheck                 |
+| `pnpm --filter @sokosumi/utils lint`      | Lint                      |
 
 After adding or changing exports, build this package so consumers that resolve `dist/` pick up the new surface.
 

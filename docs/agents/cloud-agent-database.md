@@ -12,18 +12,18 @@ git branch is ahead of production schema.
 Set these on the **Cursor Cloud environment** (Runtime Secrets) and as
 **GitHub Actions secrets** for teardown:
 
-| Name | Where | Purpose |
-| --- | --- | --- |
-| `NEON_API_KEY` | Cursor secret + `NEON_API_KEY` Actions secret | Neon API auth |
-| `NEON_PROJECT_ID` | Cursor secret / env + Actions secret | Neon project |
+| Name              | Where                                         | Purpose       |
+| ----------------- | --------------------------------------------- | ------------- |
+| `NEON_API_KEY`    | Cursor secret + `NEON_API_KEY` Actions secret | Neon API auth |
+| `NEON_PROJECT_ID` | Cursor secret / env + Actions secret          | Neon project  |
 
 Optional:
 
-| Name | Default | Purpose |
-| --- | --- | --- |
-| `NEON_PARENT_BRANCH` | `main` | Production parent branch to fork from |
-| `NEON_DATABASE_NAME` | `neondb` | Database name on the branch |
-| `NEON_ROLE_NAME` | `neondb_owner` | Role for connection URIs |
+| Name                 | Default        | Purpose                               |
+| -------------------- | -------------- | ------------------------------------- |
+| `NEON_PARENT_BRANCH` | `main`         | Production parent branch to fork from |
+| `NEON_DATABASE_NAME` | `neondb`       | Database name on the branch           |
+| `NEON_ROLE_NAME`     | `neondb_owner` | Role for connection URIs              |
 
 **Do not** set a static production `DATABASE_URL` in Cursor secrets. Agents must
 never write to the live production parent. Provision always forks a child
@@ -62,12 +62,12 @@ If connection setup fails after create, provision **deletes the orphan branch**.
 Production-forked data has real users but unknown passwords. After migrate,
 provision upserts disposable Better Auth credential accounts:
 
-| Email | Password | Notes |
-| --- | --- | --- |
-| `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace + owner of `admin-fixture` org |
-| `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `alice-fixture` org |
-| `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `bob-fixture` org |
-| `zero@sokosumi.test` | `Password123!` | Regular user with credential account only — **no** personal workspace, **no** organization / membership (identity-onboarding fixture) |
+| Email                 | Password       | Notes                                                                                                                                 |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace + owner of `admin-fixture` org                                                    |
+| `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `alice-fixture` org                                                                      |
+| `bob@sokosumi.test`   | `Password123!` | Regular user + personal workspace + owner of `bob-fixture` org                                                                        |
+| `zero@sokosumi.test`  | `Password123!` | Regular user with credential account only — **no** personal workspace, **no** organization / membership (identity-onboarding fixture) |
 
 Fixtures opt into personal workspace + org by default. Set `createPersonalWorkspace: false` and omit / null `organization` in `scripts/cloud-agent-db/fixtures.mjs` to seed a zero-workspace user. Org fixtures still get an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
 
@@ -106,13 +106,13 @@ Login shells also pick up `.cursor/cloud-agent-db.env` via bashrc/profile.
 Teardown **only** deletes branches named `cloud-agent-*`. It never deletes the
 production / `main` parent (or any non-agent branch).
 
-| Trigger | Mechanism |
-| --- | --- |
-| PR merged | GitHub Action `cloud-agent-db-teardown.yml` on `workflow_run` of `PR closed`; extracts `bc-…` ids from same-repo PR bodies via the API. Privileged YAML always comes from the default branch. |
-| PR closed without merge | Same workflow |
-| Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`) |
-| Agent archived | Same explicit teardown when possible; otherwise Neon idle TTL |
-| Idle **72h** | Neon `expires_at` on create/resume only (no scheduled Action backup) |
+| Trigger                       | Mechanism                                                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR merged                     | GitHub Action `cloud-agent-db-teardown.yml` on `workflow_run` of `PR closed`; extracts `bc-…` ids from same-repo PR bodies via the API. Privileged YAML always comes from the default branch. |
+| PR closed without merge       | Same workflow                                                                                                                                                                                 |
+| Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`)                                                                                           |
+| Agent archived                | Same explicit teardown when possible; otherwise Neon idle TTL                                                                                                                                 |
+| Idle **72h**                  | Neon `expires_at` on create/resume only (no scheduled Action backup)                                                                                                                          |
 
 Manual:
 
