@@ -32,6 +32,11 @@ export interface RoomNotificationDeepLinkParams {
   /** Resolves true once the message is on screen; not read here. */
   jumpInRoom: (messageId: string) => Promise<boolean>;
   jumpInThread: (message: ChatRoomMessage) => Promise<void>;
+  /**
+   * Handed each jump as it starts; it settles once the jump has landed or
+   * given up. The room is not read while one is in flight.
+   */
+  whileJumping?: (jump: Promise<void>) => void;
 }
 
 /**
@@ -56,6 +61,7 @@ export function useRoomNotificationDeepLink({
   invalidateJump,
   jumpInRoom,
   jumpInThread,
+  whileJumping,
 }: RoomNotificationDeepLinkParams): void {
   const latestJumpRef = useRef(new Map<string, string>());
 
@@ -137,9 +143,10 @@ export function useRoomNotificationDeepLink({
       replace(pathWithSearch(pathname, remaining), { scroll: false });
       // Nothing awaits this, so a transport failure would otherwise surface as
       // an unhandled rejection on room open rather than on a click.
-      jumpToNotificationMessage(messageId).catch((error) => {
+      const jump = jumpToNotificationMessage(messageId).catch((error) => {
         console.error("Failed to open the message a notification named", error);
       });
+      whileJumping?.(jump);
     },
   });
 }

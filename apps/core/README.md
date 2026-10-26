@@ -138,11 +138,15 @@ Core after changing them. The **Web** project needs no new variables.
 | `CRON_SECRET`                              | Yes            | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
 | `BLOB_READ_WRITE_TOKEN`                    | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public.             |
 
-A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
+An enabled provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
 the connect menu, and choosing it returns "This integration is not configured
-yet" without starting OAuth. Social itself is still gated to members of the
-beta organization (`SOCIAL_BETA_ORGANIZATION_SLUG` in `@sokosumi/utils`); that
-is code, not an environment variable.
+yet" without starting OAuth. Social scheduling is public.
+`socialProvidersForWorkspace` in `packages/utils/src/social-post.ts`
+(`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` for every workspace,
+including `utxo`. Only those enabled providers can connect, create, edit, schedule, approve, publish, duplicate, or
+recycle posts; other providers show Coming soon. Existing disabled-provider posts
+fail when due with that reason without contacting the platform, preserving their
+content and history. Ads remains restricted to `utxo`.
 
 #### TikTok setup
 

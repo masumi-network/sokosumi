@@ -13,6 +13,8 @@ import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
@@ -229,10 +231,15 @@ export async function requireScopedProject(
     /** Message of the 409 for a closing or closed Project. */
     closedMessage?: string;
   } = {},
-): Promise<void> {
+) {
   const project = await client.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
-    select: { id: true, closingAt: true, closedAt: true },
+    select: {
+      id: true,
+      closingAt: true,
+      closedAt: true,
+      ...socialProviderProjectSelect,
+    },
   });
   if (!project) {
     throw notFound("Project not found");
@@ -240,6 +247,7 @@ export async function requireScopedProject(
   if (requireOpen && (project.closingAt || project.closedAt)) {
     throw conflict(closedMessage);
   }
+  return project;
 }
 
 export async function requireLockedOpenProject(
@@ -276,7 +284,7 @@ async function requireTargetConnection(input: {
 export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input, { requireOpen: true });
+  const project = await requireScopedProject(input, { requireOpen: true });
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -292,6 +300,7 @@ export async function initiateProjectSocialConnection(
     provider = target.provider;
   }
 
+  requireSocialProviderEnabled(provider, project);
   const authConfigId = requireProjectSocialAuthConfigId(provider);
   if (input.action === "replace") {
     const retiredConnection = await serializableTransaction(async (tx) => {
@@ -357,13 +366,15 @@ export async function initiateProjectSocialConnection(
 export async function finalizeProjectSocialConnection(
   input: FinalizeProjectSocialConnectionInput,
 ): Promise<ProjectSocialConnectionSummary> {
-  await requireScopedProject(input, { requireOpen: true });
+  const project = await requireScopedProject(input, { requireOpen: true });
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
   });
   if (!isLiveIntent(intent, input)) {
     throw notFound("Unknown or expired connection");
   }
+
+  requireSocialProviderEnabled(intent.provider, project);
 
   const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);

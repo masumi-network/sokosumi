@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { cn } from "@/lib/utils";
 
 /** Failed, missed, canceled, and publishing posts need the word, not only a coloured mark. */
@@ -41,6 +42,8 @@ function CalendarSocialPostStatus({
 }) {
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const copy = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const { enabledProviders } = useSocialProviderAvailability();
   const label = statuses(item.status);
   const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
@@ -55,7 +58,12 @@ function CalendarSocialPostStatus({
   return (
     <SocialPostStatusReasonTooltip
       label={label}
-      reason={publishFailureCopy(item, copy)}
+      reason={publishFailureCopy(
+        item,
+        copy,
+        (values) => formatter.list(values, { type: "conjunction" }),
+        enabledProviders,
+      )}
     >
       {badge}
     </SocialPostStatusReasonTooltip>

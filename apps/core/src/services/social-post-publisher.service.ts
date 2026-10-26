@@ -9,6 +9,7 @@ import {
   socialPostProviderLabel,
   socialPostTextLength,
   socialPostTextLimit,
+  socialProviderUnavailableMessage,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -19,8 +20,12 @@ import {
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
+import {
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
+  socialProviderWorkspaceForProject,
+} from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
-import { SOCIAL_BETA_USER_WHERE } from "@/helpers/social-beta-access";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
   parseSocialPostMedia,
@@ -95,11 +100,13 @@ export interface PublishSocialPostNowInput {
 }
 
 const publisherInclude = {
+  project: { select: socialProviderProjectSelect },
   scheduledByCoworker: { select: { id: true, vendorId: true } },
   workspace: { select: { organizationId: true } },
   socialConnection: {
     select: {
       id: true,
+      provider: true,
       status: true,
       composioConnectedAccountId: true,
       externalAccountId: true,
@@ -115,6 +122,7 @@ type PublisherPostRecord = Prisma.SocialPostGetPayload<{
 
 /** A post this worker holds under a lease. */
 interface ClaimedPost {
+  project: PublisherPostRecord["project"];
   id: string;
   projectId: string;
   workspaceId: string;
@@ -431,6 +439,40 @@ async function attemptPublish(
   const projectOutcome = await checkProjectPublishingAccess(post, options);
   if (projectOutcome) return projectOutcome;
 
+  const disabledProvider = [provider, post.socialConnection?.provider].find(
+    (value): value is SocialPostProvider =>
+      value !== undefined &&
+      isSocialPostProvider(value) &&
+      socialProviderUnavailableMessage(
+        value,
+        socialProviderWorkspaceForProject(post.project),
+      ) !== null,
+  );
+  if (disabledProvider) {
+    const message = socialProviderUnavailableMessage(
+      disabledProvider,
+      socialProviderWorkspaceForProject(post.project),
+    );
+    await prisma.socialPostPublishAttempt.create({
+      data: {
+        socialPostId: post.id,
+        attempt: await nextAttemptNumber(post.id),
+        trigger: options.trigger,
+        actorUserId: options.actorUserId ?? null,
+        finishedAt: now,
+        outcome: "failed_permanent",
+        errorKind: `provider_coming_soon:${disabledProvider}`,
+        providerOutcome: message,
+      },
+      select: { id: true },
+    });
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: message,
+    });
+    return settled ? "failed" : "skipped";
+  }
+
   if (
     post.attemptCount > 0 &&
     post.scheduledAt &&
@@ -652,9 +694,8 @@ type ClaimResult = { post: ClaimedPost } | "none" | "lost";
  * Optimistic claim of the earliest due post (or one whose lease expired): the
  * row must still carry the observed status and revision when the lease lands.
  *
- * Fresh scheduled posts require a current Calendar beta member. Expired
- * publishing leases are always recovered so a previously started attempt can
- * be reconciled even after the scheduling user loses beta access.
+ * Social scheduling is public. Expired publishing leases are always recovered
+ * so a previously started attempt can be reconciled without publishing twice.
  */
 async function claimDuePost(): Promise<ClaimResult> {
   const now = new Date();
@@ -664,15 +705,6 @@ async function claimDuePost(): Promise<ClaimResult> {
         {
           status: "SCHEDULED",
           project: { closingAt: null, closedAt: null },
-          AND: {
-            OR: [
-              { scheduledByCoworkerId: { not: null } },
-              {
-                scheduledByCoworkerId: null,
-                scheduledByUser: SOCIAL_BETA_USER_WHERE,
-              },
-            ],
-          },
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },
@@ -711,6 +743,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       leaseToken,
       recoveringLease: candidate.status === "PUBLISHING",
       socialConnection: candidate.socialConnection,
+      project: candidate.project,
       ...(candidate.scheduledByCoworker
         ? {
             schedulingCoworker: {
@@ -795,6 +828,13 @@ export async function publishSocialPostNow(
       if (post.revision !== input.revision) {
         throw conflict(REVISION_CONFLICT_MESSAGE);
       }
+      requireSocialProviderEnabled(post.provider, post.project);
+      if (post.socialConnection) {
+        requireSocialProviderEnabled(
+          post.socialConnection.provider,
+          post.project,
+        );
+      }
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
           throw badRequest("A social connection is required to publish a post");
@@ -852,6 +892,7 @@ export async function publishSocialPostNow(
       attemptCount: 0,
       leaseToken,
       socialConnection: post.socialConnection,
+      project: post.project,
     },
     { trigger: "publish_now", actorUserId: input.userId },
   );

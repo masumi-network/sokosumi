@@ -74,6 +74,35 @@ describe("GET /api/chat/[roomId]/messages", () => {
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
 
+  it("opens a room at its Unread divider and passes the divider on", async () => {
+    listMessagesMock.mockResolvedValue({
+      messages: [{ id: "msg-1" }],
+      nextCursor: null,
+      firstUnreadMessageId: "msg-1",
+    });
+    const result = await get("?openAtUnread=true");
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({
+      meta: { pagination: { firstUnreadMessageId: "msg-1" } },
+    });
+    expect(listMessagesMock).toHaveBeenCalledWith(ROOM_ID, {
+      cursor: undefined,
+      around: undefined,
+      limit: undefined,
+      openAtUnread: true,
+    });
+  });
+
+  it.each([
+    "?openAtUnread=true&cursor=msg-1",
+    "?openAtUnread=true&around=msg-1",
+    "?openAtUnread=true&parentMessageId=parent-1",
+  ])("rejects %s, which open-at-unread cannot combine with", async (query) => {
+    expect((await get(query)).status).toBe(400);
+    expect(listMessagesMock).not.toHaveBeenCalled();
+    expect(listThreadMessagesMock).not.toHaveBeenCalled();
+  });
+
   it("rejects an empty parent message id before fetching", async () => {
     expect((await get("?parentMessageId=")).status).toBe(400);
     expect(listMessagesMock).not.toHaveBeenCalled();

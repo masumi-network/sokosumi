@@ -619,7 +619,7 @@ The user’s high-water mark in a Thread: they opened it, and that moment is sto
 _Avoid_: Replied, Participant, lastLookedAt, Room read receipt (that is a different mark on a different table). Do not use “looked” in product UI (say unread / mark as read)
 
 **Room last-read**:
-The user’s high-water mark on a room’s main transcript. Distinct from Look. Advancing it clears Room unread and that room’s mention badge; Thread unread is untouched, because clearing that is Look's job ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)).
+The user’s high-water mark on a room’s main transcript. Distinct from Look. It advances only once the newest message has been on the reader's screen, so leaving a long unread run halfway keeps the room unread. Advancing it clears Room unread and that room’s mention badge; Thread unread is untouched, because clearing that is Look's job ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)).
 _Avoid_: Look, lastReadAt (storage), treating this as reading Threads
 
 **Room read receipt**:
@@ -638,6 +638,10 @@ _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 **Room unread**:
 The count of unseen non-self top-level messages in this room after Room last-read. Replies in Threads do not count — they are Thread unread, and they surface on the Thread ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)). A User mention inside a Thread is the one exception: it marks the room as well. Replies from before the user joined the room do not count. Drives sidebar **bold**, and a numeric affordance shown unless the reader switches it off (`hideRoomUnreadCount`, shown by default, [ADR-0038](docs/adr/0038-room-unread-count-is-on-by-default.md); [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md) for why it is separate from the mention badge). Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting thread replies, counting lurker thread replies, using the mention badge as the message unread count
+
+**Unread divider**:
+The line in a room's main transcript above the first message counted by Room unread, and where the room opens when there is one, unless the reader followed a link, notification, search result or pin to a message. Any room's main transcript can show one, Directs and External channels included; the Thread panel never does. Placed from Room last-read as it stood when the reader opened the room, and fixed for that visit: messages that arrive meanwhile, and the reader's own posts, do not move or remove it; the next visit places it again. A visit ends when the reader opens another room, reloads, or relaunches the app; switching tabs or backgrounding does not end it. Thread replies never place it, and neither does a User mention inside a Thread, though that marks the room unread. Marked unread alone places none, because it names no message. A Muted room still has one.
+_Avoid_: New messages line, read marker (Seen by's word on Apple), unread badge, moving it as messages arrive
 
 **Unread thread**:
 A Thread the user is a Participant of, with at least one non-self reply they have not cleared. Never-looked still counts if they are a Participant. A Muted thread does not count, unless a remaining reply mentions them. Sorts the thread list, tints the parent message's reply bar, and renders as an inset row under its channel in the sidebar (capped at 3, then an overflow row into the thread list). It is the room's second number, beside Room unread and never folded into it.

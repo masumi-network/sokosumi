@@ -416,7 +416,14 @@ function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
 
 function describeRead(capability: string, value: unknown): string[] {
   if (capability === "list_project_social_accounts") {
-    const parsed = z.array(socialAccountObservationSchema).safeParse(value);
+    const accounts = z.array(socialAccountObservationSchema);
+    // Stored tool calls from before workspace availability contain the array directly.
+    const parsed = z
+      .union([
+        accounts,
+        z.object({ accounts }).transform((result) => result.accounts),
+      ])
+      .safeParse(value);
     if (!parsed.success) return [];
     return [
       `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,

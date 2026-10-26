@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { badRequest } from "@/helpers/error";
 
 const {
   botFindFirstMock,
@@ -241,6 +244,7 @@ vi.mock("@/helpers/data-table", () => ({
 
 const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
+  project: vi.fn(),
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
   refreshAccountStatistics: vi.fn(),
@@ -258,6 +262,7 @@ const social = vi.hoisted(() => ({
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
+  requireScopedProject: social.project,
 }));
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
@@ -6431,8 +6436,9 @@ describe("Soko Bot project social tools", () => {
     availabilityMock.mockResolvedValue({ disabled: false });
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
-    social.beta.mockResolvedValue(undefined);
+    social.beta.mockRejectedValue(new Error("Beta access required"));
     social.seat.mockResolvedValue(undefined);
+    social.project.mockResolvedValue({ workspace: { organization: null } });
     social.listAccounts.mockResolvedValue([
       {
         id: accountId,
@@ -6519,30 +6525,45 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it("lists actual account metadata scoped to the authorized workspace", async () => {
-    const result = await new SokoBotRuntimeService().executeTool({
-      ...SCOPE,
-      capability: "list_project_social_accounts",
-      toolCallId: "accounts",
-      input: { projectId },
-    });
-    expect(social.listAccounts).toHaveBeenCalledWith({
-      projectId,
-      workspaceId: SCOPE.workspaceId,
-    });
-    expect(result).toEqual([
-      expect.objectContaining({
-        provider: "youtube",
-        externalHandle: "Launch channel",
-      }),
-    ]);
-    expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
-    expect(social.seat).toHaveBeenCalledWith(
-      SCOPE.userId,
-      "organization-one",
-      expect.anything(),
-    );
-  });
+  it.each([null, "other", "utxo"])(
+    "lists account metadata and providers for Project workspace %s without beta membership",
+    async (organizationSlug) => {
+      social.project.mockResolvedValue({
+        workspace: {
+          organization: organizationSlug ? { slug: organizationSlug } : null,
+        },
+      });
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "accounts",
+        input: { projectId },
+      });
+      expect(social.listAccounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(social.project).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        enabledProviders: ["x", "youtube", "linkedin"],
+        accounts: [
+          expect.objectContaining({
+            provider: "youtube",
+            externalHandle: "Launch channel",
+          }),
+        ],
+      });
+      expect(social.beta).not.toHaveBeenCalled();
+      expect(social.seat).toHaveBeenCalledWith(
+        SCOPE.userId,
+        "organization-one",
+        expect.anything(),
+      );
+    },
+  );
 
   it("forwards status filters, cursor, and page size without changing workspace", async () => {
     await new SokoBotRuntimeService().executeTool({
@@ -6681,7 +6702,7 @@ describe("Soko Bot project social tools", () => {
     "list_social_account_statistics",
     "refresh_social_account_statistics",
   ] as const)("rejects %s after access revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6702,8 +6723,8 @@ describe("Soko Bot project social tools", () => {
   it.each([
     "list_social_post_statistics",
     "refresh_social_post_statistics",
-  ] as const)("rejects %s after beta revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+  ] as const)("rejects %s after seat revocation", async (capability) => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6792,21 +6813,18 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it.each(["beta", "seat"] as const)(
-    "rejects reads when %s access is revoked",
-    async (guard) => {
-      social[guard].mockRejectedValue(new Error("Access revoked"));
-      await expect(
-        new SokoBotRuntimeService().executeTool({
-          ...SCOPE,
-          capability: "list_project_social_accounts",
-          toolCallId: "denied",
-          input: { projectId },
-        }),
-      ).rejects.toThrow("Access revoked");
-      expect(social.listAccounts).not.toHaveBeenCalled();
-    },
-  );
+  it("rejects reads when seat access is revoked", async () => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "denied",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("Access revoked");
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
 
   it("rejects banned owners before reading accounts", async () => {
     social.owner.mockResolvedValue({ banned: true, banExpires: null });
@@ -6833,7 +6851,7 @@ describe("Soko Bot project social tools", () => {
     expect(social.listAccounts).not.toHaveBeenCalled();
   });
 
-  it("records bot authorship and the receipt in the mutation transaction", async () => {
+  it("records bot authorship and the receipt without beta membership", async () => {
     await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "create_social_post",
@@ -6868,6 +6886,7 @@ describe("Soko Bot project social tools", () => {
         }),
       }),
     );
+    expect(social.beta).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -6917,6 +6936,57 @@ describe("Soko Bot project social tools", () => {
     expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "create_social_post",
+      "create",
+      { projectId, socialConnectionId: accountId, text: "Launch" },
+    ],
+    [
+      "update_social_post",
+      "update",
+      { projectId, postId, text: "Changed", revision: 2 },
+    ],
+    [
+      "schedule_social_post",
+      "schedule",
+      { projectId, postId, scheduledAt: "2026-10-01T12:00:00Z", revision: 2 },
+    ],
+    ["publish_social_post", "publish", { projectId, postId, revision: 2 }],
+  ] as const)(
+    "%s propagates disabled-provider refusal without recording a completed mutation",
+    async (capability, mock, input) => {
+      const message = socialProviderUnavailableMessage("instagram", {
+        organizationSlug: null,
+      });
+      if (!message) throw new Error("Expected an unavailable provider");
+      social[mock].mockRejectedValue(badRequest(message));
+
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: "disabled-provider",
+          input,
+        }),
+      ).rejects.toMatchObject({ status: 400, message });
+
+      expect(social[mock]).toHaveBeenCalledOnce();
+      expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+      expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "COMPLETED" }),
+        }),
+      );
+      expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
+      expect(social.beta).not.toHaveBeenCalled();
+    },
+  );
+
   it("rechecks cancellation before committing a social mutation", async () => {
     transactionTurnFindFirstMock.mockResolvedValue(null);
     await expect(
@@ -6963,7 +7033,7 @@ describe("Soko Bot project social tools", () => {
       status: "COMPLETED",
       result: [{ provider: "youtube", externalHandle: "Old channel" }],
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -7013,7 +7083,7 @@ describe("Soko Bot project social tools", () => {
       disposition: "APPLIED",
       result: post,
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,

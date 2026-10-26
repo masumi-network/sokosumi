@@ -46,6 +46,7 @@ const workspaces: UserWorkspace[] = [
     logo: null,
     websiteUrl: null,
     preferred: false,
+    enabledSocialProviders: ["x", "youtube", "linkedin"],
   },
   {
     id: "ws-b",
@@ -56,6 +57,7 @@ const workspaces: UserWorkspace[] = [
     logo: null,
     websiteUrl: null,
     preferred: false,
+    enabledSocialProviders: ["x", "youtube", "linkedin"],
   },
 ];
 

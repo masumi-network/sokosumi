@@ -31,6 +31,13 @@ public func messageSenderImage(_ sender: Components.Schemas.ChatRoomMessageSende
   }
 }
 
+/// One room messages page as `listRoomMessages` reads it.
+struct RoomMessagesPage {
+  var messages: [Components.Schemas.ChatRoomMessage]
+  var nextCursor: String?
+  var firstUnreadMessageId: String?
+}
+
 public extension ChatService {
   /// One history page in reading order (oldest first). An empty room
   /// resolves empty — never an error. Nil slug omits the org header
@@ -44,17 +51,36 @@ public extension ChatService {
     query: String? = nil,
     organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
+    let page = try await listRoomMessages(client: client, roomId: roomId, cursor: cursor, around: around, limit: limit, query: query,
+                                          organizationSlug: organizationSlug)
+    return (page.messages, page.nextCursor)
+  }
+
+  /// `listMessages` with the first unread message Core names for the Unread divider: nil with no Room unread, and on
+  /// cursor and search pages. With `openAtUnread` Core answers with the newest page, or with the window around the
+  /// divider when it is older than that.
+  internal func listRoomMessages(
+    client: Client,
+    roomId: String,
+    cursor: String? = nil,
+    around: String? = nil,
+    limit: Int? = nil,
+    query: String? = nil,
+    openAtUnread: Bool = false,
+    organizationSlug: String?
+  ) async throws -> RoomMessagesPage {
     let okResponse = try await call {
       try await client.getChatsRoomsIdMessages(
         .init(
           path: .init(id: roomId),
-          query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, q: query, around: around),
+          query: .init(cursor: cursor, limit: limit ?? roomHistoryLimit, q: query, around: around, openAtUnread: openAtUnread ? ._true : nil),
           headers: .init(xOrganizationSlug: organizationSlug)
         )
       )
     }.ok
     let payload = try okResponse.body.json
-    return (payload.data, payload.meta.pagination.nextCursor)
+    let pagination = payload.meta.pagination
+    return RoomMessagesPage(messages: payload.data, nextCursor: pagination.nextCursor, firstUnreadMessageId: pagination.firstUnreadMessageId)
   }
 
   /// `POST /chats/rooms/{id}/read`. Returns the updated room DTO — the
