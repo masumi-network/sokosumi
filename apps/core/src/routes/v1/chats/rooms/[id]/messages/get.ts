@@ -140,13 +140,6 @@ const route = withOrganizationSlugHeaderParameter(
   }),
 );
 
-/**
- * The viewer's unread reply count per thread parent in this room. One gated
- * query per request rather than a per-message N+1. It reads every unread
- * thread in the room, not only this page's parents: that set is small, and
- * the aggregates are already Participant- and mute-gated, so this cannot
- * disagree with the room's thread unread number.
- */
 /** A first page's metadata naming the Unread divider (null: no Room unread). */
 function withUnreadDivider<Meta extends object>(
   meta: Meta,
@@ -155,6 +148,13 @@ function withUnreadDivider<Meta extends object>(
   return { ...meta, firstUnreadMessageId: firstUnread?.id ?? null };
 }
 
+/**
+ * The viewer's unread reply count per thread parent in this room. One gated
+ * query per request rather than a per-message N+1. It reads every unread
+ * thread in the room, not only this page's parents: that set is small, and
+ * the aggregates are already Participant- and mute-gated, so this cannot
+ * disagree with the room's thread unread number.
+ */
 async function getUnreadReplyCountByParent(
   roomId: string,
   userId: string,
