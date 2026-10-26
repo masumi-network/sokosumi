@@ -118,6 +118,9 @@ const draftPost = {
   firstComment: null,
   media: [],
   threadParts: [],
+  quotedPostId: null,
+  quotedPost: null,
+  needsAttentionReason: null,
   publishingThreadPartPosition: null,
   status: "DRAFT",
   scheduledAt: null,
@@ -178,11 +181,261 @@ describe("social posts service", () => {
     queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
-    socialPostFindManyMock.mockResolvedValue([draftPost]);
+    socialPostFindManyMock.mockImplementation(async ({ where }) =>
+      where.quotedPostId ? [] : [draftPost],
+    );
     socialPostCountMock.mockResolvedValue(1);
     socialPostFindFirstMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  describe("X quotes", () => {
+    const TARGET_ID = "77777777-7777-4777-8777-777777777777";
+    const quoteInput = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      text: "Quote",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      quotedPostId: TARGET_ID,
+    };
+    const target = {
+      ...scheduledPost,
+      id: TARGET_ID,
+      text: "Original",
+      media: [IMAGE_REF, JPEG_REF],
+    };
+
+    it("stores the quote on create and returns a preview with the first media item", async () => {
+      socialPostFindFirstMock.mockResolvedValue(target);
+      socialPostCreateMock.mockResolvedValue({
+        ...draftPost,
+        quotedPostId: TARGET_ID,
+        quotedPost: target,
+      });
+      const { createSocialPost } = await loadService();
+      const result = await createSocialPost({
+        ...quoteInput,
+        scheduledAt: new Date(FUTURE.getTime() + 60_000),
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            quotedPostId: TARGET_ID,
+            status: "SCHEDULED",
+          }),
+        }),
+      );
+      expect(result).toMatchObject({
+        quotedPostId: TARGET_ID,
+        quotedPost: {
+          id: TARGET_ID,
+          text: "Original",
+          media: [IMAGE_REF],
+          account: target.socialConnection,
+          scheduledAt: FUTURE,
+        },
+        canPublishNow: false,
+      });
+    });
+
+    it("validates a quote's schedule on reschedule and approval", async () => {
+      const post = {
+        ...scheduledPost,
+        status: "NEEDS_APPROVAL",
+        quotedPostId: TARGET_ID,
+        quotedPost: target,
+      };
+      socialPostFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === TARGET_ID ? target : post,
+      );
+      const { scheduleSocialPost, approveSocialPost } = await loadService();
+      await expect(
+        scheduleSocialPost({
+          ...quoteInput,
+          postId: POST_ID,
+          revision: 1,
+          scheduledAt: FUTURE,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining(FUTURE.toISOString()),
+      });
+      await expect(
+        approveSocialPost({ ...quoteInput, postId: POST_ID, revision: 1 }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("blocks rescheduling the quoted post past any quoting post", async () => {
+      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+      socialPostFindManyMock.mockResolvedValue([
+        { id: TARGET_ID, text: "Quote", scheduledAt: FUTURE },
+      ]);
+      const { scheduleSocialPost } = await loadService();
+      await expect(
+        scheduleSocialPost({
+          ...quoteInput,
+          postId: POST_ID,
+          revision: 1,
+          scheduledAt: FUTURE,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining(TARGET_ID),
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("lets a failed quote remove its reference and clear the stored reason", async () => {
+      const failed = {
+        ...draftPost,
+        status: "FAILED",
+        quotedPostId: TARGET_ID,
+        needsAttentionReason: "The quoted post was cancelled",
+      };
+      socialPostFindFirstMock
+        .mockResolvedValueOnce(failed)
+        .mockResolvedValueOnce({
+          ...failed,
+          quotedPostId: null,
+          needsAttentionReason: null,
+        });
+      const { updateSocialPost } = await loadService();
+      const result = await updateSocialPost({
+        ...quoteInput,
+        postId: POST_ID,
+        revision: 0,
+        quotedPostId: null,
+      });
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            quotedPostId: null,
+            needsAttentionReason: null,
+            lastError: null,
+          }),
+        }),
+      );
+      expect(result.needsAttentionReason).toBeNull();
+    });
+
+    it.each(["cancel", "reject", "draft"])(
+      "flags quoting posts when the target is moved to %s",
+      async (action) => {
+        socialPostFindFirstMock.mockResolvedValue({
+          ...scheduledPost,
+          status: action === "cancel" ? "SCHEDULED" : "NEEDS_APPROVAL",
+          scheduledAt: NOW,
+        });
+        socialPostFindManyMock.mockResolvedValue([
+          { id: TARGET_ID, status: "SCHEDULED" },
+        ]);
+        const { cancelSocialPost, rejectSocialPost, approveSocialPost } =
+          await loadService();
+        const perform =
+          action === "cancel"
+            ? cancelSocialPost
+            : action === "reject"
+              ? rejectSocialPost
+              : approveSocialPost;
+        await perform({ ...quoteInput, postId: POST_ID, revision: 1 });
+        expect(socialPostUpdateManyMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ quotedPostId: POST_ID }),
+            data: expect.objectContaining({
+              status: "FAILED",
+              needsAttentionReason: "The quoted post was cancelled",
+              leaseToken: null,
+            }),
+          }),
+        );
+      },
+    );
+
+    it("duplicates the reference and preserves coworker approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        status: "PUBLISHED",
+        quotedPostId: TARGET_ID,
+        quotedPost: target,
+      });
+      const { duplicateSocialPost } = await loadService();
+      await duplicateSocialPost({
+        ...quoteInput,
+        postId: POST_ID,
+        coworkerId: "cow_123",
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            quotedPostId: TARGET_ID,
+            status: "NEEDS_APPROVAL",
+          }),
+        }),
+      );
+      expect(socialPostCreateMock.mock.calls[0][0].data).not.toHaveProperty(
+        "scheduledAt",
+      );
+    });
+
+    it("allows retry after the quoted post recovers without allowing cancellation to auto-resume", async () => {
+      const failedQuote = {
+        ...draftPost,
+        status: "FAILED",
+        quotedPostId: TARGET_ID,
+        quotedPost: {
+          ...target,
+          status: "PUBLISHED",
+          publishedExternalId: "1906",
+        },
+        needsAttentionReason: "The post it quotes failed to publish",
+      };
+      socialPostFindFirstMock.mockResolvedValue(failedQuote);
+      const { getSocialPost } = await loadService();
+      expect(
+        await getSocialPost({ ...quoteInput, postId: POST_ID }),
+      ).toMatchObject({ canEdit: true, canPublishNow: true });
+      socialPostFindFirstMock.mockResolvedValue({
+        ...failedQuote,
+        needsAttentionReason: "The quoted post was cancelled",
+      });
+      expect(
+        await getSocialPost({ ...quoteInput, postId: POST_ID }),
+      ).toMatchObject({ canPublishNow: false });
+    });
+
+    it("lists searchable X quote candidates newest first with cursor pagination", async () => {
+      const { listSocialPosts } = await loadService();
+      await listSocialPosts({
+        ...quoteInput,
+        quoteCandidates: true,
+        excludePostId: POST_ID,
+        search: "Launch",
+        cursor: TARGET_ID,
+        limit: 5,
+      });
+      const where = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        provider: "x",
+        status: { in: ["SCHEDULED", "NEEDS_APPROVAL", "PUBLISHED"] },
+        id: { not: POST_ID },
+        text: { contains: "Launch", mode: "insensitive" },
+      };
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          cursor: { id: TARGET_ID },
+          skip: 1,
+          take: 6,
+        }),
+      );
+      expect(socialPostCountMock).toHaveBeenCalledWith({ where });
+    });
   });
 
   describe("X thread parts", () => {
@@ -1176,6 +1429,7 @@ describe("social posts service", () => {
           text: "Hello world",
           firstComment: null,
           media: [],
+          quotedPostId: null,
           status: "DRAFT",
           scheduledAt: null,
           timezone: null,
@@ -1873,6 +2127,7 @@ describe("social posts service", () => {
         scheduledByUserId: USER_ID,
         scheduledByCoworkerId: null,
         lastError: null,
+        needsAttentionReason: null,
         attemptCount: 0,
         nextAttemptAt: null,
         revision: { increment: 1 },
@@ -2268,6 +2523,8 @@ describe("social posts service", () => {
           text: "Winner",
           firstComment: "#winner",
           media: [IMAGE_REF],
+          quotedPostId: null,
+          needsAttentionReason: null,
           status: "DRAFT",
           creatorUserId: USER_ID,
           creatorCoworkerId: null,

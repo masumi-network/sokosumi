@@ -6394,6 +6394,11 @@ export type SocialPostCalendarItem = {
     kind: 'socialPost';
     id: string;
     postId: string;
+    quotedPostId: string | null;
+    /**
+     * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
+     */
+    needsAttentionReason: string | null;
     /**
      * Total posts including the main text/media (1 for a single post).
      */
@@ -7318,6 +7323,12 @@ export type SocialPost = {
     text: string;
     firstComment: string | null;
     media: Array<SocialPostMediaRef>;
+    quotedPostId: string | null;
+    quotedPost: SocialPostQuotedPost | null;
+    /**
+     * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
+     */
+    needsAttentionReason: string | null;
     threadParts: Array<SocialPostThreadPart>;
     /**
      * Total posts including the main text/media (1 for a single post).
@@ -7332,7 +7343,7 @@ export type SocialPost = {
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
-    socialConnection: SocialPostSocialConnection;
+    socialConnection: SocialPostSocialConnection | null;
     creator: SocialPostCreator;
     scheduledByUserId: string | null;
     /**
@@ -7383,14 +7394,17 @@ export type SocialPostMediaRef = {
     kind: 'image' | 'gif' | 'video';
 };
 
-export type SocialPostThreadPart = {
+export type SocialPostQuotedPost = {
     id: string;
-    position: number;
+    provider: 'x';
+    status: SocialPostStatus;
+    scheduledAt: Date | null;
+    timezone: string | null;
+    publishedExternalId: string | null;
+    publishedUrl: string | null;
+    account: SocialPostSocialConnection | null;
     text: string;
     media: Array<SocialPostMediaRef>;
-    externalPostId: string | null;
-    publishedAt: Date | null;
-    error: string | null;
 };
 
 export const SocialPostStatus = {
@@ -7415,7 +7429,17 @@ export type SocialPostSocialConnection = {
      */
     avatarUrl: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
-} | null;
+};
+
+export type SocialPostThreadPart = {
+    id: string;
+    position: number;
+    text: string;
+    media: Array<SocialPostMediaRef>;
+    externalPostId: string | null;
+    publishedAt: Date | null;
+    error: string | null;
+};
 
 export type SocialPostCreator = {
     kind: 'user' | 'coworker' | 'sokoBot';
@@ -7466,6 +7490,10 @@ export type CreateSocialPostRequest = {
          */
         media?: Array<SocialPostMediaRef>;
     }>;
+    /**
+     * Another X post in the same project. Only the thread's first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.
+     */
+    quotedPostId?: string | null;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -7504,6 +7532,10 @@ export type UpdateSocialPostRequest = {
          */
         media?: Array<SocialPostMediaRef>;
     }>;
+    /**
+     * Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.
+     */
+    quotedPostId?: string | null;
     socialConnectionId?: string | null;
     /**
      * Revision the client last observed; mismatches return 409
@@ -50811,6 +50843,16 @@ export type GetProjectsByIdSocialPostsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        provider?: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        /**
+         * List X posts in SCHEDULED, NEEDS_APPROVAL, or PUBLISHED, newest created first. Combine with excludePostId and search for the quote picker.
+         */
+        quoteCandidates?: 'true' | 'false';
+        excludePostId?: string;
+        /**
+         * Case-insensitive text search
+         */
+        search?: string;
         /**
          * Comma-separated Social post statuses to include
          */

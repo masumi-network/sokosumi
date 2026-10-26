@@ -30,6 +30,13 @@ import {
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
+import {
+  flagSocialPostQuotes,
+  QUOTED_POST_FAILED,
+  requireSocialPostQuote,
+  SOCIAL_POST_QUOTE_WAIT_MS,
+  socialPostQuotePublishDecision,
+} from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -123,6 +130,8 @@ interface ClaimedPost {
   media: unknown;
   threadParts: PublisherPostRecord["threadParts"];
   publishedExternalId: string | null;
+  quotedPostId: string | null;
+  needsAttentionReason: string | null;
   scheduledAt: Date | null;
   attemptCount: number;
   leaseToken: string;
@@ -182,6 +191,12 @@ async function settle(
       status: data.status,
     });
     return false;
+  }
+  if (
+    (data.status === "FAILED" || data.status === "MISSED") &&
+    !post.publishedExternalId
+  ) {
+    await flagSocialPostQuotes(post.id, QUOTED_POST_FAILED, tx);
   }
   return true;
 }
@@ -450,7 +465,9 @@ async function publishThread(
         ...context,
         text: part?.text ?? current.text,
         media,
-        ...(previousId ? { replyToExternalId: previousId } : {}),
+        ...(previousId
+          ? { replyToExternalId: previousId, quoteExternalId: undefined }
+          : {}),
       });
     } catch (error) {
       if (error instanceof PublishLeaseLostError) throw error;
@@ -503,6 +520,7 @@ async function publishThread(
     }
     if (position === 1) {
       published = result;
+      post.publishedExternalId = result.externalId;
       headPublishedAt = publishedAt;
     }
     previousId = result.externalId;
@@ -625,10 +643,41 @@ async function attemptPublish(
   const projectOutcome = await checkProjectPublishingAccess(post, options);
   if (projectOutcome) return projectOutcome;
 
+  const quoted =
+    post.quotedPostId && !post.publishedExternalId
+      ? await prisma.socialPost.findFirst({
+          where: {
+            id: post.quotedPostId,
+            projectId: post.projectId,
+            workspaceId: post.workspaceId,
+            provider: "x",
+          },
+          select: { status: true, publishedExternalId: true },
+        })
+      : null;
+  const quote = socialPostQuotePublishDecision(post, quoted, now);
+  if (quote.kind === "blocked") {
+    const settled = await settle(post, {
+      status: "FAILED",
+      needsAttentionReason: quote.reason,
+      lastError: quote.reason,
+    });
+    return settled ? "failed" : "skipped";
+  }
+  if (quote.kind === "defer") {
+    return settleRetry(post, {
+      status: "SCHEDULED",
+      nextAttemptAt: quote.retryAt,
+    });
+  }
+  const retryWindowMs = post.quotedPostId
+    ? SOCIAL_POST_QUOTE_WAIT_MS
+    : RETRY_WINDOW_MS;
+
   if (
     post.attemptCount > 0 &&
     post.scheduledAt &&
-    now.getTime() > post.scheduledAt.getTime() + RETRY_WINDOW_MS
+    now.getTime() > post.scheduledAt.getTime() + retryWindowMs
   ) {
     const settled = await settle(post, {
       status: "FAILED",
@@ -717,6 +766,7 @@ async function attemptPublish(
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
+      ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
       media,
       signal,
     };
@@ -746,7 +796,7 @@ async function attemptPublish(
       attemptCount < MAX_ATTEMPTS &&
       retryAt !== null &&
       post.scheduledAt !== null &&
-      retryAt.getTime() <= post.scheduledAt.getTime() + RETRY_WINDOW_MS;
+      retryAt.getTime() <= post.scheduledAt.getTime() + retryWindowMs;
     console.warn("[social-post-publisher] Publish attempt failed", {
       postId: post.id,
       attempt: attemptCount,
@@ -800,6 +850,7 @@ async function attemptPublish(
     publishedExternalId: published.externalId,
     publishedUrl: published.publishedUrl,
     lastError: null,
+    needsAttentionReason: null,
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
@@ -886,6 +937,8 @@ async function claimDuePost(): Promise<ClaimResult> {
       media: candidate.media,
       threadParts: candidate.threadParts,
       publishedExternalId: candidate.publishedExternalId,
+      quotedPostId: candidate.quotedPostId,
+      needsAttentionReason: candidate.needsAttentionReason,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
@@ -1001,6 +1054,18 @@ export async function publishSocialPostNow(
         }
       }
 
+      if (!post.publishedExternalId) {
+        await requireSocialPostQuote(
+          {
+            ...input,
+            provider: post.provider,
+            quotedPostId: post.quotedPostId,
+            needsAttentionReason: post.needsAttentionReason,
+            publishNow: true,
+          },
+          tx,
+        );
+      }
       const now = new Date();
       const leaseToken = randomUUID();
       const claimed = await tx.socialPost.updateMany({
@@ -1013,6 +1078,7 @@ export async function publishSocialPostNow(
           attemptCount: 0,
           nextAttemptAt: null,
           lastError: null,
+          needsAttentionReason: null,
           revision: { increment: 1 },
         },
       });
@@ -1035,6 +1101,8 @@ export async function publishSocialPostNow(
       media: post.media,
       threadParts: post.threadParts,
       publishedExternalId: post.publishedExternalId,
+      quotedPostId: post.quotedPostId,
+      needsAttentionReason: null,
       scheduledAt: now,
       attemptCount: 0,
       leaseToken,

@@ -252,6 +252,8 @@ const RUN_AT_ITEM: WorkspaceCalendarItem = {
 
 const SOCIAL_POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
   threadPartCount: 1,
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,

@@ -21759,6 +21759,20 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
         threadPartCount: {
             type: 'integer',
             minimum: 1,
@@ -21920,6 +21934,8 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'quotedPostId',
+        'needsAttentionReason',
         'threadPartCount',
         'publishedThreadPartCount',
         'failedThreadPartPosition',
@@ -24941,6 +24957,30 @@ export const SocialPostSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             }
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        quotedPost: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostQuotedPost'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        needsAttentionReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
+        },
         threadParts: {
             type: 'array',
             items: {
@@ -24986,7 +25026,14 @@ export const SocialPostSchema = {
             example: 'Europe/Zurich'
         },
         socialConnection: {
-            $ref: '#/components/schemas/SocialPostSocialConnection'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         creator: {
             $ref: '#/components/schemas/SocialPostCreator'
@@ -25121,6 +25168,9 @@ export const SocialPostSchema = {
         'text',
         'firstComment',
         'media',
+        'quotedPostId',
+        'quotedPost',
+        'needsAttentionReason',
         'threadParts',
         'threadPartCount',
         'publishedThreadPartCount',
@@ -25205,6 +25255,148 @@ export const SocialPostMediaRefSchema = {
     ]
 } as const;
 
+export const SocialPostQuotedPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SocialPostStatus'
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedExternalId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        account: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostSocialConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        text: {
+            type: 'string'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 1
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'status',
+        'scheduledAt',
+        'timezone',
+        'publishedExternalId',
+        'publishedUrl',
+        'account',
+        'text',
+        'media'
+    ]
+} as const;
+
+export const SocialPostStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'NEEDS_APPROVAL',
+        'SCHEDULED',
+        'PUBLISHING',
+        'PUBLISHED',
+        'FAILED',
+        'MISSED',
+        'CANCELED'
+    ]
+} as const;
+
+export const SocialPostSocialConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        displayName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Sokosumi'
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        }
+    },
+    required: [
+        'id',
+        'externalHandle',
+        'displayName',
+        'avatarUrl',
+        'status'
+    ]
+} as const;
+
 export const SocialPostThreadPartSchema = {
     type: 'object',
     properties: {
@@ -25255,74 +25447,6 @@ export const SocialPostThreadPartSchema = {
         'externalPostId',
         'publishedAt',
         'error'
-    ]
-} as const;
-
-export const SocialPostStatusSchema = {
-    type: 'string',
-    enum: [
-        'DRAFT',
-        'NEEDS_APPROVAL',
-        'SCHEDULED',
-        'PUBLISHING',
-        'PUBLISHED',
-        'FAILED',
-        'MISSED',
-        'CANCELED'
-    ]
-} as const;
-
-export const SocialPostSocialConnectionSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
-        },
-        externalHandle: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'sokosumi'
-        },
-        displayName: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Sokosumi'
-        },
-        avatarUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            description: 'Profile picture copy in Sokosumi storage',
-            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'pending',
-                'active',
-                'reauthorization_required',
-                'disconnected'
-            ],
-            example: 'active'
-        }
-    },
-    required: [
-        'id',
-        'externalHandle',
-        'displayName',
-        'avatarUrl',
-        'status'
     ]
 } as const;
 
@@ -25523,6 +25647,14 @@ export const CreateSocialPostRequestSchema = {
             maxItems: 24,
             description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
         },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Another X post in the same project. Only the thread\'s first part quotes it. Until its X id is confirmed, schedule strictly after its scheduledAt; publish now is unavailable.'
+        },
         socialConnectionId: {
             type: 'string',
             format: 'uuid'
@@ -25644,6 +25776,14 @@ export const UpdateSocialPostRequestSchema = {
             },
             maxItems: 24,
             description: 'Additional X-only parts in order. At most 25 posts including the main text/media. Every part uses the main post\'s text and media rules. Posts target exactly one account; non-X targets return 400. An empty list removes the parts. Editing is blocked once any part has been published or its outcome is unconfirmed.'
+        },
+        quotedPostId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.'
         },
         socialConnectionId: {
             type: [

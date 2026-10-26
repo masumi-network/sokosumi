@@ -570,6 +570,8 @@ export async function readWorkspaceCalendar(
             status: true,
             revision: true,
             publishedExternalId: true,
+            quotedPostId: true,
+            needsAttentionReason: true,
             publishingThreadPartPosition: true,
             lastError: true,
             threadParts: {
@@ -605,6 +607,8 @@ export async function readWorkspaceCalendar(
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
+      quotedPostId: post.quotedPostId,
+      needsAttentionReason: post.needsAttentionReason,
       ...summarizeSocialPostThread(post),
       provider: post.provider,
       text: post.text,

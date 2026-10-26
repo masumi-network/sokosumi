@@ -143,6 +143,9 @@ const draftPost = {
   firstComment: null,
   media: [],
   threadParts: [],
+  quotedPostId: null,
+  quotedPost: null,
+  needsAttentionReason: null,
   threadPartCount: 1,
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
@@ -378,6 +381,78 @@ describe("Project social post routes", () => {
 
     expect(response.status).toBe(403);
     expectNoServiceCalls();
+  });
+
+  it("writes, removes, and reads a quote with its attention reason", async () => {
+    const quotedPostId = "77777777-7777-4777-8777-777777777777";
+    const app = createApp();
+    const created = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Quote", quotedPostId }),
+      },
+    );
+    expect(created.status).toBe(201);
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ quotedPostId }),
+    );
+    const updated = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotedPostId: null, revision: 0 }),
+      },
+    );
+    expect(updated.status).toBe(200);
+    expect(updateSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ quotedPostId: null }),
+    );
+    const quotedPost = {
+      id: quotedPostId,
+      provider: "x",
+      status: "SCHEDULED",
+      scheduledAt: new Date(SCHEDULED_AT),
+      timezone: "UTC",
+      publishedExternalId: null,
+      publishedUrl: null,
+      account: null,
+      text: "Original",
+      media: [],
+    };
+    getSocialPostMock.mockResolvedValue({
+      ...draftPost,
+      status: "FAILED",
+      quotedPostId,
+      quotedPost,
+      needsAttentionReason: "The post it quotes failed to publish",
+    });
+    const read = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+    );
+    expect(read.status).toBe(200);
+    expect((await read.json()).data).toMatchObject({
+      quotedPostId,
+      quotedPost: { ...quotedPost, scheduledAt: SCHEDULED_AT },
+      needsAttentionReason: "The post it quotes failed to publish",
+    });
+  });
+
+  it("passes quote candidate filters, search, and pagination to the existing list", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts?quoteCandidates=true&excludePostId=${POST_ID}&search=Launch&limit=5`,
+    );
+    expect(response.status).toBe(200);
+    expect(listSocialPostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quoteCandidates: true,
+        excludePostId: POST_ID,
+        search: "Launch",
+        limit: 5,
+      }),
+    );
   });
 
   it("passes ordered thread parts through create and update", async () => {

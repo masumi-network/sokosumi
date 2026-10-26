@@ -3791,7 +3791,7 @@ export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean 
 });
 
 /**
- * Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
+ * Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -3856,7 +3856,7 @@ export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends b
 });
 
 /**
- * Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.
+ * Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace.
  */
 export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdDuplicateData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,

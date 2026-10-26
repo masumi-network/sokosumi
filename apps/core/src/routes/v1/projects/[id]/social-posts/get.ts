@@ -55,13 +55,25 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
-    const { status: statuses, cursor, limit } = c.req.valid("query");
+    const {
+      status: statuses,
+      cursor,
+      limit,
+      provider,
+      quoteCandidates,
+      excludePostId,
+      search,
+    } = c.req.valid("query");
 
     try {
       const { posts, pagination } = await listSocialPosts({
         projectId,
         workspaceId: workspaceContext.workspaceId,
         statuses,
+        provider,
+        quoteCandidates,
+        excludePostId,
+        search,
         cursor,
         limit,
       });
