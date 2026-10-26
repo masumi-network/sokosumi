@@ -470,20 +470,20 @@ importers:
         specifier: 6.13.0
         version: 6.13.0(@lobehub/ui@6.0.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@m2d/html':
-        specifier: 1.1.11
-        version: 1.1.11(docx@9.11.0)
+        specifier: 1.3.0
+        version: 1.3.0(docx@9.14.0)
       '@m2d/image':
-        specifier: 1.4.1
-        version: 1.4.1(@xmldom/xmldom@0.8.13)(docx@9.11.0)
+        specifier: 1.6.1
+        version: 1.6.1(@xmldom/xmldom@0.8.13)(docx@9.14.0)
       '@m2d/list':
-        specifier: 0.0.9
-        version: 0.0.9(docx@9.11.0)
+        specifier: 0.0.12
+        version: 0.0.12(docx@9.14.0)
       '@m2d/math':
-        specifier: 0.0.6
-        version: 0.0.6(docx@9.11.0)(remark-math@6.0.0(supports-color@8.1.1))
+        specifier: 0.1.2
+        version: 0.1.2(docx@9.14.0)(remark-math@6.0.0(supports-color@8.1.1))
       '@m2d/table':
-        specifier: 0.1.1
-        version: 0.1.1(docx@9.11.0)
+        specifier: 0.2.0
+        version: 0.2.0(docx@9.14.0)
       '@marsidev/react-turnstile':
         specifier: 1.6.3
         version: 1.6.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -560,8 +560,8 @@ importers:
         specifier: 4.4.0
         version: 4.4.0
       docx:
-        specifier: 9.11.0
-        version: 9.11.0
+        specifier: 9.14.0
+        version: 9.14.0
       dompurify:
         specifier: 3.4.17
         version: 3.4.17
@@ -599,8 +599,8 @@ importers:
         specifier: 18.1.1
         version: 18.1.1
       mdast2docx:
-        specifier: 1.6.1
-        version: 1.6.1(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1))
+        specifier: 1.7.1
+        version: 1.7.1(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1))
       mermaid:
         specifier: 12.2.0
         version: 12.2.0
@@ -1367,9 +1367,6 @@ packages:
   '@chevrotain/regexp-to-ast@13.2.0':
     resolution: {integrity: sha512-kxpUkLtiaK09ph+dib+Yvm+3sWSnuwlo25gqfKRgTPNmF6H7uW4gVkMjaRdtnN783S9sM6vUNWh9CsxYX4QwKw==}
 
-  '@chevrotain/types@11.1.2':
-    resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
-
   '@chevrotain/types@13.2.0':
     resolution: {integrity: sha512-7qrYHRlKfWf2AvBfJi5eVOrKAkbxvMFsy/iIHTGIiApNcEecCaVIdR+mIQhyCBsTDJxBz4JWXHMo6krbhR9hVg==}
 
@@ -2090,8 +2087,11 @@ packages:
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
 
-  '@m2d/core@1.7.1':
-    resolution: {integrity: sha512-lS9z0MLE6bn1Bh0AyjSRXsXdwXSr2NUHbRcuNk+36y7naBEWXRRTSt4JfuuInbhUtEqEMNCbEI6VicOZF1nOLA==}
+  '@m2d/cache@0.1.0':
+    resolution: {integrity: sha512-LzqS4Obc3im0cQwwTFIe5yPAcgSMiIfK6LtI2eKyF0O8OqE08KFpbXKPTZLJOV/PVegt0xWBqMwwP3YcadfkHg==}
+
+  '@m2d/core@1.9.0':
+    resolution: {integrity: sha512-5n8oeGxV2DqyUu9TpSqrcwd81KyhDLIXbply0O1fnnaRMAso9PnGUAwfiuWBYI7Xu4JhaB+u95jG1G4fa6pSTQ==}
     peerDependencies:
       docx: ^9.3.0
 
@@ -2100,39 +2100,44 @@ packages:
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/html@1.1.11':
-    resolution: {integrity: sha512-BZac1eahlaaWeWbhNm4IsYAlNuGkXsaDKCgKf976FyN2f9hHCPGS5G7dnR4TP3HVHJa61dYSLP5CHH3s6xjazQ==}
+  '@m2d/frontmatter@0.1.0':
+    resolution: {integrity: sha512-/TZBVVIpZEpfJSAcW2gTRkITsBmoCwNEPmkaqRvn5htb7f1DO4QXOR7CrFa6T2Qw7sLXxmZhn7FknzxBvArs6Q==}
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/image@1.4.1':
-    resolution: {integrity: sha512-kW5bJJoSJP/gkFOvXE4Lm4cQk/NUPeMQs7C8eltSEYXcqwaMmbmXDm/PEMbU3K3sPNw+jZMBtrgrhbgOTiX6pg==}
+  '@m2d/html@1.3.0':
+    resolution: {integrity: sha512-qBmvuynGfb5MVElRMYlWQ8odh4xXi1JjeyNOikHkAjC/OPcJ/3SktgCQV6YNzQqb/T2Zfsy23217j5yEQIFA/A==}
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/list@0.0.9':
-    resolution: {integrity: sha512-wPSmeNq9VwQLgaSUxegmhpJIMlLrFfEG5WzMGui4tf9FcvtntwKJUM6y8cd9OXZoWbfJjkl4/ubTAXE5BYx/tw==}
+  '@m2d/image@1.6.1':
+    resolution: {integrity: sha512-e9XGORGHYWaX3MWTZ19/8lO/kE+emHduQ2xWrxO1TCONK/Em124zI53iXyrOOzXbPAUBV+Bwf33HPfhD64rIvg==}
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/math@0.0.6':
-    resolution: {integrity: sha512-KEmCT6UXUiBZVt7Rp6XDq4nPjrs1LM7J3bJA8/MphyEaIRL8mYyUC/3pKVqzNd4Pf9+/DwarWdON1VLwA6wKsg==}
+  '@m2d/list@0.0.12':
+    resolution: {integrity: sha512-xjSbKbuzAzumwyKmd5FrMzKMJ0Q+Uu0GDZTVYY4h7SysOAk5agws67MWUHxuKUrmYSY6HWGFm44gmvltgMrIxg==}
+    peerDependencies:
+      docx: ^9.3.0
+
+  '@m2d/math@0.1.2':
+    resolution: {integrity: sha512-Schy6jIoSiE8F2P9Edov4jDoRMaDW511FNC/Zox8nfxRLgmSWy2vH6ja1P4MdHFwwi1gne7K6ub4t1t4hp7c6g==}
     peerDependencies:
       docx: ^9.3.0
       remark-math: ^6.0.0
 
-  '@m2d/mdast@0.2.4':
-    resolution: {integrity: sha512-OksRST8MeVMzYxeFC5Ls/FS1sw9w/4cwsvagTQcFeMsmZ1IQt4gp+2uVGfbDjX0jIsDvlhQWZRZdqZp0C/9qSw==}
+  '@m2d/mdast@0.2.5':
+    resolution: {integrity: sha512-/7QX5oHtVhnZmPYnQMbzYg2MZNy3P7mga6JXqZNePRoYQx9AzTqXb8kbFyN30G1Y2a3lVuGmy4G84f+Qp2kVUw==}
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/mermaid@1.2.2':
-    resolution: {integrity: sha512-UEz1BSJOp6i23UzME7yh5si/ndiMvuBvt3QLjOPj8ZGFfU6hf0/GdDi3SWl9pc9h0jvhzA/kXq03Tc1b2lKxnA==}
+  '@m2d/mermaid@1.3.2':
+    resolution: {integrity: sha512-AWUUPQ4Dr/mgshFiyExW1VkAJw5v+kyfX+lgiSGpnV7dBirw86kete43RClPGQf+Jo7qe0FR7U8on0W4+qSNHw==}
     peerDependencies:
       docx: ^9.3.0
 
-  '@m2d/table@0.1.1':
-    resolution: {integrity: sha512-VcrZIt1lRo1TetMOCMSGoin0IVrBMBkX1SF0NSUbPM6smUfLm5nsO7oFnXfre7VZMnD2rM+tkzm+lHCZdON6Jw==}
+  '@m2d/table@0.2.0':
+    resolution: {integrity: sha512-7Tk1vDjbTedPvsQjTdoYwKlksvBsuVHNViaadjEjj6YwfpatsE1qEL039pDHTXZQWldP9AYPL6Wj3QuwXJY0IQ==}
     peerDependencies:
       docx: ^9.3.0
 
@@ -2144,9 +2149,6 @@ packages:
 
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
-
-  '@mermaid-js/parser@1.1.1':
-    resolution: {integrity: sha512-VuHdsYMK1bT6X2JbcAaWAhugTRvRBRyuZgd+c22swUeI9g/ntaxF7CY7dYarhZovofCbUNO0G7JesfmNtjYOCw==}
 
   '@mermaid-js/parser@2.0.1':
     resolution: {integrity: sha512-j37dj/h6p6pots1L7pLPPNuABEEu9WP4OYg9pW1g+nYG331j0+3canE9OagtYdytYvdSAMG+2fKU5cxep6LgjA==}
@@ -4403,8 +4405,8 @@ packages:
       '@xmldom/xmldom':
         optional: true
 
-  '@svg-fns/svg2img@0.0.0':
-    resolution: {integrity: sha512-9hj1BlZGabIhd8l93qge6rA+B0xb0+EDGWVA/1mHQ93Y+85aX4XQkuEptCqKogI0/BNW0Rzcedjw7idRknyy1w==}
+  '@svg-fns/svg2img@0.2.0':
+    resolution: {integrity: sha512-XuRBr/6kTnnYNNCgTtHA12Tebtf6hAmvZzXYdG1Ha2K3Npz6IemvfQ5VIhTk5buieHaxaIPPPSl14P2WRNGKFQ==}
     peerDependencies:
       sharp: ^0.34.4
     peerDependenciesMeta:
@@ -6134,9 +6136,6 @@ packages:
   date-fns@4.4.0:
     resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
 
-  dayjs@1.11.21:
-    resolution: {integrity: sha512-98IT+HOahAisibz/yjKbzuOBwYcjJ7BCLPzARyHiyEBmRz4fatF+KPJszEHXsGYjUG234aH/cOjW1wwTbKUZlA==}
-
   dayjs@1.11.23:
     resolution: {integrity: sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ==}
 
@@ -6228,9 +6227,9 @@ packages:
     resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
     engines: {node: '>=0.3.1'}
 
-  docx@9.11.0:
-    resolution: {integrity: sha512-vQLEYi45vlN/auiMHgx4oC95wbP5qPaD7Vanfixcd3wtTl5gLUPWqUpwbw6yVN0/U6o3p3EX4P5puAeYPXvcSQ==}
-    engines: {node: '>=10'}
+  docx@9.14.0:
+    resolution: {integrity: sha512-3QGcC5CUBvyYZsFPpuKy9Mv1j4BOoKjH9angjjDzrqx2GnnXH6ogt/CUVQ3gexN46yKDsl8gcOFNl0jjvlDxhg==}
+    engines: {node: '>=16'}
 
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
@@ -7563,8 +7562,19 @@ packages:
   mdast-util-to-string@4.0.0:
     resolution: {integrity: sha512-0H44vDimn51F0YwvxSJSm0eCDOJTRlmN0R1yBh4HLj9wiV1Dn0QoXGbvFAWj2hSItVTlCmBF1hqKlIyUBVFLPg==}
 
-  mdast2docx@1.6.1:
-    resolution: {integrity: sha512-7V81UXEtj6qyfLKS7Fjqy7Hs+tg9hMSRlATvPLRNW/u9K8NkH0Am/tJBk1KQwXuczvT3urubUqmkEiPitUEvhg==}
+  mdast2docx@1.7.1:
+    resolution: {integrity: sha512-i5i/d/RrahiL8OEwli2APa1eeIftMZAaZjMZxpM259vIGxmhlNk9TRwhlJmdo/lvWXQh8czErVENV4Eu+GX3/Q==}
+    peerDependencies:
+      '@m2d/html-node': 0.2.0
+      '@m2d/image-node': 0.1.3
+      '@m2d/mermaid-node': 0.1.3
+    peerDependenciesMeta:
+      '@m2d/html-node':
+        optional: true
+      '@m2d/image-node':
+        optional: true
+      '@m2d/mermaid-node':
+        optional: true
 
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
@@ -7575,9 +7585,6 @@ packages:
   merge-value@1.0.0:
     resolution: {integrity: sha512-fJMmvat4NeKz63Uv9iHWcPDjCWcCkoiRoajRTEO8hlhUC6rwaHg0QCF9hBOTjZmm4JuglPckPSTtcuJL5kp0TQ==}
     engines: {node: '>=0.10.0'}
-
-  mermaid@11.15.0:
-    resolution: {integrity: sha512-pTMbcf3rWdtLiYGpmoTjHEpeY8seiy6sR+9nD7LOs8KfUbHE4lOUAprTRqRAcWSQ6MQpdX+YEsxShtGsINtPtw==}
 
   mermaid@12.2.0:
     resolution: {integrity: sha512-w7nr/SFrLO7BaVTs3dQTvYSV6nYSBj0Yy9DjBhsIJtAcHqRzXSq4Pg32ujHZ/AdWsAMNEvvhbm5dt9E2tOiHzw==}
@@ -8732,10 +8739,6 @@ packages:
     resolution: {integrity: sha512-2X5lC8fYla8YaT8g73Nj+HcLWXan5dLyCWLgVvaOmfw7JI78IRsyNtIDytTHdn7hBQbIkCah7Zbmd5jabzeDig==}
     engines: {node: '>=22.12.0'}
 
-  sax@1.6.0:
-    resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
-    engines: {node: '>=11.0.0'}
-
   scheduler@0.28.0:
     resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
@@ -9360,10 +9363,6 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  uuid@14.0.2:
-    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
-    hasBin: true
-
   uuid@14.0.3:
     resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
     hasBin: true
@@ -9617,16 +9616,12 @@ packages:
     resolution: {integrity: sha512-sqMMuL1rc0FmMBOzCpd0yuy9trqF2yTTVe+E9ogwCSWQCdDEtQUwrZPT6AxqtsFGRNxycgncbP/xmOOSPw5ZUw==}
     engines: {node: '>= 6.0'}
 
-  xml-js@1.6.11:
-    resolution: {integrity: sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==}
-    hasBin: true
-
-  xml@1.0.1:
-    resolution: {integrity: sha512-huCv9IH9Tcf95zuYCsQraZtWnJvBtLVE0QHMOs8bWyZAFZNDcYjsPq1nEx8jKA9y+Beo9v+7OBPRisQTjinQMw==}
-
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
+
+  xxhash-wasm@1.1.0:
+    resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
 
   y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
@@ -10075,8 +10070,6 @@ snapshots:
       '@chevrotain/types': 13.2.0
 
   '@chevrotain/regexp-to-ast@13.2.0': {}
-
-  '@chevrotain/types@11.1.2': {}
 
   '@chevrotain/types@13.2.0': {}
 
@@ -10739,57 +10732,70 @@ snapshots:
 
   '@lukeed/ms@2.0.2': {}
 
-  '@m2d/core@1.7.1(docx@9.11.0)':
+  '@m2d/cache@0.1.0':
     dependencies:
-      '@m2d/mdast': 0.2.4(docx@9.11.0)
-      docx: 9.11.0
+      xxhash-wasm: 1.1.0
 
-  '@m2d/emoji@0.1.3(docx@9.11.0)':
+  '@m2d/core@1.9.0(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/cache': 0.1.0
+      '@m2d/mdast': 0.2.5(docx@9.14.0)
+      docx: 9.14.0
 
-  '@m2d/html@1.1.11(docx@9.11.0)':
+  '@m2d/emoji@0.1.3(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
 
-  '@m2d/image@1.4.1(@xmldom/xmldom@0.8.13)(docx@9.11.0)':
+  '@m2d/frontmatter@0.1.0(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
+
+  '@m2d/html@1.3.0(docx@9.14.0)':
+    dependencies:
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
+
+  '@m2d/image@1.6.1(@xmldom/xmldom@0.8.13)(docx@9.14.0)':
+    dependencies:
+      '@m2d/cache': 0.1.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
       '@svg-fns/io': 1.0.1(@xmldom/xmldom@0.8.13)
-      '@svg-fns/svg2img': 0.0.0
-      docx: 9.11.0
+      '@svg-fns/svg2img': 0.2.0
+      docx: 9.14.0
     transitivePeerDependencies:
       - '@xmldom/xmldom'
       - sharp
 
-  '@m2d/list@0.0.9(docx@9.11.0)':
+  '@m2d/list@0.0.12(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
 
-  '@m2d/math@0.0.6(docx@9.11.0)(remark-math@6.0.0(supports-color@8.1.1))':
+  '@m2d/math@0.1.2(docx@9.14.0)(remark-math@6.0.0(supports-color@8.1.1))':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
       latex-math: 0.0.2
       remark-math: 6.0.0(supports-color@8.1.1)
 
-  '@m2d/mdast@0.2.4(docx@9.11.0)':
+  '@m2d/mdast@0.2.5(docx@9.14.0)':
     dependencies:
-      docx: 9.11.0
+      '@types/mdast': 4.0.4
+      docx: 9.14.0
 
-  '@m2d/mermaid@1.2.2(docx@9.11.0)':
+  '@m2d/mermaid@1.3.2(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
-      mermaid: 11.15.0
+      '@m2d/cache': 0.1.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
+      mermaid: 12.2.0
 
-  '@m2d/table@0.1.1(docx@9.11.0)':
+  '@m2d/table@0.2.0(docx@9.14.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      docx: 9.14.0
 
   '@marsidev/react-turnstile@1.6.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -10825,10 +10831,6 @@ snapshots:
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color
-
-  '@mermaid-js/parser@1.1.1':
-    dependencies:
-      '@chevrotain/types': 11.1.2
 
   '@mermaid-js/parser@2.0.1':
     dependencies:
@@ -12915,7 +12917,7 @@ snapshots:
     optionalDependencies:
       '@xmldom/xmldom': 0.8.13
 
-  '@svg-fns/svg2img@0.0.0': {}
+  '@svg-fns/svg2img@0.2.0': {}
 
   '@swc/core-darwin-arm64@1.16.1':
     optional: true
@@ -14561,8 +14563,6 @@ snapshots:
 
   date-fns@4.4.0: {}
 
-  dayjs@1.11.21: {}
-
   dayjs@1.11.23: {}
 
   db0@0.4.1: {}
@@ -14628,14 +14628,12 @@ snapshots:
 
   diff@9.0.0: {}
 
-  docx@9.11.0:
+  docx@9.14.0:
     dependencies:
       '@types/node': 26.6.3
       hash.js: 1.1.7
       jszip: 3.10.2
       nanoid: 6.0.1
-      xml: 1.0.1
-      xml-js: 1.6.11
 
   dom-accessibility-api@0.5.16: {}
 
@@ -16087,17 +16085,19 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
 
-  mdast2docx@1.6.1(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1)):
+  mdast2docx@1.7.1(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1)):
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.11.0)
-      '@m2d/emoji': 0.1.3(docx@9.11.0)
-      '@m2d/html': 1.1.11(docx@9.11.0)
-      '@m2d/image': 1.4.1(@xmldom/xmldom@0.8.13)(docx@9.11.0)
-      '@m2d/list': 0.0.9(docx@9.11.0)
-      '@m2d/math': 0.0.6(docx@9.11.0)(remark-math@6.0.0(supports-color@8.1.1))
-      '@m2d/mermaid': 1.2.2(docx@9.11.0)
-      '@m2d/table': 0.1.1(docx@9.11.0)
-      docx: 9.11.0
+      '@m2d/cache': 0.1.0
+      '@m2d/core': 1.9.0(docx@9.14.0)
+      '@m2d/emoji': 0.1.3(docx@9.14.0)
+      '@m2d/frontmatter': 0.1.0(docx@9.14.0)
+      '@m2d/html': 1.3.0(docx@9.14.0)
+      '@m2d/image': 1.6.1(@xmldom/xmldom@0.8.13)(docx@9.14.0)
+      '@m2d/list': 0.0.12(docx@9.14.0)
+      '@m2d/math': 0.1.2(docx@9.14.0)(remark-math@6.0.0(supports-color@8.1.1))
+      '@m2d/mermaid': 1.3.2(docx@9.14.0)
+      '@m2d/table': 0.2.0(docx@9.14.0)
+      docx: 9.14.0
     transitivePeerDependencies:
       - '@xmldom/xmldom'
       - remark-math
@@ -16113,30 +16113,6 @@ snapshots:
       is-extendable: 1.0.1
       mixin-deep: 1.3.2
       set-value: 2.0.1
-
-  mermaid@11.15.0:
-    dependencies:
-      '@braintree/sanitize-url': 7.1.2
-      '@iconify/utils': 3.1.3
-      '@mermaid-js/parser': 1.1.1
-      '@types/d3': 7.4.3
-      '@upsetjs/venn.js': 2.0.0
-      cytoscape: 3.34.0
-      cytoscape-cose-bilkent: 4.1.0(cytoscape@3.34.0)
-      cytoscape-fcose: 2.2.0(cytoscape@3.34.0)
-      d3: 7.9.0
-      d3-sankey: 0.12.3
-      dagre-d3-es: 7.0.14
-      dayjs: 1.11.21
-      dompurify: 3.4.17
-      es-toolkit: 1.52.0
-      katex: 0.16.47
-      khroma: 2.1.0
-      marked: 16.4.2
-      roughjs: 4.6.6
-      stylis: 4.4.0
-      ts-dedent: 2.3.0
-      uuid: 14.0.2
 
   mermaid@12.2.0:
     dependencies:
@@ -17701,8 +17677,6 @@ snapshots:
       parse-srcset: 1.0.2
       postcss: 8.5.31
 
-  sax@1.6.0: {}
-
   scheduler@0.28.0: {}
 
   schema-utils@4.3.3:
@@ -18347,8 +18321,6 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@14.0.2: {}
-
   uuid@14.0.3: {}
 
   v8n@1.5.1: {}
@@ -18549,13 +18521,9 @@ snapshots:
     dependencies:
       os-paths: 4.4.0
 
-  xml-js@1.6.11:
-    dependencies:
-      sax: 1.6.0
-
-  xml@1.0.1: {}
-
   xtend@4.0.2: {}
+
+  xxhash-wasm@1.1.0: {}
 
   y18n@5.0.8: {}
 
