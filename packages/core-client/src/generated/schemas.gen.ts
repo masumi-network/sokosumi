@@ -26771,6 +26771,76 @@ export const PatchProjectRequestSchema = {
     }
 } as const;
 
+export const PublicNewsletterSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        senderName: {
+            type: 'string'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        }
+    },
+    required: [
+        'name',
+        'senderName',
+        'brand'
+    ]
+} as const;
+
+export const NewsletterSignupAcceptedSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'check_your_inbox'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const SubscribeNewsletterRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string'
+        },
+        name: {
+            type: 'string',
+            maxLength: 200
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'SIGNUP_FORM'
+            ]
+        },
+        website: {
+            type: 'string',
+            maxLength: 2048
+        },
+        locale: {
+            type: 'string',
+            enum: [
+                'en',
+                'de',
+                'es'
+            ],
+            default: 'en'
+        }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
 export const JobSchema = {
     type: 'object',
     properties: {
