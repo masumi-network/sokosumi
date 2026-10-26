@@ -1,6 +1,7 @@
-import type {
-  SokoBotCalendarEvent,
-  SokoBotInboxMessage,
+import {
+  SOKO_BOT_BRIEF_FORMAT,
+  type SokoBotCalendarEvent,
+  type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
@@ -105,7 +106,7 @@ export function buildIngestMessage(input: {
   const lines: string[] = [];
   if (input.kind === "briefing") {
     lines.push(
-      "Morning briefing time. Below is today's calendar and the mail of the last 24 hours, triaged by Jev. Give the owner a short briefing as described in your inbox skill: today's events, then the mail: urgent first with what each needs and by when, notable mail one line each, bulk only as a count. Update memory follow-ups, and propose (do not start) any delegable work.",
+      `Morning briefing time. Below is today's calendar and the mail of the last 24 hours, triaged by Jev. Give the owner a short briefing as described in your inbox skill: today's events, then the mail: urgent first with what each needs and by when, notable mail one line each, bulk only as a count. Update memory follow-ups, and propose (do not start) any delegable work. ${SOKO_BOT_BRIEF_FORMAT}`,
     );
   } else {
     lines.push(

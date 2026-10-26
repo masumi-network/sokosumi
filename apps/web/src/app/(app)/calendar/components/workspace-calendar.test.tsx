@@ -53,6 +53,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) =>
       key === "event.accessibleName"
         ? `${values?.task}, ${values?.source}`

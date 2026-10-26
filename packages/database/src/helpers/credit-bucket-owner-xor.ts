@@ -30,9 +30,6 @@ export const CREDIT_BUCKET_OWNER_CLASS_ACTIONS = {
   both_null_rem_gt0: "fail_closed",
 } as const;
 
-export type CreditBucketOwnerClassAction =
-  (typeof CREDIT_BUCKET_OWNER_CLASS_ACTIONS)[CreditBucketOwnerXorClass];
-
 export interface CreditBucketOwnerClassifyInput {
   organizationId: string | null;
   referenceId: string | null;
@@ -153,12 +150,6 @@ export function classifyCreditBucketOwner(
   throw new CreditBucketOwnerXorError("unclassified credit bucket owner row");
 }
 
-export function creditBucketOwnerClassAction(
-  ownerClass: CreditBucketOwnerXorClass,
-): CreditBucketOwnerClassAction {
-  return CREDIT_BUCKET_OWNER_CLASS_ACTIONS[ownerClass];
-}
-
 function remainingOf(value: bigint | number | string): bigint {
   return typeof value === "bigint" ? value : BigInt(value);
 }
@@ -217,14 +208,6 @@ async function listOwnerXorRows(
   `;
 
   return rows.map(mapOwnerXorRow);
-}
-
-export async function listDualOwnedCreditBuckets(
-  prisma: PrismaClient | Prisma.TransactionClient,
-  organizationId?: string,
-): Promise<CreditBucketOwnerXorRow[]> {
-  const rows = await listOwnerXorRows(prisma, { organizationId });
-  return rows.filter((row) => row.userId != null && row.organizationId != null);
 }
 
 export async function inventoryCreditBucketOwnerXor(

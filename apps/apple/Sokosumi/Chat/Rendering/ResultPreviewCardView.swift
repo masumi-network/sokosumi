@@ -80,7 +80,7 @@ private struct GenericResultCard: View {
       }
       if !card.details.isEmpty {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 4) {
-          ForEach(Array(card.details.enumerated()), id: \.offset) { _, detail in
+          ForEach(card.details, id: \.self) { detail in
             GridRow {
               detailLabel(detail).foregroundStyle(.secondary)
               detailValue(detail)
