@@ -8538,7 +8538,6 @@
       "next": "Periodo siguiente",
       "today": "Hoy",
       "view": {
-        "list": "Lista",
         "month": "Mes",
         "week": "Semana",
         "agenda": "Agenda"
@@ -8567,17 +8566,6 @@
         "confirm": "Mover ejecución",
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y una hora válidas."
-      },
-      "socialMove": {
-        "title": "Reprogramar publicación",
-        "description": "Elige una nueva hora. Las horas están en {zone}.",
-        "label": "Nueva hora",
-        "confirm": "Reprogramar",
-        "cancel": "Cancelar",
-        "invalid": "Elige una fecha y una hora válidas.",
-        "past": "Elige una hora en el futuro.",
-        "failed": "No se pudo reprogramar la publicación.",
-        "done": "Publicación reprogramada"
       },
       "create": {
         "fab": "Programar una tarea"
@@ -8623,15 +8611,6 @@
         "loading": "Cargando…",
         "loadMore": "Cargar más"
       },
-      "list": {
-        "today": "Hoy",
-        "empty": "Sin publicaciones",
-        "count": "{count, plural, one {# publicación} other {# publicaciones}}",
-        "create": "Añadir publicación",
-        "createOn": "Añadir una publicación el {day}",
-        "reschedule": "Reprogramar la publicación de las {time}",
-        "rescheduleHint": "Reprogramar"
-      },
       "socialPost": {
         "mediaOnly": "Publicación multimedia",
         "project": "Proyecto: {name}",
@@ -8644,6 +8623,20 @@
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"
+      },
+      "planner": {
+        "statusFilter": "Filtrar por estado",
+        "posts": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "openDays": "{count, plural, =0 {Ningún día libre por delante} one {# día libre por delante} other {# días libres por delante}}",
+        "dayLabel": "{date}, {count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "today": "hoy",
+        "plan": "Planificar publicación",
+        "planFor": "Planificar publicación el {date}",
+        "emptyDay": "No hay nada planificado para este día.",
+        "openDay": "Día libre",
+        "noPosts": "Sin publicaciones",
+        "dragHint": "Arrastra a otro día para reprogramar. La hora se mantiene.",
+        "moved": "Movida al {date}."
       }
     },
     "You": {

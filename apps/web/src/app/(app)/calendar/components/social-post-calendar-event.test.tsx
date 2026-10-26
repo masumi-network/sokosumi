@@ -45,7 +45,7 @@ const item: SocialPostCalendarItem = {
 
 function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
-  variant: "compact" | "preview" | "timeline" = "preview",
+  variant: "compact" | "preview" = "preview",
   showThumb = false,
 ) {
   return render(
@@ -69,21 +69,6 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
-  it("names a timeline post by time, account, words and status, and marks it draggable", () => {
-    renderCard({}, "timeline");
-    const post = screen.getByRole("link", {
-      name: "12:00 PM, X · @team, Launch news, Scheduled",
-    });
-    expect(post).toHaveClass("cursor-grab");
-  });
-
-  it("does not offer a published timeline post as draggable", () => {
-    renderCard({ status: "PUBLISHED" }, "timeline");
-    expect(screen.getByTestId("calendar-social-post")).toHaveClass(
-      "cursor-pointer",
-    );
-  });
-
   it("names the compact workspace card in one phrase", () => {
     renderCard({}, "compact");
     expect(

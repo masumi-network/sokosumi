@@ -8538,7 +8538,6 @@
       "next": "Nächster Zeitraum",
       "today": "Heute",
       "view": {
-        "list": "Liste",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"
@@ -8567,17 +8566,6 @@
         "confirm": "Lauf verschieben",
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit."
-      },
-      "socialMove": {
-        "title": "Beitrag verschieben",
-        "description": "Wähle eine neue Zeit. Zeiten in {zone}.",
-        "label": "Neue Zeit",
-        "confirm": "Verschieben",
-        "cancel": "Abbrechen",
-        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-        "past": "Wähle eine Zeit in der Zukunft.",
-        "failed": "Beitrag konnte nicht verschoben werden.",
-        "done": "Beitrag verschoben"
       },
       "create": {
         "fab": "Task planen"
@@ -8623,15 +8611,6 @@
         "loading": "Wird geladen…",
         "loadMore": "Mehr laden"
       },
-      "list": {
-        "today": "Heute",
-        "empty": "Keine Beiträge",
-        "count": "{count, plural, one {# Beitrag} other {# Beiträge}}",
-        "create": "Beitrag hinzufügen",
-        "createOn": "Beitrag am {day} hinzufügen",
-        "reschedule": "Beitrag um {time} verschieben",
-        "rescheduleHint": "Verschieben"
-      },
       "socialPost": {
         "mediaOnly": "Medienbeitrag",
         "project": "Projekt: {name}",
@@ -8644,6 +8623,20 @@
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
+      },
+      "planner": {
+        "statusFilter": "Nach Status filtern",
+        "posts": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "openDays": "{count, plural, =0 {Keine freien Tage voraus} one {# freier Tag voraus} other {# freie Tage voraus}}",
+        "dayLabel": "{date}, {count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "today": "heute",
+        "plan": "Beitrag planen",
+        "planFor": "Beitrag planen am {date}",
+        "emptyDay": "Für diesen Tag ist nichts geplant.",
+        "openDay": "Freier Tag",
+        "noPosts": "Keine Beiträge",
+        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen. Die Uhrzeit bleibt gleich.",
+        "moved": "Verschoben auf {date}."
       }
     },
     "You": {

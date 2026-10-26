@@ -8538,7 +8538,6 @@
       "next": "Next period",
       "today": "Today",
       "view": {
-        "list": "List",
         "month": "Month",
         "week": "Week",
         "agenda": "Agenda"
@@ -8567,17 +8566,6 @@
         "confirm": "Move run",
         "cancel": "Cancel",
         "invalid": "Choose a valid date and time."
-      },
-      "socialMove": {
-        "title": "Reschedule post",
-        "description": "Pick a new time. Times are in {zone}.",
-        "label": "New time",
-        "confirm": "Reschedule",
-        "cancel": "Cancel",
-        "invalid": "Choose a valid date and time.",
-        "past": "Choose a time in the future.",
-        "failed": "Failed to reschedule the post.",
-        "done": "Post rescheduled"
       },
       "create": {
         "fab": "Schedule a task"
@@ -8623,15 +8611,6 @@
         "loading": "Loading…",
         "loadMore": "Load more"
       },
-      "list": {
-        "today": "Today",
-        "empty": "No posts",
-        "count": "{count, plural, one {# post} other {# posts}}",
-        "create": "Add post",
-        "createOn": "Add a post on {day}",
-        "reschedule": "Reschedule the post at {time}",
-        "rescheduleHint": "Reschedule"
-      },
       "socialPost": {
         "mediaOnly": "Media post",
         "project": "Project: {name}",
@@ -8644,6 +8623,20 @@
       },
       "socialOnly": {
         "label": "Social posts only"
+      },
+      "planner": {
+        "statusFilter": "Filter by status",
+        "posts": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+        "openDays": "{count, plural, =0 {No open days ahead} one {# open day ahead} other {# open days ahead}}",
+        "dayLabel": "{date}, {count, plural, =0 {no posts} one {# post} other {# posts}}",
+        "today": "today",
+        "plan": "Plan a post",
+        "planFor": "Plan a post on {date}",
+        "emptyDay": "Nothing planned for this day.",
+        "openDay": "Open day",
+        "noPosts": "No posts",
+        "dragHint": "Drag to another day to reschedule. The time stays the same.",
+        "moved": "Moved to {date}."
       }
     },
     "You": {

@@ -54,6 +54,11 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
   },
 };
 
+/** The status's hue as a solid fill, for marks too small to carry a glyph. */
+export function socialPostStatusDotClass(status: SocialPostStatus): string {
+  return getToneStyle(STATUS_MARKERS[status].tone).dot;
+}
+
 interface SocialPostStatusBadgeProps {
   label: string;
   status: SocialPostStatus;

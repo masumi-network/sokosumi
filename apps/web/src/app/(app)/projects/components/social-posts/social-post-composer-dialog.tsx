@@ -106,7 +106,7 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
-      /** A time picked on the calendar, which the new post opens on. */
+      /** A time to start on, when the calendar opened the composer for a day. */
       scheduledAt?: Date;
     }
   | { kind: "edit"; post: SocialPost }
@@ -168,6 +168,8 @@ export function SocialPostComposerDialog({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const initialScheduledAt =
+    mode.kind === "create" ? mode.scheduledAt : post?.scheduledAt;
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -266,9 +268,6 @@ export function SocialPostComposerDialog({
       subscriptionQueries[index]?.data,
     ]),
   );
-  const initialScheduledAt =
-    post?.scheduledAt ??
-    (mode.kind === "create" ? mode.scheduledAt : undefined);
   const [scheduledAt, setScheduledAt] = useState(
     initialScheduledAt ? toScheduleValue(initialScheduledAt) : "",
   );
@@ -948,7 +947,7 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== initial.scheduledAt
+        scheduledAt !== ""
       : firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||

@@ -13,15 +13,21 @@ function Probe() {
   return (
     <div>
       <span data-testid="open">{String(compose?.open)}</span>
-      <span data-testid="at">{compose?.scheduledAt?.toISOString() ?? ""}</span>
-      <button
-        type="button"
-        onClick={() => compose?.openAt(new Date("2030-01-03T09:00:00.000Z"))}
-      >
-        open at
-      </button>
+      <span data-testid="scheduled-at">
+        {compose?.scheduledAt?.toISOString() ?? "none"}
+      </span>
       <button type="button" onClick={() => compose?.setOpen(true)}>
         open
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          compose?.setOpen(true, {
+            scheduledAt: new Date("2030-01-09T08:00:00.000Z"),
+          })
+        }
+      >
+        plan
       </button>
       <button type="button" onClick={() => compose?.setOpen(false)}>
         close
@@ -79,7 +85,7 @@ describe("SocialComposeProvider", () => {
     expect(event.searchParams.has("compose")).toBe(false);
   });
 
-  it("opens on the time the calendar picked, and forgets it on close", async () => {
+  it("carries a calendar day's time while open and drops it on close", async () => {
     const user = userEvent.setup();
     render(
       <SocialComposeProvider>
@@ -88,32 +94,15 @@ describe("SocialComposeProvider", () => {
       { wrapper: withNuqsTestingAdapter({ searchParams: "" }) },
     );
 
-    await user.click(screen.getByRole("button", { name: "open at" }));
+    await user.click(screen.getByRole("button", { name: "plan" }));
     expect(screen.getByTestId("open")).toHaveTextContent("true");
-    expect(screen.getByTestId("at")).toHaveTextContent(
-      "2030-01-03T09:00:00.000Z",
+    expect(screen.getByTestId("scheduled-at")).toHaveTextContent(
+      "2030-01-09T08:00:00.000Z",
     );
 
     await user.click(screen.getByRole("button", { name: "close" }));
-    expect(screen.getByTestId("open")).toHaveTextContent("false");
-    expect(screen.getByTestId("at")).toBeEmptyDOMElement();
-  });
-
-  it("reads a picked time carried through the project chooser", () => {
-    render(
-      <SocialComposeProvider>
-        <Probe />
-      </SocialComposeProvider>,
-      {
-        wrapper: withNuqsTestingAdapter({
-          searchParams: "?compose=new&composeAt=2030-01-03T09:00:00.000Z",
-        }),
-      },
-    );
-
-    expect(screen.getByTestId("open")).toHaveTextContent("true");
-    expect(screen.getByTestId("at")).toHaveTextContent(
-      "2030-01-03T09:00:00.000Z",
-    );
+    await user.click(screen.getByRole("button", { name: "open" }));
+    // The New post menu opens a composer with no time picked.
+    expect(screen.getByTestId("scheduled-at")).toHaveTextContent("none");
   });
 });
