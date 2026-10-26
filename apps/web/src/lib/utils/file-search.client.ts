@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   deleteDriveCollectionsById,
+  deleteDriveFilesDelete,
   getDriveCollections,
   getDriveFolders,
   getDriveLabels,
@@ -260,6 +261,25 @@ export async function deleteFileCollection(input: {
     signal: input.signal,
     throwOnError: true,
   });
+}
+
+/**
+ * Deletes uploaded Drive files by pathname, each on its own: one file that
+ * fails leaves the others deleted. Returns the pathnames that failed.
+ */
+export async function deleteDriveUploads(
+  pathnames: readonly string[],
+): Promise<string[]> {
+  const results = await Promise.allSettled(
+    pathnames.map((pathname) =>
+      deleteDriveFilesDelete({
+        client: getBrowserCoreClient(),
+        body: { pathname },
+        throwOnError: true,
+      }),
+    ),
+  );
+  return pathnames.filter((_, index) => results[index].status === "rejected");
 }
 
 export async function fetchFileResource(input: {
