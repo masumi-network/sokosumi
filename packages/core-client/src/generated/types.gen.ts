@@ -5351,6 +5351,10 @@ export type ProjectImageJob = {
     refunded: boolean;
 };
 
+export type NewsletterAvailability = {
+    enabled: boolean;
+};
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -7776,6 +7780,24 @@ export type PatchProjectRequest = {
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */
     identifier?: string;
+};
+
+export type PublicNewsletter = {
+    name: string;
+    senderName: string;
+    brand: NewsletterBrand;
+};
+
+export type NewsletterSignupAccepted = {
+    status: 'check_your_inbox';
+};
+
+export type SubscribeNewsletterRequest = {
+    email: string;
+    name?: string;
+    source?: 'SIGNUP_FORM';
+    website?: string;
+    locale?: 'en' | 'de' | 'es';
 };
 
 export type Job = {
@@ -37381,6 +37403,93 @@ export type GetImageStudioStateResponses = {
 
 export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
 
+export type GetNewsletterAvailabilityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/newsletter/availability';
+};
+
+export type GetNewsletterAvailabilityErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNewsletterAvailabilityError = GetNewsletterAvailabilityErrors[keyof GetNewsletterAvailabilityErrors];
+
+export type GetNewsletterAvailabilityResponses = {
+    /**
+     * Newsletter availability
+     */
+    200: {
+        data: NewsletterAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNewsletterAvailabilityResponse = GetNewsletterAvailabilityResponses[keyof GetNewsletterAvailabilityResponses];
+
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -55628,6 +55737,255 @@ export type PostPublicNewsletterUnsubscribeResponses = {
 };
 
 export type PostPublicNewsletterUnsubscribeResponse = PostPublicNewsletterUnsubscribeResponses[keyof PostPublicNewsletterUnsubscribeResponses];
+
+export type GetPublicNewsletterConfirmData = {
+    body?: never;
+    path?: never;
+    query: {
+        token: string;
+    };
+    url: '/public/newsletter/confirm';
+};
+
+export type GetPublicNewsletterConfirmErrors = {
+    /**
+     * Invalid or expired token
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetPublicNewsletterConfirmError = GetPublicNewsletterConfirmErrors[keyof GetPublicNewsletterConfirmErrors];
+
+export type GetPublicNewsletterConfirmResponses = {
+    /**
+     * Subscription confirmation
+     */
+    200: string;
+};
+
+export type GetPublicNewsletterConfirmResponse = GetPublicNewsletterConfirmResponses[keyof GetPublicNewsletterConfirmResponses];
+
+export type PostPublicNewsletterConfirmData = {
+    body?: never;
+    path?: never;
+    query: {
+        token: string;
+    };
+    url: '/public/newsletter/confirm';
+};
+
+export type PostPublicNewsletterConfirmErrors = {
+    /**
+     * Invalid or expired token
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostPublicNewsletterConfirmError = PostPublicNewsletterConfirmErrors[keyof PostPublicNewsletterConfirmErrors];
+
+export type PostPublicNewsletterConfirmResponses = {
+    /**
+     * Subscription confirmed
+     */
+    200: string;
+};
+
+export type PostPublicNewsletterConfirmResponse = PostPublicNewsletterConfirmResponses[keyof PostPublicNewsletterConfirmResponses];
+
+export type GetPublicNewslettersByPublicSlugData = {
+    body?: never;
+    path: {
+        publicSlug: string;
+    };
+    query?: never;
+    url: '/public/newsletters/{publicSlug}';
+};
+
+export type GetPublicNewslettersByPublicSlugErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugError = GetPublicNewslettersByPublicSlugErrors[keyof GetPublicNewslettersByPublicSlugErrors];
+
+export type GetPublicNewslettersByPublicSlugResponses = {
+    /**
+     * Public newsletter
+     */
+    200: {
+        data: PublicNewsletter;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetPublicNewslettersByPublicSlugResponse = GetPublicNewslettersByPublicSlugResponses[keyof GetPublicNewslettersByPublicSlugResponses];
+
+export type PostPublicNewslettersByPublicSlugSubscribeData = {
+    body: SubscribeNewsletterRequest;
+    path: {
+        publicSlug: string;
+    };
+    query?: never;
+    url: '/public/newsletters/{publicSlug}/subscribe';
+};
+
+export type PostPublicNewslettersByPublicSlugSubscribeErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostPublicNewslettersByPublicSlugSubscribeError = PostPublicNewslettersByPublicSlugSubscribeErrors[keyof PostPublicNewslettersByPublicSlugSubscribeErrors];
+
+export type PostPublicNewslettersByPublicSlugSubscribeResponses = {
+    /**
+     * Check your inbox
+     */
+    202: NewsletterSignupAccepted;
+};
+
+export type PostPublicNewslettersByPublicSlugSubscribeResponse = PostPublicNewslettersByPublicSlugSubscribeResponses[keyof PostPublicNewslettersByPublicSlugSubscribeResponses];
 
 export type GetJobsData = {
     body?: never;
