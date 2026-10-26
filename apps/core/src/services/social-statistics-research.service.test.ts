@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
 const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -8,7 +9,9 @@ const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   post: vi.fn(),
   read: vi.fn(),
+  log: vi.fn(),
 }));
+vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: mocks.log }) }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: mocks.project },
@@ -84,6 +87,88 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("scoped X audience and public benchmarking", () => {
+  it("requests X v2 mention fields needed for author and interaction evidence", async () => {
+    mocks.read.mockResolvedValue({ meta: { result_count: 0 } });
+    await readSocialPerformanceAudience(scope);
+    expect(mocks.read).toHaveBeenCalledWith(
+      expect.anything(),
+      "https://api.x.com/2/users/123/mentions",
+      expect.arrayContaining([
+        {
+          name: "tweet.fields",
+          value:
+            "created_at,public_metrics,author_id,in_reply_to_user_id,referenced_tweets",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value: "author_id,in_reply_to_user_id,referenced_tweets.id",
+          type: "query",
+        },
+      ]),
+    );
+  });
+  it("preserves X rate limits instead of hiding them as a generic 503", async () => {
+    mocks.read.mockRejectedValue(new ComposioApiError(429, undefined));
+    await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
+      status: 429,
+      cause: { extensions: { code: "x_rate_limited" } },
+    });
+  });
+  it("requests X v2 public timeline fields for benchmarks and the supported video search operator", async () => {
+    mocks.read
+      .mockResolvedValueOnce({ data: user })
+      .mockResolvedValue({ meta: { result_count: 0 } });
+    await readSocialPerformanceBenchmark({ ...scope, username: "reader" });
+    expect(mocks.read).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "https://api.x.com/2/users/456/tweets",
+      expect.arrayContaining([
+        { name: "exclude", value: "retweets,replies", type: "query" },
+        { name: "max_results", value: "100", type: "query" },
+        {
+          name: "tweet.fields",
+          value:
+            "created_at,public_metrics,note_tweet,attachments,entities,author_id,in_reply_to_user_id,referenced_tweets",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value: "attachments.media_keys,author_id,referenced_tweets.id",
+          type: "query",
+        },
+      ]),
+    );
+    await readSocialPerformanceDiscovery({
+      ...scope,
+      topic: "launch",
+      format: "video",
+    });
+    expect(mocks.read).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://api.x.com/2/tweets/search/recent",
+      expect.arrayContaining([
+        {
+          name: "query",
+          value: '"launch" has:video -is:retweet -is:reply',
+          type: "query",
+        },
+        {
+          name: "tweet.fields",
+          value:
+            "created_at,public_metrics,note_tweet,attachments,entities,lang,author_id,in_reply_to_user_id,referenced_tweets",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value:
+            "attachments.media_keys,author_id,in_reply_to_user_id,referenced_tweets.id",
+          type: "query",
+        },
+      ]),
+    );
+  });
   it.each([
     { topic: "from:other OR secret" },
     { topic: "launch", publishedFrom: "2026-09-30T00:00:00Z" },
@@ -318,7 +403,7 @@ describe("scoped X audience and public benchmarking", () => {
     mocks.read.mockResolvedValue({ data: { ...user, protected: true } });
     await expect(
       readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
-    ).rejects.toMatchObject({ status: 503 });
+    ).rejects.toMatchObject({ status: 403 });
     expect(mocks.read).toHaveBeenCalledOnce();
     expect(mocks.read).toHaveBeenCalledWith(
       expect.objectContaining({ connectedAccountId: "ca-own" }),
@@ -370,7 +455,7 @@ describe("scoped X audience and public benchmarking", () => {
     );
     await expect(
       readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
-    ).rejects.toThrow("X recent discovery is unavailable");
+    ).rejects.toThrow("X recent search is unavailable");
   });
   it("retains incoming mention content and counters as citeable evidence while deduplicating contact contributions", async () => {
     const mentioned = {
@@ -544,7 +629,7 @@ describe("scoped X audience and public benchmarking", () => {
   ])("requires an active X account", async (value) => {
     mocks.accounts.mockResolvedValue([value]);
     await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
-      status: 400,
+      status: value.provider === "x" ? 422 : 400,
     });
     expect(mocks.connection).not.toHaveBeenCalled();
     expect(mocks.read).not.toHaveBeenCalled();
@@ -602,24 +687,24 @@ describe("scoped X audience and public benchmarking", () => {
           author_id: "456",
           created_at: "2026-10-06T12:00:00Z",
           in_reply_to_user_id: "123",
-          referenced_posts: [{ id: "own-post", type: "replied_to" }],
+          referenced_tweets: [{ id: "own-post", type: "replied_to" }],
         },
         {
           id: "2",
           author_id: "456",
           created_at: "2026-10-07T12:00:00Z",
-          referenced_posts: [{ id: "own-post", type: "quoted" }],
+          referenced_tweets: [{ id: "own-post", type: "quoted" }],
         },
         {
           id: "3",
           author_id: "456",
-          referenced_posts: [{ id: "other-post", type: "replied_to" }],
+          referenced_tweets: [{ id: "other-post", type: "replied_to" }],
         },
         { id: "4", author_id: "123" },
       ],
       includes: {
         users: [user],
-        posts: [
+        tweets: [
           { id: "own-post", author_id: "123" },
           { id: "other-post", author_id: "999" },
         ],
@@ -649,36 +734,180 @@ describe("scoped X audience and public benchmarking", () => {
     expect(result.samplePostCount).toBe(0);
   });
 
-  it("maps provider failure and malformed cursors to a safe unavailable response", async () => {
+  it.each([
+    {
+      error: new ComposioApiError(403, undefined),
+      status: 403,
+      code: "x_access_denied",
+      message: "X doesn't give this connection access to",
+    },
+    {
+      error: new ComposioToolError({
+        message: "refused",
+        providerStatus: 400,
+        providerMessage:
+          "client-not-enrolled: access tier does not include this endpoint",
+      }),
+      status: 403,
+      code: "x_access_denied",
+      message: "X doesn't give this connection access to",
+    },
+    {
+      error: new ComposioToolError({
+        message: "refused",
+        providerStatus: 403,
+        providerMessage: "Missing scope follows.read. access_token=secret",
+      }),
+      status: 422,
+      code: "x_reconnect_required",
+      message: "Reconnect the X account",
+    },
+    {
+      error: new ComposioToolError({
+        message: "refused",
+        providerStatus: 403,
+        providerMessage: "Request had insufficient authentication scopes",
+      }),
+      status: 422,
+      code: "x_reconnect_required",
+      message: "Reconnect the X account",
+    },
+    {
+      error: new ComposioToolError({
+        message: "refused",
+        providerMessage: "The access token has expired",
+      }),
+      status: 422,
+      code: "x_reconnect_required",
+      message: "Reconnect the X account",
+    },
+    {
+      error: new ComposioApiError(401, undefined),
+      status: 422,
+      code: "x_reconnect_required",
+      message: "Reconnect the X account",
+    },
+    {
+      error: new ComposioApiError(429, undefined),
+      status: 429,
+      code: "x_rate_limited",
+      message: "Wait a few minutes before trying again",
+    },
+    {
+      error: new ComposioToolError({
+        message: "refused",
+        providerStatus: 429,
+        retryAfterSeconds: 90,
+      }),
+      status: 429,
+      code: "x_rate_limited",
+      message: "Try again in 90 seconds",
+    },
+    {
+      error: new ComposioApiError(503, undefined),
+      status: 503,
+      code: "x_upstream_unavailable",
+      message: "temporarily unavailable",
+    },
+    {
+      error: new TypeError("fetch failed"),
+      status: 503,
+      code: "x_upstream_unavailable",
+      message: "temporarily unavailable",
+    },
+    {
+      error: new ComposioApiError(400, undefined),
+      status: 502,
+      code: "x_upstream_error",
+      message: "unexpected response",
+    },
+    {
+      error: new Error("access_token=secret @private-account"),
+      status: 502,
+      code: "x_upstream_error",
+      message: "unexpected response",
+    },
+  ])(
+    "maps X failures to $status/$code for all research resources without leaking details",
+    async ({ error, status, code, message }) => {
+      mocks.read.mockRejectedValue(error);
+      for (const [read, resource] of [
+        [
+          () => readSocialPerformanceAudience({ ...scope, kind: "followers" }),
+          "followers",
+        ],
+        [() => readSocialPerformanceAudience(scope), "mentions"],
+        [
+          () =>
+            readSocialPerformanceAudience({ ...scope, kind: "likers", postId }),
+          "likers",
+        ],
+        [
+          () =>
+            readSocialPerformanceAudience({
+              ...scope,
+              kind: "reposters",
+              postId,
+            }),
+          "reposters",
+        ],
+        [
+          () =>
+            readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
+          "public benchmark data",
+        ],
+        [
+          () => readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
+          "recent search",
+        ],
+      ] as const) {
+        await expect(read()).rejects.toMatchObject({
+          status,
+          message: expect.stringContaining(message),
+          cause: { kind: code, extensions: { code } },
+        });
+        expect(mocks.log).toHaveBeenLastCalledWith({
+          socialStatisticsResearch: expect.objectContaining({ resource, code }),
+        });
+      }
+      expect(JSON.stringify(mocks.log.mock.calls)).not.toMatch(
+        /secret|private-account|access_token/,
+      );
+    },
+  );
+  it("records only the upstream status and standard X problem title/type on the request event", async () => {
     mocks.read.mockRejectedValue(
-      new ComposioApiError(429, {}, "access_token=secret"),
+      new ComposioToolError({
+        message: "refused",
+        providerStatus: 403,
+        providerTitle: "Client Forbidden",
+        providerType: "https://api.x.com/2/problems/client-forbidden",
+        providerMessage:
+          "client-not-enrolled access_token=secret @private-account",
+      }),
     );
     await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
-      status: 503,
-      message:
-        "X audience data is unavailable. Check connection scopes, API access and rate limits, then try again.",
+      status: 403,
     });
-    await expect(
-      readSocialPerformanceBenchmark({ ...scope, username: "reader" }),
-    ).rejects.toMatchObject({
-      status: 503,
-      message:
-        "X public benchmark is unavailable. Confirm the handle is public, then check connection permissions, API access and rate limits.",
+    expect(mocks.log).toHaveBeenCalledWith({
+      socialStatisticsResearch: {
+        resource: "mentions",
+        code: "x_access_denied",
+        upstreamStatus: 403,
+        upstreamTitle: "Client Forbidden",
+        upstreamType: "https://api.x.com/2/problems/client-forbidden",
+      },
     });
-    await expect(
-      readSocialPerformanceDiscovery({ ...scope, topic: "launch" }),
-    ).rejects.toMatchObject({
-      status: 503,
-      message:
-        "X recent discovery is unavailable. Check connection scopes, search API access and rate limits, then try again.",
-    });
+  });
+  it("rejects malformed provider cursors with a safe machine-readable upstream error", async () => {
     mocks.read.mockResolvedValue({
       data: [],
       meta: { next_token: "https://evil.test/?access_token=secret" },
     });
-    await expect(readSocialPerformanceAudience(scope)).rejects.toThrow(
-      "X audience data is unavailable",
-    );
+    await expect(readSocialPerformanceAudience(scope)).rejects.toMatchObject({
+      status: 502,
+      cause: { extensions: { code: "x_upstream_error" } },
+    });
   });
 
   it("validates the benchmark handle before account or provider access", async () => {

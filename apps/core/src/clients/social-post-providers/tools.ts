@@ -13,6 +13,23 @@ import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types
 // Long enough for a Google Ads failure, whose per-error message comes after
 // several hundred characters of envelope. User-facing texts cut it shorter.
 const TOOL_ERROR_MESSAGE_LIMIT = 2000;
+const X_PROBLEM_TITLES = new Set([
+  "forbidden",
+  "unauthorized",
+  "client forbidden",
+  "client not enrolled",
+  "invalid request",
+  "bad request",
+  "not found error",
+  "resource not found",
+  "unsupported authentication",
+  "too many requests",
+  "rate limit exceeded",
+  "usage cap exceeded",
+  "usagecapexceeded",
+  "authentication error",
+  "authorization error",
+]);
 
 /** Redacts credentials and identifiers before a provider message is stored. */
 function sanitizeProviderMessage(value: string): string {
@@ -47,11 +64,17 @@ function sanitizeProviderMessage(value: string): string {
 export class ComposioToolError extends Error {
   readonly providerMessage: string | null;
   readonly providerStatus: number | null;
+  readonly providerTitle: string | null;
+  readonly providerType: string | null;
+  readonly retryAfterSeconds: number | null;
 
   constructor(input: {
     message: string;
     providerMessage?: string | null;
     providerStatus?: number | null;
+    providerTitle?: string | null;
+    providerType?: string | null;
+    retryAfterSeconds?: number | null;
   }) {
     super(input.message);
     this.name = "ComposioToolError";
@@ -59,6 +82,20 @@ export class ComposioToolError extends Error {
       ? sanitizeProviderMessage(input.providerMessage)
       : null;
     this.providerStatus = input.providerStatus ?? null;
+    // Only standard problem names/URIs may reach logs; arbitrary titles can contain personal data.
+    this.providerTitle =
+      input.providerTitle &&
+      X_PROBLEM_TITLES.has(input.providerTitle.toLowerCase())
+        ? input.providerTitle
+        : null;
+    this.providerType =
+      input.providerType &&
+      /^(?:about:blank|https:\/\/api\.(?:x|twitter)\.com\/2\/problems\/(?:invalid-request|resource-not-found|not-authorized-for-resource|client-forbidden|client-not-enrolled|usage-capped|rate-limit-exceeded|unsupported-authentication))$/.test(
+        input.providerType,
+      )
+        ? input.providerType
+        : null;
+    this.retryAfterSeconds = input.retryAfterSeconds ?? null;
   }
 }
 
@@ -72,25 +109,85 @@ export class ComposioPublishOutcomeUnknownError extends Error {
   }
 }
 
-function toolErrorMessage(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  const detail = record(value);
-  if (!detail) return null;
-  for (const key of ["message", "detail", "error", "title"]) {
-    const candidate = detail[key];
-    if (typeof candidate === "string" && candidate) return candidate;
+/** Inspect only known envelope fields; raw responses are never kept on the error. */
+function composioToolFailure(
+  message: string,
+  payload: unknown,
+  status?: number,
+  responseHeaders?: Headers,
+): ComposioToolError {
+  const details: Record<string, unknown>[] = [];
+  const messages: string[] = [];
+  function visit(value: unknown, depth = 0) {
+    if (depth > 5) return;
+    const item = record(value);
+    if (!item) {
+      if (typeof value === "string") messages.push(value);
+      return;
+    }
+    details.push(item);
+    for (const key of ["detail", "message", "title", "type", "code"])
+      if (typeof item[key] === "string") messages.push(item[key]);
+    for (const key of ["error", "data", "response", "body"])
+      if (item[key] !== undefined) visit(item[key], depth + 1);
+    if (Array.isArray(item.errors)) visit(item.errors[0], depth + 1);
   }
-  return null;
-}
-
-function toolErrorStatus(value: unknown): number | null {
-  const detail = record(value);
-  if (!detail) return null;
-  for (const key of ["status", "status_code", "statusCode"]) {
-    const candidate = detail[key];
-    if (typeof candidate === "number") return candidate;
+  visit(payload);
+  const providerStatus = [...details]
+    .reverse()
+    .flatMap((item) => [
+      item.status,
+      item.status_code,
+      item.statusCode,
+      item.code,
+    ])
+    .map(Number)
+    .find((value) => Number.isInteger(value) && value >= 400 && value <= 599);
+  const title = [...details]
+    .reverse()
+    .find((item) => typeof item.title === "string")?.title;
+  const type = [...details]
+    .reverse()
+    .find((item) => typeof item.type === "string")?.type;
+  const headers = new Headers(responseHeaders);
+  // Composio can return upstream headers inside the provider envelope.
+  for (const item of details) {
+    for (const [key, value] of Object.entries(record(item.headers) ?? {}))
+      if (
+        /^(retry-after|x-rate-limit-reset)$/i.test(key) &&
+        (typeof value === "string" || typeof value === "number") &&
+        !/[\r\n]/.test(String(value))
+      )
+        headers.set(key, String(value));
   }
-  return null;
+  const retry = headers.get("retry-after");
+  const reset = headers.get("x-rate-limit-reset");
+  const delay = retry
+    ? /^\d+$/.test(retry)
+      ? Number(retry)
+      : (Date.parse(retry) - Date.now()) / 1000
+    : reset
+      ? Number(reset) - Date.now() / 1000
+      : Number.NaN;
+  const messageStatus = messages
+    .join(" ")
+    .match(
+      /\b(?:HTTP(?: error)?[ :]*([45]\d{2})|([45]\d{2}) (?:Client|Server) Error)/i,
+    );
+  return new ComposioToolError({
+    message,
+    providerMessage: messages.join(" ") || null,
+    providerStatus:
+      providerStatus ??
+      (messageStatus
+        ? Number(messageStatus[1] ?? messageStatus[2])
+        : (status ?? null)),
+    providerTitle: typeof title === "string" ? title : null,
+    providerType: typeof type === "string" ? type : null,
+    retryAfterSeconds: Number.isSafeInteger(Math.ceil(delay))
+      ? Math.max(0, Math.ceil(delay))
+      : null,
+  });
 }
 
 /**
@@ -142,6 +239,8 @@ export async function executeComposioTool(input: {
   refused: string;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Research reads need X's data/includes/meta envelope, including single-user lookups. */
+  preserveEnvelope?: boolean;
 }): Promise<Record<string, unknown> | null> {
   const response = await projectComposioFetch(
     `/api/v3.1/tool_router/session/${encodeURIComponent(input.sessionId)}/execute`,
@@ -152,6 +251,15 @@ export async function executeComposioTool(input: {
       signal: input.signal,
     },
   );
+  if (input.preserveEnvelope && !response.ok) {
+    const failure = composioToolFailure(
+      input.refused,
+      await response.text(),
+      response.status,
+      response.headers,
+    );
+    throw failure;
+  }
   const result = await projectComposioResponse<{
     data?: unknown;
     error?: unknown;
@@ -159,13 +267,52 @@ export async function executeComposioTool(input: {
   }>(response, input.context);
   const toolResult = record(result.data);
   const providerResult = record(toolResult?.data) ?? toolResult;
-  const toolError = result.error ?? toolResult?.error;
-  if (toolError || result.successful === false) {
-    throw new ComposioToolError({
-      message: input.refused,
-      providerMessage: toolErrorMessage(toolError),
-      providerStatus: toolErrorStatus(toolError),
-    });
+  const toolError = result.error || toolResult?.error;
+  if (
+    toolError ||
+    result.successful === false ||
+    toolResult?.successful === false
+  ) {
+    throw composioToolFailure(
+      input.refused,
+      result,
+      undefined,
+      response.headers,
+    );
+  }
+  if (input.preserveEnvelope) {
+    const payload =
+      toolResult &&
+      (Array.isArray(toolResult.data) ||
+        record(toolResult.data)?.id !== undefined ||
+        toolResult.meta !== undefined ||
+        toolResult.includes !== undefined)
+        ? toolResult
+        : providerResult;
+    if (
+      payload?.error ||
+      payload?.successful === false ||
+      (Array.isArray(payload?.errors) &&
+        payload.errors.length &&
+        !(Array.isArray(payload.data)
+          ? payload.data.length > 0
+          : payload.data)) ||
+      [toolResult, providerResult].some((value) =>
+        [value?.status, value?.status_code, value?.statusCode].some(
+          (status) => Number(status) >= 400,
+        ),
+      ) ||
+      (!payload?.data &&
+        typeof payload?.title === "string" &&
+        typeof payload.type === "string")
+    )
+      throw composioToolFailure(
+        input.refused,
+        result,
+        undefined,
+        response.headers,
+      );
+    return payload;
   }
   return record(providerResult?.data) ?? providerResult;
 }
