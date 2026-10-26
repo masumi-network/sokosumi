@@ -16,7 +16,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
-import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  SOCIAL_PROVIDERS,
+  socialProvidersEnabledFirst,
+} from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,7 +147,8 @@ export function ProjectSocialAccounts({
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
-  const { isProviderEnabled } = useSocialProviderAvailability();
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
   const postsT = useTranslations("App.Projects.SocialPosts");
@@ -536,7 +540,7 @@ export function ProjectSocialAccounts({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {SOCIAL_PROVIDERS.map((provider) => {
+            {socialProvidersEnabledFirst(enabledProviders).map((provider) => {
               const { id, name, Icon } = provider;
               const comingSoon = !isProviderEnabled(provider.id);
               return (

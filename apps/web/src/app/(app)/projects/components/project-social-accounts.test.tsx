@@ -393,6 +393,45 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
+  it("lists connectable platforms before Coming soon ones", async () => {
+    const user = userEvent.setup();
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    await user.click(screen.getByRole("button", { name: "Connect account" }));
+    expect(
+      screen
+        .getAllByRole("menuitem")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual([
+      "Connect X account",
+      "Connect LinkedIn account",
+      "Connect YouTube account",
+      "TikTok (coming soon)",
+      "Instagram (coming soon)",
+      "Facebook (coming soon)",
+    ]);
+  });
+
+  it("keeps the platform order when Core enables every provider", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialProviderAvailabilityProvider
+        enabledProviders={SOCIAL_BETA_PROVIDERS}
+      >
+        <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />
+      </SocialProviderAvailabilityProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Connect account" }));
+    expect(
+      screen
+        .getAllByRole("menuitem")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual(
+      ["X", "TikTok", "Instagram", "LinkedIn", "Facebook", "YouTube"].map(
+        (name) => `Connect ${name} account`,
+      ),
+    );
+  });
+
   it("starts a connection for X", async () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,

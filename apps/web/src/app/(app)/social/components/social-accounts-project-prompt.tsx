@@ -8,7 +8,10 @@ import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  type SOCIAL_PROVIDERS,
+  socialProvidersEnabledFirst,
+} from "@/components/social-providers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -123,6 +126,9 @@ function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
   const comingSoonLabel = accounts("comingSoon");
+  const providers = socialProvidersEnabledFirst(
+    useSocialProviderAvailability().enabledProviders,
+  );
 
   return (
     <section
@@ -161,7 +167,7 @@ function SocialPlatformCarousel() {
                   : "flex shrink-0"
               }
             >
-              {SOCIAL_PROVIDERS.map((provider) => (
+              {providers.map((provider) => (
                 <li
                   key={`${provider.id}-${copy}`}
                   className="w-[40cqw] shrink-0 pl-3 sm:w-[calc(100cqw/3)] lg:w-[calc(100cqw/6)]"

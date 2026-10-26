@@ -71,6 +71,14 @@ describe("SocialAccountsProjectPrompt", () => {
       screen.getByRole("heading", { name: "Choose a project" }),
     ).toBeVisible();
     expect(screen.queryByText("Coming soon")).toBeNull();
+    const primary = screen
+      .getByRole("region", { name: "Social platforms" })
+      .querySelector("ul");
+    expect(
+      [...(primary?.querySelectorAll("li p") ?? [])].map(
+        (name) => name.textContent,
+      ),
+    ).toEqual(SOCIAL_PROVIDERS.map(({ name }) => name));
   });
 
   it("asks to choose a project before connecting", () => {
@@ -109,6 +117,18 @@ describe("SocialAccountsProjectPrompt", () => {
     const primary = tracks[0];
     if (!primary) {
       throw new Error("Primary platform track is missing");
+    }
+    for (const track of tracks) {
+      expect(
+        [...track.querySelectorAll("li p")].map((name) => name.textContent),
+      ).toEqual([
+        "X",
+        "LinkedIn",
+        "YouTube",
+        "TikTok",
+        "Instagram",
+        "Facebook",
+      ]);
     }
     expect(within(primary).getByText("TikTok")).toBeVisible();
     expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);

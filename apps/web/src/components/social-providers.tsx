@@ -21,3 +21,16 @@ export const SOCIAL_PROVIDERS = [
   name: string;
   Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }[];
+
+/** Connectable platforms first, then Coming soon; each group keeps `SOCIAL_PROVIDERS` order. */
+export function socialProvidersEnabledFirst(
+  enabledProviders: readonly string[],
+): (typeof SOCIAL_PROVIDERS)[number][] {
+  const enabled = SOCIAL_PROVIDERS.filter(({ id }) =>
+    enabledProviders.includes(id),
+  );
+  const comingSoon = SOCIAL_PROVIDERS.filter(
+    ({ id }) => !enabledProviders.includes(id),
+  );
+  return [...enabled, ...comingSoon];
+}
