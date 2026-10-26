@@ -7331,6 +7331,10 @@
       },
       "loadOlder": "Load older messages",
       "jumpToLatest": "Jump to latest",
+      "UnreadDivider": {
+        "label": "New",
+        "accessibleName": "New messages"
+      },
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
