@@ -13,10 +13,15 @@ import type { StudioAsset } from "./types";
  * generated until it is clear which project it goes to.
  */
 
-const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), stateOptions: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  enqueue: vi.fn(),
+  stateOptions: vi.fn(),
+  replace: vi.fn(),
+  onAccepted: null as null | ((accepted: { remaining: number }) => void),
+}));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
   usePathname: () => "/studio",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -109,12 +114,19 @@ vi.mock("./use-studio-state", () => ({
 }));
 
 vi.mock("./use-generation-queue", () => ({
-  useGenerationQueue: () => ({
-    failed: [],
-    queued: [],
-    enqueue: mocks.enqueue,
-    waitingForSlot: false,
-  }),
+  useGenerationQueue: ({
+    onAccepted,
+  }: {
+    onAccepted: (accepted: { remaining: number }) => void;
+  }) => {
+    mocks.onAccepted = onAccepted;
+    return {
+      failed: [],
+      queued: [],
+      enqueue: mocks.enqueue,
+      waitingForSlot: false,
+    };
+  },
 }));
 
 function asset(id: string, projectId: string, projectName: string) {
@@ -180,7 +192,7 @@ describe("the workspace view", () => {
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
-  it("moves the styles above the prompt as images appear, then returns them when empty", () => {
+  it("moves the styles into the composer's toolbar as images appear, then returns them when empty", () => {
     const props = {
       catalog: TEST_CATALOG,
       initialSelectedAssetId: null,
@@ -208,11 +220,16 @@ describe("the workspace view", () => {
     expect(
       screen.queryByRole("region", { name: "templates" }),
     ).not.toBeInTheDocument();
-    const styles = screen.getByRole("group", { name: "templates" });
+    const menu = screen.getByRole("button", { name: "templates" });
+    expect(box.closest("form")).toContainElement(menu);
     expect(
-      styles.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "poster" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(menu);
     expect(screen.getAllByRole("button", { name: "poster" })).toHaveLength(1);
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "templates" }), {
+      key: "Escape",
+    });
     expect(box).toHaveValue("keep my draft");
 
     view.rerender(
@@ -225,7 +242,7 @@ describe("the workspace view", () => {
       screen.getByRole("region", { name: "templates" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("group", { name: "templates" }),
+      screen.queryByRole("button", { name: "templates" }),
     ).not.toBeInTheDocument();
     expect(box).toHaveValue("keep my draft");
   });
@@ -312,6 +329,22 @@ describe("the workspace view", () => {
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("");
+  });
+
+  it("moves the global scope to the picked project once its batch is in", () => {
+    mount(null);
+    generate("a fox");
+    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+
+    // Still sending: a remount now would drop what is queued.
+    mocks.onAccepted?.({ remaining: 1 });
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    mocks.onAccepted?.({ remaining: 0 });
+    expect(mocks.replace).toHaveBeenCalledWith(
+      "/studio?projectId=project-picked",
+      { scroll: false },
+    );
   });
 
   it("keeps the pending style batch when creating its destination project", () => {

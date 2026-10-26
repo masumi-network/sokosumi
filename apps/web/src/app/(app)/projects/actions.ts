@@ -12,7 +12,6 @@ interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
   /** Carries the active name filter so later pages stay inside it. */
   query?: string;
-  expectedScope?: { userId: string; organizationId: string | null };
 }
 
 export const loadMoreProjects = withSession<
@@ -23,15 +22,7 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor, query, expectedScope, session }) => {
-  if (
-    expectedScope &&
-    (expectedScope.userId !== session.user.id ||
-      expectedScope.organizationId !==
-        (session.session.activeOrganizationId ?? null))
-  ) {
-    throw new Error("Project workspace changed");
-  }
+>(async ({ cursor, query }) => {
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
@@ -61,28 +52,3 @@ export const unpinProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.unpinProject>>
 >(async ({ projectId }) => projectService.unpinProject(projectId));
-
-interface LoadPinnedProjectsParams extends AuthenticatedRequest {
-  expectedScope?: { userId: string; organizationId: string | null };
-}
-
-/**
- * The flyout's Pinned rows. Fetched apart from the activity page because a
- * Pinned project is usually a quiet one and would otherwise fall off it
- * (ADR 0036).
- */
-export const loadPinnedProjects = withSession<
-  LoadPinnedProjectsParams,
-  Awaited<ReturnType<typeof projectService.listPinnedProjects>>
->(async ({ expectedScope, session }) => {
-  if (
-    expectedScope &&
-    (expectedScope.userId !== session.user.id ||
-      expectedScope.organizationId !==
-        (session.session.activeOrganizationId ?? null))
-  ) {
-    throw new Error("Project workspace changed");
-  }
-
-  return projectService.listPinnedProjects();
-});

@@ -48,7 +48,10 @@ Optional, per network:
   one that claims an unconfirmed change; and `find_agents` sends the
   request. Replies can quote mail, calendar and Tasks, so this applies to
   EU-pinned versions too: their answers are written in the EU, these checks
-  are not.
+  are not. Mail triage (`mail-triage.ts`) sends each ingested mail's sender,
+  subject and snippet to Jev to tag it urgent, notable or bulk, and the bot's
+  `evaluate_with_jev` tool sends the state the bot writes, under the same
+  exception.
 - The agent model is the turn's version model. The default, GPT-6 Luna
   (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
   second owner-approved exception (2026-09-29), for the agent role only:

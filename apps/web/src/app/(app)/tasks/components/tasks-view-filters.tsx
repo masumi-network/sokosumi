@@ -15,10 +15,14 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
+  /** The viewer, for the My tasks toggle; hidden when they are not an option. */
+  userId?: string | null;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -28,6 +32,7 @@ interface TasksViewFiltersProps {
     all: string;
     scopeLabel: string;
     scopeOwned: string;
+    assignedToMe: string;
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
@@ -39,6 +44,7 @@ interface TasksViewFiltersProps {
 
 export function TasksViewFilters({
   activeOrganizationId,
+  userId,
   coworkerOptions,
   projectOptions,
   labels,
@@ -220,13 +226,43 @@ export function TasksViewFilters({
     labels.visibilityPrivate,
   ]);
 
+  const me = coworkerOptions.find(
+    (option) => option.kind === "user" && option.id === userId,
+  );
+  const showingMine = !!me && filters.assigneeUserId === userId;
+
   return (
-    <FilterDropdownMenu
-      buttonLabel={labels.title}
-      searchPlaceholder={labels.searchPlaceholder}
-      emptyResultsLabel={labels.emptyResults}
-      sections={sections}
-      showActiveIndicator={showActiveIndicator}
-    />
+    <>
+      {me ? (
+        <Button
+          variant={showingMine ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={showingMine}
+          className="ps-1.5"
+          onClick={() =>
+            handleFilterChange({
+              assigneeId: null,
+              assigneeSokoBotId: null,
+              assigneeUserId: showingMine ? null : (userId ?? null),
+            })
+          }
+        >
+          <Avatar aria-hidden className="size-5 shrink-0">
+            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
+            <AvatarFallback className="bg-muted text-2xs font-medium">
+              {me.name.trim().charAt(0).toUpperCase() || "?"}
+            </AvatarFallback>
+          </Avatar>
+          {labels.assignedToMe}
+        </Button>
+      ) : null}
+      <FilterDropdownMenu
+        buttonLabel={labels.title}
+        searchPlaceholder={labels.searchPlaceholder}
+        emptyResultsLabel={labels.emptyResults}
+        sections={sections}
+        showActiveIndicator={showActiveIndicator}
+      />
+    </>
   );
 }

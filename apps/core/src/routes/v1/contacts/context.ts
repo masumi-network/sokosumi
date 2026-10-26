@@ -25,8 +25,8 @@ export function contactQueryOptions(
     filter: {
       search: query.search,
       stages: query.stage ? [query.stage] : undefined,
-      ownerUserId: query.ownerUserId,
-      ownedByMe: flag(query.ownedByMe),
+      kind: query.kind,
+      replyStates: query.replyState ? [query.replyState] : undefined,
       knownByUserId: query.knownByUserId,
       knownByMe: flag(query.knownByMe),
       lastContactAfter: query.lastContactAfter,
@@ -38,6 +38,7 @@ export function contactQueryOptions(
       hasInteractions: flag(query.hasInteractions),
     },
     listId: query.listId,
+    company: query.company,
     archived: query.archived === "true",
     sort: query.sort,
     direction: query.direction,

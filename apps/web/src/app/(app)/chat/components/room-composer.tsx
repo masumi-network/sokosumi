@@ -37,7 +37,6 @@ import {
 import { toast } from "sonner";
 import {
   getFormatToolbarOpenPreference,
-  resolveFormatToolbarOpenOnMount,
   setFormatToolbarOpenPreference,
 } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
@@ -66,7 +65,6 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -399,17 +397,11 @@ export function RoomComposer({
     ],
   );
 
-  // Stored pref wins; else desktop open / mobile closed (SOK-681).
+  // Stored pref wins; else closed until the reader opens it with Aa.
   // useLayoutEffect: apply before paint so Instant → real composer does not
   // grow a second time when the format strip opens after first paint.
   useLayoutEffect(() => {
-    setFormatToolbarOpen(
-      resolveFormatToolbarOpenOnMount({
-        stored: getFormatToolbarOpenPreference(),
-        viewportWidth: window.innerWidth,
-        mobileBreakpoint: MOBILE_BREAKPOINT,
-      }),
-    );
+    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
   }, []);
 
   // Keep toasts just above the composer (incl. mobile keyboard).

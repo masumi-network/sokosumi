@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 
 import prisma from "@/lib/db/prisma";
-import { parseImages } from "@/lib/image-studio/fal-client";
+import { parseMedia } from "@/lib/image-studio/fal-client";
 import {
   readWebhookHeaders,
   verifyFalWebhook,
 } from "@/lib/image-studio/fal-webhook";
 import {
   failImageJob,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 /**
@@ -80,8 +80,8 @@ export function mountFalImageJobsWebhook(app: Hono): void {
       return c.json({ ok: true }, 200);
     }
 
-    const images = parseImages(body.payload);
-    if (images.length === 0) {
+    const media = parseMedia(body.payload);
+    if (media.length === 0) {
       return c.json({ ok: true, ignored: "no_image" }, 200);
     }
 
@@ -90,8 +90,8 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     //
     // The provider's dimensions go with the URL. They used to be dropped here,
     // which is half of why stored assets read 0x0.
-    const produced = images[0]!;
-    await settleWithImage(job.id, produced.url, {
+    const produced = media[0]!;
+    await settleWithMedia(job.id, produced.url, {
       width: produced.width,
       height: produced.height,
     });

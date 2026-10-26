@@ -9,6 +9,7 @@ const coreMock = vi.hoisted(() => ({
   resolveMySokoBotDecision: vi.fn(),
   createSokoBot: vi.fn(),
   archiveMySokoBot: vi.fn(),
+  listMySokoBotIntegrations: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -105,5 +106,26 @@ describe("sokoBotService", () => {
   it("surfaces a Core failure from listShared", async () => {
     coreMock.getMySokoBot.mockRejectedValue(new Error("Core down"));
     await expect(sokoBotService.listShared()).rejects.toThrow("Core down");
+  });
+
+  it("hides the chat's connect prompt once anything is connected", async () => {
+    coreMock.getMySokoBot.mockResolvedValue({
+      data: { sokoBot: { id: "bot_1", name: "Atlas" } },
+    });
+    coreMock.listMySokoBotIntegrations.mockResolvedValue({
+      data: {
+        configured: true,
+        integrations: [
+          { provider: "slack", kinds: [], status: "ACTIVE" },
+          { provider: "gmail", kinds: ["email"], status: "DISCONNECTED" },
+        ],
+      },
+    });
+    await expect(
+      sokoBotService.getConnectPromptState({ untilAnyConnected: true }),
+    ).resolves.toBeNull();
+    await expect(sokoBotService.getConnectPromptState()).resolves.toMatchObject(
+      { botId: "bot_1" },
+    );
   });
 });

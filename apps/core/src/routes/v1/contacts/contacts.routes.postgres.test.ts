@@ -19,7 +19,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+const askJev = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/soko-bot/jev", () => ({ askJev }));
+
 const { default: contactsRouter } = await import("./index.js");
+const { judgeWorkspaceImportance } = await import(
+  "@/services/contact-scores.service"
+);
 const { default: contactListsRouter } = await import(
   "../contact-lists/index.js"
 );
@@ -201,6 +207,168 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
       await call("GET", "/contacts?archived=true")
     ).json();
     expect(archivedList.meta.pagination.total).toBe(1);
+  });
+
+  it("groups a company's spellings and email domain, and filters by it", async () => {
+    const people: [string, string | null, string][] = [
+      ["Ada Org", "Analytical Engines", "ada@engines.test"],
+      ["Babbage Org", "Analytical Engines", "babbage@engines.test"],
+      ["Charles Org", "analytical engines ", "charles@other.test"],
+      ["Grace Org", "Analytical Engines Ltd", "grace@engines.test"],
+      ["Hopper Org", null, "hopper@engines.test"],
+      ["Navy Org", "US Navy", "navy@gmail.com"],
+      ["Free Org", null, "free@gmail.com"],
+      ["Lone Org", "50% Solo_Co", "lone@solo.test"],
+    ];
+    for (const [name, organization, email] of people)
+      await call("POST", "/contacts", {
+        name,
+        organization,
+        channels: [{ type: "EMAIL", value: email }],
+      });
+
+    const companies = (
+      await (await call("GET", "/contacts/organizations?search=engines")).json()
+    ).data;
+    expect(companies).toEqual([{ name: "Analytical Engines", count: 5 }]);
+    // `%` and `_` in a search are literal, not wildcards.
+    const literal = (
+      await (
+        await call("GET", "/contacts/organizations?search=50%25%20S")
+      ).json()
+    ).data;
+    expect(literal).toEqual([{ name: "50% Solo_Co", count: 1 }]);
+    expect(
+      (await (await strangerCall("GET", "/contacts/organizations")).json())
+        .data,
+    ).toEqual([]);
+
+    for (const company of ["ANALYTICAL ENGINES", "Analytical Engines Ltd"]) {
+      const at = await (
+        await call(
+          "GET",
+          `/contacts?company=${encodeURIComponent(company)}&sort=name`,
+        )
+      ).json();
+      expect(at.data.map((contact: { name: string }) => contact.name)).toEqual([
+        "Ada Org",
+        "Babbage Org",
+        "Charles Org",
+        "Grace Org",
+        "Hopper Org",
+      ]);
+    }
+    // A free-mail domain makes nobody colleagues.
+    const navy = await (
+      await call("GET", "/contacts?company=US%20Navy")
+    ).json();
+    expect(navy.data.map((contact: { name: string }) => contact.name)).toEqual([
+      "Navy Org",
+    ]);
+  });
+
+  it("lists the people I have talked to as mine", async () => {
+    const post = async (body: object) =>
+      (await (await call("POST", "/contacts", body)).json()).data.contact;
+    const talked = await post({ name: "Mine Talked" });
+    await post({ name: "Not Mine" });
+    const logged = await call("POST", `/contacts/${talked.id}/interactions`, {
+      occurredAt: new Date().toISOString(),
+      channel: "EMAIL",
+      summary: "Intro call",
+    });
+    expect(logged.status).toBe(201);
+
+    const mine = await (
+      await call("GET", "/contacts?knownByMe=true&search=Mine&sort=name")
+    ).json();
+    expect(mine.data.map((contact: { name: string }) => contact.name)).toEqual([
+      "Mine Talked",
+    ]);
+  });
+
+  it("scores familiarity from my interactions and importance from Jev or me", async () => {
+    const post = async (name: string) =>
+      (await (await call("POST", "/contacts", { name })).json()).data.contact;
+    const close = await post("Score Close");
+    const once = await post("Score Once");
+    const now = Date.now();
+    for (let day = 0; day < 6; day++)
+      await call("POST", `/contacts/${close.id}/interactions`, {
+        occurredAt: new Date(now - day * 86_400_000).toISOString(),
+        channel: day % 2 ? "MEETING" : "EMAIL",
+        direction: day % 2 ? "BOTH" : "IN",
+        summary: `Touchpoint ${day}`,
+      });
+    await call("POST", `/contacts/${once.id}/interactions`, {
+      occurredAt: new Date(now - 300 * 86_400_000).toISOString(),
+      channel: "EMAIL",
+      direction: "OUT",
+      summary: "Cold intro",
+    });
+
+    const read = async (id: string) =>
+      (await (await call("GET", `/contacts/${id}`)).json()).data.score;
+    const closeScore = await read(close.id);
+    const onceScore = await read(once.id);
+    expect(closeScore.familiarity).toBeGreaterThan(60);
+    expect(onceScore.familiarity).toBeLessThan(10);
+    expect(closeScore.importance).toBeNull();
+
+    askJev.mockResolvedValue(
+      new Map([
+        ["decides", 0.9],
+        ["value", 0.9],
+        ["active", 0.8],
+        ["close", 0.2],
+        ["noise", 0],
+      ]),
+    );
+    const stats = { judged: 0, failed: 0 };
+    await judgeWorkspaceImportance({
+      workspaceId,
+      budget: 10,
+      stats,
+      shouldContinue: () => true,
+    });
+    expect(stats.failed).toBe(0);
+    expect(stats.judged).toBeGreaterThanOrEqual(2);
+    expect(await read(close.id)).toMatchObject({
+      importance: 81,
+      importanceSource: "JEV",
+      importanceReason: "decides,value,active",
+    });
+
+    const set = await call("PUT", `/contacts/${once.id}/importance`, {
+      importance: 95,
+    });
+    expect((await set.json()).data.score).toMatchObject({
+      importance: 95,
+      importanceSource: "MANUAL",
+    });
+    // A new interaction asks Jev again, but never over a score I set.
+    await call("POST", `/contacts/${once.id}/interactions`, {
+      occurredAt: new Date(now).toISOString(),
+      channel: "EMAIL",
+      summary: "Follow-up",
+    });
+    await judgeWorkspaceImportance({
+      workspaceId,
+      budget: 10,
+      stats,
+      shouldContinue: () => true,
+    });
+    expect((await read(once.id)).importance).toBe(95);
+
+    const sorted = await (
+      await call("GET", "/contacts?sort=importance&search=Score")
+    ).json();
+    expect(
+      sorted.data.map((contact: { name: string }) => contact.name),
+    ).toEqual(["Score Once", "Score Close"]);
+    expect(
+      (await (await strangerCall("GET", `/contacts/${close.id}`)).json()).data,
+    ).toBeUndefined();
   });
 
   it("hides one workspace's contacts and lists from another", async () => {

@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectVideoJobRequest,
   ProjectImageJob,
   ProjectImageSettings,
   SocialPostMediaRef,
@@ -113,6 +114,46 @@ export const startImageGeneration = withSession<
         ok: false,
         kind: error.kind ?? null,
         message: error.message || "Could not start the image generation.",
+        uncertain: error.status === undefined || error.status >= 500,
+      };
+    }
+    throw error;
+  }
+});
+
+interface StartVideoGenerationParameters extends AuthenticatedRequest {
+  projectId: string;
+  /** A video catalog id; null takes Core's default for the input. */
+  modelId: string | null;
+  prompt: string;
+  settings: CreateProjectVideoJobRequest["settings"];
+  /** The gallery image to animate, or null for a video from the prompt. */
+  sourceAssetId: string | null;
+  sessionId: string | null;
+  idempotencyKey: string;
+}
+
+export const startVideoGeneration = withSession<
+  StartVideoGenerationParameters,
+  StartGenerationResult
+>(async (input) => {
+  try {
+    const job = await imageStudioService.createVideoJob(input.projectId, {
+      ...(input.modelId ? { modelId: input.modelId } : {}),
+      prompt: input.prompt,
+      settings: input.settings,
+      sourceAssetId: input.sourceAssetId,
+      sessionId: input.sessionId,
+      idempotencyKey: input.idempotencyKey,
+    });
+    revalidatePath(`/projects/${input.projectId}/studio`);
+    return { ok: true, job };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      return {
+        ok: false,
+        kind: error.kind ?? null,
+        message: error.message || "Could not start the video generation.",
         uncertain: error.status === undefined || error.status >= 500,
       };
     }

@@ -20,10 +20,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * and that the provider's string does not reach the row. Both are pinned below.
  */
 
-const { failImageJobMock, settleWithImageMock, jobFindUniqueMock, verifyMock } =
+const { failImageJobMock, settleWithMediaMock, jobFindUniqueMock, verifyMock } =
   vi.hoisted(() => ({
     failImageJobMock: vi.fn(),
-    settleWithImageMock: vi.fn(),
+    settleWithMediaMock: vi.fn(),
     jobFindUniqueMock: vi.fn(),
     verifyMock: vi.fn(),
   }));
@@ -34,7 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/services/image-studio-jobs.service", () => ({
   failImageJob: failImageJobMock,
-  settleWithImage: settleWithImageMock,
+  settleWithMedia: settleWithMediaMock,
 }));
 
 vi.mock("@/lib/image-studio/fal-webhook", async () => ({
@@ -65,7 +65,7 @@ beforeEach(() => {
   verifyMock.mockResolvedValue({ ok: true });
   jobFindUniqueMock.mockResolvedValue({ id: JOB_ID, status: "QUEUED" });
   failImageJobMock.mockResolvedValue(undefined);
-  settleWithImageMock.mockResolvedValue(undefined);
+  settleWithMediaMock.mockResolvedValue(undefined);
 });
 
 describe("fal completion callback", () => {
@@ -84,7 +84,7 @@ describe("fal completion callback", () => {
       "provider_error",
       "Unexpected status code: 422",
     );
-    expect(settleWithImageMock).not.toHaveBeenCalled();
+    expect(settleWithMediaMock).not.toHaveBeenCalled();
   });
 
   it("passes the provider's raw text only as detail, never as the reason", async () => {
@@ -128,7 +128,7 @@ describe("fal completion callback", () => {
 
     // The provider's dimensions go with the URL. Dropping them here is half of why
     // stored assets read 0x0 in the lightbox.
-    expect(settleWithImageMock).toHaveBeenCalledExactlyOnceWith(
+    expect(settleWithMediaMock).toHaveBeenCalledExactlyOnceWith(
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
       { width: 1344, height: 768 },

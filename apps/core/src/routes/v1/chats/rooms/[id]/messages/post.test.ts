@@ -93,6 +93,16 @@ vi.mock("@/services/chat-room-message-unfurl.service", () => ({
   scheduleChatRoomMessageUnfurls: scheduleUnfurlsMock,
 }));
 
+const { enqueueChatMessageSignalMock } = vi.hoisted(() => ({
+  enqueueChatMessageSignalMock: vi.fn(),
+}));
+vi.mock("@/services/chat-message-signals.service", () => ({
+  // A promise, as waitUntil is handed one; resetting mocks keeps it so.
+  enqueueChatMessageSignal: async (messageId: string) => {
+    enqueueChatMessageSignalMock(messageId);
+  },
+}));
+
 vi.mock("@/helpers/chat-mention-notifications", () => ({
   emitChatMentionNotifications: (...args: unknown[]) =>
     emitChatMentionNotificationsMock(...args),
@@ -675,6 +685,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(readStateUpsertMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+      // Jev reads people, not coworkers.
+      expect(enqueueChatMessageSignalMock).not.toHaveBeenCalled();
       // The unfurl, and the room message the subscribed members asked for.
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
 
@@ -1018,8 +1030,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
-      // The unfurl, and the room message the subscribed members asked for.
-      expect(waitUntilMock).toHaveBeenCalledTimes(2);
+      expect(enqueueChatMessageSignalMock).toHaveBeenCalledWith(MESSAGE_ID);
+      // The unfurl, the room message the subscribed members asked for, and
+      // Jev's read of it, none of them in front of the answer.
+      expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
   });
 

@@ -17,6 +17,11 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* Entrances: fast out of the gate, then a long settle, so a dialog is
+     already moving on the first frame. The browser's `ease` starts slow,
+     which reads as lag on something that should answer a click. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+
   /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
      rem, so it follows the root size with Dynamic Type like the rest of the
      scale. */
@@ -75,6 +80,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-control-border: var(--control-border);
   --color-ring: var(--ring);
   --color-ring-halo: var(--ring-halo);
   --color-primary-hover: var(--primary-hover);
@@ -380,6 +386,13 @@
   --destructive-foreground: hsla(0, 86%, 97%, 1);
   --border: hsla(0, 0.0%, 88.6%, 1);
   --input: hsla(0, 0.0%, 58.4%, 1);
+  /* The edge of a labelled control: outline buttons, toggles, triggers and
+     option cards. Their label or icon already names them, so the edge is not
+     the thing SC 1.4.11 measures and it can sit with the brand's soft
+     outlines instead of at --input's 3:1. Light matches the Draft status
+     outline (--status-done-tertiary). Fields keep --input: an empty text box
+     has nothing but its edge. */
+  --control-border: hsla(0, 0.0%, 84.6%, 1);
   /* Focus is two-tone: --ring is the 1px solid core that carries the 3:1
      (SC 1.4.11) at 7.23:1, --ring-halo is the wide soft glow the eye actually
      reads. The halo is decorative, so its alpha is free. A uniformly
@@ -647,6 +660,7 @@
   --border: hsla(0, 0.0%, 20.4%, 1);
   /* Control edges clear 3:1 on both the base and raised panels. */
   --input: hsla(0, 0%, 40%, 1);
+  --control-border: hsla(0, 0%, 40%, 1);
   --ring: hsla(201.9, 46.9%, 48.0%, 1);
   --ring-halo: hsla(201.9, 46.9%, 48.0%, 0.26);
   --primary-hover: hsla(201.8, 47.3%, 53.1%, 1);

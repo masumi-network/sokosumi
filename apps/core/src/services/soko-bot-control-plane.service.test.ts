@@ -179,6 +179,14 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+const capturePreferenceMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/lib/soko-bot/preference-capture", () => ({
+  capturePreference: capturePreferenceMock,
+  MIN_PREFERENCE_CONFIDENCE: 0.85,
+}));
+vi.mock("@/lib/soko-bot/route-outcome", () => ({
+  logSokoBotRouteOutcome: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
@@ -805,6 +813,63 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     },
   );
+
+  it("keeps every tool and saves the preference when Jev only guesses the route", async () => {
+    // "stop messaging me about these deployment failures": Jev read CLARIFY at
+    // 51%, which used to steer the bot into asking instead of acting.
+    jevEvaluate.mockResolvedValue(
+      jevRoute("CLARIFY", {
+        probability: 0.51,
+        signals: { statesPreference: 0.92, refersToEarlier: 0.88 },
+      }),
+    );
+    capturePreferenceMock.mockResolvedValueOnce(
+      "Do not flag Make scenario errors or DigitalOcean deployment failures.",
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({ id: "pref-turn", leaseToken: "lease" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "pref-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "pref-client",
+      message: "stop messaging me about these deployment failures pls",
+    });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toEqual(
+      expect.arrayContaining([
+        "update_memory",
+        "create_task",
+        "create_schedule",
+        "post_chat",
+      ]),
+    );
+    expect(capturePreferenceMock).toHaveBeenCalledWith({
+      sokoBotId: expect.any(String),
+      message: "stop messaging me about these deployment failures pls",
+    });
+    expect(builder.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        personAsked: true,
+        capturedPreference:
+          "Do not flag Make scenario errors or DigitalOcean deployment failures.",
+      }),
+    );
+  });
 
   it("keeps a change to several name-matched Tasks as work, with every match a candidate", async () => {
     jevEvaluate.mockResolvedValue(
