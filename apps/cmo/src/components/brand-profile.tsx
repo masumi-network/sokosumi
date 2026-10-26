@@ -151,7 +151,11 @@ export function BrandReveal({
         </motion.button>
       ) : null}
 
-      <Section title="Who buys" beat={beat(2)}>
+      <Section title="What you sell" beat={beat(2)}>
+        <Offers brain={brain} />
+      </Section>
+
+      <Section title="Who buys" beat={beat(3)}>
         {reveal && reveal.buyers.length > 0 ? (
           <ul className="bb-list">
             {reveal.buyers.map((buyer) => (
@@ -167,18 +171,18 @@ export function BrandReveal({
         )}
       </Section>
 
-      <Section title="Tone of voice" beat={beat(3)}>
+      <Section title="Tone of voice" beat={beat(4)}>
         <Voice brain={brain} />
       </Section>
 
-      <Section title="Profiles we found" beat={beat(4)}>
+      <Section title="Profiles we found" beat={beat(5)}>
         <Accounts brain={brain} onSave={onSave} />
       </Section>
 
       {reveal?.map ||
       brain.competitors.length > 0 ||
       (brain.alternatives ?? []).length > 0 ? (
-        <Section title="Competitors" beat={beat(5)}>
+        <Section title="Competitors" beat={beat(6)}>
           {reveal?.map ? (
             <MarketMap map={reveal.map} competitors={brain.competitors} />
           ) : null}
@@ -223,7 +227,7 @@ export function BrandReveal({
       ) : null}
 
       {reveal && reveal.insights.length > 0 ? (
-        <Section title="What Cuso noticed" beat={beat(6)}>
+        <Section title="What Cuso noticed" beat={beat(7)}>
           <ol className="bb-list bb-numbered">
             {reveal.insights.map((insight) => (
               <li key={insight.title}>
@@ -348,6 +352,41 @@ export function BrandReveal({
 }
 
 /** One idea: its name on the left, the answer on the right. */
+/**
+ * What the business sells and what it costs, the main offer first: every
+ * plan is built on it. Older Brand Brains only name their products.
+ */
+function Offers({ brain }: { brain: BrandBrain }) {
+  const offers = brain.offers ?? [];
+  if (offers.length === 0) {
+    return <p className="bb-big">{brain.products.join(", ")}</p>;
+  }
+  return (
+    <ul className="bb-offers">
+      {offers.map((offer) => (
+        <li key={offer.name} className="bb-offer">
+          <div className="bb-offer-head">
+            <b>
+              {offer.url ? (
+                <a href={offer.url} target="_blank" rel="noreferrer">
+                  {offer.name}
+                </a>
+              ) : (
+                offer.name
+              )}
+            </b>
+            <span className="bb-offer-price num">{offer.price}</span>
+          </div>
+          <span>{offer.what}</span>
+          {offer.forWhom ? (
+            <span className="note">For {lowerFirst(offer.forWhom)}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function Section({
   title,
   beat,

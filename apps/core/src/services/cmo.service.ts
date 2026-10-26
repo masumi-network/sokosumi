@@ -930,7 +930,8 @@ export async function requestCmoStrategy(input: {
   });
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
-  const sells = brain.reveal?.positioning ?? brain.summary;
+  const main = brain.offers?.[0];
+  const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
   return startCmoTurn(hire, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: (input.note

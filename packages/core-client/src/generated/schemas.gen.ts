@@ -27863,6 +27863,46 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 12
                         },
+                        offers: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    what: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    forWhom: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'what',
+                                    'price'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
                         competitors: {
                             type: 'array',
                             items: {
@@ -30941,6 +30981,46 @@ export const CmoBrandBrainRequestSchema = {
                         maxLength: 400
                     },
                     maxItems: 12
+                },
+                offers: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            what: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            price: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            forWhom: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'name',
+                            'what',
+                            'price'
+                        ]
+                    },
+                    maxItems: 6,
+                    default: []
                 },
                 competitors: {
                     type: 'array',

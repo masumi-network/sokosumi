@@ -109,6 +109,27 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain("--brand:#6349ea");
   });
 
+  it("shows what the business sells and what it costs", () => {
+    const html = render(
+      brain({
+        offers: [
+          {
+            name: "Rocket Pro",
+            what: "A reusable rocket for small payloads",
+            price: "From $49,000",
+            forWhom: "Founders shipping satellites",
+            url: "https://acme.io/pro",
+          },
+        ],
+      }),
+    );
+    expect(html).toContain("What you sell");
+    expect(html).toContain('href="https://acme.io/pro"');
+    expect(html).toContain("From $49,000");
+    expect(html).toContain("A reusable rocket for small payloads");
+    expect(html).toContain("For founders shipping satellites");
+  });
+
   it("leads with the summary and offers research for an older Brand Brain", () => {
     const html = render(brain({}));
     expect(html).toContain("Acme sells rockets to founders.");

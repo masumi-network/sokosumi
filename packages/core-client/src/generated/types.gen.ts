@@ -8036,6 +8036,13 @@ export type CmoOverview = {
         };
         audience: Array<string>;
         products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
         competitors: Array<{
             name: string;
             url?: string;
@@ -8565,6 +8572,13 @@ export type CmoBrandBrainRequest = {
         };
         audience: Array<string>;
         products: Array<string>;
+        offers?: Array<{
+            name: string;
+            what: string;
+            price: string;
+            forWhom?: string;
+            url?: string;
+        }>;
         competitors: Array<{
             name: string;
             url?: string;

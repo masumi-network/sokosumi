@@ -3250,3 +3250,36 @@ a.rv-dot {
   border-top: 1px solid var(--border);
   font-size: 0.875rem;
 }
+
+.bb-offers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bb-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.bb-offer-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bb-offer-head a {
+  color: inherit;
+}
+
+.bb-offer-price {
+  font-size: 1.125rem;
+  font-weight: 500;
+}

@@ -247,6 +247,21 @@ export const cmoBrandBrainSchema = z.object({
   }),
   audience: z.array(shortText).max(8),
   products: z.array(shortText).max(12),
+  /** What the business sells, main offer first, with its published price. */
+  offers: z
+    .array(
+      z.object({
+        name: shortText,
+        /** What it is, in one plain line. */
+        what: shortText,
+        /** As published ("€9 a month", "From $49", "Free"), "On request" or "Not public". */
+        price: shortText,
+        forWhom: shortText.optional(),
+        url: z.string().url().max(500).optional(),
+      }),
+    )
+    .max(6)
+    .default([]),
   competitors: z.array(cmoCompanyLinkSchema).max(10),
   /** Well-known platforms, firms and tools a buyer also weighs, anywhere. */
   alternatives: z.array(cmoCompanyLinkSchema).max(6).default([]),
