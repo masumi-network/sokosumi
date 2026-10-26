@@ -102,6 +102,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrain: brain,
     brandBrainUpdatedAt: new Date("2026-10-05T09:01:00Z"),
     strategy,
+    media: [],
     strategyUpdatedAt: new Date("2026-10-05T09:02:00Z"),
     strategyApprovedAt: null,
     updates: [],

@@ -12,6 +12,7 @@ import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+type Media = CmoOverview["media"][number];
 
 /**
  * One planned piece in a side sheet: when and where it goes out, the full
@@ -19,9 +20,12 @@ type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
  */
 export function EntrySheet({
   entry,
+  media,
   onClose,
 }: {
   entry: Entry;
+  /** The image or video Cuso made for this piece, once he has. */
+  media?: Media;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -81,6 +85,18 @@ export function EntrySheet({
           {entry.time ? ` at ${entry.time}` : ""}
         </p>
         <h3 className="sheet-title">{entry.title}</h3>
+        {media?.kind === "video" ? (
+          <video
+            className="sheet-media"
+            src={media.url}
+            controls
+            playsInline
+            preload="metadata"
+            aria-label={`Video for ${entry.title}`}
+          />
+        ) : media?.kind === "image" ? (
+          <img className="sheet-media" src={media.url} alt={entry.title} />
+        ) : null}
         {entry.draft ? (
           <div className="sheet-draft">
             <DraftText text={entry.draft} title={entry.title} />

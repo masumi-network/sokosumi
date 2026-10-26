@@ -296,7 +296,11 @@ export function StrategyStep({
 
       <AnimatePresence>
         {open ? (
-          <EntrySheet entry={open} onClose={() => setOpen(null)} />
+          <EntrySheet
+            entry={open}
+            media={overview.media.find((item) => item.entryId === open.id)}
+            onClose={() => setOpen(null)}
+          />
         ) : null}
       </AnimatePresence>
     </section>

@@ -8434,6 +8434,14 @@ export type CmoOverview = {
         }>;
         changes?: Array<string>;
     } | null;
+    /**
+     * The image or video Cuso attached to each calendar piece, by entry id.
+     */
+    media: Array<{
+        entryId: string;
+        kind: 'image' | 'video';
+        url: string;
+    }>;
     strategyUpdatedAt: Date | null;
     strategyApprovedAt: Date | null;
     updates: Array<CmoUpdate>;

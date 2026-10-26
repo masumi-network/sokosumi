@@ -66,6 +66,7 @@ function overview() {
     mockPlanActivatedAt: null,
     brandBrain: null,
     strategy: null,
+    media: [],
     botStatus: "IDLE",
     learning: "done",
     work: null,

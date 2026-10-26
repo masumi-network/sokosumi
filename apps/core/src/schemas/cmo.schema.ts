@@ -151,6 +151,17 @@ export const cmoOverviewSchema = z
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     strategy: z.union([cmoStrategySchema, z.null()]),
+    media: z
+      .array(
+        z.object({
+          entryId: z.string(),
+          kind: z.enum(["image", "video"]),
+          url: z.string(),
+        }),
+      )
+      .describe(
+        "The image or video Cuso attached to each calendar piece, by entry id.",
+      ),
     strategyUpdatedAt: z.union([dateTimeSchema, z.null()]),
     strategyApprovedAt: z.union([dateTimeSchema, z.null()]),
     updates: z.array(cmoUpdateSchema),

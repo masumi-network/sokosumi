@@ -43,6 +43,10 @@ import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 import { cmoMailingListSize } from "@/services/cmo-mailing-list.service";
+import {
+  type CmoCalendarMedia,
+  cmoCalendarMedia,
+} from "@/services/cmo-media.service";
 
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
@@ -1562,6 +1566,8 @@ export interface CmoUpNextItem {
 
 export interface CmoOverview {
   hire: CmoHire;
+  /** The image or video attached to each calendar piece, viewable by URL. */
+  media: CmoCalendarMedia[];
   /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
@@ -1704,6 +1710,12 @@ export async function getCmoOverview(
   });
   const mockPlan = cmoMockPlan(hire);
   const cmoPlan = mockPlan ?? (await activeCmoPlan(payer.referenceId));
+  const media = await cmoCalendarMedia({
+    strategy,
+    workspaceId: bot.workspaceId,
+    organizationId: bot.workspace.organizationId,
+    userId,
+  });
   const learning = await cmoLearningState(hire, now);
   const work = await cmoWork(hire, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
@@ -1728,6 +1740,7 @@ export async function getCmoOverview(
   });
   return {
     hire,
+    media,
     learning,
     work,
     brandVisual: parseCmoBrandVisual(hire.brandVisual),

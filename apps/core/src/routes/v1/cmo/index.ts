@@ -78,6 +78,7 @@ function mapOverview(overview: CmoOverview) {
     brandBrain: overview.brandBrain,
     brandBrainUpdatedAt: hire.brandBrainUpdatedAt,
     strategy: overview.strategy,
+    media: overview.media,
     strategyUpdatedAt: hire.strategyUpdatedAt,
     strategyApprovedAt: hire.strategyApprovedAt,
     updates: overview.updates.map(

@@ -30256,6 +30256,33 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        media: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    entryId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'image',
+                            'video'
+                        ]
+                    },
+                    url: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'entryId',
+                    'kind',
+                    'url'
+                ]
+            },
+            description: 'The image or video Cuso attached to each calendar piece, by entry id.'
+        },
         strategyUpdatedAt: {
             anyOf: [
                 {
@@ -30404,6 +30431,7 @@ export const CmoOverviewSchema = {
         'brandBrain',
         'brandBrainUpdatedAt',
         'strategy',
+        'media',
         'strategyUpdatedAt',
         'strategyApprovedAt',
         'updates',
