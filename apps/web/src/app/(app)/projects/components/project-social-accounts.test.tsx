@@ -52,6 +52,9 @@ const MESSAGES: Record<string, string> = {
   connectAccount: "Connect account",
   projectClosed: "This project is closed.",
   comingSoon: "Coming soon",
+  linkedinPersonalOnly:
+    "Personal profile only. Company pages aren't supported yet.",
+  personalProfile: "Personal profile",
   connectComingSoon: "{provider} (coming soon)",
   empty: "No accounts yet.",
   emptyHint: "Connect one to post.",
@@ -441,6 +444,66 @@ describe("ProjectSocialAccounts", () => {
         (name) => `Connect ${name} account`,
       ),
     );
+  });
+
+  it("says LinkedIn connects a personal profile only, and only for LinkedIn", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialProviderAvailabilityProvider
+        enabledProviders={SOCIAL_POST_PROVIDERS}
+      >
+        <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />
+      </SocialProviderAvailabilityProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Connect account" }));
+
+    const linkedIn = screen.getByRole("menuitem", {
+      name: "Connect LinkedIn account",
+    });
+    expect(
+      within(linkedIn).getByText(
+        "Personal profile only. Company pages aren't supported yet.",
+      ),
+    ).toBeVisible();
+    expect(screen.getAllByTestId("linkedin-personal-only")).toHaveLength(1);
+    for (const name of ["X", "YouTube"]) {
+      expect(
+        within(
+          screen.getByRole("menuitem", { name: `Connect ${name} account` }),
+        ).queryByText(/Personal profile/),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("labels a connected LinkedIn account as a personal profile", () => {
+    render(
+      <SocialProviderAvailabilityProvider
+        enabledProviders={SOCIAL_POST_PROVIDERS}
+      >
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[
+            buildConnection({
+              id: "linkedin-1",
+              provider: "linkedin",
+              externalHandle: "alice",
+            }),
+            buildConnection({ id: "x-1" }),
+          ]}
+        />
+      </SocialProviderAvailabilityProvider>,
+    );
+
+    expect(
+      within(
+        screen.getByTestId("project-social-connection-linkedin-1"),
+      ).getByText("Personal profile"),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("project-social-connection-x-1")).queryByText(
+        "Personal profile",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("starts a connection for X", async () => {

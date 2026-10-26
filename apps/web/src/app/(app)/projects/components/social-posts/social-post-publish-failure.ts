@@ -24,9 +24,14 @@ type PublishFailureCopyKey =
   | (typeof PUBLISH_FAILURE_KIND_COPY)[PublishFailureKind]
   | "failures.providerComingSoon"
   | "failures.generic"
+  | "failures.unconfirmed"
   | "outcomes.authorizationRevoked"
   | "outcomes.connectionInactive"
   | "outcomes.missed";
+
+// Core-authored when a create call may have gone through; names the platform.
+const UNCONFIRMED_PUBLISH =
+  /^The (?:publishing result|previous publishing attempt) could not be confirmed\. Check (.{1,40}?) before retrying/;
 
 function isPublishFailureKind(kind: string): kind is PublishFailureKind {
   return Object.hasOwn(PUBLISH_FAILURE_KIND_COPY, kind);
@@ -79,6 +84,10 @@ export function publishFailureCopy(
   const kind = post.lastAttempt?.errorKind;
   // This message is authored by Core's length guard, without provider error text.
   if (kind === "text_limit" && post.lastError) return post.lastError;
+  const unconfirmed = post.lastError?.match(UNCONFIRMED_PUBLISH);
+  if (unconfirmed?.[1]) {
+    return t("failures.unconfirmed", { provider: unconfirmed[1] });
+  }
   if (kind && isPublishFailureKind(kind)) {
     return t(PUBLISH_FAILURE_KIND_COPY[kind]);
   }

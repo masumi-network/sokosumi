@@ -561,7 +561,19 @@ export function ProjectSocialAccounts({
                     className={cn("size-4", comingSoon && "grayscale")}
                     aria-hidden
                   />
-                  {name}
+                  {id === "linkedin" && !comingSoon ? (
+                    <span className="flex flex-col">
+                      {name}
+                      <span
+                        className="text-muted-foreground text-xs"
+                        data-testid="linkedin-personal-only"
+                      >
+                        {t("linkedinPersonalOnly")}
+                      </span>
+                    </span>
+                  ) : (
+                    name
+                  )}
                   {comingSoon ? (
                     <Badge variant="secondary" className="ms-auto">
                       {t("comingSoon")}
@@ -633,6 +645,11 @@ export function ProjectSocialAccounts({
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
+                    {connection.provider === "linkedin" ? (
+                      <span data-testid="linkedin-personal-profile">
+                        {t("personalProfile")}
+                      </span>
+                    ) : null}
                     {comingSoon ? (
                       <Badge variant="secondary">{t("comingSoon")}</Badge>
                     ) : null}
