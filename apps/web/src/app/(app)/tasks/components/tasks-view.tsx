@@ -30,10 +30,8 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { useDebouncedCallback } from "use-debounce";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
-import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -54,6 +52,7 @@ import {
   TASKS_TAB_PARAM,
   type TasksTabValue,
 } from "@/app/tasks/utils/tasks-tab";
+import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -332,10 +331,7 @@ export function TasksView({
   const isLoadingListMoreRef = useRef(isLoadingListMore);
   const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useDebouncedCallback(
-    () => router.refresh(),
-    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
-  );
+  const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
@@ -354,12 +350,6 @@ export function TasksView({
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
-
-  useEffect(() => {
-    return () => {
-      refreshRoute.cancel();
-    };
-  }, [refreshRoute]);
 
   useLayoutEffect(() => {
     if (
