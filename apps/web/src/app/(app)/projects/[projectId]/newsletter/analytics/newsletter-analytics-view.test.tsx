@@ -50,6 +50,14 @@ describe("newsletter analytics", () => {
       "href",
       `/projects/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ANALYTICS.issues[0]?.id}`,
     );
+    const row = screen.getByRole("link", { name: "Weekly news" }).closest("tr");
+    expect(row).not.toBeNull();
+    if (row) expect(within(row).getAllByRole("cell")[5]).toHaveTextContent("—");
+    expect(
+      screen.getByText(
+        en.App.Projects.Newsletter.Analytics.issueUnsubscribesNote,
+      ),
+    ).toBeVisible();
   });
   it("updates the URL when dates or a preset change and resets the range", async () => {
     const { onUrlUpdate } = setup();
@@ -82,6 +90,7 @@ describe("newsletter analytics", () => {
       ...NEWSLETTER_ANALYTICS,
       issues: [],
       totals: { ...NEWSLETTER_ANALYTICS.totals, sent: 0 },
+      issuesPagination: { cursor: null, nextCursor: null, total: 0, limit: 20 },
     });
     expect(screen.getByText("No sends in this period")).toBeVisible();
     expect(screen.getByRole("link", { name: "View issues" })).toHaveAttribute(
@@ -100,6 +109,52 @@ describe("newsletter analytics", () => {
       screen.queryByRole("region", { name: "Newsletter metrics" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset dates" })).toBeEnabled();
+  });
+  it("pages issues in the URL and clears the cursor when the date range changes", async () => {
+    const cursor = NEWSLETTER_ANALYTICS.issues[0]!.id;
+    const { onUrlUpdate } = setup({
+      ...NEWSLETTER_ANALYTICS,
+      issuesPagination: {
+        cursor: null,
+        nextCursor: cursor,
+        total: 25,
+        limit: 20,
+      },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ queryString: `?cursor=${cursor}` }),
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: "2026-09-01" },
+    });
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ queryString: "?from=2026-09-01" }),
+      ),
+    );
+  });
+  it("allows returning to the first page when a stale issue cursor has no rows", async () => {
+    const cursor = NEWSLETTER_PROJECT_ID;
+    const { onUrlUpdate } = setup(
+      {
+        ...NEWSLETTER_ANALYTICS,
+        issues: [],
+        issuesPagination: { cursor, nextCursor: null, total: 1, limit: 20 },
+      },
+      `?cursor=${cursor}`,
+    );
+    expect(
+      screen.queryByText("No sends in this period"),
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "First page" }));
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ queryString: "" }),
+      ),
+    );
   });
   it("keeps analytics message paths in parity and supplies real German and Spanish translations", () => {
     const english = en.App.Projects.Newsletter.Analytics;

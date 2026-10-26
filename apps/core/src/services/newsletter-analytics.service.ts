@@ -1,6 +1,11 @@
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { SOCIAL_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 
 import { notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import prisma from "@/lib/db/prisma";
 import type { NewsletterAnalyticsQuery } from "@/schemas/newsletter-analytics.schema";
 import {
@@ -9,6 +14,19 @@ import {
 } from "@/services/newsletter.service";
 
 const DAY_MS = 86_400_000;
+
+async function getAnalyticsNewsletter(scope: NewsletterScope) {
+  const newsletter = await getNewsletter(scope);
+  const workspace = await prisma.workspace.findFirst({
+    where: {
+      id: scope.workspaceId,
+      organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG },
+    },
+    select: { id: true },
+  });
+  if (!workspace) throw notFound("Newsletter is not enabled");
+  return newsletter;
+}
 
 export function newsletterAnalyticsRange(query: NewsletterAnalyticsQuery) {
   const to = query.to ?? new Date().toISOString().slice(0, 10);
@@ -59,25 +77,39 @@ async function totals(
   range?: ReturnType<typeof newsletterAnalyticsRange>,
   issueId?: string,
 ) {
-  const [sent, activeSubscribers, [events]] = await Promise.all([
-    prisma.newsletterSend.count({
-      where: {
-        issue: { newsletterId },
-        issueId,
-        status: "SENT",
-        ...(range ? { sentAt: { gte: range.start, lt: range.end } } : {}),
-      },
-    }),
-    prisma.newsletterSubscriber.count({
-      where: { newsletterId, status: "ACTIVE" },
-    }),
-    prisma.$queryRaw<EventCounts[]>(Prisma.sql`
+  const [sent, activeSubscribers, [events], [unsubscribes]] = await Promise.all(
+    [
+      prisma.newsletterSend.count({
+        where: {
+          issue: { newsletterId },
+          issueId,
+          status: "SENT",
+          ...(range ? { sentAt: { gte: range.start, lt: range.end } } : {}),
+        },
+      }),
+      prisma.newsletterSubscriber.count({
+        where: { newsletterId, status: "ACTIVE" },
+      }),
+      prisma.$queryRaw<EventCounts[]>(Prisma.sql`
       SELECT ${EVENT_COUNTS} FROM newsletter_event
       WHERE "newsletterId" = ${newsletterId}::uuid
       ${issueId ? Prisma.sql`AND "issueId" = ${issueId}::uuid` : Prisma.empty}
       ${range ? Prisma.sql`AND "occurredAt" >= ${range.start} AND "occurredAt" < ${range.end}` : Prisma.empty}
     `),
-  ]);
+      issueId
+        ? Promise.resolve([{ count: null }])
+        : prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+          SELECT COUNT(DISTINCT "subscriberId")::int AS count FROM (
+            SELECT "subscriberId", "occurredAt" AS at FROM newsletter_event
+            WHERE "newsletterId" = ${newsletterId}::uuid AND type IN ('UNSUBSCRIBED', 'COMPLAINED')
+            UNION ALL
+            SELECT id, "unsubscribedAt" FROM newsletter_subscriber
+            WHERE "newsletterId" = ${newsletterId}::uuid AND "unsubscribedAt" IS NOT NULL
+          ) departures
+          ${range ? Prisma.sql`WHERE at >= ${range.start} AND at < ${range.end}` : Prisma.empty}
+        `),
+    ],
+  );
   const counts = {
     sent,
     ...(events ?? {
@@ -89,14 +121,20 @@ async function totals(
       complaints: 0,
     }),
   };
-  return { ...counts, ...rates(counts), activeSubscribers };
+  return {
+    ...counts,
+    ...rates(counts),
+    activeSubscribers,
+    unsubscribes: unsubscribes?.count ?? (issueId ? null : 0),
+  };
 }
 
 interface IssueCounts extends EventCounts {
-  id: string;
+  id: string | null;
   subject: string;
   sentAt: Date | null;
   sent: number;
+  total: number;
 }
 
 export async function getNewsletterAnalytics(
@@ -104,7 +142,8 @@ export async function getNewsletterAnalytics(
   query: NewsletterAnalyticsQuery,
 ) {
   const range = newsletterAnalyticsRange(query);
-  const newsletter = await getNewsletter(scope);
+  const { cursor, take } = parseCursorPagination(query);
+  const newsletter = await getAnalyticsNewsletter(scope);
   const [summary, subscriberGrowth, engagement, issues] = await Promise.all([
     totals(newsletter.id, range),
     prisma.$queryRaw<
@@ -117,19 +156,34 @@ export async function getNewsletterAnalytics(
         runningTotal: number;
       }>
     >(Prisma.sql`
-      WITH lifecycle AS (
-        SELECT COALESCE("confirmedAt", "createdAt") AS activated,
-          LEAST("unsubscribedAt", "bouncedAt") AS departed,
-          "unsubscribedAt", "bouncedAt"
+      WITH subscribers AS (
+        SELECT id, "createdAt", "confirmedAt", "unsubscribedAt", "bouncedAt", source, status
         FROM newsletter_subscriber WHERE "newsletterId" = ${newsletter.id}::uuid
-          AND ("confirmedAt" IS NOT NULL OR status <> 'PENDING')
+      ), transitions AS (
+        SELECT id, "createdAt" AS at, 1 AS active, 0 AS unsubscribed, 0 AS bounced
+        FROM subscribers WHERE source <> 'SIGNUP_FORM' AND status <> 'PENDING'
+        UNION
+        SELECT id, "confirmedAt", 1, 0, 0 FROM subscribers WHERE "confirmedAt" IS NOT NULL
+        UNION
+        SELECT e."subscriberId", e."occurredAt",
+          CASE WHEN e.type = 'CONFIRMED' THEN 1 ELSE 0 END,
+          CASE WHEN e.type = 'CONFIRMED' THEN 0 ELSE 1 END, 0
+        FROM newsletter_event e JOIN subscribers s ON s.id = e."subscriberId"
+        WHERE e."newsletterId" = ${newsletter.id}::uuid
+          AND e.type IN ('CONFIRMED', 'UNSUBSCRIBED', 'COMPLAINED')
+        UNION
+        SELECT id, "unsubscribedAt", 0, 1, 0 FROM subscribers WHERE "unsubscribedAt" IS NOT NULL
+        UNION
+        SELECT id, "bouncedAt", 0, 0, 1 FROM subscribers WHERE "bouncedAt" IS NOT NULL
+      ), deltas AS (
+        SELECT *, active - LAG(active, 1, 0) OVER (
+          PARTITION BY id ORDER BY at, active DESC, unsubscribed DESC
+        ) AS delta FROM transitions
       ), changes AS (
-        SELECT activated AS at, 1 AS added, 0 AS unsubscribed, 0 AS bounced FROM lifecycle
-        UNION ALL
-        SELECT departed, 0,
-          CASE WHEN departed = "unsubscribedAt" THEN 1 ELSE 0 END,
-          CASE WHEN departed = "bouncedAt" AND ("unsubscribedAt" IS NULL OR "bouncedAt" < "unsubscribedAt") THEN 1 ELSE 0 END
-        FROM lifecycle WHERE departed IS NOT NULL
+        SELECT at, GREATEST(delta, 0) AS added,
+          CASE WHEN delta < 0 THEN unsubscribed ELSE 0 END AS unsubscribed,
+          CASE WHEN delta < 0 THEN bounced ELSE 0 END AS bounced
+        FROM deltas
       ), daily AS (
         SELECT at::date AS day,
           SUM(added)::int AS added, SUM(unsubscribed)::int AS unsubscribed, SUM(bounced)::int AS bounced
@@ -175,7 +229,7 @@ export async function getNewsletterAnalytics(
           AND "occurredAt" >= ${range.start} AND "occurredAt" < ${range.end}
           AND type IN ('DELIVERED', 'OPENED', 'CLICKED', 'UNSUBSCRIBED', 'BOUNCED', 'COMPLAINED')
         GROUP BY "issueId"
-      )
+      ), matching AS (
       SELECT i.id, i.subject, i."sentAt", COALESCE(s.sent, 0)::int AS sent,
         COALESCE(e.delivered, 0)::int AS delivered, COALESCE(e."uniqueOpens", 0)::int AS "uniqueOpens",
         COALESCE(e."uniqueClicks", 0)::int AS "uniqueClicks", COALESCE(e.unsubscribes, 0)::int AS unsubscribes,
@@ -183,16 +237,47 @@ export async function getNewsletterAnalytics(
       FROM newsletter_issue i LEFT JOIN sends s ON s."issueId" = i.id LEFT JOIN events e ON e."issueId" = i.id
       WHERE i."newsletterId" = ${newsletter.id}::uuid AND
         (s."issueId" IS NOT NULL OR e."issueId" IS NOT NULL OR (i.status = 'SENT' AND i."sentAt" >= ${range.start} AND i."sentAt" < ${range.end}))
-      ORDER BY i."sentAt" DESC NULLS LAST, i.id DESC
+      )
+      SELECT page.*, counts.total
+      FROM (SELECT COUNT(*)::int AS total FROM matching) counts
+      LEFT JOIN LATERAL (
+      SELECT * FROM matching
+      ${
+        cursor
+          ? Prisma.sql`WHERE (COALESCE("sentAt", '-infinity'::timestamp), id) < (
+        SELECT COALESCE("sentAt", '-infinity'::timestamp), id FROM newsletter_issue
+        WHERE id = ${cursor}::uuid AND "newsletterId" = ${newsletter.id}::uuid
+      )`
+          : Prisma.empty
+      }
+      ORDER BY "sentAt" DESC NULLS LAST, id DESC LIMIT ${take + 1}
+      ) page ON TRUE
+      ORDER BY page."sentAt" DESC NULLS LAST, page.id DESC
     `),
   ]);
+  const rows = issues.filter(
+    (issue): issue is IssueCounts & { id: string } => issue.id !== null,
+  );
+  const page = rows.slice(0, take);
   return {
     from: range.from,
     to: range.to,
     totals: summary,
     subscriberGrowth,
     engagement,
-    issues: issues.map((issue) => ({ ...issue, ...rates(issue) })),
+    // Unsubscribe links identify a newsletter/subscriber, never an issue.
+    issues: page.map(({ total: _total, ...issue }) => ({
+      ...issue,
+      ...rates(issue),
+      unsubscribes: null,
+    })),
+    issuesPagination: createPaginationMeta(
+      page,
+      issues[0]?.total ?? 0,
+      take,
+      rows.length > take,
+      cursor,
+    ),
   };
 }
 
@@ -200,7 +285,7 @@ export async function getNewsletterIssueAnalytics(
   scope: NewsletterScope,
   issueId: string,
 ) {
-  const newsletter = await getNewsletter(scope);
+  const newsletter = await getAnalyticsNewsletter(scope);
   const issue = await prisma.newsletterIssue.findUnique({
     where: { ...scope, newsletterId: newsletter.id, id: issueId },
     select: { id: true },

@@ -50,4 +50,25 @@ describe("shared daily performance bars", () => {
       height: "25%",
     });
   });
+  it("keeps a full year of bars and accessible daily values within a responsive gap budget", () => {
+    const points = Array.from({ length: 366 }, (_, day) => ({
+      date: new Date(Date.UTC(2024, 0, 1 + day)).toISOString().slice(0, 10),
+      value: 1,
+    }));
+    render(
+      <NextIntlClientProvider locale="en" messages={{}} timeZone="UTC">
+        <DailyBarChart
+          label="A year"
+          unavailable="Unavailable"
+          points={points}
+        />
+      </NextIntlClientProvider>,
+    );
+    const figure = screen.getByRole("figure", { name: "A year" });
+    const track = figure.firstElementChild;
+    expect(track?.children).toHaveLength(366);
+    expect(track).not.toHaveClass("gap-px");
+    expect(track).toHaveStyle({ columnGap: `min(1px, ${25 / 366}%)` });
+    expect(figure.querySelectorAll(".sr-only p")).toHaveLength(366);
+  });
 });

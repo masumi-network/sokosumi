@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import {
   NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
@@ -143,5 +144,15 @@ describe("newsletter issue page", () => {
     expect(mocks.editor).toHaveBeenLastCalledWith(
       expect.objectContaining({ analytics }),
     );
+  });
+  it("hides sent issues when Core rejects analytics beta access and preserves other failures", async () => {
+    mocks.get.mockResolvedValue({ ...NEWSLETTER_ISSUE, status: "SENT" });
+    mocks.analytics.mockRejectedValue(
+      new CoreApiRequestError("Not enabled", { status: 404 }),
+    );
+    await expect(NewsletterIssuePage(PROPS)).rejects.toThrow("NOT_FOUND");
+    const failure = new Error("Unavailable");
+    mocks.analytics.mockRejectedValue(failure);
+    await expect(NewsletterIssuePage(PROPS)).rejects.toBe(failure);
   });
 });

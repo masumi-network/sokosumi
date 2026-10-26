@@ -3429,6 +3429,7 @@
           "periodNote": "Dates use UTC. Sends and events are counted when they happen, including engagement with older issues. Subscriber totals show the current audience.",
           "ratesNote": "Open and click rates use delivered emails, or sent emails when no deliveries are recorded. Opens and clicks count each subscriber once per period or issue. Delayed events can make period rates exceed 100%.",
           "opensNote": "Opens can be under-counted because some mail apps block images.",
+          "issueUnsubscribesNote": "Unsubscribes are newsletter-wide and cannot be attributed to an individual issue.",
           "emptyTitle": "No sends in this period",
           "emptyDescription": "Send an issue to see its performance, or choose dates with earlier activity.",
           "viewIssues": "View issues",

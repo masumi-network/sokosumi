@@ -85,6 +85,7 @@ beforeEach(() => {
     subscriberGrowth: [],
     engagement: [],
     issues: [],
+    issuesPagination: { cursor: null, nextCursor: null, total: 0, limit: 20 },
   });
   m.issue.mockResolvedValue({ totals: TOTALS, topLinks: [] });
 });
@@ -102,7 +103,7 @@ describe("newsletter analytics routes", () => {
     });
     expect(m.analytics).toHaveBeenCalledWith(
       { projectId: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      { from: "2026-10-01", to: "2026-10-02" },
+      { from: "2026-10-01", to: "2026-10-02", limit: 20 },
     );
     expect(
       (await router.request(`${BASE}/issues/${ISSUE_ID}/analytics`)).status,
@@ -153,6 +154,15 @@ describe("newsletter analytics routes", () => {
       expect(
         (await app().request(`${BASE}/analytics?from=${from}`)).status,
       ).toBe(422);
+      expect(m.analytics).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["limit=101", "limit=0", "cursor=bad"])(
+    "rejects invalid issue pagination: %s",
+    async (query) => {
+      expect((await app().request(`${BASE}/analytics?${query}`)).status).toBe(
+        422,
+      );
       expect(m.analytics).not.toHaveBeenCalled();
     },
   );

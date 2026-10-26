@@ -44,6 +44,7 @@ export const NEWSLETTER_ANALYTICS: NewsletterAnalytics = {
     { date: "2026-10-01", uniqueOpens: 3, uniqueClicks: 1 },
     { date: "2026-10-02", uniqueOpens: 2, uniqueClicks: 1 },
   ],
+  issuesPagination: { cursor: null, nextCursor: null, total: 1, limit: 20 },
   issues: [
     {
       id: "44444444-4444-4444-8444-444444444444",
@@ -52,7 +53,7 @@ export const NEWSLETTER_ANALYTICS: NewsletterAnalytics = {
       sent: 10,
       uniqueOpens: 4,
       uniqueClicks: 2,
-      unsubscribes: 1,
+      unsubscribes: null,
       openRate: 0.5,
       clickRate: 0.25,
     },

@@ -37,6 +37,7 @@ export default async function NewsletterAnalyticsPage({
       .getAnalytics(project.id, {
         from: query.from ?? undefined,
         to: query.to ?? undefined,
+        cursor: query.cursor ?? undefined,
       })
       .catch((error: unknown) => {
         if (error instanceof CoreApiRequestError && error.status === 422)

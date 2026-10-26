@@ -1,6 +1,10 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  cursorPaginationMetaSchema,
+  cursorPaginationQuerySchema,
+} from "@/schemas/pagination.schema";
 
 // Calendar dates stay strings in the generated client; date format becomes Date.
 const utcDateSchema = z
@@ -11,15 +15,18 @@ const utcDateSchema = z
     "Use a valid YYYY-MM-DD date",
   );
 
-export const newsletterAnalyticsQuerySchema = z.object({
-  from: utcDateSchema.optional().openapi({
-    description: "First UTC date, inclusive. Defaults to 29 days before to.",
-  }),
-  to: utcDateSchema.optional().openapi({
-    description:
-      "Last UTC date, inclusive. Defaults to today. Maximum range: 366 days.",
-  }),
-});
+export const newsletterAnalyticsQuerySchema =
+  cursorPaginationQuerySchema.extend({
+    cursor: z.uuid().optional(),
+    limit: cursorPaginationQuerySchema.shape.limit.optional(),
+    from: utcDateSchema.optional().openapi({
+      description: "First UTC date, inclusive. Defaults to 29 days before to.",
+    }),
+    to: utcDateSchema.optional().openapi({
+      description:
+        "Last UTC date, inclusive. Defaults to today. Maximum range: 366 days.",
+    }),
+  });
 
 export const newsletterAnalyticsTotalsSchema = z
   .object({
@@ -27,7 +34,10 @@ export const newsletterAnalyticsTotalsSchema = z
     delivered: z.int().nonnegative(),
     uniqueOpens: z.int().nonnegative(),
     uniqueClicks: z.int().nonnegative(),
-    unsubscribes: z.int().nonnegative(),
+    unsubscribes: z.int().nonnegative().nullable().openapi({
+      description:
+        "Distinct newsletter unsubscribers, including manual changes. Null for an individual issue because unsubscribe links do not identify an issue.",
+    }),
     bounces: z.int().nonnegative(),
     complaints: z.int().nonnegative(),
     openRate: z.number().nonnegative().openapi({
@@ -67,6 +77,7 @@ export const newsletterAnalyticsSchema = z
         uniqueClicks: z.int().nonnegative(),
       }),
     ),
+    issuesPagination: cursorPaginationMetaSchema,
     issues: z.array(
       z.object({
         id: z.uuid(),
@@ -75,7 +86,7 @@ export const newsletterAnalyticsSchema = z
         sent: z.int().nonnegative(),
         uniqueOpens: z.int().nonnegative(),
         uniqueClicks: z.int().nonnegative(),
-        unsubscribes: z.int().nonnegative(),
+        unsubscribes: z.int().nonnegative().nullable(),
         openRate: z.number().nonnegative(),
         clickRate: z.number().nonnegative(),
       }),

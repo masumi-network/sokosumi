@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { newsletterService } from "@/lib/services/newsletter.service";
 
 import { NewsletterPageShell } from "../../components/newsletter-page-shell";
@@ -54,7 +55,13 @@ export default async function NewsletterIssuePage({
   });
   const analytics =
     issue.status === "SENT"
-      ? await newsletterService.getIssueAnalytics(project.id, issueId)
+      ? await newsletterService
+          .getIssueAnalytics(project.id, issueId)
+          .catch((error: unknown) => {
+            if (error instanceof CoreApiRequestError && error.status === 404)
+              notFound();
+            throw error;
+          })
       : null;
 
   return (

@@ -3429,6 +3429,7 @@
           "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
           "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
           "opensNote": "Las aperturas pueden quedar por debajo de la cifra real porque algunas aplicaciones de correo bloquean las imágenes.",
+          "issueUnsubscribesNote": "Las bajas se aplican a todo el boletín y no se pueden atribuir a una edición concreta.",
           "emptyTitle": "No hay envíos en este período",
           "emptyDescription": "Envía una edición para ver sus resultados o elige fechas con actividad anterior.",
           "viewIssues": "Ver ediciones",
