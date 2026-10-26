@@ -400,6 +400,45 @@ it("opens at the Unread divider a third of the way down, with read messages abov
   }
 });
 
+it("tells the room it opened above the end, and never that it was at it", async () => {
+  const page = await dividerPage();
+  try {
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("false");
+    await expect
+      .poll(async () => {
+        const geometry = await dividerGeometry(page);
+        return geometry ? Math.abs(geometry.top - geometry.height / 3) : null;
+      })
+      .toBeLessThan(2);
+    expect(await page.getAttribute("body", "data-was-at-end")).toBeNull();
+  } finally {
+    await page.close();
+  }
+});
+
+it("tells the room when the reader leaves the end and comes back", async () => {
+  const page = await behaviorPage();
+  try {
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("true");
+    await scrollToOffset(page, 0);
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("false");
+    await page
+      .locator(".overflow-y-auto")
+      .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await expect
+      .poll(() => page.getAttribute("body", "data-at-end"))
+      .toBe("true");
+  } finally {
+    await page.close();
+  }
+});
+
 it("reaches the newest page through the gap row below a long unread run", async () => {
   const page = await dividerPage();
   try {

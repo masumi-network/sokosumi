@@ -175,7 +175,6 @@ import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-co
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   chatRoomMessageIdEnvelopeAction,
   tombstoneChatRoomMessage,
@@ -297,6 +296,13 @@ export interface RoomsClientProps {
 
 /** Poll cadence for the open room while Ably or its channel is unavailable. */
 const ROOM_MESSAGE_FALLBACK_MS = 3_000;
+
+let roomVisits = 0;
+/** Tells one open of a room from the next, even of the same room. */
+function nextRoomVisit() {
+  roomVisits += 1;
+  return roomVisits;
+}
 
 function RoomMessageRealtimeBridge({
   currentUserId,
@@ -595,17 +601,22 @@ function RoomView({
   // A room with Room unread opens at its Unread divider unless something
   // names a message to open on (SOK-1481). Decided once: this view is the
   // visit. The sidebar's counts are live; the page's can be a visit old.
-  const [opensAtUnread] = useState(() => {
+  const [roomAtOpen] = useState(() => {
     const room =
       sidebarRooms.find((candidate) => candidate.id === selectedRoomId) ??
       rooms.find((candidate) => candidate.id === selectedRoomId);
-    return (
-      room != null &&
-      (room.channelUnreadCount ?? room.unreadCount) > 0 &&
-      !pendingMessageJump &&
-      !searchParams.has(CHAT_MESSAGE_PARAM)
-    );
+    const hasRoomUnread =
+      room != null && (room.channelUnreadCount ?? room.unreadCount) > 0;
+    return {
+      hasRoomUnread,
+      opensAtUnread:
+        hasRoomUnread &&
+        !pendingMessageJump &&
+        !searchParams.has(CHAT_MESSAGE_PARAM),
+      visit: nextRoomVisit(),
+    };
   });
+  const { opensAtUnread } = roomAtOpen;
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
@@ -685,14 +696,15 @@ function RoomView({
   } | null>(null);
   // The visit's Unread divider. The first answer that names it wins, so
   // arrivals, own posts and later reads leave it where the room opened.
-  // Undefined until an answer has said. `at` keeps its place once its
-  // message is gone from the transcript.
-  const [unreadDivider, setUnreadDivider] = useState<{
-    id: string;
-    at: number | null;
-  } | null>();
+  // Undefined until an answer has said; a room with no Room unread at open
+  // has none from the start. `at` keeps its place once its message is gone
+  // from the transcript.
+  const [unreadDivider, setUnreadDivider] = useState<
+    { id: string; at: number | null } | null | undefined
+  >(roomAtOpen.hasRoomUnread ? undefined : null);
+  // A failed read (null) settles it too: that room opens as it would have.
   const noteUnreadDivider = useCallback((page: RoomTranscriptPage | null) => {
-    const id = page?.firstUnreadMessageId;
+    const id = page ? page.firstUnreadMessageId : null;
     if (id === undefined) return;
     const createdAt = page?.messages.find(
       (message) => message.id === id,
@@ -779,31 +791,45 @@ function RoomView({
   // Core's open-at-unread answer: the newest page, or a window on the
   // divider when it is older than that. Undefined while in flight, null when
   // the read failed and the room opens as it would have.
-  const [unreadWindow, setUnreadWindow] = useState<RoomMessagesPage | null>();
-  useMountEffect(() => {
-    if (!opensAtUnread || !selectedRoomId) return;
-    let current = true;
-    void fetchRoomMessages(selectedRoomId, null, { openAtUnread: true }).then(
-      (page) => {
-        if (!current) return;
+  // Joined to the newest page through the gap row, the way a search jump
+  // window joins, by whichever of the two lands second. A merge while the
+  // head read is still out would have it discarded as stale.
+  const unreadJoinRef = useRef<{
+    headIn: boolean;
+    window?: RoomMessagesPage | null;
+    joined: boolean;
+  }>({ headIn: !messagesPending, joined: false });
+  const joinUnreadWindow = (landed: {
+    headIn?: true;
+    window?: RoomMessagesPage | null;
+  }) => {
+    const join = Object.assign(unreadJoinRef.current, landed);
+    if (join.joined || !join.headIn || !join.window) return;
+    join.joined = true;
+    const page = join.window;
+    setTranscript((current) => mergeRoomJumpWindow(current, page));
+  };
+  const { data: unreadWindow } = useQuery({
+    // One read per visit: a revisit asks Core again.
+    queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
+    // Reading the signal cancels the query once the visit unmounts.
+    queryFn: async ({ signal }) => {
+      const page = await fetchRoomMessages(selectedRoomId ?? "", null, {
+        openAtUnread: true,
+      });
+      if (!signal.aborted) {
         noteUnreadDivider(page);
-        setUnreadWindow(page);
-      },
-    );
-    return () => {
-      current = false;
-    };
+        joinUnreadWindow({ window: page });
+      }
+      return page;
+    },
+    enabled: opensAtUnread && selectedRoomId != null,
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
-  // Joined to the newest page once that is in, through the gap row the way a
-  // search jump window joins. A merge while the head read is still out would
-  // have it discarded as stale.
-  const unreadWindowMergedRef = useRef(false);
-  useEffect(() => {
-    if (!unreadWindow || messagesPending || unreadWindowMergedRef.current)
-      return;
-    unreadWindowMergedRef.current = true;
-    setTranscript((current) => mergeRoomJumpWindow(current, unreadWindow));
-  }, [messagesPending, setTranscript, unreadWindow]);
   // The transcript waits for both, so it opens on the divider rather than
   // jumping to it. Latched: nothing later puts the skeleton back.
   const [openingAtUnread, setOpeningAtUnread] = useState(opensAtUnread);
@@ -832,6 +858,7 @@ function RoomView({
     );
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
+    joinUnreadWindow({ headIn: true });
   }, []);
 
   const handleDeferredRosterResolved = useCallback(
@@ -1938,6 +1965,8 @@ function RoomView({
       if (!isCurrent() || selectedRoomIdRef.current !== roomId) {
         return;
       }
+      // A retained room's first head read lands here.
+      joinUnreadWindow({ headIn: true });
       if (result) {
         noteUnreadDivider(result);
         setTranscript((current) => mergeRoomHeadPage(current, result));

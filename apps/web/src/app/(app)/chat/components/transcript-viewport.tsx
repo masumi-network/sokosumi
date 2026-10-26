@@ -254,18 +254,32 @@ export function TranscriptViewport({
 
   // Only the jump-to-latest threshold needs React state. A restore above the
   // end does not start there, or the first report would read the room.
-  const [atEnd, setAtEnd] = useState(
+  const [atEnd, setAtEndState] = useState(
     !initialPosition || initialPosition.atLiveEdge,
   );
-  // The landing still placing its message, or 0. Until it has, the reader is
-  // reported off the end: the scroll it started has not been measured yet.
-  const [placingLanding, setPlacingLanding] = useState(0);
   const atEndCallbackRef = useRef(onAtEndChange);
   atEndCallbackRef.current = onAtEndChange;
-  const reportedAtEnd = atEnd && placingLanding === 0;
-  useEffect(() => {
-    atEndCallbackRef.current?.(reportedAtEnd);
-  }, [reportedAtEnd]);
+  // What the room hears: at the end, and no landing still placing its
+  // message (its scroll has not been measured yet). Told on the first
+  // measurement and on every change after it.
+  const reachRef = useRef<{
+    atEnd: boolean;
+    placingLanding: number;
+    reported?: boolean;
+  }>({ atEnd, placingLanding: 0 });
+  const updateReach = (
+    change: { atEnd: boolean } | { placingLanding: number },
+  ) => {
+    const reach = Object.assign(reachRef.current, change);
+    const reported = reach.atEnd && reach.placingLanding === 0;
+    if (reported === reach.reported) return;
+    reach.reported = reported;
+    atEndCallbackRef.current?.(reported);
+  };
+  const setAtEnd = (value: boolean) => {
+    setAtEndState(value);
+    updateReach({ atEnd: value });
+  };
   const distanceFromEndRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const virtualizerRef = useRef<TranscriptVirtualizer | null>(null);
@@ -614,9 +628,11 @@ export function TranscriptViewport({
         }
         landingRef.current += 1;
         const landing = landingRef.current;
-        setPlacingLanding(landing);
-        const placed = () =>
-          setPlacingLanding((current) => (current === landing ? 0 : current));
+        updateReach({ placingLanding: landing });
+        const placed = () => {
+          if (reachRef.current.placingLanding === landing)
+            updateReach({ placingLanding: 0 });
+        };
         virtualizer.scrollToIndex(index, { align: "center" });
         // The row mounts a render after the scroll. Poll frames for it; a
         // later landing replaces this one, which stops the poll.

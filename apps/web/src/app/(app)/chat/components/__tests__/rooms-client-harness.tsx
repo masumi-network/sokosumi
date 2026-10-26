@@ -121,6 +121,22 @@ export {
   useChatRoomRealtimeMock,
 };
 
+// A room view reads through react-query, whose client the app layout gives
+// it. Every render gets one unless the test brings its own wrapper.
+vi.mock("@testing-library/react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@testing-library/react")>();
+  const { TestQueryProvider } = await import("@/test/query-provider");
+  return {
+    ...actual,
+    render: ((ui: ReactElement, options?: RenderOptions) =>
+      actual.render(ui, {
+        wrapper: TestQueryProvider,
+        ...options,
+      })) as typeof actual.render,
+  };
+});
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -144,6 +160,7 @@ vi.mock("next-intl", () => {
 
 vi.mock("@/app/chat/components/day-separator", () => ({
   default: () => null,
+  DayPill: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
 vi.mock("@/hooks/use-is-apple-platform", () => ({

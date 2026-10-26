@@ -338,6 +338,44 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     expect(openAtUnreadCalls()).toHaveLength(1);
   });
 
+  it.each<[string, Partial<ChatRoom>]>([
+    ["a room that opened read", { unreadCount: 0, channelUnreadCount: 0 }],
+    ["a room whose open-at-unread read failed", {}],
+  ])("never places a divider mid-visit in %s", async (_name, overrides) => {
+    const arrival = message("peer-new", 5);
+    // Every later head read names the arrival, as Core would once it is
+    // unread below a reader scrolled up.
+    fetchRoomMessagesMock.mockImplementation(
+      async (
+        _roomId: string,
+        parent: string | null,
+        options?: { openAtUnread?: boolean },
+      ) =>
+        options?.openAtUnread || parent
+          ? null
+          : page([read1, read2, arrival], "peer-new"),
+    );
+    openRoom(overrides);
+    await act(async () => {});
+    await reachEnd(false);
+    await deliver({ eventType: "create", message: arrival });
+
+    const headReads = () =>
+      fetchRoomMessagesMock.mock.calls.filter(
+        ([, parent, options]) => !parent && !options?.openAtUnread,
+      ).length;
+    const before = headReads();
+    // Any later read: reconnecting runs one at once.
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await waitFor(() => expect(headReads()).toBeGreaterThan(before));
+    await act(async () => {});
+
+    expect(screen.getByText("body of peer-new")).toBeTruthy();
+    expect(divider()).toBeNull();
+  });
+
   it("opens a room that is only Marked unread as today, with no divider", async () => {
     render(
       <RoomsClient
