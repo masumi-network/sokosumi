@@ -15403,6 +15403,14 @@ export const FileResourceSchema = {
             ],
             description: 'Canonical source this document comes from'
         },
+        pathname: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.',
+            example: 'drive/organizations/org_123/report.pdf'
+        },
         sourceTaskId: {
             type: [
                 'string',
@@ -15807,6 +15815,7 @@ export const FileResourceSchema = {
         'mimeType',
         'sizeBytes',
         'sourceKind',
+        'pathname',
         'sourceTaskId',
         'sourceProjectId',
         'updatedAt',

@@ -4453,6 +4453,10 @@ export type FileResource = {
      * Canonical source this document comes from
      */
     sourceKind: 'DRIVE_UPLOAD' | 'TASK_OUTPUT' | 'PROJECT_DOCUMENT' | 'NATIVE_TABLE' | 'STUDIO_ASSET';
+    /**
+     * The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.
+     */
+    pathname: string | null;
     sourceTaskId: string | null;
     sourceProjectId: string | null;
     updatedAt: Date;

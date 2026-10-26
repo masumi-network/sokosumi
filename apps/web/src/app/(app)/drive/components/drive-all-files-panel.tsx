@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Search,
   SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -35,6 +36,16 @@ import {
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
@@ -53,6 +64,7 @@ import {
   createFileCollection,
   createSelectionToken,
   decideSuggestion,
+  deleteDriveUploads,
   deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
@@ -225,6 +237,7 @@ export function DriveAllFilesPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [state, setState] = useState<SearchState>({
     items: [],
     meta: null,
@@ -726,6 +739,45 @@ export function DriveAllFilesPanel({
    * this space whether or not the reader had done anything, so the first file
    * row sat below the fold on a list of ten files.
    */
+  // Only uploads can be deleted here: task outputs belong to their task.
+  const deletableSelection = state.items.filter(
+    (item) => selectedIds.includes(item.id) && item.pathname !== null,
+  );
+
+  async function deleteSelected() {
+    const targets = deletableSelection;
+    if (targets.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const failedPathnames = await deleteDriveUploads(
+        targets.flatMap((item) => (item.pathname ? [item.pathname] : [])),
+      );
+      const deleted = targets.length - failedPathnames.length;
+      if (failedPathnames.length === 0) {
+        toast.success(t("bulkDeleted", { count: deleted }));
+        setSelectedIds([]);
+      } else {
+        toast.warning(
+          t("bulkDeletePartial", {
+            deleted,
+            failed: failedPathnames.length,
+          }),
+        );
+        // The failed rows stay selected, so trying again is one click.
+        setSelectedIds(
+          targets
+            .filter((item) => failedPathnames.includes(item.pathname ?? ""))
+            .map((item) => item.id),
+        );
+      }
+      setSelectionToken(null);
+      setConfirmDeleteOpen(false);
+      await runSearch({ query: appliedQuery, filters, keepSelection: true });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const appliedFacets: { key: string; label: string; remove: () => void }[] = [
     // On a phone the type chips live in the Filters sheet, so the applied
     // types show here instead.
@@ -1129,6 +1181,20 @@ export function DriveAllFilesPanel({
             disabled={bulkBusy}
             onPick={(categoryLabelId) => void applyBulk({ categoryLabelId })}
           />
+          {/* A whole-window selection is not on screen to name, so delete
+              only acts on rows the reader ticked. */}
+          {!selectionToken && deletableSelection.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-semantic-destructive"
+              disabled={bulkBusy}
+              onClick={() => setConfirmDeleteOpen(true)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              {t("bulkDelete")}
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="ghost"
@@ -1141,6 +1207,36 @@ export function DriveAllFilesPanel({
           </Button>
         </div>
       ) : null}
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("bulkDeleteTitle", { count: deletableSelection.length })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletableSelection.length < selectedIds.length
+                ? t("bulkDeleteDescriptionSkipsTaskFiles")
+                : t("bulkDeleteDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>
+              {t("bulkDeleteCancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              loading={bulkBusy}
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteSelected();
+              }}
+            >
+              {t("bulkDelete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {state.loading ? (
         <DriveListSkeleton viewMode={viewMode} />
