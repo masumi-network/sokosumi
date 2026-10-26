@@ -19,6 +19,7 @@ const urgent = (message: SokoBotInboxMessage): TriagedMail => ({
   message,
   tag: "URGENT",
   probability: 0.9,
+  matchesRule: false,
 });
 
 describe("soko-bot ingest", () => {
@@ -135,6 +136,35 @@ describe("soko-bot ingest", () => {
     const mail = message.indexOf("## Mail");
     expect(calendar).toBeLessThan(people);
     expect(people).toBeLessThan(mail);
+  });
+
+  it("tells the bot to act on mail a saved rule matches", () => {
+    const message = buildIngestMessage({
+      kind: "delta",
+      timeZone: "UTC",
+      mail: [
+        {
+          ...urgent({
+            provider: "gmail",
+            id: "inv",
+            threadId: null,
+            from: "billing@acme.com",
+            to: [],
+            subject: "Invoice 42",
+            snippet: "",
+            receivedAt: "2026-08-26T05:00:00Z",
+            unread: true,
+            labels: [],
+          }),
+          tag: "BULK",
+          matchesRule: true,
+        },
+      ],
+      events: [],
+    });
+    expect(message).toContain("`save_email_attachment`");
+    expect(message).toContain("Matches a saved rule");
+    expect(message).toContain("[gmail:inv]");
   });
 
   it("says so when a delta packet is empty", () => {

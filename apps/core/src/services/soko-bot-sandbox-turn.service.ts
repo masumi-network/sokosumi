@@ -35,6 +35,11 @@ import {
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
+  MODEL_CALL_MAX_MS,
+  ModelStreamStalledError,
+  readUntilIdle,
+} from "@/lib/soko-bot/stream-model-call";
+import {
   announceTurn,
   closeTurn,
   failTurn,
@@ -407,23 +412,58 @@ function isUndiciGatewayFetchFailure(error: unknown): boolean {
   );
 }
 
+/** The whole response body, failing fast if the stream goes silent. */
+async function readBody(response: Response): Promise<string> {
+  if (!response.body) return "";
+  const decoder = new TextDecoder();
+  let text = "";
+  for await (const chunk of readUntilIdle(response.body))
+    text += decoder.decode(chunk, { stream: true });
+  return text + decoder.decode();
+}
+
+/**
+ * The parts of a streamed Gateway answer, one JSON object per SSE `data:`
+ * line; undefined when the body is not such a stream.
+ */
+function gatewayStreamParts(
+  text: string,
+): Record<string, unknown>[] | undefined {
+  const parts: Record<string, unknown>[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    try {
+      const part = asRecord(JSON.parse(line.slice("data:".length)));
+      if (!part) return undefined;
+      parts.push(part);
+    } catch {
+      return undefined;
+    }
+  }
+  return parts;
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
  * routing policy: only the turn's version model, only the Gateway protocol
  * headers, and Core's provider options in place of whatever the runner sent.
  * Usage is metered here — the runner's own report is never trusted — and
  * before the region check, so a rejected call is still billed.
+ *
+ * Calls stream, because the Gateway cuts a non-streamed call off at about 60
+ * seconds. Core still reads the whole stream before the runner sees any of
+ * it, so a tool call cannot run before its routing has been checked.
  */
 export async function proxySandboxModelCall(
   claims: TurnTokenClaims,
   request: { headers: Headers; body: string },
-): Promise<{ status: number; body: string }> {
+): Promise<{ status: number; body: string; contentType: string }> {
   const authorized = await authorizeTurn(claims);
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
-  if (request.headers.get("ai-language-model-streaming") !== "false")
-    throw badRequest("Streaming is not allowed");
+  if (request.headers.get("ai-language-model-streaming") !== "true")
+    throw badRequest("Model calls must stream");
   if (request.headers.get("ai-language-model-id") !== version.model)
     throw forbidden("Model is not this turn's");
   const apiKey = getEnv().AI_GATEWAY_API_KEY;
@@ -473,9 +513,14 @@ export async function proxySandboxModelCall(
       method: "POST",
       headers,
       body: JSON.stringify(payload),
+      // Answer before Vercel kills the invocation, so the runner gets a 502
+      // it retries instead of a 504 after five minutes.
+      signal: AbortSignal.timeout(MODEL_CALL_MAX_MS),
     });
-    text = await upstream.text();
+    text = await readBody(upstream);
   } catch (error) {
+    if (error instanceof ModelStreamStalledError)
+      throw Object.assign(badGateway(error.message), { cause: error });
     if (!isUndiciGatewayFetchFailure(error)) throw error;
     // No kind on this 502: keep the undici error as cause for Sentry's chain.
     throw Object.assign(
@@ -483,27 +528,28 @@ export async function proxySandboxModelCall(
       { cause: error },
     );
   }
-  if (!upstream.ok) return { status: upstream.status, body: text };
+  if (!upstream.ok)
+    return {
+      status: upstream.status,
+      body: text,
+      contentType: upstream.headers.get("content-type") ?? "application/json",
+    };
 
-  let result: {
-    usage?: { inputTokens?: unknown; outputTokens?: unknown };
-    providerMetadata?: unknown;
-    content?: unknown;
-  };
-  try {
-    result = JSON.parse(text);
-  } catch {
-    throw badGateway("Unreadable model response");
-  }
+  const parts = gatewayStreamParts(text);
+  if (!parts) throw badGateway("Unreadable model response");
+  // A stream that failed part-way has no finish: nothing to meter, and its
+  // partial tool calls must not reach the runner.
+  const finish = parts.findLast((part) => part.type === "finish");
+  if (!finish) throw badGateway("Model stream ended without finishing");
   await log.append(
     runtimeEvent("step.completed", {
       modelId: version.model,
-      inference: sokoBotInferenceEvidence(result.providerMetadata),
-      usage: gatewayCallUsage(result),
+      inference: sokoBotInferenceEvidence(finish.providerMetadata),
+      usage: gatewayCallUsage(finish),
     }),
   );
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata, {
+    assertSokoBotInferenceRegion(finish.providerMetadata, {
       model: version.model,
       role: "agent",
     });
@@ -513,11 +559,11 @@ export async function proxySandboxModelCall(
     );
   }
   if (
-    gatewayRanTool(result.content, "web_search") ||
-    gatewayRanTool(result.content, "perplexity_search")
+    gatewayRanTool(parts, "web_search") ||
+    gatewayRanTool(parts, "perplexity_search")
   )
     await markUntrusted(log, "web_search");
-  return { status: 200, body: text };
+  return { status: 200, body: text, contentType: "text/event-stream" };
 }
 
 /**
