@@ -135,6 +135,7 @@ describe("GET /users/{id}/workspaces", () => {
           name: "Ada Lovelace",
           organizationId: null,
           slug: null,
+          enabledSocialProviders: ["x", "youtube", "linkedin"],
           logo: null,
           websiteUrl: null,
           preferred: false,
@@ -147,11 +148,57 @@ describe("GET /users/{id}/workspaces", () => {
           slug: "acme-x1y2z3",
           logo: "https://cdn.example/acme.png",
           websiteUrl: "https://acme.com",
+          enabledSocialProviders: ["x", "youtube", "linkedin"],
           preferred: true,
         },
       ],
       pendingInvitationCount: 0,
     });
+  });
+
+  it("returns provider availability for each owning workspace even when the user belongs to utxo", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
+    memberFindManyMock.mockResolvedValue(
+      ["utxo", "other"].map((slug, index) => ({
+        organization: {
+          id: `org_${index}`,
+          name: slug,
+          slug,
+          logo: null,
+          metadata: null,
+          workspace: {
+            id:
+              index === 0
+                ? ORG_WORKSPACE_ID
+                : "33333333-3333-7333-8333-333333333333",
+          },
+        },
+      })),
+    );
+    const response = await createApp().request("/me/workspaces");
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.workspaces[0].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
+    expect(data.workspaces[1].enabledSocialProviders).toEqual(
+      expect.arrayContaining([
+        "x",
+        "tiktok",
+        "instagram",
+        "linkedin",
+        "facebook",
+        "youtube",
+      ]),
+    );
+    expect(data.workspaces[1].enabledSocialProviders).toHaveLength(6);
+    expect(data.workspaces[2].enabledSocialProviders).toEqual([
+      "x",
+      "youtube",
+      "linkedin",
+    ]);
   });
 
   it("marks the personal workspace preferred when no organization resolves", async () => {

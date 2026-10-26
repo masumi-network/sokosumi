@@ -18,7 +18,11 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
-import { requireSocialProviderEnabled } from "@/config/social-providers";
+import {
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
+  socialProviderWorkspaceForProject,
+} from "@/config/social-providers";
 import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
@@ -87,6 +91,7 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
 ];
 
 const socialPostInclude = {
+  project: { select: socialProviderProjectSelect },
   socialConnection: {
     select: {
       id: true,
@@ -293,9 +298,15 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     ? record.provider
     : null;
   const providerEnabled =
-    isSocialProviderEnabled(record.provider) &&
+    isSocialProviderEnabled(
+      record.provider,
+      socialProviderWorkspaceForProject(record.project),
+    ) &&
     (!record.socialConnection ||
-      isSocialProviderEnabled(record.socialConnection.provider));
+      isSocialProviderEnabled(
+        record.socialConnection.provider,
+        socialProviderWorkspaceForProject(record.project),
+      ));
   return {
     id: record.id,
     projectId: record.projectId,
@@ -372,9 +383,15 @@ function isSocialPostProvider(value: string): value is SocialPostProvider {
 function canRepairDisabledPost(post: SocialPostRecord): boolean {
   return (
     (post.status === "FAILED" || post.status === "MISSED") &&
-    (!isSocialProviderEnabled(post.provider) ||
+    (!isSocialProviderEnabled(
+      post.provider,
+      socialProviderWorkspaceForProject(post.project),
+    ) ||
       (post.socialConnection !== null &&
-        !isSocialProviderEnabled(post.socialConnection.provider)))
+        !isSocialProviderEnabled(
+          post.socialConnection.provider,
+          socialProviderWorkspaceForProject(post.project),
+        )))
   );
 }
 
@@ -525,13 +542,18 @@ async function requireProjectConnection(
 ): Promise<ConnectionCandidate> {
   const connection = await tx.projectSocialConnection.findFirst({
     where: { id: socialConnectionId, projectId },
-    select: { id: true, provider: true, status: true },
+    select: {
+      id: true,
+      provider: true,
+      status: true,
+      project: { select: socialProviderProjectSelect },
+    },
   });
   if (!connection) {
     throw notFound("Project social connection not found");
   }
   requireProvider(connection.provider);
-  requireSocialProviderEnabled(connection.provider);
+  requireSocialProviderEnabled(connection.provider, connection.project);
   if (connection.status === "disconnected") {
     throw conflict("Social connection is disconnected");
   }
@@ -813,10 +835,10 @@ export async function updateSocialPost(
       tx,
     );
   } else if (post.socialConnection) {
-    requireSocialProviderEnabled(post.socialConnection.provider);
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
 
-  requireSocialProviderEnabled(provider);
+  requireSocialProviderEnabled(provider, post.project);
   const providerChanged = provider !== currentProvider;
   if (providerChanged) {
     data.provider = provider;
@@ -969,9 +991,9 @@ export async function approveSocialPost(
   }
   requireRevision(post, input.revision);
   const due = post.scheduledAt;
-  requireSocialProviderEnabled(post.provider);
+  requireSocialProviderEnabled(post.provider, post.project);
   if (post.socialConnection) {
-    requireSocialProviderEnabled(post.socialConnection.provider);
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
   const schedule =
     due != null &&
@@ -1039,9 +1061,12 @@ export async function duplicateSocialPost(
   }
 
   const provider = requireProvider(source.provider);
-  requireSocialProviderEnabled(provider);
+  requireSocialProviderEnabled(provider, source.project);
   if (source.socialConnection) {
-    requireSocialProviderEnabled(source.socialConnection.provider);
+    requireSocialProviderEnabled(
+      source.socialConnection.provider,
+      source.project,
+    );
   }
   const media = normalizeSocialPostMedia({
     userId: input.userId,
@@ -1102,13 +1127,23 @@ export async function recycleSocialAccountPost(
       },
     },
     include: {
-      connection: { select: { id: true, status: true, provider: true } },
+      connection: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          project: { select: socialProviderProjectSelect },
+        },
+      },
     },
   });
   if (!accountPost) {
     throw notFound("Performance post not found");
   }
-  requireSocialProviderEnabled(accountPost.connection.provider);
+  requireSocialProviderEnabled(
+    accountPost.connection.provider,
+    accountPost.connection.project,
+  );
 
   const match = await tx.socialPost.findFirst({
     where: {

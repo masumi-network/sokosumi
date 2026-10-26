@@ -84,6 +84,7 @@ import {
   resolveTaskFileContentType,
   resolveUserUploadContentType,
   socialPostMediaKindForMime,
+  socialProvidersForWorkspace,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -94,6 +95,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { socialProviderWorkspaceForProject } from "@/config/social-providers";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
@@ -274,7 +276,10 @@ import {
   type ImageJobSettings,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
-import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import {
+  listProjectSocialConnections,
+  requireScopedProject,
+} from "@/services/project-social-connections.service";
 import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
@@ -5231,11 +5236,17 @@ export class SokoBotRuntimeService {
             input.input,
           );
         await this.requireSocialAccess(authorized);
-        return z
-          .array(projectSocialConnectionSchema)
-          .parse(
-            await listProjectSocialConnections({ ...params, workspaceId }),
-          );
+        const project = await requireScopedProject({ ...params, workspaceId });
+        return {
+          enabledProviders: socialProvidersForWorkspace(
+            socialProviderWorkspaceForProject(project),
+          ),
+          accounts: z
+            .array(projectSocialConnectionSchema)
+            .parse(
+              await listProjectSocialConnections({ ...params, workspaceId }),
+            ),
+        };
       }
       case "list_social_posts": {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_posts.parse(

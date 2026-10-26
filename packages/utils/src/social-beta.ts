@@ -1,2 +1,2 @@
-/** The Ads beta workspace; Social scheduling is public. Name retained for compatibility. */
+/** The Ads beta workspace and the workspace with every Social provider. Name retained for compatibility. */
 export const SOCIAL_BETA_ORGANIZATION_SLUG = "utxo";

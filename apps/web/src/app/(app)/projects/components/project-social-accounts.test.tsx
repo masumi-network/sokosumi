@@ -3,6 +3,10 @@ import type {
   ProjectSocialConnection,
 } from "@sokosumi/core-client";
 import {
+  SOCIAL_BETA_PROVIDERS,
+  socialPostProviderLabel,
+} from "@sokosumi/utils";
+import {
   act,
   fireEvent,
   render,
@@ -20,6 +24,7 @@ import {
   vi,
 } from "vitest";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import {
   disconnectProjectSocialConnection,
@@ -307,12 +312,64 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
+  it.each(SOCIAL_BETA_PROVIDERS)(
+    "enables connecting %s when Core enables every provider",
+    async (provider) => {
+      const user = userEvent.setup();
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={SOCIAL_BETA_PROVIDERS}
+        >
+          <ProjectSocialAccounts
+            projectId={PROJECT_ID}
+            connections={[
+              buildConnection({ provider, status: "reauthorization_required" }),
+            ]}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+      expect(screen.queryByText("Coming soon")).toBeNull();
+      expect(screen.getByRole("button", { name: "Reconnect" })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "Connect account" }));
+      expect(screen.queryByText("Coming soon")).toBeNull();
+      const item = screen.getByRole("menuitem", {
+        name: `Connect ${socialPostProviderLabel(provider)} account`,
+      });
+      expect(item).not.toHaveAttribute("aria-disabled", "true");
+      await user.click(item);
+      await waitFor(() =>
+        expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          action: "connect",
+          provider,
+        }),
+      );
+    },
+  );
+
+  it.each(["youtube", "linkedin"] as const)(
+    "keeps existing %s accounts usable in a public workspace",
+    (provider) => {
+      render(
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[
+            buildConnection({ provider, status: "reauthorization_required" }),
+          ]}
+        />,
+      );
+      const row = screen.getByRole("listitem");
+      expect(within(row).queryByText("Coming soon")).toBeNull();
+      expect(
+        within(row).getByRole("button", { name: "Reconnect" }),
+      ).toBeEnabled();
+    },
+  );
+
   it.each([
     ["tiktok", "TikTok"],
     ["facebook", "Facebook"],
     ["instagram", "Instagram"],
-    ["linkedin", "LinkedIn"],
-    ["youtube", "YouTube"],
   ])(
     "shows %s as coming soon and does not start a connection",
     async (_provider, name) => {
@@ -1108,7 +1165,7 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it.each(["tiktok", "facebook", "instagram", "linkedin", "youtube"] as const)(
+  it.each(["tiktok", "facebook", "instagram"] as const)(
     "keeps a connected %s account listed and disconnectable",
     async (provider) => {
       const user = userEvent.setup();
@@ -1151,7 +1208,7 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
-  it.each(["tiktok", "facebook", "instagram", "linkedin", "youtube"] as const)(
+  it.each(["tiktok", "facebook", "instagram"] as const)(
     "blocks reconnect and Start over for existing %s accounts",
     async (provider) => {
       const user = userEvent.setup();

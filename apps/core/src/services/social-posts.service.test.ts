@@ -1,4 +1,7 @@
-import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
+import {
+  SOCIAL_BETA_PROVIDERS,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+} from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
@@ -52,7 +55,10 @@ const USER_ID = "user_123";
 const NOW = new Date("2026-09-15T10:00:00.000Z");
 const FUTURE = new Date("2026-09-16T10:00:00.000Z");
 
+const project = { workspace: { organization: null } };
+
 const activeConnection = {
+  project,
   id: SOCIAL_CONNECTION_ID,
   projectId: PROJECT_ID,
   provider: "x",
@@ -101,6 +107,7 @@ const VIDEO_REF = {
 };
 
 const draftPost = {
+  project,
   id: POST_ID,
   createdAt: NOW,
   updatedAt: NOW,
@@ -322,7 +329,12 @@ describe("social posts service", () => {
 
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true, closingAt: true, closedAt: true },
+      select: {
+        id: true,
+        closingAt: true,
+        closedAt: true,
+        workspace: { select: { organization: { select: { slug: true } } } },
+      },
     });
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
@@ -587,407 +599,541 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({ status: 404, message: "Social post not found" });
   });
 
-  describe.each([
-    ["tiktok", "TikTok"],
-    ["instagram", "Instagram"],
-    ["linkedin", "LinkedIn"],
-    ["facebook", "Facebook"],
-    ["youtube", "YouTube"],
-  ] as const)("unavailable provider %s", (provider, label) => {
-    const scope = {
-      projectId: PROJECT_ID,
-      workspaceId: WORKSPACE_ID,
-      organizationId: null,
-      userId: USER_ID,
-    };
-    const postInput = { ...scope, postId: POST_ID, revision: 1 };
-    const disabledPost = {
-      ...scheduledPost,
-      provider,
-      socialConnection: { ...scheduledPost.socialConnection, provider },
-    };
-    const error = {
-      status: 400,
-      message: `${label} is coming soon. Only X is available right now.`,
-    };
-
-    beforeEach(() => {
-      socialConnectionFindFirstMock.mockResolvedValue({
-        ...activeConnection,
-        provider,
-      });
-      socialPostFindFirstMock.mockResolvedValue(disabledPost);
-    });
-
-    it.each([undefined, FUTURE])(
-      "rejects creation with scheduledAt %s before writing",
-      async (scheduledAt) => {
-        const { createSocialPost } = await loadService();
-
-        await expect(
-          createSocialPost({
-            ...scope,
-            socialConnectionId: SOCIAL_CONNECTION_ID,
-            text: "Hello",
+  describe.each([null, "other", "utxo"])(
+    "enabled providers in Project workspace %s",
+    (organizationSlug) => {
+      const enabledProviders =
+        organizationSlug === "utxo"
+          ? SOCIAL_BETA_PROVIDERS
+          : ["x", "youtube", "linkedin"];
+      it.each(enabledProviders)(
+        "allows all post mutations for %s",
+        async (provider) => {
+          const owningProject = {
+            workspace: {
+              organization: organizationSlug
+                ? { slug: organizationSlug }
+                : null,
+            },
+          };
+          const connection = {
+            ...activeConnection,
+            provider,
+            project: owningProject,
+          };
+          const post = {
+            ...scheduledPost,
+            project: owningProject,
+            provider,
             media: [VIDEO_REF],
-            scheduledAt,
-          }),
-        ).rejects.toMatchObject(error);
-        expect(socialPostCreateMock).not.toHaveBeenCalled();
-      },
-    );
+            socialConnection: connection,
+          };
+          const scope = {
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            organizationId: null,
+          };
+          const postInput = { ...scope, postId: POST_ID, revision: 1 };
+          projectFindFirstMock.mockResolvedValue({
+            id: PROJECT_ID,
+            ...owningProject,
+          });
+          socialConnectionFindFirstMock.mockResolvedValue(connection);
+          socialPostCreateMock.mockResolvedValue(post);
+          const service = await loadService();
 
-    it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
-      "rejects editing an existing %s post that retains the disabled provider",
-      async (status) => {
-        socialPostFindFirstMock.mockResolvedValue({ ...disabledPost, status });
-        const { updateSocialPost } = await loadService();
-
-        await expect(
-          updateSocialPost({ ...postInput, text: "Updated" }),
-        ).rejects.toMatchObject(error);
-        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("rejects selecting a disabled provider while editing an X draft", async () => {
-      socialPostFindFirstMock.mockResolvedValue({ ...draftPost, revision: 1 });
-      const { updateSocialPost } = await loadService();
-
-      await expect(
-        updateSocialPost({
-          ...postInput,
-          socialConnectionId: SOCIAL_CONNECTION_ID,
-        }),
-      ).rejects.toMatchObject(error);
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
-
-    it("rejects a disabled target account even when the draft's stored provider is X", async () => {
-      socialPostFindFirstMock.mockResolvedValue({
-        ...disabledPost,
-        status: "DRAFT",
-        provider: "x",
-      });
-      const { updateSocialPost } = await loadService();
-
-      await expect(
-        updateSocialPost({ ...postInput, text: "Updated" }),
-      ).rejects.toMatchObject(error);
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
-
-    it("rejects scheduling onto a disabled account", async () => {
-      const { scheduleSocialPost } = await loadService();
-
-      await expect(
-        scheduleSocialPost({ ...postInput, scheduledAt: FUTURE }),
-      ).rejects.toMatchObject(error);
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
-
-    it.each([null, FUTURE])(
-      "rejects approval with scheduledAt %s",
-      async (scheduledAt) => {
-        socialPostFindFirstMock.mockResolvedValue({
-          ...disabledPost,
-          status: "NEEDS_APPROVAL",
-          scheduledAt,
-        });
-        const { approveSocialPost } = await loadService();
-
-        await expect(approveSocialPost(postInput)).rejects.toMatchObject(error);
-        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("rejects approving an X post whose target account is disabled", async () => {
-      socialPostFindFirstMock.mockResolvedValue({
-        ...disabledPost,
-        status: "NEEDS_APPROVAL",
-        provider: "x",
-        scheduledAt: null,
-      });
-      const { approveSocialPost } = await loadService();
-
-      await expect(approveSocialPost(postInput)).rejects.toMatchObject(error);
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
-
-    it.each(["PUBLISHED", "FAILED", "MISSED"])(
-      "rejects duplicating a %s post",
-      async (status) => {
-        socialPostFindFirstMock.mockResolvedValue({ ...disabledPost, status });
-        const { duplicateSocialPost } = await loadService();
-
-        await expect(duplicateSocialPost(postInput)).rejects.toMatchObject(
-          error,
-        );
-        expect(socialPostCreateMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("rejects duplicating an X post whose target account is disabled", async () => {
-      socialPostFindFirstMock.mockResolvedValue({
-        ...disabledPost,
-        provider: "x",
-        status: "PUBLISHED",
-      });
-      const { duplicateSocialPost } = await loadService();
-
-      await expect(duplicateSocialPost(postInput)).rejects.toMatchObject(error);
-      expect(socialPostCreateMock).not.toHaveBeenCalled();
-    });
-
-    it.each([undefined, 7] as const)(
-      "rejects recycling with delayDays %s before matching or writing a post",
-      async (delayDays) => {
-        socialAccountPostFindFirstMock.mockResolvedValue({
-          id: "account-post-1",
-          externalId: "1907",
-          text: "Historical post",
-          connection: { ...activeConnection, provider },
-        });
-        const { recycleSocialAccountPost } = await loadService();
-
-        await expect(
-          recycleSocialAccountPost({
-            ...scope,
-            accountPostId: "account-post-1",
-            delayDays,
-            timezone: "UTC",
-          }),
-        ).rejects.toMatchObject(error);
-        expect(socialPostFindFirstMock).not.toHaveBeenCalled();
-        expect(socialPostCreateMock).not.toHaveBeenCalled();
-        expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("keeps history readable while disabling scheduling, approval, publishing and duplication", async () => {
-      socialPostFindManyMock.mockResolvedValue([
-        { ...disabledPost, status: "DRAFT" },
-        { ...disabledPost, status: "NEEDS_APPROVAL" },
-        { ...disabledPost, status: "PUBLISHED" },
-        { ...disabledPost, provider: "x", status: "FAILED" },
-        { ...disabledPost, status: "FAILED" },
-        { ...disabledPost, status: "MISSED" },
-      ]);
-      const { listSocialPosts } = await loadService();
-
-      const { posts } = await listSocialPosts(scope);
-
-      expect(posts).toHaveLength(6);
-      for (const post of posts) {
-        expect(post).toMatchObject({
-          text: disabledPost.text,
-          canSchedule: false,
-          canPublishNow: false,
-          canDuplicate: false,
-          canApprove: false,
-        });
-      }
-      expect(posts[0]).toMatchObject({ canEdit: true, canCancel: true });
-      expect(posts[1]).toMatchObject({ canEdit: true, canReject: true });
-      expect(posts[2]).toMatchObject({ canEdit: false });
-      for (const post of posts.slice(3)) {
-        expect(post).toMatchObject({ canEdit: true, canCancel: true });
-      }
-      expect(socialPostCreateMock).not.toHaveBeenCalled();
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
-
-    it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"])(
-      "repairs a %s post by changing its account to X",
-      async (status) => {
-        const xConnection = { ...activeConnection, id: "x-connection" };
-        const repaired = {
-          ...disabledPost,
-          provider: "x",
-          status,
-          socialConnectionId: xConnection.id,
-          socialConnection: {
-            ...scheduledPost.socialConnection,
-            ...xConnection,
-          },
-          revision: 2,
-        };
-        socialPostFindFirstMock
-          .mockResolvedValueOnce({ ...disabledPost, status })
-          .mockResolvedValueOnce(repaired);
-        socialConnectionFindFirstMock.mockResolvedValue(xConnection);
-        const { updateSocialPost } = await loadService();
-
-        const post = await updateSocialPost({
-          ...postInput,
-          socialConnectionId: xConnection.id,
-        });
-
-        expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            data: expect.objectContaining({
-              provider: "x",
-              socialConnectionId: xConnection.id,
+          await expect(
+            service.createSocialPost({
+              ...scope,
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+              text: post.text,
+              media: [VIDEO_REF],
+              scheduledAt: FUTURE,
             }),
-          }),
-        );
-        expect(post).toMatchObject({
-          provider: "x",
-          status,
-          canSchedule: true,
-        });
-      },
-    );
+          ).resolves.toMatchObject({ provider });
+          socialPostFindFirstMock.mockResolvedValue({
+            ...post,
+            status: "DRAFT",
+          });
+          await expect(
+            service.updateSocialPost({ ...postInput, text: "Edited post" }),
+          ).resolves.toMatchObject({ provider });
+          await expect(
+            service.scheduleSocialPost({ ...postInput, scheduledAt: FUTURE }),
+          ).resolves.toMatchObject({ provider });
+          socialPostFindFirstMock.mockResolvedValue({
+            ...post,
+            status: "NEEDS_APPROVAL",
+          });
+          await expect(
+            service.approveSocialPost(postInput),
+          ).resolves.toMatchObject({ provider });
+          socialPostFindFirstMock.mockResolvedValue({
+            ...post,
+            status: "PUBLISHED",
+          });
+          await expect(
+            service.duplicateSocialPost(postInput),
+          ).resolves.toMatchObject({ provider });
+          socialAccountPostFindFirstMock.mockResolvedValue({
+            id: "account-post",
+            externalId: "remote-post",
+            text: post.text,
+            connection,
+          });
+          socialPostFindFirstMock
+            .mockReset()
+            .mockResolvedValueOnce({ id: POST_ID })
+            .mockResolvedValue({ ...post, status: "PUBLISHED" });
+          await expect(
+            service.recycleSocialAccountPost({
+              ...scope,
+              accountPostId: "account-post",
+            }),
+          ).resolves.toMatchObject({ provider });
 
-    it.each(["FAILED", "MISSED"])(
-      "repairs a %s post as an X draft and clears retry state while retaining history",
-      async (status) => {
-        const xConnection = { ...activeConnection, id: "x-connection" };
-        const attempt = {
-          attempt: 2,
-          trigger: "scheduler",
-          outcome: "failed_permanent",
-          errorKind: null,
-          providerOutcome: error.message,
-          finishedAt: NOW,
+          expect(socialPostCreateMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              data: expect.objectContaining({ provider }),
+            }),
+          );
+          expect(socialPostUpdateManyMock).toHaveBeenCalled();
+        },
+      );
+    },
+  );
+
+  describe.each([null, "other"])(
+    "non-beta Project workspace %s",
+    (organizationSlug) => {
+      describe.each([
+        ["tiktok", "TikTok"],
+        ["instagram", "Instagram"],
+        ["facebook", "Facebook"],
+      ] as const)("unavailable provider %s", (provider, label) => {
+        const scope = {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
         };
-        const failed = {
-          ...disabledPost,
-          status,
-          scheduledByUserId: USER_ID,
-          scheduledByCoworkerId: "cow_123",
-          nextAttemptAt: FUTURE,
-          lastError: error.message,
-          attemptCount: 2,
-          lastAttemptAt: NOW,
-          attempts: [attempt],
-        };
-        const repaired = {
-          ...failed,
-          provider: "x",
-          status: "DRAFT",
-          scheduledAt: null,
-          scheduledByUserId: null,
-          scheduledByCoworkerId: null,
-          nextAttemptAt: null,
-          lastError: null,
-          attemptCount: 0,
-          socialConnectionId: xConnection.id,
-          socialConnection: {
-            ...scheduledPost.socialConnection,
-            ...xConnection,
+        const postInput = { ...scope, postId: POST_ID, revision: 1 };
+        const disabledPost = {
+          ...scheduledPost,
+          project: {
+            workspace: {
+              organization: organizationSlug
+                ? { slug: organizationSlug }
+                : null,
+            },
           },
-          revision: 2,
+          provider,
+          socialConnection: { ...scheduledPost.socialConnection, provider },
         };
-        socialPostFindFirstMock
-          .mockResolvedValueOnce(failed)
-          .mockResolvedValueOnce(repaired);
-        socialConnectionFindFirstMock.mockResolvedValue(xConnection);
-        const { updateSocialPost } = await loadService();
+        const error = {
+          status: 400,
+          message: `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+        };
 
-        const post = await updateSocialPost({
-          ...postInput,
-          socialConnectionId: xConnection.id,
+        beforeEach(() => {
+          socialConnectionFindFirstMock.mockResolvedValue({
+            ...activeConnection,
+            project: disabledPost.project,
+            provider,
+          });
+          socialPostFindFirstMock.mockResolvedValue(disabledPost);
         });
 
-        expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
-          where: { id: POST_ID, revision: 1 },
-          data: {
+        it.each([undefined, FUTURE])(
+          "rejects creation with scheduledAt %s before writing",
+          async (scheduledAt) => {
+            const { createSocialPost } = await loadService();
+
+            await expect(
+              createSocialPost({
+                ...scope,
+                socialConnectionId: SOCIAL_CONNECTION_ID,
+                text: "Hello",
+                media: [VIDEO_REF],
+                scheduledAt,
+              }),
+            ).rejects.toMatchObject(error);
+            expect(socialPostCreateMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
+          "rejects editing an existing %s post that retains the disabled provider",
+          async (status) => {
+            socialPostFindFirstMock.mockResolvedValue({
+              ...disabledPost,
+              status,
+            });
+            const { updateSocialPost } = await loadService();
+
+            await expect(
+              updateSocialPost({ ...postInput, text: "Updated" }),
+            ).rejects.toMatchObject(error);
+            expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it("rejects selecting a disabled provider while editing an X draft", async () => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...draftPost,
+            revision: 1,
+          });
+          const { updateSocialPost } = await loadService();
+
+          await expect(
+            updateSocialPost({
+              ...postInput,
+              socialConnectionId: SOCIAL_CONNECTION_ID,
+            }),
+          ).rejects.toMatchObject(error);
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        });
+
+        it("rejects a disabled target account even when the draft's stored provider is X", async () => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...disabledPost,
             status: "DRAFT",
             provider: "x",
-            socialConnectionId: xConnection.id,
-            text: failed.text,
-            firstComment: null,
-            scheduledAt: null,
-            scheduledByUserId: null,
-            scheduledByCoworkerId: null,
-            nextAttemptAt: null,
-            lastError: null,
-            attemptCount: 0,
-            revision: { increment: 1 },
-          },
-        });
-        expect(post).toMatchObject({
-          provider: "x",
-          status: "DRAFT",
-          scheduledAt: null,
-          canEdit: true,
-          canSchedule: true,
-          lastAttemptAt: NOW,
-          lastAttempt: attempt,
-        });
-        expect(socialPostCreateMock).not.toHaveBeenCalled();
-      },
-    );
-
-    it("allows detaching the unavailable account from an existing draft", async () => {
-      socialPostFindFirstMock
-        .mockResolvedValueOnce({ ...disabledPost, status: "DRAFT" })
-        .mockResolvedValueOnce({ ...draftPost, revision: 2 });
-      const { updateSocialPost } = await loadService();
-
-      await updateSocialPost({ ...postInput, socialConnectionId: null });
-
-      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            provider: "x",
-            socialConnectionId: null,
-          }),
-        }),
-      );
-    });
-
-    it.each(["SCHEDULED", "FAILED", "MISSED"])(
-      "allows canceling an existing %s post without deleting its content",
-      async (status) => {
-        socialPostFindFirstMock
-          .mockResolvedValueOnce({ ...disabledPost, status })
-          .mockResolvedValueOnce({
-            ...disabledPost,
-            status: "CANCELED",
-            revision: 2,
           });
-        const { cancelSocialPost } = await loadService();
+          const { updateSocialPost } = await loadService();
 
-        const post = await cancelSocialPost(postInput);
-
-        expect(post).toMatchObject({
-          status: "CANCELED",
-          text: disabledPost.text,
-          provider,
+          await expect(
+            updateSocialPost({ ...postInput, text: "Updated" }),
+          ).rejects.toMatchObject(error);
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
         });
-        expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
-          where: { id: POST_ID, revision: 1 },
-          data: {
-            status: "CANCELED",
-            canceledAt: NOW,
-            revision: { increment: 1 },
+
+        it("rejects scheduling onto a disabled account", async () => {
+          const { scheduleSocialPost } = await loadService();
+
+          await expect(
+            scheduleSocialPost({ ...postInput, scheduledAt: FUTURE }),
+          ).rejects.toMatchObject(error);
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        });
+
+        it.each([null, FUTURE])(
+          "rejects approval with scheduledAt %s",
+          async (scheduledAt) => {
+            socialPostFindFirstMock.mockResolvedValue({
+              ...disabledPost,
+              status: "NEEDS_APPROVAL",
+              scheduledAt,
+            });
+            const { approveSocialPost } = await loadService();
+
+            await expect(approveSocialPost(postInput)).rejects.toMatchObject(
+              error,
+            );
+            expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
           },
+        );
+
+        it("rejects approving an X post whose target account is disabled", async () => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...disabledPost,
+            status: "NEEDS_APPROVAL",
+            provider: "x",
+            scheduledAt: null,
+          });
+          const { approveSocialPost } = await loadService();
+
+          await expect(approveSocialPost(postInput)).rejects.toMatchObject(
+            error,
+          );
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
         });
-      },
-    );
 
-    it("allows rejecting an existing awaiting-approval post", async () => {
-      socialPostFindFirstMock
-        .mockResolvedValueOnce({ ...disabledPost, status: "NEEDS_APPROVAL" })
-        .mockResolvedValueOnce({
-          ...disabledPost,
-          status: "CANCELED",
-          revision: 2,
+        it.each(["PUBLISHED", "FAILED", "MISSED"])(
+          "rejects duplicating a %s post",
+          async (status) => {
+            socialPostFindFirstMock.mockResolvedValue({
+              ...disabledPost,
+              status,
+            });
+            const { duplicateSocialPost } = await loadService();
+
+            await expect(duplicateSocialPost(postInput)).rejects.toMatchObject(
+              error,
+            );
+            expect(socialPostCreateMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it("rejects duplicating an X post whose target account is disabled", async () => {
+          socialPostFindFirstMock.mockResolvedValue({
+            ...disabledPost,
+            provider: "x",
+            status: "PUBLISHED",
+          });
+          const { duplicateSocialPost } = await loadService();
+
+          await expect(duplicateSocialPost(postInput)).rejects.toMatchObject(
+            error,
+          );
+          expect(socialPostCreateMock).not.toHaveBeenCalled();
         });
-      const { rejectSocialPost } = await loadService();
 
-      const post = await rejectSocialPost(postInput);
+        it.each([undefined, 7] as const)(
+          "rejects recycling with delayDays %s before matching or writing a post",
+          async (delayDays) => {
+            socialAccountPostFindFirstMock.mockResolvedValue({
+              id: "account-post-1",
+              externalId: "1907",
+              text: "Historical post",
+              connection: { ...activeConnection, provider },
+            });
+            const { recycleSocialAccountPost } = await loadService();
 
-      expect(post).toMatchObject({
-        status: "CANCELED",
-        text: disabledPost.text,
-        provider,
+            await expect(
+              recycleSocialAccountPost({
+                ...scope,
+                accountPostId: "account-post-1",
+                delayDays,
+                timezone: "UTC",
+              }),
+            ).rejects.toMatchObject(error);
+            expect(socialPostFindFirstMock).not.toHaveBeenCalled();
+            expect(socialPostCreateMock).not.toHaveBeenCalled();
+            expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it("keeps history readable while disabling scheduling, approval, publishing and duplication", async () => {
+          socialPostFindManyMock.mockResolvedValue([
+            { ...disabledPost, status: "DRAFT" },
+            { ...disabledPost, status: "NEEDS_APPROVAL" },
+            { ...disabledPost, status: "PUBLISHED" },
+            { ...disabledPost, provider: "x", status: "FAILED" },
+            { ...disabledPost, status: "FAILED" },
+            { ...disabledPost, status: "MISSED" },
+          ]);
+          const { listSocialPosts } = await loadService();
+
+          const { posts } = await listSocialPosts(scope);
+
+          expect(posts).toHaveLength(6);
+          for (const post of posts) {
+            expect(post).toMatchObject({
+              text: disabledPost.text,
+              canSchedule: false,
+              canPublishNow: false,
+              canDuplicate: false,
+              canApprove: false,
+            });
+          }
+          expect(posts[0]).toMatchObject({ canEdit: true, canCancel: true });
+          expect(posts[1]).toMatchObject({ canEdit: true, canReject: true });
+          expect(posts[2]).toMatchObject({ canEdit: false });
+          for (const post of posts.slice(3)) {
+            expect(post).toMatchObject({ canEdit: true, canCancel: true });
+          }
+          expect(socialPostCreateMock).not.toHaveBeenCalled();
+          expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+        });
+
+        it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"])(
+          "repairs a %s post by changing its account to X",
+          async (status) => {
+            const xConnection = { ...activeConnection, id: "x-connection" };
+            const repaired = {
+              ...disabledPost,
+              provider: "x",
+              status,
+              socialConnectionId: xConnection.id,
+              socialConnection: {
+                ...scheduledPost.socialConnection,
+                ...xConnection,
+              },
+              revision: 2,
+            };
+            socialPostFindFirstMock
+              .mockResolvedValueOnce({ ...disabledPost, status })
+              .mockResolvedValueOnce(repaired);
+            socialConnectionFindFirstMock.mockResolvedValue(xConnection);
+            const { updateSocialPost } = await loadService();
+
+            const post = await updateSocialPost({
+              ...postInput,
+              socialConnectionId: xConnection.id,
+            });
+
+            expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                data: expect.objectContaining({
+                  provider: "x",
+                  socialConnectionId: xConnection.id,
+                }),
+              }),
+            );
+            expect(post).toMatchObject({
+              provider: "x",
+              status,
+              canSchedule: true,
+            });
+          },
+        );
+
+        it.each(["FAILED", "MISSED"])(
+          "repairs a %s post as an X draft and clears retry state while retaining history",
+          async (status) => {
+            const xConnection = { ...activeConnection, id: "x-connection" };
+            const attempt = {
+              attempt: 2,
+              trigger: "scheduler",
+              outcome: "failed_permanent",
+              errorKind: null,
+              providerOutcome: error.message,
+              finishedAt: NOW,
+            };
+            const failed = {
+              ...disabledPost,
+              status,
+              scheduledByUserId: USER_ID,
+              scheduledByCoworkerId: "cow_123",
+              nextAttemptAt: FUTURE,
+              lastError: error.message,
+              attemptCount: 2,
+              lastAttemptAt: NOW,
+              attempts: [attempt],
+            };
+            const repaired = {
+              ...failed,
+              provider: "x",
+              status: "DRAFT",
+              scheduledAt: null,
+              scheduledByUserId: null,
+              scheduledByCoworkerId: null,
+              nextAttemptAt: null,
+              lastError: null,
+              attemptCount: 0,
+              socialConnectionId: xConnection.id,
+              socialConnection: {
+                ...scheduledPost.socialConnection,
+                ...xConnection,
+              },
+              revision: 2,
+            };
+            socialPostFindFirstMock
+              .mockResolvedValueOnce(failed)
+              .mockResolvedValueOnce(repaired);
+            socialConnectionFindFirstMock.mockResolvedValue(xConnection);
+            const { updateSocialPost } = await loadService();
+
+            const post = await updateSocialPost({
+              ...postInput,
+              socialConnectionId: xConnection.id,
+            });
+
+            expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+              where: { id: POST_ID, revision: 1 },
+              data: {
+                status: "DRAFT",
+                provider: "x",
+                socialConnectionId: xConnection.id,
+                text: failed.text,
+                firstComment: null,
+                scheduledAt: null,
+                scheduledByUserId: null,
+                scheduledByCoworkerId: null,
+                nextAttemptAt: null,
+                lastError: null,
+                attemptCount: 0,
+                revision: { increment: 1 },
+              },
+            });
+            expect(post).toMatchObject({
+              provider: "x",
+              status: "DRAFT",
+              scheduledAt: null,
+              canEdit: true,
+              canSchedule: true,
+              lastAttemptAt: NOW,
+              lastAttempt: attempt,
+            });
+            expect(socialPostCreateMock).not.toHaveBeenCalled();
+          },
+        );
+
+        it("allows detaching the unavailable account from an existing draft", async () => {
+          socialPostFindFirstMock
+            .mockResolvedValueOnce({ ...disabledPost, status: "DRAFT" })
+            .mockResolvedValueOnce({ ...draftPost, revision: 2 });
+          const { updateSocialPost } = await loadService();
+
+          await updateSocialPost({ ...postInput, socialConnectionId: null });
+
+          expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              data: expect.objectContaining({
+                provider: "x",
+                socialConnectionId: null,
+              }),
+            }),
+          );
+        });
+
+        it.each(["SCHEDULED", "FAILED", "MISSED"])(
+          "allows canceling an existing %s post without deleting its content",
+          async (status) => {
+            socialPostFindFirstMock
+              .mockResolvedValueOnce({ ...disabledPost, status })
+              .mockResolvedValueOnce({
+                ...disabledPost,
+                status: "CANCELED",
+                revision: 2,
+              });
+            const { cancelSocialPost } = await loadService();
+
+            const post = await cancelSocialPost(postInput);
+
+            expect(post).toMatchObject({
+              status: "CANCELED",
+              text: disabledPost.text,
+              provider,
+            });
+            expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+              where: { id: POST_ID, revision: 1 },
+              data: {
+                status: "CANCELED",
+                canceledAt: NOW,
+                revision: { increment: 1 },
+              },
+            });
+          },
+        );
+
+        it("allows rejecting an existing awaiting-approval post", async () => {
+          socialPostFindFirstMock
+            .mockResolvedValueOnce({
+              ...disabledPost,
+              status: "NEEDS_APPROVAL",
+            })
+            .mockResolvedValueOnce({
+              ...disabledPost,
+              status: "CANCELED",
+              revision: 2,
+            });
+          const { rejectSocialPost } = await loadService();
+
+          const post = await rejectSocialPost(postInput);
+
+          expect(post).toMatchObject({
+            status: "CANCELED",
+            text: disabledPost.text,
+            provider,
+          });
+          expect(socialPostUpdateManyMock).toHaveBeenCalled();
+        });
       });
-      expect(socialPostUpdateManyMock).toHaveBeenCalled();
-    });
-  });
+    },
+  );
 
   it("creates a draft attributed to the interactive user", async () => {
     const { createSocialPost } = await loadService();
@@ -2008,7 +2154,12 @@ describe("social posts service", () => {
       expect(post.revision).toBe(2);
       expect(tx.project.findFirst).toHaveBeenCalledWith({
         where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-        select: { id: true, closingAt: true, closedAt: true },
+        select: {
+          id: true,
+          closingAt: true,
+          closedAt: true,
+          workspace: { select: { organization: { select: { slug: true } } } },
+        },
       });
       expect(projectFindFirstMock).not.toHaveBeenCalled();
       expect(socialConnectionFindFirstMock).not.toHaveBeenCalled();
@@ -2253,6 +2404,7 @@ describe("social posts service", () => {
     externalId: "1907",
     text: "Winner on the feed",
     connection: {
+      project,
       id: SOCIAL_CONNECTION_ID,
       status: "active",
       provider: "x",

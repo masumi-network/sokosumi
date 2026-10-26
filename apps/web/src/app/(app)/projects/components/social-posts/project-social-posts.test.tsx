@@ -3,7 +3,11 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  SOCIAL_BETA_PROVIDERS,
+  socialPostProviderLabel,
+} from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -21,6 +25,7 @@ import {
   SocialComposeProvider,
   useSocialCompose,
 } from "@/app/social/components/social-compose-context";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
@@ -97,7 +102,7 @@ const MESSAGES: Record<string, string> = {
   title: "Social posts",
   comingSoon: "Coming soon",
   "failures.providerComingSoon":
-    "This platform is coming soon. Only X is available right now.",
+    "{provider} is coming soon. Available now: {providers}.",
   tryAgain: "Try again",
   help: "Everything else still works. Check your connection and try again.",
   "title.drafts": "Couldn't load drafts",
@@ -1084,50 +1089,50 @@ describe("ProjectSocialPosts", () => {
     "cannot retry disabled-platform history after a filter change: %s",
     async (changeFilterAfterSelection) => {
       const user = userEvent.setup();
-      const linkedInFailed = buildPost({
+      const tiktokFailed = buildPost({
         ...FAILED_POST,
-        id: "post-failed-li",
-        provider: "linkedin",
-        text: "LinkedIn failed",
+        id: "post-failed-tt",
+        provider: "tiktok",
+        text: "TikTok failed",
         revision: 7,
       });
-      function FilterToLinkedIn() {
+      function FilterToTikTok() {
         const [, setProvider] = useQueryState("provider");
         return (
-          <button type="button" onClick={() => void setProvider("linkedin")}>
-            Filter to LinkedIn
+          <button type="button" onClick={() => void setProvider("tiktok")}>
+            Filter to TikTok
           </button>
         );
       }
       render(
         <>
-          <FilterToLinkedIn />
+          <FilterToTikTok />
           <ProjectSocialPosts
             connections={[buildConnection()]}
-            posts={[FAILED_POST, linkedInFailed]}
+            posts={[FAILED_POST, tiktokFailed]}
             projectId={PROJECT_ID}
           />
         </>,
         changeFilterAfterSelection
           ? "?tab=attention"
-          : "?tab=attention&provider=linkedin",
+          : "?tab=attention&provider=tiktok",
       );
       if (changeFilterAfterSelection) {
         await user.click(screen.getByTestId("social-post-select-post-failed"));
         expect(screen.getByText("1 selected")).toBeVisible();
         await user.click(
-          screen.getByRole("button", { name: "Filter to LinkedIn" }),
+          screen.getByRole("button", { name: "Filter to TikTok" }),
         );
       }
       const attention = screen.getByTestId("social-posts-section-attention");
       await waitFor(() =>
-        expect(within(attention).getByText("LinkedIn failed")).toBeVisible(),
+        expect(within(attention).getByText("TikTok failed")).toBeVisible(),
       );
       expect(
         within(attention).queryByTestId("social-post-post-failed"),
       ).toBeNull();
       expect(
-        within(attention).queryByTestId("social-post-select-post-failed-li"),
+        within(attention).queryByTestId("social-post-select-post-failed-tt"),
       ).toBeNull();
       expect(
         screen.queryByRole("button", { name: "Retry selected" }),
@@ -2189,12 +2194,57 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
+  it.each(SOCIAL_BETA_PROVIDERS)(
+    "lets a beta workspace pick %s in the composer",
+    async (provider) => {
+      const user = userEvent.setup();
+      const connection = buildConnection({ provider });
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={SOCIAL_BETA_PROVIDERS}
+        >
+          <ProjectSocialPosts
+            connections={[connection]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      const account = within(dialog).getByRole("button", {
+        name: `${socialPostProviderLabel(provider)} @sokosumi`,
+      });
+      expect(account).toBeEnabled();
+      expect(account).toHaveAttribute("aria-pressed", "true");
+      expect(within(dialog).queryByText("Coming soon")).toBeNull();
+    },
+  );
+
+  it.each(["youtube", "linkedin"] as const)(
+    "picks an existing %s account in a public workspace",
+    async (provider) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ provider })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const account = within(screen.getByRole("dialog")).getByRole("button", {
+        name: `${socialPostProviderLabel(provider)} @sokosumi`,
+      });
+      expect(account).toBeEnabled();
+      expect(account).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+
   it.each([
     ["tiktok", "TikTok"],
     ["instagram", "Instagram"],
-    ["linkedin", "LinkedIn"],
     ["facebook", "Facebook"],
-    ["youtube", "YouTube"],
   ] as const)(
     "shows %s with a disabled Coming soon badge and ignores remembered selections",
     async (provider, name) => {
@@ -2366,12 +2416,12 @@ describe("ProjectSocialPosts", () => {
     const user = userEvent.setup();
     const disabledConnection = buildConnection({
       id: "connection-li",
-      provider: "linkedin",
+      provider: "tiktok",
       externalHandle: "future",
     });
     const failed = buildPost({
       ...FAILED_POST,
-      provider: "linkedin",
+      provider: "tiktok",
       socialConnection: disabledConnection,
       canEdit: true,
     });
@@ -2396,7 +2446,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     const dialog = screen.getByRole("dialog");
     expect(
-      within(dialog).getByRole("button", { name: "LinkedIn @future" }),
+      within(dialog).getByRole("button", { name: "TikTok @future" }),
     ).toBeDisabled();
     await user.click(
       within(dialog).getByRole("button", { name: "X @sokosumi" }),
@@ -2917,7 +2967,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "tiktok",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -2929,7 +2979,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+      within(dialog).getByRole("button", { name: "TikTok @sokosumi-co" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "a".repeat(300) },
@@ -2939,7 +2989,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByTestId("social-post-character-count"),
     ).toHaveTextContent("300 / 280");
     expect(
-      within(dialog).queryByTestId("social-post-platform-linkedin"),
+      within(dialog).queryByTestId("social-post-platform-tiktok"),
     ).toBeNull();
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
@@ -3099,7 +3149,7 @@ describe("ProjectSocialPosts", () => {
           buildConnection(),
           buildConnection({
             id: "connection-2",
-            provider: "linkedin",
+            provider: "tiktok",
             externalHandle: "sokosumi-co",
           }),
         ]}
@@ -3121,7 +3171,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByTestId("social-post-character-count"),
     ).toHaveTextContent("300 / 280");
     expect(
-      within(dialog).queryByTestId("social-post-platform-linkedin"),
+      within(dialog).queryByTestId("social-post-platform-tiktok"),
     ).toBeNull();
   });
 
@@ -5384,11 +5434,22 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("menuitem", { name: "Schedule" })).toBeNull();
   });
 
-  it.each(["tiktok", "instagram", "linkedin", "facebook", "youtube"] as const)(
+  it.each(["tiktok", "instagram", "facebook"] as const)(
     "keeps failed %s history visible without retry, schedule, or duplicate actions",
     async (provider) => {
       const user = userEvent.setup();
-      const failed = buildPost({ ...FAILED_POST, provider });
+      const failed = buildPost({
+        ...FAILED_POST,
+        provider,
+        lastAttempt: {
+          attempt: 1,
+          trigger: "scheduler",
+          outcome: "failed_permanent",
+          providerOutcome: null,
+          finishedAt: null,
+          errorKind: `provider_coming_soon:${provider}`,
+        },
+      });
       render(
         <ProjectSocialPosts
           connections={[buildConnection({ provider })]}
@@ -5399,7 +5460,7 @@ describe("ProjectSocialPosts", () => {
       await openTab(user, "Needs attention");
       expect(
         screen.getByText(
-          "This platform is coming soon. Only X is available right now.",
+          `${provider === "tiktok" ? "TikTok" : provider === "instagram" ? "Instagram" : "Facebook"} is coming soon. Available now: X, YouTube, and LinkedIn.`,
         ),
       ).toBeVisible();
       expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();

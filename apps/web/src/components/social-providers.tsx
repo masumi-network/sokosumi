@@ -1,5 +1,4 @@
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
-import { isSocialProviderEnabled } from "@sokosumi/utils";
 import type { ComponentType } from "react";
 import { SiX } from "react-icons/si";
 import {
@@ -10,20 +9,15 @@ import {
   YouTubeIcon,
 } from "@/components/social-icons";
 
-export const SOCIAL_PROVIDERS = (
-  [
-    { id: "x", name: "X", Icon: SiX },
-    { id: "tiktok", name: "TikTok", Icon: TikTokIcon },
-    { id: "instagram", name: "Instagram", Icon: InstagramIcon },
-    { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-    { id: "facebook", name: "Facebook", Icon: FacebookIcon },
-    { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
-  ] as const satisfies readonly {
-    id: ProjectSocialConnection["provider"];
-    name: string;
-    Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  }[]
-).map((provider) => ({
-  ...provider,
-  comingSoon: !isSocialProviderEnabled(provider.id),
-}));
+export const SOCIAL_PROVIDERS = [
+  { id: "x", name: "X", Icon: SiX },
+  { id: "tiktok", name: "TikTok", Icon: TikTokIcon },
+  { id: "instagram", name: "Instagram", Icon: InstagramIcon },
+  { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
+  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
+  { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
+] as const satisfies readonly {
+  id: ProjectSocialConnection["provider"];
+  name: string;
+  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+}[];

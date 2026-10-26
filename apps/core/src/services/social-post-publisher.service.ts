@@ -18,7 +18,11 @@ import {
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
-import { requireSocialProviderEnabled } from "@/config/social-providers";
+import {
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
+  socialProviderWorkspaceForProject,
+} from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
@@ -90,6 +94,7 @@ export interface PublishSocialPostNowInput {
 }
 
 const publisherInclude = {
+  project: { select: socialProviderProjectSelect },
   scheduledByCoworker: { select: { id: true, vendorId: true } },
   workspace: { select: { organizationId: true } },
   socialConnection: {
@@ -110,6 +115,7 @@ type PublisherPostRecord = Prisma.SocialPostGetPayload<{
 
 /** A post this worker holds under a lease. */
 interface ClaimedPost {
+  project: PublisherPostRecord["project"];
   id: string;
   projectId: string;
   workspaceId: string;
@@ -430,10 +436,16 @@ async function attemptPublish(
     (value): value is SocialPostProvider =>
       value !== undefined &&
       isSocialPostProvider(value) &&
-      socialProviderUnavailableMessage(value) !== null,
+      socialProviderUnavailableMessage(
+        value,
+        socialProviderWorkspaceForProject(post.project),
+      ) !== null,
   );
   if (disabledProvider) {
-    const message = socialProviderUnavailableMessage(disabledProvider);
+    const message = socialProviderUnavailableMessage(
+      disabledProvider,
+      socialProviderWorkspaceForProject(post.project),
+    );
     await prisma.socialPostPublishAttempt.create({
       data: {
         socialPostId: post.id,
@@ -442,6 +454,7 @@ async function attemptPublish(
         actorUserId: options.actorUserId ?? null,
         finishedAt: now,
         outcome: "failed_permanent",
+        errorKind: `provider_coming_soon:${disabledProvider}`,
         providerOutcome: message,
       },
       select: { id: true },
@@ -700,6 +713,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       leaseToken,
       recoveringLease: candidate.status === "PUBLISHING",
       socialConnection: candidate.socialConnection,
+      project: candidate.project,
       ...(candidate.scheduledByCoworker
         ? {
             schedulingCoworker: {
@@ -784,9 +798,12 @@ export async function publishSocialPostNow(
       if (post.revision !== input.revision) {
         throw conflict(REVISION_CONFLICT_MESSAGE);
       }
-      requireSocialProviderEnabled(post.provider);
+      requireSocialProviderEnabled(post.provider, post.project);
       if (post.socialConnection) {
-        requireSocialProviderEnabled(post.socialConnection.provider);
+        requireSocialProviderEnabled(
+          post.socialConnection.provider,
+          post.project,
+        );
       }
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
@@ -845,6 +862,7 @@ export async function publishSocialPostNow(
       attemptCount: 0,
       leaseToken,
       socialConnection: post.socialConnection,
+      project: post.project,
     },
     { trigger: "publish_now", actorUserId: input.userId },
   );

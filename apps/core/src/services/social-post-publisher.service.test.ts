@@ -1,3 +1,7 @@
+import {
+  SOCIAL_BETA_PROVIDERS,
+  SOCIAL_PUBLIC_PROVIDERS,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import {
@@ -128,6 +132,7 @@ function mediaResponse(
 }
 
 const duePost = {
+  project: { workspace: { organization: null } },
   id: POST_ID,
   projectId: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
@@ -154,9 +159,7 @@ const syncContext = {
 const DISABLED_PROVIDERS = [
   ["tiktok", "TikTok"],
   ["instagram", "Instagram"],
-  ["linkedin", "LinkedIn"],
   ["facebook", "Facebook"],
-  ["youtube", "YouTube"],
 ] as const;
 
 async function loadService() {
@@ -526,10 +529,113 @@ describe("social post publisher service", () => {
     });
   });
 
+  describe.each([null, "other", "utxo"])(
+    "publishing in Project workspace %s",
+    (organizationSlug) => {
+      it.each(SOCIAL_BETA_PROVIDERS)(
+        "checks the owning workspace before dispatching due %s",
+        async (provider) => {
+          const project = {
+            workspace: {
+              organization: organizationSlug
+                ? { slug: organizationSlug }
+                : null,
+            },
+          };
+          projectFindFirstMock.mockResolvedValue({
+            id: PROJECT_ID,
+            ...project,
+          });
+          socialPostFindFirstMock
+            .mockReset()
+            .mockResolvedValueOnce({
+              ...duePost,
+              project,
+              provider,
+              media: [CLIP_REF],
+              socialConnection: { ...activeConnection, provider },
+            })
+            .mockResolvedValue(null);
+          const { publishDueSocialPosts } = await loadService();
+          const result = await publishDueSocialPosts(syncContext);
+          const enabled =
+            organizationSlug === "utxo" ||
+            (SOCIAL_PUBLIC_PROVIDERS as readonly string[]).includes(provider);
+          expect(result).toMatchObject({
+            published: enabled ? 1 : 0,
+            failed: enabled ? 0 : 1,
+          });
+          if (enabled) {
+            expect(publishXPostMock).toHaveBeenCalledExactlyOnceWith(
+              expect.objectContaining({ provider }),
+            );
+            expect(settleCall().data.status).toBe("PUBLISHED");
+          } else {
+            expect(publishXPostMock).not.toHaveBeenCalled();
+            expect(settleCall().data.lastError).toContain(
+              "is coming soon. Available now: X, YouTube, and LinkedIn.",
+            );
+          }
+        },
+      );
+
+      it.each(SOCIAL_BETA_PROVIDERS)(
+        "checks availability before immediate publication of %s",
+        async (provider) => {
+          const project = {
+            workspace: {
+              organization: organizationSlug
+                ? { slug: organizationSlug }
+                : null,
+            },
+          };
+          projectFindFirstMock.mockResolvedValue({
+            id: PROJECT_ID,
+            ...project,
+          });
+          socialPostFindFirstMock.mockReset().mockResolvedValue({
+            ...duePost,
+            status: "DRAFT",
+            project,
+            provider,
+            media: [CLIP_REF],
+            socialConnection: { ...activeConnection, provider },
+          });
+          const { publishSocialPostNow } = await loadService();
+          const input = {
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            postId: POST_ID,
+            revision: 1,
+          };
+          if (
+            organizationSlug !== "utxo" &&
+            !(SOCIAL_PUBLIC_PROVIDERS as readonly string[]).includes(provider)
+          ) {
+            await expect(publishSocialPostNow(input)).rejects.toMatchObject({
+              status: 400,
+              message: expect.stringContaining(
+                "is coming soon. Available now:",
+              ),
+            });
+            expect(publishXPostMock).not.toHaveBeenCalled();
+            expect(attemptCreateMock).not.toHaveBeenCalled();
+            return;
+          }
+          await publishSocialPostNow(input);
+          expect(publishXPostMock).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ provider }),
+          );
+        },
+      );
+    },
+  );
+
   it.each(DISABLED_PROVIDERS)(
     "keeps a due %s post and fails it with the coming-soon reason",
     async (provider, label) => {
-      const message = `${label} is coming soon. Only X is available right now.`;
+      const message = `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`;
       socialPostFindFirstMock
         .mockReset()
         .mockResolvedValueOnce({
@@ -564,6 +670,7 @@ describe("social post publisher service", () => {
           actorUserId: null,
           finishedAt: NOW,
           outcome: "failed_permanent",
+          errorKind: `provider_coming_soon:${provider}`,
           providerOutcome: message,
         },
         select: { id: true },
@@ -579,7 +686,7 @@ describe("social post publisher service", () => {
       .mockReset()
       .mockResolvedValueOnce({
         ...duePost,
-        socialConnection: { ...activeConnection, provider: "linkedin" },
+        socialConnection: { ...activeConnection, provider: "tiktok" },
       })
       .mockResolvedValue(null);
     const { publishDueSocialPosts } = await loadService();
@@ -589,7 +696,7 @@ describe("social post publisher service", () => {
       published: 0,
     });
     expect(settleCall().data.lastError).toBe(
-      "LinkedIn is coming soon. Only X is available right now.",
+      "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
     );
     expect(publishXPostMock).not.toHaveBeenCalled();
   });
@@ -1197,7 +1304,7 @@ describe("social post publisher service", () => {
         data: expect.objectContaining({
           outcome: "failed_permanent",
           providerOutcome:
-            "TikTok is coming soon. Only X is available right now.",
+            "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
         }),
         select: { id: true },
       });
@@ -1536,7 +1643,7 @@ describe("social post publisher service", () => {
           }),
         ).rejects.toMatchObject({
           status: 400,
-          message: `${label} is coming soon. Only X is available right now.`,
+          message: `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`,
         });
         expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
         expect(attemptCreateMock).not.toHaveBeenCalled();
@@ -1548,7 +1655,7 @@ describe("social post publisher service", () => {
     it("rejects a disabled account even when the stored post provider is X", async () => {
       socialPostFindFirstMock.mockResolvedValue({
         ...failedPost,
-        socialConnection: { ...activeConnection, provider: "linkedin" },
+        socialConnection: { ...activeConnection, provider: "tiktok" },
       });
       const { publishSocialPostNow } = await loadService();
 
@@ -1562,7 +1669,8 @@ describe("social post publisher service", () => {
         }),
       ).rejects.toMatchObject({
         status: 400,
-        message: "LinkedIn is coming soon. Only X is available right now.",
+        message:
+          "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
       expect(publishXPostMock).not.toHaveBeenCalled();

@@ -200,8 +200,14 @@ describe("Social tool contracts", () => {
       "schedule_social_post",
       "publish_social_post",
     ] as const) {
-      expect(descriptions[key]).toContain("Enabled publishing platforms: X.");
+      expect(descriptions[key]).toContain(
+        "Public publishing platforms: X, YouTube, LinkedIn.",
+      );
       expect(descriptions[key]).toContain("Coming soon");
+      expect(descriptions[key]).toContain("enabledProviders");
+      expect(descriptions[key]).toContain(
+        "beta workspace enables every platform",
+      );
     }
     expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
     expect(descriptions.create_social_post).toMatch(/video/);

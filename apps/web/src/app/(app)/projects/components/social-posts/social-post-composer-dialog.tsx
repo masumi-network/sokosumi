@@ -7,7 +7,6 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
-  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -46,6 +45,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
@@ -145,6 +145,8 @@ export function SocialPostComposerDialog({
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
   const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const locale = useLocale();
@@ -196,7 +198,7 @@ export function SocialPostComposerDialog({
   }));
   const organizationId = session?.session.activeOrganizationId ?? null;
   const enabledConnections = connections.filter((connection) =>
-    isSocialProviderEnabled(connection.provider),
+    isProviderEnabled(connection.provider),
   );
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
@@ -221,10 +223,11 @@ export function SocialPostComposerDialog({
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
+        enabledProviders,
       );
     }
     const initial = post
-      ? isSocialProviderEnabled(post.provider)
+      ? isProviderEnabled(post.provider)
         ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
         : undefined
       : enabledConnections[0]?.id;
@@ -296,7 +299,7 @@ export function SocialPostComposerDialog({
       }
     : null;
   const providers = socialPostComposerProviders(
-    post && isSocialProviderEnabled(post.provider) ? post.provider : undefined,
+    post && isProviderEnabled(post.provider) ? post.provider : undefined,
     selectedConnections.map((connection) => connection.provider),
     enabledConnections.map((connection) => connection.provider),
   );
@@ -412,7 +415,7 @@ export function SocialPostComposerDialog({
     draftValid &&
     !isBusy &&
     (!post ||
-      isSocialProviderEnabled(post.provider) ||
+      isProviderEnabled(post.provider) ||
       selectedConnections.length > 0);
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
@@ -668,7 +671,9 @@ export function SocialPostComposerDialog({
           published += 1;
         } else {
           const reason =
-            publishFailureCopy(result.value, t) ?? t("toasts.failed");
+            publishFailureCopy(result.value, t, (values) =>
+              formatter.list(values, { type: "conjunction" }),
+            ) ?? t("toasts.failed");
           failures.push(nameIfMany(connection, reason));
         }
       }
@@ -1091,8 +1096,7 @@ export function SocialPostComposerDialog({
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
                           disabled={
-                            isBusy ||
-                            !isSocialProviderEnabled(connection.provider)
+                            isBusy || !isProviderEnabled(connection.provider)
                           }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
@@ -1103,7 +1107,7 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
-                          {!isSocialProviderEnabled(connection.provider) ? (
+                          {!isProviderEnabled(connection.provider) ? (
                             <Badge variant="secondary">
                               {accountsT("comingSoon")}
                             </Badge>

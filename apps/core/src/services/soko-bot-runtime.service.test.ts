@@ -241,6 +241,7 @@ vi.mock("@/helpers/data-table", () => ({
 
 const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
+  project: vi.fn(),
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
   refreshAccountStatistics: vi.fn(),
@@ -258,6 +259,7 @@ const social = vi.hoisted(() => ({
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
+  requireScopedProject: social.project,
 }));
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
@@ -6430,6 +6432,7 @@ describe("Soko Bot project social tools", () => {
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
     social.beta.mockRejectedValue(new Error("Beta access required"));
     social.seat.mockResolvedValue(undefined);
+    social.project.mockResolvedValue({ workspace: { organization: null } });
     social.listAccounts.mockResolvedValue([
       {
         id: accountId,
@@ -6515,30 +6518,48 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it("lists actual account metadata without beta membership in the authorized workspace", async () => {
-    const result = await new SokoBotRuntimeService().executeTool({
-      ...SCOPE,
-      capability: "list_project_social_accounts",
-      toolCallId: "accounts",
-      input: { projectId },
-    });
-    expect(social.listAccounts).toHaveBeenCalledWith({
-      projectId,
-      workspaceId: SCOPE.workspaceId,
-    });
-    expect(result).toEqual([
-      expect.objectContaining({
-        provider: "youtube",
-        externalHandle: "Launch channel",
-      }),
-    ]);
-    expect(social.beta).not.toHaveBeenCalled();
-    expect(social.seat).toHaveBeenCalledWith(
-      SCOPE.userId,
-      "organization-one",
-      expect.anything(),
-    );
-  });
+  it.each([null, "other", "utxo"])(
+    "lists account metadata and providers for Project workspace %s without beta membership",
+    async (organizationSlug) => {
+      social.project.mockResolvedValue({
+        workspace: {
+          organization: organizationSlug ? { slug: organizationSlug } : null,
+        },
+      });
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "accounts",
+        input: { projectId },
+      });
+      expect(social.listAccounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(social.project).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        enabledProviders:
+          organizationSlug === "utxo"
+            ? ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube"]
+            : ["x", "youtube", "linkedin"],
+        accounts: [
+          expect.objectContaining({
+            provider: "youtube",
+            externalHandle: "Launch channel",
+          }),
+        ],
+      });
+      expect(social.beta).not.toHaveBeenCalled();
+      expect(social.seat).toHaveBeenCalledWith(
+        SCOPE.userId,
+        "organization-one",
+        expect.anything(),
+      );
+    },
+  );
 
   it("forwards status filters, cursor, and page size without changing workspace", async () => {
     await new SokoBotRuntimeService().executeTool({

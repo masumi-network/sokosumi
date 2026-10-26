@@ -1,3 +1,5 @@
+import { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
+
 /**
  * Maximum text length per social provider for a Social post.
  * Client-safe: web reuses it for composer validation, Core for request validation.
@@ -16,22 +18,46 @@ export const SOCIAL_POST_MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 
 export type SocialPostProvider = keyof typeof SOCIAL_POST_TEXT_LIMITS;
 
-/** Add a provider id here to enable it everywhere in Social scheduling. */
-export const SOCIAL_ENABLED_PROVIDERS = [
+/** Add a provider id here to enable it in every workspace's Social scheduling. */
+export const SOCIAL_PUBLIC_PROVIDERS = [
   "x",
+  "youtube",
+  "linkedin",
 ] as const satisfies readonly SocialPostProvider[];
 
-export function isSocialProviderEnabled(provider: string): boolean {
-  return (SOCIAL_ENABLED_PROVIDERS as readonly string[]).includes(provider);
+export const SOCIAL_BETA_PROVIDERS: readonly SocialPostProvider[] = Object.keys(
+  SOCIAL_POST_TEXT_LIMITS,
+) as SocialPostProvider[];
+
+export interface SocialProviderWorkspace {
+  organizationSlug: string | null;
+}
+
+export function socialProvidersForWorkspace({
+  organizationSlug,
+}: SocialProviderWorkspace): readonly SocialPostProvider[] {
+  return organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
+    ? SOCIAL_BETA_PROVIDERS
+    : SOCIAL_PUBLIC_PROVIDERS;
+}
+
+export function isSocialProviderEnabled(
+  provider: string,
+  workspace: SocialProviderWorkspace,
+): boolean {
+  return (socialProvidersForWorkspace(workspace) as readonly string[]).includes(
+    provider,
+  );
 }
 
 /** User-facing reason retained on posts whose provider is unavailable. */
 export function socialProviderUnavailableMessage(
   provider: SocialPostProvider,
+  workspace: SocialProviderWorkspace,
 ): string | null {
-  return isSocialProviderEnabled(provider)
+  return isSocialProviderEnabled(provider, workspace)
     ? null
-    : `${socialPostProviderLabel(provider)} is coming soon. Only X is available right now.`;
+    : `${socialPostProviderLabel(provider)} is coming soon. Available now: ${new Intl.ListFormat("en", { type: "conjunction" }).format(SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel))}.`;
 }
 
 /** Whether a provider accepts a post with text only, media only, or needs video. */

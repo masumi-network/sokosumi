@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, isSocialProviderEnabled } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Link2,
   MoreHorizontal,
@@ -35,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
@@ -143,6 +144,7 @@ export function ProjectSocialAccounts({
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
   const postsT = useTranslations("App.Projects.SocialPosts");
@@ -226,7 +228,7 @@ export function ProjectSocialAccounts({
       provider ??
       connections.find((connection) => connection.id === socialConnectionId)
         ?.provider;
-    if (!targetProvider || !isSocialProviderEnabled(targetProvider)) return;
+    if (!targetProvider || !isProviderEnabled(targetProvider)) return;
     const outcome = await connect({
       onStart: () => {
         setFeedback(null);
@@ -373,8 +375,7 @@ export function ProjectSocialAccounts({
   async function handleStartOver(
     connection: ProjectSocialConnection,
   ): Promise<void> {
-    if (connectDisabled || !isSocialProviderEnabled(connection.provider))
-      return;
+    if (connectDisabled || !isProviderEnabled(connection.provider)) return;
     if (disconnectInFlightRef.current || isBusy) {
       showFeedback({ kind: "error", message: t("errors.inFlight") });
       return;
@@ -478,7 +479,7 @@ export function ProjectSocialAccounts({
                 </p>
               ) : null}
             </div>
-            {!isSocialProviderEnabled(connection.provider) ? (
+            {!isProviderEnabled(connection.provider) ? (
               <Badge variant="secondary">{t("comingSoon")}</Badge>
             ) : null}
             <Button
@@ -489,7 +490,7 @@ export function ProjectSocialAccounts({
               disabled={
                 isBusy ||
                 connectDisabled ||
-                !isSocialProviderEnabled(connection.provider)
+                !isProviderEnabled(connection.provider)
               }
               loading={pendingTarget === connection.id}
               onClick={() => void startOAuth("reconnect", connection.id)}
@@ -537,7 +538,7 @@ export function ProjectSocialAccounts({
           <DropdownMenuContent align="end">
             {SOCIAL_PROVIDERS.map((provider) => {
               const { id, name, Icon } = provider;
-              const comingSoon = provider.comingSoon;
+              const comingSoon = !isProviderEnabled(provider.id);
               return (
                 <DropdownMenuItem
                   key={id}
@@ -591,7 +592,7 @@ export function ProjectSocialAccounts({
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
-            const comingSoon = !isSocialProviderEnabled(connection.provider);
+            const comingSoon = !isProviderEnabled(connection.provider);
             const formattedHandle = formatHandle(
               connection.externalHandle,
               connection.provider,

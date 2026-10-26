@@ -10,6 +10,7 @@ import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
   requireSocialProviderEnabled,
+  socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -43,7 +44,13 @@ export async function completeComposioCallback(input: {
       authConfigId: true,
       callbackRedeemedAt: true,
       expiresAt: true,
-      project: { select: { closingAt: true, closedAt: true } },
+      project: {
+        select: {
+          closingAt: true,
+          closedAt: true,
+          ...socialProviderProjectSelect,
+        },
+      },
     },
   });
   if (intent) {
@@ -60,7 +67,7 @@ export async function completeComposioCallback(input: {
     }
 
     if (isProjectSocialProvider(intent.provider)) {
-      requireSocialProviderEnabled(intent.provider);
+      requireSocialProviderEnabled(intent.provider, intent.project);
     } else {
       // The shared callback also completes Ads OAuth, which remains in beta.
       await requireSocialBetaAccess(input.userId, prisma);

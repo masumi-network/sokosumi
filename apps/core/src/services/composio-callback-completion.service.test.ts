@@ -58,82 +58,111 @@ describe("completeComposioCallback", () => {
     socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
-  const providers = Object.keys(
-    PROJECT_SOCIAL_PROVIDERS,
-  ) as ProjectSocialProvider[];
+  describe.each([null, "other", "utxo"])(
+    "Project workspace %s",
+    (organizationSlug) => {
+      const providers = Object.keys(
+        PROJECT_SOCIAL_PROVIDERS,
+      ) as ProjectSocialProvider[];
 
-  it.each(providers.filter(isSocialProviderEnabled))(
-    "redeems the pinned %s callback",
-    async (provider) => {
-      socialConnectionIntentFindUniqueMock.mockResolvedValue({
-        initiatingUserId: "user_123",
-        provider,
-        authConfigId: `ac_${provider}`,
-        callbackRedeemedAt: null,
-        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
-      });
-      completeComposioAuthMock.mockResolvedValue({
-        connectedAccountId: "ca_123",
-        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
-      });
-      getComposioConnectedAccountMock.mockResolvedValue({
-        id: "ca_123",
-        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
-        authConfigId: `ac_${provider}`,
-        connectorUserId: "sokosumi:user:user_123",
-      });
-      const { completeComposioCallback } = await import(
-        "./composio-callback-completion.service"
-      );
-      await expect(
-        completeComposioCallback({
-          connectionId: "ca_123",
-          sessionUri: "single-use",
-          userId: "user_123",
-        }),
-      ).resolves.toBeUndefined();
-      expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
-        where: expect.objectContaining({
+      it.each(
+        providers.filter((provider) =>
+          isSocialProviderEnabled(provider, { organizationSlug }),
+        ),
+      )("redeems the pinned %s callback", async (provider) => {
+        socialConnectionIntentFindUniqueMock.mockResolvedValue({
+          initiatingUserId: "user_123",
           provider,
           authConfigId: `ac_${provider}`,
-          initiatingUserId: "user_123",
           callbackRedeemedAt: null,
-        }),
-        data: { callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z") },
+          expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+          project: {
+            closingAt: null,
+            closedAt: null,
+            workspace: {
+              organization: organizationSlug
+                ? { slug: organizationSlug }
+                : null,
+            },
+          },
+        });
+        completeComposioAuthMock.mockResolvedValue({
+          connectedAccountId: "ca_123",
+          toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+        });
+        getComposioConnectedAccountMock.mockResolvedValue({
+          id: "ca_123",
+          toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+          authConfigId: `ac_${provider}`,
+          connectorUserId: "sokosumi:user:user_123",
+        });
+        const { completeComposioCallback } = await import(
+          "./composio-callback-completion.service"
+        );
+        await expect(
+          completeComposioCallback({
+            connectionId: "ca_123",
+            sessionUri: "single-use",
+            userId: "user_123",
+          }),
+        ).resolves.toBeUndefined();
+        expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            provider,
+            authConfigId: `ac_${provider}`,
+            initiatingUserId: "user_123",
+            callbackRedeemedAt: null,
+          }),
+          data: { callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z") },
+        });
       });
-    },
-  );
 
-  it.each(providers.filter((provider) => !isSocialProviderEnabled(provider)))(
-    "rejects a disabled %s callback without redeeming its OAuth session",
-    async (provider) => {
-      socialConnectionIntentFindUniqueMock.mockResolvedValue({
-        initiatingUserId: "user_123",
-        provider,
-        authConfigId: `ac_${provider}`,
-        callbackRedeemedAt: null,
-        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
-      });
-      const { completeComposioCallback } = await import(
-        "./composio-callback-completion.service"
-      );
+      if (organizationSlug !== "utxo") {
+        it.each(
+          providers.filter(
+            (provider) =>
+              !isSocialProviderEnabled(provider, { organizationSlug }),
+          ),
+        )(
+          "rejects a disabled %s callback without redeeming its OAuth session",
+          async (provider) => {
+            socialConnectionIntentFindUniqueMock.mockResolvedValue({
+              initiatingUserId: "user_123",
+              provider,
+              authConfigId: `ac_${provider}`,
+              callbackRedeemedAt: null,
+              expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+              project: {
+                closingAt: null,
+                closedAt: null,
+                workspace: {
+                  organization: organizationSlug
+                    ? { slug: organizationSlug }
+                    : null,
+                },
+              },
+            });
+            const { completeComposioCallback } = await import(
+              "./composio-callback-completion.service"
+            );
 
-      await expect(
-        completeComposioCallback({
-          connectionId: "ca_123",
-          sessionUri: "single-use",
-          userId: "user_123",
-        }),
-      ).rejects.toMatchObject({
-        status: 400,
-        message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Only X is available right now.`,
-      });
-      expect(completeComposioAuthMock).not.toHaveBeenCalled();
-      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
-      expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
-      expect(memberFindFirstMock).not.toHaveBeenCalled();
+            await expect(
+              completeComposioCallback({
+                connectionId: "ca_123",
+                sessionUri: "single-use",
+                userId: "user_123",
+              }),
+            ).rejects.toMatchObject({
+              status: 400,
+              message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+            });
+            expect(completeComposioAuthMock).not.toHaveBeenCalled();
+            expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+            expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+            expect(memberFindFirstMock).not.toHaveBeenCalled();
+          },
+        );
+      }
     },
   );
 
@@ -147,7 +176,11 @@ describe("completeComposioCallback", () => {
         authConfigId: `ac_${provider}`,
         callbackRedeemedAt: null,
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
+        project: {
+          closingAt: null,
+          closedAt: null,
+          workspace: { organization: null },
+        },
       });
       completeComposioAuthMock.mockResolvedValue({
         connectedAccountId: "ca_123",
@@ -186,7 +219,11 @@ describe("completeComposioCallback", () => {
         authConfigId: `ac_${provider}`,
         callbackRedeemedAt: null,
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
+        project: {
+          closingAt: null,
+          closedAt: null,
+          workspace: { organization: null },
+        },
       });
       const { completeComposioCallback } = await import(
         "./composio-callback-completion.service"
@@ -219,7 +256,11 @@ describe("completeComposioCallback", () => {
       authConfigId: "ac_google_ads",
       callbackRedeemedAt: null,
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
     });
     completeComposioAuthMock.mockResolvedValue({
       connectedAccountId: "ca_123",
@@ -252,7 +293,11 @@ describe("completeComposioCallback", () => {
         authConfigId: "ac_x",
         callbackRedeemedAt: null,
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
+        project: {
+          closingAt: null,
+          closedAt: null,
+          workspace: { organization: null },
+        },
       });
       getComposioConnectedAccountMock.mockResolvedValue({
         id: "ca_123",
@@ -282,7 +327,11 @@ describe("completeComposioCallback", () => {
       authConfigId: "ac_x",
       callbackRedeemedAt: null,
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
     });
     completeComposioAuthMock.mockResolvedValue({
       connectedAccountId: "ca_123",
@@ -315,7 +364,11 @@ describe("completeComposioCallback", () => {
         authConfigId: "ac_x",
         callbackRedeemedAt: null,
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: { closingAt: null, closedAt: null },
+        project: {
+          closingAt: null,
+          closedAt: null,
+          workspace: { organization: null },
+        },
         ...changed,
       });
       const { completeComposioCallback } = await import(
@@ -340,7 +393,11 @@ describe("completeComposioCallback", () => {
       provider: "x",
       authConfigId: "ac_x",
       callbackRedeemedAt: null,
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
     const { completeComposioCallback } = await import(
@@ -383,7 +440,11 @@ describe("completeComposioCallback", () => {
       provider: "x",
       authConfigId: "ac_x",
       callbackRedeemedAt: null,
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
     const { completeComposioCallback } = await import(
@@ -407,7 +468,11 @@ describe("completeComposioCallback", () => {
       provider: "x",
       authConfigId: "ac_x",
       callbackRedeemedAt: null,
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
     completeComposioAuthMock.mockResolvedValue({
@@ -475,7 +540,11 @@ describe("completeComposioCallback", () => {
       authConfigId: "ac_x",
       callbackRedeemedAt: null,
       expiresAt: new Date("2026-09-03T10:15:00Z"),
-      project: { closingAt: null, closedAt: null },
+      project: {
+        closingAt: null,
+        closedAt: null,
+        workspace: { organization: null },
+      },
     });
     socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 0 });
     const { completeComposioCallback } = await import(

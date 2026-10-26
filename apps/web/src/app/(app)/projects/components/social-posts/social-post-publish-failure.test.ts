@@ -1,5 +1,12 @@
+import { createFormatter, createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
+import de from "@/../messages/de.json";
+import en from "@/../messages/en.json";
+import es from "@/../messages/es.json";
 import { publishFailureCopy } from "./social-post-publish-failure";
+
+const formatList = (values: string[]) =>
+  createFormatter({ locale: "en" }).list(values, { type: "conjunction" });
 
 const COPY: Record<string, string> = {
   "outcomes.authorizationRevoked":
@@ -50,6 +57,7 @@ describe("publishFailureCopy", () => {
           outcome,
         }),
         t,
+        formatList,
       ),
     ).toBe(copy);
   });
@@ -64,7 +72,7 @@ describe("publishFailureCopy", () => {
     ["media_missing", "A file is missing."],
     ["media_type_mismatch", "That file type is not allowed."],
   ] as const)("maps errorKind %s", (errorKind, copy) => {
-    expect(publishFailureCopy(post({ errorKind }), t)).toBe(copy);
+    expect(publishFailureCopy(post({ errorKind }), t, formatList)).toBe(copy);
   });
 
   it("never returns a raw provider error", () => {
@@ -78,21 +86,73 @@ describe("publishFailureCopy", () => {
           },
         },
         t,
+        formatList,
       ),
     ).toBe("Couldn't publish. Open the post for details.");
   });
 
   it("falls back when there is no attempt", () => {
-    expect(publishFailureCopy({ status: "FAILED", lastAttempt: null }, t)).toBe(
-      "Couldn't publish. Open the post for details.",
-    );
+    expect(
+      publishFailureCopy(
+        { status: "FAILED", lastAttempt: null },
+        t,
+        formatList,
+      ),
+    ).toBe("Couldn't publish. Open the post for details.");
   });
-  it.each(["tiktok", "instagram", "linkedin", "facebook", "youtube"])(
-    "explains that %s is coming soon in Needs attention",
+  it.each([
+    [
+      "en",
+      en,
+      "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
+    ],
+    [
+      "de",
+      de,
+      "TikTok ist bald verfügbar. Jetzt verfügbar: X, YouTube und LinkedIn.",
+    ],
+    [
+      "es",
+      es,
+      "TikTok estará disponible próximamente. Disponible ahora: X, YouTube y LinkedIn.",
+    ],
+  ] as const)(
+    "translates stored availability failures in %s",
+    (locale, messages, expected) => {
+      const translate = createTranslator({
+        locale,
+        messages: messages.App.Projects.SocialPosts,
+      });
+      const formatter = createFormatter({ locale });
+      for (const source of [
+        {
+          ...post({ errorKind: "provider_coming_soon:tiktok" }),
+          provider: "x",
+        },
+        {
+          status: "FAILED" as const,
+          lastError: "TikTok is coming soon. Only X is available right now.",
+        },
+      ]) {
+        expect(
+          publishFailureCopy(source, translate, (values) =>
+            formatter.list(values, { type: "conjunction" }),
+          ),
+        ).toBe(expected);
+      }
+    },
+  );
+
+  it.each(["tiktok", "instagram", "facebook", "linkedin", "youtube"])(
+    "does not mislabel a beta workspace's %s failure as coming soon",
     (provider) => {
       expect(
-        publishFailureCopy({ status: "FAILED", provider }, (key) => key),
-      ).toBe("failures.providerComingSoon");
+        publishFailureCopy(
+          { ...post({ errorKind: "rate_limited" }), provider },
+          t,
+          formatList,
+        ),
+      ).toBe(COPY["failures.rateLimited"]);
     },
   );
 });

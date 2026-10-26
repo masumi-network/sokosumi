@@ -1,6 +1,5 @@
 "use client";
 
-import { isSocialProviderEnabled } from "@sokosumi/utils";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   recycleProjectSocialAccountPost,
@@ -156,13 +156,14 @@ function RecycleAccountPost({
   accountPostId: string;
   provider: string;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const accountsT = useTranslations("App.Projects.ProjectSocialAccounts");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function recycle(delayDays?: 7 | 14 | 30) {
-    if (!isSocialProviderEnabled(provider)) return;
+    if (!isProviderEnabled(provider)) return;
     if (pending) return;
     setPending(true);
     try {
@@ -191,11 +192,11 @@ function RecycleAccountPost({
         size="sm"
         className="h-11 md:h-8"
         variant="outline"
-        disabled={!isSocialProviderEnabled(provider)}
+        disabled={!isProviderEnabled(provider)}
         onClick={() => setOpen(true)}
       >
         {t("recycle.action")}
-        {!isSocialProviderEnabled(provider) ? (
+        {!isProviderEnabled(provider) ? (
           <Badge variant="secondary">{accountsT("comingSoon")}</Badge>
         ) : null}
       </Button>

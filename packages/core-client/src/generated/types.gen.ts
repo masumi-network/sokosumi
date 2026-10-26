@@ -5539,10 +5539,25 @@ export type UserWorkspace = {
      */
     websiteUrl: string | null;
     /**
+     * Social providers enabled for projects owned by this workspace
+     */
+    enabledSocialProviders: Array<ProjectSocialProvider>;
+    /**
      * Whether a new session opens this workspace
      */
     preferred: boolean;
 };
+
+export const ProjectSocialProvider = {
+    X: 'x',
+    TIKTOK: 'tiktok',
+    INSTAGRAM: 'instagram',
+    LINKEDIN: 'linkedin',
+    FACEBOOK: 'facebook',
+    YOUTUBE: 'youtube'
+} as const;
+
+export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type CreateUserWorkspace = {
     kind: 'personal';
@@ -6500,17 +6515,6 @@ export type ProjectSocialConnection = {
     connectedAt: Date | null;
     disconnectedAt: Date | null;
 };
-
-export const ProjectSocialProvider = {
-    X: 'x',
-    TIKTOK: 'tiktok',
-    INSTAGRAM: 'instagram',
-    LINKEDIN: 'linkedin',
-    FACEBOOK: 'facebook',
-    YOUTUBE: 'youtube'
-} as const;
-
-export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;

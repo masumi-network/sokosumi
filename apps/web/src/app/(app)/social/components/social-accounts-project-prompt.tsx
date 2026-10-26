@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 
 const NEED_PROJECT_COPY = {
   accounts: "accountsNeedProject",
@@ -103,12 +104,13 @@ function SocialPlatformCard({
   comingSoonLabel: string;
   provider: (typeof SOCIAL_PROVIDERS)[number];
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   return (
     <div className="bg-card flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5">
       <provider.Icon className="size-8" aria-hidden />
       <div className="space-y-1">
         <p className="text-sm font-medium">{provider.name}</p>
-        {provider.comingSoon ? (
+        {!isProviderEnabled(provider.id) ? (
           <Badge variant="secondary">{comingSoonLabel}</Badge>
         ) : null}
       </div>

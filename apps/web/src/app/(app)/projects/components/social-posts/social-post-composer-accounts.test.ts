@@ -48,7 +48,7 @@ describe("social-post-composer-accounts", () => {
     ).toEqual(["connection-1"]);
   });
   it("drops disabled providers from remembered and default accounts", () => {
-    const disabled = { id: "disabled", provider: "linkedin", status: "active" };
+    const disabled = { id: "disabled", provider: "tiktok", status: "active" };
     const enabled = account("x");
     expect(
       initialCreateConnectionIds([disabled, enabled], ["disabled"]),

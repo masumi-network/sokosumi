@@ -41,6 +41,7 @@ function CalendarSocialPostStatus({
 }) {
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const copy = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
   const label = statuses(item.status);
   const labeled = showLabel ?? needsStatusLabel(item.status);
   const badge = (
@@ -55,7 +56,9 @@ function CalendarSocialPostStatus({
   return (
     <SocialPostStatusReasonTooltip
       label={label}
-      reason={publishFailureCopy(item, copy)}
+      reason={publishFailureCopy(item, copy, (values) =>
+        formatter.list(values, { type: "conjunction" }),
+      )}
     >
       {badge}
     </SocialPostStatusReasonTooltip>

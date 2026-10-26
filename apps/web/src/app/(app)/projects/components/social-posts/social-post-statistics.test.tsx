@@ -847,7 +847,7 @@ describe("SocialPostStatistics account history", () => {
     );
   });
 
-  it.each(["tiktok", "instagram", "linkedin", "facebook", "youtube"])(
+  it.each(["tiktok", "instagram", "facebook"])(
     "keeps %s history visible but disables recycling with a Coming soon badge",
     async (provider) => {
       mocks.fetch.mockResolvedValue({
