@@ -130,6 +130,7 @@ import type {
   PutChatsSignalsMessagesByMessageIdCorrectionsData,
   PutChatsSignalsMessagesByMessageIdLoopData,
   PutJobsByIdShareError,
+  PutNewsletterRequest,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PutProjectsByIdAdsMarketData,
@@ -247,6 +248,7 @@ import {
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getNewsletterAvailability as coreGetNewsletterAvailability,
   getNotifications as coreGetNotifications,
   getNotificationsCounts as coreGetNotificationsCounts,
   getOrganizationBySlug as coreGetOrganizationBySlug,
@@ -281,6 +283,7 @@ import {
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
+  getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
@@ -467,6 +470,7 @@ import {
   putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putProjectsByIdNewsletter as corePutProjectsByIdNewsletter,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -601,6 +605,38 @@ function nullWhenNotFound(error: unknown): null {
 }
 
 export function createCoreClient(getClient: GetCoreClient) {
+  async function getNewsletterAvailability() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetNewsletterAvailability({ client, cache: "no-store" }),
+      "Failed to read newsletter availability",
+    );
+  }
+
+  async function getProjectsByIdNewsletter(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNewsletter({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch newsletter settings",
+    );
+  }
+
+  async function putProjectsByIdNewsletter(
+    id: string,
+    body: PutNewsletterRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePutProjectsByIdNewsletter({ client, path: { id }, body }),
+      "Failed to save newsletter settings",
+    );
+  }
+
   async function getChatRooms(query?: GetChatsRoomsData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -6199,6 +6235,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    getNewsletterAvailability,
+    getProjectsByIdNewsletter,
+    putProjectsByIdNewsletter,
     searchChatSkills,
   };
 }
