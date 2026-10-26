@@ -25,7 +25,7 @@ So: **do not move browser Ably auth to JWTs without first shrinking the capabili
 
 **The grant's breadth is a client-visible contract, so narrow it additively:** the capability is not only a permission, it is the allow-list clients attach from — web reads it as `allowedFromToken` in `use-chat-room-realtime.tsx`, and the Apple client already refreshes capability for the same purpose (PARITY row 07). A client that reads "rooms in my token" as "rooms I have" breaks the moment the grant narrows, and a shipped native binary cannot be hotfixed.
 
-So if the token is ever scoped to the open room, do it by **adding an optional `roomId` to `POST /v1/realtime/ably-token`**: clients that send it get a narrow token, clients that do not keep today's membership-wide grant. Old binaries go on working and native adopts it on its own cycle. Do **not** narrow the default. Clients must treat the capability as *the rooms they may attach right now*, and re-authorize rather than caching it as a room list.
+So if the token is ever scoped to the open room, do it by **adding an optional `roomId` to `POST /v1/realtime/ably-token`**: clients that send it get a narrow token, clients that do not keep today's membership-wide grant. Old binaries go on working and native adopts it on its own cycle. Do **not** narrow the default. Clients must treat the capability as _the rooms they may attach right now_, and re-authorize rather than caching it as a room list.
 
 **Why the client publishes directly:** the signal is high frequency and worthless a second later. Proxying it through Core would add a hop and a rate-limited endpoint for no safety gain once the capability is scoped to the one channel. Ably's per-connection ceiling of 50 msg/s is far above a 10s throttle.
 
