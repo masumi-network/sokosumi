@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   AddNewsletterSubscriberRequest,
+  AddNewsletterSubscribersFromContactsRequest,
   CreateNewsletterIssueRequest,
   DraftNewsletterIssueRequest,
   GetProjectsByIdNewsletterAnalyticsData,
@@ -286,6 +287,18 @@ export const newsletterService = {
       projectId,
       input,
     );
+    return response.data;
+  },
+
+  async addSubscribersFromContacts(
+    projectId: string,
+    input: AddNewsletterSubscribersFromContactsRequest,
+  ) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSubscribersFromContacts(
+        projectId,
+        input,
+      );
     return response.data;
   },
 

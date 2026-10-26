@@ -1,12 +1,14 @@
 "use client";
 
-import type { NewsletterImportResult } from "@sokosumi/core-client";
+import {
+  NewsletterConsent,
+  type NewsletterImportResult,
+} from "@sokosumi/core-client";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,15 +21,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { importNewsletterSubscribers } from "@/lib/actions/newsletter/subscribers";
 import { NEWSLETTER_CSV_MAX_BYTES } from "@/lib/schemas/newsletter-subscribers";
+import { NewsletterConsentChoice } from "./newsletter-consent-choice";
 
 interface ImportSubscribersDialogProps {
   projectId: string;
+  newsletterName: string;
   onClose: () => void;
   onCloseAutoFocus: () => void;
 }
 
 export function ImportSubscribersDialog({
   projectId,
+  newsletterName,
   onClose,
   onCloseAutoFocus,
 }: ImportSubscribersDialogProps) {
@@ -35,9 +40,9 @@ export function ImportSubscribersDialog({
   const format = useFormatter();
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
-  const consentInput = useRef<HTMLButtonElement>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState<NewsletterConsent>();
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
   const [fileError, setFileError] = useState("");
   const [consentError, setConsentError] = useState("");
@@ -59,23 +64,24 @@ export function ImportSubscribersDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setConsentError(consent ? "" : t("Validation.consent"));
+    const hasConsent =
+      !!consent &&
+      (consent !== NewsletterConsent.CONFIRMED || consentConfirmed);
+    setConsentError(hasConsent ? "" : t("Validation.consent"));
     if (!file) {
       if (!fileError) setFileError(t("Import.fileRequired"));
       input.current?.focus();
       return;
     }
-    if (!consent) {
-      consentInput.current?.focus();
-      return;
-    }
+    if (!hasConsent || !consent || pending) return;
     setPending(true);
     try {
       const csv = await file.text();
       const values = new FormData();
       // A Blob preserves line endings when multipart fields are encoded.
       values.set("csv", new Blob([csv], { type: "text/csv" }), file.name);
-      values.set("consent", String(consent));
+      values.set("consent", consent);
+      values.set("consentConfirmed", String(consentConfirmed));
       const response = await importNewsletterSubscribers({
         projectId,
         values,
@@ -120,22 +126,27 @@ export function ImportSubscribersDialog({
           {result ? (
             <div className="space-y-4">
               <dl className="grid grid-cols-2 gap-3">
-                {(["imported", "skippedExisting", "invalid"] as const).map(
-                  (key) => (
-                    <div key={key} className="rounded-lg border p-3">
-                      <dt className="text-muted-foreground text-sm">
-                        {t(`Import.result.${key}`)}
-                      </dt>
-                      <dd className="text-2xl font-semibold tabular-nums">
-                        {format.number(
-                          key === "invalid"
-                            ? result.invalid.length
-                            : result[key],
-                        )}
-                      </dd>
-                    </div>
-                  ),
-                )}
+                {(
+                  [
+                    "imported",
+                    "skippedExisting",
+                    "skippedUnsubscribed",
+                    "skippedBounced",
+                    "pendingConfirmation",
+                    "invalid",
+                  ] as const
+                ).map((key) => (
+                  <div key={key} className="rounded-lg border p-3">
+                    <dt className="text-muted-foreground text-sm">
+                      {t(`Import.result.${key}`)}
+                    </dt>
+                    <dd className="text-2xl font-semibold tabular-nums">
+                      {format.number(
+                        key === "invalid" ? result.invalid.length : result[key],
+                      )}
+                    </dd>
+                  </div>
+                ))}
               </dl>
               {result.invalid.length ? (
                 <div className="space-y-2">
@@ -210,36 +221,15 @@ export function ImportSubscribersDialog({
                   {fileError}
                 </p>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    required
-                    ref={consentInput}
-                    id="newsletter-import-consent"
-                    name="consent"
-                    checked={consent}
-                    onCheckedChange={(checked) => setConsent(checked === true)}
-                    aria-invalid={!!consentError}
-                    aria-describedby={
-                      consentError
-                        ? "newsletter-import-consent-error"
-                        : undefined
-                    }
-                  />
-                  <Label
-                    htmlFor="newsletter-import-consent"
-                    className="leading-normal"
-                  >
-                    {t("Import.consent")}
-                  </Label>
-                </div>
-                <p
-                  id="newsletter-import-consent-error"
-                  className="text-semantic-destructive-label text-sm"
-                >
-                  {consentError}
-                </p>
-              </div>
+              <NewsletterConsentChoice
+                newsletterName={newsletterName}
+                value={consent}
+                confirmed={consentConfirmed}
+                onValueChange={setConsent}
+                onConfirmedChange={setConsentConfirmed}
+                error={consentError}
+                disabled={pending}
+              />
             </fieldset>
           )}
           <p role="status" className="text-muted-foreground text-sm">
@@ -269,7 +259,16 @@ export function ImportSubscribersDialog({
                 >
                   {t("cancel")}
                 </Button>
-                <Button type="submit" variant="primary" loading={pending}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={pending}
+                  disabled={
+                    !consent ||
+                    (consent === NewsletterConsent.CONFIRMED &&
+                      !consentConfirmed)
+                  }
+                >
                   {t("import")}
                 </Button>
               </>

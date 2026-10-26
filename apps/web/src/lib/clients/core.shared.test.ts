@@ -44,6 +44,46 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
 });
 
 describe("createCoreClient public newsletter reads", () => {
+  it("posts selected contacts, lists and consent to the generated Contacts operation", async () => {
+    const requests: Request[] = [];
+    const summary = {
+      added: 1,
+      alreadySubscribed: 2,
+      skippedUnsubscribed: 3,
+      skippedBounced: 4,
+      skippedNoEmail: 5,
+      pendingConfirmation: 6,
+    };
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        requests.push(new Request(input, init));
+        return new Response(
+          JSON.stringify({
+            data: summary,
+            meta: { requestId: "test", timestamp: new Date() },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+    const core = createCoreClient(() => client);
+    const body = {
+      contactIds: ["c1"],
+      listIds: ["l1"],
+      consent: "ASK" as const,
+    };
+    expect(
+      (await core.postProjectsByIdNewsletterSubscribersFromContacts("p1", body))
+        .data,
+    ).toEqual(summary);
+    expect(requests[0].url).toBe(
+      "https://core.example.com/v1/projects/p1/newsletter/subscribers/from-contacts",
+    );
+    expect(requests[0].method).toBe("POST");
+    expect(await requests[0].json()).toEqual(body);
+  });
+
   it("uses the generated subscribe operation and preserves its generic 202 response", async () => {
     const requests: Request[] = [];
     const client = createClient({
