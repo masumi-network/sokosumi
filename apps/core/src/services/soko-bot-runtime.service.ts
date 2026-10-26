@@ -281,7 +281,10 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { getNewsletter } from "@/services/newsletter.service";
-import { generateNewsletterDraft } from "@/services/newsletter-draft.service";
+import {
+  generateNewsletterDraft,
+  isNewsletterDraftAvailable,
+} from "@/services/newsletter-draft.service";
 import { createNewsletterIssue } from "@/services/newsletter-issues.service";
 import {
   listProjectSocialConnections,
@@ -5570,6 +5573,14 @@ export class SokoBotRuntimeService {
       workspaceId: authorized.turn.workspaceId,
       userId: actingMemberOf(authorized),
     });
+    if (
+      !(await isNewsletterDraftAvailable({
+        projectId,
+        workspaceId: scope.workspaceId,
+      }))
+    ) {
+      throw new SokoBotRuntimeAuthorizationError("Newsletter is not enabled");
+    }
     await getNewsletter({ projectId, workspaceId: scope.workspaceId });
     return scope;
   }

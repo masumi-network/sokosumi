@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   access: vi.fn(),
   newsletter: vi.fn(),
   generate: vi.fn(),
+  available: vi.fn(),
   create: vi.fn(),
   approve: vi.fn(),
   schedule: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("@/services/newsletter.service", () => ({
 }));
 vi.mock("@/services/newsletter-draft.service", () => ({
   generateNewsletterDraft: m.generate,
+  isNewsletterDraftAvailable: m.available,
 }));
 vi.mock("@/services/newsletter-issues.service", () => ({
   createNewsletterIssue: m.create,
@@ -144,6 +146,7 @@ beforeEach(() => {
   });
   m.newsletter.mockResolvedValue({ id: NEWSLETTER_ISSUE.newsletterId });
   m.generate.mockResolvedValue(DRAFT);
+  m.available.mockResolvedValue(true);
   m.create.mockResolvedValue(NEWSLETTER_ISSUE);
   m.receipt.mockResolvedValue(null);
   m.receiptUpdate.mockResolvedValue({ capability: "newsletter_draft_issue" });
@@ -269,6 +272,31 @@ describe("Soko Bot newsletter_draft_issue", () => {
     expect(m.access).not.toHaveBeenCalled();
     expect(m.generate).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    "refuses a non-beta workspace before generation or completed-receipt replay (replay=%s)",
+    async (replay) => {
+      m.available.mockResolvedValue(false);
+      if (replay) {
+        m.receipt.mockResolvedValue({
+          capability: "newsletter_draft_issue",
+          inputHash: actionInputHash(INPUT),
+          status: "COMPLETED",
+          result: NEWSLETTER_ISSUE,
+          turnId: "turn",
+          toolCallId: "draft",
+        });
+      }
+      await expect(execute()).rejects.toThrow("Newsletter is not enabled");
+      expect(m.available).toHaveBeenCalledWith({
+        projectId: NEWSLETTER_PROJECT_ID,
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+      });
+      expect(m.generate).not.toHaveBeenCalled();
+      expect(m.create).not.toHaveBeenCalled();
+      expect(m.receipt).not.toHaveBeenCalled();
+    },
+  );
 
   it("replays a completed receipt without generating or creating a second issue", async () => {
     m.receipt.mockResolvedValue({

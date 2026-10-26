@@ -27,7 +27,13 @@ describe("newsletter draft tool availability", () => {
   it("requires a newsletter inside the current bot's project and workspace", async () => {
     const scope = { workspaceId: "workspace", projectId: "project" };
     expect(await isNewsletterDraftAvailable(scope)).toBe(true);
-    expect(m.find).toHaveBeenCalledWith({ where: scope, select: { id: true } });
+    expect(m.find).toHaveBeenCalledWith({
+      where: {
+        ...scope,
+        workspace: { organization: { slug: "utxo" } },
+      },
+      select: { id: true },
+    });
     m.find.mockResolvedValue(null);
     expect(await isNewsletterDraftAvailable(scope)).toBe(false);
   });
@@ -39,7 +45,10 @@ describe("newsletter draft tool availability", () => {
       }),
     ).toBe(true);
     expect(m.find).toHaveBeenCalledWith({
-      where: { workspaceId: "workspace" },
+      where: {
+        workspaceId: "workspace",
+        workspace: { organization: { slug: "utxo" } },
+      },
       select: { id: true },
     });
   });
