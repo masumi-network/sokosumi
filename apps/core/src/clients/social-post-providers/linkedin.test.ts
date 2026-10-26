@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   escapeLinkedInCommentary,
+  linkedInPostIdOf,
   publishLinkedInPost,
 } from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
@@ -118,6 +120,65 @@ describe("publishLinkedInPost", () => {
       },
     ]);
     expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it.each([
+    ["a bare stored id", "person_42"],
+    ["a legacy full-URN stored id", "urn:li:person:person_42"],
+  ])("publishes as the person URN from %s", async (_, externalAccountId) => {
+    const fetchMock = stubSession((call) => {
+      if (call.tool_slug === "LINKEDIN_REGISTER_IMAGE_UPLOAD") {
+        return toolResponse({
+          upload_url: "https://www.linkedin.com/upload/1",
+          asset_urn: "urn:li:image:asset_1",
+        });
+      }
+      return toolResponse({ id: "urn:li:share:74" });
+    });
+    downloadSocialPostMediaMock.mockResolvedValue([
+      {
+        bytes: new Uint8Array([1]),
+        name: "photo.jpg",
+        mimeType: "image/jpeg",
+        kind: "image",
+      },
+    ]);
+
+    await publishLinkedInPost({
+      ...context,
+      externalAccountId,
+      media: [LINKEDIN_IMAGE_REF],
+    });
+
+    const [register, create] = executeCalls(fetchMock);
+    expect(register?.arguments.owner_urn).toBe("urn:li:person:person_42");
+    expect(create?.arguments.author).toBe("urn:li:person:person_42");
+  });
+
+  it("publishes as the person returned by the LinkedIn connect lookup", async () => {
+    const fetchMock = stubSession((call) =>
+      call.tool_slug === "LINKEDIN_GET_MY_INFO"
+        ? toolResponse({
+            response_dict: {
+              author_id: "urn:li:person:alice",
+              given_name: "Alice",
+              family_name: "Doe",
+            },
+          })
+        : toolResponse({ id: "urn:li:share:75" }),
+    );
+
+    const identity = await getConnectedSocialIdentity({
+      provider: "linkedin",
+      connectedAccountId: context.connectedAccountId,
+      executorUserId: context.executorUserId,
+    });
+    await publishLinkedInPost({ ...context, externalAccountId: identity.id });
+
+    expect(executeCalls(fetchMock).at(-1)).toMatchObject({
+      tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
+      arguments: { author: "urn:li:person:alice" },
+    });
   });
 
   it("registers each image and attaches the asset URNs", async () => {
@@ -252,6 +313,91 @@ describe("publishLinkedInPost", () => {
       providerMessage: "Missing scope w_member_social",
       providerStatus: 403,
     });
+  });
+
+  it.each([
+    ["share_id", { data: { share_id: "urn:li:share:81", status_code: 201 } }],
+    [
+      "x-restli-id header",
+      {
+        data: {
+          data: {
+            response_data: {},
+            headers: { "x-restli-id": "urn:li:share:82" },
+          },
+        },
+      },
+    ],
+    [
+      "JSON string payload",
+      {
+        data: {
+          data: JSON.stringify({
+            response_dict: { "X-RestLi-Id": "urn:li:ugcPost:83" },
+          }),
+        },
+      },
+    ],
+    ["numeric share id", { data: { data: { share_id: 84 } } }],
+    [
+      "URN under an unknown key",
+      { data: { data: { result: { created: "urn:li:share:85" } } } },
+    ],
+  ])("records the post URN from a %s response", async (_shape, body) => {
+    stubSession(() =>
+      Response.json({ ...body, error: null, successful: true }),
+    );
+
+    const result = await publishLinkedInPost(context);
+
+    expect(result.externalId).toMatch(/^urn:li:(share|ugcPost):8[1-5]$/);
+    expect(result.publishedUrl).toBe(
+      `https://www.linkedin.com/feed/update/${result.externalId}`,
+    );
+  });
+
+  it("treats a confirmed post without an id as published without a link", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    stubSession(() =>
+      toolResponse({
+        status_code: 201,
+        id: "log_123",
+        response_data: { message: "Created", secret: "tok_should_not_log" },
+      }),
+    );
+
+    await expect(publishLinkedInPost(context)).resolves.toEqual({
+      externalId: null,
+      publishedUrl: null,
+      toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+    });
+    expect(warn).toHaveBeenCalledWith(
+      "[linkedin] Published post returned no post id",
+      {
+        toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+        keyPaths: [
+          "status_code",
+          "id",
+          "response_data",
+          "response_data.message",
+          "response_data.secret",
+        ],
+      },
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("tok_should_not_log");
+    warn.mockRestore();
+  });
+
+  it("only accepts LinkedIn post URNs as the post id", () => {
+    expect(linkedInPostIdOf({ id: "log_123" })).toBeNull();
+    expect(linkedInPostIdOf({ id: "urn:li:person:abc" })).toBeNull();
+    expect(linkedInPostIdOf({ "x-restli-id": ["urn:li:share:9"] })).toBe(
+      "urn:li:share:9",
+    );
+    expect(linkedInPostIdOf({ share_id: "91" })).toBe("urn:li:share:91");
+    expect(linkedInPostIdOf({ activity: "urn:li:activity:92" })).toBe(
+      "urn:li:activity:92",
+    );
   });
 
   it("marks the outcome unknown when the create call times out upstream", async () => {

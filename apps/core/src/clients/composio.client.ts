@@ -7,6 +7,7 @@ import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { linkedInPersonId } from "@/helpers/linkedin-person";
 import { tryUseLogger } from "@/lib/evlog";
 
 let instance: Composio | null | undefined;
@@ -513,12 +514,14 @@ function socialIdentity(
       avatarUrl = identityString(identity.avatar_url);
       break;
     case "linkedin": {
-      // Composio also documents response_dict.author_id as the person URN.
+      // Composio returns response_dict.author_id as the full person URN; store
+      // the bare id so publishing can add the prefix once.
       const profile = record(payload.response_dict) ?? payload;
-      id =
+      const personId =
         identityString(profile.author_id) ??
         identityString(profile.sub) ??
         identityString(profile.id);
+      id = personId ? identityString(linkedInPersonId(personId)) : null;
       handle =
         identityString(profile.vanityName) ?? identityString(profile.name);
       displayName =

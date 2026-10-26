@@ -1403,6 +1403,117 @@ describe("project social connections service", () => {
     );
   });
 
+  it("reconnects a legacy LinkedIn URN row and stores the bare person id", async () => {
+    const intent = {
+      ...createIntent("reconnect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: "Alice Doe",
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    const legacy = {
+      ...socialConnection,
+      provider: "linkedin",
+      externalAccountId: "urn:li:person:alice",
+      activeExternalAccountKey: "linkedin:urn:li:person:alice",
+    };
+    socialConnectionFindFirstMock.mockResolvedValue(legacy);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...legacy,
+      externalAccountId: "alice",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).resolves.toMatchObject({ provider: "linkedin", status: "active" });
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          externalAccountId: "alice",
+          activeExternalAccountKey: "linkedin:alice",
+        }),
+      }),
+    );
+  });
+
+  it("blocks connecting a LinkedIn person already held by a legacy URN row", async () => {
+    const intent = {
+      ...createIntent("connect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: null,
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...socialConnection,
+      provider: "linkedin",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("already connected");
+    expect(socialConnectionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        activeExternalAccountKey: {
+          in: ["linkedin:alice", "linkedin:urn:li:person:alice"],
+        },
+      },
+    });
+  });
+
   it("rejects a reconnect to a different provider identity", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("reconnect"),
