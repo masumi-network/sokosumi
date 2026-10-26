@@ -192,6 +192,41 @@ describe("file move", () => {
   });
 });
 
+describe("file move in an organization's Files", () => {
+  it("takes the organization from the pathname when the body names none", async () => {
+    headMock
+      .mockResolvedValueOnce({
+        contentType: "application/pdf",
+        cacheControl: "",
+      })
+      .mockRejectedValueOnce(new BlobNotFoundError("gone"));
+    listMock.mockResolvedValue({ blobs: [], hasMore: false });
+    const { resolveDriveTasksWorkspace } = await import(
+      "@/helpers/drive-tasks-workspace"
+    );
+
+    const response = await appWith(mountMove).request("/move", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        itemType: "file",
+        sourcePathname: "drive/organizations/org_1/deck.pdf",
+        targetFolderPath: "Masumi Fundraising",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(resolveDriveTasksWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: "org", organizationId: "org_1" }),
+    );
+    expect(renameMock).toHaveBeenCalledWith(
+      "drive/organizations/org_1/deck.pdf",
+      "drive/organizations/org_1/Masumi Fundraising/deck.pdf",
+      expect.anything(),
+    );
+  });
+});
+
 describe("folder rename", () => {
   it("follows every file under the renamed prefix", async () => {
     listMock.mockImplementation(({ prefix }: { prefix: string }) =>
