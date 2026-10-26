@@ -38,6 +38,7 @@ const enabled =
   process.env.DATABASE_URL?.startsWith("postgres");
 
 const userId = randomUUID();
+const outsiderId = randomUUID();
 const workspaceId = randomUUID();
 const roomId = randomUUID();
 const ROW_COUNT = 4;
@@ -83,6 +84,16 @@ describe.skipIf(!enabled)(
           creatorUserId: userId,
         })),
       });
+      await prisma.user.create({
+        data: {
+          id: outsiderId,
+          name: "Room outsider",
+          email: `${outsiderId}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
       await prisma.chatRoom.create({
         data: {
           id: roomId,
@@ -90,7 +101,9 @@ describe.skipIf(!enabled)(
           kind: "direct",
           directKey: `direct:repro:${roomId}`,
           createdByUserId: userId,
-          userMembers: { create: { userId } },
+          userMembers: {
+            create: [{ userId }, { userId: outsiderId }],
+          },
         },
       });
       await prisma.chatRoomMessage.createMany({
@@ -130,7 +143,9 @@ describe.skipIf(!enabled)(
       await prisma.socialPost.deleteMany({ where: { workspaceId } });
       await prisma.project.deleteMany({ where: { workspaceId } });
       await prisma.workspace.deleteMany({ where: { id: workspaceId } });
-      await prisma.user.deleteMany({ where: { id: userId } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [userId, outsiderId] } },
+      });
       await prisma.$disconnect();
     });
 
@@ -197,6 +212,38 @@ describe.skipIf(!enabled)(
             sql.includes('"public"."file_resource"') && sql.includes("1=0"),
         ),
       ).toBe(0);
+    });
+
+    it("hides post text from a room member who does not own the workspace", async () => {
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { default: mount } = await import("./get");
+      const app = new OpenAPIHonoWithAuth();
+      app.use("*", async (c, next) => {
+        c.set("requestId", "message-results-outsider");
+        c.set("isAuthenticated", true);
+        c.set("authContext", {
+          actor: "user",
+          userId: outsiderId,
+          organizationId: null,
+          role: "user",
+        });
+        await next();
+      });
+      app.onError((error, c) => c.json({ error: error.message }, 500));
+      mount(app);
+
+      const response = await app.request(
+        `http://localhost/${roomId}/message-results?messageIds=${messageIds.join(",")}`,
+      );
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(JSON.stringify(body)).not.toContain("Post 0");
+      expect(
+        body.data.every(
+          (row: { results: { state: string }[] }) =>
+            row.results[0]?.state === "unavailable",
+        ),
+      ).toBe(true);
     });
   },
 );

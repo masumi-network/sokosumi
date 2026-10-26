@@ -5,6 +5,7 @@ import { get } from "@vercel/blob";
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
+  type ProjectAccess,
   requireProjectAccess,
   requireWorkspaceAccess,
 } from "@/lib/image-studio/access";
@@ -132,6 +133,26 @@ interface ListScope {
   userId: string;
 }
 
+async function ensureProjectAccess(options: {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  projectAccess?: ProjectAccess;
+}): Promise<void> {
+  const granted = options.projectAccess;
+  if (!granted) {
+    await requireProjectAccess(options);
+    return;
+  }
+  if (
+    granted.projectId !== options.projectId ||
+    granted.workspaceId !== options.workspaceId ||
+    granted.userId !== options.userId
+  ) {
+    throw notFound("Project not found");
+  }
+}
+
 async function scopeWhere(scope: ListScope) {
   if (scope.projectId === null) {
     await requireWorkspaceAccess(scope);
@@ -220,8 +241,9 @@ export async function getAsset(options: {
   projectId: string;
   workspaceId: string;
   userId: string;
+  projectAccess?: ProjectAccess;
 }): Promise<AssetView> {
-  await requireProjectAccess(options);
+  await ensureProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
     where: { id: options.assetId, projectId: options.projectId },
     select: assetSelect,
@@ -365,8 +387,9 @@ export async function getJob(options: {
   projectId: string;
   workspaceId: string;
   userId: string;
+  projectAccess?: ProjectAccess;
 }): Promise<JobView | null> {
-  await requireProjectAccess(options);
+  await ensureProjectAccess(options);
   const job = await prisma.projectImageJob.findFirst({
     where: { id: options.jobId, projectId: options.projectId },
     select: {

@@ -11,11 +11,16 @@ import {
 import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
+import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
-import { requireProjectAccess } from "@/lib/image-studio/access";
+import {
+  type ProjectAccess,
+  requireProjectAccess,
+  requireWorkspaceAccess,
+} from "@/lib/image-studio/access";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import {
   type ChatResultAvailable,
@@ -33,6 +38,271 @@ export interface ChatResultActor {
   userId: string;
   workspaceId: string;
   kind?: FileActor["kind"];
+}
+
+interface WorkspaceRow {
+  workspaceId: string;
+  userId: string | null;
+  organizationId: string | null;
+}
+
+interface PreparedSocialPost {
+  projectId: string;
+  text: string;
+  status: string;
+  provider: string;
+  socialConnection: {
+    externalHandle: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  publishedAt: Date | null;
+  scheduledAt: Date | null;
+  timezone: string | null;
+  mediaPathnames: string[];
+}
+
+/** One workspace's reads, shared by every card on a message-results page. */
+export interface PreparedWorkspaceReads {
+  workspace: WorkspaceRow;
+  readError?: unknown;
+  allowedProjectIds: ReadonlySet<string>;
+  posts: ReadonlyMap<string, PreparedSocialPost>;
+  fileIdsByPathname: ReadonlyMap<string, readonly string[]>;
+}
+
+function deniedWorkspace(
+  workspaceId: string,
+  readError: unknown,
+): PreparedWorkspaceReads {
+  return {
+    workspace: { workspaceId, userId: null, organizationId: null },
+    readError,
+    allowedProjectIds: new Set<string>(),
+    posts: new Map<string, PreparedSocialPost>(),
+    fileIdsByPathname: new Map<string, readonly string[]>(),
+  };
+}
+
+function isHiddenResult(error: unknown): boolean {
+  return (
+    error instanceof HTTPException &&
+    (error.status === 403 || error.status === 404)
+  );
+}
+
+/**
+ * Workspace membership, project ids, social posts, and drive files for a page.
+ * One query per distinct workspace instead of one query per card.
+ */
+export async function prepareChatResultReads(
+  snapshots: ChatResultSnapshot[],
+  viewerUserId: string,
+  client: Prisma.TransactionClient = prisma,
+): Promise<ReadonlyMap<string, PreparedWorkspaceReads>> {
+  const byWorkspace = new Map<string, ChatResultSnapshot[]>();
+  for (const snapshot of snapshots) {
+    const group = byWorkspace.get(snapshot.workspaceId) ?? [];
+    group.push(snapshot);
+    byWorkspace.set(snapshot.workspaceId, group);
+  }
+
+  const entries = await Promise.all(
+    [...byWorkspace.entries()].map(async ([workspaceId, group]) => {
+      let workspace: WorkspaceRow;
+      try {
+        workspace = await readWorkspace(
+          { userId: viewerUserId, workspaceId },
+          client,
+        );
+      } catch (error) {
+        return [workspaceId, deniedWorkspace(workspaceId, error)] as const;
+      }
+
+      const projectIds = new Set<string>();
+      const postRefs: { id: string; projectId: string }[] = [];
+      for (const snapshot of group) {
+        const ref = snapshot.reference;
+        if (ref.kind === "social_post" || ref.kind === "studio_job") {
+          projectIds.add(ref.projectId);
+        }
+        if (ref.kind === "social_post") {
+          postRefs.push({ id: ref.id, projectId: ref.projectId });
+        }
+      }
+
+      let allowedProjectIds = new Set<string>();
+      if (projectIds.size > 0) {
+        try {
+          await requireWorkspaceAccess({ workspaceId, userId: viewerUserId });
+          const projects = await client.project.findMany({
+            where: { workspaceId, id: { in: [...projectIds] } },
+            select: { id: true },
+          });
+          allowedProjectIds = new Set(projects.map((project) => project.id));
+        } catch (error) {
+          if (!isHiddenResult(error)) throw error;
+        }
+      }
+
+      const posts = new Map<string, PreparedSocialPost>();
+      const fileIdsByPathname = new Map<string, string[]>();
+      const readablePosts = postRefs.filter((ref) =>
+        allowedProjectIds.has(ref.projectId),
+      );
+      if (readablePosts.length > 0) {
+        const rows = await client.socialPost.findMany({
+          where: {
+            workspaceId,
+            OR: readablePosts.map((ref) => ({
+              id: ref.id,
+              projectId: ref.projectId,
+            })),
+          },
+          select: {
+            id: true,
+            projectId: true,
+            text: true,
+            status: true,
+            provider: true,
+            publishedAt: true,
+            scheduledAt: true,
+            timezone: true,
+            media: true,
+            socialConnection: {
+              select: {
+                externalHandle: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        });
+        const pathnames = new Set<string>();
+        for (const row of rows) {
+          const mediaPathnames = parseSocialPostMedia(row.media, row.id).map(
+            (media) => media.pathname,
+          );
+          for (const pathname of mediaPathnames) pathnames.add(pathname);
+          posts.set(row.id, {
+            projectId: row.projectId,
+            text: row.text,
+            status: row.status,
+            provider: row.provider,
+            socialConnection: row.socialConnection,
+            publishedAt: row.publishedAt,
+            scheduledAt: row.scheduledAt,
+            timezone: row.timezone,
+            mediaPathnames,
+          });
+        }
+        if (pathnames.size > 0) {
+          const files = await client.fileResource.findMany({
+            where: {
+              workspaceId,
+              sourceKind: "DRIVE_UPLOAD",
+              sourceId: { in: [...pathnames] },
+            },
+            select: { id: true, sourceId: true },
+          });
+          for (const file of files) {
+            const list = fileIdsByPathname.get(file.sourceId) ?? [];
+            list.push(file.id);
+            fileIdsByPathname.set(file.sourceId, list);
+          }
+        }
+      }
+
+      return [
+        workspaceId,
+        {
+          workspace,
+          allowedProjectIds,
+          posts,
+          fileIdsByPathname,
+        },
+      ] as const;
+    }),
+  );
+
+  return new Map(entries);
+}
+
+function grantedProjectAccess(
+  prepared: PreparedWorkspaceReads,
+  projectId: string,
+  actor: ChatResultActor,
+): ProjectAccess {
+  if (!prepared.allowedProjectIds.has(projectId)) {
+    throw notFound("Result unavailable");
+  }
+  return {
+    projectId,
+    workspaceId: actor.workspaceId,
+    userId: actor.userId,
+    organizationId: prepared.workspace.organizationId,
+  };
+}
+
+async function loadSocialPost(
+  ref: { id: string; projectId: string },
+  actor: ChatResultActor,
+  client: Prisma.TransactionClient,
+): Promise<PreparedSocialPost> {
+  await requireProjectAccess({ ...actor, projectId: ref.projectId }, client);
+  const post = await getSocialPost(
+    {
+      projectId: ref.projectId,
+      postId: ref.id,
+      workspaceId: actor.workspaceId,
+    },
+    client,
+  );
+  return {
+    projectId: ref.projectId,
+    text: post.text,
+    status: post.status,
+    provider: post.provider,
+    socialConnection: post.socialConnection
+      ? {
+          externalHandle: post.socialConnection.externalHandle ?? null,
+          displayName: post.socialConnection.displayName ?? null,
+          avatarUrl: post.socialConnection.avatarUrl ?? null,
+        }
+      : null,
+    publishedAt: post.publishedAt,
+    scheduledAt: post.scheduledAt,
+    timezone: post.timezone,
+    mediaPathnames: post.media.map((media) => media.pathname),
+  };
+}
+
+function preparedSocialPost(
+  ref: { id: string; projectId: string },
+  prepared: PreparedWorkspaceReads,
+): PreparedSocialPost {
+  if (!prepared.allowedProjectIds.has(ref.projectId)) {
+    throw notFound("Result unavailable");
+  }
+  const post = prepared.posts.get(ref.id);
+  if (!post || post.projectId !== ref.projectId) {
+    throw notFound("Result unavailable");
+  }
+  return post;
+}
+
+function fileIdsForPathnames(
+  pathnames: readonly string[],
+  fileIdsByPathname: ReadonlyMap<string, readonly string[]>,
+): string[] {
+  const outputIds: string[] = [];
+  for (const pathname of pathnames) {
+    for (const fileId of fileIdsByPathname.get(pathname) ?? []) {
+      if (outputIds.length >= 12) return outputIds;
+      outputIds.push(fileId);
+    }
+  }
+  return outputIds;
 }
 
 /** Bounded display data for the existing Task/Project avatar components. */
@@ -118,11 +388,14 @@ export async function resolveChatResultReference(
     actor: ChatResultActor;
     previewId?: string;
     capturedAt?: Date;
+    prepared?: PreparedWorkspaceReads;
   },
   client: Prisma.TransactionClient = prisma,
 ): Promise<ChatResultSnapshot> {
   const { reference: ref, actor } = input;
-  const workspace = await readWorkspace(actor, client);
+  const workspace = input.prepared
+    ? input.prepared.workspace
+    : await readWorkspace(actor, client);
   const base = {
     id: input.previewId ?? randomUUID(),
     state: "available" as const,
@@ -339,18 +612,27 @@ export async function resolveChatResultReference(
       break;
     }
     case "social_post": {
-      await requireProjectAccess(
-        { ...actor, projectId: ref.projectId },
-        client,
-      );
-      const post = await getSocialPost(
-        {
-          projectId: ref.projectId,
-          postId: ref.id,
-          workspaceId: actor.workspaceId,
-        },
-        client,
-      );
+      const post = input.prepared
+        ? preparedSocialPost(ref, input.prepared)
+        : await loadSocialPost(ref, actor, client);
+      const outputIds = input.prepared
+        ? fileIdsForPathnames(
+            post.mediaPathnames,
+            input.prepared.fileIdsByPathname,
+          )
+        : post.mediaPathnames.length === 0
+          ? []
+          : (
+              await client.fileResource.findMany({
+                where: {
+                  workspaceId: actor.workspaceId,
+                  sourceKind: "DRIVE_UPLOAD",
+                  sourceId: { in: post.mediaPathnames },
+                },
+                select: { id: true },
+                take: 12,
+              })
+            ).map((file) => file.id);
       data = chatResultAvailableSchema.parse({
         ...base,
         title: post.text.slice(0, 160),
@@ -377,19 +659,7 @@ export async function resolveChatResultReference(
           .join(" · "),
         scheduledAt: post.scheduledAt,
         timezone: post.timezone,
-        outputs: await files(
-          (
-            await client.fileResource.findMany({
-              where: {
-                workspaceId: actor.workspaceId,
-                sourceKind: "DRIVE_UPLOAD",
-                sourceId: { in: post.media.map((media) => media.pathname) },
-              },
-              select: { id: true },
-              take: 12,
-            })
-          ).map((file) => file.id),
-        ),
+        outputs: await files(outputIds),
       });
       break;
     }
@@ -399,11 +669,14 @@ export async function resolveChatResultReference(
         workspaceId: actor.workspaceId,
         projectId: ref.projectId,
       };
+      const projectAccess = input.prepared
+        ? grantedProjectAccess(input.prepared, ref.projectId, actor)
+        : undefined;
       // Reading a preview never reconciles a provider or starts a generation.
-      const job = await getJob({ ...scope, jobId: ref.id });
+      const job = await getJob({ ...scope, jobId: ref.id, projectAccess });
       if (!job) throw notFound("Result unavailable");
       const asset = job.assetId
-        ? await getAsset({ ...scope, assetId: job.assetId })
+        ? await getAsset({ ...scope, assetId: job.assetId, projectAccess })
         : null;
       const href = `/studio?projectId=${encodeURIComponent(ref.projectId)}${asset ? `&v=${encodeURIComponent(asset.id)}` : ""}`;
       data = chatResultAvailableSchema.parse({
@@ -528,14 +801,30 @@ export async function resolveChatResultReference(
 export async function hydrateChatResultSnapshots(
   snapshots: ChatResultSnapshot[],
   viewerUserId: string,
+  prepared?: ReadonlyMap<string, PreparedWorkspaceReads>,
 ): Promise<ChatResultPreview[]> {
+  const shared =
+    prepared ??
+    (snapshots.length > 1
+      ? await prepareChatResultReads(snapshots, viewerUserId)
+      : undefined);
   return Promise.all(
     snapshots.map(async (snapshot): Promise<ChatResultPreview> => {
       try {
+        const workspaceReads = shared?.get(snapshot.workspaceId);
+        if (shared && (!workspaceReads || workspaceReads.readError)) {
+          const error =
+            workspaceReads?.readError ?? notFound("Result unavailable");
+          if (isHiddenResult(error)) {
+            return { id: snapshot.data.id, state: "unavailable" };
+          }
+          throw error;
+        }
         const current = await resolveChatResultReference({
           reference: snapshot.reference,
           actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
           previewId: snapshot.data.id,
+          prepared: workspaceReads,
         });
         const allowedOutputs = new Set(
           current.data.outputs.map((output) => output.openHref),

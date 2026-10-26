@@ -10,7 +10,10 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatResultPreviewSchema } from "@/schemas/chat-result-preview.schema";
-import { hydrateChatResultSnapshots } from "@/services/chat-result-preview.service";
+import {
+  hydrateChatResultSnapshots,
+  prepareChatResultReads,
+} from "@/services/chat-result-preview.service";
 import { requireChatRoomUserMembership } from "../../helpers";
 
 /** One page of rendered rows; a room page holds up to 100 messages. */
@@ -69,13 +72,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id: { in: messageIds }, roomId: id, deletedAt: null },
       select: { id: true, metadata: true },
     });
+    const groups = messages.map((message) => ({
+      messageId: message.id,
+      snapshots: readMessageResultSnapshots(message.metadata),
+    }));
+    const prepared = await prepareChatResultReads(
+      groups.flatMap((group) => group.snapshots),
+      auth.userId,
+    );
     // One message failing to hydrate is omitted, so only its card errors.
     const settled = await Promise.allSettled(
-      messages.map(async (message) => ({
-        messageId: message.id,
+      groups.map(async (group) => ({
+        messageId: group.messageId,
         results: await hydrateChatResultSnapshots(
-          readMessageResultSnapshots(message.metadata),
+          group.snapshots,
           auth.userId,
+          prepared,
         ),
       })),
     );
