@@ -389,6 +389,31 @@ describe("room open prefetched on click", () => {
     expect(cache.get("room")?.bootstrap.activeOrganization).toBeNull();
   });
 
+  it("hands the click's open-at-unread read to one visit", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    expect(vi.mocked(fetchRoomMessages).mock.calls[0]?.[2]).toEqual({
+      openAtUnread: true,
+    });
+
+    await expect(cache.takeUnreadWindow("room")).resolves.toEqual(head);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
+  it("drops a click's open-at-unread read after the open window or an eviction", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    vi.advanceTimersByTime(10_001);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+
+    cache.prefetchUnreadWindow("room");
+    cache.evict("room");
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
   it("does not hand an old click's read to a later open", async () => {
     vi.useFakeTimers();
     const { cache, seed } = opening();

@@ -8,7 +8,10 @@ import {
   publishMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 
-import { provisionalRoomBootstrap } from "./room-cache-provider";
+import {
+  clickOpensAtUnread,
+  provisionalRoomBootstrap,
+} from "./room-cache-provider";
 
 describe("provisionalRoomBootstrap", () => {
   afterEach(() => {
@@ -81,5 +84,38 @@ describe("provisionalRoomBootstrap", () => {
     publishMembershipVisibleRooms([room], "org-1", "reader");
 
     expect(provisionalRoomBootstrap("room-1", "reader", "org-1")).toBeNull();
+  });
+});
+
+describe("clickOpensAtUnread", () => {
+  afterEach(() => {
+    clearMembershipVisibleRoomsSnapshot();
+  });
+  const url = (search = "") =>
+    new URL(`http://localhost/chat/rooms/room-1${search}`);
+
+  it("opens at the divider when the sidebar's row has Room unread", () => {
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-1", unreadCount: 3, channelUnreadCount: 3 })],
+      "org-1",
+      "reader",
+    );
+
+    expect(clickOpensAtUnread(url(), "room-1", "reader", "org-1")).toBe(true);
+    // A named message wins the open, as it does in the room.
+    expect(
+      clickOpensAtUnread(url("?message=m1"), "room-1", "reader", "org-1"),
+    ).toBe(false);
+    expect(clickOpensAtUnread(url(), "room-1", "someone", "org-1")).toBe(false);
+  });
+
+  it("does not for Thread unread alone or a read room", () => {
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-1", unreadCount: 2, channelUnreadCount: 0 })],
+      "org-1",
+      "reader",
+    );
+
+    expect(clickOpensAtUnread(url(), "room-1", "reader", "org-1")).toBe(false);
   });
 });

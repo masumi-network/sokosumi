@@ -16,8 +16,24 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
 import type { RoomsClientProps } from "./rooms-client";
+
+/** The sidebar's row for a room, when the sidebar shows this user and workspace. */
+function sidebarRoom(
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+) {
+  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+  if (
+    snapshot?.currentUserId !== currentUserId ||
+    snapshot.organizationId !== workspaceId
+  )
+    return null;
+  return snapshot.rooms.find((row) => row.id === roomId) ?? null;
+}
 
 /**
  * Room chrome from the sidebar's row, until the room page registers its own.
@@ -29,13 +45,7 @@ export function provisionalRoomBootstrap(
   currentUserId: string,
   workspaceId: string | null,
 ): RoomsClientProps | null {
-  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-  if (
-    snapshot?.currentUserId !== currentUserId ||
-    snapshot.organizationId !== workspaceId
-  )
-    return null;
-  const room = snapshot.rooms.find((row) => row.id === roomId);
+  const room = sidebarRoom(roomId, currentUserId, workspaceId);
   if (!room || shouldUseCoworkerRoomStream(room)) return null;
   return {
     loadHistoryOnClient: true,
@@ -51,6 +61,24 @@ export function provisionalRoomBootstrap(
     messages: [],
     messagesNextCursor: null,
   };
+}
+
+/**
+ * Whether a click opens the room at its Unread divider, the way the room
+ * decides it on mount: Room unread on the sidebar's row, and no named message.
+ */
+export function clickOpensAtUnread(
+  url: URL,
+  roomId: string,
+  currentUserId: string,
+  workspaceId: string | null,
+): boolean {
+  const room = sidebarRoom(roomId, currentUserId, workspaceId);
+  return (
+    room != null &&
+    (room.channelUnreadCount ?? room.unreadCount) > 0 &&
+    !url.searchParams.has(CHAT_MESSAGE_PARAM)
+  );
 }
 
 const RoomSelectionContext = createContext<string | null>(null);
@@ -112,10 +140,12 @@ function RoomCacheSession({
     const select = (url: URL) => {
       setNavigation({ pathname, target: url.pathname + url.search });
       const roomId = url.pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
-      if (roomId)
-        cache.prefetch(roomId, () =>
-          provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
-        );
+      if (!roomId) return;
+      cache.prefetch(roomId, () =>
+        provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
+      );
+      if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
+        cache.prefetchUnreadWindow(roomId);
     };
     const clicked = (event: MouseEvent) => {
       if (
