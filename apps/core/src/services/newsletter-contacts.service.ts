@@ -1,4 +1,5 @@
 import { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   contactListNameKey,
   ensureManualContactList,
@@ -55,6 +56,18 @@ export async function linkNewsletterContacts(
       where: { id: newsletter.id },
       data: { contactListId: list.id },
     });
+    // Replacing a deleted or converted list must restore the whole linked audience.
+    await tx.$executeRaw(PrismaRaw.sql`
+      INSERT INTO "contact_list_member" ("listId", "contactId", "addedByUserId", "addedBySokoBotId")
+      SELECT DISTINCT ${list.id}::uuid, person.id, ${actor.userId}, ${actor.sokoBotId}::uuid
+      FROM "newsletter_subscriber" AS subscriber
+      JOIN "contact" AS original ON original.id = subscriber."contactId"
+      JOIN "contact" AS person ON person.id = COALESCE(original."mergedIntoId", original.id)
+      WHERE subscriber."newsletterId" = ${newsletter.id}::uuid
+        AND original."workspaceId" = ${actor.workspaceId}::uuid
+        AND person."workspaceId" = ${actor.workspaceId}::uuid
+      ON CONFLICT ("listId", "contactId") DO NOTHING
+    `);
   }
   const contacts = await upsertContactsByEmail(tx, actor, subscribers, source);
   const contactIds = [
