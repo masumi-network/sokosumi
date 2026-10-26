@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { NewsletterIssueStatus, Prisma } from "@sokosumi/database";
 import { renderNewsletterEmail } from "@sokosumi/email";
-import { newsletterContentSchema } from "@sokosumi/utils";
+import {
+  newsletterContentSchema,
+  SOCIAL_BETA_ORGANIZATION_SLUG,
+} from "@sokosumi/utils";
 
 import {
   RESEND_BATCH_MAX_SIZE,
@@ -22,6 +25,11 @@ import {
 } from "@/schemas/newsletter.schema";
 
 const LEASE_MS = 5 * 60_000;
+const NEWSLETTER_BETA_SCOPE = {
+  project: {
+    workspace: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
+  },
+} satisfies Prisma.NewsletterIssueWhereInput;
 
 interface SendNewsletterIssueOptions {
   /** Trusted callers must explicitly allow any status other than SCHEDULED. */
@@ -56,7 +64,7 @@ export async function sendNewsletterIssue(
     );
   }
   const issue = await prisma.newsletterIssue.findUnique({
-    where: { id: issueId },
+    where: { id: issueId, ...NEWSLETTER_BETA_SCOPE },
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
@@ -75,6 +83,7 @@ export async function sendNewsletterIssue(
   const claimed = await prisma.newsletterIssue.updateMany({
     where: {
       id: issueId,
+      ...NEWSLETTER_BETA_SCOPE,
       status: issue.status,
       revision: issue.revision,
       ...(recovering
@@ -92,7 +101,12 @@ export async function sendNewsletterIssue(
   if (!claimed.count)
     throw conflict("Newsletter issue was claimed or changed by another worker");
 
-  const fence = { id: issueId, status: "SENDING" as const, leaseToken };
+  const fence = {
+    id: issueId,
+    status: "SENDING" as const,
+    leaseToken,
+    ...NEWSLETTER_BETA_SCOPE,
+  };
   const sendFence: Prisma.NewsletterSendWhereInput = { issueId, issue: fence };
   async function renewLease() {
     const now = new Date();
@@ -202,7 +216,17 @@ export async function sendNewsletterIssue(
             data: { status: "FAILED", error: "Subscriber is no longer active" },
           });
         if (deliverable.length) {
-          if (options.shouldContinue && !options.shouldContinue()) return;
+          if (options.shouldContinue && !options.shouldContinue()) {
+            // No provider call was attempted, so these reservations are safe to retry.
+            await prisma.newsletterSend.deleteMany({
+              where: {
+                ...sendFence,
+                id: { in: reserved.map((send) => send.id) },
+                status: "QUEUED",
+              },
+            });
+            return;
+          }
           await renewLease();
           let results: { id: string }[] | undefined;
           try {
@@ -282,6 +306,7 @@ export async function sendDueNewsletterIssues(
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {
+      ...NEWSLETTER_BETA_SCOPE,
       OR: [
         { status: "SCHEDULED", scheduledAt: { lte: now } },
         { status: "SENDING", leaseExpiresAt: { lte: now } },
