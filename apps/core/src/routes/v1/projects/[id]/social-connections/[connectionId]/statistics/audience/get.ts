@@ -10,6 +10,7 @@ import { projectSocialConnectionParamsSchema } from "@/schemas/project-social-co
 import {
   socialPerformanceAudienceQuerySchema,
   socialPerformanceAudienceResponseSchema,
+  socialStatisticsResearchErrorResponseSchema,
 } from "@/schemas/social-statistics-research.schema";
 import { readSocialPerformanceAudience } from "@/services/social-statistics-research.service";
 import { mapProjectSocialConnectionServiceError } from "../../../route-helpers.js";
@@ -32,10 +33,27 @@ const route = withCoworkerContextHeaderParameters(
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
+      403: jsonErrorResponse(
+        "Forbidden or X endpoint access denied",
+        socialStatisticsResearchErrorResponseSchema,
+      ),
       404: jsonErrorResponse("Not Found"),
-      422: jsonErrorResponse("Unprocessable Entity"),
-      503: jsonErrorResponse("Service Unavailable"),
+      422: jsonErrorResponse(
+        "Invalid request or X reconnection required",
+        socialStatisticsResearchErrorResponseSchema,
+      ),
+      429: jsonErrorResponse(
+        "X rate limited; retry after the indicated delay",
+        socialStatisticsResearchErrorResponseSchema,
+      ),
+      502: jsonErrorResponse(
+        "X or connector returned an unusable response",
+        socialStatisticsResearchErrorResponseSchema,
+      ),
+      503: jsonErrorResponse(
+        "X or connector temporarily unavailable",
+        socialStatisticsResearchErrorResponseSchema,
+      ),
     },
   }),
 );
