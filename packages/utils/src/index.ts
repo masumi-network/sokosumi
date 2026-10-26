@@ -314,6 +314,11 @@ export {
   serializeMetadataRecord,
 } from "./metadata-record.js";
 export {
+  type NewsletterBlock,
+  newsletterBlockSchema,
+  newsletterContentSchema,
+} from "./newsletter.js";
+export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,

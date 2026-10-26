@@ -32,6 +32,7 @@ import organizationInviteLinksRouter from "./organization-invite-links/index.js"
 import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
+import publicNewsletterRouter from "./public/newsletter/index.js";
 import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
 import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
@@ -166,6 +167,7 @@ app.route("/organizations", organizationsRouter);
 app.route("/organization-invite-links", organizationInviteLinksRouter);
 app.route("/chat-room-invite-links", chatRoomInviteLinksRouter);
 app.route("/projects", projectsRouter);
+app.route("/public/newsletter", publicNewsletterRouter);
 app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
