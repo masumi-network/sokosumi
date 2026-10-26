@@ -33,6 +33,7 @@ import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
 import publicNewsletterRouter from "./public/newsletter/index.js";
+import publicNewslettersRouter from "./public/newsletters/index.js";
 import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
 import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
@@ -102,25 +103,34 @@ app.openAPIRegistry.registerComponent("parameters", "SokosumiClient", {
   },
 });
 
-app.use(
-  "*",
-  cors({
-    origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Request-Id",
-      "X-Organization-Slug",
-      "X-Context-User-Id",
-      "X-Context-Organization-Id",
-      CALENDAR_CLIENT_VERSION_HEADER,
-    ],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: TIME.CORS_MAX_AGE,
-    credentials: true,
-  }),
-);
+const apiCors = cors({
+  origin: (origin) => resolveCorsAllowOrigin(origin),
+  allowHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Request-Id",
+    "X-Organization-Slug",
+    "X-Context-User-Id",
+    "X-Context-Organization-Id",
+    CALENDAR_CLIENT_VERSION_HEADER,
+  ],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  exposeHeaders: ["Content-Length"],
+  maxAge: TIME.CORS_MAX_AGE,
+  credentials: true,
+});
+const newsletterSignupCors = cors({
+  origin: "*",
+  allowHeaders: ["Content-Type"],
+  allowMethods: ["POST", "OPTIONS"],
+  maxAge: TIME.CORS_MAX_AGE,
+});
+app.use("*", (c, next) => {
+  const signup =
+    (c.req.method === "POST" || c.req.method === "OPTIONS") &&
+    /^\/(?:v1\/)?public\/newsletters\/[^/]+\/subscribe\/?$/.test(c.req.path);
+  return (signup ? newsletterSignupCors : apiCors)(c, next);
+});
 
 app.doc31("/openapi.json", {
   openapi: "3.1.0",
@@ -168,6 +178,7 @@ app.route("/organization-invite-links", organizationInviteLinksRouter);
 app.route("/chat-room-invite-links", chatRoomInviteLinksRouter);
 app.route("/projects", projectsRouter);
 app.route("/public/newsletter", publicNewsletterRouter);
+app.route("/public/newsletters", publicNewslettersRouter);
 app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
