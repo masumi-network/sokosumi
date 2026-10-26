@@ -10,6 +10,7 @@ import {
 import { EmptyState } from "@/components/common/empty-state";
 import { newsletterService } from "@/lib/services/newsletter.service";
 import { projectService } from "@/lib/services/project.service";
+import { getNewsletterTabs } from "./newsletter-tabs";
 
 export const instant = false;
 
@@ -60,14 +61,7 @@ export default async function ProjectNewsletterPage({
         </header>
         <ProjectTabs
           ariaLabel={t("navigation")}
-          tabs={[
-            {
-              id: "settings",
-              href: `/projects/${project.id}/newsletter`,
-              label: t("settings"),
-              exact: true,
-            },
-          ]}
+          tabs={getNewsletterTabs(project.id, !!newsletter, t)}
         />
         {!newsletter ? (
           <EmptyState
