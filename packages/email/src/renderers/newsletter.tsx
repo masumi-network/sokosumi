@@ -67,13 +67,18 @@ function brandColor(value: string | undefined, fallback: string): string {
     : fallback;
 }
 
+/**
+ * Bold or `[label](https://...)`. Brackets are excluded from label and URL and
+ * lengths are bounded, so matching stays linear on untrusted public input.
+ */
+const INLINE_PATTERN =
+  /\*\*([^*]+)\*\*|\[([^[\]\n]{1,500})\]\((https:\/\/[^\s)[\]]{1,2048})\)/g;
+
 /** Parse only bold and HTTPS links. All other input stays escaped React text. */
 function inlineText(text: string): ReactNode[] {
   const result: ReactNode[] = [];
   let offset = 0;
-  for (const match of text.matchAll(
-    /\*\*([^*]+)\*\*|\[([^\]\n]+)\]\((https:\/\/[^\s)]+)\)/g,
-  )) {
+  for (const match of text.matchAll(INLINE_PATTERN)) {
     result.push(text.slice(offset, match.index));
     if (match[1] !== undefined) {
       result.push(<strong key={match.index}>{match[1]}</strong>);
