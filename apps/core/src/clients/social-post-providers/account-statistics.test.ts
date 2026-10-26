@@ -173,7 +173,7 @@ describe("connected account statistics", () => {
       connected_account_id: "ca_1",
       parameters: [
         { name: "max_results", type: "query" },
-        { name: "post.fields", type: "query" },
+        { name: "tweet.fields", type: "query" },
         { name: "expansions", type: "query" },
         { name: "media.fields", type: "query" },
       ],
@@ -849,9 +849,9 @@ describe("connected account statistics", () => {
       includeProfile: false,
     });
     expect(requests[0].parameters).toContainEqual({
-      name: "post.fields",
+      name: "tweet.fields",
       value:
-        "created_at,public_metrics,note_post,referenced_tweets,attachments,author_id,in_reply_to_user_id",
+        "created_at,public_metrics,note_tweet,referenced_tweets,attachments,author_id,in_reply_to_user_id",
       type: "query",
     });
     expect(result.posts[0]).toMatchObject({
@@ -1162,31 +1162,152 @@ describe("X research native reads", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
   it.each([
-    "users/123/followers",
-    "users/123/mentions",
-    "tweets/789/liking_users",
-    "tweets/789/retweeted_by",
-    "users/by/username/reader",
-    "users/456/tweets",
-    "tweets/search/recent",
-  ])("pins native research GET %s to the selected connection", async (path) => {
-    const { requests } = stub(() => ({ status: 200, data: { data: [] } }));
-    const endpoint = `https://api.x.com/2/${path}`;
-    const parameters = [
-      { name: "user.fields", value: "public_metrics", type: "query" },
-    ];
-    await expect(
-      readNativeStatistics(input, endpoint, parameters),
-    ).resolves.toEqual({ data: [] });
+    {
+      path: "users/123/followers",
+      slug: "TWITTER_FOLLOWERS_BY_USER_ID",
+      args: { id: "123" },
+    },
+    {
+      path: "users/123/mentions",
+      slug: "TWITTER_GET_USER_MENTIONS",
+      args: { id: "123" },
+    },
+    {
+      path: "tweets/789/liking_users",
+      slug: "TWITTER_LIST_POST_LIKERS",
+      args: { id: "789" },
+    },
+    {
+      path: "tweets/789/retweeted_by",
+      slug: "TWITTER_GET_POST_RETWEETERS_ACTION",
+      args: { id: "789" },
+    },
+    {
+      path: "users/by/username/reader",
+      slug: "TWITTER_USER_LOOKUP_BY_USERNAME",
+      args: { username: "reader" },
+    },
+    {
+      path: "users/456/tweets",
+      slug: "TWITTER_GET_USER_POSTS",
+      args: { id: "456" },
+    },
+    { path: "tweets/search/recent", slug: "TWITTER_RECENT_SEARCH", args: {} },
+  ])(
+    "pins $slug to the selected connection and retains X pagination and expansions",
+    async ({ path, slug, args }) => {
+      const payload = {
+        data: path.includes("by/username")
+          ? { id: "456", username: "reader", name: "Reader" }
+          : [],
+        includes: { users: [] },
+        meta: { next_token: "next_page" },
+      };
+      const { requests, sessions, fetchMock } = stub(() => payload);
+      await expect(
+        readNativeStatistics(input, `https://api.x.com/2/${path}`, [
+          {
+            name: "user.fields",
+            value: "public_metrics,protected",
+            type: "query",
+          },
+        ]),
+      ).resolves.toEqual(payload);
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          user_id: input.executorUserId,
+          connected_accounts: { twitter: [input.connectedAccountId] },
+          tools: { twitter: { enable: [slug] } },
+          manage_connections: {
+            enable: false,
+            enable_connection_removal: false,
+          },
+          workbench: { enable: false, enable_proxy_execution: false },
+        }),
+      ]);
+      expect(requests).toEqual([
+        {
+          tool_slug: slug,
+          arguments: { ...args, user_fields: ["public_metrics", "protected"] },
+        },
+      ]);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
+  it("translates X v2 field arrays, numeric limits, and isolated cursor arguments for mentions", async () => {
+    const { requests } = stub(() => ({ data: [], meta: { result_count: 0 } }));
+    await readNativeStatistics(
+      input,
+      "https://api.x.com/2/users/123/mentions",
+      [
+        {
+          name: "tweet.fields",
+          value: "created_at,author_id,in_reply_to_user_id,referenced_tweets",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value: "author_id,referenced_tweets.id",
+          type: "query",
+        },
+        { name: "max_results", value: "5", type: "query" },
+        { name: "pagination_token", value: "page_2", type: "query" },
+      ],
+    );
     expect(requests).toEqual([
       {
-        connected_account_id: input.connectedAccountId,
-        endpoint,
-        method: "GET",
-        parameters,
+        tool_slug: "TWITTER_GET_USER_MENTIONS",
+        arguments: {
+          id: "123",
+          max_results: 5,
+          pagination_token: "page_2",
+          tweet_fields: [
+            "created_at",
+            "author_id",
+            "in_reply_to_user_id",
+            "referenced_tweets",
+          ],
+          expansions: ["author_id", "referenced_tweets.id"],
+        },
       },
     ]);
   });
+  it.each([
+    {
+      data: {
+        data: {
+          data: [],
+          includes: { users: [] },
+          meta: { next_token: "page_2" },
+        },
+      },
+      successful: true,
+    },
+    {
+      data: JSON.stringify({
+        data: [],
+        includes: { users: [] },
+        meta: { next_token: "page_2" },
+      }),
+      successful: true,
+    },
+  ])(
+    "unwraps Composio object and JSON-string payloads without losing metadata",
+    async (body) => {
+      stub(() => new Response(JSON.stringify(body)));
+      await expect(
+        readNativeStatistics(
+          input,
+          "https://api.x.com/2/users/123/mentions",
+          [],
+        ),
+      ).resolves.toEqual({
+        data: [],
+        includes: { users: [] },
+        meta: { next_token: "page_2" },
+      });
+    },
+  );
   it.each([401, 403, 429, 503])(
     "rejects native research HTTP %i without retrying another host",
     async (status) => {
@@ -1199,8 +1320,135 @@ describe("X research native reads", () => {
           "https://api.x.com/2/tweets/search/recent",
           [],
         ),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ providerStatus: status });
       expect(requests).toHaveLength(1);
     },
   );
+  it.each([
+    {
+      successful: false,
+      error: JSON.stringify({
+        status_code: 403,
+        title: "Client Forbidden",
+        type: "https://api.x.com/2/problems/client-forbidden",
+        detail: "client-not-enrolled access_token=secret",
+      }),
+    },
+    {
+      successful: true,
+      data: {
+        status_code: "403",
+        body: {
+          title: "Client Forbidden",
+          type: "https://api.x.com/2/problems/client-forbidden",
+          detail: "client-not-enrolled access_token=secret",
+        },
+      },
+    },
+    {
+      successful: true,
+      data: {
+        status: 403,
+        data: {
+          title: "Client Forbidden",
+          type: "https://api.x.com/2/problems/client-forbidden",
+          detail: "client-not-enrolled access_token=secret",
+        },
+      },
+    },
+    {
+      successful: true,
+      data: {
+        data: [],
+        errors: [
+          {
+            status: 403,
+            title: "Client Forbidden",
+            type: "https://api.x.com/2/problems/client-forbidden",
+            detail: "client-not-enrolled access_token=secret",
+          },
+        ],
+      },
+    },
+  ])(
+    "retains safe X problem diagnostics from failed tool or provider envelopes",
+    async (body) => {
+      const { fetchMock } = stub(() => new Response(JSON.stringify(body)));
+      const error = await readNativeStatistics(
+        input,
+        "https://api.x.com/2/users/123/followers",
+        [],
+      ).catch((error: unknown) => error);
+      expect(error).toMatchObject({
+        providerStatus: 403,
+        providerTitle: "Client Forbidden",
+        providerType: "https://api.x.com/2/problems/client-forbidden",
+      });
+      expect(JSON.stringify(error)).not.toContain("secret");
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
+  it.each(["Retry-After", "x-rate-limit-reset"])(
+    "retains the X retry hint from upstream %s headers",
+    async (header) => {
+      const value =
+        header === "Retry-After"
+          ? "90"
+          : String(Math.ceil(Date.now() / 1000) + 90);
+      stub(
+        () =>
+          new Response(
+            JSON.stringify({
+              title: "Too Many Requests",
+              type: "https://api.x.com/2/problems/rate-limit-exceeded",
+            }),
+            { status: 429, headers: { [header]: value } },
+          ),
+      );
+      await expect(
+        readNativeStatistics(
+          input,
+          "https://api.x.com/2/users/123/mentions",
+          [],
+        ),
+      ).rejects.toMatchObject({
+        providerStatus: 429,
+        retryAfterSeconds: expect.any(Number),
+        providerTitle: "Too Many Requests",
+      });
+    },
+  );
+  it("retains retry hints embedded in a JSON tool failure", async () => {
+    stub(
+      () =>
+        new Response(
+          JSON.stringify({
+            successful: false,
+            error: JSON.stringify({
+              status_code: 429,
+              headers: { "Retry-After": "90" },
+              title: "Too Many Requests",
+            }),
+          }),
+        ),
+    );
+    await expect(
+      readNativeStatistics(
+        input,
+        "https://api.x.com/2/tweets/search/recent",
+        [],
+      ),
+    ).rejects.toMatchObject({ providerStatus: 429, retryAfterSeconds: 90 });
+  });
+  it("keeps successful rows with expansion errors", async () => {
+    const payload = {
+      data: [{ id: "1", text: "Public" }],
+      errors: [{ title: "Not Found Error" }],
+      meta: { result_count: 1 },
+    };
+    stub(() => payload);
+    await expect(
+      readNativeStatistics(input, "https://api.x.com/2/users/123/mentions", []),
+    ).resolves.toEqual(payload);
+  });
 });

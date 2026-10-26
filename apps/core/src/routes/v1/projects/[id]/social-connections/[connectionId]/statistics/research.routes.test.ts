@@ -1,6 +1,14 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { forbidden, notFound, serviceUnavailable } from "@/helpers/error";
+import {
+  badGateway,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+  tooManyRequests,
+  unprocessableEntity,
+} from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import mountAudience from "./audience/get";
@@ -47,8 +55,10 @@ function createApp(actor = auth) {
   const app = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
+    c.set("requestId", "research-test-request");
     c.set("authContext", actor);
     c.set("workspaceContext", {
       workspaceId,
@@ -73,6 +83,90 @@ beforeEach(() => {
 });
 
 describe("X statistics research routes", () => {
+  it.each([
+    {
+      code: "x_access_denied",
+      status: 403,
+      make: forbidden,
+      message:
+        "X doesn't give this connection access to followers. Check the X app's plan and endpoint permissions.",
+    },
+    {
+      code: "x_reconnect_required",
+      status: 422,
+      make: unprocessableEntity,
+      message:
+        "Reconnect the X account and grant the required permissions to read mentions.",
+    },
+    {
+      code: "x_rate_limited",
+      status: 429,
+      make: tooManyRequests,
+      message: "X is rate limiting mentions. Try again in 90 seconds.",
+    },
+    {
+      code: "x_upstream_error",
+      status: 502,
+      make: badGateway,
+      message:
+        "X recent search is unavailable because the connection returned an unexpected response. Try again later.",
+    },
+    {
+      code: "x_upstream_unavailable",
+      status: 503,
+      make: serviceUnavailable,
+      message:
+        "X public benchmark data is temporarily unavailable. Try again later.",
+    },
+  ])(
+    "preserves $status/$code and the safe message in the standard error envelope",
+    async ({ code, status, make, message }) => {
+      const error = make(message, {
+        kind: code,
+        extensions: { code },
+        ...(status === 429 ? { retryAfterSeconds: 90 } : {}),
+      });
+      mocks.audience.mockRejectedValue(error);
+      mocks.benchmark.mockRejectedValue(error);
+      mocks.discovery.mockRejectedValue(error);
+      for (const suffix of [
+        "audience?kind=followers",
+        "benchmark?username=reader",
+        "discovery?topic=launch",
+      ]) {
+        const response = await createApp().request(`${url}/${suffix}`);
+        expect(response.status).toBe(status);
+        expect(await response.json()).toMatchObject({
+          code,
+          kind: code,
+          message,
+          meta: { requestId: "research-test-request" },
+          ...(status === 429 ? { retryAfterSeconds: 90 } : {}),
+        });
+        expect(response.headers.get("retry-after")).toBe(
+          status === 429 ? "90" : null,
+        );
+      }
+    },
+  );
+  it("documents the research failure codes and all upstream HTTP statuses in OpenAPI", () => {
+    const doc = createApp().getOpenAPIDocument({
+      openapi: "3.1.0",
+      info: { title: "test", version: "1" },
+    });
+    for (const resource of ["audience", "benchmark", "discovery"]) {
+      const operation =
+        doc.paths?.[
+          `/{id}/social-connections/{connectionId}/statistics/${resource}`
+        ]?.get;
+      expect(Object.keys(operation?.responses ?? {})).toEqual(
+        expect.arrayContaining(["403", "422", "429", "502", "503"]),
+      );
+      expect(
+        JSON.stringify(doc.components?.schemas?.SocialStatisticsResearchError),
+      ).toContain('"x_rate_limited"');
+    }
+  });
   it("passes validated recent public discovery filters in the same workspace scope", async () => {
     expect(
       (
