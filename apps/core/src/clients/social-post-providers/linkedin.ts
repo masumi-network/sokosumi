@@ -18,6 +18,7 @@ import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
+import { linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { downloadSocialPostMedia } from "@/helpers/social-post-media";
 
 const LINKEDIN_CREATE_POST_TOOL_SLUG = "LINKEDIN_CREATE_LINKED_IN_POST";
@@ -109,7 +110,7 @@ export async function publishLinkedInPost(
     context: "create Project LinkedIn publish session",
     signal: context.signal,
   });
-  const author = `urn:li:person:${context.externalAccountId}`;
+  const author = linkedInPersonUrn(context.externalAccountId);
   try {
     const video = context.media.find((ref) => ref.kind === "video");
     let externalId: string | null = null;
