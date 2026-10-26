@@ -63,9 +63,11 @@ re-pasted every turn. The candidate carries only a LOCATOR — never the block b
   order), pick block_index, and verify that sha256 of the raw block equals the
   locator's content_sha256. If it does not match, the file changed since the scan —
   abort this item.
-- Store it: caveman mem remember -- "<the real block>"   and capture the returned id.
-  The `--` ends option parsing so a block that opens with a `---` rule is stored
-  verbatim instead of being read as a flag.
+- Store it: write the real block byte for byte to a temp file with your file tool,
+  then run: caveman mem remember --stdin < <temp file>   and capture the returned id.
+  Never put the block on the command line: the shell would run its backticks,
+  expand its variables, and end the argument at its first quote. Delete the temp
+  file once the id is back.
 - Measure the gate honestly. before = the block's tokens/turn (it loaded every turn).
   after = the pointer's tokens/turn plus the recall cost. Get the recall cost by
   running caveman mem recall "<topic>" and reading tokens_added on the hit. If after
