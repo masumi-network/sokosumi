@@ -1,3 +1,4 @@
+import { SOCIAL_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { generateText, type LanguageModel, Output } from "ai";
 
@@ -40,6 +41,7 @@ export async function isNewsletterDraftAvailable(scope: {
     where: {
       workspaceId: scope.workspaceId,
       ...(scope.projectId ? { projectId: scope.projectId } : {}),
+      workspace: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
     },
     select: { id: true },
   }));
@@ -58,6 +60,9 @@ export async function generateNewsletterDraft(
   assertNewsletterEnabled();
   const input = draftNewsletterIssueRequestSchema.parse(raw);
   const { projectId, workspaceId } = scope;
+  if (!(await isNewsletterDraftAvailable(scope))) {
+    throw notFound("Newsletter is not enabled");
+  }
   await getNewsletter({ projectId, workspaceId });
   if (
     !(await allowNewsletterRequest(

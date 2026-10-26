@@ -110,8 +110,15 @@ describe("newsletter AI actions", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
   it("loads recent images through the existing Content Studio service", async () => {
-    const images = Array.from({ length: 35 }, (_, id) => ({ id: String(id) }));
-    m.images.mockResolvedValue({ assets: images });
+    const images = Array.from({ length: 35 }, (_, id) => ({
+      id: String(id),
+      contentType: "image/png",
+    }));
+    const videos = Array.from({ length: 30 }, (_, id) => ({
+      id: `video-${id}`,
+      contentType: "video/mp4",
+    }));
+    m.images.mockResolvedValue({ assets: [...videos, ...images] });
     expect(
       await getNewsletterDraftImages({ projectId: NEWSLETTER_PROJECT_ID }),
     ).toEqual({ ok: true, value: images.slice(0, 30) });

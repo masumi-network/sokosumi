@@ -71,7 +71,13 @@ export const getNewsletterDraftImages = withSession<
     return toActionResult(err({ message: t("imagesError") }));
   try {
     const state = await imageStudioService.getState(projectId);
-    return toActionResult(ok(state.assets.slice(0, 30)));
+    return toActionResult(
+      ok(
+        state.assets
+          .filter((asset) => asset.contentType.startsWith("image/"))
+          .slice(0, 30),
+      ),
+    );
   } catch {
     return toActionResult(err({ message: t("imagesError") }));
   }
