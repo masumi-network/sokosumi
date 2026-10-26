@@ -6032,10 +6032,10 @@ model DriveShare {
 /// A draft the bot wrote in the owner's mailbox. Sending one is allowed only
 /// in a later turn, from the owner's own chat, after the owner saw it.
 model SokoBotMailDraft {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
 
-  sokoBotId String
+  sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   provider     String

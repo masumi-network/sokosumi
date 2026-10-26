@@ -3,9 +3,9 @@ ALTER TABLE "soko_bot" ADD COLUMN     "mailAutoRead" BOOLEAN NOT NULL DEFAULT fa
 
 -- CreateTable
 CREATE TABLE "soko_bot_mail_draft" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "sokoBotId" TEXT NOT NULL,
+    "sokoBotId" UUID NOT NULL,
     "provider" TEXT NOT NULL,
     "draftId" TEXT NOT NULL,
     "to" TEXT[],
