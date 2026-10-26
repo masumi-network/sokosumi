@@ -146,6 +146,8 @@ model NewsletterSubscriber {
 
   @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
   @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
+  @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")
   @@map("newsletter_subscriber")
 }
 
