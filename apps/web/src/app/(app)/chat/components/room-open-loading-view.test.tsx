@@ -13,8 +13,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/app/chat/utils/format-toolbar-preference-storage", () => ({
-  getFormatToolbarOpenPreference: () => null,
-  resolveFormatToolbarOpenOnMount: () => true,
+  getFormatToolbarOpenPreference: () => true,
 }));
 
 import { RoomOpenLoadingView } from "./room-open-loading-view";

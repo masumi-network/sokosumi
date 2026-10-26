@@ -192,6 +192,7 @@ model Workspace {
   fileLabels         WorkspaceLabel[]
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
+  driveShares        DriveShare[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
 
@@ -1544,6 +1545,7 @@ model Job {
 
   events             JobEvent[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   purchase JobPurchase?
 
@@ -2297,6 +2299,7 @@ model SokoBot {
   labRuns               SokoBotLabRun[]
   installedSkills       SokoBotInstalledSkill[]
   integrations          SokoBotIntegration[]
+  mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
   nudges                SokoBotNudge[]
 
@@ -2310,6 +2313,9 @@ model SokoBot {
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
   proactiveDailyLimit Int       @default(20)
+  /// Each mail check marks the mail Jev tags bulk as read in the owner's
+  /// mailbox; urgent and notable mail stays unread for them.
+  mailAutoRead        Boolean   @default(false)
   /// Last morning briefing sent; one per local day.
   lastBriefingAt      DateTime?
 
@@ -2857,6 +2863,12 @@ model SokoBotDelegation {
   lastSeenEventId String?
   lastSeenEventAt DateTime?
 
+  /// What the bot will do once this work completes ("give the findings to
+  /// Alex"). The events sync hands it back on the wake that reports the result.
+  followUp       String?
+  /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
+  followUpTurnId String? @db.Uuid
+
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
@@ -2981,10 +2993,19 @@ model SokoBotSchedule {
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
 
+  /// The Task or Job this schedule follows. Core removes the schedule once
+  /// that work finishes; the result itself wakes the bot through the events sync.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  jobId  String?
+  job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
   runs SokoBotScheduleRun[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
+  @@index([taskId])
+  @@index([jobId])
   @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
@@ -3153,6 +3174,7 @@ model Task {
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
   newsletterIssues   NewsletterIssue[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -4150,6 +4172,7 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
+  messageSignals   ChatMessageSignal[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
@@ -4321,6 +4344,7 @@ model ChatRoomMessage {
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
+  signal               ChatMessageSignal?
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -4885,6 +4909,15 @@ enum ProjectImageJobKind {
   GENERATE
   /// Image to image. Routes to the `/edit` endpoint, which takes `image_urls`.
   EDIT
+  /// Text to video. Routes to a video model's endpoint with a prompt only.
+  TEXT_TO_VIDEO
+  /// Image to video: animates one gallery image, sent as the model's still.
+  IMAGE_TO_VIDEO
+}
+
+enum ProjectImageMediaType {
+  IMAGE
+  VIDEO
 }
 
 enum ProjectImageJobStatus {
@@ -5180,13 +5213,17 @@ model ProjectImageAsset {
 
   /// Private blob pathname. Not a URL: the bytes are only reachable through
   /// the authorized streaming route, which re-checks access per request.
-  blobPathname String
-  contentType  String
-  width        Int
-  height       Int
-  bytes        Int
+  blobPathname    String
+  contentType     String
+  /// What the bytes are. A video plays in the gallery and attaches to Social as one.
+  mediaType       ProjectImageMediaType @default(IMAGE)
+  /// Requested length of a video. Null for images.
+  durationSeconds Int?
+  width           Int
+  height          Int
+  bytes           Int
   /// sha256 of the stored bytes.
-  checksum     String
+  checksum        String
 
   review ProjectImageReview?
 
@@ -5485,6 +5522,7 @@ model FileResource {
   links     FileProjectLink[]
   overrides FileFieldOverride[]
   jobs      FileIndexJob[]
+  shares    DriveShare[]
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])
@@ -5954,4 +5992,67 @@ model FileResultWindow {
   @@index([workspaceId, actorFingerprint])
   @@index([expiresAt])
   @@map("file_result_window")
+}
+
+enum DriveShareKind {
+  FILE
+  FOLDER
+}
+
+/// A public link to one Drive file or folder of a store, optionally behind a
+/// password. One link per item: revoking deletes the row, so a new link gets
+/// a new token. A file link follows its catalog entry through moves; a folder
+/// link names the folder path and is rebased when the folder moves.
+model DriveShare {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  token String @unique
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceScope FileSourceScope
+  /// The store's owner: the user for a personal Drive, the organization otherwise.
+  ownerId     String
+
+  kind       DriveShareKind
+  resourceId String?        @unique @db.Uuid
+  resource   FileResource?  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  /// Normalized folder path within the store, for a FOLDER link.
+  folderPath String?
+
+  /// `scrypt$<salt>$<hash>`, both base64url; null when the link has no password.
+  passwordHash    String?
+  /// Wrong passwords since the last right one; enough of them lock the link.
+  failedUnlocks   Int       @default(0)
+  unlockLockedAt  DateTime?
+  createdByUserId String
+
+  @@unique([workspaceId, sourceScope, ownerId, folderPath])
+  @@index([workspaceId, sourceScope, ownerId])
+  @@map("drive_share")
+}
+
+/// A draft the bot wrote in the owner's mailbox. Sending one is allowed only
+/// in a later turn, from the owner's own chat, after the owner saw it.
+model SokoBotMailDraft {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  provider     String
+  /// The provider's draft id.
+  draftId      String
+  to           String[]
+  subject      String
+  turnId       String
+  sentAt       DateTime?
+  sentByTurnId String?
+
+  @@unique([sokoBotId, draftId])
+  @@map("soko_bot_mail_draft")
 }

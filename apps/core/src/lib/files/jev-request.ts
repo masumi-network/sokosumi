@@ -393,6 +393,47 @@ export function labelExcerptFromChunks(chunks: { text: string }[]): string {
   return kept.join("\n\n");
 }
 
+export interface FileLabelSignals {
+  displayName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  folderPath: string | null;
+  projectName: string | null;
+}
+
+function describeSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(1)} ${units[unit]}`;
+}
+
+/**
+ * The excerpt for a file with no readable text: what the catalog already
+ * knows about it. A video, an archive or an image is labelled from its name,
+ * type, size, folder and project, which is what a person filing it would go
+ * on too. Never the bytes.
+ */
+export function labelExcerptFromMetadata(signals: FileLabelSignals): string {
+  return [
+    "No text could be read from this file. What is known about it:",
+    `File name: ${signals.displayName}`,
+    signals.mimeType ? `Media type: ${signals.mimeType}` : null,
+    signals.sizeBytes !== null
+      ? `Size: ${describeSize(signals.sizeBytes)}`
+      : null,
+    signals.folderPath ? `Folder: ${signals.folderPath}` : null,
+    signals.projectName ? `Project: ${signals.projectName}` : null,
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
+}
+
 export function buildJevLabelRequest(
   input: JevLabelInput,
 ): JevLabelRequestResult {

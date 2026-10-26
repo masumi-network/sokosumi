@@ -88,6 +88,8 @@ import {
   readProjectSelectionReply,
 } from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
+import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
+import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
@@ -2532,12 +2534,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
+  // Jev's chips draw a row of their own under the text when there is one.
+  const hasSignalRow =
+    !isDeleted &&
+    message.signal != null &&
+    (signalChips(message.signal, currentUserId).length > 0 ||
+      message.signal.loopClosedAt != null);
   const contentEndsTheRow =
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
     !hasUnfurlRow &&
     !hasSokoBotFooter &&
+    !hasSignalRow &&
     outboundStatus !== "failed";
   // An attachment row is a block: the inline reserve after it has no line to
   // share and opens one of its own, a line height the row gained only when
@@ -2922,6 +2931,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     )}
                   />
+                  {hasSignalRow ? (
+                    <MessageSignalBar
+                      message={message}
+                      currentUserId={currentUserId}
+                      usersById={usersById}
+                    />
+                  ) : null}
                 </>
               )}
             </>

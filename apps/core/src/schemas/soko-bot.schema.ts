@@ -125,6 +125,10 @@ export const sokoBotDelegationSchema = z
     error: z.string().nullable(),
     taskId: z.string().nullable(),
     jobId: z.string().nullable(),
+    /** What the bot will do once this work completes; null when none. */
+    followUp: z.string().nullable().optional(),
+    /** The turn that carried the plan out, once the work completed. */
+    followUpTurnId: z.string().nullable().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -314,6 +318,7 @@ export const sokoBotSchema = z
     avatarImageUrl: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
+    mailAutoRead: z.boolean().optional(),
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
     proactiveDailyLimit: z.number().int().optional(),
@@ -651,6 +656,7 @@ export const updateSokoBotProactiveRequestSchema = z
     paused: z.boolean().optional(),
     dailyLimit: z.number().int().min(1).max(200).optional(),
     timezone: z.string().min(1).max(64).optional(),
+    mailAutoRead: z.boolean().optional(),
   })
   .strict()
   .openapi("UpdateSokoBotProactiveRequest");

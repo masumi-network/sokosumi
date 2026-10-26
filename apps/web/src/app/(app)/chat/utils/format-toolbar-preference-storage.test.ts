@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FORMAT_TOOLBAR_OPEN_STORAGE_KEY,
   getFormatToolbarOpenPreference,
-  resolveFormatToolbarOpenOnMount,
   setFormatToolbarOpenPreference,
 } from "./format-toolbar-preference-storage";
 
@@ -61,39 +60,5 @@ describe("format-toolbar-preference-storage", () => {
       throw new Error("quota");
     });
     expect(() => setFormatToolbarOpenPreference(true)).not.toThrow();
-  });
-
-  it("resolve prefers stored preference over viewport", () => {
-    expect(
-      resolveFormatToolbarOpenOnMount({
-        stored: true,
-        viewportWidth: 320,
-        mobileBreakpoint: 768,
-      }),
-    ).toBe(true);
-    expect(
-      resolveFormatToolbarOpenOnMount({
-        stored: false,
-        viewportWidth: 1280,
-        mobileBreakpoint: 768,
-      }),
-    ).toBe(false);
-  });
-
-  it("resolve defaults to desktop open and mobile closed when unset", () => {
-    expect(
-      resolveFormatToolbarOpenOnMount({
-        stored: null,
-        viewportWidth: 768,
-        mobileBreakpoint: 768,
-      }),
-    ).toBe(true);
-    expect(
-      resolveFormatToolbarOpenOnMount({
-        stored: null,
-        viewportWidth: 767,
-        mobileBreakpoint: 768,
-      }),
-    ).toBe(false);
   });
 });

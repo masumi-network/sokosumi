@@ -26,6 +26,8 @@ export interface SokoBotLabTurn {
     jobId: string | null;
     action?: string | null;
     outcome?: string | null;
+    /** The follow-up plan the bot attached when it delegated. */
+    followUp?: string | null;
   }[];
   decisions: { id: string; resultingEntityId: string | null }[];
 }
@@ -97,6 +99,11 @@ export interface SokoBotScenario {
     answerAvoids?: string;
     /** Tasks it creates must stay DRAFT (no READY, no assignment). */
     draftsOnly?: boolean;
+    /**
+     * Work it delegated carries a follow-up plan, so "when it is done, do Y"
+     * waits on the result itself instead of a schedule or a polling loop.
+     */
+    attachesFollowUp?: boolean;
     /**
      * Nothing was worth doing: no mutating tool, nothing delegated, and the
      * answer says so plainly. Without scenarios that reward restraint, every
@@ -676,6 +683,46 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "Zapier[\\s\\S]*\\|[\\s\\S]*n8n|n8n[\\s\\S]*\\|[\\s\\S]*Zapier",
     },
   },
+  {
+    id: "wait-then-hand-over",
+    title: "Waits for one Coworker, then hands the result to another",
+    intent:
+      '"When Hannah is done, give it to Alex" becomes one Task with a follow-up plan, not a schedule or a polling run.',
+    prompt:
+      "Have Hannah research the top 3 EU AI-agent marketplaces, and when she's done give her findings to Alex to turn into a one-page brief.",
+    rubric:
+      "The bot creates one research Task for Hannah (or the research Coworker that fits, saying so if Hannah is not on the team) and attaches a followUp saying her findings go to Alex for a one-page brief. It creates no schedule, starts no background run, does not create Alex's Task yet, and tells the owner it will hand over when Hannah finishes.",
+    expect: {
+      routes: ["DELEGATE_TASK", "MANAGE_WORK", "MIXED"],
+      tools: ["create_task"],
+      forbiddenTools: ["create_schedule", "start_background_run", "hire_agent"],
+      attachesFollowUp: true,
+      minDelegations: 1,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "hand-over-on-completion",
+    title: "Carries out the follow-up plan when the work completes",
+    intent:
+      "When Hannah's Task completes, the event turn hands her actual findings to Alex as a new Task, without being asked again.",
+    prompt: "",
+    trigger: {
+      kind: "task_event",
+      status: "COMPLETED",
+      comment:
+        "Findings: 1) Sokosumi (Berlin) — pay-per-task agent marketplace with on-chain settlement, credits from EUR 0.01, focus on business workflows. 2) Agent.ai EU hub (Paris) — free listing, revenue share 20%, strongest in sales agents. 3) Relevance Marketplace (Amsterdam) — subscription EUR 49/month, enterprise SSO, best for internal tooling. Sokosumi is the only one with per-result pricing.",
+    },
+    rubric:
+      "The bot reads Hannah's completed Task and creates one Task for Alex (or the writing Coworker that fits) to turn the findings into a one-page brief. Alex's Task description carries the substance of the findings (the three marketplaces with their pricing), not just a link or 'see the other task'. It creates no schedule and reports briefly what it handed over.",
+    expect: {
+      routes: ["DELEGATE_TASK"],
+      tools: ["create_task"],
+      forbiddenTools: ["create_schedule", "hire_agent"],
+      minDelegations: 1,
+      noInventedIds: true,
+    },
+  },
 ];
 
 /**
@@ -930,6 +977,17 @@ export function evaluateScenario(
         ready.length === 0
           ? "drafts only"
           : `${ready.length} set READY/assigned`,
+    });
+  }
+  if (expect.attachesFollowUp) {
+    const planned = turn.delegations.filter((d) => d.followUp);
+    checks.push({
+      label: "Delegated work carries a follow-up plan",
+      pass: planned.length > 0,
+      actual:
+        planned.length > 0
+          ? `${planned.length} plan(s)`
+          : `${turn.delegations.length} delegation(s), no plan`,
     });
   }
   if (expect.noEmptyPromise) {
