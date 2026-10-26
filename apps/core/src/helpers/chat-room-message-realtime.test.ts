@@ -18,6 +18,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: findRoomMembersMock,
     },
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
     },
   },
@@ -32,6 +33,7 @@ vi.mock("@/lib/ably/publish", () => ({
 vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
   chatRoomMessageInclude: {},
   mapChatRoomMessage: (...args: unknown[]) => mapChatRoomMessageMock(...args),
+  withChatRoomReplyCount: async (_db: unknown, message: unknown) => message,
 }));
 
 vi.mock("@/schemas/chat-room.schema", () => ({
@@ -62,7 +64,6 @@ const baseMessage = {
   mentionsAsSource: [],
   reactions: [],
   replies: [],
-  _count: { replies: 0 },
   metadata: null,
 };
 

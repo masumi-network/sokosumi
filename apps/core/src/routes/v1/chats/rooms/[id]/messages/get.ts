@@ -27,6 +27,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserMembership,
+  withChatRoomReplyCounts,
 } from "../../helpers";
 import {
   aroundWindowPaginationMeta,
@@ -115,10 +116,10 @@ const route = withOrganizationSlugHeaderParameter(
 async function getUnreadReplyCountByParent(
   roomId: string,
   userId: string,
-  messages: ReadonlyArray<{ _count: { replies: number } }>,
+  messages: ReadonlyArray<{ threadReplyCount: number }>,
 ): Promise<Map<string, number>> {
   // Most pages hold no thread parent, and then nothing can be unread.
-  if (!messages.some((message) => message._count.replies > 0)) {
+  if (!messages.some((message) => message.threadReplyCount > 0)) {
     return new Map();
   }
   const aggregates = await getChatRoomThreadAggregates(roomId, userId, prisma, {
@@ -174,13 +175,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         center = parent;
       }
-      const { messages, hasMoreOlder, count } =
-        await listChatRoomMessagesAround({
-          db: prisma,
-          scope: { roomId: id, parentMessageId: null },
-          center,
-          take,
-        });
+      const around = await listChatRoomMessagesAround({
+        db: prisma,
+        scope: { roomId: id, parentMessageId: null },
+        center,
+        take,
+      });
+      const { hasMoreOlder, count } = around;
+      const messages = await withChatRoomReplyCounts(prisma, around.messages);
       const paginationMeta = aroundWindowPaginationMeta(
         messages,
         take,
@@ -250,9 +252,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     // Search keeps newest-first so the hit you want is at the top. The live
     // timeline still reverses into oldest-first reading order.
-    const orderedMessages = searchQuery
-      ? pageMessages
-      : [...pageMessages].reverse();
+    const orderedMessages = await withChatRoomReplyCounts(
+      prisma,
+      searchQuery ? pageMessages : [...pageMessages].reverse(),
+    );
 
     // Polls hit this route; kick abandoned `sent` mentions so reclaim can run
     // after a killed waitUntil left them non-terminal. Skip on search — not a

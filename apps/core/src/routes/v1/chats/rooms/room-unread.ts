@@ -12,6 +12,7 @@ import {
   mapChatRoomMessage,
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
+  withChatRoomReplyCounts,
 } from "./helpers";
 import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
 
@@ -914,15 +915,18 @@ async function mapThreadAggregates(
     return [];
   }
 
-  const parents = await tx.chatRoomMessage.findMany({
-    where: {
-      id: { in: aggregates.map((row) => row.parentMessageId) },
-      roomId,
-      parentMessageId: null,
-      deletedAt: null,
-    },
-    include: chatRoomMessageInclude,
-  });
+  const parents = await withChatRoomReplyCounts(
+    tx,
+    await tx.chatRoomMessage.findMany({
+      where: {
+        id: { in: aggregates.map((row) => row.parentMessageId) },
+        roomId,
+        parentMessageId: null,
+        deletedAt: null,
+      },
+      include: chatRoomMessageInclude,
+    }),
+  );
   const parentsById = new Map(parents.map((parent) => [parent.id, parent]));
 
   return aggregates.flatMap((aggregate) => {
