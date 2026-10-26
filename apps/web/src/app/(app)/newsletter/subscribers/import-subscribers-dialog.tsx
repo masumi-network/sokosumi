@@ -233,11 +233,12 @@ export function ImportSubscribersDialog({
             </fieldset>
           )}
           <p role="status" className="text-muted-foreground text-sm">
-            {pending
-              ? t("Import.importing")
-              : result
-                ? t("Import.doneDescription")
-                : null}
+            {pending ? (
+              t("Import.importing")
+            ) : result ? (
+              // The description already shows this; announce it only.
+              <span className="sr-only">{t("Import.doneDescription")}</span>
+            ) : null}
           </p>
           {error ? (
             <p role="alert" className="text-semantic-destructive-label text-sm">

@@ -200,6 +200,15 @@ describe("AddFromContactsDialog", () => {
       const label = await screen.findByText(COPY.FromContacts.result[key]);
       expect(label.parentElement).toHaveTextContent(String(SUMMARY[key]));
     }
+    // Shown once under the title; the status copy is for screen readers only.
+    expect(
+      screen
+        .getAllByText(COPY.FromContacts.doneDescription)
+        .filter((node) => !node.closest(".sr-only")),
+    ).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      COPY.FromContacts.doneDescription,
+    );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: COPY.done }));
     expect(mocks.close).toHaveBeenCalled();

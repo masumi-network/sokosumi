@@ -380,11 +380,14 @@ export function AddFromContactsDialog({
             </>
           )}
           <p role="status" className="text-muted-foreground text-sm">
-            {pending
-              ? t("FromContacts.adding")
-              : result
-                ? t("FromContacts.doneDescription")
-                : null}
+            {pending ? (
+              t("FromContacts.adding")
+            ) : result ? (
+              // The description already shows this; announce it only.
+              <span className="sr-only">
+                {t("FromContacts.doneDescription")}
+              </span>
+            ) : null}
           </p>
           {error ? (
             <p role="alert" className="text-semantic-destructive-label text-sm">
