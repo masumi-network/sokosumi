@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
@@ -8,6 +8,7 @@ import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 import {
   markOrganizationChatRoomReadAction,
+  renderWithQueryClient,
   roomsClientBaseProps,
 } from "./rooms-client-harness";
 
@@ -242,7 +243,7 @@ describe("RoomsClient Self Direct transcript", () => {
   };
 
   it("shows a quote sent to yourself in the server-rendered history", () => {
-    render(
+    renderWithQueryClient(
       <RoomsClient {...selfDirectProps} messages={[savedQuoteMessage()]} />,
     );
 
@@ -266,7 +267,7 @@ describe("RoomsClient Self Direct transcript", () => {
       resolvePage = resolve;
     });
 
-    render(
+    renderWithQueryClient(
       <RoomsClient {...selfDirectProps} messagesPromise={messagesPromise} />,
     );
 

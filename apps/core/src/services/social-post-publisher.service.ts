@@ -365,16 +365,18 @@ async function attemptPublish(
     if (previous?.finishedAt) {
       switch (previous.outcome) {
         case "succeeded": {
-          if (!previous.externalId) break;
+          // The platform confirmed the post; a missing id only drops the link.
           const settled = await settle(post, {
             status: "PUBLISHED",
             publishedAt: previous.finishedAt,
             publishedExternalId: previous.externalId,
-            publishedUrl: socialPostPublishedUrl(
-              provider,
-              post.socialConnection?.externalHandle ?? null,
-              previous.externalId,
-            ),
+            publishedUrl: previous.externalId
+              ? socialPostPublishedUrl(
+                  provider,
+                  post.socialConnection?.externalHandle ?? null,
+                  previous.externalId,
+                )
+              : null,
             lastError: null,
             attemptCount: post.attemptCount + 1,
           });
@@ -680,7 +682,7 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment) {
+  if (settled && firstComment && published.externalId) {
     try {
       await publishSocialPostFirstComment({
         provider,

@@ -1043,6 +1043,69 @@ describe("social post publisher service", () => {
     expect(settleCall().data.lastError).toContain("Check X before retrying");
   });
 
+  it("records a confirmed post without an id as published, without a link or first comment", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, firstComment: "#launch" })
+      .mockResolvedValue(null);
+    publishXPostMock.mockResolvedValue({
+      externalId: null,
+      publishedUrl: null,
+      toolSlug: "TWITTER_CREATION_OF_A_POST",
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+      failed: 0,
+      retried: 0,
+    });
+    expect(attemptUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "succeeded",
+          externalId: null,
+        }),
+      }),
+    );
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: null,
+      publishedUrl: null,
+      lastError: null,
+    });
+    expect(publishFirstCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers a recorded success without an id as published, without republishing", async () => {
+    attemptFindFirstMock.mockResolvedValue({
+      outcome: "succeeded",
+      externalId: null,
+      finishedAt: NOW,
+    });
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        status: "PUBLISHING",
+        leaseToken: "stale-lease",
+        leaseExpiresAt: new Date(NOW.getTime() - 1_000),
+        revision: 2,
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      published: 1,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: null,
+      publishedUrl: null,
+    });
+  });
+
   it("does not publish a retry delayed beyond fifteen minutes by a cron outage", async () => {
     socialPostFindFirstMock
       .mockReset()
