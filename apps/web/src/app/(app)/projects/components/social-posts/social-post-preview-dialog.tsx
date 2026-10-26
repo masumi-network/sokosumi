@@ -21,6 +21,7 @@ import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewFailure } from "./social-post-preview-failure";
+import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 export function SocialPostPreviewDialog({
   post,
@@ -86,6 +87,12 @@ export function SocialPostPreviewDialog({
             ) : null}
           </DialogDescription>
         </DialogHeader>
+        {post?.status === "NEEDS_APPROVAL" ? (
+          <SocialPostStatusBadge
+            status={post.status}
+            label={t("status.NEEDS_APPROVAL")}
+          />
+        ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
             className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
@@ -115,6 +122,10 @@ export function SocialPostPreviewDialog({
             }
             className="max-h-[70dvh] overflow-y-auto"
             media={post.media}
+            threadParts={post.threadParts}
+            publishedExternalId={
+              post.threadPartCount > 1 ? post.publishedExternalId : undefined
+            }
             provider={post.provider}
             text={post.text}
             timestamp={post.publishedAt ?? post.scheduledAt}
@@ -171,7 +182,7 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule ? (
+              {post.canSchedule && !post.canApprove ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

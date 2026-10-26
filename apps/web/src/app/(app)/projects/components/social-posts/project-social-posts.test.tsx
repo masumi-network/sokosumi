@@ -3,7 +3,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -24,6 +24,7 @@ import {
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   createProjectSocialPost,
   duplicateProjectSocialPost,
@@ -31,15 +32,16 @@ import {
   initiateProjectSocialConnection,
   publishProjectSocialPost,
   refreshProjectSocialPostStatistics,
+  resumeProjectSocialPostThread,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { formatTimezoneLabel } from "@/lib/schedules/timezones";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
+import enMessages from "@/messages/en.json";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { TestQueryProvider } from "@/test/query-provider";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
-
 import { loadMoreSocialPosts } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
@@ -94,6 +96,14 @@ const {
 }));
 
 const MESSAGES: Record<string, string> = {
+  ...enMessages.App.Projects.SocialPosts.thread,
+  ...Object.fromEntries(
+    Object.entries(enMessages.App.Projects.SocialPosts.thread).map(
+      ([key, value]) => [`thread.${key}`, value],
+    ),
+  ),
+  "actions.approve": "Approve",
+  "toasts.approved": "Post approved.",
   title: "Social posts",
   tryAgain: "Try again",
   help: "Everything else still works. Check your connection and try again.",
@@ -339,6 +349,8 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   finalizeProjectSocialConnection: vi.fn(),
   initiateProjectSocialConnection: vi.fn(),
+  approveProjectSocialPost: vi.fn(),
+  resumeProjectSocialPostThread: vi.fn(),
   cancelProjectSocialPost: vi.fn(),
   createProjectSocialPost: vi.fn(),
   duplicateProjectSocialPost: vi.fn(),
@@ -441,6 +453,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     publishedThreadPartCount: 0,
     failedThreadPartPosition: null,
     partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -469,6 +482,34 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     connectionNeedsReconnect: false,
     ...overrides,
   };
+}
+
+function buildThread(overrides: Partial<SocialPost> = {}): SocialPost {
+  return buildPost({
+    text: "Thread opener",
+    threadPartCount: 3,
+    threadParts: [
+      {
+        id: "part-2",
+        position: 2,
+        text: "Second part",
+        media: [],
+        externalPostId: null,
+        publishedAt: null,
+        error: null,
+      },
+      {
+        id: "part-3",
+        position: 3,
+        text: "Third part",
+        media: [],
+        externalPostId: null,
+        publishedAt: null,
+        error: null,
+      },
+    ],
+    ...overrides,
+  });
 }
 
 const SCHEDULED_POST = buildPost({
@@ -6182,5 +6223,448 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(row).queryByText("X rejected the post (429 too many requests)"),
     ).not.toBeInTheDocument();
+  });
+
+  it("adds, reorders and removes thread parts, keeping each part's media in the saved payload", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    expect(
+      within(dialog).getByText("Part 2 is empty. Add text or media."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    const part2 = within(dialog).getByRole("region", { name: "Part 2" });
+    await user.click(
+      within(part2).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+      { target: { value: "Third" } },
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move part 2 down" }),
+    );
+    expect(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+    ).toHaveValue("Third");
+    expect(
+      within(dialog).getByLabelText("Part 3", { selector: "textarea" }),
+    ).toHaveValue("Second");
+    expect(
+      within(within(dialog).getByRole("region", { name: "Part 3" })).getByRole(
+        "button",
+        { name: "Remove launch.png" },
+      ),
+    ).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Move part 3 up" }),
+    );
+    expect(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+    ).toHaveValue("Second");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Remove part 3" }),
+    );
+    expect(
+      within(dialog).queryByLabelText("Part 3", { selector: "textarea" }),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByText("1/2")).toBeVisible();
+    expect(within(dialog).getAllByTestId("social-post-x-preview")).toHaveLength(
+      2,
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Opener",
+        threadParts: [{ text: "Second", media: [IMAGE_REF] }],
+      }),
+    );
+  });
+
+  it("uses the main counter's limit for each part and names an over-limit reply", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    const textarea = within(dialog).getByLabelText("Part 2", {
+      selector: "textarea",
+    });
+    fireEvent.change(textarea, {
+      target: { value: "x".repeat(SOCIAL_POST_TEXT_LIMITS.x + 1) },
+    });
+    const part = within(dialog).getByRole("region", { name: "Part 2" });
+    expect(
+      within(part).getByTestId("social-post-character-count"),
+    ).toHaveTextContent(
+      `${SOCIAL_POST_TEXT_LIMITS.x + 1} / ${SOCIAL_POST_TEXT_LIMITS.x}`,
+    );
+    expect(within(part).getByText("Part 2 is over the limit.")).toBeVisible();
+    expect(textarea).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    fireEvent.change(textarea, {
+      target: { value: "x".repeat(SOCIAL_POST_TEXT_LIMITS.x) },
+    });
+    expect(
+      within(part).queryByText("Part 2 is over the limit."),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeEnabled();
+  });
+
+  it("blocks mixed X and non-X selections while a thread has extra parts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({ id: "linkedin", provider: "linkedin" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const accounts = within(dialog).getByTestId("social-post-accounts");
+    const linkedin = within(accounts).getByRole("button", { name: /LinkedIn/ });
+    if (linkedin.getAttribute("aria-pressed") === "true")
+      await user.click(linkedin);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    await user.click(linkedin);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      enMessages.App.Projects.SocialPosts.thread.onlyX,
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeDisabled();
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("limits a thread to 25 total parts with an inline explanation", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const add = within(dialog).getByRole("button", { name: "Add to thread" });
+    for (let index = 0; index < 24; index++) fireEvent.click(add);
+    expect(add).toBeDisabled();
+    expect(
+      within(dialog).getByText("Threads can have up to 25 parts."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getAllByRole("region", { name: /^Part \d+$/ }),
+    ).toHaveLength(24);
+  });
+
+  it("schedules a new thread with all ordered parts", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Opener" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add to thread" }),
+    );
+    fireEvent.change(
+      within(dialog).getByLabelText("Part 2", { selector: "textarea" }),
+      { target: { value: "Second" } },
+    );
+    await pickInAnHour(user, dialog);
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Schedule for/ }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadParts: [{ text: "Second", media: [] }],
+        scheduledAt: IN_AN_HOUR.toISOString(),
+      }),
+    );
+  });
+
+  it.each(["DRAFT", "SCHEDULED"] as const)(
+    "reopens a %s thread and saves edited parts",
+    async (status) => {
+      freezeClock();
+      const user = userEvent.setup();
+      const post = buildThread({
+        status,
+        scheduledAt: status === "SCHEDULED" ? IN_AN_HOUR : null,
+      });
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[post]}
+          projectId={PROJECT_ID}
+          selectedPostId={post.id}
+        />,
+      );
+      const preview = screen.getByRole("dialog");
+      expect(
+        within(preview).getAllByTestId("social-post-x-preview"),
+      ).toHaveLength(3);
+      await user.click(within(preview).getByRole("button", { name: "Edit" }));
+      const composer = screen.getByRole("dialog");
+      expect(
+        within(composer).getByLabelText("Part 2", { selector: "textarea" }),
+      ).toHaveValue("Second part");
+      fireEvent.change(
+        within(composer).getByLabelText("Part 3", { selector: "textarea" }),
+        { target: { value: "Edited third" } },
+      );
+      await user.click(
+        within(composer).getByRole("button", {
+          name: status === "DRAFT" ? "Save draft" : /^Reschedule for/,
+        }),
+      );
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          threadParts: [
+            { text: "Second part", media: [] },
+            { text: "Edited third", media: [] },
+          ],
+        }),
+      );
+    },
+  );
+
+  it("keeps Needs approval visible on a thread and Approve as its main action", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canPublishNow: false,
+    });
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...post, status: "DRAFT", canApprove: false },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    const row = screen.getByTestId(`social-post-${post.id}`);
+    expect(within(row).getByText("Needs approval")).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Approve" })).toHaveClass(
+      "bg-primary-solid",
+    );
+    await user.click(within(row).getByRole("button", { name: "Approve" }));
+    expect(approveProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+    });
+  });
+
+  it("shows partial progress, links confirmed parts, and retries only through the existing publish action", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "FAILED",
+      canEdit: false,
+      canSchedule: false,
+      publishedExternalId: "head",
+      publishedThreadPartCount: 2,
+      partiallyPublished: true,
+      failedThreadPartPosition: 3,
+      lastError: "X rejected part 3",
+    });
+    post.threadParts[0].externalPostId = "second";
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+        selectedPostId={post.id}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Partly posted: 2 of 3 parts posted. Part 3 failed.",
+    );
+    expect(within(dialog).getByText("X rejected part 3")).toBeVisible();
+    expect(
+      within(dialog)
+        .getAllByRole("link", { name: /View part/ })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "https://x.com/i/web/status/head",
+      "https://x.com/i/web/status/second",
+    ]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Retry remaining parts" }),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Retry remaining parts",
+      }),
+    );
+    expect(publishProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+    });
+  });
+
+  it("requires explicit not-posted confirmation before resuming an uncertain thread", async () => {
+    const user = userEvent.setup();
+    const post = buildThread({
+      status: "FAILED",
+      publishingThreadPartPosition: 2,
+      canEdit: false,
+      canSchedule: false,
+      canPublishNow: false,
+      lastError: "Unknown outcome",
+    });
+    const resumed = {
+      ...post,
+      revision: 4,
+      publishingThreadPartPosition: null,
+      canPublishNow: true,
+    };
+    vi.mocked(resumeProjectSocialPostThread).mockResolvedValue({
+      ok: true,
+      value: resumed,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+        selectedPostId={post.id}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText(/We couldn’t confirm whether part 2 was posted/),
+    ).toBeVisible();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Retry remaining parts" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "It was not posted, continue",
+      }),
+    );
+    expect(resumeProjectSocialPostThread).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: post.revision,
+      confirmedNotPosted: true,
+    });
+    expect(publishProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      postId: post.id,
+      revision: 4,
+    });
+  });
+
+  it("shows duplicate thread parts and their approval requirement", async () => {
+    const user = userEvent.setup();
+    const source = buildThread({
+      ...FAILED_POST,
+      id: "source-thread",
+      canDuplicate: true,
+    });
+    const duplicate = buildThread({
+      id: "duplicate-thread",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+      canPublishNow: false,
+    });
+    vi.mocked(duplicateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: duplicate,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[source]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, source.id);
+    await user.click(
+      screen.getByRole("menuitem", { name: "Duplicate as draft" }),
+    );
+    const row = await screen.findByTestId("social-post-duplicate-thread");
+    expect(within(row).getByText("1/3")).toBeVisible();
+    expect(within(row).getByText("Needs approval")).toBeVisible();
+    await user.click(within(row).getByRole("button", { name: /^Preview/ }));
+    expect(
+      within(screen.getByRole("dialog")).getAllByTestId(
+        "social-post-x-preview",
+      ),
+    ).toHaveLength(3);
   });
 });

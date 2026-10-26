@@ -20,6 +20,7 @@ const POST: SocialPost = {
   publishedThreadPartCount: 0,
   failedThreadPartPosition: null,
   partiallyPublished: false,
+  publishingThreadPartPosition: null,
   status: "FAILED",
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
   timezone: "UTC",

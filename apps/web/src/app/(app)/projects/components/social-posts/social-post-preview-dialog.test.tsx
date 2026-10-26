@@ -39,6 +39,7 @@ const POST: SocialPost = {
   publishedThreadPartCount: 1,
   failedThreadPartPosition: null,
   partiallyPublished: false,
+  publishingThreadPartPosition: null,
   status: "PUBLISHED",
   scheduledAt: null,
   timezone: null,

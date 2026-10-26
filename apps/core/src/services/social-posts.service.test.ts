@@ -462,6 +462,75 @@ describe("social posts service", () => {
       );
     });
 
+    it("clears only the in-flight marker after confirmation, preserving confirmed ids", async () => {
+      const { resumeSocialPostThread } = await loadService();
+      const failed = {
+        ...scheduledPost,
+        status: "FAILED",
+        publishedExternalId: "head-id",
+        threadParts: parts,
+        publishingThreadPartPosition: 2,
+      };
+      socialPostFindFirstMock.mockResolvedValueOnce(failed).mockResolvedValue({
+        ...failed,
+        publishingThreadPartPosition: null,
+        revision: 2,
+      });
+      const result = await resumeSocialPostThread({
+        ...input,
+        postId: POST_ID,
+        revision: 1,
+        confirmedNotPosted: true,
+      });
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 1 },
+        data: {
+          publishingThreadPartPosition: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(result).toMatchObject({
+        publishingThreadPartPosition: null,
+        publishedExternalId: "head-id",
+        threadPartCount: 3,
+        canPublishNow: true,
+        revision: 2,
+      });
+    });
+
+    it.each([
+      { status: "PUBLISHING", publishingThreadPartPosition: 2 },
+      { status: "FAILED", publishingThreadPartPosition: null },
+      {
+        status: "FAILED",
+        publishingThreadPartPosition: 2,
+        leaseExpiresAt: FUTURE,
+      },
+      { status: "FAILED", publishingThreadPartPosition: 2, revision: 9 },
+      {
+        status: "FAILED",
+        publishingThreadPartPosition: 2,
+        provider: "linkedin",
+      },
+      { status: "FAILED", publishingThreadPartPosition: 2, threadParts: [] },
+    ])("refuses unsafe or stale resume: %j", async (overrides) => {
+      const { resumeSocialPostThread } = await loadService();
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        threadParts: parts,
+        ...overrides,
+      });
+      await expect(
+        resumeSocialPostThread({
+          ...input,
+          postId: POST_ID,
+          revision: 1,
+          confirmedNotPosted: true,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
     it("exposes an unconfirmed part's error and blocks edits and rescheduling", async () => {
       socialPostFindFirstMock.mockResolvedValue({
         ...scheduledPost,

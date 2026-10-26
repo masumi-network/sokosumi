@@ -2660,7 +2660,8 @@
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
-          "duplicated": "Entwurf erstellt."
+          "duplicated": "Entwurf erstellt.",
+          "approved": "Beitrag genehmigt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2672,7 +2673,8 @@
           "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
           "dismiss": "Verwerfen",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "approve": "Genehmigen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt posten?",
@@ -2925,7 +2927,29 @@
           "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
           "later": "Später"
         },
-        "moreActions": "Beitragsaktionen"
+        "moreActions": "Beitragsaktionen",
+        "thread": {
+          "add": "Zum Thread hinzufügen",
+          "limit": "Threads können bis zu {max} Teile enthalten.",
+          "part": "Teil {part}",
+          "position": "{part}/{total}",
+          "positionLabel": "Teil {part} von {total}",
+          "moveUp": "Teil {part} nach oben verschieben",
+          "moveDown": "Teil {part} nach unten verschieben",
+          "remove": "Teil {part} entfernen",
+          "onlyX": "Thread-Teile werden nur für X-Konten unterstützt. Wähle andere Konten ab oder entferne die zusätzlichen Teile.",
+          "empty": "Teil {part} ist leer. Füge Text oder Medien hinzu.",
+          "tooLong": "Teil {part} überschreitet das Zeichenlimit.",
+          "mediaInvalid": "Teil {part}: {error}",
+          "partlyPosted": "Teilweise veröffentlicht",
+          "progress": "Teilweise veröffentlicht: {published} von {total} Teilen veröffentlicht.",
+          "failedPart": "Teil {part} ist fehlgeschlagen.",
+          "retry": "Verbleibende Teile erneut versuchen",
+          "outcomeUnknown": "Wir konnten nicht bestätigen, ob Teil {part} veröffentlicht wurde. Prüfe X und bestätige zum Fortfahren, dass er nicht veröffentlicht wurde, oder belasse es dabei.",
+          "confirmNotPosted": "Nicht veröffentlicht, fortfahren",
+          "viewPart": "Teil {part} auf X ansehen",
+          "retryDescription": "Es werden nur die verbleibenden Teile veröffentlicht."
+        }
       },
       "Detail": {
         "back": "Zurück zu Projekten",

@@ -114,9 +114,11 @@ import type {
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
+  PostProjectsByIdSocialPostsByPostIdApproveData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
   PostProjectsByIdSocialPostsByPostIdPublishData,
   PostProjectsByIdSocialPostsByPostIdScheduleData,
+  PostProjectsByIdSocialPostsByPostIdThreadResumeData,
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -423,11 +425,13 @@ import {
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
+  postProjectsByIdSocialPostsByPostIdApprove as corePostProjectsByIdSocialPostsByPostIdApprove,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
   postProjectsByIdSocialPostsByPostIdDuplicate as corePostProjectsByIdSocialPostsByPostIdDuplicate,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
+  postProjectsByIdSocialPostsByPostIdThreadResume as corePostProjectsByIdSocialPostsByPostIdThreadResume,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -3691,6 +3695,42 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialPostsByPostIdApprove(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdApproveData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdApprove({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to approve Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdThreadResume(
+    id: string,
+    postId: string,
+    body: NonNullable<
+      PostProjectsByIdSocialPostsByPostIdThreadResumeData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdThreadResume({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to resume Project social post",
+    );
+  }
+
   async function completeComposioCallback(
     body: NonNullable<PostComposioCallbackCompleteData["body"]>,
   ) {
@@ -6132,6 +6172,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialPostsByPostIdCancel,
     postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
     postProjectsByIdSocialPostsByPostIdDuplicate,
+    postProjectsByIdSocialPostsByPostIdApprove,
+    postProjectsByIdSocialPostsByPostIdThreadResume,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,

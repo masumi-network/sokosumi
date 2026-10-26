@@ -6374,6 +6374,7 @@ describe("Soko Bot project social tools", () => {
     publishedThreadPartCount: 0,
     failedThreadPartPosition: null,
     partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,

@@ -18,7 +18,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ImagePlus, Plus, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -73,7 +73,9 @@ import {
   readRememberedComposerAccounts,
   writeRememberedComposerAccounts,
 } from "./social-post-composer-accounts";
+import { SocialPostComposerMedia } from "./social-post-composer-media";
 import {
+  type SocialPostComposerIssue,
   socialPostComposerAccept,
   socialPostComposerDraftIssue,
   socialPostComposerFormat,
@@ -84,6 +86,7 @@ import {
 import {
   type SocialPostComposerText,
   socialPostTextFor,
+  socialPostTextMetrics,
   socialPostTextWrite,
 } from "./social-post-composer-text";
 import {
@@ -117,6 +120,14 @@ interface SocialPostComposerDialogProps {
   open: boolean;
   projectId: string;
 }
+
+interface ComposerThreadPart {
+  id: string;
+  text: string;
+  media: SocialPostMediaRef[];
+}
+
+const MAX_THREAD_PARTS = 25;
 
 type PendingSubmit = "save" | "schedule" | "publish" | null;
 
@@ -154,10 +165,12 @@ export function SocialPostComposerDialog({
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
   const tooLongId = useId();
+  const threadLimitId = useId();
   const publishHintId = useId();
   const saveHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaTargetRef = useRef<string | null>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const { data: session } = useSession();
@@ -207,6 +220,32 @@ export function SocialPostComposerDialog({
         ? [...post.media]
         : [],
   );
+  const [threadParts, setThreadParts] = useState<ComposerThreadPart[]>(() =>
+    (post?.threadParts ?? []).map((part) => ({
+      id: part.id,
+      text: part.text,
+      media: [...part.media],
+    })),
+  );
+  const threadPayload =
+    threadParts.length > 0 || (post?.threadParts.length ?? 0) > 0
+      ? {
+          threadParts: threadParts.map((part) => ({
+            text: part.text.trim(),
+            media: part.media,
+          })),
+        }
+      : {};
+  const threadChanged =
+    threadParts.length !== (post?.threadParts.length ?? 0) ||
+    threadParts.some((part, index) => {
+      const saved = post?.threadParts[index];
+      return (
+        !saved ||
+        part.text !== saved.text ||
+        !sameSocialPostMedia(part.media, saved.media)
+      );
+    });
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.
   const multiAccount = mode.kind === "create";
@@ -288,7 +327,9 @@ export function SocialPostComposerDialog({
   const providers = socialPostComposerProviders(
     post?.provider,
     selectedConnections.map((connection) => connection.provider),
-    connections.map((connection) => connection.provider),
+    threadParts.length > 0
+      ? ["x"]
+      : connections.map((connection) => connection.provider),
   );
   const previewProvider =
     selectedConnections.find(
@@ -317,9 +358,21 @@ export function SocialPostComposerDialog({
     );
   }
   const displayedText = textFor(previewConnection?.id);
-  const displayedLimit =
-    SOCIAL_POST_TEXT_LIMITS[previewConnection ? previewProvider : provider];
-  const displayedOverLimit = displayedText.length > displayedLimit;
+  const displayedMetrics = socialPostTextMetrics(
+    displayedText,
+    previewConnection ? previewProvider : provider,
+  );
+  const displayedOverLimit = displayedMetrics.overLimit;
+  const isThread = threadParts.length > 0;
+  const threadAccountsInvalid =
+    isThread && providers.some((candidate) => candidate !== "x");
+  const canAddThread = providers.every((candidate) => candidate === "x");
+  const threadPartsValid = threadParts.every(
+    (part) =>
+      !socialPostTextMetrics(part.text, "x").overLimit &&
+      socialPostComposerDraftIssue("x", part.text, part.media) === null,
+  );
+
   const accountTexts =
     selectedConnections.length > 0
       ? selectedConnections.map((connection) => ({
@@ -355,7 +408,7 @@ export function SocialPostComposerDialog({
   const trimmedText = displayedText.trim();
   const overLimit = accountTexts.some(
     (account) =>
-      account.text.length > SOCIAL_POST_TEXT_LIMITS[account.provider],
+      socialPostTextMetrics(account.text, account.provider).overLimit,
   );
   const trimmedFirstComment = firstComment.trim();
   const commentProviders = (
@@ -378,10 +431,15 @@ export function SocialPostComposerDialog({
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid =
-    isScheduleOnly ||
-    (composerIssue === null && !overLimit && !overFirstComment);
+    !threadAccountsInvalid &&
+    threadPartsValid &&
+    (isScheduleOnly ||
+      (composerIssue === null && !overLimit && !overFirstComment));
   const draftValid =
-    isScheduleOnly || (draftIssue === null && !overLimit && !overFirstComment);
+    !threadAccountsInvalid &&
+    threadPartsValid &&
+    (isScheduleOnly ||
+      (draftIssue === null && !overLimit && !overFirstComment));
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
@@ -443,28 +501,62 @@ export function SocialPostComposerDialog({
     });
   }
 
+  function partIssueText(issue: SocialPostComposerIssue, part: number): string {
+    if (issue === "text_or_media_required" || issue === "text_required")
+      return t("thread.empty", { part });
+    return t("thread.mediaInvalid", {
+      part,
+      error:
+        issue === "media_required" || issue === "video_required"
+          ? t(`composer.requirements.${issue}`, { provider: "X" })
+          : mediaErrorText(issue, "x"),
+    });
+  }
+
   /** The first selected provider that refuses this media, with its reason. */
   function mediaRejection(
     next: SocialPostMediaRef[],
+    partId: string | null = null,
   ): { reason: SocialPostMediaValidationReason; by: typeof provider } | null {
-    for (const candidate of providers) {
+    for (const candidate of partId ? ["x" as const] : providers) {
       const check = validateSocialPostMedia(candidate, next);
       if (!check.ok) return { reason: check.reason, by: candidate };
     }
     return null;
   }
 
+  function attachedMedia(partId: string | null): SocialPostMediaRef[] {
+    return partId
+      ? (threadParts.find((part) => part.id === partId)?.media ?? [])
+      : media;
+  }
+
+  function changeMedia(
+    partId: string | null,
+    change: (current: SocialPostMediaRef[]) => SocialPostMediaRef[],
+  ): void {
+    if (partId)
+      setThreadParts((parts) =>
+        parts.map((part) =>
+          part.id === partId ? { ...part, media: change(part.media) } : part,
+        ),
+      );
+    else setMedia(change);
+  }
+
   function attachMedia(ref: SocialPostMediaRef): void {
-    if (hasSocialPostMedia(media, ref.pathname)) {
+    const partId = mediaTargetRef.current;
+    const attached = attachedMedia(partId);
+    if (hasSocialPostMedia(attached, ref.pathname)) {
       toast.error(t("composer.media.alreadyAttached"));
       return;
     }
-    const rejection = mediaRejection([...media, ref]);
+    const rejection = mediaRejection([...attached, ref], partId);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
       return;
     }
-    setMedia((current) => [...current, ref]);
+    changeMedia(partId, (current) => [...current, ref]);
   }
 
   function handleSelectDriveFile(file: DriveFile): void {
@@ -480,13 +572,10 @@ export function SocialPostComposerDialog({
     attachMedia(ref);
   }
 
-  function handleRemoveMedia(pathname: string): void {
-    setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
-  }
-
   async function uploadOne(
     file: File,
     attached: SocialPostMediaRef[],
+    partId: string | null,
   ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
@@ -502,7 +591,7 @@ export function SocialPostComposerDialog({
       );
       return null;
     }
-    const rejection = mediaRejection([...attached, candidate]);
+    const rejection = mediaRejection([...attached, candidate], partId);
     if (rejection) {
       toast.error(mediaErrorText(rejection.reason, rejection.by));
       return null;
@@ -519,7 +608,7 @@ export function SocialPostComposerDialog({
         toast.error(t("composer.media.uploadFailed"));
         return null;
       }
-      setMedia((current) => [...current, ref]);
+      changeMedia(partId, (current) => [...current, ref]);
       return ref;
     } catch (error) {
       toast.error(
@@ -531,14 +620,18 @@ export function SocialPostComposerDialog({
     }
   }
 
-  async function handleUploadFiles(files: readonly File[]): Promise<void> {
+  async function handleUploadFiles(
+    files: readonly File[],
+    partId: string | null = null,
+  ): Promise<void> {
     if (files.length === 0 || isBusy || uploadInFlightRef.current) return;
     uploadInFlightRef.current = true;
+    mediaTargetRef.current = partId;
     setUploadPending(true);
-    let attached = media;
+    let attached = attachedMedia(partId);
     try {
       for (const file of files) {
-        const ref = await uploadOne(file, attached);
+        const ref = await uploadOne(file, attached, partId);
         if (ref) attached = [...attached, ref];
       }
     } finally {
@@ -618,6 +711,7 @@ export function SocialPostComposerDialog({
           text: textFor(connection.id).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
+          ...threadPayload,
           socialConnectionId: connection.id,
         });
         if (!created.ok) {
@@ -734,6 +828,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
+          ...threadPayload,
           socialConnectionId: connectionId || null,
           revision: mode.post.revision,
         });
@@ -753,6 +848,7 @@ export function SocialPostComposerDialog({
           text: textFor(socialConnectionId).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
           media,
+          ...threadPayload,
           socialConnectionId,
         }),
       );
@@ -782,6 +878,7 @@ export function SocialPostComposerDialog({
               ? { firstComment: trimmedFirstComment }
               : {}),
             media,
+            ...threadPayload,
             socialConnectionId,
             scheduledAt: scheduledAtIso,
             timezone,
@@ -798,7 +895,8 @@ export function SocialPostComposerDialog({
       const contentChanged =
         trimmedText !== mode.post.text ||
         trimmedFirstComment !== (mode.post.firstComment ?? "") ||
-        !sameSocialPostMedia(media, mode.post.media);
+        !sameSocialPostMedia(media, mode.post.media) ||
+        threadChanged;
       if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
@@ -806,6 +904,7 @@ export function SocialPostComposerDialog({
           text: trimmedText,
           firstComment: trimmedFirstComment,
           media,
+          ...threadPayload,
           revision,
         });
         if (!updated.ok) {
@@ -837,41 +936,94 @@ export function SocialPostComposerDialog({
     }
   }
 
-  const mediaStrip = (
-    <div
-      className="flex flex-wrap items-center gap-2"
-      data-testid="social-post-media"
-    >
-      {media.map((ref) => (
-        <FileChipMiniPreview
-          key={ref.pathname}
-          fileName={ref.name}
-          mediaType={ref.mimeType}
-          onRemove={
-            isScheduleOnly || isBusy
-              ? undefined
-              : () => handleRemoveMedia(ref.pathname)
-          }
-          removeLabel={t("composer.media.remove", { name: ref.name })}
-          size={ref.size}
-          sizeClass="size-16"
-          url={ref.fileUrl}
-        />
-      ))}
-    </div>
-  );
+  function renderCounter(
+    text: string,
+    countProvider: typeof provider,
+    part: number,
+    errorId: string,
+  ) {
+    const metrics = socialPostTextMetrics(text, countProvider);
+    return (
+      <span className="ms-auto flex flex-col items-end gap-0.5">
+        <span
+          aria-live="polite"
+          className={cn(
+            "text-xs tabular-nums",
+            metrics.overLimit ? "text-destructive" : "text-muted-foreground",
+          )}
+          data-testid="social-post-character-count"
+        >
+          {t("composer.characters", {
+            count: metrics.count,
+            limit: metrics.limit,
+          })}
+        </span>
+        {metrics.overLimit ? (
+          <p
+            className="text-destructive text-xs"
+            data-testid="social-post-too-long"
+            id={errorId}
+          >
+            {isThread ? t("thread.tooLong", { part }) : t("composer.tooLong")}
+          </p>
+        ) : null}
+      </span>
+    );
+  }
+
+  function renderMediaControls(
+    attached: SocialPostMediaRef[],
+    partId: string | null,
+    counter: React.ReactNode,
+  ) {
+    return (
+      <SocialPostComposerMedia
+        media={attached}
+        disabled={isBusy || isScheduleOnly}
+        uploading={uploadPending && mediaTargetRef.current === partId}
+        onPick={() => {
+          mediaTargetRef.current = partId;
+          setPickerOpen(true);
+        }}
+        onUpload={() => {
+          mediaTargetRef.current = partId;
+          fileInputRef.current?.click();
+        }}
+        onRemove={(pathname) =>
+          changeMedia(partId, (current) =>
+            current.filter((ref) => ref.pathname !== pathname),
+          )
+        }
+      >
+        {counter}
+      </SocialPostComposerMedia>
+    );
+  }
+
+  function moveThreadPart(index: number, direction: -1 | 1): void {
+    setThreadParts((parts) => {
+      const next = [...parts];
+      const destination = index + direction;
+      if (destination < 0 || destination >= parts.length) return parts;
+      [next[index], next[destination]] = [next[destination], next[index]];
+      return next;
+    });
+  }
 
   const hasContent =
+    threadParts.length > 0 ||
     media.length > 0 ||
     accountTexts.some((account) => account.text.trim() !== "");
   const isDirty =
     mode.kind === "create"
-      ? firstComment.trim() !== "" ||
+      ? threadChanged ||
+        firstComment.trim() !== "" ||
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
         scheduledAt !== ""
-      : firstComment !== (post?.firstComment ?? "") ||
+      : threadChanged ||
+        firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
         !sameSocialPostMedia(media, initial.media) ||
         scheduledAt !== initial.scheduledAt ||
@@ -1114,12 +1266,34 @@ export function SocialPostComposerDialog({
                       {t("composer.textForAccount")}
                     </p>
                   ) : null}
+                  {isThread ? (
+                    <span
+                      className="text-muted-foreground text-xs tabular-nums"
+                      aria-label={t("thread.positionLabel", {
+                        part: 1,
+                        total: threadParts.length + 1,
+                      })}
+                    >
+                      {t("thread.position", {
+                        part: 1,
+                        total: threadParts.length + 1,
+                      })}
+                    </span>
+                  ) : null}
                   <textarea
                     id={textId}
                     aria-describedby={
-                      displayedOverLimit ? tooLongId : undefined
+                      displayedOverLimit
+                        ? tooLongId
+                        : isThread && composerIssue
+                          ? `${textId}-empty`
+                          : undefined
                     }
-                    aria-invalid={displayedOverLimit || undefined}
+                    aria-invalid={
+                      displayedOverLimit ||
+                      (isThread && composerIssue !== null) ||
+                      undefined
+                    }
                     aria-label={t("composer.text")}
                     className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
                     disabled={isBusy}
@@ -1128,70 +1302,24 @@ export function SocialPostComposerDialog({
                     ref={textareaRef}
                     value={displayedText}
                   />
-                  {media.length > 0 ? mediaStrip : null}
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-11 md:h-8"
-                      disabled={isBusy}
-                      onClick={() => setPickerOpen(true)}
+                  {isThread && composerIssue ? (
+                    <p
+                      id={`${textId}-empty`}
+                      className="text-destructive text-xs"
                     >
-                      <ImagePlus className="size-4" aria-hidden />
-                      {t("composer.media.addFromDrive")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-11 md:h-8"
-                      disabled={isBusy}
-                      loading={uploadPending}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="size-4" aria-hidden />
-                      {t("composer.media.upload")}
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      accept={accept}
-                      className="hidden"
-                      multiple
-                      onChange={(event) => {
-                        const files = Array.from(event.target.files ?? []);
-                        event.target.value = "";
-                        void handleUploadFiles(files);
-                      }}
-                      type="file"
-                    />
-                    <span className="ms-auto flex flex-col items-end gap-0.5">
-                      <span
-                        aria-live="polite"
-                        className={cn(
-                          "text-xs tabular-nums",
-                          displayedOverLimit
-                            ? "text-destructive"
-                            : "text-muted-foreground",
-                        )}
-                        data-testid="social-post-character-count"
-                      >
-                        {t("composer.characters", {
-                          count: displayedText.length,
-                          limit: displayedLimit,
-                        })}
-                      </span>
-                      {displayedOverLimit ? (
-                        <p
-                          className="text-destructive text-xs"
-                          data-testid="social-post-too-long"
-                          id={tooLongId}
-                        >
-                          {t("composer.tooLong")}
-                        </p>
-                      ) : null}
-                    </span>
-                  </div>
+                      {partIssueText(composerIssue, 1)}
+                    </p>
+                  ) : null}
+                  {renderMediaControls(
+                    media,
+                    null,
+                    renderCounter(
+                      displayedText,
+                      previewConnection ? previewProvider : provider,
+                      1,
+                      tooLongId,
+                    ),
+                  )}
                   {/* One platform: the count above already is its limit. */}
                   {accountTexts.length > 1 ? (
                     <ul
@@ -1200,8 +1328,14 @@ export function SocialPostComposerDialog({
                       data-testid="social-post-platforms"
                     >
                       {accountTexts.map((account, index) => {
-                        const limit = SOCIAL_POST_TEXT_LIMITS[account.provider];
-                        const over = account.text.length > limit;
+                        const {
+                          limit,
+                          count,
+                          overLimit: over,
+                        } = socialPostTextMetrics(
+                          account.text,
+                          account.provider,
+                        );
                         return (
                           <li
                             className={cn(
@@ -1226,7 +1360,7 @@ export function SocialPostComposerDialog({
                                 format: t(
                                   `composer.formats.${socialPostComposerFormat(account.provider)}`,
                                 ),
-                                count: account.text.length,
+                                count,
                                 limit,
                               })}
                             </span>
@@ -1234,6 +1368,167 @@ export function SocialPostComposerDialog({
                         );
                       })}
                     </ul>
+                  ) : null}
+                  {threadParts.map((part, index) => {
+                    const position = index + 2;
+                    const fieldId = `${textId}-${part.id}`;
+                    const errorId = `${fieldId}-error`;
+                    const emptyId = `${fieldId}-empty`;
+                    const metrics = socialPostTextMetrics(part.text, "x");
+                    const issue = socialPostComposerDraftIssue(
+                      "x",
+                      part.text,
+                      part.media,
+                    );
+                    return (
+                      <section
+                        key={part.id}
+                        className="bg-background space-y-3 rounded-lg border p-4"
+                        aria-label={t("thread.part", { part: position })}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label
+                            htmlFor={fieldId}
+                            className="text-sm font-medium"
+                          >
+                            {t("thread.part", { part: position })}
+                          </label>
+                          <span
+                            className="text-muted-foreground text-xs tabular-nums"
+                            aria-label={t("thread.positionLabel", {
+                              part: position,
+                              total: threadParts.length + 1,
+                            })}
+                          >
+                            {t("thread.position", {
+                              part: position,
+                              total: threadParts.length + 1,
+                            })}
+                          </span>
+                          <div className="ms-auto flex flex-wrap items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-10 md:size-8"
+                              aria-label={t("thread.moveUp", {
+                                part: position,
+                              })}
+                              disabled={isBusy || index === 0}
+                              onClick={() => moveThreadPart(index, -1)}
+                            >
+                              <ArrowUp className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-10 md:size-8"
+                              aria-label={t("thread.moveDown", {
+                                part: position,
+                              })}
+                              disabled={
+                                isBusy || index === threadParts.length - 1
+                              }
+                              onClick={() => moveThreadPart(index, 1)}
+                            >
+                              <ArrowDown className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-10 md:min-h-8"
+                              disabled={isBusy}
+                              onClick={() =>
+                                setThreadParts((parts) =>
+                                  parts.filter(
+                                    (candidate) => candidate.id !== part.id,
+                                  ),
+                                )
+                              }
+                            >
+                              {t("thread.remove", { part: position })}
+                            </Button>
+                          </div>
+                        </div>
+                        <Textarea
+                          id={fieldId}
+                          value={part.text}
+                          disabled={isBusy}
+                          aria-invalid={
+                            metrics.overLimit || issue !== null || undefined
+                          }
+                          aria-describedby={
+                            metrics.overLimit
+                              ? errorId
+                              : issue
+                                ? emptyId
+                                : undefined
+                          }
+                          onChange={(event) =>
+                            setThreadParts((parts) =>
+                              parts.map((candidate) =>
+                                candidate.id === part.id
+                                  ? { ...candidate, text: event.target.value }
+                                  : candidate,
+                              ),
+                            )
+                          }
+                        />
+                        {issue ? (
+                          <p id={emptyId} className="text-destructive text-xs">
+                            {partIssueText(issue, position)}
+                          </p>
+                        ) : null}
+                        {renderMediaControls(
+                          part.media,
+                          part.id,
+                          renderCounter(part.text, "x", position, errorId),
+                        )}
+                      </section>
+                    );
+                  })}
+                  {canAddThread || isThread ? (
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          isBusy ||
+                          !canAddThread ||
+                          threadParts.length + 1 >= MAX_THREAD_PARTS
+                        }
+                        aria-describedby={
+                          threadParts.length + 1 >= MAX_THREAD_PARTS
+                            ? threadLimitId
+                            : undefined
+                        }
+                        onClick={() =>
+                          setThreadParts((parts) => [
+                            ...parts,
+                            { id: crypto.randomUUID(), text: "", media: [] },
+                          ])
+                        }
+                      >
+                        <Plus className="size-4" />
+                        {t("thread.add")}
+                      </Button>
+                      {threadParts.length + 1 >= MAX_THREAD_PARTS ? (
+                        <p
+                          id={threadLimitId}
+                          className="text-muted-foreground text-xs"
+                        >
+                          {t("thread.limit", { max: MAX_THREAD_PARTS })}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {threadAccountsInvalid ? (
+                    <p className="text-destructive text-sm" role="alert">
+                      {t("thread.onlyX")}
+                    </p>
                   ) : null}
                   {showFirstComment ? (
                     <div className="space-y-2">
@@ -1414,6 +1709,7 @@ export function SocialPostComposerDialog({
                   account={previewAccount}
                   className={cn(!hasContent && "opacity-60")}
                   media={media}
+                  threadParts={threadParts}
                   provider={previewProvider}
                   text={hasContent ? displayedText : t("composer.previewEmpty")}
                   timestamp={scheduledAtValid ? scheduledDate : null}
@@ -1480,6 +1776,20 @@ export function SocialPostComposerDialog({
         </div>
       </RoomFileDropZone>
 
+      <input
+        ref={fileInputRef}
+        accept={
+          mediaTargetRef.current ? socialPostComposerAccept(["x"]) : accept
+        }
+        className="hidden"
+        multiple
+        type="file"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          void handleUploadFiles(files, mediaTargetRef.current);
+        }}
+      />
       <DriveFilePicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}

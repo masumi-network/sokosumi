@@ -147,6 +147,7 @@ export interface SocialPostSummary {
   publishedThreadPartCount: number;
   failedThreadPartPosition: number | null;
   partiallyPublished: boolean;
+  publishingThreadPartPosition: number | null;
   status: SocialPostStatus;
   scheduledAt: Date | null;
   timezone: string | null;
@@ -274,6 +275,13 @@ export interface ApproveSocialPostInput extends ProjectScope {
   revision: number;
 }
 
+export interface ResumeSocialPostThreadInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+  confirmedNotPosted: true;
+}
+
 export interface RejectSocialPostInput extends ProjectScope {
   userId: string;
   postId: string;
@@ -338,6 +346,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
           : null),
     })),
     ...summarizeSocialPostThread(record),
+    publishingThreadPartPosition: record.publishingThreadPartPosition,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -1024,6 +1033,43 @@ export async function scheduleSocialPost(
         attemptCount: 0,
         nextAttemptAt: null,
       },
+      tx,
+    ),
+  );
+}
+
+export async function resumeSocialPostThread(
+  input: ResumeSocialPostThreadInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => resumeSocialPostThread(input, tx),
+      "Project changed while resuming a Social thread",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
+  const post = await requireScopedPost(input, tx);
+  requireRevision(post, input.revision);
+  if (
+    input.confirmedNotPosted !== true ||
+    post.status !== "FAILED" ||
+    post.provider !== "x" ||
+    post.threadParts.length === 0 ||
+    post.publishingThreadPartPosition == null ||
+    (post.leaseExpiresAt && post.leaseExpiresAt > new Date())
+  ) {
+    throw conflict(
+      "Only a failed X thread with an unconfirmed part can be resumed",
+    );
+  }
+  return mapSocialPost(
+    await writeWithRevision(
+      input,
+      input.revision,
+      { publishingThreadPartPosition: null },
       tx,
     ),
   );

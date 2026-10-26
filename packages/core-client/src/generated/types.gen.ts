@@ -7319,6 +7319,7 @@ export type SocialPost = {
     firstComment: string | null;
     media: Array<SocialPostMediaRef>;
     threadParts: Array<SocialPostThreadPart>;
+    publishingThreadPartPosition: number | null;
     /**
      * Total posts including the main text/media (1 for a single post).
      */
@@ -7522,6 +7523,14 @@ export type ScheduleSocialPostRequest = {
 };
 
 export type ApproveSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
+export type ResumeSocialPostThreadRequest = {
+    confirmedNotPosted: true;
     /**
      * Revision the client last observed; mismatches return 409
      */
@@ -52093,6 +52102,148 @@ export type PostProjectsByIdSocialPostsByPostIdApproveResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdApproveResponse = PostProjectsByIdSocialPostsByPostIdApproveResponses[keyof PostProjectsByIdSocialPostsByPostIdApproveResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeData = {
+    body: ResumeSocialPostThreadRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/thread/resume';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeError = PostProjectsByIdSocialPostsByPostIdThreadResumeErrors[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponses = {
+    /**
+     * Social thread ready to retry
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdThreadResumeResponse = PostProjectsByIdSocialPostsByPostIdThreadResumeResponses[keyof PostProjectsByIdSocialPostsByPostIdThreadResumeResponses];
 
 export type PostProjectsByIdSocialPostsByPostIdRejectData = {
     body: RejectSocialPostRequest;

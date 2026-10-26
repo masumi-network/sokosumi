@@ -28,6 +28,7 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     publishedThreadPartCount: 0,
     failedThreadPartPosition: null,
     partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "FAILED",
     socialConnection: connection,
     creator: { kind: "user", id: "user-1", name: "Alice" },

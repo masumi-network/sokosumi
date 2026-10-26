@@ -2660,7 +2660,8 @@
           "publishFailed": "Error al publicar: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
-          "duplicated": "Borrador creado."
+          "duplicated": "Borrador creado.",
+          "approved": "Publicación aprobada."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2672,7 +2673,8 @@
           "publishNow": "Publicar ahora",
           "retry": "Reintentar",
           "dismiss": "Descartar",
-          "duplicate": "Duplicar como borrador"
+          "duplicate": "Duplicar como borrador",
+          "approve": "Aprobar"
         },
         "publishDialog": {
           "title": "¿Publicar ahora?",
@@ -2925,7 +2927,29 @@
           "retryDescription": "{count, plural, one {Tu cuenta está reconectada. ¿Reintentar # publicación fallida?} other {Tu cuenta está reconectada. ¿Reintentar # publicaciones fallidas?}}",
           "later": "Más tarde"
         },
-        "moreActions": "Acciones de la publicación"
+        "moreActions": "Acciones de la publicación",
+        "thread": {
+          "add": "Añadir al hilo",
+          "limit": "Los hilos pueden tener hasta {max} partes.",
+          "part": "Parte {part}",
+          "position": "{part}/{total}",
+          "positionLabel": "Parte {part} de {total}",
+          "moveUp": "Subir la parte {part}",
+          "moveDown": "Bajar la parte {part}",
+          "remove": "Eliminar la parte {part}",
+          "onlyX": "Las partes de un hilo solo se pueden publicar en cuentas de X. Deselecciona las otras cuentas o elimina las partes adicionales.",
+          "empty": "La parte {part} está vacía. Añade texto o archivos multimedia.",
+          "tooLong": "La parte {part} supera el límite.",
+          "mediaInvalid": "Parte {part}: {error}",
+          "partlyPosted": "Publicado parcialmente",
+          "progress": "Publicado parcialmente: {published} de {total} partes publicadas.",
+          "failedPart": "La parte {part} ha fallado.",
+          "retry": "Reintentar las partes restantes",
+          "outcomeUnknown": "No hemos podido confirmar si se publicó la parte {part}. Compruébalo en X y confirma que no se publicó para continuar, o déjalo como está.",
+          "confirmNotPosted": "No se publicó, continuar",
+          "viewPart": "Ver la parte {part} en X",
+          "retryDescription": "Solo se publicarán las partes restantes."
+        }
       },
       "Detail": {
         "back": "Volver a proyectos",
