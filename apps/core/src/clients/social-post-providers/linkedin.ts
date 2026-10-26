@@ -4,10 +4,10 @@ import { socialPostProviderLabel } from "@sokosumi/utils";
 import {
   ComposioApiError,
   deleteComposioToolSession,
+  record,
 } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
-  ComposioPublishOutcomeUnknownError,
   ComposioToolError,
   createComposioToolSession,
   executeComposioTool,
@@ -33,13 +33,115 @@ const LINKEDIN_TOOL_SLUGS = [
   LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
 ];
 
-/** Post/share URN from a LinkedIn create response. */
-function externalIdOf(data: Record<string, unknown> | null): string | null {
-  const candidates = [data?.id, data?.urn, data?.post_urn, data?.share_id];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate) return candidate;
+/** Keys whose value is the created post's URN. */
+const LINKEDIN_POST_ID_KEYS = [
+  "x-restli-id",
+  "X-RestLi-Id",
+  "X-Restli-Id",
+  "restli_id",
+  "id",
+  "urn",
+  "post_urn",
+  "postUrn",
+  "post_id",
+  "ugcPost",
+  "ugc_post_urn",
+  "activity",
+  "activity_urn",
+];
+/** Keys whose value is a share URN or a bare numeric share id. */
+const LINKEDIN_SHARE_ID_KEYS = ["share_id", "shareUrn", "share_urn"];
+const LINKEDIN_NESTED_KEYS = [
+  "headers",
+  "response_headers",
+  "response_data",
+  "data",
+  "response_dict",
+];
+const LINKEDIN_POST_URN = /^urn:li:(?:share|ugcPost):[0-9]+$/;
+const LINKEDIN_ACTIVITY_URN = /^urn:li:activity:[0-9]+$/;
+const LINKEDIN_SCAN_DEPTH = 5;
+
+function linkedInUrnValue(value: unknown): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (typeof candidate !== "string") return null;
+  const trimmed = candidate.trim();
+  return LINKEDIN_POST_URN.test(trimmed) || LINKEDIN_ACTIVITY_URN.test(trimmed)
+    ? trimmed
+    : null;
+}
+
+function knownLinkedInPostId(value: unknown, depth: number): string | null {
+  const data = record(value);
+  if (!data || depth > LINKEDIN_SCAN_DEPTH) return null;
+  for (const key of LINKEDIN_POST_ID_KEYS) {
+    const urn = linkedInUrnValue(data[key]);
+    if (urn) return urn;
+  }
+  for (const key of LINKEDIN_SHARE_ID_KEYS) {
+    const candidate = data[key];
+    const urn = linkedInUrnValue(candidate);
+    if (urn) return urn;
+    if (typeof candidate === "string" && /^[0-9]+$/.test(candidate.trim())) {
+      return `urn:li:share:${candidate.trim()}`;
+    }
+    if (typeof candidate === "number" && Number.isSafeInteger(candidate)) {
+      return `urn:li:share:${candidate}`;
+    }
+  }
+  for (const key of LINKEDIN_NESTED_KEYS) {
+    const nested = knownLinkedInPostId(data[key], depth + 1);
+    if (nested) return nested;
   }
   return null;
+}
+
+function scanLinkedInUrn(
+  value: unknown,
+  pattern: RegExp,
+  depth: number,
+): string | null {
+  if (typeof value === "string") {
+    if (pattern.test(value.trim())) return value.trim();
+    // A nested JSON string is scanned as an object.
+    if (!value.trimStart().startsWith("{")) return null;
+  }
+  if (depth > LINKEDIN_SCAN_DEPTH) return null;
+  const values = Array.isArray(value)
+    ? value
+    : Object.values(record(value) ?? {});
+  for (const item of values) {
+    const found = scanLinkedInUrn(item, pattern, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Post URN from a LinkedIn create response. LinkedIn returns it only in the
+ * `x-restli-id` header, and Composio's wrapping of that varies, so known keys
+ * are checked first and any post or activity URN in the payload is the fallback.
+ */
+export function linkedInPostIdOf(data: unknown): string | null {
+  return (
+    knownLinkedInPostId(data, 0) ??
+    scanLinkedInUrn(data, LINKEDIN_POST_URN, 0) ??
+    scanLinkedInUrn(data, LINKEDIN_ACTIVITY_URN, 0)
+  );
+}
+
+/** Key paths (never values) of a response, to learn its shape from logs. */
+export function linkedInResponseKeyPaths(
+  value: unknown,
+  prefix = "",
+  depth = 0,
+): string[] {
+  const data = record(value);
+  if (!data || depth > LINKEDIN_SCAN_DEPTH) return [];
+  return Object.entries(data).flatMap(([key, nested]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return [path, ...linkedInResponseKeyPaths(nested, path, depth + 1)];
+  });
 }
 
 function urnOf(data: Record<string, unknown> | null): string | null {
@@ -91,8 +193,6 @@ async function registerLinkedInImage(input: {
   return assetUrn;
 }
 
-/** Wrap create-post transport failures: the post may exist even without a response. */
-
 /**
  * Publishes a LinkedIn post through a restricted tool-router session pinned to
  * the connected person. Images are registered and uploaded as assets; a video
@@ -113,7 +213,7 @@ export async function publishLinkedInPost(
   const author = linkedInPersonUrn(context.externalAccountId);
   try {
     const video = context.media.find((ref) => ref.kind === "video");
-    let externalId: string | null = null;
+    let response: Record<string, unknown> | null;
     let toolSlug = LINKEDIN_CREATE_POST_TOOL_SLUG;
 
     if (video) {
@@ -133,7 +233,7 @@ export async function publishLinkedInPost(
         });
       }
       toolSlug = LINKEDIN_CREATE_VIDEO_TOOL_SLUG;
-      const post = await guardSocialCreateOutcome(label, () =>
+      response = await guardSocialCreateOutcome(label, () =>
         executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
@@ -147,7 +247,6 @@ export async function publishLinkedInPost(
           signal: context.signal,
         }),
       );
-      externalId = externalIdOf(post);
     } else if (context.media.length > 0) {
       const downloaded = await downloadSocialPostMedia(
         "linkedin",
@@ -165,7 +264,7 @@ export async function publishLinkedInPost(
           }),
         );
       }
-      const post = await guardSocialCreateOutcome(label, () =>
+      response = await guardSocialCreateOutcome(label, () =>
         executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
@@ -181,9 +280,8 @@ export async function publishLinkedInPost(
           signal: context.signal,
         }),
       );
-      externalId = externalIdOf(post);
     } else {
-      const post = await guardSocialCreateOutcome(label, () =>
+      response = await guardSocialCreateOutcome(label, () =>
         executeComposioTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
@@ -198,17 +296,21 @@ export async function publishLinkedInPost(
           signal: context.signal,
         }),
       );
-      externalId = externalIdOf(post);
     }
 
-    if (!externalId) throw new ComposioPublishOutcomeUnknownError(label);
+    const externalId = linkedInPostIdOf(response);
+    if (!externalId) {
+      // The create call succeeded, so the post is live; only its id is missing.
+      console.warn("[linkedin] Published post returned no post id", {
+        toolSlug,
+        keyPaths: linkedInResponseKeyPaths(response).slice(0, 100),
+      });
+    }
     return {
       externalId,
-      publishedUrl: socialPostPublishedUrl(
-        "linkedin",
-        context.externalHandle,
-        externalId,
-      ),
+      publishedUrl: externalId
+        ? socialPostPublishedUrl("linkedin", context.externalHandle, externalId)
+        : null,
       toolSlug,
     };
   } finally {

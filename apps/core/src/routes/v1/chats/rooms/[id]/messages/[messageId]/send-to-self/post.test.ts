@@ -43,7 +43,10 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: { findFirst: roomFindFirstMock },
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
-    chatRoomMessage: { findFirst: messageFindFirstMock },
+    chatRoomMessage: {
+      findFirst: messageFindFirstMock,
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -70,7 +73,10 @@ const USER_ID = "user_123";
 const ORG_ID = "org_1";
 
 const tx = {
-  chatRoomMessage: { create: messageCreateMock },
+  chatRoomMessage: {
+    create: messageCreateMock,
+    groupBy: vi.fn().mockResolvedValue([]),
+  },
   chatRoom: { update: roomUpdateMock },
   chatRoomReadState: { upsert: readStateUpsertMock },
 };
@@ -157,7 +163,6 @@ function savedMessage(metadata: Record<string, unknown> | null) {
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 0 },
   };
 }
 

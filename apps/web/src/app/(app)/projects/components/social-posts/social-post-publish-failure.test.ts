@@ -118,6 +118,45 @@ describe("publishFailureCopy", () => {
     ).toBe("Couldn't publish. Open the post for details.");
   });
 
+  it.each([
+    [
+      "en",
+      en,
+      "We couldn't confirm the post. Check LinkedIn before retrying so it isn't posted twice.",
+    ],
+    [
+      "de",
+      de,
+      "Wir konnten den Beitrag nicht bestätigen. Prüfe LinkedIn, bevor du es erneut versuchst, damit er nicht doppelt erscheint.",
+    ],
+    [
+      "es",
+      es,
+      "No pudimos confirmar la publicación. Revisa LinkedIn antes de reintentar para no publicarla dos veces.",
+    ],
+  ] as const)(
+    "explains an unconfirmed publish in %s",
+    (locale, messages, expected) => {
+      const translate = createTranslator({
+        locale,
+        messages: messages.App.Projects.SocialPosts,
+      });
+      for (const lastError of [
+        "The publishing result could not be confirmed. Check LinkedIn before retrying to avoid a duplicate post.",
+        "The previous publishing attempt could not be confirmed. Check LinkedIn before retrying to avoid a duplicate post.",
+      ]) {
+        expect(
+          publishFailureCopy(
+            { ...post({ errorKind: "unknown" }), lastError },
+            (key, values) => translate(key, values),
+            formatList,
+            SOCIAL_PUBLIC_PROVIDERS,
+          ),
+        ).toBe(expected);
+      }
+    },
+  );
+
   it("falls back when there is no attempt", () => {
     expect(
       publishFailureCopy(

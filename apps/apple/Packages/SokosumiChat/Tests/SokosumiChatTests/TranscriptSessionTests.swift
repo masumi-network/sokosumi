@@ -222,6 +222,26 @@ struct TranscriptSessionTests {
     #expect(session.loadTask == nil)
   }
 
+  /// SOK-1484: every open starts away from the end, so opening reads nothing until the list reports reaching it; a
+  /// jump leaves the end.
+  @Test func everyOpenStartsAwayFromTheEndAndAJumpLeavesIt() async throws {
+    let session = TranscriptSession()
+    let message = try await parent()
+    session.open(roomId: testRoomId)
+    #expect(!session.isAtEnd)
+    session.setAtEnd(true)
+    #expect(session.isAtEnd, "The list reached the end.")
+    session.timeline.messages = [message]
+    session.requestJump(to: message.id)
+    #expect(!session.isAtEnd, "A jump moves the list off the end.")
+    session.setAtEnd(true)
+    session.open(roomId: "other")
+    #expect(!session.isAtEnd)
+    session.setAtEnd(true)
+    session.close()
+    #expect(!session.isAtEnd)
+  }
+
   /// One page at a time: a refresh or older page asked for meanwhile is dropped, not queued.
   @Test func aRefreshOrOlderPageWhileAnotherLoadsIsDropped() async throws {
     let transport = TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: "older"))])
