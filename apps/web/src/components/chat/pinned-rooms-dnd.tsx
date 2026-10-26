@@ -14,27 +14,12 @@ import { useTranslations } from "next-intl";
 import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { moveIdToSlot } from "@/lib/utils/move-id";
 
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
-
-/** `ids` with `activeId` moved to the slot `overId` holds. */
-export function movePinnedRoomId(
-  ids: string[],
-  activeId: string,
-  overId: string,
-): string[] {
-  const from = ids.indexOf(activeId);
-  const to = ids.indexOf(overId);
-  if (from === -1 || to === -1 || from === to) {
-    return ids;
-  }
-  const next = ids.filter((id) => id !== activeId);
-  next.splice(to, 0, activeId);
-  return next;
-}
 
 interface PinnedRoomsDndContextProps {
   roomIds: string[];
@@ -54,7 +39,7 @@ export function PinnedRoomsDndContext({
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over) return;
-    const next = movePinnedRoomId(roomIds, String(active.id), String(over.id));
+    const next = moveIdToSlot(roomIds, String(active.id), String(over.id));
     if (next !== roomIds) onReorder(next);
   }
 

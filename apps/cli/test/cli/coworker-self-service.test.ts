@@ -75,6 +75,9 @@ function fixture(vendorRole = "admin", status = "PENDING") {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
   };
   return {
     client,

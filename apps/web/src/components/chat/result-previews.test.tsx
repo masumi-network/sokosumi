@@ -1,7 +1,12 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { cardHref, ResultPreviewCard, ResultPreviews } from "./result-previews";
+import {
+  cardHref,
+  fileSize,
+  ResultPreviewCard,
+  ResultPreviews,
+} from "./result-previews";
 
 const { resultQuery } = vi.hoisted(() => ({ resultQuery: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
@@ -66,6 +71,44 @@ describe("chat result cards", () => {
     expect(html).toContain("Europe/Prague");
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
+  });
+  it("shows a hired Agent's Job as status, labelled input and a job link", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "job",
+          title: "Attention insights for nmkr.io",
+          status: "payment_pending",
+          question: null,
+          scheduledAt: null,
+          timezone: null,
+          assignee: "AttentionInsight",
+          agent: { name: "AttentionInsight", icon: null },
+          sourceHref: "/agents/agent/jobs/job",
+          details: [
+            { label: "Website", value: "https://nmkr.io" },
+            { label: "Study type", value: "web" },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain("jobHint.payment_pending");
+    expect(html).toContain("Website");
+    expect(html).toContain('href="https://nmkr.io/"');
+    expect(html).toContain(">nmkr.io</a>");
+    expect(html).toContain("openJob");
+    expect(html).not.toContain("recorded");
+    expect(html).not.toContain(">assignee<");
+    expect(html).not.toContain("input_url");
+  });
+  it("formats output sizes with a readable unit", () => {
+    const formatNumber = (value: number, options?: Intl.NumberFormatOptions) =>
+      new Intl.NumberFormat("en", options).format(value);
+    expect(fileSize(512, formatNumber)).toBe("512 byte");
+    expect(fileSize(182_000, formatNumber)).toBe("182 kB");
+    expect(fileSize(4_250_000, formatNumber)).toBe("4.3 MB");
   });
   it("names source and download links by their resource", () => {
     const html = renderToStaticMarkup(

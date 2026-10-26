@@ -8,6 +8,7 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_VERSIONS,
 } from "../index.js";
 
 const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -141,17 +142,18 @@ describe("Social performance insights", () => {
     ).toBe(false);
   });
 
-  it("adds X research to v25 while retaining chained work and result previews", () => {
+  it("adds X research to v31 while retaining coding, follow-up plans and result previews", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    const prior = getSokoBotVersion("v25");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
+    const prior = getSokoBotVersion("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
     expect(version.model).toBe(prior.model);
     expect(version.systemPrompt).toBe(prior.systemPrompt);
+    expect(version.capabilities).toBe(prior.capabilities);
     expect(version.skills).toEqual([
       ...prior.skills,
       "social-performance-insights",
     ]);
-    expect(version.createdAt).toBe("2026-10-20");
+    expect(version.createdAt).toBe("2026-10-26");
     const prompt = composeSystemPrompt(version);
     expect(prompt).toContain("list_social_performance");
     expect(prompt).toContain("read_social_performance_audience");
@@ -165,8 +167,17 @@ describe("Social performance insights", () => {
     expect(prompt).toContain("# Chat result previews");
     expect(prompt).toContain("# Chained work");
     expect(prompt).toContain("# Long and bulk work");
-    expect(composeSystemPrompt(prior)).not.toContain(
-      "# Social performance insights",
-    );
+    expect(prompt).toContain("# Coding with your tools");
+    expect(prompt).toContain("$SOKO_TOOLS_URL/<tool name>");
+    expect(prompt).toContain("is a follow-up plan, not a schedule");
+    expect(prompt).toContain("# Triage with Jev");
+    expect(prompt).toContain('replyStates: ["NO_REPLY"]');
+    for (const released of SOKO_BOT_VERSIONS.filter(
+      (candidate) => candidate.id !== version.id,
+    )) {
+      expect(composeSystemPrompt(released)).not.toContain(
+        "# Social performance insights",
+      );
+    }
   });
 });

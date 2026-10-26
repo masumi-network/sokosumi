@@ -123,6 +123,11 @@ function Harness() {
   );
 }
 
+// The tab bar's own reads are a phone's: a desktop waits for its sidebar.
+beforeEach(() => {
+  window.innerWidth = 390;
+});
+
 describe("useChatTabUnreadPresence", () => {
   beforeEach(() => {
     setAblyConnectionHealthy(false);

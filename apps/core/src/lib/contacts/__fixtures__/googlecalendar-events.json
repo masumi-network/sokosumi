@@ -1,0 +1,146 @@
+{
+  "items": [
+    {
+      "id": "evt_pilot_kickoff",
+      "status": "confirmed",
+      "summary": "Pilot kickoff with Acme",
+      "htmlLink": "https://www.google.com/calendar/event?eid=evt_pilot_kickoff",
+      "start": { "dateTime": "2026-10-14T10:00:00+02:00" },
+      "end": { "dateTime": "2026-10-14T11:00:00+02:00" },
+      "eventType": "default",
+      "organizer": { "email": "patrick@yellowhouse.gmbh", "self": true },
+      "attendees": [
+        {
+          "email": "patrick@yellowhouse.gmbh",
+          "self": true,
+          "organizer": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "nina.keller@acme-robotics.com",
+          "displayName": "Nina Keller",
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "bob@yellowhouse.gmbh",
+          "displayName": "Bob Teammate",
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "c_1888abc@resource.calendar.google.com",
+          "displayName": "Zurich-3-Matterhorn (8)",
+          "resource": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "lukas@acme-robotics.com",
+          "displayName": "Lukas Meier",
+          "responseStatus": "declined"
+        },
+        { "email": "sara@acme-robotics.com", "responseStatus": "needsAction" }
+      ]
+    },
+    {
+      "id": "evt_all_hands",
+      "status": "confirmed",
+      "summary": "Company all-hands",
+      "start": { "dateTime": "2026-10-13T16:00:00Z" },
+      "end": { "dateTime": "2026-10-13T17:00:00Z" },
+      "organizer": { "email": "ceo@bigpartner.com" },
+      "attendees": [
+        {
+          "email": "patrick@yellowhouse.gmbh",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        { "email": "p01@bigpartner.com" },
+        { "email": "p02@bigpartner.com" },
+        { "email": "p03@bigpartner.com" },
+        { "email": "p04@bigpartner.com" },
+        { "email": "p05@bigpartner.com" },
+        { "email": "p06@bigpartner.com" },
+        { "email": "p07@bigpartner.com" },
+        { "email": "p08@bigpartner.com" },
+        { "email": "p09@bigpartner.com" },
+        { "email": "p10@bigpartner.com" },
+        { "email": "p11@bigpartner.com" },
+        { "email": "p12@bigpartner.com" },
+        { "email": "p13@bigpartner.com" },
+        { "email": "p14@bigpartner.com" },
+        { "email": "p15@bigpartner.com" },
+        { "email": "p16@bigpartner.com" },
+        { "email": "p17@bigpartner.com" },
+        { "email": "p18@bigpartner.com" },
+        { "email": "p19@bigpartner.com" },
+        { "email": "p20@bigpartner.com" },
+        { "email": "p21@bigpartner.com" },
+        { "email": "p22@bigpartner.com" },
+        { "email": "p23@bigpartner.com" },
+        { "email": "p24@bigpartner.com" },
+        { "email": "p25@bigpartner.com" }
+      ]
+    },
+    {
+      "id": "evt_cancelled",
+      "status": "cancelled",
+      "summary": "Coffee with Max",
+      "start": { "dateTime": "2026-10-12T08:00:00Z" },
+      "end": { "dateTime": "2026-10-12T08:30:00Z" },
+      "attendees": [
+        { "email": "patrick@yellowhouse.gmbh", "self": true },
+        { "email": "max@gmail.com" }
+      ]
+    },
+    {
+      "id": "evt_offsite",
+      "status": "confirmed",
+      "summary": "Offsite",
+      "start": { "date": "2026-10-10" },
+      "end": { "date": "2026-10-11" },
+      "attendees": [
+        { "email": "patrick@yellowhouse.gmbh", "self": true },
+        { "email": "facilitator@offsites.com" }
+      ]
+    },
+    {
+      "id": "evt_focus",
+      "status": "confirmed",
+      "summary": "Focus time",
+      "eventType": "focusTime",
+      "start": { "dateTime": "2026-10-09T08:00:00Z" },
+      "end": { "dateTime": "2026-10-09T10:00:00Z" }
+    },
+    {
+      "id": "evt_declined",
+      "status": "confirmed",
+      "summary": "Vendor demo",
+      "start": { "dateTime": "2026-10-08T08:00:00Z" },
+      "end": { "dateTime": "2026-10-08T09:00:00Z" },
+      "organizer": { "email": "rep@vendor.com" },
+      "attendees": [
+        {
+          "email": "patrick@yellowhouse.gmbh",
+          "self": true,
+          "responseStatus": "declined"
+        },
+        {
+          "email": "rep@vendor.com",
+          "organizer": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "id": "evt_future",
+      "status": "confirmed",
+      "summary": "Board meeting",
+      "start": { "dateTime": "2030-01-01T08:00:00Z" },
+      "end": { "dateTime": "2030-01-01T09:00:00Z" },
+      "attendees": [
+        { "email": "patrick@yellowhouse.gmbh", "self": true },
+        { "email": "investor@vc.fund" }
+      ]
+    }
+  ],
+  "nextPageToken": "cal-page-2"
+}

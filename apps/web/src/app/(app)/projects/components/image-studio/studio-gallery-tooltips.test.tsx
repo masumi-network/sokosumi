@@ -42,7 +42,6 @@ function mount() {
       onVariation={vi.fn()}
       queued={[]}
       selectedIds={[]}
-      showProject={false}
     />,
   );
 }

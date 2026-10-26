@@ -61,6 +61,26 @@ describe("table typed values", () => {
       ),
     ).toThrow("Evidence must accompany");
   });
+  it.each(["2026-10-21T12:00:00.000Z", null])(
+    "rejects any write to a last_updated column (%s)",
+    (value) => {
+      expect(() =>
+        validateTableValues(
+          [
+            {
+              id,
+              name: "Last updated",
+              description: "",
+              type: "last_updated",
+              options: [],
+            },
+          ],
+          { [id]: value },
+          {},
+        ),
+      ).toThrow("Last updated is filled automatically");
+    },
+  );
   it("rejects foreign column IDs and overlarge rows", () => {
     const columns = [
       {

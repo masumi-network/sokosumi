@@ -15,10 +15,8 @@ import {
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   findLiveDirectByParticipantKey,
-  formerDirectUserIds,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
-  isReadOnlyDirectRoom,
   loadFormerDirectUserMembers,
   mapChatRoom,
   mapChatRoomMessage,
@@ -40,6 +38,7 @@ import {
   usersShareExternalChannel,
   validateChatCoworkerIds,
 } from "./helpers";
+import { formerDirectUserIds, isReadOnlyDirectRoom } from "./read-only-room";
 
 const { workspaceFindUniqueMock, coworkerFindManyMock } = vi.hoisted(() => ({
   workspaceFindUniqueMock: vi.fn(),

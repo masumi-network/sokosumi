@@ -134,6 +134,20 @@ export function formatElapsed(ms: number): string {
   return seconds < 100 ? `${seconds.toFixed(1)}s` : `${Math.round(seconds)}s`;
 }
 
+export type StudioVideoModel = StudioCatalog["videoModels"][number];
+
+export function isVideoAsset(asset: Pick<StudioAsset, "mediaType">): boolean {
+  return asset.mediaType === "VIDEO";
+}
+
+/** The extension a download of this version should carry. */
+export function assetFileExtension(
+  asset: Pick<StudioAsset, "mediaType" | "settings">,
+): string {
+  if (isVideoAsset(asset)) return "mp4";
+  return asset.settings?.outputFormat ?? "png";
+}
+
 export function assetContentUrl(
   asset: Pick<StudioAsset, "id" | "projectId">,
 ): string {
@@ -283,4 +297,18 @@ export interface StudioLabels {
   failedBodyUnreported: string;
   /** Opens the provider's own words, for whoever has to chase them. */
   failedDetails: string;
+
+  // Video: the mode switch, the video composer, and animating an image.
+  studioMode: string;
+  modeImage: string;
+  modeVideo: string;
+  videoComposerTitle: string;
+  videoPromptPlaceholder: string;
+  generateVideo: string;
+  videoLength: string;
+  videoFollowsImage: string;
+  videoNeedsProject: string;
+  animate: string;
+  animating: string;
+  stopAnimating: string;
 }

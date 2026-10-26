@@ -25,6 +25,7 @@ export interface SessionUser {
   termsAccepted: boolean;
   marketingOptIn: boolean;
   hideRoomUnreadCount?: boolean | null;
+  tagDirectMessages?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;

@@ -563,7 +563,17 @@ describe("dispatchChatRoomMention claim", () => {
         where: { id: TURN_ID, sokoBotId: "shared_bot" },
         select: { requestedByUserId: true },
       });
-      expect(streamTextMock).toHaveBeenCalled();
+      // The Coworker is told an assistant is asking, not "a teammate".
+      expect(streamTextMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: [
+            {
+              role: "user",
+              content: expect.stringContaining("Soko Bot (personal assistant)"),
+            },
+          ],
+        }),
+      );
     });
 
     it.each([

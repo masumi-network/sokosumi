@@ -198,7 +198,7 @@ describe("TaskSchedulesView", () => {
     expect(document.cookie).toContain("schedules_view_mode=grid");
     expect(screen.getByRole("list")).toHaveAttribute("data-view", "grid");
     expect(screen.getAllByTestId("schedule-row")).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "edit" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "more" })).toHaveLength(2);
     expect(screen.getAllByTestId("schedule-row")[0]).toHaveTextContent(
       "nextRun(Mon, 9:00)",
     );

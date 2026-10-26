@@ -547,9 +547,14 @@ describe.skipIf(!enabled)(
       resetJevScheduler();
       mode = "ok";
 
-      // A document with no extracted text: nothing to judge, and re-running
-      // it would reach the same answer forever.
+      // A document held back as unsafe: nothing about it may be sent, and
+      // re-running it would reach the same answer forever. (A document that
+      // merely has no text is judged on its metadata now, so it is not this.)
       const noText = await seedDoc(`c6-notext-${suffix}`, false);
+      await prisma.fileVersion.updateMany({
+        where: { resourceId: noText },
+        data: { extractionState: "QUARANTINED" },
+      });
       await elapseBackoff([noText]);
       const t = await tick();
       expect(t?.outcome.skipped).toBe("no-text");

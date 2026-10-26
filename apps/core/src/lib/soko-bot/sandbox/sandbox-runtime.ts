@@ -28,6 +28,7 @@ import {
   closeTurn,
   failTurn,
   RuntimeEventLog,
+  runtimeEvent,
 } from "@/lib/soko-bot/turn-loop";
 import { issueTurnToken } from "./turn-token";
 
@@ -268,7 +269,14 @@ export class SandboxSokoBotRuntime implements SokoBotRuntime {
       where: { eveSessionId: input.sessionId },
       select: { id: true },
     });
-    if (turn) waitUntil(stopTurnSandbox(turn.id));
+    if (!turn) return;
+    waitUntil(stopTurnSandbox(turn.id));
+    // The runner exits without reporting, so nothing else marks the session
+    // idle and the reconciler never settles: a stopped background run stayed
+    // CANCEL_REQUESTED until its six-hour deadline failed it.
+    await new RuntimeEventLog(turn.id, input.sessionId).append(
+      runtimeEvent("session.waiting", {}),
+    );
   }
 
   resetSession(input: RuntimeResetInput): Promise<void> {

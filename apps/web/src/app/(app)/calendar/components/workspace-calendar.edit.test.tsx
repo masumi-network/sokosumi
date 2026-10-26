@@ -139,6 +139,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) => {
       if (key === "event.accessibleName") {
         return `${values?.task}, ${values?.source}`;

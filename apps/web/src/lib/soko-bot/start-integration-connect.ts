@@ -1,8 +1,18 @@
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
 import { rememberComposioBotId } from "@/lib/composio/oauth-popup-protocol";
-import { SOKO_BOT_ID_PARAM } from "@/lib/soko-bot/bot-id-param";
+import {
+  INTEGRATION_RETURN_TO_PARAM,
+  SOKO_BOT_ID_PARAM,
+} from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+
+interface StartSokoBotConnectOptions {
+  /** A shared bot; the caller's own bot when absent. */
+  botId?: string | null;
+  /** Same-origin path to land on after OAuth instead of the console. */
+  returnTo?: string;
+}
 
 /**
  * Sends the tab to Composio to connect `provider` for one bot: a shared bot
@@ -12,7 +22,7 @@ import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
  */
 export async function startSokoBotConnect(
   provider: string,
-  botId?: string | null,
+  { botId, returnTo }: StartSokoBotConnectOptions = {},
 ): Promise<ActionError | null> {
   const returnUrl = new URL(
     `${SOKO_BOT_ROUTE}/integrations/return`,
@@ -20,6 +30,9 @@ export async function startSokoBotConnect(
   );
   returnUrl.searchParams.set("provider", provider);
   if (botId) returnUrl.searchParams.set(SOKO_BOT_ID_PARAM, botId);
+  if (returnTo) {
+    returnUrl.searchParams.set(INTEGRATION_RETURN_TO_PARAM, returnTo);
+  }
   const result = await connectSokoBotIntegrationAction({
     provider,
     returnUrl: returnUrl.toString(),

@@ -21,10 +21,7 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   ensureSystemSchedules: vi.fn().mockResolvedValue(undefined),
 }));
 
-import {
-  createSharedSokoBot,
-  sharedSokoBotRoomSlug,
-} from "./soko-bot-shared-create.service";
+import { createSharedSokoBot } from "./soko-bot-shared-create.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 
@@ -120,17 +117,5 @@ describe("createSharedSokoBot", () => {
       }),
     ).rejects.toMatchObject({ status: 403 });
     expect(calls).not.toContain("sokoBot.create");
-  });
-});
-
-describe("sharedSokoBotRoomSlug", () => {
-  it("ends with the bot id and keeps a readable head", () => {
-    expect(sharedSokoBotRoomSlug("Launch Team!", BOT_ID)).toBe(
-      `launch-team-${BOT_ID}`,
-    );
-  });
-
-  it("falls back to bot when the name has nothing slug-safe", () => {
-    expect(sharedSokoBotRoomSlug("!!!", BOT_ID)).toBe(`bot-${BOT_ID}`);
   });
 });

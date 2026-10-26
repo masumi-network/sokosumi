@@ -1,6 +1,6 @@
 # Sokosumi CLI
 
-[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.2`, with public access.
+[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.1.0`, with public access.
 It requires Node.js 24 and packages `dist` and `skills`. The binary is `sokosumi`.
 Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 [VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
@@ -171,6 +171,13 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks get TASK_ID -
 pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
+[VERIFIED: `src/cli/commands/tasks.ts`]
+Task ids accept a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through `GET /v1/tasks/:id` before other calls.
+`tasks create` and `tasks update` take `--name`, `--description` or `--description-file`, `--priority`, `--project-id`, and one assignee: `--coworker-id` or `--assignee-user-id`. `tasks update --unassign` and `--clear-project` remove the assignee or project.
+`tasks link TASK_ID --relation RELATION --to OTHER_TASK_ID [--note TEXT]` links Tasks; `tasks links TASK_ID` lists them.
+`tasks unlink` removes a link and `tasks relink` replaces one by deleting it and creating the new link, because Core's link PATCH cannot reverse direction. `tasks archive TASK_ID` archives a Task; Core then returns `404` for its detail, events, Jobs, and links (only `GET /v1/history?types=task&status=archived` still lists it), so finish normal work with `COMPLETED` or `CANCELED` instead.
+`tasks list` follows Core's cursor pages, reading all of them unless `--limit` is set. `--sort updatedAt` and `--sort priority` require `--limit`. It filters by `--project-id`, `--assignee-user-id`, and `--sort createdAt|updatedAt|priority`.
+
 [VERIFIED: `src/cli/index.ts`]
 Task commands reject `--organization-id` and `--workspace-id` before authentication. Use the Workspace slug instead.
 Other command families reject `--organization-slug`. Connection and Seat checks still take the organization ID.
@@ -269,7 +276,7 @@ Configuration precedence is flags, process environment, home preferences, local 
 ## Build from source
 
 [CORRECTION, VERIFIED: `package.json`] The earlier publication-disabled statement was stale.
-The manifest sets public npm access and version `1.0.2`. Use Node.js 24 for this source build.
+The manifest sets public npm access and version `1.1.0`. Use Node.js 24 for this source build.
 
 To run the built binary directly:
 

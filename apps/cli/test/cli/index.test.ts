@@ -114,6 +114,9 @@ test("resource commands reject mismatched target API keys before Core requests",
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
@@ -137,6 +140,9 @@ test("Coworker registration defaults to Preprod", async () => {
         post: async <T>() => ({}) as T,
         put: async () => {
           throw new Error("Unexpected PUT");
+        },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
         },
         patch: async <T>() => ({}) as T,
       },
@@ -189,6 +195,9 @@ test("developer connects a provisioned Coworker through CLI arguments", async ()
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -228,6 +237,9 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
         },
         put: async () => {
           throw new Error("Unexpected PUT");
+        },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
         },
         patch: async <T>() => {
           coreCalls += 1;
@@ -398,6 +410,9 @@ test("unknown subcommands fail inside the command module", async () => {
     patch: async <T>(): Promise<T> => {
       throw new Error("Core should not be called");
     },
+    delete: async <T>(): Promise<T> => {
+      throw new Error("Core should not be called");
+    },
   };
   const cases = [
     { argv: ["agents", "bogus"], message: /Unknown agents subcommand: bogus/ },
@@ -546,6 +561,9 @@ test("index JSON errors redact credential assignments", async () => {
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -657,6 +675,9 @@ test("auth whoami verifies the live identity on the selected target", async () =
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async () => {
           throw new Error("whoami must not write");
         },
@@ -698,6 +719,9 @@ test("auth whoami rejects missing authentication before Core", async () => {
           put: async () => {
             throw new Error("Unexpected PUT");
           },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
+          },
           patch: async () => {
             throw new Error("Unexpected write");
           },
@@ -729,6 +753,9 @@ test("auth whoami reports rejected credentials as one JSON error", async () => {
         },
         put: async () => {
           throw new Error("Unexpected PUT");
+        },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
         },
         patch: async () => {
           throw new Error("Unexpected write");
@@ -762,6 +789,9 @@ test("auth whoami rejects trailing arguments", async () => {
           put: async () => {
             throw new Error("Unexpected PUT");
           },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
+          },
           patch: async () => {
             throw new Error("Unexpected write");
           },
@@ -791,6 +821,9 @@ test("workspaces check reports a missing Seat without changing access", async ()
       },
       put: async () => {
         throw new Error("Unexpected PUT");
+      },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
       },
       patch: async () => {
         throw new Error("Seat check must not write");
@@ -824,6 +857,9 @@ test("workspaces check rejects missing authentication before Core", async () => 
           },
           put: async () => {
             throw new Error("Unexpected PUT");
+          },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
           },
           patch: async () => {
             throw new Error("Unexpected write");
@@ -860,6 +896,9 @@ test("workspaces check rejects missing identities and trailing arguments", async
           },
           put: async () => {
             throw new Error("Unexpected PUT");
+          },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
           },
           patch: async () => {
             throw new Error("Unexpected write");
@@ -980,6 +1019,9 @@ test("dispatches discover JSON without opening a TUI", async () => {
       put: async () => {
         throw new Error("Unexpected PUT");
       },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
@@ -1023,6 +1065,9 @@ test("dispatches new read commands through their exact Core routes", async () =>
         put: async () => {
           throw new Error("Unexpected PUT");
         },
+        delete: async () => {
+          throw new Error("Unexpected DELETE");
+        },
         patch: async <T>() => ({ data: null }) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -1062,6 +1107,9 @@ test("new read commands reject unauthenticated calls before Core", async () => {
           },
           put: async () => {
             throw new Error("Unexpected PUT");
+          },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
           },
           patch: async <T>() => {
             coreCalls += 1;
@@ -1105,6 +1153,9 @@ test("new commands require their exact subcommand and no trailing args", async (
           put: async () => {
             throw new Error("Unexpected PUT");
           },
+          delete: async () => {
+            throw new Error("Unexpected DELETE");
+          },
           patch: async <T>() => ({}) as T,
         },
         stdout: { write: (value) => output.push(value) },
@@ -1142,6 +1193,9 @@ test("dispatches agents list through the injected Core client", async () => {
       post: async <T>() => ({ data: null }) as T,
       put: async () => {
         throw new Error("Unexpected PUT");
+      },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
       },
       patch: async <T>() => ({ data: null }) as T,
     },
