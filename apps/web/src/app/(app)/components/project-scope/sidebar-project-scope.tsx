@@ -41,7 +41,7 @@ export function SidebarProjectScope() {
   const { projectId, name, label, mark, select } = useCurrentScope();
   const collapsed = state === "collapsed" && !isMobile;
   const prefetch = usePrefetchScopeProjects();
-  // PROTOTYPE: variants b and c label the picker and drop its rule.
+  // PROTOTYPE: variants b to d label the picker and drop its rule.
   const prototype = useSidebarPrototypeVariant() !== "a";
 
   const content = (
@@ -81,7 +81,7 @@ export function SidebarProjectScope() {
                 className={cn(
                   "font-medium data-[state=open]:bg-sidebar-accent",
                   prototype &&
-                    "h-auto py-1.5 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:py-0",
+                    "h-auto py-1.5 md:h-auto group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:py-0",
                 )}
                 onPointerDown={prefetch}
                 onClick={() => {
@@ -101,7 +101,7 @@ export function SidebarProjectScope() {
                     className={cn(
                       "font-medium data-[state=open]:bg-sidebar-accent",
                       prototype &&
-                        "h-auto py-1.5 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:py-0",
+                        "h-auto py-1.5 md:h-auto group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:py-0",
                     )}
                     // Rail only, and not over its own open popover.
                     tooltip={{ children: label, hidden: !collapsed || open }}

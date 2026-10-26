@@ -40,7 +40,10 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 import { useMarkFeatureSeen } from "./feature-badges";
-import { NavPrototypeGroup } from "./nav-group.prototype.client";
+import {
+  NavPrototypeGroup,
+  NavPrototypeSection,
+} from "./nav-group.prototype.client";
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
@@ -55,7 +58,7 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
-  /** PROTOTYPE: the foldable group variants b and c put this row in. */
+  /** PROTOTYPE: the foldable group variants b to d put this row in. */
   group?: "records" | "marketing";
 }
 
@@ -89,8 +92,11 @@ function ScopedMenuItems({
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
-  // PROTOTYPE: variants b and c group the nav and drop New task's rule.
-  const prototype = useSidebarPrototypeVariant() !== "a";
+  // PROTOTYPE: variants b, c and d group the nav and drop New task's rule;
+  // d labels every group with a small heading instead.
+  const variant = useSidebarPrototypeVariant();
+  const prototype = variant !== "a";
+  const sections = variant === "d";
 
   function handleNewTaskClick() {
     newTaskWizard?.openNewTaskWizard({ projectId });
@@ -314,11 +320,28 @@ function ScopedMenuItems({
       <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
-            {(prototype ? items.filter(({ group }) => !group) : items).map(
-              renderItem,
-            )}
+            {(sections
+              ? items.filter(({ key }) => key === "new-task")
+              : prototype
+                ? items.filter(({ group }) => !group)
+                : items
+            ).map(renderItem)}
           </SidebarMenu>
-          {prototype ? (
+          {sections ? (
+            <div className="pb-2">
+              <NavPrototypeSection title="Work">
+                {items
+                  .filter(({ key, group }) => !group && key !== "new-task")
+                  .map(renderItem)}
+              </NavPrototypeSection>
+              <NavPrototypeSection title="Records">
+                {inGroup("records").map(renderItem)}
+              </NavPrototypeSection>
+              <NavPrototypeSection title="Marketing">
+                {inGroup("marketing").map(renderItem)}
+              </NavPrototypeSection>
+            </div>
+          ) : prototype ? (
             <>
               <NavPrototypeGroup
                 title="Records"

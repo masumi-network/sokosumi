@@ -115,7 +115,7 @@ export default function Sidebar({
             <SidebarProjectScope />
           </Suspense>
           <PersonalAssistantNav />
-          {/* PROTOTYPE: variants b and c separate by space, not rules. */}
+          {/* PROTOTYPE: variants b to d separate by space, not rules. */}
           <SidebarPrototypeOnly variants={["a"]}>
             <SidebarSeparator className="-mt-px" />
           </SidebarPrototypeOnly>

@@ -123,7 +123,7 @@ export function ChatUnreadNavRows({
 
   const catchUpActive = pathname.startsWith(CHAT_CATCH_UP_PATH);
   const tSignals = useTranslations("App.Channels.Signals");
-  // PROTOTYPE: variants b and c name the filter instead of drawing an inbox.
+  // PROTOTYPE: variants b to d name the filter instead of drawing an inbox.
   const prototype = useSidebarPrototypeVariant() !== "a";
   // Everything waiting on the reader, across the rooms they have not muted.
   const needsYouTotal = rooms.reduce(

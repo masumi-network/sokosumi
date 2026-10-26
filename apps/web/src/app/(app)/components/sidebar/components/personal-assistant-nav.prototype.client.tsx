@@ -2,7 +2,7 @@
 
 /**
  * PROTOTYPE, throwaway: the Soko Bot entry with your bot's live state, for
- * sidebar variants b (row) and c (card). See `sidebar-prototype.client.tsx`.
+ * sidebar variants b and d (row) and c (card). See `sidebar-prototype.client.tsx`.
  * Copy is hard-coded English until a variant wins.
  */
 
@@ -144,7 +144,7 @@ export function SokoBotLiveNav({ bot }: { bot: SidebarSokoBotLive | null }) {
               asChild
               isActive={isActive}
               tooltip={`${name} · ${line.text}`}
-              className="h-auto py-1.5 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:py-0"
+              className="h-auto py-1.5 md:h-auto group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:py-0"
             >
               <SheetClose asChild>
                 <Link

@@ -496,7 +496,7 @@ export function OrganizationChatList({
     }, reloadAfterFailure);
   }
 
-  // PROTOTYPE: variants b and c name your own Direct "Name (you)".
+  // PROTOTYPE: variants b to d name your own Direct "Name (you)".
   function selfLabel(room: ChatRoom): string {
     const selfName = room.userMembers.find(
       (member) => member.id === currentUserId,
