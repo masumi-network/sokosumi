@@ -4,11 +4,11 @@ Units, a starting type scale, the heading mapping, line-height for wrapping text
 
 ## Units
 
-| Unit | Behavior |
-| --- | --- |
-| `px` | Fixed |
-| `em` | Scales with the current font size |
-| `rem` | Scales with the root font size |
+| Unit               | Behavior                                              |
+| ------------------ | ----------------------------------------------------- |
+| `px`               | Fixed                                                 |
+| `em`               | Scales with the current font size                     |
+| `rem`              | Scales with the root font size                        |
 | `%` on `font-size` | Relative to the parent's font size, behaves like `em` |
 
 ## Type scale
@@ -27,13 +27,13 @@ A starting point for a product interface, named by role:
 }
 ```
 
-| Role | Size | Line-height | Weight |
-| --- | --- | --- | --- |
-| Display | `2.25rem` (36px) | `1.1` | `600` |
-| Title | `1.5rem` (24px) | `1.2` | `600` |
-| Heading | `1.125rem` (18px) | `1.3` | `600` |
-| Body | `1rem` (16px) | `1.5` | `400` |
-| Caption | `0.8125rem` (13px) | `1.4` | `400` |
+| Role    | Size               | Line-height | Weight |
+| ------- | ------------------ | ----------- | ------ |
+| Display | `2.25rem` (36px)   | `1.1`       | `600`  |
+| Title   | `1.5rem` (24px)    | `1.2`       | `600`  |
+| Heading | `1.125rem` (18px)  | `1.3`       | `600`  |
+| Body    | `1rem` (16px)      | `1.5`       | `400`  |
+| Caption | `0.8125rem` (13px) | `1.4`       | `400`  |
 
 Emphasis within a role is one weight step up (`400` → `500`), not a size change.
 
@@ -61,11 +61,11 @@ In Tailwind, centralize the per-level classes in a component or `@layer base` ra
 
 `text-box` takes which edges to trim (`trim-both`, `trim-start`, `trim-end`) and where:
 
-| Keyword | Trims at |
-| --- | --- |
-| `cap` | The cap height (top) |
-| `alphabetic` | The baseline (bottom) |
-| `text` | The font's own text edge, keeping room for descenders |
+| Keyword      | Trims at                                              |
+| ------------ | ----------------------------------------------------- |
+| `cap`        | The cap height (top)                                  |
+| `alphabetic` | The baseline (bottom)                                 |
+| `text`       | The font's own text edge, keeping room for descenders |
 
 ```css
 /* trim top and bottom */
