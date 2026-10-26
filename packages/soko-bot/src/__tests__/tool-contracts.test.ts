@@ -138,6 +138,57 @@ describe("Soko Bot tool contracts", () => {
   });
 });
 
+describe("newsletter read tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const reads = [
+    "get_newsletter",
+    "list_newsletter_issues",
+    "get_newsletter_issue",
+    "get_newsletter_analytics",
+    "list_newsletter_subscribers",
+  ] as const;
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const valid = (capability: (typeof reads)[number]) =>
+    capability === "get_newsletter_issue"
+      ? { projectId, issueId }
+      : { projectId };
+
+  it.each(reads)(
+    "%s needs a project and takes no approval or send flag",
+    (capability) => {
+      const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+      expect(schema.safeParse(valid(capability)).success).toBe(true);
+      expect(schema.safeParse({}).success).toBe(false);
+      for (const field of ["approve", "autoApprove", "schedule", "send"])
+        expect(
+          schema.safeParse({ ...valid(capability), [field]: true }).success,
+        ).toBe(false);
+    },
+  );
+
+  it.each(reads)("%s tells the model content is untrusted", (capability) => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(/untrusted/i);
+  });
+
+  it("pages lists by default and bounds the page size", () => {
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_newsletter_issues.parse({ projectId }),
+    ).toEqual({ projectId, limit: 20 });
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_newsletter_subscribers.safeParse({
+        projectId,
+        limit: 101,
+      }).success,
+    ).toBe(false);
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.get_newsletter_analytics.safeParse({
+        projectId,
+        from: "2026-02-30",
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("evaluate_with_jev input", () => {
   const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
   const triage = {

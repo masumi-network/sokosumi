@@ -37,3 +37,20 @@ export const newsletterDraftInputSchema = z
     imageIds: z.array(z.uuid()).max(10).default([]),
   })
   .strict();
+
+/** The hosted signup page, its archive and the iframe that embeds it elsewhere. */
+export function newsletterSignupLinks(
+  publicSlug: string,
+  baseUrl: string,
+  embedTitle: string,
+) {
+  const signupUrl = new URL(
+    `/n/${encodeURIComponent(publicSlug)}`,
+    baseUrl,
+  ).toString();
+  return {
+    signupUrl,
+    archiveUrl: `${signupUrl}/archive`,
+    embedHtml: `<iframe src="${signupUrl}/embed" title="${embedTitle}" width="100%" height="440" style="border:0;background:transparent;" loading="lazy"></iframe>`,
+  };
+}

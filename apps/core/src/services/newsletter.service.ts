@@ -87,6 +87,18 @@ export async function putNewsletter(
   }
 }
 
+/** Subscribers by status, for the whole newsletter. */
+export async function countNewsletterSubscribers(newsletterId: string) {
+  const groups = await prisma.newsletterSubscriber.groupBy({
+    by: ["status"],
+    where: { newsletterId },
+    _count: { _all: true },
+  });
+  const counts = { PENDING: 0, ACTIVE: 0, UNSUBSCRIBED: 0, BOUNCED: 0 };
+  for (const group of groups) counts[group.status] = group._count._all;
+  return counts;
+}
+
 export async function listNewsletterSubscribers(
   scope: NewsletterScope,
   query: ListNewsletterSubscribersQuery,
@@ -113,7 +125,7 @@ export async function listNewsletterSubscribers(
         ]
       : undefined,
   };
-  const [subscribers, total, groups] = await Promise.all([
+  const [subscribers, total, counts] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
       where,
       cursor: cursor ? { id: cursor } : undefined,
@@ -122,14 +134,8 @@ export async function listNewsletterSubscribers(
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     prisma.newsletterSubscriber.count({ where }),
-    prisma.newsletterSubscriber.groupBy({
-      by: ["status"],
-      where: { newsletterId: newsletter.id },
-      _count: { _all: true },
-    }),
+    countNewsletterSubscribers(newsletter.id),
   ]);
-  const counts = { PENDING: 0, ACTIVE: 0, UNSUBSCRIBED: 0, BOUNCED: 0 };
-  for (const group of groups) counts[group.status] = group._count._all;
   const page = subscribers.slice(0, take);
   const contacts = await resolveContactSummaries(
     prisma,

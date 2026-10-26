@@ -84,6 +84,11 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_social_post",
   "create_social_post",
   "newsletter_draft_issue",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -103,6 +108,29 @@ export const SOKO_BOT_CAPABILITIES = [
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * Every tool on a Project's newsletter. Core offers them only while the
+ * newsletter is available to the bot's Project, and checks the same scope on
+ * each call. Approving, scheduling and sending stay with a person in the
+ * Newsletter UI, so no tool here does any of them.
+ */
+export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
+  "newsletter_draft_issue",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotNewsletterCapability(
+  value: string,
+): value is (typeof SOKO_BOT_NEWSLETTER_CAPABILITIES)[number] {
+  return (SOKO_BOT_NEWSLETTER_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
+}
 
 /**
  * Tools that run inside the bot's own sandbox: the web, a shell and a
@@ -221,6 +249,11 @@ const DIRECT_READ_CAPABILITIES = [
   "list_social_account_statistics",
   "refresh_social_account_statistics",
   "get_social_post",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
   "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
