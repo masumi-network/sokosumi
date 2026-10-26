@@ -1299,6 +1299,16 @@ describe("channel cache access and navigation", () => {
     },
   );
 
+  it("asks for a first message, not a channel mention, in an empty direct chat", () => {
+    const direct = { ...channelRoom(), id: "room-dm", kind: "direct" as const };
+    render(
+      <RoomsClient {...baseProps} rooms={[direct]} selectedRoomId="room-dm" />,
+      { wrapper: CacheWrapper },
+    );
+    expect(screen.getByText("Empty.noDirectMessagesDescription")).toBeTruthy();
+    expect(screen.queryByText("Empty.noMessagesDescription")).toBeNull();
+  });
+
   it("treats confirmed empty history as a hit", async () => {
     const view = render(<RoomsClient {...baseProps} />, {
       wrapper: CacheWrapper,

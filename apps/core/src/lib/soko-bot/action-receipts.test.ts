@@ -163,4 +163,22 @@ describe("image receipts", () => {
       }),
     ).toMatchObject({ targetId: null, disposition: "UNKNOWN" });
   });
+
+  it("treats a video job exactly like an image job", () => {
+    expect(
+      externalActionReceipt("generate_video", {
+        jobId: "job-v",
+        status: "QUEUED",
+      }),
+    ).toMatchObject({ targetId: "job-v", disposition: "APPLIED" });
+    expect(
+      externalActionReceipt("generate_video", { status: "FAILED" }),
+    ).toMatchObject({ disposition: "REJECTED" });
+    expect(
+      externalActionReceipt("generate_video", {
+        jobId: "job-v",
+        status: "SUBMISSION_UNCERTAIN",
+      }),
+    ).toMatchObject({ disposition: "UNKNOWN" });
+  });
 });

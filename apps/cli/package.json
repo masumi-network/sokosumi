@@ -1,6 +1,6 @@
 {
   "name": "@masumi_network/sokosumi",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Developer CLI for Sokosumi Coworker builders",
   "type": "module",
   "license": "MIT",
@@ -31,7 +31,7 @@
     "node": "24.x"
   },
   "dependencies": {
-    "@napi-rs/keyring": "2.1.1",
+    "@napi-rs/keyring": "2.1.2",
     "ink": "8.0.0",
     "react": "19.3.1"
   },

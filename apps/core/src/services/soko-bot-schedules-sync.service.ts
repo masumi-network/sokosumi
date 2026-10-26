@@ -30,6 +30,7 @@ import {
   proactiveGate,
   stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
+import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
 const BUSY_RETRY_DELAY_MS = 60_000;
@@ -37,7 +38,6 @@ const MAX_BUSY_ATTEMPTS = 5;
 const MAX_TRANSIENT_ATTEMPTS = 5;
 const MAX_NO_DESTINATION_ATTEMPTS = 5;
 const MAX_RETRY_DELAY_MS = 15 * 60 * 1_000;
-export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
 const BATCH_SIZE = 20;
 const MAX_SCHEDULE_ERROR_DETAIL_BYTES = 1_000;
@@ -110,7 +110,8 @@ function isRetryableScheduleFailure(error: unknown): boolean {
   if (isRetryableSokoBotRuntimeError(error)) {
     return true;
   }
-  return ["P1001", "P1002", "P2024", "P2034"].includes(
+  // P2028: no pool connection for a transaction in time, as under load.
+  return ["P1001", "P1002", "P2024", "P2028", "P2034"].includes(
     prismaErrorCode(error) ?? "",
   );
 }
@@ -153,6 +154,34 @@ export function sokoBotScheduleClientTurnId(
   scheduledFor: Date,
 ): string {
   return `schedule:${scheduleId}:${scheduledFor.toISOString()}`;
+}
+
+/**
+ * What a run of a schedule the bot or owner wrote is asked: which schedule it
+ * is, so the run can end a follow-up whose purpose is done, then the prompt.
+ * Built-in rhythms keep their own prompt.
+ */
+export function scheduleRunPrompt(schedule: {
+  id: string;
+  name: string;
+  prompt: string;
+  systemKey: string | null;
+  runOnce: boolean;
+  cronExpression: string;
+  timezone: string;
+  taskId: string | null;
+  jobId: string | null;
+}): string {
+  if (schedule.systemKey) return schedule.prompt;
+  const watches = schedule.taskId
+    ? ` It watches Task ${schedule.taskId}; Core removes it once that Task finishes.`
+    : schedule.jobId
+      ? ` It watches Job ${schedule.jobId}; Core removes it once that Job finishes.`
+      : "";
+  const lifecycle = schedule.runOnce
+    ? "It runs once; Core removes it after this run."
+    : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). When its purpose is done, remove it with delete_schedule and scheduleId ${schedule.id}.`;
+  return `[Schedule "${schedule.name}" (scheduleId ${schedule.id}). ${lifecycle}${watches}]\n\n${schedule.prompt}`;
 }
 
 export class SokoBotSchedulesSyncService {
@@ -285,7 +314,7 @@ export class SokoBotSchedulesSyncService {
         data: {
           scheduleId: due.id,
           scheduledFor,
-          prompt: due.prompt,
+          prompt: scheduleRunPrompt(due),
           status: "CLAIMED",
           attempt: 1,
           leaseToken,
@@ -507,6 +536,7 @@ export class SokoBotSchedulesSyncService {
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,
           source: "SCHEDULE",
+          ownScheduleId: schedule.systemKey ? undefined : schedule.id,
           // Built-in rhythms run on the route Core gives them; a schedule the
           // owner or the bot wrote is classified like any message.
           presetRoute:

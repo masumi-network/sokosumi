@@ -30,12 +30,13 @@ export async function GET(
   const base = getServerCoreApiBaseUrl().replace(/\/$/, "");
 
   try {
+    const headers = buildCoreChatProxyHeaders(request.headers);
+    // A `<video>` seeks with byte ranges, and Safari plays nothing without them.
+    const range = request.headers.get("range");
+    if (range) headers.set("range", range);
     const upstream = await fetch(
       `${base}/projects/${projectId}/image-studio/assets/${assetId}/content`,
-      {
-        headers: buildCoreChatProxyHeaders(request.headers),
-        cache: "no-store",
-      },
+      { headers, cache: "no-store" },
     );
     if (!upstream.ok || !upstream.body) {
       // 503 passes through as itself. Core answers it when the studio's
@@ -54,9 +55,13 @@ export async function GET(
         { status: upstream.status === 401 ? 401 : 404 },
       );
     }
+    const passThrough = ["content-length", "content-range", "accept-ranges"]
+      .map((name) => [name, upstream.headers.get(name)] as const)
+      .filter((entry): entry is readonly [string, string] => entry[1] !== null);
     return new NextResponse(upstream.body, {
-      status: 200,
+      status: upstream.status === 206 ? 206 : 200,
       headers: {
+        ...Object.fromEntries(passThrough),
         "content-type": upstream.headers.get("content-type") ?? "image/png",
         // Mirrors Core's policy rather than inventing a laxer one: the bytes
         // are stable, but permission to read them is not, so every reuse

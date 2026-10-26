@@ -362,7 +362,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-personal"
               className={cn(
-                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "personal" &&
                   "border-primary bg-card-background",
               )}
@@ -384,7 +384,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
-                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "organization" &&
                   "border-primary bg-card-background",
               )}

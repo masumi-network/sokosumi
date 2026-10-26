@@ -30,8 +30,16 @@ function prefetchNewTaskWizardWhenIdle(): () => void {
   return () => window.clearTimeout(timeout);
 }
 
+/** What a caller can prefill, and hear back, when it opens the wizard. */
+export interface NewTaskWizardOptions {
+  projectId?: string | null;
+  prompt?: string | null;
+  assigneeId?: string | null;
+  onTaskCreated?: (taskId: string) => void;
+}
+
 interface NewTaskWizardContextValue {
-  openNewTaskWizard: (options?: { projectId?: string | null }) => void;
+  openNewTaskWizard: (options?: NewTaskWizardOptions) => void;
 }
 
 const NewTaskWizardContext = createContext<NewTaskWizardContextValue | null>(
@@ -62,18 +70,15 @@ export function NewTaskWizardProvider({
 }: NewTaskWizardProviderProps) {
   const [instance, setInstance] = useState(0);
   const [open, setOpen] = useState(false);
-  const [defaultProjectId, setDefaultProjectId] = useState<string | null>(null);
+  const [options, setOptions] = useState<NewTaskWizardOptions>({});
 
   useMountEffect(prefetchNewTaskWizardWhenIdle);
 
-  const openNewTaskWizard = useCallback(
-    (options?: { projectId?: string | null }) => {
-      setDefaultProjectId(options?.projectId ?? null);
-      setInstance((current) => current + 1);
-      setOpen(true);
-    },
-    [],
-  );
+  const openNewTaskWizard = useCallback((next?: NewTaskWizardOptions) => {
+    setOptions(next ?? {});
+    setInstance((current) => current + 1);
+    setOpen(true);
+  }, []);
 
   const closeNewTaskWizard = useCallback(() => {
     setOpen(false);
@@ -86,7 +91,10 @@ export function NewTaskWizardProvider({
         <NewTaskWizard
           key={instance}
           instance={instance}
-          defaultProjectId={defaultProjectId}
+          defaultProjectId={options.projectId ?? null}
+          initialPrompt={options.prompt ?? null}
+          initialAssigneeId={options.assigneeId ?? null}
+          onTaskCreated={options.onTaskCreated}
           onClose={closeNewTaskWizard}
         />
       ) : null}

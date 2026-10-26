@@ -23,6 +23,8 @@ const f = vi.hoisted(() => {
     options: [],
     position: 0,
     version: 1,
+    width: null,
+    wrap: null,
   };
   const row = {
     id: "00000000-0000-4000-8000-000000000003",
@@ -48,6 +50,7 @@ const f = vi.hoisted(() => {
     get: vi.fn(),
     view: vi.fn(),
     invalidate: vi.fn(async () => {}),
+    toastError: vi.fn(),
     push: vi.fn(),
     views: [] as TableView[],
     score: {
@@ -59,6 +62,8 @@ const f = vi.hoisted(() => {
       options: [],
       position: 1,
       version: 1,
+      width: null,
+      wrap: null,
     },
   };
 });
@@ -66,6 +71,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "date" }),
 }));
+vi.mock("sonner", () => ({ toast: { error: f.toastError } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: f.push }) }));
 vi.mock("nuqs", async () => {
   const { useState } = await import("react");
@@ -75,7 +81,13 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: { session: { activeOrganizationId: null } } }),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: f.invalidate }),
+  keepPreviousData: vi.fn(),
+  useQueryClient: () => ({
+    invalidateQueries: f.invalidate,
+    setQueryData: vi.fn(),
+    setQueriesData: vi.fn(),
+    getQueriesData: () => [],
+  }),
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     isPending: false,
     error: null,
@@ -122,6 +134,11 @@ vi.mock("@/lib/services/data-table.client", () => ({
     list: vi.fn(),
   },
 }));
+/** A click selects a cell; a double click swaps in the editor. */
+function openCell() {
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
+  return screen.getByRole("textbox", { name: "Company" });
+}
 beforeEach(() => {
   vi.resetAllMocks();
   f.shown = [f.row];
@@ -180,7 +197,7 @@ it("F4: unresolved add-row blocks view navigation", async () => {
 it("F4: definitive cell rejection does not leave the cell retry-locked", async () => {
   f.batch.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Rejected edit" } });
   fireEvent.blur(cell);
@@ -200,7 +217,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
     .mockRejectedValueOnce(new TypeError("cell lost acknowledgement"))
     .mockRejectedValueOnce({ error: "Forbidden", message: "Archive rejected" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Pending cell" } });
   fireEvent.blur(cell);
@@ -226,7 +243,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
 it("F2: polling row removal pins the edited row and preserves its original version", async () => {
   f.batch.mockResolvedValue({ rows: [] });
   const { rerender } = render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Unsaved draft" } });
   expect(cell).toHaveValue("Unsaved draft");
@@ -248,34 +265,59 @@ it("F2: polling row removal pins the edited row and preserves its original versi
 it("F11: typing after Escape starts another edit", () => {
   const save = vi.fn();
   render(
-    <TableCell
-      column={f.column}
-      row={f.row}
-      disabled={false}
-      onSave={save}
-      onHistory={() => {}}
-    />,
+    <table>
+      <tbody>
+        <tr>
+          <TableCell
+            id="cell"
+            active={false}
+            tabbable
+            onActivate={() => {}}
+            onNavigate={() => false}
+            column={f.column}
+            row={f.row}
+            disabled={false}
+            onSave={save}
+            onHistory={() => {}}
+          />
+        </tr>
+      </tbody>
+    </table>,
   );
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Cancelled" } });
   fireEvent.keyDown(cell, { key: "Escape" });
-  fireEvent.change(cell, { target: { value: "New edit" } });
-  fireEvent.blur(cell);
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  const next = openCell();
+  expect(next).toHaveValue("Original");
+  fireEvent.change(next, { target: { value: "New edit" } });
+  fireEvent.blur(next);
   expect(save).toHaveBeenCalledWith(1, "New edit");
 });
 it("F11: IME composition keys do not submit or cancel the draft", () => {
   const save = vi.fn();
   render(
-    <TableCell
-      column={f.column}
-      row={f.row}
-      disabled={false}
-      onSave={save}
-      onHistory={() => {}}
-    />,
+    <table>
+      <tbody>
+        <tr>
+          <TableCell
+            id="cell"
+            active={false}
+            tabbable
+            onActivate={() => {}}
+            onNavigate={() => false}
+            column={f.column}
+            row={f.row}
+            disabled={false}
+            onSave={save}
+            onHistory={() => {}}
+          />
+        </tr>
+      </tbody>
+    </table>,
   );
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "日本" } });
   fireEvent.keyDown(cell, { key: "Enter", keyCode: 229 });
@@ -449,7 +491,7 @@ it("F2: canceling deliberate view navigation keeps the draft", () => {
   const confirm = vi.fn().mockReturnValue(false);
   vi.stubGlobal("confirm", confirm);
   render(<TableEditor id={f.column.tableId} />);
-  const input = screen.getByLabelText("Company");
+  const input = openCell();
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "Keep draft" } });
   fireEvent.change(screen.getByLabelText("view"), { target: { value: "" } });
@@ -809,7 +851,7 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   const priorConfirm = window.confirm;
   window.confirm = confirmSpy;
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Pending value" } });
   fireEvent.blur(cell);
@@ -844,15 +886,13 @@ it("F3: a cell error wraps instead of painting across the next column", async ()
   // nowrap is inherited, so the reset has to be on the cell and the error box.
   f.batch.mockRejectedValue({ error: "Conflict" });
   render(<TableEditor id={f.column.tableId} />);
-  const cell = screen.getByRole("textbox", { name: "Company" });
+  const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Conflicting value" } });
   fireEvent.blur(cell);
   const alert = await screen.findByRole("alert");
   expect(alert.className).toContain("whitespace-normal");
-  const valueCell = cell.closest("td");
-  expect(valueCell?.className).toContain("whitespace-normal");
-  expect(valueCell?.className).not.toContain("whitespace-nowrap");
+  expect(cell.closest("td")?.className).not.toContain("whitespace-nowrap");
 });
 
 it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
@@ -863,6 +903,7 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
   const valueCell = screen
     .getByRole("textbox", { name: "Notes" })
     .closest("td");
@@ -870,7 +911,7 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
   expect(valueCell?.className).not.toContain("align-middle");
   const checkboxCell = screen
     .getByRole("checkbox", { name: "selectRow" })
-    .closest("td");
+    .closest("th");
   expect(checkboxCell?.className).toContain("align-top");
 });
 
@@ -882,6 +923,7 @@ it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];
   render(<TableEditor id={f.column.tableId} />);
+  fireEvent.doubleClick(screen.getAllByRole("gridcell")[0]);
   expect(screen.getByRole("textbox", { name: "Notes" }).className).toContain(
     "dark:bg-transparent",
   );
@@ -989,4 +1031,197 @@ it("R1: the list owns no archived toggle of its own", () => {
   expect(screen.queryByRole("button", { name: /archiv/i })).toBeNull();
   expect(screen.queryByText("showArchived")).toBeNull();
   expect(screen.queryByText("showActive")).toBeNull();
+});
+
+const secondRow = {
+  ...f.row,
+  id: "00000000-0000-4000-8000-000000000006",
+  values: { [f.column.id]: "Second" },
+};
+
+it("R7: the row handle moves a row by keyboard, after its new neighbour", async () => {
+  f.shown = [f.row, secondRow];
+  f.batch.mockResolvedValue({ batchId: "batch", rows: [] });
+  render(<TableEditor id={f.column.tableId} />);
+  const [first, second] = screen.getAllByRole("button", { name: "reorderRow" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  await waitFor(() =>
+    expect(f.batch).toHaveBeenCalledWith(
+      f.column.tableId,
+      expect.objectContaining({
+        patch: [{ id: f.row.id, version: 1, afterRowId: secondRow.id }],
+      }),
+    ),
+  );
+  fireEvent.keyDown(second, { key: "ArrowUp" });
+  await waitFor(() =>
+    expect(f.batch).toHaveBeenLastCalledWith(
+      f.column.tableId,
+      expect.objectContaining({
+        patch: [{ id: secondRow.id, version: 1, afterRowId: null }],
+      }),
+    ),
+  );
+});
+
+it("R7: a sort defines the order, so rows lose their drag handles", async () => {
+  f.shown = [f.row, secondRow];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getAllByRole("button", { name: "reorderRow" })).toHaveLength(2);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "columnMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "sortAscending" }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryAllByRole("button", { name: "reorderRow" }),
+    ).toHaveLength(0),
+  );
+});
+
+it("R7: the column handle moves a column by keyboard", async () => {
+  const second = { ...f.column, id: f.score.id, name: "Second", position: 1 };
+  f.columns = [f.column, second];
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.keyDown(
+    screen.getAllByRole("button", { name: "reorderColumn" })[0],
+    { key: "ArrowRight" },
+  );
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  expect(
+    f.update.mock.calls[0][1].columns.map(
+      (column: { id: string }) => column.id,
+    ),
+  ).toEqual([second.id, f.column.id]);
+});
+
+it("S1: a row number holds the row chrome and the first column sticks", () => {
+  render(<TableEditor id={f.column.tableId} />);
+  const number = screen.getByRole("rowheader", { name: /1/ });
+  expect(number).toContainElement(
+    screen.getByRole("checkbox", { name: "selectRow" }),
+  );
+  expect(number.className).toContain("sticky");
+  expect(screen.getAllByRole("gridcell")[0].className).toContain("md:sticky");
+  expect(screen.getByRole("grid")).toHaveStyle({ width: "264px" });
+});
+
+it("S2: arrow keys move the selection between cells", () => {
+  const second = { ...f.column, id: f.score.id, name: "Second", position: 1 };
+  f.columns = [f.column, second];
+  render(<TableEditor id={f.column.tableId} />);
+  const [first, next] = screen.getAllByRole("gridcell");
+  expect(first).toHaveAttribute("tabindex", "0");
+  first.focus();
+  fireEvent.keyDown(first, { key: "ArrowRight" });
+  expect(next).toHaveFocus();
+  expect(next).toHaveAttribute("aria-selected", "true");
+  expect(next).toHaveAttribute("tabindex", "0");
+  expect(first).toHaveAttribute("tabindex", "-1");
+});
+
+it("S3: a keyboard resize saves the width through the column update", async () => {
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  const handle = screen.getByRole("separator", { name: "resizeColumn" });
+  expect(handle).toHaveAttribute("aria-valuenow", "200");
+  fireEvent.keyDown(handle, { key: "ArrowRight" });
+  expect(handle).toHaveAttribute("aria-valuenow", "216");
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  const [, body] = f.update.mock.calls[0];
+  expect(body.version).toBe(1);
+  expect(body.columns[0]).toMatchObject({ id: f.column.id, width: 216 });
+});
+
+it("S4: wrap text is a column toggle saved for everyone", async () => {
+  f.update.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.keyDown(screen.getByRole("button", { name: "columnMenu" }), {
+    key: "Enter",
+  });
+  const toggle = await screen.findByRole("menuitemcheckbox", {
+    name: "wrapText",
+  });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  fireEvent.click(toggle);
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1));
+  expect(f.update.mock.calls[0][1].columns[0]).toMatchObject({ wrap: true });
+});
+
+it("S5: a rejected layout save is reverted with a toast", async () => {
+  f.update.mockRejectedValue({ error: "Conflict" });
+  render(<TableEditor id={f.column.tableId} />);
+  const handle = screen.getByRole("separator", { name: "resizeColumn" });
+  fireEvent.keyDown(handle, { key: "ArrowLeft" });
+  expect(handle).toHaveAttribute("aria-valuenow", "184");
+  await waitFor(() => expect(f.toastError).toHaveBeenCalledTimes(1));
+  expect(f.toastError).toHaveBeenCalledWith("errors.layout");
+  await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "200"));
+});
+
+it("R8: a tag column filters by picking one of its options", () => {
+  Object.assign(f.column, {
+    type: "multiple_select",
+    options: ["lead", "customer"],
+  });
+  try {
+    render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("button", { name: "configureView" }));
+    fireEvent.change(screen.getByLabelText("filter"), {
+      target: { value: f.column.id },
+    });
+    const value = screen.getByLabelText("filterValue");
+    expect(value.tagName).toBe("SELECT");
+    expect(
+      [...(value as HTMLSelectElement).options].map((option) => option.value),
+    ).toEqual(["", "lead", "customer"]);
+    fireEvent.change(value, { target: { value: "lead" } });
+    expect(value).toHaveValue("lead");
+  } finally {
+    Object.assign(f.column, { type: "text", options: [] });
+  }
+});
+
+it("R9: a move waits for the one in flight, and a failed move refreshes", async () => {
+  f.shown = [f.row, secondRow];
+  let fail: (error: unknown) => void = () => {};
+  f.batch.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
+  render(<TableEditor id={f.column.tableId} />);
+  const [first] = screen.getAllByRole("button", { name: "reorderRow" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
+  f.invalidate.mockClear();
+  fail({ error: "Conflict" });
+  await waitFor(() =>
+    expect(f.invalidate).toHaveBeenCalledWith({
+      queryKey: ["table-rows", f.column.tableId],
+    }),
+  );
+  expect(f.batch).toHaveBeenCalledTimes(1);
+});
+
+it("R10: a Last updated column shows the row's time and is never edited or filtered", () => {
+  f.columns = [
+    f.column,
+    {
+      ...f.score,
+      id: "00000000-0000-4000-8000-000000000006",
+      name: "Last updated",
+      type: "last_updated",
+    },
+  ];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getByText("date").tagName).toBe("TIME");
+  expect(screen.queryByRole("textbox", { name: "Last updated" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "configureView" }));
+  expect(
+    [...(screen.getByLabelText("filter") as HTMLSelectElement).options].map(
+      (option) => option.value,
+    ),
+  ).toEqual(["", f.column.id]);
 });

@@ -1,5 +1,8 @@
 /** Bounded RFC 4180 CSV, including escaped quotes and embedded newlines. */
-export function parseTableCsv(text: string): string[][] {
+export function parseTableCsv(
+  text: string,
+  { maxRows = 10_000 }: { maxRows?: number } = {},
+): string[][] {
   if (text.length > 5_000_000) throw new Error("CSV exceeds 5 MB");
   const rows: string[][] = [];
   let row: string[] = [];
@@ -17,7 +20,8 @@ export function parseTableCsv(text: string): string[][] {
     pushField();
     rows.push(row);
     row = [];
-    if (rows.length > 10001) throw new Error("CSV exceeds 10,000 rows");
+    if (rows.length > maxRows + 1)
+      throw new Error(`CSV exceeds ${maxRows.toLocaleString("en-US")} rows`);
   }
   for (let index = 0; index < input.length; index++) {
     const char = input[index];

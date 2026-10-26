@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-10-26",
+  "generatedAtExact": "2026-10-26T01:37:27.694Z",
+  "source": "GET https://api.fal.ai/v1/models?category=text-to-video and category=image-to-video, filtered to the hand-verified endpoints, GET /v1/models/pricing, GET https://fal.ai/api/openapi/queue/openapi.json",
+  "endpointsListed": 6,
+  "modelsKept": 6,
+  "exclusions": [],
+  "models": [
+    {
+      "id": "kling-v4-image-to-video",
+      "label": "Kling 4.0 Image to Video",
+      "description": "Kling 4.0 animates a starting image into a 3 to 30-second video at 720p or 1080p",
+      "endpoint": "kling/v4/image-to-video",
+      "input": "image",
+      "imageField": "start_image_url",
+      "aspectRatios": [],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["720p", "1080p"],
+      "fixedInput": {},
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema. The frame follows the image.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.157,
+        "basis": "fal's pricing API lists $0.157 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/kling/v4/image-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/kling/v4/image-to-video"],
+      "verifiedAt": "2026-10-26"
+    },
+    {
+      "id": "kling-v4-text-to-video",
+      "label": "Kling 4.0 Text to Video",
+      "description": "Kling 4.0 generates videos from text prompts at 720p or 1080p",
+      "endpoint": "kling/v4/text-to-video",
+      "input": "text",
+      "imageField": null,
+      "aspectRatios": ["9:16", "16:9", "1:1"],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["720p", "1080p"],
+      "fixedInput": {},
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.157,
+        "basis": "fal's pricing API lists $0.157 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/kling/v4/text-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/kling/v4/text-to-video"],
+      "verifiedAt": "2026-10-26"
+    },
+    {
+      "id": "minimax-h3-max-image-to-video",
+      "label": "H3 Max Image to Video",
+      "description": "fal's H3 Max is a post-trained variant of MiniMax H3",
+      "endpoint": "minimax/h3-max/image-to-video",
+      "input": "image",
+      "imageField": "image_url",
+      "aspectRatios": [],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["480P", "768P", "1080P"],
+      "fixedInput": {
+        "prompt_expansion_mode": "balanced"
+      },
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema. The frame follows the image.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.0325,
+        "basis": "fal's pricing API lists $0.0325 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/minimax/h3-max/image-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/minimax/h3-max/image-to-video"],
+      "verifiedAt": "2026-10-26"
+    },
+    {
+      "id": "minimax-h3-max-text-to-video",
+      "label": "MiniMax H3 Max Text to Video",
+      "description": "fal's H3 Max is a post-trained variant of MiniMax H3",
+      "endpoint": "minimax/h3-max/text-to-video",
+      "input": "text",
+      "imageField": null,
+      "aspectRatios": ["9:16", "16:9", "1:1", "4:3", "3:4"],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["480P", "768P", "1080P"],
+      "fixedInput": {
+        "prompt_expansion_mode": "balanced"
+      },
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.0325,
+        "basis": "fal's pricing API lists $0.0325 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/minimax/h3-max/text-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/minimax/h3-max/text-to-video"],
+      "verifiedAt": "2026-10-26"
+    },
+    {
+      "id": "minimax-h3-max-turbo-image-to-video",
+      "label": "H3 Max Turbo Image to Video",
+      "description": "fal's H3 Max Turbo is a post-trained variant of MiniMax H3",
+      "endpoint": "minimax/h3-max-turbo/image-to-video",
+      "input": "image",
+      "imageField": "image_url",
+      "aspectRatios": [],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["480P", "768P", "1080P"],
+      "fixedInput": {
+        "prompt_expansion_mode": "balanced"
+      },
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema. The frame follows the image.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.01625,
+        "basis": "fal's pricing API lists $0.01625 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/minimax/h3-max-turbo/image-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/minimax/h3-max-turbo/image-to-video"],
+      "verifiedAt": "2026-10-26"
+    },
+    {
+      "id": "minimax-h3-max-turbo-text-to-video",
+      "label": "H3 Max Turbo Text to Video",
+      "description": "fal's H3 Max Turbo is a post-trained variant of MiniMax H3",
+      "endpoint": "minimax/h3-max-turbo/text-to-video",
+      "input": "text",
+      "imageField": null,
+      "aspectRatios": ["9:16", "16:9", "1:1", "4:3", "3:4"],
+      "durations": [5, 10, 15],
+      "durationEncoding": "number",
+      "resolutions": ["480P", "768P", "1080P"],
+      "fixedInput": {
+        "prompt_expansion_mode": "balanced"
+      },
+      "curatedRank": null,
+      "notes": "Capabilities read from fal's own queue schema.",
+      "price": {
+        "unit": "seconds",
+        "unitPriceUsd": 0.01625,
+        "basis": "fal's pricing API lists $0.01625 per second, which for video is the cheapest resolution tier. Not billed until a person verifies the per-resolution figures.",
+        "sourceUrl": "https://fal.ai/models/minimax/h3-max-turbo/text-to-video",
+        "verifiedAt": "2026-10-26"
+      },
+      "sourceUrls": ["https://fal.run/minimax/h3-max-turbo/text-to-video"],
+      "verifiedAt": "2026-10-26"
+    }
+  ]
+}

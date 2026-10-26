@@ -3,9 +3,23 @@ import { describe, expect, it } from "vitest";
 import {
   createSocialPostRequestSchema,
   scheduleSocialPostRequestSchema,
+  socialPostLastAttemptSchema,
 } from "./social-post.schema";
 
 const FUTURE = "2026-11-01T12:00:00.000Z";
+
+it("returns an attempt blocked by Project close through the public schema", () => {
+  expect(
+    socialPostLastAttemptSchema.parse({
+      attempt: 1,
+      trigger: "scheduler",
+      outcome: "project_closed",
+      errorKind: null,
+      providerOutcome: null,
+      finishedAt: FUTURE,
+    }).outcome,
+  ).toBe("project_closed");
+});
 
 describe("createSocialPostRequestSchema timezone", () => {
   it.each(["Europe/Zurich", "America/New_York", "UTC", "Etc/UTC"])(

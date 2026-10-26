@@ -2,7 +2,7 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn } from "@/app/tasks/actions";
@@ -12,6 +12,7 @@ import type {
 } from "@/app/tasks/types/task-board";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
@@ -19,6 +20,7 @@ import { TasksView } from "./tasks-view";
 const {
   dndContextPropsSpy,
   openCreateTaskMock,
+  openNewTaskWizardMock,
   pushMock,
   refreshMock,
   replaceMock,
@@ -26,6 +28,7 @@ const {
 } = vi.hoisted(() => ({
   dndContextPropsSpy: vi.fn(),
   openCreateTaskMock: vi.fn(),
+  openNewTaskWizardMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -58,12 +61,18 @@ vi.mock("./kanban-board", () => ({
     tasks,
     compact,
     columnFooterById,
+    columnHiddenCountById,
   }: {
     tasks: TaskWithCoworker[];
     compact: boolean;
     columnFooterById: Partial<Record<KanbanColumnId, ReactNode>>;
+    columnHiddenCountById?: Partial<Record<KanbanColumnId, number>>;
   }) => (
-    <div data-testid="board-density" data-compact={compact}>
+    <div
+      data-testid="board-density"
+      data-compact={compact}
+      data-done-hidden={columnHiddenCountById?.done ?? 0}
+    >
       {tasks.map((task) => (
         <div
           key={task.id}
@@ -148,6 +157,11 @@ vi.mock("./task-card", () => ({
     <div data-testid="board-overlay" data-compact={compact} />
   ),
 }));
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => ({
+    openNewTaskWizard: openNewTaskWizardMock,
+  }),
+}));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: ({
     ariaLabel,
@@ -194,6 +208,7 @@ const labels = {
     all: "All",
     scopeLabel: "Scope",
     scopeOwned: "Owned",
+    assignedToMe: "My tasks",
     scopeWorkspace: "Workspace",
     coworkerLabel: "Coworker",
     statusLabel: "Status",
@@ -252,11 +267,19 @@ function boardView(
   tasks: TaskWithCoworker[],
   defaultDensity?: ComponentProps<typeof TasksView>["defaultDensity"],
   doneCursor: string | null = null,
+  doneHidden = 0,
 ) {
   return (
     <TasksView
       tasks={tasks}
       listNextCursor={null}
+      columnHiddenCountById={{
+        backlog: 0,
+        todo: 0,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      }}
       columnNextCursorById={
         {
           backlog: null,
@@ -317,6 +340,27 @@ it("applies Display density to board and list and restores the saved preference"
   );
   expect(document.cookie).toContain("tasks_density=normal");
   document.cookie = "tasks_density=; max-age=0; path=/";
+});
+
+it("gates the toolbar New task button on the page's seat check, not the layout's", async () => {
+  openNewTaskWizardMock.mockClear();
+  const user = userEvent.setup();
+  // The layout still says no seat; the page's fresher check says yes.
+  const { unmount } = render(
+    <OrganizationSeatContext value={false}>
+      {boardView([TASK])}
+    </OrganizationSeatContext>,
+  );
+  await user.click(screen.getByRole("button", { name: "newTask" }));
+  expect(openNewTaskWizardMock).toHaveBeenCalledTimes(1);
+  unmount();
+
+  render(
+    <OrganizationSeatContext value={true}>
+      {cloneElement(boardView([TASK]), { canCreateTask: false })}
+    </OrganizationSeatContext>,
+  );
+  expect(screen.queryByRole("button", { name: "newTask" })).toBeNull();
 });
 
 /** Drives the board's real drop handler with the event dnd-kit would emit. */
@@ -535,4 +579,23 @@ it("drops a load-more task once it is archived, and keeps the other load-more ro
     screen.queryByTestId(`board-card-${archived.id}`),
   ).not.toBeInTheDocument();
   expect(boardCard(loaded.id)).toBeInTheDocument();
+});
+
+it("keeps the column's unloaded count in step as more Tasks load", async () => {
+  const doneHidden = () =>
+    screen.getByTestId("board-density").getAttribute("data-done-hidden");
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [
+      { ...CANCELED_TASK, id: "done-1" },
+      { ...CANCELED_TASK, id: "done-2" },
+    ],
+    nextCursor: "cursor-2",
+  });
+  render(boardView([TASK], undefined, "cursor-1", 24));
+  expect(doneHidden()).toBe("24");
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(await screen.findByTestId("board-card-done-2")).toBeInTheDocument();
+  // Two came in, so two fewer wait: the header still adds up to the column.
+  expect(doneHidden()).toBe("22");
 });

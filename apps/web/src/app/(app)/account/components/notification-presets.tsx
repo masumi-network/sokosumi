@@ -191,7 +191,7 @@ export function GroupAnswer({
             // word does.
             preset === "CUSTOM"
               ? "border-primary bg-primary-quinary text-primary"
-              : "border-input bg-background",
+              : "border-control-border bg-background",
             saving && "opacity-50",
           )}
         >

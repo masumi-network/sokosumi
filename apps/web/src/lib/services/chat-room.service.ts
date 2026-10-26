@@ -262,9 +262,12 @@ export const chatRoomService = (() => {
     }
   });
 
-  async function createRoom(body: CreateChatRoomRequest): Promise<ChatRoom> {
-    const response = await coreClient.createChatRoom(body);
-    return response.data;
+  /** `created` is false when a direct create-or-get returned an existing room. */
+  async function createRoom(
+    body: CreateChatRoomRequest,
+  ): Promise<{ room: ChatRoom; created: boolean }> {
+    const { data, response } = await coreClient.createChatRoom(body);
+    return { room: data.data, created: response?.status === 201 };
   }
 
   async function getChannelSlugAvailability(

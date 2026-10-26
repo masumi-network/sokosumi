@@ -17,7 +17,7 @@ const {
   jobFindManyMock,
   fetchQueueStatusMock,
   fetchQueueResultMock,
-  downloadImageMock,
+  downloadMediaMock,
   putMock,
   assetCreateMock,
   assetFindUniqueMock,
@@ -31,7 +31,7 @@ const {
   jobFindManyMock: vi.fn(),
   fetchQueueStatusMock: vi.fn(),
   fetchQueueResultMock: vi.fn(),
-  downloadImageMock: vi.fn(),
+  downloadMediaMock: vi.fn(),
   putMock: vi.fn(),
   assetCreateMock: vi.fn(),
   assetFindUniqueMock: vi.fn(),
@@ -41,7 +41,7 @@ const {
 }));
 
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
@@ -91,7 +91,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   )),
   fetchQueueStatus: fetchQueueStatusMock,
   fetchQueueResult: fetchQueueResultMock,
-  downloadImage: downloadImageMock,
+  downloadMedia: downloadMediaMock,
   submitToQueue: submitToQueueMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -100,7 +100,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import {
   reconcileJob,
-  settleWithImage,
+  settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
 function uncertainJob(overrides: Record<string, unknown> = {}) {
@@ -137,7 +137,7 @@ beforeEach(() => {
     workspaceId: "workspace-1",
     userId: "user-1",
   });
-  downloadImageMock.mockResolvedValue({
+  downloadMediaMock.mockResolvedValue({
     bytes: new Uint8Array([1, 2, 3]),
     contentType: "image/png",
   });
@@ -163,10 +163,10 @@ describe("a job we stopped hearing about", () => {
   it("accepts a completion that arrives after the outage", async () => {
     jobFindUniqueMock.mockResolvedValue(uncertainJob());
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     // The webhook takes this same path.
-    expect(downloadImageMock).toHaveBeenCalledTimes(1);
+    expect(downloadMediaMock).toHaveBeenCalledTimes(1);
     expect(assetCreateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -213,7 +213,7 @@ describe("the grace period", () => {
       authUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
-    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     const source = jobUpdateMock.mock.calls[0]![0].data.unreachableSource;
     expect(source).toBe("authorization");
@@ -240,9 +240,9 @@ describe("the grace period", () => {
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
     fetchQueueResultMock.mockResolvedValue({
       kind: "completed",
-      images: [{ url: "https://v3b.fal.media/files/a.png" }],
+      media: [{ url: "https://v3b.fal.media/files/a.png" }],
     });
-    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    downloadMediaMock.mockRejectedValue(new Error("connection reset"));
     jobUpdateMock.mockResolvedValue({
       resultUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
@@ -272,7 +272,7 @@ describe("the grace period", () => {
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
     fetchQueueResultMock.mockResolvedValue({
       kind: "completed",
-      images: [{ url: "https://v3b.fal.media/files/a.png" }],
+      media: [{ url: "https://v3b.fal.media/files/a.png" }],
     });
 
     await reconcileJob("job-1");
