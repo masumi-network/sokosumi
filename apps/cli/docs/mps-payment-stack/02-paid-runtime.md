@@ -41,14 +41,14 @@
 
 ## Test matrix
 
-| Status | Layer | Required evidence |
-| --- | --- | --- |
-| [PROPOSED] Planned | Unit | Hash vectors; immutable terms; expired quotes; insufficient credits; foreign payment identity; no execution before confirmed funding. |
-| [PROPOSED] Planned | CLI integration | Generic/Hermes parity; one JSON document; secret redaction; revoked keys; pending and unknown responses. |
-| [PROPOSED] Planned | Disposable PostgreSQL | Concurrent funding consumes one approval and creates one debit. Lost commit responses preserve payment identity. |
-| [PROPOSED] Planned | Disposable PostgreSQL | Restart after output storage resumes seller submission. Credential rotation preserves authority or reports the missing authority. |
-| [PROPOSED] Planned | Disposable PostgreSQL | Full/partial refunds, duplicate reconciliation, prior compensation, and Task moves preserve the original payer and credit limits. |
-| [PROPOSED] Planned | Controlled Preprod | Authorized funding, confirmed lock, delivered output, seller submission, collection, and confirmed destination/amount/transaction. Repeat recovery and prove no second debit. |
+| Status             | Layer                 | Required evidence                                                                                                                                                             |
+| ------------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [PROPOSED] Planned | Unit                  | Hash vectors; immutable terms; expired quotes; insufficient credits; foreign payment identity; no execution before confirmed funding.                                         |
+| [PROPOSED] Planned | CLI integration       | Generic/Hermes parity; one JSON document; secret redaction; revoked keys; pending and unknown responses.                                                                      |
+| [PROPOSED] Planned | Disposable PostgreSQL | Concurrent funding consumes one approval and creates one debit. Lost commit responses preserve payment identity.                                                              |
+| [PROPOSED] Planned | Disposable PostgreSQL | Restart after output storage resumes seller submission. Credential rotation preserves authority or reports the missing authority.                                             |
+| [PROPOSED] Planned | Disposable PostgreSQL | Full/partial refunds, duplicate reconciliation, prior compensation, and Task moves preserve the original payer and credit limits.                                             |
+| [PROPOSED] Planned | Controlled Preprod    | Authorized funding, confirmed lock, delivered output, seller submission, collection, and confirmed destination/amount/transaction. Repeat recovery and prove no second debit. |
 
 [PROPOSED] Inject cancellation, deadline expiry, node outages, and lost responses at every external-write boundary. Mocks cannot replace Preprod proof. That test requires approved credentials, amount, target, and procedure.
 

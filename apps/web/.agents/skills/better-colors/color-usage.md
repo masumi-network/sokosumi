@@ -16,7 +16,7 @@ a { color: var(--color-accent-text); }
 .section-title { color: var(--color-text-primary); }
 ```
 
-The rule runs both ways. A color must not be *absent* where its meaning occurs. If the accent means interactive, an interactive element rendered neutral is just as misleading.
+The rule runs both ways. A color must not be _absent_ where its meaning occurs. If the accent means interactive, an interactive element rendered neutral is just as misleading.
 
 ## Use tokens in their role
 
