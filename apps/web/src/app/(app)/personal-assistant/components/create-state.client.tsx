@@ -1,6 +1,7 @@
 "use client";
 
 import type { SokoBotAvatar } from "@sokosumi/core-client";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState, useTransition } from "react";
@@ -107,7 +108,27 @@ export function CreateState({
         {t("description")}
       </p>
 
+      {/* People meet the idea here for the first time: say what it does in
+          their terms before asking them to name one. */}
+      <ul
+        aria-label={t("examplesLabel")}
+        className="mt-8 w-full space-y-3 text-sm leading-relaxed"
+      >
+        {(["exampleDelegate", "exampleBrief", "exampleMemory"] as const).map(
+          (key) => (
+            <li key={key} className="flex gap-3">
+              <Check
+                aria-hidden
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              />
+              <span className="text-foreground text-pretty">{t(key)}</span>
+            </li>
+          ),
+        )}
+      </ul>
+
       <form onSubmit={handleSubmit} className="mt-10 w-full space-y-6">
+        <p className="text-foreground text-sm font-medium">{t("nameIntro")}</p>
         <div className="space-y-2">
           <Label htmlFor={nameId}>{t("nameLabel")}</Label>
           <Input

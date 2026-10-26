@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
 import { AgentDetail } from "@/components/agents/agent-detail/agent-detail";
 import { AgentDetailViewTracker } from "@/components/agents/agent-detail/agent-detail-view-tracker";
@@ -14,6 +15,7 @@ export default async function AgentDetailPage({
 }: {
   params: Promise<{ agentId: string }>;
 }) {
+  await connection();
   const { agentId } = await params;
 
   // Wave 1: agent + session are independent.

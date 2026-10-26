@@ -135,7 +135,7 @@ export interface NormalisedCatalog {
   exclusions: CatalogExclusion[];
 }
 
-interface FetchOptions {
+export interface FetchOptions {
   fetchImpl: FetchLike;
   apiKey: string;
   /** Awaited between calls and between retries. Injected so tests do not wait. */
@@ -157,7 +157,7 @@ function requireBudget(options: FetchOptions): void {
   }
 }
 
-function defaultSleep(ms: number): Promise<void> {
+export function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -204,7 +204,7 @@ function authHeaders(apiKey: string): Record<string, string> {
 }
 
 /** Every active endpoint in one category, following fal's cursor pagination. */
-async function fetchFalModels(
+export async function fetchFalModels(
   options: FetchOptions,
   category = "text-to-image",
 ): Promise<FalModelRow[]> {
@@ -269,7 +269,7 @@ export async function fetchFalPrices(
  * Null is not a failure to retry: a handful of endpoints simply do not publish
  * a queue schema, and they are excluded rather than guessed at.
  */
-async function fetchFalSchema(
+export async function fetchFalSchema(
   endpointId: string,
   options: FetchOptions,
 ): Promise<unknown | null> {
@@ -364,7 +364,7 @@ export function isRefineVariantEndpoint(endpointId: string): boolean {
 }
 
 /** Resolve one `$ref` hop inside an OpenAPI document. */
-function deref(document: unknown, node: unknown): unknown {
+export function deref(document: unknown, node: unknown): unknown {
   if (typeof node !== "object" || node === null) return node;
   const ref = (node as { $ref?: unknown }).$ref;
   if (typeof ref !== "string" || !ref.startsWith("#/")) return node;
@@ -410,7 +410,7 @@ export function findPromptInputSchema(
 }
 
 /** Enum values a property offers, looking through `anyOf`/`oneOf` and `$ref`. */
-function enumValues(document: unknown, property: unknown): string[] {
+export function enumValues(document: unknown, property: unknown): string[] {
   const node = deref(document, property);
   if (typeof node !== "object" || node === null) return [];
   const direct = (node as { enum?: unknown }).enum;
@@ -461,7 +461,7 @@ const REQUIRED_IMAGE_FIELDS = [
   "images",
 ] as const;
 
-function slugFromEndpoint(endpointId: string): string {
+export function slugFromEndpoint(endpointId: string): string {
   return endpointId
     .replace(/^fal-ai\//, "")
     .replace(/[^a-zA-Z0-9]+/g, "-")
@@ -469,7 +469,7 @@ function slugFromEndpoint(endpointId: string): string {
     .toLowerCase();
 }
 
-function studioSubset(
+export function studioSubset(
   offered: string[],
   vocabulary: readonly string[],
 ): string[] {

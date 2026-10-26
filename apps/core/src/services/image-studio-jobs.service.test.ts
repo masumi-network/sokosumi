@@ -45,7 +45,7 @@ const {
 // The submit-time balance check: read-only, and not what this suite is about.
 // Money is covered end to end in `image-studio-credits.test.ts`.
 vi.mock("@/services/image-studio-files.service", () => ({
-  publishImageToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: { getBalance: getBalanceMock },

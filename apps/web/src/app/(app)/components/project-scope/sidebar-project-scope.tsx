@@ -27,6 +27,7 @@ import {
   openScopeSheet,
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
+import { usePrefetchScopeProjects } from "./use-scope-projects";
 
 /**
  * The project scope row above the navigation links it scopes.
@@ -38,6 +39,7 @@ export function SidebarProjectScope() {
   const [open, setOpen] = useState(false);
   const { projectId, name, label, mark, select } = useCurrentScope();
   const collapsed = state === "collapsed" && !isMobile;
+  const prefetch = usePrefetchScopeProjects();
 
   const content = (
     <>
@@ -65,6 +67,7 @@ export function SidebarProjectScope() {
                 aria-label={label}
                 data-testid="project-scope-sidebar-row"
                 className="font-medium data-[state=open]:bg-sidebar-accent"
+                onPointerDown={prefetch}
                 onClick={() => {
                   setOpenMobile(false);
                   openScopeSheet();
@@ -82,6 +85,8 @@ export function SidebarProjectScope() {
                     className="font-medium data-[state=open]:bg-sidebar-accent"
                     // Rail only, and not over its own open popover.
                     tooltip={{ children: label, hidden: !collapsed || open }}
+                    onPointerEnter={prefetch}
+                    onFocus={prefetch}
                   >
                     {content}
                   </SidebarMenuButton>

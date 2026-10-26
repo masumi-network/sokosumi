@@ -8,7 +8,9 @@ const {
   calendarMock,
   inboxMock,
   chargedMock,
+  contactLinesMock,
 } = vi.hoisted(() => ({
+  contactLinesMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -29,6 +31,9 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: integrationsMock,
   fetchCalendarEvents: calendarMock,
   fetchInboxMessages: inboxMock,
+}));
+vi.mock("@/services/contacts-context.service", () => ({
+  contactLinesByEmail: contactLinesMock,
 }));
 vi.mock("@/lib/soko-bot/task-charges", () => ({
   taskCreditsCharged: chargedMock,
@@ -94,6 +99,7 @@ beforeEach(() => {
   calendarMock.mockResolvedValue([]);
   inboxMock.mockResolvedValue([]);
   chargedMock.mockResolvedValue(new Map());
+  contactLinesMock.mockResolvedValue(new Map());
 });
 
 describe("meeting prep", () => {
@@ -123,6 +129,49 @@ describe("meeting prep", () => {
       to: new Date("2026-10-01T11:00:00.000Z"),
       limit: 10,
     });
+  });
+
+  it("says who a guest is from Contacts, and only for guests that are contacts", async () => {
+    calendarMock.mockResolvedValue([
+      event({ attendees: ["patrick@nmkr.io", "anna@acme.com", "new@x.io"] }),
+    ]);
+    contactLinesMock.mockResolvedValue(
+      new Map([
+        [
+          "anna@acme.com",
+          'Anna Muster — CEO @ Acme · partner · known by Bob (3) · last: 2 Sept 2026, Bob, meeting "Pilot" (contact c-1)',
+        ],
+      ]),
+    );
+    const packet = await buildRhythmPacket({
+      key: "meeting-prep",
+      bot,
+      now: slotAt,
+      dayStart: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    const text = packet.lines.join("\n");
+    expect(contactLinesMock).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      emails: ["anna@acme.com", "new@x.io"],
+      timeZone: "UTC",
+    });
+    expect(text).toContain(
+      "- Contact: Anna Muster — CEO @ Acme · partner · known by Bob (3)",
+    );
+    expect(text).not.toContain("Contact: new@x.io");
+  });
+
+  it("still preps the meeting when the Contacts lookup fails", async () => {
+    calendarMock.mockResolvedValue([event({})]);
+    contactLinesMock.mockRejectedValue(new Error("db down"));
+    const packet = await buildRhythmPacket({
+      key: "meeting-prep",
+      bot,
+      now: slotAt,
+      dayStart: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    expect(packet.skip).toBe(false);
+    expect(packet.lines.join("\n")).toContain("From outside: anna@acme.com");
   });
 
   it("searches a year of mail per person and drops calendar notices", async () => {

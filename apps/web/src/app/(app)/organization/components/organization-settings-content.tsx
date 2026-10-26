@@ -22,10 +22,12 @@ import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { coreClient } from "@/lib/clients/core.client";
 import { organizationService } from "@/lib/services/organization.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
+import { cn } from "@/lib/utils";
 
 interface OrganizationSettingsContentProps {
   organization: OrganizationRecord;
@@ -151,7 +153,7 @@ export async function OrganizationSettingsContent({
         generalMessage={tBilling("Errors.general")}
         unauthorizedMessage={tBilling("Errors.unauthorized")}
       />
-      <div className="mx-auto max-w-4xl space-y-12 px-4">
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />

@@ -213,4 +213,47 @@ describe("ProjectDetailActions", () => {
       duration: Infinity,
     });
   });
+
+  it("warns how many scheduled posts close will cancel", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={{
+          ...LABELS,
+          closeDialog: {
+            ...LABELS.closeDialog,
+            scheduledPostsWarning: "3 scheduled posts will be canceled.",
+          },
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "3 scheduled posts will be canceled.",
+    );
+  });
+
+  it("adds no scheduled-post warning when none will be canceled", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Scheduled work will be resolved before closing."),
+    ).toBeInTheDocument();
+  });
 });

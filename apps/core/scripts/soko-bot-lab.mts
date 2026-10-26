@@ -180,6 +180,7 @@ async function loadTurn(turnId: string) {
           jobId: true,
           action: true,
           outcome: true,
+          followUp: true,
         },
       },
       pendingDecisions: { select: { id: true, resultingEntityId: true } },

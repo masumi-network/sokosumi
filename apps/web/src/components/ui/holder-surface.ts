@@ -1,6 +1,6 @@
 /**
- * The Schedules page's nesting, shared with other lists (Soko Bots): a
- * darker rounded holder on the page background, and items inside it back on
+ * The page surfaces every app page uses (DESIGN.md, Page surfaces): a
+ * borderless light-gray holder on the white page, and items inside it back on
  * the page background with an outline. Kept out of client modules so Server
  * Components can import it.
  */

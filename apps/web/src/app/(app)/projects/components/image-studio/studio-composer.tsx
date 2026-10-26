@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 import {
@@ -26,7 +26,7 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
-import { StudioTemplateStrip } from "./studio-template-picker";
+import { StudioTemplateMenu } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
   assetContentUrl,
@@ -127,6 +127,9 @@ function TriggerLabel({
  * anyone could name. Emphasis is still carried where it belongs — these are
  * `ghost` and Generate is `primary`.
  */
+/** Share of the prompt limit at which the character count shows. */
+const COUNT_VISIBLE_FROM = 0.9;
+
 const TRIGGER_CLASS =
   "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
@@ -159,9 +162,18 @@ export function StudioComposer({
   parentAssetId,
   target,
   showTemplates = true,
+  onUndoTemplate,
+  modeSwitch,
 }: {
+  /** The Image / Video switch, when the catalog has video models. */
+  modeSwitch?: React.ReactNode;
   busy: boolean;
   showTemplates?: boolean;
+  /**
+   * Present while a template's brief can still be swapped back for the one it
+   * replaced. It sits on the toolbar, so offering it never moves the gallery.
+   */
+  onUndoTemplate?: () => void;
   catalog: StudioCatalog;
   labels: StudioLabels;
   onApplyTemplate: (template: StudioTemplate) => void;
@@ -455,35 +467,24 @@ export function StudioComposer({
       aria-label={labels.composerTitle}
       className="min-w-0 shrink-0 space-y-2"
     >
-      {showTemplates ? (
-        <StudioTemplateStrip
-          labels={labels}
-          onApplyTemplate={onApplyTemplate}
-        />
-      ) : null}
       {/* The chat room's own composer card, minus the formatting toolbar: same
           border, radius, padding and text size, so the two read as one. */}
       <RoomMessageComposer
         attachments={[]}
         belowEditor={
           <>
-            <div
-              className="text-muted-foreground flex flex-wrap justify-between gap-x-3 gap-y-1 px-4 pb-2 text-xs"
-              id={promptHelpId}
-            >
-              <span>{t("promptShortcut")}</span>
-              <span
-                className={cn(
-                  "tabular-nums",
-                  promptTooLong && "text-destructive",
-                )}
-              >
-                {t("promptCharacterCount", {
-                  count: promptLength,
-                  limit: MAX_PROMPT_LENGTH,
-                })}
+            {/* Like the DM composer, the card is only the prompt and its
+                controls: the shortcut is read to screen readers, and the
+                count and the template undo sit on the toolbar, so typing
+                never adds a row. */}
+            <span className="sr-only" id={promptHelpId}>
+              {t("promptShortcut")}
+            </span>
+            {onUndoTemplate ? (
+              <span className="sr-only" role="status">
+                {t("templateReplacedBrief")}
               </span>
-            </div>
+            ) : null}
             {promptTooLong ? (
               <p
                 className="text-destructive px-4 pb-2 text-xs"
@@ -543,8 +544,45 @@ export function StudioComposer({
             : labels.generateOne
         }
         sendDisabled={!canGenerate}
+        toolbarEnd={
+          <>
+            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
+              <span
+                className={cn(
+                  "text-muted-foreground text-xs tabular-nums",
+                  promptTooLong && "text-destructive",
+                )}
+              >
+                {t("promptCharacterCount", {
+                  count: promptLength,
+                  limit: MAX_PROMPT_LENGTH,
+                })}
+              </span>
+            ) : null}
+            {onUndoTemplate ? (
+              <Button
+                type="button"
+                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
+                onClick={onUndoTemplate}
+                size="sm"
+                variant="ghost"
+              >
+                <Undo2 aria-hidden />
+                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
+              </Button>
+            ) : null}
+          </>
+        }
         toolbarStart={
           <>
+            {modeSwitch}
+            {showTemplates ? (
+              <StudioTemplateMenu
+                labels={labels}
+                onApplyTemplate={onApplyTemplate}
+                triggerClassName={TRIGGER_CLASS}
+              />
+            ) : null}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -963,10 +1001,7 @@ export function StudioComposer({
               : promptHelpId
           }
           aria-invalid={promptTooLong || undefined}
-          className={cn(
-            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
-            "focus-visible:ring-ring-halo focus-visible:ring-[3px] focus-visible:ring-inset",
-          )}
+          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (

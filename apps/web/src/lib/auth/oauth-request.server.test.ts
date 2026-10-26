@@ -7,6 +7,7 @@ const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
 const getOAuthClientPublicMock = vi.fn();
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("./auth.server", () => ({
   getSession: () => getSessionMock(),
   getOAuthClientPublic: (clientId: string) =>

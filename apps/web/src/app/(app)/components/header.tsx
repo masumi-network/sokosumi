@@ -11,6 +11,7 @@ import {
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
+import { HeaderSearchTrigger } from "./header/header-search-trigger.client";
 import { HeaderTrailing } from "./header/header-trailing.client";
 
 interface HeaderProps {
@@ -35,6 +36,8 @@ export default function Header({ className, session }: HeaderProps) {
         <SidebarScopeMobileChip />
         <ProjectScopeGuard />
       </Suspense>
+
+      <HeaderSearchTrigger />
 
       <HeaderTrailing>
         <HeaderProfileSection session={session} />

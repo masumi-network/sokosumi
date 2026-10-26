@@ -230,12 +230,13 @@ export function useOrganizationChatRooms({
     refreshOnMount: true,
     refreshOnRecovery: true,
   });
+  // Archived rooms carry no unread state and arrive with the page, so they
+  // skip the mount read; archive and restore events still ask for them.
   const requestArchived = useChatRefreshScheduler({
     key: scope && hasOrganization ? `${scope}:archived` : null,
     refresh: refreshArchived,
     healthy,
     fallbackIntervalMs: ORGANIZATION_CHAT_FALLBACK_MS,
-    refreshOnMount: true,
     refreshOnRecovery: true,
   });
   const requestInvitations = useChatRefreshScheduler({
