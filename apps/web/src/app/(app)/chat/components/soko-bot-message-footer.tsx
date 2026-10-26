@@ -97,7 +97,7 @@ export function sokoBotSourceLabel(metadata: unknown): SourceLabel | null {
   }
 }
 
-const SOURCE_ICONS = {
+export const SOKO_BOT_SOURCE_ICONS = {
   inbox: Mail,
   standup: CalendarClock,
   weeklyWrap: CalendarClock,
@@ -111,7 +111,7 @@ export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
   const t = useTranslations("App.Chat.SokoBot.source");
   const label = sokoBotSourceLabel(metadata);
   if (!label) return null;
-  const Icon = SOURCE_ICONS[label.kind];
+  const Icon = SOKO_BOT_SOURCE_ICONS[label.kind];
   return (
     <div className="text-muted-foreground mb-1 inline-flex items-center gap-1.5 text-xs">
       <Icon aria-hidden className="size-3" />

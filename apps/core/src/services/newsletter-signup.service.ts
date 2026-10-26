@@ -21,6 +21,7 @@ import {
 } from "@/lib/newsletter/email";
 import {
   assertNewsletterEnabled,
+  isNewsletterEnabled,
   NEWSLETTER_BETA_SCOPE,
 } from "@/lib/newsletter/feature";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
@@ -31,6 +32,7 @@ import {
 import { contactListNameKey } from "@/services/contact-lists.service";
 
 const CONFIRMATION_RESEND_MS = 10 * 60_000;
+const WELCOME_LEASE_MS = 5 * 60_000;
 
 export async function getPublicNewsletter(publicSlug: string) {
   assertNewsletterEnabled();
@@ -260,7 +262,7 @@ export async function confirmNewsletterSubscriber(
   token: string,
   locale: string,
 ) {
-  const subscriber = await getNewsletterConfirmSubscriber(token);
+  let subscriber = await getNewsletterConfirmSubscriber(token);
   const activated = await prisma.$transaction(async (tx) => {
     const now = new Date();
     const { count } = await tx.newsletterSubscriber.updateMany({
@@ -284,54 +286,89 @@ export async function confirmNewsletterSubscriber(
     return count > 0;
   });
   if (!activated) {
-    const current = await getNewsletterConfirmSubscriber(token);
-    if (current.status !== "ACTIVE") {
+    subscriber = await getNewsletterConfirmSubscriber(token);
+    if (subscriber.status !== "ACTIVE") {
       throw badRequest("This subscription cannot be confirmed");
     }
-    return current;
   }
   const newsletter = subscriber.newsletter;
-  // Prior confirmation history must not trigger a second welcome.
-  if (!subscriber.confirmedAt && newsletter.welcomeEmailEnabled) {
+  if (!subscriber.welcomeSentAt && newsletter.welcomeEmailEnabled) {
+    const now = new Date();
+    const welcomeLeaseExpiresAt = new Date(now.getTime() + WELCOME_LEASE_MS);
+    const welcomeWhere = {
+      id: subscriber.id,
+      newsletterId: newsletter.id,
+      newsletter: { ...NEWSLETTER_BETA_SCOPE, welcomeEmailEnabled: true },
+      status: "ACTIVE" as const,
+      consentAt: subscriber.consentAt,
+      unsubscribedAt: null,
+      bouncedAt: null,
+      welcomeSentAt: null,
+    };
     try {
-      const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
-        newsletterId: newsletter.id,
-        subscriberId: subscriber.id,
-      });
-      const rendered = await renderNewsletterEmail({
-        newsletter: {
-          ...newsletter,
-          brand: newsletterBrandSchema.parse(newsletter.brand),
-        },
-        issue: {
-          subject: newsletter.welcomeSubject ?? newsletter.name,
-          template: "TEXT",
-          content: [{ type: "text", text: newsletter.welcomeBody ?? "" }],
-        },
-        unsubscribeUrl,
-        locale,
-      });
-      const active = await prisma.newsletterSubscriber.findUnique({
+      const { count } = await prisma.newsletterSubscriber.updateMany({
         where: {
-          id: subscriber.id,
-          newsletterId: newsletter.id,
-          newsletter: NEWSLETTER_BETA_SCOPE,
-          status: "ACTIVE",
-          consentAt: subscriber.consentAt,
-          unsubscribedAt: null,
-          bouncedAt: null,
+          ...welcomeWhere,
+          OR: [
+            { welcomeLeaseExpiresAt: null },
+            { welcomeLeaseExpiresAt: { lte: now } },
+          ],
         },
-        select: { id: true },
+        data: { welcomeLeaseExpiresAt },
       });
-      if (!active) return subscriber;
-      await sendEmail({
-        to: subscriber.email,
-        ...rendered,
-        ...newsletterSenderOptions(newsletter),
-        headers,
-        tag: "newsletter-welcome",
-        idempotencyKey: `newsletter-welcome:${subscriber.id}`,
-      });
+      if (!count) return subscriber;
+      try {
+        const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
+          newsletterId: newsletter.id,
+          subscriberId: subscriber.id,
+        });
+        const rendered = await renderNewsletterEmail({
+          newsletter: {
+            ...newsletter,
+            brand: newsletterBrandSchema.parse(newsletter.brand),
+          },
+          issue: {
+            subject: newsletter.welcomeSubject ?? newsletter.name,
+            template: "TEXT",
+            content: [{ type: "text", text: newsletter.welcomeBody ?? "" }],
+          },
+          unsubscribeUrl,
+          locale,
+        });
+        const active = await prisma.newsletterSubscriber.findUnique({
+          where: {
+            ...welcomeWhere,
+            welcomeLeaseExpiresAt: {
+              equals: welcomeLeaseExpiresAt,
+              gt: new Date(),
+            },
+          },
+          select: { id: true },
+        });
+        if (!active || !isNewsletterEnabled()) return subscriber;
+        await sendEmail({
+          to: subscriber.email,
+          ...rendered,
+          ...newsletterSenderOptions(newsletter),
+          headers,
+          tag: "newsletter-welcome",
+          idempotencyKey: `newsletter-welcome:${subscriber.id}`,
+        });
+        await prisma.newsletterSubscriber.updateMany({
+          where: {
+            id: subscriber.id,
+            welcomeLeaseExpiresAt,
+            welcomeSentAt: null,
+          },
+          data: { welcomeSentAt: new Date() },
+        });
+      } finally {
+        // The expiry also fences cleanup against a newer confirmation's claim.
+        await prisma.newsletterSubscriber.updateMany({
+          where: { id: subscriber.id, welcomeLeaseExpiresAt },
+          data: { welcomeLeaseExpiresAt: null },
+        });
+      }
     } catch (error) {
       captureException(error, { tags: { context: "newsletter_welcome" } });
     }

@@ -98,22 +98,44 @@ function pending(overrides: Record<string, unknown> = {}) {
   };
 }
 
+let subscriber = pending();
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NEWSLETTER_NOW);
   m.enabled = true;
-  let subscriber = pending();
-  m.findUnique.mockImplementation(async ({ where }) =>
-    where.status && where.status !== subscriber.status ? null : subscriber,
-  );
-  m.updateMany.mockImplementation(async () => {
-    if (subscriber.status !== "PENDING") return { count: 0 };
-    subscriber = {
-      ...subscriber,
-      status: "ACTIVE",
-      confirmedAt: NEWSLETTER_NOW,
-    };
+  subscriber = pending();
+  m.findUnique.mockImplementation(async ({ where }) => {
+    if (
+      where.status &&
+      (where.status !== subscriber.status ||
+        subscriber.unsubscribedAt ||
+        subscriber.bouncedAt ||
+        subscriber.consentAt?.getTime() !== where.consentAt?.getTime() ||
+        subscriber.welcomeSentAt ||
+        subscriber.welcomeLeaseExpiresAt?.getTime() !==
+          where.welcomeLeaseExpiresAt?.equals?.getTime() ||
+        (subscriber.welcomeLeaseExpiresAt &&
+          subscriber.welcomeLeaseExpiresAt <= new Date()) ||
+        !subscriber.newsletter.welcomeEmailEnabled)
+    )
+      return null;
+    return { ...subscriber };
+  });
+  m.updateMany.mockImplementation(async ({ where, data }) => {
+    if (
+      (where.status && where.status !== subscriber.status) ||
+      (where.welcomeSentAt === null && subscriber.welcomeSentAt) ||
+      (where.welcomeLeaseExpiresAt instanceof Date &&
+        where.welcomeLeaseExpiresAt.getTime() !==
+          subscriber.welcomeLeaseExpiresAt?.getTime()) ||
+      (where.OR &&
+        subscriber.welcomeLeaseExpiresAt &&
+        subscriber.welcomeLeaseExpiresAt > new Date())
+    )
+      return { count: 0 };
+    subscriber = { ...subscriber, ...data };
     return { count: 1 };
   });
   m.send.mockResolvedValue({ data: { id: "welcome" }, error: null });
@@ -149,6 +171,15 @@ describe("public newsletter confirmation", () => {
     expect(m.send).not.toHaveBeenCalled();
   });
 
+  it("GET keeps a retry form available for an active subscriber with an unsent welcome", async () => {
+    subscriber = pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW });
+    const response = await app().request(url());
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('method="post"');
+    expect(m.updateMany).not.toHaveBeenCalled();
+    expect(m.send).not.toHaveBeenCalled();
+  });
+
   it("POST activates and records CONFIRMED, with only one branded welcome under concurrent confirmation requests", async () => {
     const server = app();
     const responses = await Promise.all([
@@ -179,6 +210,8 @@ describe("public newsletter confirmation", () => {
       },
     });
     expect(m.send).toHaveBeenCalledOnce();
+    expect(subscriber.welcomeSentAt).toEqual(NEWSLETTER_NOW);
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
     const [email, options] = m.send.mock.calls[0]!;
     expect(email).toMatchObject({
       to: "reader@example.com",
@@ -246,27 +279,191 @@ describe("public newsletter confirmation", () => {
     },
   );
 
-  it("does not send another welcome when a pending row has prior confirmation history", async () => {
-    m.findUnique.mockResolvedValue(
-      pending({ confirmedAt: new Date("2026-10-01T00:00:00Z") }),
-    );
+  it("does not send another welcome when a pending row has prior welcome delivery", async () => {
+    subscriber = pending({
+      confirmedAt: new Date("2026-10-01T00:00:00Z"),
+      welcomeSentAt: new Date("2026-10-01T00:00:00Z"),
+    });
     expect((await app().request(url(), { method: "POST" })).status).toBe(200);
     expect(m.eventCreate).toHaveBeenCalledOnce();
     expect(m.send).not.toHaveBeenCalled();
   });
 
-  it("does not retry a welcome after a provider failure", async () => {
-    m.send.mockRejectedValue(new Error("test provider failure"));
+  it("retries a failed welcome on re-confirmation and records provider acceptance only once", async () => {
+    m.send.mockResolvedValueOnce({
+      data: null,
+      error: { name: "application_error", message: "test provider failure" },
+    });
     const server = app();
     expect((await server.request(url(), { method: "POST" })).status).toBe(200);
+    expect(subscriber.status).toBe("ACTIVE");
+    expect(subscriber.confirmedAt).toEqual(NEWSLETTER_NOW);
+    expect(subscriber.welcomeSentAt).toBeNull();
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
+    expect(await (await server.request(url())).text()).toContain(
+      'method="post"',
+    );
+    expect((await server.request(url(), { method: "POST" })).status).toBe(200);
+    expect(m.send).toHaveBeenCalledTimes(2);
+    expect(subscriber.welcomeSentAt).toEqual(NEWSLETTER_NOW);
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
+    expect((await server.request(url(), { method: "POST" })).status).toBe(200);
+    expect(m.send).toHaveBeenCalledTimes(2);
+    expect(await (await server.request(url())).text()).not.toContain("<form");
+    expect(m.eventCreate).toHaveBeenCalledOnce();
+  });
+
+  it("claims an unsent welcome once under concurrent active confirmations", async () => {
+    subscriber = pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW });
+    let finishSend = () => {};
+    const started = new Promise<void>((resolveStarted) => {
+      m.send.mockImplementationOnce(() => {
+        resolveStarted();
+        return new Promise((resolve) => {
+          finishSend = () => resolve({ data: { id: "welcome" }, error: null });
+        });
+      });
+    });
+    const server = app();
+    const first = server.request(url(), { method: "POST" });
+    await started;
+    expect(subscriber.welcomeSentAt).toBeNull();
+    expect(subscriber.welcomeLeaseExpiresAt).toEqual(
+      new Date(NEWSLETTER_NOW.getTime() + 5 * 60_000),
+    );
+    expect(m.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: NEWSLETTER_SUBSCRIBER_ID,
+        newsletterId: NEWSLETTER_ID,
+        newsletter: {
+          project: { workspace: { organization: { slug: "utxo" } } },
+          welcomeEmailEnabled: true,
+        },
+        status: "ACTIVE",
+        consentAt: NEWSLETTER_NOW,
+        unsubscribedAt: null,
+        bouncedAt: null,
+        welcomeSentAt: null,
+        OR: [
+          { welcomeLeaseExpiresAt: null },
+          { welcomeLeaseExpiresAt: { lte: NEWSLETTER_NOW } },
+        ],
+      },
+      data: { welcomeLeaseExpiresAt: subscriber.welcomeLeaseExpiresAt },
+    });
+    expect(m.findUnique).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({
+        status: "ACTIVE",
+        consentAt: NEWSLETTER_NOW,
+        unsubscribedAt: null,
+        bouncedAt: null,
+        welcomeSentAt: null,
+        newsletter: {
+          project: { workspace: { organization: { slug: "utxo" } } },
+          welcomeEmailEnabled: true,
+        },
+        welcomeLeaseExpiresAt: {
+          equals: subscriber.welcomeLeaseExpiresAt,
+          gt: NEWSLETTER_NOW,
+        },
+      }),
+      select: { id: true },
+    });
+    expect((await server.request(url(), { method: "POST" })).status).toBe(200);
+    expect(subscriber.welcomeLeaseExpiresAt).not.toBeNull();
+    expect(m.send).toHaveBeenCalledOnce();
+    finishSend();
+    expect((await first).status).toBe(200);
+    expect(subscriber.welcomeSentAt).toEqual(NEWSLETTER_NOW);
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
+    expect(m.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("retries an interrupted welcome only after its lease expires", async () => {
+    const leaseExpiresAt = new Date(NEWSLETTER_NOW.getTime() + 5 * 60_000);
+    subscriber = pending({
+      status: "ACTIVE",
+      confirmedAt: NEWSLETTER_NOW,
+      welcomeLeaseExpiresAt: leaseExpiresAt,
+    });
+    const server = app();
+    expect((await server.request(url(), { method: "POST" })).status).toBe(200);
+    expect(m.send).not.toHaveBeenCalled();
+    expect(subscriber.welcomeLeaseExpiresAt).toEqual(leaseExpiresAt);
+    vi.setSystemTime(leaseExpiresAt);
     expect((await server.request(url(), { method: "POST" })).status).toBe(200);
     expect(m.send).toHaveBeenCalledOnce();
-    expect(m.eventCreate).toHaveBeenCalledOnce();
+    expect(subscriber.welcomeSentAt).toEqual(leaseExpiresAt);
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
+  });
+
+  it("does not release another confirmation's welcome lease", async () => {
+    const newerLease = new Date(NEWSLETTER_NOW.getTime() + 6 * 60_000);
+    m.afterRender.mockImplementation(async () => {
+      subscriber = { ...subscriber, welcomeLeaseExpiresAt: newerLease };
+    });
+    expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+    expect(m.send).not.toHaveBeenCalled();
+    expect(subscriber.welcomeLeaseExpiresAt).toEqual(newerLease);
+  });
+
+  it.each(["UNSUBSCRIBED", "BOUNCED"])(
+    "does not retry a failed welcome after %s",
+    async (status) => {
+      m.send.mockRejectedValueOnce(new Error("test provider failure"));
+      const server = app();
+      expect((await server.request(url(), { method: "POST" })).status).toBe(
+        200,
+      );
+      subscriber = {
+        ...subscriber,
+        status,
+        ...(status === "UNSUBSCRIBED"
+          ? { unsubscribedAt: NEWSLETTER_NOW }
+          : { bouncedAt: NEWSLETTER_NOW }),
+      };
+      expect((await server.request(url(), { method: "POST" })).status).toBe(
+        400,
+      );
+      expect(m.send).toHaveBeenCalledOnce();
+      expect(subscriber.welcomeSentAt).toBeNull();
+    },
+  );
+
+  it.each(["unsubscribedAt", "bouncedAt", "consentAt"])(
+    "rechecks %s before retry dispatch",
+    async (field) => {
+      subscriber = pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW });
+      m.afterRender.mockImplementation(async () => {
+        subscriber = {
+          ...subscriber,
+          [field]: new Date(NEWSLETTER_NOW.getTime() + 1),
+        };
+      });
+      expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+      expect(m.send).not.toHaveBeenCalled();
+      expect(subscriber.welcomeSentAt).toBeNull();
+      expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
+    },
+  );
+
+  it("rechecks the feature flag before retry dispatch", async () => {
+    subscriber = pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW });
+    m.afterRender.mockImplementation(async () => {
+      m.enabled = false;
+    });
+    expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+    expect(m.send).not.toHaveBeenCalled();
+    expect(subscriber.welcomeLeaseExpiresAt).toBeNull();
   });
 
   it("keeps an already active subscription idempotent", async () => {
     m.findUnique.mockResolvedValue(
-      pending({ status: "ACTIVE", confirmedAt: NEWSLETTER_NOW }),
+      pending({
+        status: "ACTIVE",
+        confirmedAt: NEWSLETTER_NOW,
+        welcomeSentAt: NEWSLETTER_NOW,
+      }),
     );
     m.updateMany.mockReset().mockResolvedValue({ count: 0 });
     expect((await app().request(url(), { method: "POST" })).status).toBe(200);
