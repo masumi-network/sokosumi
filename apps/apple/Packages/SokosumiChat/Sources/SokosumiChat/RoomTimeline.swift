@@ -28,6 +28,8 @@ public final class RoomTimeline: ObservableObject {
   @Published public private(set) var unreadDividerMessageId: String?
   /// The first page asks Core for the open-at-unread mode (a room's main Transcript with no explicit target).
   public private(set) var opensAtUnread = false
+  /// The room showed Room unread as it opened, so Core's answer will most likely name a divider.
+  private var showsRoomUnread = false
   /// Per gap row (row 04a). Visibility and taps come from the caller; the
   /// page outcome settles it here, so the row is the only place a gap failure shows.
   @Published public var boundaryLoads = TranscriptBoundaryLoads()
@@ -60,10 +62,11 @@ public final class RoomTimeline: ObservableObject {
 
   public init() {}
 
-  public func reset(roomId: String? = nil, parentMessageId: String? = nil, opensAtUnread: Bool = false) {
+  public func reset(roomId: String? = nil, parentMessageId: String? = nil, opensAtUnread: Bool = false, showsRoomUnread: Bool = false) {
     generation += 1
     // A Thread never shows the divider.
     self.opensAtUnread = opensAtUnread && roomId != nil && parentMessageId == nil
+    self.showsRoomUnread = showsRoomUnread
     unreadDividerMessageId = nil
     activePage = nil
     historyRanges = RoomHistoryRanges()
@@ -166,12 +169,8 @@ public final class RoomTimeline: ObservableObject {
       return false
     }
     do {
-      let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
-      // An open-at-unread answer naming a divider is either the newest page or the window around an older divider.
-      // Either way it lands as a jump window on the newest page, which it joins through a gap row when it is older.
-      let opensAtDivider = kind == .initial && opensAtUnread && page.firstUnreadMessageId != nil
-      let newest = opensAtDivider
-        ? try await fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug) : nil
+      let (page, newest) = try await fetchPages(kind, client: client, roomId: roomId, cursor: requestedCursor,
+                                                organizationSlug: organizationSlug)
       guard generation == expectedGeneration, !Task.isCancelled else {
         if generation == expectedGeneration {
           abandonBoundary(kind)
@@ -187,6 +186,26 @@ public final class RoomTimeline: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// The page `kind` asks for and, for an open-at-unread answer naming a divider, the newest page it joins. That answer
+  /// is either the newest page or the window around an older divider; either way it lands as a jump window on the
+  /// newest page, which it joins through a gap row when it is older. The rule for asking for the newest page: a room
+  /// that showed Room unread as it opened asks beside the answer, not after it, so the open waits for one round trip;
+  /// any other room asks only once the answer names a divider, so a room with nothing unread costs one request.
+  private func fetchPages(_ kind: Page, client: Client, roomId: String, cursor: String?,
+                          organizationSlug: String?) async throws -> (RoomMessagesPage, newest: RoomMessagesPage?) {
+    let asksAtUnread = kind == .initial && opensAtUnread
+    let asksEarly = asksAtUnread && showsRoomUnread
+    async let earlyNewest = asksEarly ? fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug) : nil
+    let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug)
+    // Always awaited, so a page asked for is a page answered; one that failed is asked for again.
+    let early = try? await earlyNewest
+    guard asksAtUnread, page.firstUnreadMessageId != nil else { return (page, nil) }
+    if let early {
+      return (page, early)
+    }
+    return try await (page, fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug))
   }
 
   /// The first page names the visit's Unread divider. An open-at-unread answer lands after the newest page it joins.

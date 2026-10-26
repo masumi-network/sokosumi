@@ -356,15 +356,26 @@ import SwiftUI
         .jumpSpotlight(for: jumpMark)
         .task {
           // Position after the lazy list mounts. A default initial bottom
-          // anchor can leave the viewport unrealized on macOS 27.
-          guard workspaces.openRoom.room.timeline.historicalAnchor == nil, scrollTarget == nil else { return }
-          // Spec SOK-1481: a room with Room unread opens at its Unread divider, unless an explicit target took it.
-          if workspaces.openRoom.room.placesUnreadDivider, let unreadDividerId {
-            placeUnreadDivider(unreadDividerId)
-            workspaces.openRoom.room.endUnreadDividerPlacement()
-            return
-          }
+          // anchor can leave the viewport unrealized on macOS 27. The Unread divider places itself below.
+          guard workspaces.openRoom.room.timeline.historicalAnchor == nil, scrollTarget == nil,
+                !workspaces.openRoom.room.placesUnreadDivider else { return }
           proxy.scrollTo("timeline-bottom", anchor: .bottom)
+        }
+        // Spec SOK-1481: a room with Room unread opens at its Unread divider, unless an explicit target took it. Asked
+        // for the whole visit, not only as the list mounts: it can mount before the first page lands or before the
+        // divider's row is laid out, and the room is not read while a placement waits.
+        .onChange(of: workspaces.openRoom.room.unreadDividerPlacement(in: messages), initial: true) { _, placement in
+          switch placement {
+          case .none, .waits:
+            return
+          case let .place(id):
+            if workspaces.openRoom.room.timeline.historicalAnchor == nil, scrollTarget == nil {
+              placeUnreadDivider(id)
+            }
+          case .unplaceable:
+            proxy.scrollTo("timeline-bottom", anchor: .bottom)
+          }
+          Task { @MainActor in workspaces.openRoom.room.endUnreadDividerPlacement() }
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scroll.followsLatest ? .bottom : nil, for: .sizeChanges)
@@ -391,6 +402,10 @@ import SwiftUI
         }
         .onScrollPhaseChange { _, phase in
           scrollActivity.update(for: phase)
+          // A divider placement the reader interrupted settles here; one still correcting itself settles in its task.
+          if phase == .idle, firstRows.landingAnchor == nil, let edges = firstRows.edges {
+            scroll.cameToRest(at: edges, anchored: anchored)
+          }
           // Only a list at rest takes the rows: a jump's scroll animation is motion too.
           if phase == .idle, hasWaitingPage {
             Task { @MainActor in
@@ -437,8 +452,6 @@ import SwiftUI
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
-          firstRows.viewport = (edges.topInset, edges.viewportHeight)
-          firstRows.offset = edges.offsetY
           firstRows.edges = edges
           var next = scroll
           next.edgesChanged(from: oldEdges, to: edges, userIsScrolling: userIsScrolling, anchored: anchored)
@@ -490,12 +503,13 @@ import SwiftUI
     /// leaves a tall row higher, so once it has settled the list moves it the rest of the way, as an older page's
     /// landing does.
     private func placeUnreadDivider(_ id: String) {
-      scroll.readOlder()
+      scroll.placedUnreadDivider()
       firstRows.landingAnchor = id
       firstRows.forgetAnchorFrame()
       scrollPosition.scrollTo(id: id, anchor: UnitPoint(x: 0, y: 1.0 / 3))
       Task { @MainActor in
         defer { firstRows.landingAnchor = nil }
+        // A list the reader is moving settles the placement at its next rest instead (`onScrollPhaseChange`).
         guard await (try? Task.sleep(for: .milliseconds(150))) != nil, scrollActivity.isAtRest else { return }
         if let offset = firstRows.settledOffset(for: id, was: firstRows.viewport.topInset + firstRows.viewport.height / 3) {
           scrollPosition.scrollTo(y: offset)
@@ -503,7 +517,7 @@ import SwiftUI
         }
         // A short unread run leaves the list at its end, which the room is read at (SOK-1481).
         if let edges = firstRows.edges {
-          scroll.placementSettled(at: edges, anchored: anchored)
+          scroll.cameToRest(at: edges, anchored: anchored)
         }
       }
     }
@@ -562,12 +576,18 @@ import SwiftUI
   /// Where the transcript's first two rows sit in the viewport, and the row an older page's landing keeps in place
   /// (M6, row 04). A plain object: the geometry callbacks write it on every change without updating the view.
   @MainActor private final class FirstRowsPlacement {
-    /// The inset above the visible rows and their height.
-    var viewport: (topInset: CGFloat, height: CGFloat) = (0, 0)
-    /// The list's content offset, as the last geometry change reported it.
-    var offset: CGFloat = 0
     /// The list's edges, as the last geometry change reported them.
     var edges: TranscriptScrollEdges?
+    /// The inset above the visible rows and their height.
+    var viewport: (topInset: CGFloat, height: CGFloat) {
+      edges.map { ($0.topInset, $0.viewportHeight) } ?? (0, 0)
+    }
+
+    /// The list's content offset.
+    private var offset: CGFloat {
+      edges?.offsetY ?? 0
+    }
+
     /// The row a landing keeps in place, tracked until it has settled.
     var landingAnchor: String?
     private var rows: [Int: (id: String, frame: CGRect)] = [:]

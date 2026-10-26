@@ -169,8 +169,8 @@ public final class RoomReadAttention: ObservableObject {
     return true
   }
 
-  /// What the reader has in front of them when an automatic read is considered.
-  public struct Sight: Sendable {
+  /// The automatic read's inputs: what the reader has in front of them when it is considered.
+  public struct AutomaticReadInputs: Sendable {
     public let room: Components.Schemas.ChatRoom
     public let content: Content
     /// The newest history is loaded and no jump window stands in for it.
@@ -190,24 +190,23 @@ public final class RoomReadAttention: ObservableObject {
   /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts. The room is read
   /// only while its transcript is at its end (SOK-1481); away from it the open Thread is still Looked.
   @discardableResult
-  public func readIfNeeded(_ sight: Sight, client: Client, organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
-    let (room, content, atEnd) = (sight.room, sight.content, sight.atEnd)
-    let next = Marker(roomId: room.id, content: content, readsRoom: atEnd)
-    if marker?.covers(next) != true || !sight.historyReadable {
+  public func readIfNeeded(_ inputs: AutomaticReadInputs, client: Client, organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
+    let next = Marker(roomId: inputs.room.id, content: inputs.content, readsRoom: inputs.atEnd)
+    if marker?.covers(next) != true || !inputs.historyReadable {
       marker = nil
     }
-    guard isVisible, sight.historyReadable, marker == nil, atEnd || content.parentMessageId != nil else { return false }
+    guard isVisible, inputs.historyReadable, marker == nil, inputs.atEnd || inputs.content.parentMessageId != nil else { return false }
     marker = next
     let attempt = generation
-    let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)
-    if content.parentMessageId != nil, lookError == nil {
+    let lookError = await lookThread(roomId: inputs.room.id, content: inputs.content, client: client, organizationSlug: organizationSlug)
+    if inputs.content.parentMessageId != nil, lookError == nil {
       threadLooked()
     }
     guard attempt == generation, marker == next, isVisible, !Task.isCancelled else {
       clearMarker(matching: next)
       return false
     }
-    guard atEnd else {
+    guard inputs.atEnd else {
       if let lookError {
         clearMarker(matching: next)
         throw lookError
@@ -215,7 +214,7 @@ public final class RoomReadAttention: ObservableObject {
       return false
     }
     do {
-      guard try await readRoom(room, optimistic: true, client: client, organizationSlug: organizationSlug) else { return false }
+      guard try await readRoom(inputs.room, optimistic: true, client: client, organizationSlug: organizationSlug) else { return false }
     } catch {
       clearMarker(matching: next)
       throw error

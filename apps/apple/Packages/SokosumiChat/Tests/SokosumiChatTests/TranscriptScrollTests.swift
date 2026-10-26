@@ -42,22 +42,39 @@ struct TranscriptScrollTests {
   }
 
   /// Spec SOK-1481: an Unread divider placement that leaves the list at its end (content that fits, or a scroll the
-  /// bottom clamps) moves nothing `edgesChanged` reads, so the settled placement says whether the list follows.
+  /// bottom clamps) moves nothing `edgesChanged` reads, so where the list next comes to rest says whether it follows.
   @Test func aPlacementSettlingAtTheEndFollowsTheLatest() {
     var scroll = TranscriptScroll()
-    scroll.readOlder()
+    scroll.placedUnreadDivider()
     // Short content: the placement scroll cannot move the list at all.
     let short = edges(0, contentHeight: 300)
     scroll.edgesChanged(from: short, to: short, userIsScrolling: false, anchored: false)
     #expect(scroll.showsJumpToLatest(anchored: false))
-    scroll.placementSettled(at: short, anchored: false)
+    scroll.cameToRest(at: short, anchored: false)
     #expect(scroll.followsLatest && !scroll.showsJumpToLatest(anchored: false))
 
-    scroll.readOlder()
-    scroll.placementSettled(at: edges(900), anchored: false)
+    scroll.placedUnreadDivider()
+    scroll.cameToRest(at: edges(900), anchored: false)
     #expect(!scroll.followsLatest, "A long unread run leaves the list above the end.")
-    scroll.placementSettled(at: edges(1500), anchored: true)
+    scroll.placedUnreadDivider()
+    scroll.cameToRest(at: edges(1500), anchored: true)
     #expect(!scroll.followsLatest, "A jump window is never the end.")
+  }
+
+  /// A touch while the placement settles does not drop it: the list's next rest settles it. Only that rest: later
+  /// rests are the reader's own, which `edgesChanged` reads.
+  @Test func aPlacementTheReaderInterruptsSettlesAtTheNextRest() {
+    var scroll = TranscriptScroll()
+    let short = edges(0, contentHeight: 300)
+    scroll.placedUnreadDivider()
+    scroll.edgesChanged(from: short, to: short, userIsScrolling: true, anchored: false)
+    #expect(!scroll.followsLatest)
+    scroll.cameToRest(at: short, anchored: false)
+    #expect(scroll.followsLatest, "The interrupted placement settled at the next rest.")
+
+    scroll.readOlder()
+    scroll.cameToRest(at: short, anchored: false)
+    #expect(!scroll.followsLatest, "A rest with no placement waiting changes nothing.")
   }
 
   @Test func growthWhileFollowingAlignsOnceTheReaderStops() {

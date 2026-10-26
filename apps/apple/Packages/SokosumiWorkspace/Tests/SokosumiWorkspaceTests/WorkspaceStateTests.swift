@@ -4701,7 +4701,8 @@ extension WorkspaceStateTests {
       (200, workspacesBody()), (200, userBody),
       (200, read ? roomsBody(names: ["general"]) : channelUnreadRoomsBody(id: recheckRoomId, channel: 1, updatedAt: timestamp)),
       (200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))
-    ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [])
+      // A room showing Room unread asks for the newest page beside Core's answer (SOK-1481): the same page here.
+    ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [(200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))])
   }
 
   private static func roomGets(_ transport: ScriptedTransport) -> Int {
@@ -4796,13 +4797,14 @@ extension WorkspaceStateTests {
     _ = await state.openRoom.thread.transcript.loadTask?.value
     await waitWhile { clock.pending == 0 }
     #expect(clock.intervals == [.seconds(4)])
-    #expect(Self.roomGets(transport) == 1 && transport.threadGets == 1)
+    // Two on open: Core's answer and the newest page beside it.
+    #expect(Self.roomGets(transport) == 2 && transport.threadGets == 1)
 
     clock.fireAll()
-    await waitWhile { Self.roomGets(transport) < 2 || transport.threadGets < 2 }
+    await waitWhile { Self.roomGets(transport) < 3 || transport.threadGets < 2 }
     await waitForTranscriptIdle(state)
     _ = await state.openRoom.thread.transcript.loadTask?.value
-    #expect(Self.roomGets(transport) == 2 && transport.threadGets == 2)
+    #expect(Self.roomGets(transport) == 3 && transport.threadGets == 2)
     #expect(!transport.operationIDs.contains { $0.hasPrefix("post/") })
     #expect(transport.remainingStubs == 0)
     state.openRoom.thread.close()

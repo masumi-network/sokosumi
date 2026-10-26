@@ -130,7 +130,8 @@ public final class OpenRoomSession: ObservableObject {
     directStream.reset(room: chatRoom, userId: userId, organizationId: organizationId)
     realtimeHealthy = reopening && realtimeHealthy
     pins.reset(roomId: chatRoom.id)
-    room.open(roomId: chatRoom.id, atUnreadDivider: atUnreadDivider)
+    // Room unread as Core counts it, never the sum with Thread unread: a room without the count only waits longer.
+    room.open(roomId: chatRoom.id, atUnreadDivider: atUnreadDivider, showsRoomUnread: (chatRoom.channelUnreadCount ?? 0) > 0)
     let generation = room.timeline.generation
     room.load(.initial)
     resumeStream()

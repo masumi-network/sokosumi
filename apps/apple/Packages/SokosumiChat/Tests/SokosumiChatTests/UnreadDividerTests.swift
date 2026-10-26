@@ -1,5 +1,7 @@
 import CoreAPI
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
 @testable import SokosumiChat
 import Testing
 
@@ -139,6 +141,39 @@ struct UnreadDividerTests {
     #expect(dividerRows(session).isEmpty)
   }
 
+  /// The list places the divider whenever it can, for the whole visit, not only as it mounts: while its row is not laid
+  /// out yet the placement waits, and a divider with no loaded row left ends it, so the room is not held away from its
+  /// end for good.
+  @Test func thePlacementWaitsForTheDividerRowAndEndsWhenThereIsNone() async throws {
+    let (session, _) = try await openedSession([page(1 ... 10, firstUnread: id(8)), page(1 ... 10, firstUnread: id(8))])
+    #expect(session.unreadDividerPlacement(in: []) == .waits, "The list mounted before its rows were laid out.")
+    #expect(session.unreadDividerPlacement(in: session.displayedMessages) == .place(id(8)))
+    for index in 8 ... 10 {
+      session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: id(index), roomId: testRoomId))
+    }
+    #expect(session.unreadDividerPlacement(in: session.displayedMessages) == .unplaceable)
+    session.endUnreadDividerPlacement()
+    #expect(session.unreadDividerPlacement(in: session.displayedMessages) == .none)
+
+    let (unloaded, _) = try await openedSession([page(1 ... 10, firstUnread: id(40)), page(1 ... 10, firstUnread: id(40))])
+    #expect(unloaded.unreadDividerPlacement(in: unloaded.displayedMessages) == .unplaceable)
+  }
+
+  /// A room that shows Room unread as it opens asks for the newest page beside Core's answer, not after it: the answer
+  /// is held here until the newest page has been asked for, which a sequential open never does while it waits.
+  @Test func aRoomShowingRoomUnreadAsksForBothPagesAtOnce() async throws {
+    let transport = AnswerHeldForTheNewestPage(answer: page(37 ... 70, nextCursor: id(37), firstUnread: id(40)).1,
+                                               newest: page(201 ... 300, nextCursor: id(201), firstUnread: id(40)).1)
+    let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let session = TranscriptSession(makeId: { "turn" })
+    session.open(roomId: testRoomId, atUnreadDivider: true, showsRoomUnread: true)
+    session.hooks = .init(access: { (client, nil) }, failed: { _ in false }, pageLanded: { _ in })
+    #expect(await session.load(.initial)?.value == true)
+    #expect(session.timeline.messages.map(\.id) == (37 ... 70).map(id) + (201 ... 300).map(id))
+    #expect(session.timeline.historyGapMessageIds == [id(201)])
+    #expect(dividerRows(session) == [id(40)])
+  }
+
   /// An explicit target wins: the room opens without the open-at-unread mode and does not place the divider, yet
   /// draws it from the first unread message its own page names once that message is loaded. A jump later in the visit
   /// replaces a placement still waiting.
@@ -171,6 +206,17 @@ struct UnreadDividerTests {
     #expect(dividerRows(session).isEmpty)
   }
 
+  /// A room that shows no Room unread as it opens asks only for Core's answer; it names none here, so nothing else.
+  @Test func aRoomShowingNoRoomUnreadAsksOnce() async throws {
+    let transport = TestTransport([page(1 ... 10, firstUnread: .some(nil))])
+    let client = try makeTestClient(transport)
+    let session = TranscriptSession()
+    session.open(roomId: testRoomId, atUnreadDivider: true, showsRoomUnread: false)
+    session.hooks = .init(access: { (client, nil) }, failed: { _ in false }, pageLanded: { _ in })
+    #expect(await session.load(.initial)?.value == true)
+    #expect(transport.requests.count == 1)
+  }
+
   /// The Thread panel never shows a divider: its Transcript never asks for one.
   @Test func aThreadNeverOpensAtADivider() async throws {
     let transport = TestTransport([(200, testMessagesPageBody(messages: [], nextCursor: nil, firstUnreadMessageId: id(3)))])
@@ -183,5 +229,53 @@ struct UnreadDividerTests {
     #expect(!testRequestQuery(transport.requests[0].request).contains("openAtUnread"))
     #expect(session.timeline.unreadDividerMessageId == nil)
     #expect(!session.placesUnreadDivider)
+  }
+}
+
+/// Answers Core's open-at-unread request only once the newest page has been asked for. A sequential open never asks
+/// for it while the answer is out, so after five seconds the answer fails instead.
+private final class AnswerHeldForTheNewestPage: ClientTransport, @unchecked Sendable {
+  private let lock = NSLock()
+  private var newestAsked = false
+  private var heldAnswer: CheckedContinuation<Bool, Never>?
+  private let answer: String
+  private let newest: String
+
+  init(answer: String, newest: String) {
+    self.answer = answer
+    self.newest = newest
+  }
+
+  func send(_ request: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID _: String) async throws -> (HTTPResponse, HTTPBody?) {
+    guard testRequestQuery(request).contains("openAtUnread=true") else {
+      release(newestAsked: true)
+      return (HTTPResponse(status: .ok), HTTPBody(newest))
+    }
+    let newestWasAsked = await withCheckedContinuation { continuation in
+      let asked = lock.withLock {
+        if !newestAsked {
+          heldAnswer = continuation
+        }
+        return newestAsked
+      }
+      if asked {
+        continuation.resume(returning: true)
+      } else {
+        Task {
+          try? await Task.sleep(for: .seconds(5))
+          self.release(newestAsked: false)
+        }
+      }
+    }
+    return newestWasAsked ? (HTTPResponse(status: .ok), HTTPBody(answer)) : (HTTPResponse(status: .serviceUnavailable), HTTPBody("{}"))
+  }
+
+  private func release(newestAsked asked: Bool) {
+    let held = lock.withLock {
+      newestAsked = newestAsked || asked
+      defer { heldAnswer = nil }
+      return heldAnswer
+    }
+    held?.resume(returning: asked)
   }
 }

@@ -84,9 +84,10 @@ public final class TranscriptSession: ObservableObject {
   }
 
   /// `atUnreadDivider` opens a room's main Transcript through Core's open-at-unread mode; a Thread never does.
-  public func open(roomId: String, parentMessageId: String? = nil, atUnreadDivider: Bool = false) {
+  /// `showsRoomUnread`: the room showed Room unread as it opened, so the newest page is asked for beside Core's answer.
+  public func open(roomId: String, parentMessageId: String? = nil, atUnreadDivider: Bool = false, showsRoomUnread: Bool = false) {
     stop()
-    timeline.reset(roomId: roomId, parentMessageId: parentMessageId, opensAtUnread: atUnreadDivider)
+    timeline.reset(roomId: roomId, parentMessageId: parentMessageId, opensAtUnread: atUnreadDivider, showsRoomUnread: showsRoomUnread)
   }
 
   public func close() {
@@ -146,6 +147,28 @@ public final class TranscriptSession: ObservableObject {
     if placesUnreadDivider {
       placesUnreadDivider = false
     }
+  }
+
+  /// Where placing the Unread divider stands for the list laying out `messages`.
+  public enum UnreadDividerPlacement: Equatable, Sendable {
+    /// Nothing to place: no divider, already placed, or something else took the opening.
+    case none
+    /// The divider's row is loaded but not laid out yet.
+    case waits
+    /// Place the divider above this row.
+    case place(String)
+    /// No loaded row is left to place it above: the room opens as it would have.
+    case unplaceable
+  }
+
+  /// Asked whenever the rows or the placement change, for the whole visit: the list can mount before the first page
+  /// lands, or before its rows are laid out.
+  public func unreadDividerPlacement(in messages: [Message]) -> UnreadDividerPlacement {
+    guard placesUnreadDivider else { return .none }
+    if let id = unreadDividerRowId(in: messages) {
+      return .place(id)
+    }
+    return unreadDividerRowId(in: displayedMessages) == nil ? .unplaceable : .waits
   }
 
   /// The row of `messages` the Unread divider sits above: its message, or once that is deleted the next loaded one

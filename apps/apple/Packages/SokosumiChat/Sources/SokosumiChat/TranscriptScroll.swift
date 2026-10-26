@@ -8,6 +8,8 @@ public struct TranscriptScroll: Equatable, Sendable {
   public private(set) var followsLatest = true
   /// Content grew while the list followed: align to the bottom once the reader is not scrolling.
   public private(set) var pendingBottomAlignment = false
+  /// The list placed the Unread divider by itself and has not come to rest since.
+  public private(set) var settlesPlacement = false
 
   public init() {}
 
@@ -36,10 +38,19 @@ public struct TranscriptScroll: Equatable, Sendable {
     }
   }
 
-  /// A placement the list made by itself, the Unread divider's, came to rest. Only the reader's moves and crossings of
-  /// the near-bottom line set whether the list follows, and this placement may cross nothing: content that fits, or a
-  /// scroll the bottom clamps. Resting near the bottom, the list follows again, so a short unread run is read on open.
-  public mutating func placementSettled(at edges: TranscriptScrollEdges, anchored: Bool) {
+  /// The list puts the Unread divider in place by itself: it stops following until that placement settles.
+  public mutating func placedUnreadDivider() {
+    readOlder()
+    settlesPlacement = true
+  }
+
+  /// The list came to rest. Only the reader's moves and crossings of the near-bottom line set whether the list follows,
+  /// and the divider's placement may cross nothing: content that fits, or a scroll the bottom clamps. So the first rest
+  /// after it settles it: near the bottom the list follows again, and a short unread run is read on open. A reader's
+  /// touch on the way only moves that rest later.
+  public mutating func cameToRest(at edges: TranscriptScrollEdges, anchored: Bool) {
+    guard settlesPlacement else { return }
+    settlesPlacement = false
     if !anchored, edges.nearBottom {
       followLatest()
     }

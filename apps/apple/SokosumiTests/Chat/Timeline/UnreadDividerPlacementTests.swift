@@ -38,7 +38,10 @@
         #expect(!wasAtEnd && !room.isAtEnd, "A long unread run opens above the end and reads nothing, not even as the list mounts.")
       }
 
-      /// An unread run short enough that the transcript opens at its end is read on open, as today.
+      /// An unread run short enough that the transcript opens at its end is read on open, as today. A smoke test of the
+      /// wiring, not the guard: without the settle it still fails only about one run in six, because the list often
+      /// reaches the end by itself, and no window test can hold that race still. `TranscriptScrollTests`
+      /// (`aPlacementSettlingAtTheEndFollowsTheLatest`, `aPlacementTheReaderInterruptsSettlesAtTheNextRest`) guards it.
       @Test func aShortUnreadRunOpensAtTheEnd() async throws {
         let (state, host) = try await openAtTheDivider((0 ..< 6).map(message), firstUnread: "message-3")
         defer { state.openRoom.room.close() }
