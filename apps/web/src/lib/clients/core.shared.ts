@@ -108,6 +108,7 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioVideoJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
@@ -415,6 +416,7 @@ import {
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
@@ -3421,6 +3423,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start video generation",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobsByJobIdCancel(
     id: string,
     jobId: string,
@@ -6100,6 +6118,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioVideoJobs,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,

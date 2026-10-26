@@ -46,6 +46,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "upload_file",
   "generate_image",
   "get_image",
+  "generate_video",
+  "get_video",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -131,6 +133,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "upload_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
+  "generate_video",
   "post_chat",
   "open_direct_chat",
   // The question is a prompt for a Coworker; a page must not write it.
@@ -180,6 +183,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_files",
   "read_file",
   "get_image",
+  "get_video",
   "list_tables",
   "read_table",
   "search_contacts",
@@ -254,6 +258,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "ask_coworker",
   "upload_file",
   "generate_image",
+  "generate_video",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -416,6 +421,7 @@ export function capabilitiesForClassification(
     FILE: [
       "upload_file",
       "generate_image",
+      "generate_video",
       "create_table",
       "write_table_rows",
       "update_table_columns",

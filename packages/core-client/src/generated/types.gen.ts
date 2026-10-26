@@ -3760,6 +3760,9 @@ export type ContactScore = {
      */
     importance: number | null;
     importanceSource: 'JEV' | 'SOKO_BOT' | 'MANUAL' | null;
+    /**
+     * Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise.
+     */
     importanceReason: string | null;
 };
 
@@ -5184,6 +5187,9 @@ export type HistoryImageItem = {
 export type ProjectImageStudioCatalog = {
     defaultModelId: string;
     models: Array<ProjectImageStudioCatalogModel>;
+    defaultVideoModelId: string;
+    defaultAnimateModelId: string;
+    videoModels: Array<ProjectImageStudioVideoCatalogModel>;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -5219,6 +5225,29 @@ export type ProjectImageStudioCatalogModel = {
     verifiedAt: string;
 };
 
+export type ProjectImageStudioVideoCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    endpoint: string;
+    input: 'text' | 'image';
+    aspectRatios: Array<string>;
+    durations: Array<number>;
+    resolutions: Array<string>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perSecondUsd: {
+            [key: string]: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -5241,10 +5270,18 @@ export type ProjectImageAsset = {
     height: number;
     bytes: number;
     contentType: string;
+    mediaType: 'IMAGE' | 'VIDEO';
+    video: ProjectVideoSettings | null;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+};
+
+export type ProjectVideoSettings = {
+    aspectRatio: string;
+    durationSeconds: number;
+    resolution: string;
 };
 
 export type ProjectImageSettings = {
@@ -5258,10 +5295,11 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
     model: string;
     prompt: string;
     settings: ProjectImageSettings;
+    video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
@@ -7440,6 +7478,19 @@ export type CreateProjectImageJobRequest = {
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     parentAssetId?: string | null;
+    sessionId?: string | null;
+    idempotencyKey: string;
+};
+
+export type CreateProjectVideoJobRequest = {
+    modelId?: string;
+    prompt: string;
+    settings?: {
+        aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4';
+        durationSeconds?: number;
+        resolution?: string;
+    };
+    sourceAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
 };
@@ -52418,6 +52469,162 @@ export type PostProjectsByIdImageStudioJobsResponses = {
 
 export type PostProjectsByIdImageStudioJobsResponse = PostProjectsByIdImageStudioJobsResponses[keyof PostProjectsByIdImageStudioJobsResponses];
 
+export type PostProjectsByIdImageStudioVideoJobsData = {
+    body: CreateProjectVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/video-jobs';
+};
+
+export type PostProjectsByIdImageStudioVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsError = PostProjectsByIdImageStudioVideoJobsErrors[keyof PostProjectsByIdImageStudioVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioVideoJobsResponses = {
+    /**
+     * Video generation started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
+
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;
     headers?: {
@@ -52598,9 +52805,13 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentError = GetProjectsB
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
     /**
-     * Image bytes
+     * Image or video bytes
      */
     200: Blob | File;
+    /**
+     * The requested byte range of a video
+     */
+    206: Blob | File;
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
