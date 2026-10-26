@@ -19,6 +19,7 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
     where: {
       createdAt: { gte: new Date(now.getTime() - LOOKBACK_MS) },
       creatorCoworkerId: { not: null },
+      ownerId: { not: null },
       scheduleId: null,
       archivedAt: null,
       sokoBotDelegations: { none: INVOLVING_DELEGATION },
@@ -35,6 +36,8 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
   });
   let adopted = 0;
   for (const subtask of subtasks) {
+    const ownerId = subtask.ownerId;
+    if (!ownerId) continue;
     const parents = await prisma.sokoBotDelegation.findMany({
       where: {
         kind: "TASK",
@@ -42,7 +45,7 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
         turn: { sokoBot: { archivedAt: null } },
         task: {
           id: { not: subtask.id },
-          ownerId: subtask.ownerId,
+          ownerId,
           workspaceId: subtask.workspaceId,
           assigneeId: { not: null },
           createdAt: { lte: subtask.createdAt },
