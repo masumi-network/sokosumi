@@ -217,7 +217,7 @@ describe("New badges in the sidebar", () => {
         ),
     );
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_001);
+      await vi.advanceTimersByTimeAsync(10 * 60_000 + 1);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);

@@ -14,10 +14,12 @@ describe("result preview bot support", () => {
     expect(composeSystemPrompt(getSokoBotVersion("v24"))).not.toContain(
       "# Chat result previews",
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v26");
-    expect(
-      composeSystemPrompt(getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID)),
-    ).toContain("# Chat result previews");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
+    for (const id of ["v26", "v31", DEFAULT_SOKO_BOT_VERSION_ID]) {
+      expect(composeSystemPrompt(getSokoBotVersion(id))).toContain(
+        "# Chat result previews",
+      );
+    }
   });
   it("keeps preview preparation available across owner routes and narrowed write scopes", () => {
     const version = getSokoBotVersion("v21");

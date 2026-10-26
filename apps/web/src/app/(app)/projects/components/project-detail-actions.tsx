@@ -34,6 +34,7 @@ interface ProjectDetailActionsLabels {
   closeDialog: {
     title: string;
     description: string;
+    scheduledPostsWarning?: string;
     reasonLabel: string;
     reasonPlaceholder: string;
     confirm: string;
@@ -167,6 +168,11 @@ export function ProjectDetailActions({
               {labels.closeDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {labels.closeDialog.scheduledPostsWarning ? (
+            <p role="status" className="text-semantic-warning text-sm">
+              {labels.closeDialog.scheduledPostsWarning}
+            </p>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor={`project-close-reason-${projectId}`}>
               {labels.closeDialog.reasonLabel}

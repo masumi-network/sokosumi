@@ -4,6 +4,10 @@ import * as React from "react"
 import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+} from "./tabs-classes"
 
 function Tabs({
   className,
@@ -62,12 +66,6 @@ function TabsContent({
     />
   )
 }
-
-/** Segmented-control styling for a TabsList / TabsTrigger pair. */
-const SEGMENTED_TABS_LIST_CLASS_NAME =
-  "bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1"
-const SEGMENTED_TAB_TRIGGER_CLASS_NAME =
-  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
 
 export {
   Tabs,

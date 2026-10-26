@@ -24,6 +24,9 @@ function dependencies(role = "user,admin"): CliDependencies {
       put: async () => {
         throw new Error("Unexpected PUT");
       },
+      delete: async () => {
+        throw new Error("Unexpected DELETE");
+      },
       patch: async () => {
         throw new Error("Unexpected PATCH");
       },

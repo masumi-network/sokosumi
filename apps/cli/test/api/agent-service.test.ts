@@ -18,6 +18,9 @@ function createClient(response: unknown, calls: string[]): CoreHttpClient {
     put: async () => {
       throw new Error("Unexpected PUT");
     },
+    delete: async () => {
+      throw new Error("Unexpected DELETE");
+    },
     patch: async <T>() => undefined as T,
   };
 }

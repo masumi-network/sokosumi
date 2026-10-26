@@ -23,6 +23,8 @@ export function validateTableValues(
   for (const [id, value] of Object.entries(values)) {
     const column = byId.get(id);
     if (!column) throw new Error("Unknown column ID");
+    if (column.type === "last_updated")
+      throw new Error(`${column.name} is filled automatically`);
     if (value === null) continue;
     let valid = false;
     switch (column.type) {

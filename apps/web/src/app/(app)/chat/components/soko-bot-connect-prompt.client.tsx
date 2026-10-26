@@ -41,8 +41,8 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
 }
 
 /**
- * Above the composer in the owner's own bot DM, while mail or calendar is
- * not connected: most of what the bot does on its own needs them.
+ * Above the composer in the owner's own bot DM, until anything is
+ * connected: most of what the bot does on its own needs a connection.
  */
 export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
   const { data } = useQuery({

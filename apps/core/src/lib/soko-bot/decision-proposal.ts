@@ -58,7 +58,7 @@ function decisionReason(
     }
     case "assign_task": {
       const input = taskAssignInputSchema.parse(proposal);
-      return `Assign Task ${input.taskId} to Coworker ${input.coworkerId}`;
+      return `Assign Task ${input.taskId} to ${input.coworkerId ? `Coworker ${input.coworkerId}` : "you"}`;
     }
     case "hire_agent": {
       const input = parseHireAgentInput(proposal);
@@ -90,12 +90,17 @@ export async function describeDecision(
             where: { id: input.taskId },
             select: { name: true },
           }),
-          prisma.coworker.findUnique({
-            where: { id: input.coworkerId },
-            select: { name: true },
-          }),
+          input.coworkerId
+            ? prisma.coworker.findUnique({
+                where: { id: input.coworkerId },
+                select: { name: true },
+              })
+            : null,
         ]);
-        return `Assign Task ${quote(task?.name, input.taskId)} to Coworker ${quote(coworker?.name, input.coworkerId)}${input.ready ? " and start it" : ""}`;
+        const to = input.coworkerId
+          ? `Coworker ${quote(coworker?.name, input.coworkerId)}`
+          : "you";
+        return `Assign Task ${quote(task?.name, input.taskId)} to ${to}${input.ready ? " and start it" : ""}`;
       }
       case "archive_task":
       case "update_task": {

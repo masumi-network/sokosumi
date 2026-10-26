@@ -14,6 +14,15 @@ const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const TRUNCATED_SOURCES_MAX_BYTES = 8_192;
 
 /**
+ * Postgres `jsonb` rejects NUL and a lone UTF-16 surrogate, so one such
+ * character in a mail failed the whole tool call ("invalid input syntax for
+ * type json") and a script paging that mailbox could not get past the page.
+ */
+function storableText(value: string): string {
+  return value.replaceAll("\u0000", "").toWellFormed();
+}
+
+/**
  * Redacts secrets and bounds size before anything the model produced or
  * received is written to a durable row. Every Soko Bot persistence path shares
  * this: tool calls, projected events, and the runtime event log all store
@@ -25,7 +34,8 @@ export function sanitizePersistedValue(
   seen = new WeakSet<object>(),
 ): RuntimeJsonValue {
   if (value === null || typeof value === "boolean") return value;
-  if (typeof value === "string") return redactSokoBotSensitiveText(value);
+  if (typeof value === "string")
+    return redactSokoBotSensitiveText(storableText(value));
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Date) return value.toISOString();
@@ -70,7 +80,8 @@ export function truncateUtf8(value: string, maxBytes: number): string {
       high = middle - 1;
     }
   }
-  return value.slice(0, low);
+  // A cut inside a surrogate pair leaves half of it; Postgres refuses that.
+  return value.slice(0, low).toWellFormed();
 }
 
 /**

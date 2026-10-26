@@ -32,6 +32,12 @@ import { v23 } from "./v23.js";
 import { v24 } from "./v24.js";
 import { v25 } from "./v25.js";
 import { v26 } from "./v26.js";
+import { v27 } from "./v27.js";
+import { v28 } from "./v28.js";
+import { v29 } from "./v29.js";
+import { v30 } from "./v30.js";
+import { v31 } from "./v31.js";
+import { v32 } from "./v32.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -61,8 +67,14 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v24,
   v25,
   v26,
+  v27,
+  v28,
+  v29,
+  v30,
+  v31,
+  v32,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v26";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v32";
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
@@ -99,6 +111,15 @@ export function composeSystemPrompt(
     ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
     ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
   ].join("\n\n");
+}
+
+const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+
+/** Whether the version teaches the bot to attach result cards. */
+export function versionShowsResultCards(
+  version: Pick<SokoBotVersion, "skills">,
+): boolean {
+  return version.skills.some((id) => RESULT_CARD_SKILLS.has(id));
 }
 
 /** Route ceiling ∩ version allowlist; a version narrows, it never widens. */

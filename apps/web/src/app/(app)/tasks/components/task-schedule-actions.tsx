@@ -1,7 +1,15 @@
 "use client";
 
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
-import { Pause, Pencil, Play, Square, Trash2, Zap } from "lucide-react";
+import {
+  Ellipsis,
+  Pause,
+  Pencil,
+  Play,
+  Square,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -19,6 +27,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   changeTaskScheduleState,
   deleteTaskSchedule,
@@ -137,71 +157,79 @@ export function TaskScheduleActions({
     return null;
   }
 
+  const isActive = schedule.state === TaskScheduleState.ACTIVE;
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex shrink-0 items-center gap-1">
       {isEnded ? null : (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditOpen(true)}
-            disabled={isPending}
-          >
-            <Pencil className="size-4" aria-hidden />
-            {tActions("edit")}
-          </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleRunNow}
             disabled={isPending}
           >
-            <Zap className="size-4" aria-hidden />
+            <Zap aria-hidden />
             {tActions("runNow")}
           </Button>
-          {schedule.state === TaskScheduleState.ACTIVE ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleStateAction("pause")}
-              disabled={isPending}
-            >
-              <Pause className="size-4" aria-hidden />
-              {tActions("pause")}
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleStateAction("resume")}
-              disabled={isPending}
-            >
-              <Play className="size-4" aria-hidden />
-              {tActions("resume")}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirming("end")}
-            disabled={isPending}
-          >
-            <Square className="size-4" aria-hidden />
-            {tActions("end")}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10 md:size-8"
+                aria-label={tActions(isActive ? "pause" : "resume")}
+                onClick={() => handleStateAction(isActive ? "pause" : "resume")}
+                disabled={isPending}
+              >
+                {isActive ? <Pause aria-hidden /> : <Play aria-hidden />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {tActions(isActive ? "pause" : "resume")}
+            </TooltipContent>
+          </Tooltip>
         </>
       )}
-      {canDelete ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setConfirming("delete")}
-          disabled={isPending}
-        >
-          <Trash2 className="size-4" aria-hidden />
-          {tActions("delete")}
-        </Button>
-      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 md:size-8"
+            aria-label={tActions("more")}
+            disabled={isPending}
+          >
+            <Ellipsis aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          {isEnded ? null : (
+            <>
+              <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
+                <Pencil aria-hidden />
+                {tActions("edit")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setConfirming("end")}>
+                <Square aria-hidden />
+                {tActions("end")}
+              </DropdownMenuItem>
+            </>
+          )}
+          {canDelete ? (
+            <>
+              {isEnded ? null : <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setConfirming("delete")}
+              >
+                <Trash2 aria-hidden />
+                {tActions("delete")}
+              </DropdownMenuItem>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <AlertDialog
         open={confirming !== null}

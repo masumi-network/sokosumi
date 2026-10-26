@@ -121,7 +121,7 @@ The web app uses the shared Biome configuration from the repo root. See [shared 
 
 #### Environment Variables
 
-**Critical**: Never use `process.env` directly in web app code.
+Do not read `process.env` directly in web app code.
 
 - **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
@@ -359,10 +359,10 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See [Color tokens](../../.cursor/rules/color-tokens.mdc).
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
-- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
+- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See [Dynamic Type](../../.cursor/rules/dynamic-type.mdc) and `apps/web/src/lib/utils/dynamic-type.ts`.
 - **Font sizes**: Never set a literal font size in product UI: no arbitrary `text-[…]` in any unit (`text-[10px]`; `text-[0.8125rem]` is the same off-scale 13px), no `text-[length:…]` or `text-(length:…)`, and no literal `font-size`/`fontSize` in px, rem or em (`font-size: 12px`, `fontSize: "0.875rem"`, `fontSize: 14`). Use a scale step: `text-2xs` (11px, dense meta and badges only) through `text-4xl`. They are rem, so type scales with root. `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails each spelling and lists the few exceptions with their reason.
 - **Whole pixels**: Never a fractional `px` on a layout or border length (`p-[1.5px]`, `padding: 1.5px`, `border: "0.2px solid …"`). A 1x display has no half pixel, so the browser rounds a `1.5px` border to 1px on one edge and 2px on the other. Blur radii, keyframe translations and unitless scale factors stay continuous. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
@@ -512,7 +512,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

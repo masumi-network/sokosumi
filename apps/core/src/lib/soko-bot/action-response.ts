@@ -29,6 +29,12 @@ export const ACTION_LABELS: Record<string, string> = {
   link_tasks: "Linked tasks",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
+  ask_coworker: "Asked a Coworker",
+  upsert_contact: "Saved contact",
+  update_contact: "Updated contact",
+  log_contact_interaction: "Logged a contact interaction",
+  merge_contacts: "Merged contacts",
+  manage_contact_lists: "Updated contact list",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
@@ -37,7 +43,15 @@ export const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  move_file: "Moved file",
+  update_emails: "Updated mail",
+  draft_email: "Drafted email",
+  send_email_draft: "Sent email",
+  save_email_attachment: "Saved email attachment",
+  install_skill: "Installed skill",
+  remove_skill: "Removed skill",
   generate_image: "Started image",
+  generate_video: "Started video",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
@@ -51,7 +65,11 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     .object({ statusChanged: z.literal(true), status: z.string() })
     .safeParse(call.result);
   if (call.capability === "reply_to_task" && reply.success)
-    return reply.data.status === "CANCELED" ? "Canceled task" : "Resumed task";
+    return reply.data.status === "CANCELED"
+      ? "Canceled task"
+      : reply.data.status === "COMPLETED"
+        ? "Completed task"
+        : "Resumed task";
   if (
     call.capability === "upload_file" &&
     z.object({ replaced: z.literal(true) }).safeParse(call.result).success
@@ -65,6 +83,28 @@ const TABLE_CAPABILITIES = new Set([
   "write_table_rows",
   "update_table_columns",
 ]);
+
+const CONTACT_CAPABILITIES = new Set([
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+]);
+
+/** The contact or list a contacts receipt names, from its stored result. */
+function contactTarget(result: unknown): string {
+  const named = z
+    .union([
+      z.object({ contact: z.object({ name: z.string().min(1) }) }),
+      z.object({ name: z.string().min(1) }),
+    ])
+    .safeParse(result);
+  if (!named.success) return "";
+  return linkText(
+    "contact" in named.data ? named.data.contact.name : named.data.name,
+  );
+}
 
 const SOCIAL_POST_CAPABILITIES = new Set([
   "create_social_post",
@@ -133,6 +173,8 @@ function actionTarget(
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (CONTACT_CAPABILITIES.has(call.capability))
+    return contactTarget(call.result);
   if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
     const post = z
       .object({ projectId: z.string().min(1) })
@@ -141,7 +183,10 @@ function actionTarget(
       ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
       : "";
   }
-  if (call.capability === "generate_image") {
+  if (
+    call.capability === "generate_image" ||
+    call.capability === "generate_video"
+  ) {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })
       .safeParse(call.result);
@@ -253,6 +298,8 @@ const QUESTIONS = {
   DETAILS: "What additional details should I use?",
 } as const;
 
+const MAX_OBSERVATIONS = 8;
+
 export const actionNarrativeSchema = z
   .object({
     kind: z.enum(["REPORT", "CLARIFY", "SILENT"]),
@@ -261,7 +308,11 @@ export const actionNarrativeSchema = z
     question: z
       .enum(["TARGET", "SCOPE", "TIME", "APPROVAL", "DETAILS"])
       .nullable(),
-    observationToolCallIds: z.array(z.string()).max(8),
+    // A weekly wrap reads a dozen Tasks; rejecting the extra ids would post
+    // the raw JSON instead of the message.
+    observationToolCallIds: z
+      .array(z.string())
+      .transform((ids) => ids.slice(0, MAX_OBSERVATIONS)),
   })
   .strict();
 
@@ -411,7 +462,7 @@ function describeRead(capability: string, value: unknown): string[] {
     observations.push(
       `Latest reported task update (${quoteRead(event.by ?? "unknown author")}): ${quoteRead(event.comment)}.`,
     );
-  if (!isTask && status === "AWAITING_INPUT")
+  if (!isTask && (status === "AWAITING_INPUT" || status === "input_required"))
     observations.push(
       "The latest job event is awaiting input; completion is not verified.",
     );

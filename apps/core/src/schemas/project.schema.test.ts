@@ -209,9 +209,17 @@ describe("project schemas", () => {
       ),
     ).toMatchObject({
       projectRevision: 4,
+      scheduledSocialPostCount: 0,
       closingAt: "2026-08-26T12:00:00.000Z",
       closedAt: "2026-08-26T12:05:00.000Z",
     });
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ projectRevision: 4 }),
+        new Date(),
+        3,
+      ).scheduledSocialPostCount,
+    ).toBe(3);
   });
 
   it("maps memory metadata and active update state", () => {

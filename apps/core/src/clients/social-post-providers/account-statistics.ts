@@ -17,7 +17,10 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
-import type { SocialAccountMetric } from "@/schemas/social-account-statistics.schema";
+import type {
+  SocialAccountMetric,
+  SocialAccountPostMedia,
+} from "@/schemas/social-account-statistics.schema";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialAccountStatisticsContext {
@@ -33,6 +36,9 @@ export interface SocialAccountStatisticsContext {
 interface AccountPost {
   externalId: string;
   text: string;
+  contentType: "text" | "image" | "video" | "carousel" | "link" | "unknown";
+  postKind: "post" | "reply" | "quote" | "repost" | "unknown";
+  media: SocialAccountPostMedia[];
   publishedAt: string | null;
   url: string | null;
   metrics: SocialPostMetrics;
@@ -198,91 +204,62 @@ function objects(value: unknown): Record<string, unknown>[] {
         .filter((item): item is Record<string, unknown> => item !== null)
     : [];
 }
-function post(
-  item: Record<string, unknown>,
-  text: unknown,
-  publishedAt: string | null,
-  link: unknown,
-): AccountPost | null {
-  const id = string(item.id);
-  return id && id.length <= 500
-    ? {
-        externalId: id,
-        text: typeof text === "string" ? text : "",
-        publishedAt,
-        url: url(link),
-        metrics: metrics(),
-        additionalMetrics: [],
-      }
-    : null;
-}
-function requiredList(
-  data: Record<string, unknown> | null,
-  key: string,
-  max = 100,
-): Record<string, unknown>[] {
-  if (!Array.isArray(data?.[key]))
-    throw new TypeError("Invalid statistics response");
-  return objects(data[key]).slice(0, max);
-}
-
-function isXRepost(item: Record<string, unknown>): boolean {
-  return objects(item.referenced_tweets).some(
-    (ref) => string(ref.type) === "retweeted",
-  );
-}
-
-function xShareCount(count: Record<string, unknown> | null): number | null {
-  return counter(
-    count?.organic_repost_count ?? count?.repost_count ?? count?.retweet_count,
-  );
-}
-
-export type XAccountResearchContentType =
-  | "text"
-  | "image"
-  | "video"
-  | "carousel"
-  | "link"
-  | "unknown";
-export type XAccountResearchPostKind =
-  | "post"
-  | "reply"
-  | "quote"
-  | "repost"
-  | "unknown";
-export interface XAccountResearchMedia {
-  kind: "image" | "video" | "gif";
-  url: string;
-  thumbnailUrl: string | null;
-}
-export interface XAccountResearchPost {
-  externalId: string;
-  text: string;
-  publishedAt: string | null;
-  url: string | null;
-  metrics: SocialPostMetrics;
-  additionalMetrics: SocialAccountMetric[];
-  contentType: XAccountResearchContentType;
-  postKind: XAccountResearchPostKind;
-  media: XAccountResearchMedia[];
-}
-
 function previewMedia(
-  kind: XAccountResearchMedia["kind"],
+  kind: SocialAccountPostMedia["kind"],
   source: unknown,
   thumbnail: unknown = null,
-): XAccountResearchMedia[] {
+): SocialAccountPostMedia[] {
   const mediaUrl = url(source) ?? url(thumbnail);
   return mediaUrl
     ? [{ kind, url: mediaUrl, thumbnailUrl: url(thumbnail) }]
     : [];
 }
 
-function xMedia(
+function inferredContentType(entry: AccountPost): AccountPost["contentType"] {
+  if (entry.media.length > 1) return "carousel";
+  if (entry.media.some((item) => item.kind === "video" || item.kind === "gif"))
+    return "video";
+  if (entry.media.length) return "image";
+  return /https?:\/\/\S+/i.test(entry.text) ? "link" : "text";
+}
+
+function instagramMedia(
   item: Record<string, unknown>,
-  data: Record<string, unknown>,
-): XAccountResearchMedia[] {
+): SocialAccountPostMedia[] {
+  const children = objects(record(item.children)?.data);
+  const items = children.length ? children : [item];
+  return items
+    .flatMap((child) =>
+      previewMedia(
+        child.media_type === "VIDEO" ? "video" : "image",
+        child.media_url,
+        child.thumbnail_url,
+      ),
+    )
+    .slice(0, 20);
+}
+
+function facebookMedia(
+  item: Record<string, unknown>,
+): SocialAccountPostMedia[] {
+  return objects(record(item.attachments)?.data)
+    .flatMap((attachment) => {
+      const children = objects(record(attachment.subattachments)?.data);
+      return (children.length ? children : [attachment]).flatMap((child) => {
+        const media = record(child.media);
+        return previewMedia(
+          typeof child.type === "string" && child.type.includes("video")
+            ? "video"
+            : "image",
+          media?.source ?? record(media?.image)?.src,
+          record(media?.image)?.src,
+        );
+      });
+    })
+    .slice(0, 20);
+}
+
+function xMedia(item: Record<string, unknown>, data: Record<string, unknown>) {
   const keys = record(item.attachments)?.media_keys;
   if (!Array.isArray(keys)) return [];
   const expanded = objects(record(data.includes)?.media);
@@ -314,7 +291,7 @@ function xMedia(
 function xPostKind(
   item: Record<string, unknown>,
   accountId: string,
-): XAccountResearchPostKind {
+): AccountPost["postKind"] {
   const references = objects(item.referenced_tweets ?? item.referenced_posts);
   if (
     references.some(
@@ -330,12 +307,55 @@ function xPostKind(
   return "post";
 }
 
+function post(
+  item: Record<string, unknown>,
+  text: unknown,
+  publishedAt: string | null,
+  link: unknown,
+): AccountPost | null {
+  const id = string(item.id);
+  return id && id.length <= 500
+    ? {
+        externalId: id,
+        text: typeof text === "string" ? text : "",
+        contentType: "unknown",
+        postKind: "post",
+        media: [],
+        publishedAt,
+        url: url(link),
+        metrics: metrics(),
+        additionalMetrics: [],
+      }
+    : null;
+}
+function requiredList(
+  data: Record<string, unknown> | null,
+  key: string,
+  max = 100,
+): Record<string, unknown>[] {
+  if (!Array.isArray(data?.[key]))
+    throw new TypeError("Invalid statistics response");
+  return objects(data[key]).slice(0, max);
+}
+
+function isXRepost(item: Record<string, unknown>): boolean {
+  return objects(item.referenced_tweets).some(
+    (ref) => string(ref.type) === "retweeted",
+  );
+}
+
+function xShareCount(count: Record<string, unknown> | null): number | null {
+  return counter(
+    count?.organic_repost_count ?? count?.repost_count ?? count?.retweet_count,
+  );
+}
+
 function classifyXAccountPost(
   entry: AccountPost,
-  media: XAccountResearchMedia[],
+  media: SocialAccountPostMedia[],
   mediaKeys: unknown,
   expandedMedia: Record<string, unknown>[],
-): XAccountResearchContentType {
+): AccountPost["contentType"] {
   if (Array.isArray(mediaKeys) && mediaKeys.length > 1) return "carousel";
   const singleMedia = Array.isArray(mediaKeys)
     ? expandedMedia.find((value) => value.media_key === mediaKeys[0])
@@ -351,12 +371,12 @@ function classifyXAccountPost(
   return /https?:\/\/\S+/i.test(entry.text) ? "link" : "text";
 }
 
-/** Live X research parses public posts in memory. Cached statistics stay on AccountPost. */
+/** Live X research parses public posts in memory without caching statistics. */
 export function parseXAccountPosts(
   data: Record<string, unknown>,
   accountId: string,
-): XAccountResearchPost[] {
-  const posts: XAccountResearchPost[] = [];
+): AccountPost[] {
+  const posts: AccountPost[] = [];
   for (const item of requiredList(data, "data")) {
     if (item.author_id !== undefined && item.author_id !== accountId) continue;
     const entry = post(
@@ -491,7 +511,18 @@ async function readNativeHistory(
         { name: "max_results", value: "100", type: "query" },
         {
           name: "post.fields",
-          value: "created_at,public_metrics,note_post,referenced_tweets",
+          value:
+            "created_at,public_metrics,note_post,referenced_tweets,attachments,author_id,in_reply_to_user_id",
+          type: "query",
+        },
+        {
+          name: "expansions",
+          value: "attachments.media_keys",
+          type: "query",
+        },
+        {
+          name: "media.fields",
+          value: "type,url,preview_image_url,variants,public_metrics",
           type: "query",
         },
       ]
@@ -500,7 +531,7 @@ async function readNativeHistory(
         {
           name: "fields",
           value:
-            "id,message,created_time,permalink_url,shares,reactions.summary(true),comments.summary(true),is_published",
+            "id,message,created_time,permalink_url,shares,reactions.summary(true),comments.summary(true),is_published,attachments{media,type,subattachments}",
           type: "query",
         },
       ];
@@ -847,6 +878,9 @@ async function history(
           `https://x.com/i/status/${string(item.id) ?? ""}`,
         );
         if (!entry) continue;
+        entry.postKind = xPostKind(item, context.externalAccountId);
+        entry.media = xMedia(item, data);
+        entry.contentType = inferredContentType(entry);
         const count = record(item.public_metrics);
         entry.metrics = {
           ...metrics(),
@@ -856,6 +890,16 @@ async function history(
           shares: xShareCount(count),
           saves: counter(count?.bookmark_count),
         };
+        const mediaKeys = record(item.attachments)?.media_keys;
+        const videoViews = Array.isArray(mediaKeys)
+          ? objects(record(data.includes)?.media)
+              .filter(
+                (media) =>
+                  media.type === "video" && mediaKeys.includes(media.media_key),
+              )
+              .map((media) => counter(record(media.public_metrics)?.view_count))
+          : [];
+        if (videoViews.length === 1) entry.metrics.views = videoViews[0];
         entry.additionalMetrics = counts(count, ["quote_count"]);
         result.posts.push(entry);
       }
@@ -880,6 +924,24 @@ async function history(
           item.permalink_url,
         );
         if (!entry) continue;
+        entry.media = facebookMedia(item);
+        const attachments = objects(record(item.attachments)?.data).flatMap(
+          (value) => {
+            const children = objects(record(value.subattachments)?.data);
+            return children.length ? children : [value];
+          },
+        );
+        const attachmentType = string(attachments[0]?.type);
+        entry.contentType =
+          attachments.length > 1
+            ? "carousel"
+            : attachmentType?.includes("video")
+              ? "video"
+              : attachmentType === "photo"
+                ? "image"
+                : attachmentType === "share" || attachmentType === "link"
+                  ? "link"
+                  : inferredContentType(entry);
         entry.metrics.likes = counter(
           record(record(item.reactions)?.summary)?.total_count,
         );
@@ -902,7 +964,7 @@ async function history(
         ig_user_id: context.externalAccountId,
         limit: 10,
         fields:
-          "id,caption,timestamp,permalink,like_count,comments_count,media_product_type",
+          "id,caption,timestamp,permalink,like_count,comments_count,media_product_type,media_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url}",
         ...(context.cursor ? { after: context.cursor } : {}),
       });
       for (const item of requiredList(data, "data", 10)) {
@@ -913,6 +975,15 @@ async function history(
           item.permalink,
         );
         if (!entry) continue;
+        entry.media = instagramMedia(item);
+        entry.contentType =
+          item.media_type === "CAROUSEL_ALBUM"
+            ? "carousel"
+            : item.media_type === "VIDEO" || item.media_product_type === "REELS"
+              ? "video"
+              : item.media_type === "IMAGE"
+                ? "image"
+                : inferredContentType(entry);
         if (typeof item.media_product_type === "string")
           mediaTypes.set(entry.externalId, item.media_product_type);
         entry.metrics.likes = counter(item.like_count);
@@ -950,6 +1021,16 @@ async function history(
           date(record(item.contentDetails)?.videoPublishedAt),
           `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`,
         );
+        if (entry) {
+          entry.contentType = "video";
+          const thumbnails = record(snippet?.thumbnails);
+          entry.media = previewMedia(
+            "image",
+            record(thumbnails?.high)?.url ??
+              record(thumbnails?.medium)?.url ??
+              record(thumbnails?.default)?.url,
+          );
+        }
         return entry ? [entry] : [];
       });
       const ids = entries.map((entry) => entry.externalId);
@@ -975,6 +1056,13 @@ async function history(
                   ? snippet.title
                   : entry.text;
             entry.publishedAt = date(snippet.publishedAt) ?? entry.publishedAt;
+            const thumbnails = record(snippet.thumbnails);
+            const thumbnail =
+              record(thumbnails?.maxres)?.url ??
+              record(thumbnails?.high)?.url ??
+              record(thumbnails?.medium)?.url ??
+              record(thumbnails?.default)?.url;
+            if (thumbnail) entry.media = previewMedia("image", thumbnail);
             const count = record(detail.statistics);
             entry.metrics.views = counter(count?.viewCount);
             entry.metrics.likes = counter(count?.likeCount);
@@ -1028,6 +1116,11 @@ async function history(
           detail.share_url,
         );
         if (!entry) continue;
+        entry.contentType = "video";
+        entry.media = previewMedia(
+          "image",
+          detail.cover_image_url ?? item.cover_image_url,
+        );
         entry.metrics = {
           ...metrics(),
           views: counter(detail.view_count),

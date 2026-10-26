@@ -229,7 +229,7 @@ describe("SocialStatisticsResearch", () => {
         expect(button).toHaveClass(
           "h-11",
           "md:h-8",
-          "border-input",
+          "border-control-border",
           "bg-background",
         );
         expect(button.parentElement).toBe(showMore.parentElement);

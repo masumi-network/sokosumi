@@ -326,7 +326,9 @@
       "memory": "Memoria",
       "social": "Programación social",
       "ads": "Anuncios",
-      "evaluations": "Evaluaciones de modelos"
+      "evaluations": "Evaluaciones de modelos",
+      "catch-up": "Ponerse al día",
+      "contacts": "Contactos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1020,6 +1022,16 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openJob": "Abrir job",
+      "jobHint": {
+        "started": "Iniciando el job.",
+        "payment_pending": "Esperando a que se confirme el pago antes de que el agente empiece.",
+        "processing": "El agente está trabajando en ello.",
+        "input_required": "El agente necesita más información para continuar.",
+        "result_pending": "El agente terminó. El resultado está en camino.",
+        "failed": "El agente no pudo terminar este job.",
+        "payment_failed": "El pago no se completó, así que el agente no empezó."
+      },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
       "assignee": "Asignado a",
@@ -1027,7 +1039,6 @@
       "destination": "Cuenta",
       "scheduled": "Programado para",
       "recurrence": "Repetición",
-      "bytes": "{size} bytes",
       "kind": {
         "task": "Tarea",
         "task_schedule": "Programación de tarea",
@@ -1455,7 +1466,9 @@
           "sokoBot": "Soko Bot",
           "topUp": "Recarga",
           "unattributed": "Otros"
-        }
+        },
+        "sokoBotTurns": "{count, plural, one {# interacción} other {# interacciones}}",
+        "sokoBotTurnsList": "Interacciones de {name}"
       },
       "Export": {
         "button": "Exportar CSV",
@@ -1600,7 +1613,8 @@
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
           "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores"
+          "trendDown": "{count} menos que en las 24 horas anteriores",
+          "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1610,6 +1624,19 @@
         "searchAgents": {
           "label": "Buscar",
           "subtitle": "Agentes especializados"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "heading": "¿Qué sigue?",
+          "headingWithName": "¿Qué sigue, {name}?",
+          "placeholder": "Pregunta a {name}…",
+          "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
+          "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "suggestions": {
+            "catchUp": "Ponme al día",
+            "teamWins": "¿Qué terminamos?",
+            "planTomorrow": "Planificar mañana"
+          }
         }
       },
       "SokoBot": {
@@ -1630,6 +1657,7 @@
         "chainLastHop": "Este es el último paso: ya no despertará a nadie.",
         "source": {
           "inbox": "De tu bandeja de entrada",
+          "briefing": "Resumen de la mañana",
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
@@ -1702,7 +1730,8 @@
         "emptyResults": "No se encontraron resultados.",
         "all": "Todas",
         "scopeLabel": "Ámbito",
-        "scopeOwned": "Mis tareas",
+        "scopeOwned": "Creadas por mí",
+        "assignedToMe": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
         "humanLabel": "Humano",
@@ -1803,8 +1832,6 @@
         "actions": {
           "edit": "Editar",
           "archive": "Archivar",
-          "confirmArchive": "¿Archivar esta tarea?",
-          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista, incluidas las ejecuciones programadas vinculadas. Las ejecuciones en curso deben terminar o cancelarse primero. No se elimina permanentemente de la base de datos.",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
           "reopenToReadyTitle": "Reabrir tarea",
@@ -2163,6 +2190,7 @@
           "resume": "Reanudar",
           "end": "Finalizar",
           "delete": "Eliminar",
+          "more": "Más acciones",
           "paused": "Programación en pausa",
           "resumed": "Programación reanudada",
           "ended": "Programación finalizada",
@@ -2241,7 +2269,14 @@
           "marketing": "Marketing",
           "social": "Redes sociales",
           "seo": "SEO",
-          "operations": "Operaciones"
+          "operations": "Operaciones",
+          "presentations": "Presentaciones",
+          "dashboards": "Paneles",
+          "monitoring": "Monitorización",
+          "media": "Edición multimedia",
+          "communication": "Comunicación",
+          "finance": "Finanzas",
+          "qa": "Revisión y QA"
         }
       }
     },
@@ -2435,6 +2470,19 @@
         "emptyHint": "Conecta una para publicar."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Inténtalo de nuevo",
+          "help": "Todo lo demás sigue funcionando. Comprueba tu conexión e inténtalo de nuevo.",
+          "projectHelp": "Por ahora se muestran todos los proyectos. Inténtalo de nuevo o elige otro.",
+          "title": {
+            "drafts": "No se pudieron cargar los borradores",
+            "attention": "No se pudieron cargar las publicaciones que requieren atención",
+            "accounts": "No se pudieron cargar las cuentas",
+            "calendar": "No se pudo cargar el calendario",
+            "post": "No se pudo abrir esa publicación",
+            "project": "No se pudo cargar ese proyecto"
+          }
+        },
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más.",
         "loadMoreOffline": "Estás sin conexión.",
@@ -2559,8 +2607,8 @@
           },
           "timezone": {
             "yours": "Tu zona horaria: {zone}",
-            "goesOut": "Sale el {date} ({zone})",
-            "postZone": "Programada como {date} ({zone})"
+            "goesOut": "Sale el {date} · {zone}",
+            "postZone": "Programada como {date} · {zone}"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",
@@ -2669,6 +2717,7 @@
           "offline": "Estás sin conexión.",
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
+          "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2712,9 +2761,9 @@
           "clearFilters": "Borrar filtros",
           "invalidRange": "La fecha final debe ser igual o posterior a la fecha inicial.",
           "loading": "Cargando estadísticas…",
-          "loadFailed": "No se pudieron cargar las estadísticas",
+          "loadFailed": "No se cargaron las estadísticas.",
           "retry": "Volver a intentar",
-          "refreshFailed": "No se pudieron actualizar las estadísticas. Se conservan los resultados anteriores. Revisa la cuenta conectada y los permisos y vuelve a intentarlo.",
+          "refreshFailed": "No se pudieron actualizar.",
           "empty": "Ninguna publicación importada coincide con estos filtros. Sincroniza una cuenta o borra los filtros.",
           "refresh": "Actualizar estadísticas",
           "loadMore": "Cargar más publicaciones",
@@ -2798,8 +2847,8 @@
           "historyNotFetched": "Todavía no se ha importado el historial de la cuenta.",
           "historyLimited": "El historial está incompleto o limitado por la plataforma. Revisa los permisos y vuelve a sincronizar.",
           "dateUnavailable": "Fecha de publicación no disponible",
-          "mediaPost": "Publicación multimedia",
-          "openPost": "Abrir publicación en la plataforma",
+          "noPostMetrics": "Todavía no se han recibido métricas para esta publicación.",
+          "openPost": "Ver publicación en la plataforma",
           "research": {
             "title": "Investigación en X",
             "audience": "Audiencia",
@@ -2886,7 +2935,13 @@
             "linkClicks": "Clics en enlaces",
             "replies": "Respuestas",
             "reposts": "Republicaciones",
-            "dislikes": "No me gusta"
+            "dislikes": "No me gusta",
+            "quotes": "Citas",
+            "totalWatchTime": "Tiempo total de reproducción",
+            "averageWatchTime": "Tiempo medio de reproducción",
+            "skipRate": "Tasa de omisión",
+            "facebookViews": "Visualizaciones en Facebook",
+            "crosspostedViews": "Visualizaciones de publicaciones cruzadas"
           },
           "periods": {
             "lifetime": "Acumulado",
@@ -3011,6 +3066,7 @@
           "dialog": {
             "title": "¿Cerrar el proyecto?",
             "description": "El trabajo programado antes del límite de cierre finalizará. El trabajo previsto a partir de ese momento se cancelará y el proyecto no podrá volver a abrirse.",
+            "scheduledPostsWarning": "{count, plural, one {Se cancelará # publicación programada.} other {Se cancelarán # publicaciones programadas.}}",
             "reasonLabel": "Motivo (opcional)",
             "reasonPlaceholder": "¿Por qué se cierra este proyecto?",
             "confirm": "Cerrar proyecto",
@@ -3175,10 +3231,28 @@
       "noModelSelected": "Elige al menos un modelo. El encuadre, la resolución y el formato que se ofrecen son los que todos los modelos elegidos admiten.",
       "generationTime": "Tiempo de generación",
       "runPlan": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}",
+      "modelSelectionLimit": "Elige hasta {count} modelos por lote. Deselecciona un modelo para añadir otro.",
+      "selectModelsUpToLimit": "Seleccionar hasta {count}",
+      "mixedSettings": "Varía según el modelo",
+      "modelChoosesFormat": "El modelo elige",
       "copiesOverCeiling": "{models, plural, one {# modelo} other {# modelos}} x {copies} copias son {images} imágenes, y el límite es {limit}.",
       "batchCeiling": "Como máximo {count} imágenes por pulsación. Sokosumi las envía en grupos pequeños, a medida que el proveedor se libera.",
-      "errorUnreachable": "No se pudo acceder al estudio. No se generó nada. Vuelve a intentarlo.",
-      "errorInsufficientCredits": "No hay créditos suficientes. No se generó nada ni se cobró nada. Recarga tus créditos y vuelve a intentarlo.",
+      "savedSubmission": "Solicitud guardada para {model}",
+      "submissionUnconfirmed": "Envío sin confirmar",
+      "submissionNotStarted": "No se pudo iniciar la generación de imágenes",
+      "viewSavedBrief": "Ver descripción guardada",
+      "retrySubmission": "Reintentar envío",
+      "editSavedBrief": "Editar descripción guardada",
+      "dismissSubmission": "Descartar",
+      "recoveryEditBlocked": "Hay un borrador más reciente en el editor. Termínalo antes de editar esta descripción guardada.",
+      "savedRequestsInTab": "Las solicitudes guardadas permanecen en esta pestaña. Se borran al salir o recargar.",
+      "promptShortcut": "Ctrl o ⌘ + Intro para generar. Intro o Mayús + Intro para una nueva línea.",
+      "promptCharacterCount": "{count, number} / {limit, number} caracteres",
+      "promptTooLong": "Acorta la descripción a {limit, number} caracteres antes de generar.",
+      "templateReplacedBrief": "La plantilla reemplazó tu descripción.",
+      "undoTemplate": "Deshacer plantilla",
+      "errorUnreachable": "No se pudo confirmar el envío. La solicitud original aún podría completarse y cobrarse. Al reintentar se comprueba la misma solicitud sin crear otra generación.",
+      "errorInsufficientCredits": "No hay créditos suficientes para iniciar las imágenes restantes. Tus solicitudes están guardadas aquí para reintentarlas después de añadir créditos.",
       "credits": "Créditos",
       "creditsTitle": "Créditos de este lote",
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
@@ -3201,6 +3275,18 @@
         "unknown": "Esta generación no se completó."
       },
       "failedDetails": "Lo que dijo el proveedor",
+      "studioMode": "Crear",
+      "modeImage": "Imagen",
+      "modeVideo": "Vídeo",
+      "videoComposerTitle": "Describe un vídeo",
+      "videoPromptPlaceholder": "Describe el vídeo que quieres…",
+      "generateVideo": "Generar vídeo",
+      "videoLength": "Duración",
+      "videoFollowsImage": "El vídeo mantiene el formato de la imagen.",
+      "videoNeedsProject": "Abre un proyecto para crear un vídeo en él.",
+      "animate": "Animar",
+      "animating": "Animando",
+      "stopAnimating": "Dejar de animar esta imagen",
       "runPlanCredits": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}, {credits, plural, one {# crédito} other {# créditos}}",
       "creditsEach": "{credits, plural, one {# crédito} other {# créditos}} x {count}",
       "creditsCount": "{count, plural, one {# crédito} other {# créditos}}",
@@ -3869,7 +3955,8 @@
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
           "social": "Programación social",
-          "ads": "Anuncios"
+          "ads": "Anuncios",
+          "contacts": "Contactos"
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -5871,7 +5958,11 @@
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
-        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado"
+        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
+        "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
+        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
+        "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
       "BillingDetails": {
         "title": "Información de facturación",
@@ -6960,6 +7051,10 @@
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
       "reorderPinnedDone": "Terminar de reordenar",
+      "SectionLimit": {
+        "showMore": "Mostrar {count} más",
+        "showLess": "Mostrar menos"
+      },
       "loading": "Cargando...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "El mensaje es demasiado largo ({count}/{max}). Acórtalo para enviarlo.",
@@ -6974,7 +7069,8 @@
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "noMessagesDescription": "Empieza el canal con un mensaje o menciona a un coworker de IA.",
+        "noDirectMessagesDescription": "Envía un mensaje para empezar la conversación.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "No se pudieron cargar los miembros",
@@ -7111,11 +7207,9 @@
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "filterOn": "Mostrando solo lo no leído",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
-        "allThreads": "Todos los hilos",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {
@@ -7478,6 +7572,92 @@
         "you": "Tú",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
+      },
+      "Signals": {
+        "error": "No se pudo cargar. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "needsYouCount": "{count, plural, one {# mensaje te espera} other {# mensajes te esperan}}",
+        "needsYouSection": "Te esperan",
+        "catchUp": "Ponerse al día",
+        "whileYouWereAway": "Mientras no estabas:",
+        "whileYouWereAwayTitle": "Mientras no estabas",
+        "dismissCatchUp": "Ocultar resumen",
+        "summarize": "Resumen",
+        "summarizing": "Escribiendo tu resumen…",
+        "writtenByAi": "Resumen escrito por IA {time}",
+        "byRoom": "Por sala",
+        "due": "Vence {date}",
+        "caughtUpTitle": "Estás al día",
+        "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
+        "removeTag": "Quitar etiqueta: {tag}",
+        "taskMade": "Tarea creada",
+        "loopClosed": "Hecho",
+        "makeTask": "Crear una tarea",
+        "handOff": "Delegar",
+        "findingCoworkers": "Buscando un Coworker…",
+        "fit": "{fit} de ajuste",
+        "noCoworkerFits": "Ningún Coworker encaja todavía.",
+        "createTask": "Crear una tarea",
+        "editTags": "Editar etiquetas",
+        "editTagsTitle": "Qué es este mensaje",
+        "editTagsNote": "Tu corrección vale para todos en la sala.",
+        "taskDue": "Vence {date}",
+        "taskSource": "Del chat:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# pregunta para ti} other {# preguntas para ti}}",
+          "escalation": "{count, plural, one {# escalada} other {# escaladas}}",
+          "urgent": "{count, plural, one {# urgente} other {# urgentes}}",
+          "blocker": "{count, plural, one {# bloqueo} other {# bloqueos}}",
+          "decisionMade": "{count, plural, one {# decisión} other {# decisiones}}",
+          "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
+          "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
+          "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
+          "question": "{count, plural, one {# pregunta} other {# preguntas}}",
+          "fyi": "{count, plural, one {# aviso} other {# avisos}}",
+          "chitChat": "{count, plural, one {# charla} other {# charlas}}"
+        },
+        "Sections": {
+          "needsYou": "Te esperan",
+          "decisions": "Decisiones",
+          "openLoops": "Pendientes",
+          "highlights": "Destacados"
+        },
+        "Chips": {
+          "needsYou": "Te espera",
+          "escalation": "Escalada",
+          "urgent": "Urgente",
+          "blocker": "Bloqueo",
+          "decisionMade": "Decisión",
+          "needsDecision": "Necesita una decisión",
+          "commitment": "Compromiso",
+          "commitmentDue": "Compromiso · vence {date}",
+          "workRequest": "Encargo"
+        },
+        "Tags": {
+          "question": "Hace una pregunta a alguien",
+          "needsDecision": "Necesita una decisión",
+          "decisionMade": "Decisión tomada",
+          "commitment": "Compromiso",
+          "blocker": "Bloqueo",
+          "urgent": "Urgente",
+          "escalation": "Escalada",
+          "workRequest": "Encargo",
+          "fyi": "Aviso",
+          "chitChat": "Charla"
+        },
+        "Decisions": {
+          "open": "Decisiones",
+          "title": "Decisiones",
+          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "loadOlder": "Cargar anteriores",
+          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+        },
+        "CatchUpTabs": {
+          "label": "Secciones de Ponerse al día",
+          "overview": "Resumen",
+          "threads": "Hilos"
+        }
       }
     },
     "Drive": {
@@ -7531,6 +7711,13 @@
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
       "moveAction": "Mover",
+      "moveFilesDialogTitle": "Mover {count, plural, one {# archivo} other {# archivos}}",
+      "movedFiles": "{count, plural, one {# archivo movido} other {# archivos movidos}}",
+      "moveFilesPartialError": "{count, plural, one {No se pudo mover # archivo} other {No se pudieron mover # archivos}}",
+      "moveNewFolderLabel": "Carpeta nueva",
+      "moveNewFolderPlaceholder": "O escribe el nombre de una carpeta nueva",
+      "shareAction": "Compartir",
+      "shareFolderAction": "Compartir “{name}”",
       "moveDialogTitle": "Mover {itemName}",
       "moveDialogDescription": "Selecciona la carpeta de destino",
       "moveHere": "Mover aquí",
@@ -7565,6 +7752,13 @@
       "filterProjectLabel": "Proyecto",
       "filterTaskLabel": "Tarea",
       "recentsTab": "Recientes",
+      "recentsTagFilter": "Etiquetas",
+      "recentsTagFilterWithCount": "Etiquetas ({count})",
+      "recentsTagFilterHeading": "Mostrar archivos etiquetados",
+      "recentsTagFilterClear": "Quitar etiquetas",
+      "recentsTagFilterLoading": "Cargando etiquetas",
+      "recentsTagFilterUnavailable": "No se pudieron cargar las etiquetas.",
+      "recentsTagFilterEmpty": "Aún no hay etiquetas. Los archivos se etiquetan al procesarse.",
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
@@ -7616,15 +7810,16 @@
         "suggestedChip": "Sugerido: {name}",
         "selectFile": "Seleccionar {name}",
         "bulkSelected": "{count} seleccionados",
-        "bulkWindowSelected": "{count} archivos seleccionados de esta ventana",
-        "bulkWindowChanged": "Esta ventana cambió: {count} archivos siguen coincidiendo. Confirma de nuevo.",
-        "bulkSelectionExpired": "Esa ventana de resultados caducó. Busca de nuevo.",
-        "bulkSetCategory": "Poner {name}",
         "bulkClear": "Quitar selección",
-        "bulkApplied": "{count} archivos actualizados",
-        "bulkPartial": "{applied} actualizados, {failed} fallaron y siguen seleccionados",
-        "bulkSelectAllMatches": "Seleccionar los {count} resultados",
-        "bulkError": "No se pudieron aplicar esos cambios.",
+        "bulkDelete": "Eliminar",
+        "bulkMove": "Mover",
+        "bulkShare": "Compartir",
+        "bulkDeleteTitle": "¿Eliminar {count, plural, one {# archivo} other {# archivos}}?",
+        "bulkDeleteDescription": "Se eliminan para todos en este espacio de archivos. No se puede deshacer.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
+        "bulkDeleteCancel": "Cancelar",
+        "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
+        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -7702,9 +7897,6 @@
         "addTagUnavailable": "No se pudieron cargar las etiquetas",
         "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior.",
         "suggestionExcerpt": "De este documento",
-        "bulkMoreCategories": "{count} más…",
-        "bulkCategorySearch": "Buscar categorías",
-        "bulkCategoryEmpty": "No hay categorías que coincidan",
         "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible.",
         "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
         "sheetOpenAsPage": "Abrir como página",
@@ -7712,6 +7904,7 @@
         "viewerDetails": "Detalles",
         "viewerClose": "Cerrar",
         "viewerNoPreview": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+        "viewerDownloadWithSize": "Descargar ({size})",
         "searchButton": "Buscar",
         "searchClear": "Borrar búsqueda",
         "typeAll": "Todos",
@@ -7722,6 +7915,34 @@
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
+      },
+      "tableKind": "Tabla",
+      "Share": {
+        "title": "Compartir “{name}”",
+        "fileDescription": "Cualquiera con el enlace puede ver y descargar este archivo.",
+        "folderDescription": "Cualquiera con el enlace puede ver y descargar todo lo que hay en esta carpeta, incluidos los archivos que se añadan después.",
+        "loading": "Cargando enlace",
+        "passwordOptional": "Contraseña (opcional)",
+        "passwordPlaceholder": "Déjala vacía para no usar contraseña",
+        "newPasswordPlaceholder": "Nueva contraseña",
+        "passwordTooShort": "Al menos 4 caracteres",
+        "create": "Crear enlace",
+        "created": "Enlace creado",
+        "linkLabel": "Enlace para compartir",
+        "copy": "Copiar",
+        "copied": "Enlace copiado",
+        "copyFailed": "No se pudo copiar el enlace",
+        "passwordOn": "Protegido con contraseña",
+        "passwordOff": "Sin contraseña",
+        "setPassword": "Poner contraseña",
+        "changePassword": "Cambiar",
+        "passwordSaved": "Contraseña guardada",
+        "removePassword": "Quitar contraseña",
+        "passwordRemoved": "Contraseña quitada",
+        "revoke": "Dejar de compartir",
+        "revoked": "Enlace desactivado",
+        "loadFailed": "No se pudo cargar el enlace",
+        "saveFailed": "No se pudo guardar el enlace"
       }
     },
     "SokoBot": {
@@ -7734,18 +7955,23 @@
         "description": "El Asistente personal no está habilitado en este entorno. Vuelve a intentarlo más tarde."
       },
       "Create": {
-        "title": "Conoce a tu Soko Bot",
+        "title": "Tu propio asistente",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tareas a tus Coworkers y contrata Agentes del marketplace para ejecutar Jobs. Ponle un nombre y una imagen.",
+        "description": "Un Soko Bot es un asistente de IA que trabaja para ti en Sokosumi. Dile lo que necesitas con tus propias palabras y él se encarga.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
-        "submit": "Crear Soko Bot",
+        "submit": "Crear mi Soko Bot",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
-        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
+        "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes.",
+        "exampleDelegate": "Convierte «investiga a nuestros 5 principales competidores» en una tarea para el Coworker adecuado y hace seguimiento hasta que esté hecha.",
+        "exampleBrief": "Te envía cada mañana un breve resumen de tu bandeja de entrada y tu calendario.",
+        "exampleMemory": "Recuerda tus objetivos y preferencias para que no tengas que repetirte.",
+        "examplesLabel": "Lo que puede hacer por ti",
+        "nameIntro": "Primero, ponle un nombre."
       },
       "Memory": {
         "title": "Memoria",
@@ -7775,7 +8001,7 @@
         "connectFailed": "La conexión no se completó. Inténtalo de nuevo.",
         "lastError": "Necesita atención: {error}",
         "title": "Cuentas conectadas",
-        "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
+        "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -7854,6 +8080,9 @@
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
         "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario lo nombra.",
+        "mailAutoReadTitle": "Gestionar correo rutinario",
+        "mailAutoReadDescription": "Tras cada revisión, marca como leído el correo que no es urgente ni relevante. El correo importante queda sin leer para ti.",
+        "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -7935,6 +8164,8 @@
           "read_file": "Leyendo un archivo",
           "generate_image": "Generando una imagen",
           "get_image": "Consultando una imagen",
+          "generate_video": "Generando un vídeo",
+          "get_video": "Consultando un vídeo",
           "preview_result": "Preparando una vista previa"
         },
         "composer": {
@@ -8081,7 +8312,7 @@
         },
         "Connectors": {
           "title": "Herramientas",
-          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
+          "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {
@@ -8344,10 +8575,16 @@
       "yes": "Sí",
       "no": "No",
       "cellHistory": "Historial y fuentes: {column}",
+      "openLink": "Abrir enlace: {column}",
+      "wrapText": "Ajustar texto",
+      "fitColumn": "Ajustar ancho al contenido",
+      "resizeColumn": "Cambiar el ancho de {column}. Arrastra o pulsa las flechas izquierda y derecha. Haz doble clic para ajustarlo al contenido.",
+      "gridKeys": "Las flechas y Tab mueven entre celdas. Enter o escribir edita una celda, Escape cancela y Enter guarda. Alt+Enter abre un enlace y Alt+Mayús+H muestra el historial de la celda.",
       "discard": "Descartar borrador",
       "editColumn": "Editar columna",
       "addColumn": "Añadir columna",
       "columnDescription": "Las descripciones ayudan a personas y agentes a entender los valores. Los ID de columna se mantienen estables.",
+      "lastUpdatedHint": "Se rellena sola con la hora del último cambio de cada fila.",
       "columnConflictReview": "La tabla cambió mientras guardabas. Revisa las columnas más recientes antes de guardar de nuevo.",
       "reloadLatest": "Cargar más recientes",
       "reviewLatest": "Revisión completada",
@@ -8416,7 +8653,8 @@
         "url": "URL",
         "email": "Correo electrónico",
         "single_select": "Selección única",
-        "multiple_select": "Selección múltiple"
+        "multiple_select": "Selección múltiple",
+        "last_updated": "Última actualización"
       },
       "archived": "Archivada",
       "active": "Activa",
@@ -8443,8 +8681,26 @@
         "csvRows": "Los archivos CSV pueden contener hasta 10.000 filas de datos.",
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
-        "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
-      }
+        "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
+      },
+      "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
+      "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
+      "showMore": "Mostrar más",
+      "showLess": "Mostrar menos",
+      "previousPosition": "Posición anterior",
+      "newPosition": "Nueva posición",
+      "anyOption": "Cualquier opción",
+      "dnd": {
+        "instructions": "Para mover una fila o columna, arrastra su asa, o enfócala y pulsa las flechas.",
+        "pickedUp": "{item} seleccionado.",
+        "over": "{item} está sobre {target}.",
+        "dropped": "{item} se movió al lugar de {target}.",
+        "cancelled": "Se canceló mover {item}."
+      },
+      "contactsName": "Contactos",
+      "contactsPinned": "Fijado",
+      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
@@ -8465,6 +8721,404 @@
       "manage": "Gestionar proyectos",
       "current": "(actual)",
       "searching": "Buscando proyectos..."
+    },
+    "Contacts": {
+      "Metadata": {
+        "title": "Contactos",
+        "description": "Todas las personas que conoce tu equipo, con cada forma de contactarlas."
+      },
+      "stages": {
+        "CONTACT": "Contacto",
+        "FRIEND": "Amigo",
+        "PROSPECT": "Prospecto",
+        "LEAD": "Lead",
+        "ACTIVE": "Activo",
+        "CUSTOMER": "Cliente",
+        "PARTNER": "Socio",
+        "INVESTOR": "Inversor",
+        "VENDOR": "Proveedor",
+        "ADVISOR": "Asesor",
+        "COMMUNITY": "Comunidad",
+        "PRESS": "Prensa",
+        "DORMANT": "Inactivo"
+      },
+      "channelTypes": {
+        "EMAIL": "Correo",
+        "PHONE": "Teléfono",
+        "SLACK": "Slack",
+        "LINKEDIN": "LinkedIn",
+        "X": "X",
+        "WEBSITE": "Sitio web",
+        "TELEGRAM": "Telegram",
+        "WHATSAPP": "WhatsApp",
+        "GITHUB": "GitHub",
+        "OTHER": "Otro"
+      },
+      "sources": {
+        "MANUAL": "Añadido a mano",
+        "EMAIL": "Del correo",
+        "CALENDAR": "Del calendario",
+        "SLACK": "De Slack",
+        "WEB_RESEARCH": "De una búsqueda web",
+        "IMPORT": "Importado",
+        "OTHER": "Otra fuente"
+      },
+      "presets": {
+        "all": "Todos los contactos",
+        "mine": "Mis contactos",
+        "recent": "Añadidos recientemente"
+      },
+      "emptyViews": {
+        "all": "Todavía no hay contactos.",
+        "mine": "Todavía nadie con quien hayas hablado. Aquí aparece cada persona a la que escribes o con quien te reúnes.",
+        "recent": "No se añadió a nadie en las últimas dos semanas.",
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
+      },
+      "views": {
+        "label": "Vistas de contactos",
+        "lists": "Listas",
+        "newList": "Nueva lista",
+        "smartList": "Lista inteligente",
+        "editList": "Editar lista",
+        "deleteList": "Eliminar lista",
+        "noLists": "Todavía no hay listas.",
+        "import": "Importar desde una tabla",
+        "autoList": "Creada automáticamente a partir de tus contactos",
+        "companies": "Empresas",
+        "findCompany": "Buscar una empresa…",
+        "noCompanies": "No se encontraron empresas.",
+        "clearCompany": "Mostrar todas las empresas"
+      },
+      "columns": {
+        "name": "Nombre",
+        "organization": "Organización",
+        "role": "Cargo",
+        "stage": "Relación",
+        "lists": "Listas",
+        "channels": "Canales",
+        "firstContact": "Primer contacto",
+        "lastContact": "Último contacto",
+        "knownBy": "Lo conocen",
+        "followUp": "Seguimiento",
+        "email": "Correo",
+        "reply": "Respuesta",
+        "importance": "Importancia",
+        "familiarity": "Cercanía"
+      },
+      "grid": {
+        "label": "Contactos",
+        "openContact": "Abrir {name}",
+        "knownByLabel": "Lo conocen {names}",
+        "due": "Pendiente",
+        "selectAll": "Seleccionar todos los contactos",
+        "selectRow": "Seleccionar a {name}",
+        "resizeColumn": "Cambiar el ancho de {column}",
+        "keys": "Las flechas mueven entre celdas. Intro sobre un nombre abre a la persona; en otras celdas, edita. F2 edita el nombre. Escape cancela.",
+        "loadMore": "Cargar más",
+        "copyEmail": "Copiar {email}",
+        "emailCopied": "Correo copiado",
+        "waitingDays": "{days, plural, =0 {hoy} other {# d}}",
+        "addedAutomatically": "Añadido a {list} automáticamente",
+        "filterCompany": "Mostrar personas de {name}"
+      },
+      "toolbar": {
+        "search": "Buscar contactos",
+        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "me": "Yo",
+        "clearFilter": "Quitar el filtro {filter}",
+        "export": "Exportar CSV",
+        "add": "Añadir contacto",
+        "more": "Más acciones",
+        "filter": "Filtrar",
+        "kind": "Tipo"
+      },
+      "bulk": {
+        "label": "Contactos seleccionados",
+        "selected": "{count} seleccionados",
+        "addToList": "Añadir a una lista",
+        "removeFromList": "Quitar de una lista",
+        "merge": "Fusionar",
+        "clear": "Quitar selección",
+        "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
+        "addedToList": "{count, plural, =1 {1 contacto añadido a {list}} other {# contactos añadidos a {list}}}",
+        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}"
+      },
+      "errors": {
+        "versionConflict": "Alguien acaba de cambiar este contacto. Cargamos su versión; vuelve a intentar tu cambio.",
+        "saveFailed": "No se guardó. Inténtalo de nuevo.",
+        "exportFailed": "La exportación no terminó. Inténtalo de nuevo.",
+        "loadTitle": "Los contactos no se cargaron",
+        "load": "Revisa tu conexión e inténtalo de nuevo."
+      },
+      "count": "{count, plural, =0 {Ninguna persona} =1 {1 persona} other {# personas}}",
+      "showing": "Mostrando {shown} de {total}",
+      "loading": "Cargando contactos",
+      "retry": "Reintentar",
+      "noMatchesTitle": "No hay nadie aquí",
+      "noMatches": "Ningún contacto coincide con estos filtros.",
+      "clearFilters": "Quitar filtros",
+      "merged": "Fusionado en {name}",
+      "deleteList": {
+        "title": "¿Eliminar {name}?",
+        "description": "La lista desaparece para todo el equipo. Las personas que contiene siguen en Contactos.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar lista"
+      },
+      "listDialog": {
+        "createTitle": "Nueva lista",
+        "editTitle": "Editar lista",
+        "description": "Las listas se comparten con todo tu equipo. Una persona puede estar en tantas como quieras.",
+        "name": "Nombre",
+        "namePlaceholder": "Inversores, encuentro en Berlín…",
+        "nameRequired": "Ponle un nombre a la lista.",
+        "color": "Color",
+        "colors": {
+          "gray": "Gris",
+          "red": "Rojo",
+          "orange": "Naranja",
+          "amber": "Ámbar",
+          "green": "Verde",
+          "teal": "Verde azulado",
+          "blue": "Azul",
+          "indigo": "Índigo",
+          "violet": "Violeta",
+          "pink": "Rosa"
+        },
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Opcional. Para qué es la lista.",
+        "failed": "La lista no se guardó. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "create": "Crear lista"
+      },
+      "addDialog": {
+        "title": "Añadir contacto",
+        "description": "Un nombre, una forma de contactar o ambas. Si tu equipo ya conoce a esta persona, te llevamos a ese contacto.",
+        "name": "Nombre",
+        "organization": "Organización",
+        "role": "Cargo",
+        "channels": "Formas de contacto",
+        "channelType": "Tipo del canal {index}",
+        "channelValue": "Canal {index}",
+        "removeChannel": "Quitar el canal {index}",
+        "addChannel": "Añadir otro",
+        "placeholders": {
+          "EMAIL": "nombre@empresa.com",
+          "PHONE": "+34 612 345 678",
+          "SLACK": "TEAMID:USERID",
+          "LINKEDIN": "linkedin.com/in/nombre",
+          "X": "@usuario",
+          "WEBSITE": "empresa.com",
+          "TELEGRAM": "@usuario",
+          "WHATSAPP": "+34 612 345 678",
+          "GITHUB": "github.com/nombre",
+          "OTHER": "Cualquier otra cosa"
+        },
+        "prospect": "Es un prospecto",
+        "prospectHint": "Alguien con quien aún no habéis hablado, pero os gustaría.",
+        "whyInteresting": "Por qué es interesante",
+        "whyPlaceholder": "¿Qué hace que merezca la pena conocerle?",
+        "nameOrChannel": "Añade un nombre o una forma de contacto.",
+        "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
+        "openExisting": "Abrir contacto",
+        "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "submit": "Añadir contacto"
+      },
+      "mergeDialog": {
+        "title": "{count, plural, =2 {Fusionar 2 contactos} other {Fusionar # contactos}}",
+        "description": "Elige el contacto que se queda. Todo lo de los demás pasa a él: canales, historial y listas. Los campos vacíos se completan con los suyos.",
+        "keep": "Conservar",
+        "noDetails": "Sin cargo ni organización",
+        "interactions": "{count, plural, =0 {Sin interacciones} =1 {1 interacción} other {# interacciones}}",
+        "failed": "La fusión no terminó. No cambió nada.",
+        "cancel": "Cancelar",
+        "submit": "Fusionar"
+      },
+      "importDialog": {
+        "title": "Importar desde una tabla",
+        "description": "Trae personas desde una tabla de Archivos. Las filas que coinciden con alguien por correo o nombre actualizan ese contacto.",
+        "doneDescription": "Tus contactos están al día.",
+        "chooseTable": "Tabla",
+        "columnCount": "{count, plural, =1 {1 columna} other {# columnas}}",
+        "noTables": "Todavía no hay tablas en Archivos.",
+        "mapColumns": "Relacionar columnas",
+        "mapHint": "Lo hemos deducido de los nombres de las columnas. Omite lo que no necesites.",
+        "required": "(obligatorio)",
+        "skipColumn": "Omitir",
+        "fields": {
+          "name": "Nombre",
+          "organization": "Organización",
+          "role": "Cargo",
+          "location": "Ubicación",
+          "email": "Correo",
+          "phone": "Teléfono",
+          "linkedin": "LinkedIn",
+          "x": "X",
+          "website": "Sitio web",
+          "github": "GitHub",
+          "telegram": "Telegram",
+          "summary": "Sobre la persona",
+          "whyInteresting": "Por qué es interesante",
+          "nextStep": "Próximo paso",
+          "firstContactAt": "Primer contacto",
+          "lists": "Listas"
+        },
+        "result": {
+          "created": "Añadidos",
+          "updated": "Actualizados",
+          "unchanged": "Ya al día",
+          "skipped": "Omitidos",
+          "listsCreated": "{count, plural, =1 {Se creó 1 lista a partir de las etiquetas} other {Se crearon # listas a partir de las etiquetas}}"
+        },
+        "importing": "Importando… Con tablas grandes puede tardar un minuto.",
+        "nameRequired": "Elige la columna con los nombres.",
+        "failed": "La importación no terminó. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "submit": "Importar",
+        "done": "Listo"
+      },
+      "empty": {
+        "title": "Aquí viven los contactos de tu equipo",
+        "description": "Las personas se añaden solas desde el correo, el calendario y Slack conectados a vuestros Soko Bots, junto con quién del equipo las conoce. Sin boletines ni remitentes automáticos.",
+        "connect": "Conectar {name}",
+        "connected": "{name} conectado",
+        "connectFailed": "La conexión no se inició. Inténtalo de nuevo.",
+        "manageConnections": "Gestionar conexiones",
+        "addByHand": "Añadir a alguien",
+        "import": "Importar desde una tabla"
+      },
+      "panel": {
+        "loading": "Cargando contacto",
+        "notFoundTitle": "No se encontró el contacto",
+        "notFound": "Puede que se haya fusionado o archivado.",
+        "retry": "Reintentar",
+        "name": "Nombre",
+        "roleAt": " en ",
+        "noRole": "Todavía sin cargo ni organización",
+        "addedBy": "Añadido por {name} {when}",
+        "addedByBot": "Añadido por Soko Bot {when}",
+        "someone": "un compañero",
+        "menu": "Opciones del contacto",
+        "copyLink": "Copiar enlace",
+        "linkCopied": "Enlace copiado",
+        "archive": "Archivar contacto",
+        "archived": "{name} archivado",
+        "changeStage": "Etapa: {stage}. Cambiar etapa",
+        "changeLists": "Cambiar listas",
+        "addToList": "Añadir a una lista",
+        "manualLists": "Listas",
+        "noManualLists": "Todavía no hay listas.",
+        "empty": "Añadir…",
+        "location": "Ubicación",
+        "nextStepTitle": "Próximo paso",
+        "nextStep": "Próximo paso",
+        "nextStepPlaceholder": "¿Qué pasa después?",
+        "noFollowUp": "Sin fecha",
+        "about": "Sobre la persona",
+        "summary": "Resumen",
+        "summaryPlaceholder": "Quién es y de qué la conocéis.",
+        "whyInteresting": "Por qué es interesante",
+        "whyPlaceholder": "Por qué le importa al equipo.",
+        "duplicate": "Parece la misma persona que",
+        "reviewMerge": "Revisar y fusionar",
+        "channels": "Canales",
+        "addChannel": "Añadir canal",
+        "channelSource": "{type}, {source}",
+        "verified": "verificado",
+        "primary": "Principal",
+        "openSource": "Abrir dónde se encontró",
+        "copyChannel": "Copiar {value}",
+        "removeChannel": "Quitar {value}",
+        "noChannels": "Todavía no hay forma de contactar.",
+        "channelType": "Tipo de canal",
+        "channelValue": "Dirección",
+        "add": "Añadir",
+        "timeline": "Historial",
+        "interactionCount": "{count, plural, =1 {1 interacción} other {# interacciones}}",
+        "noInteractions": "Todavía no hay interacciones. Aquí aparecen los correos, reuniones y mensajes de Slack con esta persona.",
+        "sokoBot": "Soko Bot",
+        "interactionChannels": {
+          "EMAIL": "Correo",
+          "MEETING": "Reunión",
+          "SLACK": "Slack",
+          "CALL": "Llamada",
+          "MANUAL": "Nota",
+          "OTHER": "Otro"
+        },
+        "source": "Fuente",
+        "showMore": "Mostrar más",
+        "activityTitle": "Actividad",
+        "activity": {
+          "CREATED": "{who} añadió este contacto",
+          "UPDATED": "{who} cambió {fields}",
+          "CHANNEL_ADDED": "{who} añadió un canal",
+          "CHANNEL_REMOVED": "{who} quitó un canal",
+          "MERGED": "{who} fusionó {names} en este contacto",
+          "ARCHIVED": "{who} archivó este contacto",
+          "UNARCHIVED": "{who} restauró este contacto"
+        },
+        "fields": {
+          "name": "el nombre",
+          "organization": "la organización",
+          "role": "el cargo",
+          "location": "la ubicación",
+          "summary": "el resumen",
+          "whyInteresting": "por qué es interesante",
+          "stage": "la etapa",
+          "ownerUserId": "el responsable",
+          "nextStep": "el próximo paso",
+          "followUpAt": "el seguimiento",
+          "avatarUrl": "la foto",
+          "customFields": "los campos propios",
+          "kind": "tipo"
+        },
+        "markOrganization": "Marcar como organización",
+        "markPerson": "Marcar como persona",
+        "waitingSince": "Desde el {date}, sin respuesta",
+        "heardFrom": "Última noticia suya {when}",
+        "automatic": "Automático",
+        "classifier": "Clasificación automática"
+      },
+      "stageGroups": {
+        "general": "General",
+        "sales": "Ventas",
+        "relationships": "Relaciones",
+        "status": "Estado"
+      },
+      "replyStates": {
+        "NO_REPLY": "Sin respuesta",
+        "AWAITING_REPLY": "Esperando respuesta",
+        "IN_CONVERSATION": "En conversación",
+        "REPLIED": "Respondió"
+      },
+      "kinds": {
+        "PERSON": "Persona",
+        "ORGANIZATION": "Organización o buzón compartido"
+      },
+      "title": "Contactos",
+      "importance": {
+        "veryHigh": "Muy importante",
+        "high": "Importante",
+        "medium": "Algo importante",
+        "low": "Poco importante",
+        "minimal": "Sin importancia",
+        "auto": "Que decida Jev",
+        "change": "Cambiar lo importante que es para ti",
+        "byJev": "Valorado por Jev",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Definido por ti",
+        "byBot": "Definido por tu Soko Bot",
+        "notYet": "Aún sin valorar",
+        "familiarityHint": "Según tus propios correos y reuniones con esta persona",
+        "reasons": {
+          "decides": "toma decisiones",
+          "value": "puede impulsar tu trabajo",
+          "active": "negocio en curso",
+          "close": "relación cercana",
+          "noise": "parece automático o impersonal"
+        }
+      }
     }
   },
   "Share": {
@@ -8501,6 +9155,22 @@
       "title": "AI Agents a demanda",
       "description": "Elige un Agent de confianza, define tus requisitos y recibe resultados accionables, sin suscripción.",
       "buttonText": "Descubrir Agents"
+    },
+    "Files": {
+      "sharedFile": "Archivo compartido",
+      "sharedFolder": "Carpeta compartida",
+      "notFoundTitle": "Enlace no encontrado",
+      "passwordLabel": "Este enlace está protegido. Escribe la contraseña",
+      "open": "Abrir",
+      "download": "Descargar",
+      "downloadFile": "Descargar {name}",
+      "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
+      "emptyFolder": "Esta carpeta está vacía.",
+      "errors": {
+        "wrong": "Contraseña incorrecta.",
+        "locked": "Demasiadas contraseñas incorrectas. Vuelve a intentarlo en 15 minutos.",
+        "failed": "Algo salió mal. Vuelve a intentarlo."
+      }
     }
   },
   "NotFound": {
@@ -8750,6 +9420,12 @@
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
       "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "activateRetry": "Intentar cambiar de nuevo"
+    },
+    "Assistant": {
+      "metadataTitle": "Configura tu asistente",
+      "later": "Más tarde",
+      "skip": "Omitir",
+      "continue": "Continuar"
     }
   }
 }
