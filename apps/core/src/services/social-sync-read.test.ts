@@ -1,8 +1,8 @@
+import { SOCIAL_SYNC_LEASE_MS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
   SOCIAL_SYNC_FRESH_MS,
-  SOCIAL_SYNC_LEASE_MS,
   type SocialSyncStoredRow,
   socialSyncReadModel,
 } from "./social-sync-read";

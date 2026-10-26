@@ -2772,6 +2772,7 @@
           "notFetched": "Todavía no se han obtenido estadísticas.",
           "updatedAt": "Actualizado {date}",
           "updating": "Actualizando…",
+          "syncStale": "La última sincronización no terminó. Se conservan los resultados guardados. Sincroniza la cuenta para intentarlo de nuevo.",
           "metrics": {
             "views": "Visualizaciones",
             "impressions": "Impresiones",
@@ -2873,6 +2874,10 @@
             "postImage": "Imagen de la publicación",
             "postVideo": "Vídeo de la publicación",
             "loadFailed": "No se pudo cargar esta muestra. Inténtalo de nuevo.",
+            "accessDenied": "Es posible que el plan o los permisos de la aplicación de X no incluyan esta consulta. Revisa el acceso de la aplicación en X.",
+            "reconnectRequired": "Vuelve a conectar esta cuenta de X en los ajustes de Social y concede los permisos de lectura necesarios.",
+            "rateLimited": "X está limitando estas solicitudes. Espera unos minutos antes de intentarlo de nuevo.",
+            "rateLimitedRetry": "X está limitando estas solicitudes. Inténtalo de nuevo en {seconds, plural, one {# segundo} other {# segundos}}.",
             "empty": "No hay resultados en esta muestra. Prueba otra muestra o búsqueda.",
             "followers": "{count} seguidores",
             "posts": "Publicaciones",

@@ -196,6 +196,133 @@ afterEach(() => {
 });
 
 describe("SocialPostStatistics account history", () => {
+  it.each(["2025-12-03", "2025-12-03T00:00:00.000Z"])(
+    "keeps consistency populated for a JSON date %s even when the posts page is empty",
+    async (date) => {
+      mocks.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          posts: [],
+          headline: {
+            ...headline,
+            current: { ...headline.current, postCount: 170 },
+          },
+          consistency: {
+            from: date,
+            until: date,
+            daily: [{ date, postCount: 170, interactions: 4 }],
+          },
+        }),
+      });
+      renderStatistics(`?statisticsAccount=${account.id}`);
+      expect(
+        await screen.findByText(/170 posts across 1 active day/),
+      ).toBeVisible();
+      expect(
+        screen.queryByText(
+          en.App.Projects.SocialPosts.statistics.performance.consistencyEmpty,
+        ),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("social-performance-overview"),
+      ).toHaveTextContent("170");
+    },
+  );
+
+  it("shows the real consistency empty state for an empty collected history", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [],
+        headline: {
+          ...headline,
+          current: { ...headline.current, postCount: 0 },
+          daily: [],
+        },
+        consistency: { from: null, until: null, daily: [] },
+      }),
+    });
+    renderStatistics();
+    expect(
+      await screen.findByText(
+        en.App.Projects.SocialPosts.statistics.performance.consistencyEmpty,
+      ),
+    ).toBeVisible();
+  });
+
+  it("stops polling an expired running sync and offers refresh beside its last update/error", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-10-14T08:00:00Z"));
+    const lastError =
+      "Unable to refresh account statistics. Check the connection and permissions.";
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            statistics: { ...snapshot, error: lastError },
+            sync: { status: "running", mayAutoRequest: false, lastError },
+          },
+        ],
+      }),
+    });
+    renderStatistics(`?statisticsAccount=${account.id}`);
+    await screen.findByText(post.text);
+    expect(screen.queryByText("Updating…")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^Updated /).length).toBeGreaterThan(0);
+    expect(screen.getByText(lastError)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sync account" })).toBeEnabled();
+    const calls = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(mocks.fetch).toHaveBeenCalledTimes(calls);
+    mocks.refresh.mockResolvedValue(response());
+    fireEvent.click(screen.getByRole("button", { name: "Sync account" }));
+    await waitFor(() =>
+      expect(mocks.refresh).toHaveBeenCalledWith({
+        projectId: "project-1",
+        connectionId: account.id,
+      }),
+    );
+  });
+
+  it("expires a running sync after the lease and then stops polling", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-10-14T08:00:00Z"));
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        accounts: [
+          {
+            ...account,
+            statistics: {
+              ...snapshot,
+              refreshAttemptedAt: "2026-10-14T07:55:10Z",
+            },
+            sync: { status: "running", mayAutoRequest: false },
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    expect(await screen.findByText("Updating…")).toBeVisible();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(screen.queryByText("Updating…")).not.toBeInTheDocument();
+    const calls = mocks.fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(mocks.fetch).toHaveBeenCalledTimes(calls);
+  });
+
   it("renders imported media inside the published preview beside measured metrics", async () => {
     mocks.fetch.mockResolvedValueOnce({
       ok: true,

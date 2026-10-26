@@ -2772,6 +2772,7 @@
           "notFetched": "Statistics have not been fetched.",
           "updatedAt": "Updated {date}",
           "updating": "Updating…",
+          "syncStale": "The last sync did not finish. Cached results are retained. Sync the account to try again.",
           "metrics": {
             "views": "Views",
             "impressions": "Impressions",
@@ -2873,6 +2874,10 @@
             "postImage": "Post image",
             "postVideo": "Post video",
             "loadFailed": "Failed to load this sample. Try again.",
+            "accessDenied": "The X app’s plan or permissions may not include this read. Check the app’s access in X.",
+            "reconnectRequired": "Reconnect this X account in Social settings and grant the required read permissions.",
+            "rateLimited": "X is rate limiting this request. Wait a few minutes before trying again.",
+            "rateLimitedRetry": "X is rate limiting this request. Try again in {seconds, plural, one {# second} other {# seconds}}.",
             "empty": "No results in this sample. Try another sample or search.",
             "followers": "{count} followers",
             "posts": "Posts",

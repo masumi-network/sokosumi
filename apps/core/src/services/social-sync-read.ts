@@ -1,5 +1,6 @@
+import { SOCIAL_SYNC_LEASE_MS } from "@sokosumi/utils";
+
 export const SOCIAL_SYNC_FRESH_MS = 3_600_000;
-export const SOCIAL_SYNC_LEASE_MS = 300_000;
 
 export type SocialSyncStatus =
   | "fresh"
