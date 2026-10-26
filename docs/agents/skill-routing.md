@@ -54,6 +54,10 @@ The user types `/create-new-in-sokosumi` with a PR, a description or screenshots
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
 
+### Steward
+
+When watching a pull request, fixing its CI, or merging `main` into it, read [`.agents/skills/steward/`](../../.agents/skills/steward/). Commit, check, and preview rules stay in [`delivery.md`](./delivery.md).
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](../../.agents/skills/caveman/).
