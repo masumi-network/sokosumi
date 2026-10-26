@@ -35,6 +35,7 @@ import {
 import {
   classifyPublishError,
   SocialPostTextLimitError,
+  shouldRequestReauthorization,
 } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -626,6 +627,19 @@ async function attemptPublish(
         externalId: null,
       },
     });
+    if (shouldRequestReauthorization(error, classified)) {
+      try {
+        await prisma.projectSocialConnection.updateMany({
+          where: { id: connection.id, status: "active" },
+          data: { status: "reauthorization_required" },
+        });
+      } catch {
+        console.warn(
+          "[social-post-publisher] Could not flag connection for reconnect",
+          { postId: post.id, connectionId: connection.id },
+        );
+      }
+    }
     if (retrying) {
       return settleRetry(post, {
         status: "SCHEDULED",
