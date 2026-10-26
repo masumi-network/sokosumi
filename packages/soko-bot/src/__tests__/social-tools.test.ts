@@ -192,7 +192,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
   });
 
   it("describes available publishing platforms while retaining all-provider history", () => {
