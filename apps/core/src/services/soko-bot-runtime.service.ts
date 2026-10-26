@@ -200,6 +200,7 @@ import {
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
   type SokoBotWriteTargets,
@@ -5209,6 +5210,12 @@ export class SokoBotRuntimeService {
         );
       case "reply_to_task": {
         const { fileIds, ...reply } = replyToTaskInputSchema.parse(input.input);
+        const chaseRefusal = await unattendedChaseRefusal({
+          turn: authorized.turn,
+          comment: reply.comment,
+          shared: !!authorized.reader.sharedScope,
+        });
+        if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);
         const replied = await this.replyToTask(
           authorized,
           {
