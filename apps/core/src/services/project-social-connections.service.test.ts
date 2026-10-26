@@ -119,6 +119,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectSocialConnection: {
       findFirst: socialConnectionFindFirstMock,
       findMany: socialConnectionFindManyMock,
+      updateMany: socialConnectionUpdateManyMock,
     },
     projectSocialConnectionAudit: {
       findFirst: socialConnectionAuditFindFirstMock,
@@ -1408,6 +1409,117 @@ describe("project social connections service", () => {
     );
   });
 
+  it("reconnects a legacy LinkedIn URN row and stores the bare person id", async () => {
+    const intent = {
+      ...createIntent("reconnect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: "Alice Doe",
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    const legacy = {
+      ...socialConnection,
+      provider: "linkedin",
+      externalAccountId: "urn:li:person:alice",
+      activeExternalAccountKey: "linkedin:urn:li:person:alice",
+    };
+    socialConnectionFindFirstMock.mockResolvedValue(legacy);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...legacy,
+      externalAccountId: "alice",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).resolves.toMatchObject({ provider: "linkedin", status: "active" });
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          externalAccountId: "alice",
+          activeExternalAccountKey: "linkedin:alice",
+        }),
+      }),
+    );
+  });
+
+  it("blocks connecting a LinkedIn person already held by a legacy URN row", async () => {
+    const intent = {
+      ...createIntent("connect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "alice",
+      handle: null,
+      displayName: null,
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...socialConnection,
+      provider: "linkedin",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("already connected");
+    expect(socialConnectionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        activeExternalAccountKey: {
+          in: ["linkedin:alice", "linkedin:urn:li:person:alice"],
+        },
+      },
+    });
+  });
+
   it("rejects a reconnect to a different provider identity", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("reconnect"),
@@ -2206,5 +2318,115 @@ describe("LinkedIn company page rows", () => {
     ).rejects.toThrow("Reconnect must match the existing account");
     expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
     expect(socialConnectionUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("backfillLinkedInAccountProfile", () => {
+  const linkedIn = {
+    id: SOCIAL_CONNECTION_ID,
+    projectId: PROJECT_ID,
+    provider: "linkedin",
+    status: "active",
+    composioConnectedAccountId: "ca_li",
+    externalAccountId: "urn:li:person:abc",
+    avatarUrl: null as string | null,
+  };
+  const identity = {
+    id: "abc",
+    handle: "alice",
+    displayName: "Alice Doe",
+    avatarUrl: "https://media.licdn.com/dms/image/a.jpg",
+    subscriptionType: null,
+  };
+  const stored =
+    "https://blob.example/social-account-avatars/project/linkedin/a.jpg";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getConnectedSocialIdentityMock.mockResolvedValue(identity);
+    snapshotSocialAccountAvatarMock.mockResolvedValue(stored);
+    socialConnectionUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("stores the photo and a missing name for a LinkedIn account without one", async () => {
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(true);
+
+    expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
+      provider: "linkedin",
+      connectedAccountId: "ca_li",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+    });
+    expect(snapshotSocialAccountAvatarMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      provider: "linkedin",
+      externalAccountId: "urn:li:person:abc",
+      avatarUrl: identity.avatarUrl,
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID, status: "active", avatarUrl: null },
+      data: { avatarUrl: stored },
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID, displayName: null },
+      data: { displayName: "Alice Doe" },
+    });
+  });
+
+  it.each([
+    ["another provider", { provider: "x" }],
+    ["an account that already has a photo", { avatarUrl: "https://a/b.jpg" }],
+    ["an inactive account", { status: "reauthorization_required" }],
+    ["a company page", { externalAccountId: "urn:li:organization:777" }],
+  ])("skips %s without calling LinkedIn", async (_label, change) => {
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      backfillLinkedInAccountProfile({ ...linkedIn, ...change }),
+    ).resolves.toBe(false);
+    expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
+  });
+
+  it("never stores another person's photo", async () => {
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      ...identity,
+      id: "someone-else",
+    });
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    expect(snapshotSocialAccountAvatarMock).not.toHaveBeenCalled();
+    expect(socialConnectionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("removes its copy when the row got a photo meanwhile", async () => {
+    socialConnectionUpdateManyMock.mockResolvedValue({ count: 0 });
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
+      stored,
+      PROJECT_ID,
+    );
+  });
+
+  it("never throws when the lookup fails", async () => {
+    getConnectedSocialIdentityMock.mockRejectedValue(new Error("down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { backfillLinkedInAccountProfile } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    warn.mockRestore();
   });
 });

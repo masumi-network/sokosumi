@@ -191,11 +191,6 @@ export const chatRoomMessageInclude = {
     orderBy: { createdAt: "desc" },
     take: THREAD_REPLIER_SCAN,
   },
-  _count: {
-    select: {
-      replies: { where: { deletedAt: null } },
-    },
-  },
   // One row per message: Jev's tags, corrections oldest first.
   signal: {
     select: {
@@ -219,7 +214,45 @@ export type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
 
 type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
-}>;
+}> & { threadReplyCount: number };
+
+/**
+ * Attach each message's live reply count. Not a `_count` in the include:
+ * Prisma compiles that to a `GROUP BY` over every room's messages, joined to
+ * the page. One grouped read over these ids uses the parent index instead.
+ * Soft-deleted replies stay in the DB as tombstones and are not counted, the
+ * same rule as getChatRoomThreadAggregates.
+ */
+export async function withChatRoomReplyCounts<T extends { id: string }>(
+  tx: Prisma.TransactionClient | typeof prisma,
+  messages: readonly T[],
+): Promise<Array<T & { threadReplyCount: number }>> {
+  if (messages.length === 0) return [];
+  const groups = await tx.chatRoomMessage.groupBy({
+    by: ["parentMessageId"],
+    where: {
+      parentMessageId: { in: messages.map((message) => message.id) },
+      deletedAt: null,
+    },
+    _count: { _all: true },
+  });
+  const counts = new Map(
+    groups.map((group) => [group.parentMessageId, group._count._all]),
+  );
+  return messages.map((message) => ({
+    ...message,
+    threadReplyCount: counts.get(message.id) ?? 0,
+  }));
+}
+
+/** {@link withChatRoomReplyCounts} for one message. */
+export async function withChatRoomReplyCount<T extends { id: string }>(
+  tx: Prisma.TransactionClient | typeof prisma,
+  message: T,
+): Promise<T & { threadReplyCount: number }> {
+  const [counted] = await withChatRoomReplyCounts(tx, [message]);
+  return counted;
+}
 
 /**
  * REST placeholder for human presence (ADR-0003).
@@ -765,7 +798,7 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     signal: isDeleted ? null : toChatMessageSignalDto(message.signal ?? null),
-    threadReplyCount: message._count.replies,
+    threadReplyCount: message.threadReplyCount,
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     threadRepliers: mapThreadRepliers(message.replies, currentUserId),

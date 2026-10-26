@@ -16,6 +16,7 @@ import {
   chatRoomMessageInclude,
   membershipVisibleActiveRoomWhere,
   requireChatRoomUserMembership,
+  withChatRoomReplyCounts,
 } from "@/routes/v1/chats/rooms/helpers";
 
 /** How far back open loops and the cross-room lists look. */
@@ -200,10 +201,13 @@ export async function listChatRoomMessagesWithTag(
   );
   const hasMore = rows.length > page.take;
   const ids = rows.slice(0, page.take).map((row) => row.id);
-  const messages = await prisma.chatRoomMessage.findMany({
-    where: { id: { in: ids } },
-    include: chatRoomMessageInclude,
-  });
+  const messages = await withChatRoomReplyCounts(
+    prisma,
+    await prisma.chatRoomMessage.findMany({
+      where: { id: { in: ids } },
+      include: chatRoomMessageInclude,
+    }),
+  );
   const order = new Map(ids.map((id, index) => [id, index]));
   messages.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   return {
@@ -229,15 +233,18 @@ export interface ChatSignalListItem {
   room: { id: string; name: string; kind: string };
   message: Prisma.ChatRoomMessageGetPayload<{
     include: typeof chatRoomMessageInclude;
-  }>;
+  }> & { threadReplyCount: number };
   dueAt: Date | null;
 }
 
 async function loadListedMessages(ids: readonly string[]) {
-  return prisma.chatRoomMessage.findMany({
-    where: { id: { in: [...ids] } },
-    include: chatRoomMessageInclude,
-  });
+  return withChatRoomReplyCounts(
+    prisma,
+    await prisma.chatRoomMessage.findMany({
+      where: { id: { in: [...ids] } },
+      include: chatRoomMessageInclude,
+    }),
+  );
 }
 
 /** Unread messages across the reader's rooms that ask something of them. */

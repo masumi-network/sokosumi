@@ -36,8 +36,8 @@
       return URLSession(configuration: configuration)
     }
 
-    /// A `{data, meta}` messages page in Core's shape.
-    static func page(_ messages: [Components.Schemas.ChatRoomMessage], cursor: String?) throws -> Data {
+    /// A `{data, meta}` messages page in Core's shape; `firstUnreadMessageId` places the Unread divider.
+    static func page(_ messages: [Components.Schemas.ChatRoomMessage], cursor: String?, firstUnreadMessageId: String? = nil) throws -> Data {
       let encoder = JSONEncoder()
       let formatter = DateFormatter()
       formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -47,7 +47,8 @@
       return try JSONSerialization.data(withJSONObject: [
         "data": JSONSerialization.jsonObject(with: encoder.encode(messages)),
         "meta": ["timestamp": "2026-09-14T00:00:00.000Z", "requestId": "fixture",
-                 "pagination": ["cursor": NSNull(), "limit": 30, "total": messages.count, "nextCursor": cursor as Any? ?? NSNull()]]
+                 "pagination": ["cursor": NSNull(), "limit": 30, "total": messages.count, "nextCursor": cursor as Any? ?? NSNull(),
+                                "firstUnreadMessageId": firstUnreadMessageId as Any? ?? NSNull()]]
       ])
     }
 

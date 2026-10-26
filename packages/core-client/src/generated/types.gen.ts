@@ -3221,6 +3221,29 @@ export type ChatRoomThreadReadState = {
     lastReadAt: Date;
 };
 
+export type ChatRoomMessagesPaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+    /**
+     * The top-level message the viewer's Unread divider sits above, or null when the room has no Room unread. Present on every response without cursor or q.
+     */
+    firstUnreadMessageId?: string | null;
+};
+
 export type ChatResultPreview = ({
     state: 'available';
 } & ChatResultAvailable) | ({
@@ -23845,6 +23868,10 @@ export type GetChatsRoomsByIdMessagesData = {
          * Reading-order window of top-level messages centred on this message, or on its parent if it is a reply. Cannot be combined with q or cursor.
          */
         around?: string;
+        /**
+         * Open the room at the viewer's Unread divider. When the first unread message is on the newest page, returns that page; otherwise a reading-order window of 3 read messages above it and up to 30 from it, with the usual older-page cursor. Cannot be combined with q, cursor or around.
+         */
+        openAtUnread?: 'true' | 'false';
     };
     url: '/chats/rooms/{id}/messages';
 };
@@ -23953,7 +23980,7 @@ export type GetChatsRoomsByIdMessagesResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: ChatRoomMessagesPaginationMetadata;
         };
     };
 };

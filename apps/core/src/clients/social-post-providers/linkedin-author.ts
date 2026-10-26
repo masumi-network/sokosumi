@@ -1,12 +1,6 @@
-const PERSON_URN_PREFIX = "urn:li:person:";
-const ORGANIZATION_URN_PREFIX = "urn:li:organization:";
+import { linkedInPersonUrn } from "@/helpers/linkedin-person";
 
-/** Strips every leading copy of `prefix`, so legacy doubled URNs collapse. */
-function stripPrefix(value: string, prefix: string): string {
-  let id = value.trim();
-  while (id.startsWith(prefix)) id = id.slice(prefix.length);
-  return id;
-}
+const ORGANIZATION_URN_PREFIX = "urn:li:organization:";
 
 /**
  * True for a company page row. Organization rows always store the full
@@ -18,7 +12,11 @@ export function isLinkedInOrganization(externalAccountId: string): boolean {
 
 /** Numeric organization id from an organization URN or a bare id. */
 export function linkedInOrganizationId(value: string): string {
-  return stripPrefix(value, ORGANIZATION_URN_PREFIX);
+  let id = value.trim();
+  while (id.startsWith(ORGANIZATION_URN_PREFIX)) {
+    id = id.slice(ORGANIZATION_URN_PREFIX.length);
+  }
+  return id;
 }
 
 /**
@@ -30,7 +28,7 @@ export function linkedInAuthorUrn(externalAccountId: string): string {
   if (isLinkedInOrganization(externalAccountId)) {
     return `${ORGANIZATION_URN_PREFIX}${linkedInOrganizationId(externalAccountId)}`;
   }
-  return `${PERSON_URN_PREFIX}${stripPrefix(externalAccountId, PERSON_URN_PREFIX)}`;
+  return linkedInPersonUrn(externalAccountId);
 }
 
 /** `accountType` of a connection DTO: LinkedIn rows only, null elsewhere. */
