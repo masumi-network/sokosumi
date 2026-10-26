@@ -40,7 +40,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import {
+  type DateTimeFormatOptions,
+  useFormatter,
+  useLocale,
+  useTranslations,
+} from "next-intl";
 import {
   parseAsBoolean,
   parseAsString,
@@ -272,11 +277,20 @@ function getRangeLabel(
   date: Date,
   view: CalendarView,
 ) {
+  // The range is a run of local calendar days, but the formatter renders in the
+  // request's zone, which differs from the runtime's local zone during SSR and
+  // before the time zone cookie exists. Show each day as itself, read as UTC.
+  const formatDay = (day: Date, options: DateTimeFormatOptions) =>
+    formatDate(new Date(`${getCalendarDayKey(day)}T12:00:00Z`), {
+      ...options,
+      timeZone: "UTC",
+    });
+
   if (view === "week") {
-    return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
+    return `${formatDay(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDay(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
   }
 
-  return formatDate(date, { month: "long", year: "numeric" });
+  return formatDay(date, { month: "long", year: "numeric" });
 }
 
 function calendarTodayKey(timeZone: string): string {

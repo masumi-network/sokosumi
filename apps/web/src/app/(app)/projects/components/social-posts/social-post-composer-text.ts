@@ -1,6 +1,7 @@
 import {
-  SOCIAL_POST_TEXT_LIMITS,
   type SocialPostProvider,
+  socialPostTextLength,
+  socialPostTextLimit,
 } from "@sokosumi/utils";
 
 /** Shared caption until the reader edits one account on its own. */
@@ -59,8 +60,9 @@ export function socialPostTextWrite(
 export function socialPostTextMetrics(
   text: string,
   provider: SocialPostProvider,
+  subscriptionType?: string | null,
 ) {
-  const count = text.length;
-  const limit = SOCIAL_POST_TEXT_LIMITS[provider];
+  const count = socialPostTextLength(provider, text);
+  const limit = socialPostTextLimit(provider, subscriptionType);
   return { count, limit, overLimit: count > limit };
 }

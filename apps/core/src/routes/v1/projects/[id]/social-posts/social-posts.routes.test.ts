@@ -193,6 +193,7 @@ const scheduledPost = {
     externalHandle: "sokosumi",
     displayName: null,
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   scheduledByUserId: USER_ID,

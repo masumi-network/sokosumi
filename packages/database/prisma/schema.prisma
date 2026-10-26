@@ -572,6 +572,8 @@ model ProjectSocialConnection {
   displayName                   String?
   /// Public Blob copy of the profile picture (provider CDN URLs expire).
   avatarUrl                     String?
+  /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
+  subscriptionType              String?
   composioConnectedAccountId    String
   status                        String
   activeExternalAccountKey      String?

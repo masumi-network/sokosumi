@@ -67,6 +67,7 @@ const recycled = {
     externalHandle: "sokosumi",
     displayName: "Sokosumi",
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   creator: { kind: "user", id: "owner", name: "Ada" },
