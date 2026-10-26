@@ -53,15 +53,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session] = await Promise.all([searchParams, getSession()]);
-  const notice =
-    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = <ChatLandingNotice notice={notice} />;
-
-  const [activeOrganizationId, sokoBot] = await Promise.all([
+  const [query, session, activeOrganizationId, sokoBot] = await Promise.all([
+    searchParams,
+    getSession(),
     userService.getActiveOrganizationId(),
     sokoBotService.getMine().catch(() => null),
   ]);
+  const notice =
+    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
+  const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
 
   if (sokoBot && userId) {

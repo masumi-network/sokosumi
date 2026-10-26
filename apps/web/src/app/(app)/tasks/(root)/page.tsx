@@ -160,9 +160,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
-  const memberOptions =
-    await listTaskAssigneeMemberOptions(activeOrganizationId);
+  const [[taskCoworkers, projectsPage, ownerBot], memberOptions] =
+    await Promise.all([
+      loadTasksPageData(),
+      listTaskAssigneeMemberOptions(activeOrganizationId),
+    ]);
   // Core decides schedule eligibility; start that request before loading the board.
   const coworkerOptionsPromise = listTaskAssigneeOptions(
     activeOrganizationId,
