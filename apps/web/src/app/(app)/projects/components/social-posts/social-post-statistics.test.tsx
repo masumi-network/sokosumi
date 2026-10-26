@@ -35,6 +35,7 @@ vi.mock("next-intl", async () => {
   const { createFormatter, createTranslator } =
     await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
+    useLocale: () => "en",
     useFormatter: () => ({
       ...createTestFormatter({ timeZone: "America/Los_Angeles" }),
       relativeTime: createFormatter({
@@ -92,6 +93,9 @@ const post = {
   externalId: "outside-123",
   publishedAt: "2026-10-01T00:15:00Z",
   text: "Published outside Sokosumi",
+  contentType: "text",
+  postKind: "post",
+  media: [],
   url: "https://x.com/launch/status/123",
   metrics: {
     views: 0,
@@ -192,6 +196,44 @@ afterEach(() => {
 });
 
 describe("SocialPostStatistics account history", () => {
+  it("renders imported media inside the published preview beside measured metrics", async () => {
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...page(),
+        posts: [
+          {
+            ...post,
+            contentType: "image",
+            media: [
+              {
+                kind: "image",
+                url: "https://pbs.twimg.com/media/one.jpg",
+                thumbnailUrl: null,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+    renderStatistics();
+    const preview = await screen.findByTestId("social-post-preview");
+    const card = screen.getByRole("listitem");
+    expect(card).toContainElement(preview);
+    expect(preview).toHaveAttribute("data-compact", "true");
+    expect(within(preview).getByRole("img", { name: "image" })).toHaveAttribute(
+      "src",
+      "https://pbs.twimg.com/media/one.jpg",
+    );
+    expect(within(card).getByText("Views").closest("div")).toHaveTextContent(
+      "0",
+    );
+    expect(within(card).queryByText("Impressions")).not.toBeInTheDocument();
+    expect(within(card).getByText("Link clicks").closest("dl")).toBe(
+      within(card).getByText("Views").closest("dl"),
+    );
+  });
+
   it("shows placeholder cards while statistics load", () => {
     mocks.fetch.mockImplementation(() => new Promise(() => {}));
     renderStatistics();
@@ -461,7 +503,6 @@ describe("SocialPostStatistics account history", () => {
       screen.getByText(
         reader.dateTime(new Date(post.publishedAt), "dateTime", {
           timeZone: "UTC",
-          timeZoneName: "short",
         }),
       ),
     ).toBeVisible();
@@ -837,7 +878,7 @@ describe("SocialPostStatistics account history", () => {
     );
     const badge = within(card).getByText("Strong");
     expect(badge.parentElement).toContainElement(
-      within(card).getByText("Oct 1, 12:15 AM UTC"),
+      within(card).getByText("Oct 1, 12:15 AM"),
     );
     const recycle = within(card).getByRole("button", { name: "Recycle" });
     expect(recycle.parentElement).toContainElement(
