@@ -74,14 +74,14 @@ const CMO_ONBOARDING_ROUTE: PresetRoute = {
   reason: "CMO onboarding: learn the business and build the Brand Brain.",
 };
 /**
- * No sandbox on the strategy turn: a turn that has read the open web may not
- * create posts or images, and this one drafts the first week of content from
- * the Brand Brain it already has.
+ * No sandbox on the strategy turn: it plans from the Brand Brain it already
+ * has. It writes no drafts or Social posts; after the owner approves, the
+ * daily run drafts each piece three days before it goes out.
  */
 const CMO_STRATEGY_ROUTE: PresetRoute = {
   route: "MANAGE_WORK",
   writeScope: "WORK",
-  reason: "CMO strategy: plan the month and draft the first week.",
+  reason: "CMO strategy: plan the next four weeks.",
 };
 
 export const cmoBrandVisualSchema = z.object({
