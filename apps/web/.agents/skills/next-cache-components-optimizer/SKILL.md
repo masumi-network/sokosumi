@@ -364,10 +364,10 @@ PR-specific items:
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
 - [ ] **Mutations verified when applicable**: after populating any cache whose
-      data can be updated, a mutation test confirms the next read returns the
-      expected data.
+  data can be updated, a mutation test confirms the next read returns the
+  expected data.
 - [ ] **Freshness preserved**: new cache scopes follow the data's existing or
-      explicitly chosen lifetime.
+  explicitly chosen lifetime.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at supported viewports (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.

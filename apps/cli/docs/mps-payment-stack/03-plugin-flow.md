@@ -6,13 +6,13 @@
 
 [VERIFIED: documentation diff, 2026-09-30] This draft also corrects package instructions and delivery status in the CLI guides. Those corrections describe existing commands and merged receipt reads. They do not implement the future payment commands or complete the acceptance checks below.
 
-| Field | Proposed value |
-| --- | --- |
-| Draft PR title | `docs(cli): correct MPS delivery and installation docs` |
+| Field                | Proposed value                                                       |
+| -------------------- | -------------------------------------------------------------------- |
+| Draft PR title       | `docs(cli): correct MPS delivery and installation docs`              |
 | Implementation title | `feat(cli): complete the MPS payment workflow in the bundled plugin` |
-| Branch | `sok-1132-mps-plugin-flow` |
-| Parent branch | `sok-1132-mps-paid-runtime` |
-| Related work | SOK-909, SOK-1132, SOK-1214; receipt PR #5342 |
+| Branch               | `sok-1132-mps-plugin-flow`                                           |
+| Parent branch        | `sok-1132-mps-paid-runtime`                                          |
+| Related work         | SOK-909, SOK-1132, SOK-1214; receipt PR #5342                        |
 
 ## Problem and intended behavior
 
@@ -36,13 +36,13 @@
 
 [PROPOSED] Extend the existing CLI package and bundled Skill. CLI remains a Core HTTP client. Draft 1 owns payment approval and enforcement. Draft 2 owns funding recovery, settlement evidence, and refund accounting. This draft must not defer a missing payment safety check into user instructions.
 
-| Proposed path | Planned change |
-| --- | --- |
-| `apps/cli/skills/sokosumi/SKILL.md` | Complete setup, approval, execution, receipt, and recovery instructions. |
-| `apps/cli/skills/sokosumi/references/distribution.md` and `apps/cli/README.md` | Explain compatible installation and the tested host workflow. |
-| `apps/cli/src/cli/commands/runtime.ts`, `discover.ts`, and `help.ts` | Describe supported payment operations and accurate outcomes. |
-| `apps/cli/src/cli/commands/skills.ts` | Change only if a package test proves the current Skill lookup is insufficient. |
-| `apps/cli/test/` | Verify installed package behavior, output contracts, credential isolation, and documented commands. |
+| Proposed path                                                                  | Planned change                                                                                      |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `apps/cli/skills/sokosumi/SKILL.md`                                            | Complete setup, approval, execution, receipt, and recovery instructions.                            |
+| `apps/cli/skills/sokosumi/references/distribution.md` and `apps/cli/README.md` | Explain compatible installation and the tested host workflow.                                       |
+| `apps/cli/src/cli/commands/runtime.ts`, `discover.ts`, and `help.ts`           | Describe supported payment operations and accurate outcomes.                                        |
+| `apps/cli/src/cli/commands/skills.ts`                                          | Change only if a package test proves the current Skill lookup is insufficient.                      |
+| `apps/cli/test/`                                                               | Verify installed package behavior, output contracts, credential isolation, and documented commands. |
 
 [PROPOSED] Public listing, x402, new wallet custody, and untested framework adapters remain outside this PR. Publishing the package and deploying Core remain separate release actions. The first supported host and exact package version are open decisions.
 
@@ -50,12 +50,12 @@
 
 [PROPOSED] Every row is Planned. No implementation test or paid host test has run for this draft.
 
-| Test group | Cases and required evidence |
-| --- | --- |
-| Packaged installation | Install the built package in a clean directory. Run its executable and `skills path`. Load the returned Skill and its references. Confirm that the package contains no local credentials. Source-checkout success alone does not pass this group. |
-| Instructions and output | Parse all documented commands with the built CLI. Exercise funded, pending, unknown, refunded, disputed, and settled responses. Verify one JSON document per command and stable nonzero errors for rejected operations. A successful read of an unsettled payment must not claim payment success. |
-| Identity and authority | Test OS vault and operator-controlled stdin input. Reject developer credentials on runtime calls. Reject Task, Coworker, and network mismatches. Verify that instructions inside a Task cannot approve spending or expose credentials. |
-| Recovery | Interrupt funding, execution, and result submission. Restart using the same payment identifier. Confirm that the agent inspects Core state before retrying and preserves completed output. Check database records for duplicate debit or refund compensation. |
+| Test group              | Cases and required evidence                                                                                                                                                                                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Packaged installation   | Install the built package in a clean directory. Run its executable and `skills path`. Load the returned Skill and its references. Confirm that the package contains no local credentials. Source-checkout success alone does not pass this group.                                                                 |
+| Instructions and output | Parse all documented commands with the built CLI. Exercise funded, pending, unknown, refunded, disputed, and settled responses. Verify one JSON document per command and stable nonzero errors for rejected operations. A successful read of an unsettled payment must not claim payment success.                 |
+| Identity and authority  | Test OS vault and operator-controlled stdin input. Reject developer credentials on runtime calls. Reject Task, Coworker, and network mismatches. Verify that instructions inside a Task cannot approve spending or expose credentials.                                                                            |
+| Recovery                | Interrupt funding, execution, and result submission. Restart using the same payment identifier. Confirm that the agent inspects Core state before retrying and preserves completed output. Check database records for duplicate debit or refund compensation.                                                     |
 | Controlled Preprod sale | Record installed package revision, host, Task, approved payment, customer debit, delivered output, and confirmed seller transaction. Match the payout address and asset amounts to the accepted quote. Repeat requests and confirm no second charge. A mock, `PURCHASED`, or Task completion alone does not pass. |
 
 [PROPOSED] Run CLI tests, build, and typecheck for implementation changes. Run the repository documentation checks for command examples. Reuse Core integration tests from Draft 2; do not replace them with Skill text assertions.

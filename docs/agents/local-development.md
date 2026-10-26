@@ -26,19 +26,19 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 Full list is in root `package.json`. Agents typically need:
 
-| Command | Purpose |
-| ---------------------- | ----------------------------- |
-| `pnpm portless:dev` | Web + Core via portless (worktree-safe named URLs) |
-| `pnpm portless:web` / `core` | One app via portless (still injects both named URLs) |
-| `pnpm portless:cmo` | CMO via portless (`cmo.sokosumi`) |
-| `pnpm portless:proxy` | Start portless HTTPS proxy on 443 |
-| `pnpm portless:url web` / `core` / `cmo` | Print this checkout's named HTTPS URL |
-| `pnpm check` | Repo-wide Biome (`biome check .`) |
-| `pnpm typecheck` | Turbo typecheck |
-| `pnpm test` | Turbo tests |
-| `pnpm prisma:generate` | Generate Prisma clients |
-| `pnpm prisma:migrate:dev` | Dev migrations |
-| `pnpm prisma:migrate:deploy` | Apply migrations |
+| Command                                  | Purpose                                              |
+| ---------------------------------------- | ---------------------------------------------------- |
+| `pnpm portless:dev`                      | Web + Core via portless (worktree-safe named URLs)   |
+| `pnpm portless:web` / `core`             | One app via portless (still injects both named URLs) |
+| `pnpm portless:cmo`                      | CMO via portless (`cmo.sokosumi`)                    |
+| `pnpm portless:proxy`                    | Start portless HTTPS proxy on 443                    |
+| `pnpm portless:url web` / `core` / `cmo` | Print this checkout's named HTTPS URL                |
+| `pnpm check`                             | Repo-wide Biome (`biome check .`)                    |
+| `pnpm typecheck`                         | Turbo typecheck                                      |
+| `pnpm test`                              | Turbo tests                                          |
+| `pnpm prisma:generate`                   | Generate Prisma clients                              |
+| `pnpm prisma:migrate:dev`                | Dev migrations                                       |
+| `pnpm prisma:migrate:deploy`             | Apply migrations                                     |
 
 Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A filter-run invokes the package script directly and skips turbo's graph, so `prisma:generate` never fires. On a checkout where the client has not been generated that surfaces as a wall of `Module '"@sokosumi/database"' has no exported member 'Job'` — a missing client, not a broken change. Run `pnpm prisma:generate` first when you do need a filter-run.
 
