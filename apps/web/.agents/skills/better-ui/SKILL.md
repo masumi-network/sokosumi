@@ -1,6 +1,6 @@
 ---
 name: better-ui
-description: Polishes the surfaces, icons and motion in your project with exact values for border radius, optical alignment, shadows, icon states and animation.
+description: Polishes surfaces, icons and motion with exact values for border radius, optical alignment, shadows, icon states and animation.
 ---
 
 # UI polish
@@ -41,7 +41,7 @@ Drive interactive state changes with CSS transitions or a motion library's sprin
 
 A pressed button scales to `0.96` over `150ms` with `ease-out`, and a disabled one never scales. Give the button an opt-out where the motion would distract, through the component's existing variant API or a `static` prop. See [recipes for CSS, Tailwind and Motion](animations.md#scale-on-press).
 
-## High-frequency interactions get no animation
+## High-frequency interactions respond instantly
 
 Keystrokes, row hovers and tab switches get instant feedback, or a transition of `150ms` or less on `opacity` or `background-color`. Reserve expressive motion for infrequent moments such as a view's first load, a success state or an empty state.
 
@@ -67,7 +67,7 @@ Set `initial={false}` on an `AnimatePresence` that wraps a state swap, so the de
 
 Where an icon swaps on an infrequent state change, such as play to pause or copy to copied, cross-fade it. Scale runs `0.25` to `1`, opacity `0` to `1` and blur `4px` to `0px`. With a motion library, use `{ type: "spring", duration: 0.3, bounce: 0 }`, and bounce is always `0`. Without one, keep both icons in the DOM and cross-fade over `300ms` with `cubic-bezier(0.2, 0, 0, 1)`.
 
-A tab's icon swap and the actions a row reveals on hover fall under **High-frequency interactions get no animation**. Both recipes are in [icon-transitions.md](icon-transitions.md).
+A tab's icon swap and the actions a row reveals on hover fall under **High-frequency interactions respond instantly**. Both recipes are in [icon-transitions.md](icon-transitions.md).
 
 ## Suppress transitions on theme switch
 
@@ -99,23 +99,23 @@ Icons use `currentColor` and take hover, selected and disabled states from CSS c
 
 ## Before you finish
 
-| Detection | Fix |
-| --- | --- |
-| Padded parent and child with the same `rounded-*` or `border-radius` | Add the padding to the outer radius |
-| `box-shadow: 0 0 0 1px` ring with no `border` beside it | `border: 1px solid transparent` |
-| `outline-slate-*`, `outline-zinc-*` or a hex outline color on `img` | `outline-black/10` and `dark:outline-white/10` |
-| `transition-all` or `transition: all` | Name the changing properties |
-| `animation:` set on `:hover`, `.open` or another toggled class | A transition on the same properties |
-| `active:scale-95`, `scale-90` or `whileTap` below `0.96` | `0.96` |
-| `:active` scale with no `:disabled` exclusion | `enabled:active:` or `:not(:disabled):active` |
-| `bounce:` set to anything but `0` | `bounce: 0` |
-| `opacity: 0` in a base rule that only an `animation` reveals | Hidden state in the `from` keyframe, `animation-fill-mode: both` |
-| `translate`, `scale`, `filter` or `motion.*` animation with no `prefers-reduced-motion`, `motion-safe:` or `MotionConfig` guard | Gate it and cross-fade opacity under reduced motion |
-| Color transitions plus a theme toggle with no `disableTransitionOnChange` or override | The theme-switch suppression recipe |
-| `will-change: all`, or `will-change` on an element that never animates | Name the animated property or delete it |
-| `fill="#..."` or `stroke="#..."` inside an icon SVG | `currentColor` |
-| Plain-CSS `:hover` or Tailwind 3 `hover:` outside `@media (hover: hover)` | Wrap it in the query |
-| `overflow: auto` or `overflow-y-auto` on a dialog, drawer or menu with no `overscroll-behavior` | `overscroll-behavior: contain` |
+| Detection                                                                                                                       | Fix                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Padded parent and child with the same `rounded-*` or `border-radius`                                                            | Add the padding to the outer radius                              |
+| `box-shadow: 0 0 0 1px` ring with no `border` beside it                                                                         | `border: 1px solid transparent`                                  |
+| `outline-slate-*`, `outline-zinc-*` or a hex outline color on `img`                                                             | `outline-black/10` and `dark:outline-white/10`                   |
+| `transition-all` or `transition: all`                                                                                           | Name the changing properties                                     |
+| `animation:` set on `:hover`, `.open` or another toggled class                                                                  | A transition on the same properties                              |
+| `active:scale-95`, `scale-90` or `whileTap` below `0.96`                                                                        | `0.96`                                                           |
+| `:active` scale with no `:disabled` exclusion                                                                                   | `enabled:active:` or `:not(:disabled):active`                    |
+| `bounce:` set to anything but `0`                                                                                               | `bounce: 0`                                                      |
+| `opacity: 0` in a base rule that only an `animation` reveals                                                                    | Hidden state in the `from` keyframe, `animation-fill-mode: both` |
+| `translate`, `scale`, `filter` or `motion.*` animation with no `prefers-reduced-motion`, `motion-safe:` or `MotionConfig` guard | Gate it and cross-fade opacity under reduced motion              |
+| Color transitions plus a theme toggle with no `disableTransitionOnChange` or override                                           | The theme-switch suppression recipe                              |
+| `will-change: all`, or `will-change` on an element that never animates                                                          | Name the animated property or delete it                          |
+| `fill="#..."` or `stroke="#..."` inside an icon SVG                                                                             | `currentColor`                                                   |
+| Plain-CSS `:hover` or Tailwind 3 `hover:` outside `@media (hover: hover)`                                                       | Wrap it in the query                                             |
+| `overflow: auto` or `overflow-y-auto` on a dialog, drawer or menu with no `overscroll-behavior`                                 | `overscroll-behavior: contain`                                   |
 
 ## Reporting
 
@@ -126,7 +126,7 @@ Icons use `currentColor` and take hover, selected and disabled states from CSS c
 **Format.** Group findings under the principle each violates, ordered by severity, one row per root cause listing every location it appears in:
 
 | Severity | Location | Before | After | Why |
-| --- | --- | --- | --- | --- |
+| -------- | -------- | ------ | ----- | --- |
 
 `Location` is `path/to/file:line`. `Why` names the principle and the user impact.
 

@@ -1,0 +1,197 @@
+enum NewsletterIssueStatus {
+  DRAFT
+  NEEDS_APPROVAL
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELED
+}
+
+enum NewsletterSubscriberStatus {
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+enum NewsletterSubscriberSource {
+  MANUAL
+  CSV_IMPORT
+  SIGNUP_FORM
+  API
+}
+
+enum NewsletterSendStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum NewsletterEventType {
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  COMPLAINED
+  UNSUBSCRIBED
+  SUBSCRIBED
+  CONFIRMED
+}
+
+model Newsletter {
+  id        String   @id(map: "newsletter_pkey") @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @unique(map: "newsletter_projectId_key") @db.Uuid
+  /// Restrict project deletion to preserve publishing history, like SocialPost.
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict, map: "newsletter_projectId_fkey")
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "newsletter_workspaceId_fkey")
+
+  name                String
+  senderName          String
+  replyTo             String
+  /// Logo, colors, font and footer settings.
+  brand               Json    @default("{}")
+  welcomeEmailEnabled Boolean @default(false)
+  welcomeSubject      String?
+  welcomeBody         String?
+  publicSlug          String  @unique(map: "newsletter_publicSlug_key")
+
+  issues      NewsletterIssue[]
+  subscribers NewsletterSubscriber[]
+  events      NewsletterEvent[]
+
+  @@index([workspaceId], map: "newsletter_workspaceId_idx")
+  @@map("newsletter")
+}
+
+model NewsletterIssue {
+  id        String   @id(map: "newsletter_issue_pkey") @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  newsletterId String     @db.Uuid
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade, map: "newsletter_issue_newsletterId_fkey")
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict, map: "newsletter_issue_projectId_fkey")
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "newsletter_issue_workspaceId_fkey")
+
+  subject     String
+  previewText String?
+  template    String  @default("TEXT")
+  /// Ordered heading, text, image, button and divider blocks.
+  content     Json    @default("[]")
+
+  status           NewsletterIssueStatus @default(DRAFT)
+  scheduledAt      DateTime?
+  timezone         String?
+  sentAt           DateTime?
+  approvedByUserId String?
+  approvedAt       DateTime?
+
+  /// Creator provenance is retained even after the actor is deleted, like Contact.
+  creatorUserId     String?
+  creatorCoworkerId String?
+  creatorSokoBotId  String? @db.Uuid
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull, map: "newsletter_issue_taskId_fkey")
+
+  publicSlug String @unique(map: "newsletter_issue_publicSlug_key")
+  revision   Int    @default(0)
+
+  sends  NewsletterSend[]
+  events NewsletterEvent[]
+
+  @@index([newsletterId, status], map: "newsletter_issue_newsletterId_status_idx")
+  @@index([projectId, status, scheduledAt], map: "newsletter_issue_projectId_status_scheduledAt_idx")
+  @@index([workspaceId, scheduledAt], map: "newsletter_issue_workspaceId_scheduledAt_idx")
+  @@index([status, scheduledAt], map: "newsletter_issue_status_scheduledAt_idx")
+  @@index([taskId], map: "newsletter_issue_taskId_idx")
+  @@map("newsletter_issue")
+}
+
+model NewsletterSubscriber {
+  id        String   @id(map: "newsletter_subscriber_pkey") @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  newsletterId String     @db.Uuid
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade, map: "newsletter_subscriber_newsletterId_fkey")
+
+  /// Lowercased by Core before writing so the unique key catches duplicates.
+  email          String
+  name           String?
+  /// Pending subscribers are waiting for double opt-in confirmation.
+  status         NewsletterSubscriberStatus @default(PENDING)
+  source         NewsletterSubscriberSource @default(MANUAL)
+  consentAt      DateTime?
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  bouncedAt      DateTime?
+
+  sends  NewsletterSend[]
+  events NewsletterEvent[]
+
+  @@unique([newsletterId, email], map: "newsletter_subscriber_newsletterId_email_key")
+  @@index([newsletterId, status], map: "newsletter_subscriber_newsletterId_status_idx")
+  @@index([newsletterId, createdAt, id], map: "newsletter_subscriber_newsletterId_createdAt_id_idx")
+  @@index([newsletterId, status, createdAt, id], map: "newsletter_subscriber_newsletterId_status_createdAt_id_idx")
+  @@map("newsletter_subscriber")
+}
+
+model NewsletterSend {
+  id String @id(map: "newsletter_send_pkey") @default(uuid(7)) @db.Uuid
+
+  issueId String          @db.Uuid
+  issue   NewsletterIssue @relation(fields: [issueId], references: [id], onDelete: Cascade, map: "newsletter_send_issueId_fkey")
+
+  subscriberId String               @db.Uuid
+  subscriber   NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade, map: "newsletter_send_subscriberId_fkey")
+
+  /// Unset until Resend accepts the queued send.
+  providerMessageId String?              @unique(map: "newsletter_send_providerMessageId_key")
+  status            NewsletterSendStatus @default(QUEUED)
+  sentAt            DateTime?
+  error             String?
+
+  events NewsletterEvent[]
+
+  @@unique([issueId, subscriberId], map: "newsletter_send_issueId_subscriberId_key")
+  @@index([subscriberId], map: "newsletter_send_subscriberId_idx")
+  @@map("newsletter_send")
+}
+
+model NewsletterEvent {
+  id String @id(map: "newsletter_event_pkey") @default(uuid(7)) @db.Uuid
+
+  newsletterId String     @db.Uuid
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade, map: "newsletter_event_newsletterId_fkey")
+
+  issueId String?          @db.Uuid
+  issue   NewsletterIssue? @relation(fields: [issueId], references: [id], onDelete: SetNull, map: "newsletter_event_issueId_fkey")
+
+  subscriberId String?               @db.Uuid
+  subscriber   NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull, map: "newsletter_event_subscriberId_fkey")
+
+  sendId String?         @db.Uuid
+  send   NewsletterSend? @relation(fields: [sendId], references: [id], onDelete: SetNull, map: "newsletter_event_sendId_fkey")
+
+  type            NewsletterEventType
+  url             String?
+  occurredAt      DateTime            @default(now())
+  /// Local subscription events need no provider id.
+  providerEventId String?             @unique(map: "newsletter_event_providerEventId_key")
+
+  @@index([newsletterId, occurredAt], map: "newsletter_event_newsletterId_occurredAt_idx")
+  @@index([issueId, type], map: "newsletter_event_issueId_type_idx")
+  @@index([subscriberId], map: "newsletter_event_subscriberId_idx")
+  @@index([sendId], map: "newsletter_event_sendId_idx")
+  @@map("newsletter_event")
+}

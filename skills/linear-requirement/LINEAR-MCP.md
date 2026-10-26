@@ -29,15 +29,15 @@ Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
 
 Every `save_issue` **create** call (no `id`) must include **all** of:
 
-| Field | Default |
-|-------|---------|
-| `title` | user-approved **product** title (no `feat:` / `fix:` prefix) |
-| `description` | approved requirement (`## Requirement`) |
-| `team` | `SOK` |
-| `project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
-| `state` | `Triage` |
-| `priority` | `3` (Medium) |
-| `labels` | exactly one of `Feature`, `Bug`, or `Improvement` |
+| Field         | Default                                                      |
+| ------------- | ------------------------------------------------------------ |
+| `title`       | user-approved **product** title (no `feat:` / `fix:` prefix) |
+| `description` | approved requirement (`## Requirement`)                      |
+| `team`        | `SOK`                                                        |
+| `project`     | `sokosumi-6357694ddd23` (Sōkosumi marketplace)               |
+| `state`       | `Triage`                                                     |
+| `priority`    | `3` (Medium)                                                 |
+| `labels`      | exactly one of `Feature`, `Bug`, or `Improvement`            |
 
 **Do not set `assignee` on create** unless the user explicitly asked for an assignee during intake.
 

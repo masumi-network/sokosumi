@@ -21,6 +21,13 @@ overrides:
   # @hey-api/json-schema-ref-parser@1.4.4 still pins js-yaml@4.2.0 (vulnerable).
   # Patched floor is 4.3.1; pin latest 4.x patch.
   "js-yaml@<4.3.2": "4.3.2"
+  # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c.
+  # After #6555, main still resolves 6.29.0, 7.30.0, and eve's 8.10.2
+  # (an unrelated 8.12.3 copy is already present). No undici override on main.
+  # Patched floors are 6.29.1, 7.30.1, and 8.12.2; pin the latest patch on each line.
+  "undici@6": "6.29.1"
+  "undici@7": "7.30.1"
+  "undici@8": "8.12.3"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. Fresh re-resolve without the override
   # already lands only esbuild@0.28.2 (patched). tsup 9 / tsx ~0.28 / react-email
   # ^0.28 / vite peer all resolve to 0.28.2; no 0.27.x remains.

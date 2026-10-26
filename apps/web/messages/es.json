@@ -1657,6 +1657,7 @@
         "chainLastHop": "Este es el último paso: ya no despertará a nadie.",
         "source": {
           "inbox": "De tu bandeja de entrada",
+          "briefing": "Resumen de la mañana",
           "standup": "Stand-up diario",
           "weeklyWrap": "Resumen semanal",
           "scheduled": "Programado: {name}",
@@ -2606,8 +2607,8 @@
           },
           "timezone": {
             "yours": "Tu zona horaria: {zone}",
-            "goesOut": "Sale el {date} ({zone})",
-            "postZone": "Programada como {date} ({zone})"
+            "goesOut": "Sale el {date} · {zone}",
+            "postZone": "Programada como {date} · {zone}"
           },
           "platforms": "Límites por plataforma",
           "platformLimit": "{provider}: {format} · {count} / {limit}",
@@ -7703,6 +7704,13 @@
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
       "moveAction": "Mover",
+      "moveFilesDialogTitle": "Mover {count, plural, one {# archivo} other {# archivos}}",
+      "movedFiles": "{count, plural, one {# archivo movido} other {# archivos movidos}}",
+      "moveFilesPartialError": "{count, plural, one {No se pudo mover # archivo} other {No se pudieron mover # archivos}}",
+      "moveNewFolderLabel": "Carpeta nueva",
+      "moveNewFolderPlaceholder": "O escribe el nombre de una carpeta nueva",
+      "shareAction": "Compartir",
+      "shareFolderAction": "Compartir “{name}”",
       "moveDialogTitle": "Mover {itemName}",
       "moveDialogDescription": "Selecciona la carpeta de destino",
       "moveHere": "Mover aquí",
@@ -7795,15 +7803,16 @@
         "suggestedChip": "Sugerido: {name}",
         "selectFile": "Seleccionar {name}",
         "bulkSelected": "{count} seleccionados",
-        "bulkWindowSelected": "{count} archivos seleccionados de esta ventana",
-        "bulkWindowChanged": "Esta ventana cambió: {count} archivos siguen coincidiendo. Confirma de nuevo.",
-        "bulkSelectionExpired": "Esa ventana de resultados caducó. Busca de nuevo.",
-        "bulkSetCategory": "Poner {name}",
         "bulkClear": "Quitar selección",
-        "bulkApplied": "{count} archivos actualizados",
-        "bulkPartial": "{applied} actualizados, {failed} fallaron y siguen seleccionados",
-        "bulkSelectAllMatches": "Seleccionar los {count} resultados",
-        "bulkError": "No se pudieron aplicar esos cambios.",
+        "bulkDelete": "Eliminar",
+        "bulkMove": "Mover",
+        "bulkShare": "Compartir",
+        "bulkDeleteTitle": "¿Eliminar {count, plural, one {# archivo} other {# archivos}}?",
+        "bulkDeleteDescription": "Se eliminan para todos en este espacio de archivos. No se puede deshacer.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
+        "bulkDeleteCancel": "Cancelar",
+        "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
+        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -7881,9 +7890,6 @@
         "addTagUnavailable": "No se pudieron cargar las etiquetas",
         "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior.",
         "suggestionExcerpt": "De este documento",
-        "bulkMoreCategories": "{count} más…",
-        "bulkCategorySearch": "Buscar categorías",
-        "bulkCategoryEmpty": "No hay categorías que coincidan",
         "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible.",
         "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
         "sheetOpenAsPage": "Abrir como página",
@@ -7903,7 +7909,34 @@
         "allowAgain": "Que el modelo reconsidere {name}",
         "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
       },
-      "tableKind": "Tabla"
+      "tableKind": "Tabla",
+      "Share": {
+        "title": "Compartir “{name}”",
+        "fileDescription": "Cualquiera con el enlace puede ver y descargar este archivo.",
+        "folderDescription": "Cualquiera con el enlace puede ver y descargar todo lo que hay en esta carpeta, incluidos los archivos que se añadan después.",
+        "loading": "Cargando enlace",
+        "passwordOptional": "Contraseña (opcional)",
+        "passwordPlaceholder": "Déjala vacía para no usar contraseña",
+        "newPasswordPlaceholder": "Nueva contraseña",
+        "passwordTooShort": "Al menos 4 caracteres",
+        "create": "Crear enlace",
+        "created": "Enlace creado",
+        "linkLabel": "Enlace para compartir",
+        "copy": "Copiar",
+        "copied": "Enlace copiado",
+        "copyFailed": "No se pudo copiar el enlace",
+        "passwordOn": "Protegido con contraseña",
+        "passwordOff": "Sin contraseña",
+        "setPassword": "Poner contraseña",
+        "changePassword": "Cambiar",
+        "passwordSaved": "Contraseña guardada",
+        "removePassword": "Quitar contraseña",
+        "passwordRemoved": "Contraseña quitada",
+        "revoke": "Dejar de compartir",
+        "revoked": "Enlace desactivado",
+        "loadFailed": "No se pudo cargar el enlace",
+        "saveFailed": "No se pudo guardar el enlace"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7961,7 +7994,7 @@
         "connectFailed": "La conexión no se completó. Inténtalo de nuevo.",
         "lastError": "Necesita atención: {error}",
         "title": "Cuentas conectadas",
-        "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
+        "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -8040,6 +8073,9 @@
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
         "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario lo nombra.",
+        "mailAutoReadTitle": "Gestionar correo rutinario",
+        "mailAutoReadDescription": "Tras cada revisión, marca como leído el correo que no es urgente ni relevante. El correo importante queda sin leer para ti.",
+        "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -8269,7 +8305,7 @@
         },
         "Connectors": {
           "title": "Herramientas",
-          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
+          "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {
@@ -9112,6 +9148,22 @@
       "title": "AI Agents a demanda",
       "description": "Elige un Agent de confianza, define tus requisitos y recibe resultados accionables, sin suscripción.",
       "buttonText": "Descubrir Agents"
+    },
+    "Files": {
+      "sharedFile": "Archivo compartido",
+      "sharedFolder": "Carpeta compartida",
+      "notFoundTitle": "Enlace no encontrado",
+      "passwordLabel": "Este enlace está protegido. Escribe la contraseña",
+      "open": "Abrir",
+      "download": "Descargar",
+      "downloadFile": "Descargar {name}",
+      "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
+      "emptyFolder": "Esta carpeta está vacía.",
+      "errors": {
+        "wrong": "Contraseña incorrecta.",
+        "locked": "Demasiadas contraseñas incorrectas. Vuelve a intentarlo en 15 minutos.",
+        "failed": "Algo salió mal. Vuelve a intentarlo."
+      }
     }
   },
   "NotFound": {

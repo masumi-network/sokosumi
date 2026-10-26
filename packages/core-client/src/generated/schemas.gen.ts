@@ -4710,6 +4710,9 @@ export const SokoBotSchema = {
         followWholeBoard: {
             type: 'boolean'
         },
+        mailAutoRead: {
+            type: 'boolean'
+        },
         ingestTimezone: {
             type: 'string'
         },
@@ -15566,6 +15569,14 @@ export const FileResourceSchema = {
             ],
             description: 'Canonical source this document comes from'
         },
+        pathname: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.',
+            example: 'drive/organizations/org_123/report.pdf'
+        },
         sourceTaskId: {
             type: [
                 'string',
@@ -15970,6 +15981,7 @@ export const FileResourceSchema = {
         'mimeType',
         'sizeBytes',
         'sourceKind',
+        'pathname',
         'sourceTaskId',
         'sourceProjectId',
         'updatedAt',
@@ -16212,6 +16224,102 @@ export const FileSearchMetaSchema = {
         'restarted',
         'catalogIncomplete',
         'indexCoverage'
+    ]
+} as const;
+
+export const DriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        share: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DriveShare'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'share'
+    ]
+} as const;
+
+export const DriveShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        token: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        hasPassword: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'kind',
+        'hasPassword',
+        'createdAt'
+    ]
+} as const;
+
+export const UpsertDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Catalog id of the uploaded file to share.'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder to share, e.g. "Masumi Fundraising".',
+            example: 'Masumi Fundraising'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string',
+                    minLength: 4,
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set or change the password; null removes it; omit to keep the current one.'
+        }
+    },
+    required: [
+        'scope'
     ]
 } as const;
 
@@ -22150,6 +22258,403 @@ export const ProjectNeedsAttentionSchema = {
     ]
 } as const;
 
+export const NewsletterSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        senderName: {
+            type: 'string'
+        },
+        replyTo: {
+            type: 'string',
+            format: 'email'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        },
+        welcomeEmailEnabled: {
+            type: 'boolean'
+        },
+        welcomeSubject: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        welcomeBody: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publicSlug: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'workspaceId',
+        'name',
+        'senderName',
+        'replyTo',
+        'brand',
+        'welcomeEmailEnabled',
+        'welcomeSubject',
+        'welcomeBody',
+        'publicSlug',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const NewsletterBrandSchema = {
+    type: 'object',
+    properties: {
+        logoUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        primaryColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        accentColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        fontFamily: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        footerText: {
+            type: 'string',
+            maxLength: 5000
+        }
+    }
+} as const;
+
+export const PutNewsletterRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        senderName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        replyTo: {
+            type: 'string'
+        },
+        brand: {
+            $ref: '#/components/schemas/NewsletterBrand'
+        },
+        welcomeEmailEnabled: {
+            type: 'boolean'
+        },
+        welcomeSubject: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        welcomeBody: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100000
+        }
+    },
+    required: [
+        'name',
+        'senderName',
+        'replyTo',
+        'brand',
+        'welcomeEmailEnabled'
+    ]
+} as const;
+
+export const NewsletterSubscriberListSchema = {
+    type: 'object',
+    properties: {
+        subscribers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterSubscriber'
+            }
+        },
+        counts: {
+            type: 'object',
+            properties: {
+                PENDING: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                ACTIVE: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                UNSUBSCRIBED: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                BOUNCED: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'PENDING',
+                'ACTIVE',
+                'UNSUBSCRIBED',
+                'BOUNCED'
+            ]
+        }
+    },
+    required: [
+        'subscribers',
+        'counts'
+    ]
+} as const;
+
+export const NewsletterSubscriberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        newsletterId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSubscriberStatus'
+        },
+        source: {
+            $ref: '#/components/schemas/NewsletterSubscriberSource'
+        },
+        consentAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        confirmedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unsubscribedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        bouncedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'newsletterId',
+        'email',
+        'name',
+        'status',
+        'source',
+        'consentAt',
+        'confirmedAt',
+        'unsubscribedAt',
+        'bouncedAt',
+        'createdAt'
+    ]
+} as const;
+
+export const NewsletterSubscriberStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'ACTIVE',
+        'UNSUBSCRIBED',
+        'BOUNCED'
+    ]
+} as const;
+
+export const NewsletterSubscriberSourceSchema = {
+    type: 'string',
+    enum: [
+        'MANUAL',
+        'CSV_IMPORT',
+        'SIGNUP_FORM',
+        'API'
+    ]
+} as const;
+
+export const AddNewsletterSubscriberRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'email',
+        'consent'
+    ]
+} as const;
+
+export const NewsletterImportResultSchema = {
+    type: 'object',
+    properties: {
+        imported: {
+            type: 'integer',
+            minimum: 0
+        },
+        skippedExisting: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Valid rows skipped because the email already exists in the newsletter or CSV.'
+        },
+        invalid: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    row: {
+                        type: 'integer',
+                        minimum: 2
+                    },
+                    value: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'row',
+                    'value'
+                ]
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'imported',
+        'skippedExisting',
+        'invalid'
+    ]
+} as const;
+
+export const ImportNewsletterSubscribersRequestSchema = {
+    type: 'object',
+    properties: {
+        csv: {
+            type: 'string',
+            maxLength: 5000000
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'csv',
+        'consent'
+    ]
+} as const;
+
+export const PatchNewsletterSubscriberRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'UNSUBSCRIBED'
+            ]
+        }
+    }
+} as const;
+
 export const ProjectStarSchema = {
     type: 'object',
     properties: {
@@ -22527,6 +23032,20 @@ export const SocialAccountPostSchema = {
         text: {
             type: 'string'
         },
+        contentType: {
+            $ref: '#/components/schemas/SocialAccountPostContentType'
+        },
+        postKind: {
+            $ref: '#/components/schemas/SocialAccountPostKind'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountPostMedia'
+            },
+            maxItems: 20,
+            default: []
+        },
         publishedAt: {
             type: [
                 'string',
@@ -22577,6 +23096,61 @@ export const SocialAccountPostSchema = {
         'metrics',
         'additionalMetrics',
         'fetchedAt'
+    ]
+} as const;
+
+export const SocialAccountPostContentTypeSchema = {
+    type: 'string',
+    enum: [
+        'text',
+        'image',
+        'video',
+        'carousel',
+        'link',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostKindSchema = {
+    type: 'string',
+    enum: [
+        'post',
+        'reply',
+        'quote',
+        'repost',
+        'unknown'
+    ],
+    default: 'unknown'
+} as const;
+
+export const SocialAccountPostMediaSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        thumbnailUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'thumbnailUrl'
     ]
 } as const;
 
@@ -27246,6 +27820,98 @@ export const GetInvitationResultSchema = {
                 'kind'
             ]
         }
+    ]
+} as const;
+
+export const PublicDriveShareSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        locked: {
+            type: 'boolean'
+        },
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicDriveShareItem'
+            }
+        },
+        truncated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'locked'
+    ]
+} as const;
+
+export const PublicDriveShareItemSchema = {
+    type: 'object',
+    properties: {
+        path: {
+            type: 'string'
+        },
+        size: {
+            type: 'integer'
+        },
+        uploadedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'path',
+        'size',
+        'uploadedAt'
+    ]
+} as const;
+
+export const UnlockDriveShareResponseSchema = {
+    type: 'object',
+    properties: {
+        proof: {
+            type: 'string'
+        }
+    },
+    required: [
+        'proof'
+    ]
+} as const;
+
+export const UnlockDriveShareRequestSchema = {
+    type: 'object',
+    properties: {
+        password: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'password'
+    ]
+} as const;
+
+export const DriveShareDownloadSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 
@@ -32839,6 +33505,9 @@ export const SokoBotStateSchema = {
                 followWholeBoard: {
                     type: 'boolean'
                 },
+                mailAutoRead: {
+                    type: 'boolean'
+                },
                 ingestTimezone: {
                     type: 'string'
                 },
@@ -33514,6 +34183,9 @@ export const UpdateSokoBotProactiveRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 64
+        },
+        mailAutoRead: {
+            type: 'boolean'
         }
     },
     additionalProperties: false

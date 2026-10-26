@@ -124,6 +124,37 @@ describe("Soko Bot deployment environment", () => {
   });
 });
 
+describe("Newsletter environment", () => {
+  it.each([
+    [undefined, false],
+    ["false", false],
+    ["true", true],
+    [" TRUE ", true],
+    ["1", false],
+  ])("parses %s as enabled=%s", (value, enabled) => {
+    vi.stubEnv("NEWSLETTER_ENABLED", value);
+    expect(validateEnv().NEWSLETTER_ENABLED).toBe(enabled);
+  });
+
+  it("allows an omitted sending domain", () => {
+    vi.stubEnv("NEWSLETTER_FROM_DOMAIN", undefined);
+    expect(validateEnv().NEWSLETTER_FROM_DOMAIN).toBeUndefined();
+  });
+
+  it("preserves a configured sending hostname", () => {
+    vi.stubEnv("NEWSLETTER_FROM_DOMAIN", "news.sokosumi.com");
+    expect(validateEnv().NEWSLETTER_FROM_DOMAIN).toBe("news.sokosumi.com");
+  });
+
+  it.each(["", "https://news.sokosumi.com", "news.sokosumi.com/path"])(
+    "rejects an invalid sending hostname: %s",
+    (value) => {
+      vi.stubEnv("NEWSLETTER_FROM_DOMAIN", value);
+      expectInvalidEnvironment("NEWSLETTER_FROM_DOMAIN");
+    },
+  );
+});
+
 describe("Turnstile deployment configuration", () => {
   let consoleWarn: MockInstance<typeof console.warn>;
 

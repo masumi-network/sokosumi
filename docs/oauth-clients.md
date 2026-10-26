@@ -14,11 +14,11 @@ Register the client at `https://app.sokosumi.com/developer/oauth-clients`. Redir
 
 ## Scopes
 
-| Scope | Grants |
-| --- | --- |
-| `openid` | Identity only: the ID token and userinfo carry `sub`. Cannot call `/v1`. |
-| `sokosumi:api` | Calling Core `/v1` as the consenting user. |
-| `offline_access` | Refresh tokens. |
+| Scope            | Grants                                                                   |
+| ---------------- | ------------------------------------------------------------------------ |
+| `openid`         | Identity only: the ID token and userinfo carry `sub`. Cannot call `/v1`. |
+| `sokosumi:api`   | Calling Core `/v1` as the consenting user.                               |
+| `offline_access` | Refresh tokens.                                                          |
 
 A new client is **identity-only**. Core API access needs `sokosumi:api` in all three places:
 
@@ -32,10 +32,10 @@ A new client is **identity-only**. Core API access needs `sokosumi:api` in all t
 - Access tokens last 2 hours. Refresh tokens last 90 days and rotate on every use. A rotated token still works for 30 seconds, so parallel refreshes do not sign the user out.
 - Core answers a bearer it cannot use with:
 
-| Status | Meaning | Fix |
-| --- | --- | --- |
-| **401** | Unknown, expired or revoked token; disabled client; banned user; consent withdrawn | Refresh, or sign the user in again |
-| **403** `insufficient_scope` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="sokosumi:api"` | A valid token without `sokosumi:api` on the token, the client, or the consent | Fix the scope in the three places above, then reauthorize |
+| Status                                                                                                        | Meaning                                                                            | Fix                                                       |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **401**                                                                                                       | Unknown, expired or revoked token; disabled client; banned user; consent withdrawn | Refresh, or sign the user in again                        |
+| **403** `insufficient_scope` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="sokosumi:api"` | A valid token without `sokosumi:api` on the token, the client, or the consent      | Fix the scope in the three places above, then reauthorize |
 
 ## Which workspace
 
