@@ -21,7 +21,8 @@ export const CHAT_MESSAGE_LIST_CONTENT_CLASS =
 
 /**
  * Centred reading column for a room's transcript and composer, sized so
- * 14px Inter body text stays at or under about 95 characters per line. The
- * scroller stays full width so its scrollbar keeps to the pane edge.
+ * 14px Inter body text stays at or under about 95 characters per line. Rem, so
+ * the column grows with Dynamic Type and keeps that measure. The scroller stays
+ * full width so its scrollbar keeps to the pane edge.
  */
-export const CHAT_CONTENT_COLUMN_CLASS = "mx-auto w-full max-w-[725px]";
+export const CHAT_CONTENT_COLUMN_CLASS = "mx-auto w-full max-w-[45.25rem]";
