@@ -6800,6 +6800,20 @@ export type SocialStatisticsResearchPost = SocialAccountPost & {
     [key: string]: unknown;
 };
 
+export type SocialStatisticsResearchError = {
+    error: string;
+    message: string;
+    kind?: string;
+    retryAfterSeconds?: number;
+    code?: 'x_access_denied' | 'x_rate_limited' | 'x_reconnect_required' | 'x_upstream_error' | 'x_upstream_unavailable';
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
 export type SocialPerformanceAudienceExportRequest = {
     format: 'csv' | 'xlsx';
     /**
@@ -48764,20 +48778,9 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErro
         };
     };
     /**
-     * Forbidden
+     * Forbidden or X endpoint access denied
      */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    403: SocialStatisticsResearchError;
     /**
      * Not Found
      */
@@ -48794,35 +48797,21 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErro
         };
     };
     /**
-     * Unprocessable Entity
+     * Invalid request or X reconnection required
      */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    422: SocialStatisticsResearchError;
     /**
-     * Service Unavailable
+     * X rate limited; retry after the indicated delay
      */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    429: SocialStatisticsResearchError;
+    /**
+     * X or connector returned an unusable response
+     */
+    502: SocialStatisticsResearchError;
+    /**
+     * X or connector temporarily unavailable
+     */
+    503: SocialStatisticsResearchError;
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsAudienceErrors];
@@ -49044,20 +49033,9 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErr
         };
     };
     /**
-     * Forbidden
+     * Forbidden or X endpoint access denied
      */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    403: SocialStatisticsResearchError;
     /**
      * Not Found
      */
@@ -49074,35 +49052,21 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErr
         };
     };
     /**
-     * Unprocessable Entity
+     * Invalid request or X reconnection required
      */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    422: SocialStatisticsResearchError;
     /**
-     * Service Unavailable
+     * X rate limited; retry after the indicated delay
      */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    429: SocialStatisticsResearchError;
+    /**
+     * X or connector returned an unusable response
+     */
+    502: SocialStatisticsResearchError;
+    /**
+     * X or connector temporarily unavailable
+     */
+    503: SocialStatisticsResearchError;
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsBenchmarkErrors];
@@ -49195,20 +49159,9 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErr
         };
     };
     /**
-     * Forbidden
+     * Forbidden or X endpoint access denied
      */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    403: SocialStatisticsResearchError;
     /**
      * Not Found
      */
@@ -49225,35 +49178,21 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErr
         };
     };
     /**
-     * Unprocessable Entity
+     * Invalid request or X reconnection required
      */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    422: SocialStatisticsResearchError;
     /**
-     * Service Unavailable
+     * X rate limited; retry after the indicated delay
      */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    429: SocialStatisticsResearchError;
+    /**
+     * X or connector returned an unusable response
+     */
+    502: SocialStatisticsResearchError;
+    /**
+     * X or connector temporarily unavailable
+     */
+    503: SocialStatisticsResearchError;
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryError = GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdStatisticsDiscoveryErrors];
