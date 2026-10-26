@@ -15,7 +15,13 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
+import {
+  type ComponentType,
+  Fragment,
+  type ReactNode,
+  Suspense,
+  type SVGProps,
+} from "react";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
@@ -65,20 +71,28 @@ interface MenuItemConfig {
  */
 export default function MenuItems({
   socialBetaEnabled = false,
+  prototypeSokoBot = null,
 }: {
   socialBetaEnabled?: boolean;
+  /** PROTOTYPE: the Soko Bot entry variants b and c show below New task. */
+  prototypeSokoBot?: ReactNode;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedMenuItems socialBetaEnabled={socialBetaEnabled} />
+      <ScopedMenuItems
+        socialBetaEnabled={socialBetaEnabled}
+        prototypeSokoBot={prototypeSokoBot}
+      />
     </Suspense>
   );
 }
 
 function ScopedMenuItems({
   socialBetaEnabled,
+  prototypeSokoBot,
 }: {
   socialBetaEnabled: boolean;
+  prototypeSokoBot: ReactNode;
 }) {
   const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
@@ -318,8 +332,13 @@ function ScopedMenuItems({
               : items
             ).map(renderItem)}
           </SidebarMenu>
-          {prototype ? (
-            <div className="pb-2">
+        </SidebarGroupContent>
+      </SidebarGroup>
+      {prototype ? (
+        <>
+          {prototypeSokoBot}
+          <SidebarGroup className="w-full px-2 py-0">
+            <SidebarGroupContent className="pb-2">
               <NavPrototypeSection title="Work">
                 {items
                   .filter(({ key, group }) => !group && key !== "new-task")
@@ -331,10 +350,10 @@ function ScopedMenuItems({
               <NavPrototypeSection title="Marketing">
                 {inGroup("marketing").map(renderItem)}
               </NavPrototypeSection>
-            </div>
-          ) : null}
-        </SidebarGroupContent>
-      </SidebarGroup>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </>
+      ) : null}
     </>
   );
 }

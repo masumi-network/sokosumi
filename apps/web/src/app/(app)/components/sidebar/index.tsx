@@ -114,12 +114,16 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <PersonalAssistantNav />
-          {/* PROTOTYPE: variants b and c separate by space, not rules. */}
+          {/* PROTOTYPE: variants b and c move the Soko Bot below New task
+              and separate it by space, not rules. */}
           <SidebarPrototypeOnly variants={["a"]}>
+            <PersonalAssistantNav />
             <SidebarSeparator className="-mt-px" />
           </SidebarPrototypeOnly>
-          <MenuItems socialBetaEnabled={socialBetaEnabled} />
+          <MenuItems
+            socialBetaEnabled={socialBetaEnabled}
+            prototypeSokoBot={<PersonalAssistantNav />}
+          />
           <SidebarSeparator />
           {chatList}
         </div>
