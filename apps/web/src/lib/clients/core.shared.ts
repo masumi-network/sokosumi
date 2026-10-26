@@ -291,6 +291,7 @@ import {
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
@@ -3597,6 +3598,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdSubscription(
+    id: string,
+    connectionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription({
+          client,
+          path: { id, connectionId },
+          cache: "no-store",
+        }),
+      "Failed to refresh account subscription",
+    );
+  }
+
   async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
     id: string,
     connectionId: string,
@@ -6248,6 +6265,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+    getProjectsByIdSocialConnectionsByConnectionIdSubscription,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,
