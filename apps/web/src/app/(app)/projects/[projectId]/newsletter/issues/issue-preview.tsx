@@ -4,14 +4,14 @@ import type { CreateNewsletterIssueRequest } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { Monitor, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { z } from "zod";
 import { PreviewFrame } from "@/components/common/preview-frame";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { newsletterIssueInputSchema } from "@/lib/schemas/newsletter-issues";
-import { cn } from "@/lib/utils";
 
 export function NewsletterIssuePreview({
   projectId,
@@ -22,6 +22,20 @@ export function NewsletterIssuePreview({
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [device, setDevice] = useState("desktop");
+  const frameRef = useRef<HTMLElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(0);
+  useMountEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setAvailableWidth(entry.contentRect.width);
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  });
+  const viewportWidth = device === "mobile" ? 375 : 720;
+  const scale =
+    availableWidth > 0 ? Math.min(1, availableWidth / viewportWidth) : 1;
   const current = JSON.stringify(values);
   const [body] = useDebounce(current, 600);
   const parsed = newsletterIssueInputSchema(t).safeParse(JSON.parse(body));
@@ -88,19 +102,30 @@ export function NewsletterIssuePreview({
           </Button>
         </div>
       ) : null}
-      {preview.data && parsed.success ? (
-        <PreviewFrame
-          className={cn("mx-auto w-full", device === "mobile" && "max-w-sm")}
-        >
+      <PreviewFrame
+        ref={frameRef}
+        hidden={!preview.data || !parsed.success}
+        className="mx-auto w-full"
+        style={{
+          maxWidth: viewportWidth + 2,
+          height: Math.round(640 * scale) + 2,
+        }}
+      >
+        {preview.data && parsed.success ? (
           <iframe
             title={t("Preview.label")}
             srcDoc={preview.data.html}
             sandbox=""
             referrerPolicy="no-referrer"
-            className="h-[40rem] w-full border-0"
+            className="block max-w-none origin-top-left border-0"
+            style={{
+              width: viewportWidth,
+              height: 640,
+              transform: `scale(${scale})`,
+            }}
           />
-        </PreviewFrame>
-      ) : null}
+        ) : null}
+      </PreviewFrame>
     </aside>
   );
 }

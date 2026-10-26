@@ -15,6 +15,7 @@ import mount from "./post";
 
 const m = vi.hoisted(() => ({
   enabled: true,
+  workspace: vi.fn(),
   project: vi.fn(),
   newsletter: vi.fn(),
 }));
@@ -27,6 +28,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    workspace: { findUnique: m.workspace },
     project: { findFirst: m.project },
     newsletter: { findUnique: m.newsletter },
   },
@@ -85,6 +87,7 @@ function preview(body: unknown = INPUT, authenticated = true) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.enabled = true;
+  m.workspace.mockResolvedValue({ organization: { slug: "utxo" } });
   m.project.mockResolvedValue({
     id: NEWSLETTER_PROJECT_ID,
     closingAt: null,
@@ -108,6 +111,10 @@ describe("POST newsletter issue preview", () => {
     expect(data.html).toContain(BRAND.logoUrl);
     expect(data.html).toContain('href="#"');
     expect(data.html).not.toContain("<script>");
+    expect(m.workspace).toHaveBeenCalledWith({
+      where: { id: NEWSLETTER_WORKSPACE_ID },
+      select: { organization: { select: { slug: true } } },
+    });
     expect(m.project).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -128,7 +135,22 @@ describe("POST newsletter issue preview", () => {
     m.enabled = false;
     expect((await preview()).status).toBe(404);
     expect(m.project).not.toHaveBeenCalled();
+    expect(m.workspace).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { organization: { slug: "another-workspace" } },
+    { organization: null },
+    null,
+  ])(
+    "returns 404 outside the beta workspace before reading project data",
+    async (workspace) => {
+      m.workspace.mockResolvedValue(workspace);
+      expect((await preview()).status).toBe(404);
+      expect(m.project).not.toHaveBeenCalled();
+      expect(m.newsletter).not.toHaveBeenCalled();
+    },
+  );
 
   it("requires authentication and an accessible project with newsletter settings", async () => {
     expect((await preview(INPUT, false)).status).toBe(401);

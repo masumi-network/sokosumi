@@ -63,9 +63,59 @@ describe("newsletter issue preview", () => {
       }),
     );
     await user.click(screen.getByText("Mobile"));
-    expect(frame.parentElement).toHaveClass("max-w-sm");
+    expect(frame).toHaveStyle({ width: "375px" });
     await user.click(screen.getByText("Desktop"));
-    expect(frame.parentElement).not.toHaveClass("max-w-sm");
+    expect(frame).toHaveStyle({ width: "720px" });
+  });
+
+  it("fits distinct device viewports into a narrow panel and responds to resizing", async () => {
+    const user = userEvent.setup();
+    const disconnect = vi.fn();
+    let resize = (_width: number) => {};
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          resize = (width) =>
+            this.callback(
+              [
+                {
+                  target,
+                  contentRect: new DOMRect(0, 0, width, 640),
+                  contentBoxSize: [],
+                  borderBoxSize: [],
+                  devicePixelContentBoxSize: [],
+                },
+              ],
+              this,
+            );
+          resize(312);
+        }
+        unobserve() {}
+        disconnect = disconnect;
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async () => Response.json({ html: "<p>News</p>" })),
+    );
+    const { unmount } = render(previewView()());
+    const frame = await screen.findByTitle("Newsletter email preview");
+    expect(frame).toHaveStyle({ width: "720px", height: "640px" });
+    expect(frame.style.transform).toBe(`scale(${312 / 720})`);
+    await user.click(screen.getByText("Mobile"));
+    expect(frame).toHaveStyle({ width: "375px" });
+    expect(frame.style.transform).toBe(`scale(${312 / 375})`);
+    await act(async () => resize(200));
+    expect(frame).toHaveStyle({ width: "375px" });
+    expect(frame.style.transform).toBe(`scale(${200 / 375})`);
+    await act(async () => resize(900));
+    expect(frame.style.transform).toBe("scale(1)");
+    unmount();
+    expect(disconnect).toHaveBeenCalled();
   });
 
   it("debounces typing for 600ms and submits only the latest content", async () => {
