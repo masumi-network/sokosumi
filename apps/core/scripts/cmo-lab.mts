@@ -13,7 +13,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
-import { Prisma } from "@sokosumi/database";
+import { Prisma, type SokoBotTurnStatus } from "@sokosumi/database";
 import type { CmoStrategy } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import {
@@ -34,6 +34,10 @@ interface Brand {
   brain?: string;
   /** A side product the plan must not be about. */
   avoid?: string;
+  /** The language its posts must be written in. */
+  contentLanguage?: string;
+  /** Words the plan's summary uses when it must not be in English. */
+  planLanguage?: string;
   why?: string;
 }
 
@@ -69,7 +73,12 @@ const brands = (
   ) as Brand[]
 ).filter((brand) => !only || only.includes(brand.name));
 
-const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"];
+const ACTIVE: SokoBotTurnStatus[] = [
+  "QUEUED",
+  "STARTING",
+  "RUNNING",
+  "CANCEL_REQUESTED",
+];
 async function settle(turnId: string): Promise<string> {
   for (;;) {
     const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
@@ -98,6 +107,20 @@ async function run(email: string, brand: Brand) {
       strategyHistory: Prisma.DbNull,
       accountsDoneAt: null,
     },
+  });
+  // A stopped lab run leaves its turns active, and they would block this one.
+  await prisma.sokoBotTurn.updateMany({
+    where: { sokoBotId: hire.sokoBotId, status: { in: ACTIVE } },
+    data: {
+      status: "FAILED",
+      errorKind: "lab_run_stopped",
+      completedAt: new Date(),
+    },
+  });
+  // A lab run is many turns a day; the owner's daily brake would stop it.
+  await prisma.sokoBot.update({
+    where: { id: hire.sokoBotId },
+    data: { proactiveDailyLimit: 1_000 },
   });
   const research = await settle((await startCmoResearch(hire)).turnId);
   const plan =
@@ -132,11 +155,22 @@ function judge(
     findings.push("the plan does not sell the main offer");
   if (
     brand.avoid &&
-    new RegExp(brand.avoid, "i").test(
-      `${strategy.summary} ${strategy.offer?.what ?? ""}`,
-    )
+    // What the plan sells; the summary may name the side product as one part.
+    new RegExp(brand.avoid, "i").test(strategy.offer?.what ?? "")
   )
-    findings.push("the plan is about a side product");
+    findings.push(`the plan sells a side product: ${strategy.offer?.what}`);
+  if (
+    brand.contentLanguage &&
+    !new RegExp(brand.contentLanguage, "i").test(strategy.contentLanguage ?? "")
+  )
+    findings.push(
+      `posts in "${strategy.contentLanguage ?? "no language"}", not ${brand.contentLanguage}`,
+    );
+  if (
+    brand.planLanguage &&
+    !new RegExp(brand.planLanguage, "i").test(strategy.summary)
+  )
+    findings.push("the plan is not in the owner's language");
   findings.push(...cmoPlanProblems(strategy));
   return {
     pass: findings.length === 0,
@@ -160,9 +194,16 @@ for (let start = 0; start < brands.length; start += slots.length) {
     ),
   );
   batch.forEach((brand, index) => {
-    const result = settled[index] as { pass: boolean; findings: string[] };
+    const result = settled[index] as {
+      pass: boolean;
+      findings: string[];
+      research: string;
+      plan: string;
+    };
     results.push({ brand: brand.name, why: brand.why, ...result });
-    console.log(`${result.pass ? "PASS" : "FAIL"}  ${brand.name}`);
+    console.log(
+      `${result.pass ? "PASS" : "FAIL"}  ${brand.name}  (research ${result.research}, plan ${result.plan})`,
+    );
     for (const finding of result.findings) console.log(`      ${finding}`);
   });
 }

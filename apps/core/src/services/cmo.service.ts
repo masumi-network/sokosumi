@@ -893,6 +893,22 @@ export async function startCmoOnboarding(input: {
   return created;
 }
 
+const GOAL_PRESETS = [
+  "more sales",
+  "more leads",
+  "brand awareness",
+  "launch something",
+];
+
+/**
+ * The words the owner typed, if any: a preset goal is the app's English, so
+ * only typed words say which language the owner reads.
+ */
+export function ownWords(goals: string): string | null {
+  const typed = goals.replace(/^launch something:\s*/i, "").trim();
+  return typed && !GOAL_PRESETS.includes(typed.toLowerCase()) ? typed : null;
+}
+
 /** Asks Cuso for a new one-month strategy; the owner approves it again. */
 export async function requestCmoStrategy(input: {
   userId: string;
@@ -925,6 +941,11 @@ export async function requestCmoStrategy(input: {
           `What ${hire.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers, unless the owner's goal below names a product, launch or offer: then that is what the plan sells. Otherwise a single product or feature may carry one campaign, never the whole plan.`,
           `Their goal, in their words: ${hire.goals}. When it names a product or launch, the plan is built around it. Otherwise it is the result they want from selling the main offer; never read a word in it as a topic, product or feature to promote.`,
           "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
+          ...(ownWords(hire.goals)
+            ? [
+                `The owner wrote that goal in their own words: write the plan itself (every field, calendar titles and briefs) in the language of "${ownWords(hire.goals)}". contentLanguage stays the language the audience reads.`,
+              ]
+            : []),
           "",
           "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
           "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (summary, why, goals, start, objective, barrier, mix, pillars, focus, offer, channels, funnel, proposals, campaigns, journey, weeks, budget, measurement, openQuestions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves, your daily run writes each piece three days before it goes out.",

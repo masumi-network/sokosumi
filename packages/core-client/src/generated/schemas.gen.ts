@@ -29413,6 +29413,11 @@ export const CmoOverviewSchema = {
                             minLength: 1,
                             maxLength: 400
                         },
+                        contentLanguage: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
                         positioning: {
                             type: 'string',
                             minLength: 1,

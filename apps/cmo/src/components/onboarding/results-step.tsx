@@ -16,7 +16,7 @@ const RHYTHM = [
     icon: Sun,
     when: "Every day",
     what: [
-      "Finishes the next three days of pieces, images included",
+      "Finishes the next three days of pieces, images and videos included",
       "Schedules them on your connected accounts",
       "Tells you in one line what went out and what's next",
     ],

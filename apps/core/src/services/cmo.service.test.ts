@@ -111,6 +111,7 @@ import {
   keepCalendarWork,
   listCmoChannels,
   mergeBrandVisual,
+  ownWords,
   parseCmoUpdates,
   pauseCmoCalendarEntry,
   reportCmoUpdate,
@@ -228,6 +229,17 @@ describe("strategy approval → execution gate", () => {
           status: { in: ["active", "trialing"] },
         }),
       }),
+    );
+  });
+});
+
+describe("ownWords", () => {
+  it("finds the words an owner typed, not a preset goal", () => {
+    expect(ownWords("More leads")).toBeNull();
+    expect(ownWords("Launch something")).toBeNull();
+    expect(ownWords("Mehr Gäste")).toBe("Mehr Gäste");
+    expect(ownWords("Launch something: Unser Panettone")).toBe(
+      "Unser Panettone",
     );
   });
 });

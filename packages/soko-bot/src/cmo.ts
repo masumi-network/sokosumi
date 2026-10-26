@@ -539,6 +539,8 @@ export const cmoStrategySchema = z.object({
   why: longText.optional(),
   goals: z.array(shortText).min(1).max(6),
   audience: shortText.optional(),
+  /** The language posts, ads and emails are written in, named in English ("German"). */
+  contentLanguage: shortText.optional(),
   positioning: longText.optional(),
   pillars: z.array(shortText).max(6),
   channels: z
@@ -761,7 +763,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Prepares what the calendar has due and schedules it on connected channels.",
     prompt:
-      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice, with an image where the format needs one and a video where it is a video format (generate_video at 9:16, then get_video until it is ready, and attach its file to the post); 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId); 4) report with report_update kind daily: what you did today and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. Then write one short sentence for the owner (the card carries the details). When nothing is due and nothing changed, answer exactly: Nothing to add.",
+      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice and in the strategy's contentLanguage, with an image where the format needs one and a video where it is a video format (generate_video at 9:16, then get_video until it is ready, and attach its file to the post); 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId: the file id of its image or video); 4) report with report_update kind daily: what you did today and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. Then write one short sentence for the owner (the card carries the details). When nothing is due and nothing changed, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",

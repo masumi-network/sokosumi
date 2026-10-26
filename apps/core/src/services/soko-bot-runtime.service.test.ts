@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   botFindFirstMock,
   botFindUniqueMock,
+  cmoHireFindUniqueMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
@@ -104,6 +105,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  cmoHireFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
@@ -352,6 +354,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
+    cmoHire: { findUnique: cmoHireFindUniqueMock },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -7746,6 +7749,22 @@ describe("Content Studio image tools", () => {
       generate({ ...ownerChat, ...override }, request, "call-3"),
     ).rejects.toThrow("only when a person asks in chat");
     expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+    const dailyRun = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
+    };
+    cmoHireFindUniqueMock.mockResolvedValueOnce({ strategyApprovedAt: null });
+    await expect(generate(dailyRun, request, "call-c1")).rejects.toThrow(
+      "only when a person asks in chat",
+    );
+    cmoHireFindUniqueMock.mockResolvedValueOnce({
+      strategyApprovedAt: new Date(),
+    });
+    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalledTimes(1);
   });
 
   it("generates for a teammate who asks in chat, on the owner's credits", async () => {

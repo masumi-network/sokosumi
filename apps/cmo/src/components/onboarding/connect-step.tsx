@@ -281,7 +281,8 @@ function rowNote(
   if (group === "ads") {
     return `${state.pieces} ${state.pieces === 1 ? "ad" : "ads"}, written and designed. You set the budget and launch ${state.pieces === 1 ? "it" : "them"} in ${platform}.`;
   }
-  return `Unlocks ${state.pieces} ${state.pieces === 1 ? "post" : "posts"} in your first four weeks`;
+  const what = key === "youtube" ? "video" : "post";
+  return `Unlocks ${state.pieces} ${what}${state.pieces === 1 ? "" : "s"} in your first four weeks`;
 }
 
 /** The newsletter needs the founder's list: a CSV export or pasted addresses. */

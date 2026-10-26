@@ -1911,17 +1911,40 @@ export class SokoBotRuntimeService {
    * `executeTool` runs it before the external-effect reservation, so a
    * refusal is recorded as rejected rather than as an unknown outcome.
    */
+  /**
+   * Media costs credits, so a person asks for it in chat. Cuso's own
+   * routines are the exception once the owner approved his plan: the plan
+   * lists the images and videos, and the daily run makes them.
+   */
+  private async mayGenerateMedia(
+    authorized: AuthorizedSokoBotRuntime,
+  ): Promise<boolean> {
+    const { turn } = authorized;
+    if (
+      turn.source === "CHAT" &&
+      turn.chainDepth === 0 &&
+      authorized.askedByKind !== "ASSISTANT"
+    )
+      return true;
+    if (
+      turn.source !== "SCHEDULE" ||
+      getSokoBotVersion(turn.versionId).profile !== "cmo"
+    )
+      return false;
+    const hire = await prisma.cmoHire.findUnique({
+      where: { sokoBotId: turn.sokoBotId },
+      select: { strategyApprovedAt: true },
+    });
+    return hire?.strategyApprovedAt != null;
+  }
+
   private async checkImageRequest(
     authorized: AuthorizedSokoBotRuntime,
     raw: unknown,
     toolCallId: string,
   ) {
     const input = generateImageInputSchema.parse(raw);
-    if (
-      authorized.turn.source !== "CHAT" ||
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT"
-    )
+    if (!(await this.mayGenerateMedia(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
@@ -2047,11 +2070,7 @@ export class SokoBotRuntimeService {
     toolCallId: string,
   ) {
     const input = generateVideoInputSchema.parse(raw);
-    if (
-      authorized.turn.source !== "CHAT" ||
-      authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind === "ASSISTANT"
-    )
+    if (!(await this.mayGenerateMedia(authorized)))
       throw new SokoBotRuntimeAuthorizationError(
         "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
       );
@@ -6024,7 +6043,8 @@ export class SokoBotRuntimeService {
             }),
           );
         }
-        return found;
+        // Said on every result, so Cuso stops before the cap refuses him.
+        return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
       }
       case "list_integration_tools": {
         const parsed = sokoBotListIntegrationToolsInputSchema.parse(

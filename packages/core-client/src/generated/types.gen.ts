@@ -8298,6 +8298,7 @@ export type CmoOverview = {
         why?: string;
         goals: Array<string>;
         audience?: string;
+        contentLanguage?: string;
         positioning?: string;
         pillars: Array<string>;
         channels: Array<{

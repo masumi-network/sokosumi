@@ -142,7 +142,8 @@ export function StrategyReveal({
 
       <Section title="Your month" wide beat={beat(2)}>
         <p className="note">
-          {pieceCount(strategy.calendar)} Nothing goes out until you approve.
+          {pieceCount(strategy.calendar, strategy.contentLanguage)} Nothing goes
+          out until you approve.
         </p>
         <PhoneFeeds overview={overview} strategy={strategy} play={play} />
       </Section>
@@ -400,8 +401,9 @@ function Mix({
 
 const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
 
+/** "Image post" reads "3 image posts"; a name such as "YouTube Short" keeps its capitals. */
 function plural(name: string, count: number): string {
-  const lower = name.toLowerCase();
+  const lower = /[a-z][A-Z]/.test(name) ? name : name.toLowerCase();
   if (count === 1) return `1 ${lower}`;
   return `${count} ${/(x|s|sh|ch)$/.test(lower) ? `${lower}es` : `${lower}s`}`;
 }
@@ -548,12 +550,13 @@ export function goalLine(metric: string): string {
     : `More ${lowerFirst(metric)}`;
 }
 
-function pieceCount(calendar: Entry[]): string {
+function pieceCount(calendar: Entry[], language?: string): string {
   const pieces = planPieces(calendar);
   const images = pieces.filter((entry) =>
     formatHasImage(entry.channel, entry.format),
   ).length;
-  return `${pieces.length} ${pieces.length === 1 ? "piece" : "pieces"}${images ? `, ${images} with images by Cuso` : ""}.`;
+  const written = language ? ` Written in ${language}.` : "";
+  return `${pieces.length} ${pieces.length === 1 ? "piece" : "pieces"}${images ? `, ${images} with images by Cuso` : ""}.${written}`;
 }
 
 function lowerFirst(text: string): string {

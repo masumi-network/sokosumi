@@ -5,7 +5,8 @@
     "goal": "More leads",
     "main": "coworker",
     "avoid": "lead.research|prospect|dossier",
-    "why": "trap: a side product shares the goal's word"
+    "why": "trap: a side product shares the goal's word",
+    "contentLanguage": "english"
   },
   {
     "name": "cal.com",
@@ -13,13 +14,15 @@
     "goal": "More leads",
     "main": "schedul",
     "avoid": "lead.rout|inbound lead|routing",
-    "why": "trap: a feature shares the goal's word"
+    "why": "trap: a feature shares the goal's word",
+    "contentLanguage": "english"
   },
   {
     "name": "plausible.io",
     "url": "https://plausible.io/",
     "goal": "More sales",
-    "main": "analytic|plausible"
+    "main": "analytic|plausible",
+    "contentLanguage": "english"
   },
   {
     "name": "tartinebakery.com",
@@ -27,32 +30,37 @@
     "goal": "Launch something: Our new holiday panettone, in stores from 1 December",
     "main": "panettone",
     "brain": "bak|bread",
-    "why": "a named launch wins"
+    "why": "a named launch wins",
+    "contentLanguage": "english"
   },
   {
     "name": "tldraw.com",
     "url": "https://tldraw.com/",
     "goal": "Launch something",
     "main": "canvas|whiteboard|sdk|draw",
-    "why": "vague goal"
+    "why": "vague goal",
+    "contentLanguage": "english"
   },
   {
     "name": "nmkr.io",
     "url": "https://nmkr.io/",
     "goal": "More sales",
-    "main": "token|nft|mint|cardano"
+    "main": "token|nft|mint|cardano",
+    "contentLanguage": "english"
   },
   {
     "name": "Allbirds",
     "url": "https://www.allbirds.com/",
     "goal": "More sales",
-    "main": "shoe|sneaker|footwear"
+    "main": "shoe|sneaker|footwear",
+    "contentLanguage": "english"
   },
   {
     "name": "Linear",
     "url": "https://linear.app/",
     "goal": "More leads",
-    "main": "issue|project|planning|product development|linear"
+    "main": "issue|project|planning|product development|linear",
+    "contentLanguage": "english"
   },
   {
     "name": "Mailchimp",
@@ -60,7 +68,8 @@
     "goal": "More leads",
     "main": "email|marketing",
     "avoid": "lead.gen|lead capture",
-    "why": "trap: sells lead capture among many tools"
+    "why": "trap: sells lead capture among many tools",
+    "contentLanguage": "english"
   },
   {
     "name": "HubSpot",
@@ -68,7 +77,8 @@
     "goal": "More leads",
     "main": "crm|customer platform|marketing|sales|hubspot",
     "avoid": "lead.gen|lead capture",
-    "why": "trap: sells lead tools among many"
+    "why": "trap: sells lead tools among many",
+    "contentLanguage": "english"
   },
   {
     "name": "Blue Bottle Coffee",
@@ -76,13 +86,15 @@
     "goal": "Launch something: our new holiday blend, online and in cafes from 20 November",
     "main": "holiday blend",
     "brain": "coffee",
-    "why": "a named launch wins"
+    "why": "a named launch wins",
+    "contentLanguage": "english"
   },
   {
     "name": "Calm",
     "url": "https://www.calm.com/",
     "goal": "More sales",
-    "main": "meditat|sleep|calm"
+    "main": "meditat|sleep|calm",
+    "contentLanguage": "english"
   },
   {
     "name": "FREITAG",
@@ -96,20 +108,24 @@
     "url": "https://www.lemlist.com/",
     "goal": "More leads",
     "main": "outreach|cold email|prospect|lead|lemlist",
-    "why": "here leads is the product"
+    "why": "here leads is the product",
+    "contentLanguage": "english"
   },
   {
     "name": "Wise",
     "url": "https://wise.com/",
     "goal": "More sales",
     "main": "transfer|money|international|account|wise",
-    "why": "large regulated site"
+    "why": "large regulated site",
+    "contentLanguage": "english"
   },
   {
     "name": "Hiltl",
     "url": "https://hiltl.ch/",
     "goal": "Mehr Gäste",
     "main": "vegetar|vegan|restaurant|hiltl",
-    "why": "local restaurant, German goal"
+    "why": "local restaurant, German goal: German plan and German posts",
+    "contentLanguage": "german|deutsch",
+    "planLanguage": "\\b(und|mit|für|der|die|das|mehr|gäste)\\b"
   }
 ]

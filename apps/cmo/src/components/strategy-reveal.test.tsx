@@ -156,6 +156,19 @@ describe("strategy reveal", () => {
     );
   });
 
+  it("says which language the posts are written in", () => {
+    const html = renderToStaticMarkup(
+      <StrategyReveal
+        overview={overview({ contentLanguage: "German" })}
+        calendar={<p>The calendar</p>}
+        onAsk={async () => {}}
+      />,
+    );
+    expect(html).toContain(
+      "4 pieces, 1 with images by Cuso. Written in German.",
+    );
+  });
+
   it("opens on the goal, then the month, the barrier and the mix", () => {
     const html = renderToStaticMarkup(
       <StrategyReveal
