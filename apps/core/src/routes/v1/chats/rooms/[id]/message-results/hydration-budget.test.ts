@@ -602,6 +602,53 @@ describe("message result hydration query budget", () => {
     ]);
   });
 
+  it("loads attached files for the whole page in one read", async () => {
+    const media = {
+      pathname: "drive/users/owner/launch.png",
+      fileUrl: "https://example.test/launch.png",
+      name: "launch.png",
+      size: 10,
+      mimeType: "image/png",
+      kind: "image" as const,
+    };
+    const messages: MessageRow[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      const id = `media-post-${index}`;
+      const row = postRow({
+        id,
+        projectId: "proj-own",
+        workspaceId: "ws-own",
+        text: `Media note ${index}`,
+      });
+      row.media = [media];
+      harness.rows.posts.push(row);
+      messages.push({
+        id: uuid(400 + index),
+        metadata: {
+          result_preview_snapshots: [
+            snapshot({
+              workspaceId: "ws-own",
+              kind: "social_post",
+              id,
+              projectId: "proj-own",
+              title: `Media note ${index}`,
+            }),
+          ],
+        },
+      });
+    }
+    harness.rows.messages = messages;
+    const { counts, data } = await readResults(
+      messages.map((message) => message.id),
+    );
+    expect(data.every((row) => row.results[0]?.state === "available")).toBe(
+      true,
+    );
+    expect(counts.fileResource).toBe(1);
+    expect(counts.socialPost).toBe(1);
+    expect(counts.workspace).toBe(1);
+  });
+
   it("reads studio jobs for one workspace in a bounded project query", async () => {
     const messages: MessageRow[] = [];
     for (let index = 0; index < 8; index += 1) {
