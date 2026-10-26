@@ -3079,13 +3079,59 @@
           "design": "Diseño",
           "memory": "Memoria",
           "ariaLabel": "Secciones del proyecto",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Boletín"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots de este proyecto"
+        }
+      },
+      "Newsletter": {
+        "title": "Boletín",
+        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
+        "navigation": "Secciones del boletín",
+        "settings": "Ajustes",
+        "emptyTitle": "Configura tu boletín",
+        "emptyDescription": "Elige un nombre, un remitente y una marca a continuación. Después, guarda los ajustes para crear el boletín.",
+        "general": "General",
+        "brand": "Marca",
+        "welcome": "Correo de bienvenida",
+        "welcomeDescription": "Envía un correo de bienvenida cuando un suscriptor confirme su dirección de correo electrónico.",
+        "publicAddress": "Dirección pública del boletín",
+        "colorHint": "Usa un color hexadecimal, como #1a2b3c, o deja el campo vacío.",
+        "save": "Guardar ajustes",
+        "success": "Ajustes del boletín guardados",
+        "error": "No se han podido guardar los ajustes del boletín. Inténtalo de nuevo.",
+        "unavailable": "Este boletín ya no está disponible. Vuelve a cargar la página.",
+        "invalid": "Revisa los campos resaltados y vuelve a guardar.",
+        "fields": {
+          "name": "Nombre del boletín",
+          "senderName": "Nombre del remitente",
+          "replyTo": "Correo de respuesta",
+          "logoUrl": "URL del logotipo",
+          "primaryColor": "Color principal",
+          "accentColor": "Color de acento",
+          "fontFamily": "Familia tipográfica",
+          "footerText": "Texto del pie de página",
+          "welcomeEmailEnabled": "Enviar un correo de bienvenida",
+          "welcomeSubject": "Asunto del correo de bienvenida",
+          "welcomeBody": "Texto del correo de bienvenida"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Introduce un valor.",
+          "email": "Introduce una dirección de correo electrónico válida.",
+          "url": "Introduce una URL completa con HTTPS.",
+          "color": "Introduce un color hexadecimal de 3 o 6 dígitos que empiece por #.",
+          "maxLength": "Usa un máximo de {max} caracteres."
         }
       }
     },

@@ -18732,6 +18732,18 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const NewsletterAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
