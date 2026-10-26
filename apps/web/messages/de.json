@@ -3109,13 +3109,150 @@
           "design": "Design",
           "memory": "Gedächtnis",
           "ariaLabel": "Projektbereiche",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Newsletter"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots für dieses Projekt"
+        }
+      },
+      "Newsletter": {
+        "title": "Newsletter",
+        "description": "Lege Absender, Erscheinungsbild und Begrüßungs-E-Mail für den Newsletter dieses Projekts fest.",
+        "navigation": "Newsletter-Bereiche",
+        "settings": "Einstellungen",
+        "emptyTitle": "Richte deinen Newsletter ein",
+        "emptyDescription": "Wähle unten einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "general": "Allgemein",
+        "brand": "Erscheinungsbild",
+        "welcome": "Begrüßungs-E-Mail",
+        "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
+        "publicAddress": "Öffentliche Newsletter-Adresse",
+        "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
+        "save": "Einstellungen speichern",
+        "success": "Newsletter-Einstellungen gespeichert",
+        "error": "Die Newsletter-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
+        "unavailable": "Dieser Newsletter ist nicht mehr verfügbar. Lade die Seite neu.",
+        "invalid": "Prüfe die markierten Felder und speichere erneut.",
+        "fields": {
+          "name": "Newsletter-Name",
+          "senderName": "Absendername",
+          "replyTo": "Antwort-E-Mail-Adresse",
+          "logoUrl": "Logo-URL",
+          "primaryColor": "Primärfarbe",
+          "accentColor": "Akzentfarbe",
+          "fontFamily": "Schriftart",
+          "footerText": "Fußzeilentext",
+          "welcomeEmailEnabled": "Begrüßungs-E-Mail senden",
+          "welcomeSubject": "Betreff der Begrüßungs-E-Mail",
+          "welcomeBody": "Text der Begrüßungs-E-Mail"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Gib einen Wert ein.",
+          "email": "Gib eine gültige E-Mail-Adresse ein.",
+          "url": "Gib eine vollständige HTTPS-URL ein.",
+          "color": "Gib eine Hex-Farbe mit 3 oder 6 Ziffern und einem vorangestellten # ein.",
+          "maxLength": "Verwende höchstens {max} Zeichen."
+        },
+        "Subscribers": {
+          "title": "Abonnenten",
+          "description": "Verwalte die Personen, die den Newsletter dieses Projekts erhalten.",
+          "add": "Abonnenten hinzufügen",
+          "import": "CSV importieren",
+          "cancel": "Abbrechen",
+          "done": "Fertig",
+          "emptyTitle": "Noch keine Abonnenten",
+          "emptyDescription": "Füge eine Person hinzu, die dem Newsletter zugestimmt hat, oder importiere eine CSV-Liste mit Einwilligung.",
+          "search": "Nach E-Mail suchen",
+          "searchPlaceholder": "name@beispiel.de",
+          "searchButton": "Suchen",
+          "filterStatus": "Status",
+          "allStatuses": "Alle Status",
+          "clearFilters": "Filter zurücksetzen",
+          "results": "{count, plural, =0 {Keine passenden Abonnenten} one {# passender Abonnent} other {# passende Abonnenten}}",
+          "firstPage": "Erste Seite",
+          "nextPage": "Nächste Seite",
+          "noName": "—",
+          "rowActions": "Abonnenten {email} verwalten",
+          "unsubscribe": "Abmelden",
+          "remove": "Abonnenten entfernen",
+          "unsubscribed": "Abonnent abgemeldet",
+          "updateError": "Abonnent konnte nicht aktualisiert werden. Versuche es erneut.",
+          "transitionError": "Der Status dieses Abonnenten hat sich geändert. Lade die Seite neu, bevor du es erneut versuchst.",
+          "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+          "columns": {
+            "email": "E-Mail",
+            "name": "Name",
+            "status": "Status",
+            "source": "Quelle",
+            "subscribedAt": "Anmeldedatum",
+            "actions": "Aktionen"
+          },
+          "statuses": {
+            "ACTIVE": "Aktiv",
+            "PENDING": "Ausstehend",
+            "UNSUBSCRIBED": "Abgemeldet",
+            "BOUNCED": "Unzustellbar"
+          },
+          "sources": {
+            "MANUAL": "Manuell hinzugefügt",
+            "CSV_IMPORT": "CSV-Import",
+            "SIGNUP_FORM": "Anmeldeformular",
+            "API": "API"
+          },
+          "Validation": {
+            "email": "Gib eine gültige E-Mail-Adresse ein.",
+            "name": "Verwende höchstens 200 Zeichen.",
+            "consent": "Bestätige die Einwilligung, bevor du fortfährst."
+          },
+          "Add": {
+            "description": "Füge eine Person hinzu, die dem Erhalt dieses Newsletters zugestimmt hat.",
+            "email": "E-Mail",
+            "name": "Name (optional)",
+            "consent": "Diese Person hat dem Erhalt dieses Newsletters zugestimmt",
+            "duplicate": "Diese E-Mail-Adresse steht bereits auf der Liste. Suche danach, um den bestehenden Abonnenten zu verwalten.",
+            "error": "Abonnent konnte nicht hinzugefügt werden. Versuche es erneut.",
+            "success": "Abonnent hinzugefügt"
+          },
+          "Remove": {
+            "title": "Abonnenten entfernen?",
+            "description": "Entferne {email} dauerhaft aus diesem Newsletter. Dies kann nicht rückgängig gemacht werden.",
+            "error": "Abonnent konnte nicht entfernt werden. Versuche es erneut.",
+            "success": "Abonnent entfernt"
+          },
+          "Import": {
+            "description": "Importiere eine CSV mit einer E-Mail-Spalte und optional einer Namensspalte. Bestehende Abonnenten behalten ihren aktuellen Status.",
+            "file": "CSV-Datei",
+            "chooseFile": "CSV auswählen",
+            "noFile": "Keine Datei ausgewählt",
+            "fileHint": "CSV-Dateien bis 5 MB mit höchstens 50.000 Zeilen. Verwende eine Spaltenüberschrift email und optional name.",
+            "fileType": "Wähle eine Datei mit der Endung .csv.",
+            "fileSize": "Wähle eine CSV-Datei mit höchstens 5 MB.",
+            "fileRequired": "Wähle eine CSV-Datei zum Importieren.",
+            "consent": "Alle Personen in dieser CSV haben dem Erhalt dieses Newsletters zugestimmt",
+            "importing": "Abonnenten werden importiert…",
+            "error": "Abonnenten konnten nicht importiert werden. Versuche es erneut.",
+            "invalidCsv": "Prüfe die CSV: Verwende die Spaltenüberschrift email, optional name und höchstens 50.000 Zeilen. Versuche es dann erneut.",
+            "doneDescription": "Import abgeschlossen. Prüfe die Ergebnisse unten.",
+            "result": {
+              "imported": "Importiert",
+              "skippedExisting": "Bereits auf der Liste",
+              "invalid": "Gemeldete ungültige Zeilen"
+            },
+            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidRow": "Zeile {row}: {value}",
+            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+          },
+          "dismiss": "Schließen"
         }
       }
     },
