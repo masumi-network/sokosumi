@@ -3189,7 +3189,7 @@
           "cancel": "Abbrechen",
           "done": "Fertig",
           "emptyTitle": "Noch keine Abonnenten",
-          "emptyDescription": "Füge eine Person hinzu, die dem Newsletter zugestimmt hat, oder importiere eine CSV-Liste mit Einwilligung.",
+          "emptyDescription": "Füge Personen aus Kontakte hinzu, importiere eine CSV-Datei oder füge Abonnenten von Hand hinzu.",
           "search": "Nach E-Mail suchen",
           "searchPlaceholder": "name@beispiel.de",
           "searchButton": "Suchen",
@@ -3231,16 +3231,16 @@
           "Validation": {
             "email": "Gib eine gültige E-Mail-Adresse ein.",
             "name": "Verwende höchstens 200 Zeichen.",
-            "consent": "Bestätige die Einwilligung, bevor du fortfährst."
+            "consent": "Wähle, wie sie zugestimmt haben, und bestätige ihre Einwilligung, bevor du fortfährst."
           },
           "Add": {
-            "description": "Füge eine Person hinzu, die dem Erhalt dieses Newsletters zugestimmt hat.",
+            "description": "Füge eine Person zu diesem Newsletter hinzu.",
             "email": "E-Mail",
             "name": "Name (optional)",
-            "consent": "Diese Person hat dem Erhalt dieses Newsletters zugestimmt",
             "duplicate": "Diese E-Mail-Adresse steht bereits auf der Liste. Suche danach, um den bestehenden Abonnenten zu verwalten.",
             "error": "Abonnent konnte nicht hinzugefügt werden. Versuche es erneut.",
-            "success": "Abonnent hinzugefügt"
+            "success": "Abonnent hinzugefügt",
+            "pendingConfirmation": "Bestätigungs-E-Mail gesendet"
           },
           "Remove": {
             "title": "Abonnenten entfernen?",
@@ -3257,7 +3257,6 @@
             "fileType": "Wähle eine Datei mit der Endung .csv.",
             "fileSize": "Wähle eine CSV-Datei mit höchstens 5 MB.",
             "fileRequired": "Wähle eine CSV-Datei zum Importieren.",
-            "consent": "Alle Personen in dieser CSV haben dem Erhalt dieses Newsletters zugestimmt",
             "importing": "Abonnenten werden importiert…",
             "error": "Abonnenten konnten nicht importiert werden. Versuche es erneut.",
             "invalidCsv": "Prüfe die CSV: Verwende die Spaltenüberschrift email, optional name und höchstens 50.000 Zeilen. Versuche es dann erneut.",
@@ -3265,13 +3264,56 @@
             "result": {
               "imported": "Importiert",
               "skippedExisting": "Bereits auf der Liste",
-              "invalid": "Gemeldete ungültige Zeilen"
+              "invalid": "Gemeldete ungültige Zeilen",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
             },
             "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
             "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
           },
-          "dismiss": "Schließen"
+          "dismiss": "Schließen",
+          "fromContacts": "Aus Kontakten hinzufügen",
+          "openContactList": "Liste in Kontakte öffnen",
+          "Consent": {
+            "question": "Wie haben sie dem Erhalt dieses Newsletters zugestimmt?",
+            "CONFIRMED": "Sie haben bereits zugestimmt (jetzt hinzufügen)",
+            "ASK": "Zuerst fragen (Bestätigungs-E-Mail senden)",
+            "confirm": "Ich bestätige, dass diese Personen dem Erhalt dieses Newsletters zugestimmt haben",
+            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, werden nie erneut hinzugefügt."
+          },
+          "FromContacts": {
+            "description": "Wähle Personen und Listen aus den Kontakten deines Arbeitsbereichs.",
+            "people": "Personen",
+            "lists": "Listen",
+            "search": "Personen suchen",
+            "noEmail": "Keine E-Mail-Adresse",
+            "loading": "Kontakte werden geladen…",
+            "noPeople": "Keine Personen gefunden. Versuche eine andere Suche.",
+            "noLists": "Noch keine Listen. Erstelle eine Liste in Kontakte.",
+            "loadPeopleError": "Personen konnten nicht geladen werden. Versuche es erneut.",
+            "loadListsError": "Listen konnten nicht geladen werden. Versuche es erneut.",
+            "retry": "Erneut versuchen",
+            "loadMore": "Weitere Personen laden",
+            "members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+            "peopleSelected": "{count, plural, one {# Person ausgewählt} other {# Personen ausgewählt}}",
+            "listsSelected": "{count, plural, one {# Liste ausgewählt} other {# Listen ausgewählt}}",
+            "selectionRequired": "Wähle mindestens eine Person oder Liste.",
+            "selectionLimit": "Wähle höchstens 1.000 Personen und 20 Listen auf einmal.",
+            "add": "Hinzufügen",
+            "adding": "Abonnenten werden hinzugefügt…",
+            "error": "Abonnenten konnten nicht hinzugefügt werden. Versuche es erneut.",
+            "doneDescription": "Abonnenten hinzugefügt. Prüfe die Ergebnisse unten.",
+            "result": {
+              "added": "Hinzugefügt",
+              "alreadySubscribed": "Bereits abonniert",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "skippedNoEmail": "Ohne E-Mail-Adresse übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
+            }
+          }
         },
         "Issues": {
           "title": "Ausgaben",

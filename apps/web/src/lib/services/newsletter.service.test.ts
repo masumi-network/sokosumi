@@ -29,6 +29,7 @@ const core = vi.hoisted(() => ({
   getProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribers: vi.fn(),
   postProjectsByIdNewsletterSubscribersImport: vi.fn(),
+  postProjectsByIdNewsletterSubscribersFromContacts: vi.fn(),
   patchProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
   deleteProjectsByIdNewsletterSubscribersBySubscriberId: vi.fn(),
 }));
@@ -479,5 +480,37 @@ describe("newsletterService", () => {
     await expect(newsletterService.removeSubscriber("p1", "s1")).rejects.toBe(
       error,
     );
+  });
+
+  it("adds from Contacts through Core, preserves counts and propagates failures", async () => {
+    const summary = {
+      added: 1,
+      alreadySubscribed: 2,
+      skippedUnsubscribed: 3,
+      skippedBounced: 4,
+      skippedNoEmail: 5,
+      pendingConfirmation: 6,
+    };
+    const body = {
+      contactIds: ["c1"],
+      listIds: ["l1"],
+      consent: "ASK" as const,
+    };
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockResolvedValue({
+      data: summary,
+    });
+    expect(await newsletterService.addSubscribersFromContacts("p1", body)).toBe(
+      summary,
+    );
+    expect(
+      core.postProjectsByIdNewsletterSubscribersFromContacts,
+    ).toHaveBeenCalledWith("p1", body);
+    const error = new CoreApiRequestError("Unavailable", { status: 503 });
+    core.postProjectsByIdNewsletterSubscribersFromContacts.mockRejectedValue(
+      error,
+    );
+    await expect(
+      newsletterService.addSubscribersFromContacts("p1", body),
+    ).rejects.toBe(error);
   });
 });

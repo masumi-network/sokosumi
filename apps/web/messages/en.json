@@ -3189,7 +3189,7 @@
           "cancel": "Cancel",
           "done": "Done",
           "emptyTitle": "No subscribers yet",
-          "emptyDescription": "Add someone who agreed to receive your newsletter, or import a CSV list with consent.",
+          "emptyDescription": "Add people from Contacts, import a CSV, or add a subscriber by hand.",
           "search": "Search by email",
           "searchPlaceholder": "name@example.com",
           "searchButton": "Search",
@@ -3231,16 +3231,16 @@
           "Validation": {
             "email": "Enter a valid email address.",
             "name": "Use at most 200 characters.",
-            "consent": "Confirm consent before continuing."
+            "consent": "Choose how they agreed and confirm their consent before continuing."
           },
           "Add": {
-            "description": "Add a person who agreed to receive this newsletter.",
+            "description": "Add a person to this newsletter.",
             "email": "Email",
             "name": "Name (optional)",
-            "consent": "This person agreed to receive this newsletter",
             "duplicate": "This email is already on the list. Search for it to manage the existing subscriber.",
             "error": "Failed to add subscriber. Try again.",
-            "success": "Subscriber added"
+            "success": "Subscriber added",
+            "pendingConfirmation": "Confirmation email sent"
           },
           "Remove": {
             "title": "Remove subscriber?",
@@ -3257,7 +3257,6 @@
             "fileType": "Choose a file ending in .csv.",
             "fileSize": "Choose a CSV file no larger than 5 MB.",
             "fileRequired": "Choose a CSV file to import.",
-            "consent": "Everyone in this CSV agreed to receive this newsletter",
             "importing": "Importing subscribers…",
             "error": "Failed to import subscribers. Try again.",
             "invalidCsv": "Check the CSV: include an email header, an optional name header, and at most 50,000 rows. Then try again.",
@@ -3265,13 +3264,56 @@
             "result": {
               "imported": "Imported",
               "skippedExisting": "Already on the list",
-              "invalid": "Invalid rows reported"
+              "invalid": "Invalid rows reported",
+              "skippedUnsubscribed": "Skipped because they unsubscribed",
+              "skippedBounced": "Skipped because they bounced",
+              "pendingConfirmation": "Waiting for confirmation"
             },
             "invalidHint": "Fix these rows and import them again. Row numbers include the header. Up to 100 invalid rows are reported.",
             "invalidRow": "Row {row}: {value}",
             "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
           },
-          "dismiss": "Dismiss"
+          "dismiss": "Dismiss",
+          "fromContacts": "Add from Contacts",
+          "openContactList": "Open list in Contacts",
+          "Consent": {
+            "question": "How did they agree to get this newsletter?",
+            "CONFIRMED": "They already agreed (add them now)",
+            "ASK": "Ask them first (send a confirmation email)",
+            "confirm": "I confirm these people agreed to receive this newsletter",
+            "note": "People you add are also saved in Contacts, on the list ‘{newsletterName} subscribers’. People who unsubscribed are never added again."
+          },
+          "FromContacts": {
+            "description": "Choose people and lists from your workspace’s Contacts.",
+            "people": "People",
+            "lists": "Lists",
+            "search": "Search people",
+            "noEmail": "No email",
+            "loading": "Loading contacts…",
+            "noPeople": "No people found. Try another search.",
+            "noLists": "No lists yet. Create a list in Contacts.",
+            "loadPeopleError": "Failed to load people. Try again.",
+            "loadListsError": "Failed to load lists. Try again.",
+            "retry": "Try again",
+            "loadMore": "Load more people",
+            "members": "{count, plural, one {# member} other {# members}}",
+            "peopleSelected": "{count, plural, one {# person selected} other {# people selected}}",
+            "listsSelected": "{count, plural, one {# list selected} other {# lists selected}}",
+            "selectionRequired": "Choose at least one person or list.",
+            "selectionLimit": "Choose at most 1,000 people and 20 lists at a time.",
+            "add": "Add",
+            "adding": "Adding subscribers…",
+            "error": "Failed to add subscribers. Try again.",
+            "doneDescription": "Subscribers added. Review the results below.",
+            "result": {
+              "added": "Added",
+              "alreadySubscribed": "Already subscribed",
+              "skippedUnsubscribed": "Skipped because they unsubscribed",
+              "skippedBounced": "Skipped because they bounced",
+              "skippedNoEmail": "Skipped without email",
+              "pendingConfirmation": "Waiting for confirmation"
+            }
+          }
         },
         "Issues": {
           "title": "Issues",

@@ -57,6 +57,7 @@ const PHRASES_LONGEST_FIRST = [...PROPER_PHRASES].sort(
 );
 
 const PROPER_WORDS = new Set([
+  "Contacts",
   "Sokosumi",
   "Google",
   "Microsoft",
