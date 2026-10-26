@@ -32,7 +32,12 @@ const DELTA_INTERVAL_MS = HOUR_MS;
 /** The briefing summarises this much mail; a fresh connection starts here. */
 const LOOKBACK_MS = 24 * HOUR_MS;
 const BRIEFING_HOUR = 7;
-const MAX_MAIL_PER_PACKET = 20;
+/**
+ * An hourly check reads every mail since the last one, up to this many: the
+ * cursor moves past whatever it read, so a lower cap left the rest of a busy
+ * hour untriaged and unread for good.
+ */
+const MAX_MAIL_PER_CHECK = 100;
 const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
 
@@ -139,7 +144,7 @@ export function buildIngestMessage(input: {
       timeZone: input.timeZone,
       mail: input.mail,
       limit:
-        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
     }),
   );
   if (input.mail.length === 0 && input.events.length === 0) {
@@ -166,14 +171,14 @@ export async function buildIngestDeltaMessageForBot(
     mail.push(
       ...(await fetchInboxMessages(integration, {
         since,
-        limit: MAX_MAIL_PER_PACKET,
+        limit: MAX_MAIL_PER_CHECK,
       })),
     );
   }
   mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
   const triage = await triageMail({
     sokoBotId,
-    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    mail: mail.slice(0, MAX_MAIL_PER_CHECK),
     source: "lab",
   });
   triage.log.emit();
@@ -287,7 +292,7 @@ export class SokoBotIngestSyncService {
       try {
         messages = await fetchInboxMessages(integration, {
           since,
-          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
         });
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
@@ -385,7 +390,7 @@ export class SokoBotIngestSyncService {
       if (bot.mailAutoRead && mail.length > 0) {
         const tagged = await triageMail({
           sokoBotId: bot.id,
-          mail: mail.slice(0, MAX_MAIL_PER_BRIEFING),
+          mail: mail.slice(0, MAX_MAIL_PER_CHECK),
           source: kind,
         });
         tagged.log.set({
@@ -404,7 +409,7 @@ export class SokoBotIngestSyncService {
       sokoBotId: bot.id,
       mail: mail.slice(
         0,
-        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
+        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
       ),
       source: kind,
     });

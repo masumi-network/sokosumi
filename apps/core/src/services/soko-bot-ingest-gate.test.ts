@@ -148,6 +148,11 @@ describe("soko-bot ingest when the daily limit is spent", () => {
       turn: { id: "t" },
     });
     expect(logEmitMock).toHaveBeenCalledOnce();
+    // Every mail since the last check, not the newest 20 of a busy hour.
+    expect(fetchInboxMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ limit: 100 }),
+    );
     expect(integrationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
