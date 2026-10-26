@@ -3351,6 +3351,12 @@ const socialPostSchemaResponseTransformer = (data: any) => {
     if (data.quotedPost) {
         data.quotedPost = socialPostQuotedPostSchemaResponseTransformer(data.quotedPost);
     }
+    if (data.movedQuotes) {
+        data.movedQuotes = data.movedQuotes.map((item: any) => {
+            item.scheduledAt = new Date(item.scheduledAt);
+            return item;
+        });
+    }
     data.threadParts = data.threadParts.map((item: any) => socialPostThreadPartSchemaResponseTransformer(item));
     if (data.scheduledAt) {
         data.scheduledAt = new Date(data.scheduledAt);

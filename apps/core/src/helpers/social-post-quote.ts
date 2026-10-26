@@ -1,13 +1,11 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 
-export const SOCIAL_POST_QUOTE_WAIT_MS = 30 * 60_000;
 export const SOCIAL_POST_QUOTE_BACKOFF_MS = 60_000;
+export const SOCIAL_POST_QUOTE_MAX_BACKOFF_MS = 5 * 60_000;
 export const QUOTED_POST_CANCELLED = "The quoted post was cancelled";
 export const QUOTED_POST_FAILED = "The post it quotes failed to publish";
-export const QUOTED_POST_WAIT_EXPIRED =
-  "The quoted post did not publish within 30 minutes of this post's scheduled time. Retry after it publishes, pick another post, or remove the quote.";
 
 export const socialPostQuoteSelect = {
   id: true,
@@ -138,46 +136,85 @@ export async function requireSocialPostQuote(
   }
 }
 
-/** Protect existing quotes when their target changes provider or moves later. */
-export async function requireSocialPostQuotingPosts(
+export interface MovedSocialPostQuote {
+  id: string;
+  scheduledAt: Date;
+}
+
+/** Move dependent schedules in the same transaction, leaving approval and ownership intact. */
+export async function moveSocialPostQuotes(
   post: {
     id: string;
     projectId: string;
     workspaceId: string;
     publishedExternalId: string | null;
+    scheduledAt: Date | null;
   },
   change: { provider: string; scheduledAt: Date | null },
   tx: Prisma.TransactionClient,
-): Promise<void> {
-  if (post.publishedExternalId) return;
-  const dependents = await tx.socialPost.findMany({
-    where: {
-      quotedPostId: post.id,
-      projectId: post.projectId,
-      workspaceId: post.workspaceId,
-      status:
-        change.provider === "x"
-          ? { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "PUBLISHING"] }
-          : { notIn: ["PUBLISHED", "CANCELED"] },
-      ...(change.provider === "x"
-        ? { scheduledAt: { lte: change.scheduledAt ?? new Date(0) } }
-        : {}),
-    },
-    select: { id: true, text: true, scheduledAt: true },
-    orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
-  });
-  if (dependents.length === 0) return;
+): Promise<MovedSocialPostQuote[]> {
+  if (post.publishedExternalId) return [];
   if (change.provider !== "x") {
-    throw badRequest("This post must target X because other posts quote it");
+    const dependents = await tx.socialPost.findMany({
+      where: {
+        quotedPostId: post.id,
+        projectId: post.projectId,
+        workspaceId: post.workspaceId,
+        status: { notIn: ["PUBLISHED", "CANCELED"] },
+      },
+      select: { id: true },
+    });
+    if (dependents.length > 0)
+      throw badRequest("This post must target X because other posts quote it");
+    return [];
   }
-  throw conflict(
-    dependents
-      .map(
-        (quote) =>
-          `Post ${quote.id} (${quote.text.slice(0, 80)}) quotes this post and is scheduled at ${quote.scheduledAt?.toISOString()}; move it first`,
-      )
-      .join(". "),
-  );
+  if (
+    !change.scheduledAt ||
+    (post.scheduledAt && change.scheduledAt <= post.scheduledAt)
+  )
+    return [];
+
+  const moved: MovedSocialPostQuote[] = [];
+  const pending = [
+    { id: post.id, oldTime: post.scheduledAt, newTime: change.scheduledAt },
+  ];
+  const visited = new Set([post.id]);
+  for (let index = 0; index < pending.length; index++) {
+    const parent = pending[index];
+    const quotes = await tx.socialPost.findMany({
+      where: {
+        quotedPostId: parent.id,
+        projectId: post.projectId,
+        workspaceId: post.workspaceId,
+        publishedExternalId: null,
+        status: { notIn: ["PUBLISHED", "CANCELED"] },
+        scheduledAt: { lte: parent.newTime },
+      },
+      select: { id: true, scheduledAt: true },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+    });
+    for (const quote of quotes) {
+      if (visited.has(quote.id) || !quote.scheduledAt) continue;
+      visited.add(quote.id);
+      const gap = parent.oldTime
+        ? quote.scheduledAt.getTime() - parent.oldTime.getTime()
+        : 0;
+      const scheduledAt = new Date(
+        parent.newTime.getTime() + (gap > 0 ? gap : 60_000),
+      );
+      await tx.socialPost.updateMany({
+        where: { id: quote.id },
+        data: { scheduledAt, nextAttemptAt: null, revision: { increment: 1 } },
+      });
+      moved.push({ id: quote.id, scheduledAt });
+      pending.push({
+        id: quote.id,
+        oldTime: quote.scheduledAt,
+        newTime: scheduledAt,
+      });
+    }
+  }
+  return moved;
 }
 
 /** Drafts keep approval ownership; queued dependents stop and require a human retry. */
@@ -243,7 +280,8 @@ export function socialPostQuotePublishDecision(
     quotedPostId: string | null;
     needsAttentionReason: string | null;
     publishedExternalId: string | null;
-    scheduledAt: Date | null;
+    lastAttemptAt?: Date | null;
+    nextAttemptAt?: Date | null;
   },
   quoted: QuoteDependency | null,
   now: Date,
@@ -267,15 +305,32 @@ export function socialPostQuotePublishDecision(
   if (["FAILED", "MISSED", "PUBLISHED"].includes(quoted.status)) {
     return { kind: "blocked", reason: QUOTED_POST_FAILED };
   }
-  const deadline =
-    (post.scheduledAt ?? now).getTime() + SOCIAL_POST_QUOTE_WAIT_MS;
-  if (now.getTime() >= deadline) {
-    return { kind: "blocked", reason: QUOTED_POST_WAIT_EXPIRED };
-  }
+  const previousDelay =
+    post.nextAttemptAt && post.lastAttemptAt
+      ? post.nextAttemptAt.getTime() - post.lastAttemptAt.getTime()
+      : 0;
+  const delay = Math.min(
+    SOCIAL_POST_QUOTE_MAX_BACKOFF_MS,
+    Math.max(SOCIAL_POST_QUOTE_BACKOFF_MS, previousDelay * 2),
+  );
   return {
     kind: "defer",
-    retryAt: new Date(
-      Math.min(now.getTime() + SOCIAL_POST_QUOTE_BACKOFF_MS, deadline),
-    ),
+    retryAt: new Date(now.getTime() + delay),
   };
+}
+
+export function isSocialPostWaitingForQuote(
+  post: Parameters<typeof socialPostQuotePublishDecision>[0] & {
+    status: SocialPostStatus;
+    scheduledAt: Date | null;
+  },
+  quoted: QuoteDependency | null,
+  now: Date,
+): boolean {
+  return (
+    (post.status === "SCHEDULED" || post.status === "PUBLISHING") &&
+    post.scheduledAt !== null &&
+    post.scheduledAt <= now &&
+    socialPostQuotePublishDecision(post, quoted, now).kind === "defer"
+  );
 }

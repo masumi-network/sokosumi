@@ -49,13 +49,20 @@ function CalendarSocialPostStatus({
   const copy = useTranslations("App.Projects.SocialPosts");
   const label = item.partiallyPublished
     ? copy("thread.partlyPosted")
-    : statuses(item.status);
-  const labeled = showLabel ?? needsStatusLabel(item.status);
+    : item.waitingForQuotedPost
+      ? copy("quote.waiting")
+      : statuses(item.status);
+  const labeled =
+    item.waitingForQuotedPost || (showLabel ?? needsStatusLabel(item.status));
   const badge = (
     <SocialPostStatusBadge
-      className={className}
+      className={cn(
+        item.waitingForQuotedPost && "max-w-full min-w-0 shrink",
+        className,
+      )}
       status={item.status}
       partiallyPublished={item.partiallyPublished}
+      waitingForQuotedPost={item.waitingForQuotedPost}
       label={label}
       showLabel={labeled}
     />
@@ -154,7 +161,7 @@ function CompactSocialPostCalendarEvent({
   );
   const status = (
     <CalendarSocialPostStatus
-      className={showThumb ? "size-4" : undefined}
+      className={showThumb && !item.waitingForQuotedPost ? "size-4" : undefined}
       item={item}
       showLabel={showThumb ? false : undefined}
     />
@@ -171,7 +178,9 @@ function CompactSocialPostCalendarEvent({
     label,
     item.partiallyPublished
       ? social("thread.partlyPosted")
-      : statuses(item.status),
+      : item.waitingForQuotedPost
+        ? social("quote.waiting")
+        : statuses(item.status),
     item.threadPartCount > 1
       ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
       : null,
@@ -190,6 +199,7 @@ function CompactSocialPostCalendarEvent({
             showThumb
               ? "@container items-center gap-1 px-1 py-1"
               : "items-center gap-1 px-1.5 py-1",
+            item.waitingForQuotedPost && "flex-wrap",
           )}
           data-testid="calendar-social-post"
         >
@@ -201,9 +211,12 @@ function CompactSocialPostCalendarEvent({
                   {time}
                   <SocialPostThreadBadge count={item.threadPartCount} />
                   <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
-                  <span className="shrink-0">{status}</span>
+                  {!item.waitingForQuotedPost ? (
+                    <span className="shrink-0">{status}</span>
+                  ) : null}
                 </span>
                 <span className="w-full min-w-0 truncate">{label}</span>
+                {item.waitingForQuotedPost ? status : null}
               </span>
               {media ? <CompactSocialPostThumb media={media} /> : null}
             </>
@@ -214,7 +227,11 @@ function CompactSocialPostCalendarEvent({
               <span className="min-w-0 flex-1 truncate">{label}</span>
               <SocialPostThreadBadge count={item.threadPartCount} />
               <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
-              {status}
+              {item.waitingForQuotedPost ? (
+                <span className="w-full">{status}</span>
+              ) : (
+                status
+              )}
             </>
           )}
         </button>
@@ -253,7 +270,9 @@ function SocialPostPreviewCard({
     item.text || t("mediaOnly"),
     item.partiallyPublished
       ? social("thread.partlyPosted")
-      : statuses(item.status),
+      : item.waitingForQuotedPost
+        ? social("quote.waiting")
+        : statuses(item.status),
     item.threadPartCount > 1
       ? social("thread.positionLabel", { part: 1, total: item.threadPartCount })
       : null,
@@ -299,7 +318,12 @@ function SocialPostPreviewCard({
       <span className="line-clamp-2 w-full min-w-0 break-words font-normal">
         {item.text || t("mediaOnly")}
       </span>
-      <span className="flex w-full min-w-0 items-center gap-1">
+      <span
+        className={cn(
+          "flex w-full min-w-0 items-center gap-1",
+          item.waitingForQuotedPost && "flex-wrap",
+        )}
+      >
         <SocialPostThreadBadge count={item.threadPartCount} />
         <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
         <CalendarSocialPostStatus item={item} />

@@ -269,25 +269,49 @@ describe("social posts service", () => {
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
 
-    it("blocks rescheduling the quoted post past any quoting post", async () => {
-      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
-      socialPostFindManyMock.mockResolvedValue([
-        { id: TARGET_ID, text: "Quote", scheduledAt: FUTURE },
-      ]);
-      const { scheduleSocialPost } = await loadService();
-      await expect(
-        scheduleSocialPost({
+    it.each(["schedule", "edit"])(
+      "moves quotes atomically through %s and preserves approval and timezone",
+      async (path) => {
+        const oldTime = new Date(FUTURE.getTime() - 120_000);
+        const post = { ...scheduledPost, scheduledAt: oldTime };
+        const dependent = {
+          ...draftPost,
+          id: TARGET_ID,
+          status: "NEEDS_APPROVAL",
+          timezone: "Europe/Berlin",
+          scheduledAt: new Date(oldTime.getTime() + 60_000),
+        };
+        socialPostFindFirstMock.mockResolvedValue(post);
+        socialPostFindManyMock.mockImplementation(async ({ where }) =>
+          where.quotedPostId === POST_ID ? [dependent] : [],
+        );
+        const { scheduleSocialPost, updateSocialPost } = await loadService();
+        const result = await (path === "schedule"
+          ? scheduleSocialPost
+          : updateSocialPost)({
           ...quoteInput,
+          quotedPostId: undefined,
           postId: POST_ID,
           revision: 1,
           scheduledAt: FUTURE,
-        }),
-      ).rejects.toMatchObject({
-        status: 409,
-        message: expect.stringContaining(TARGET_ID),
-      });
-      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
-    });
+        });
+        const movedTime = new Date(FUTURE.getTime() + 60_000);
+        expect(result.movedQuotes).toEqual([
+          { id: TARGET_ID, scheduledAt: movedTime },
+        ]);
+        const movedWrite = socialPostUpdateManyMock.mock.calls.find(
+          ([input]) => input.where.id === TARGET_ID,
+        )?.[0];
+        expect(movedWrite?.data).toEqual({
+          scheduledAt: movedTime,
+          nextAttemptAt: null,
+          revision: { increment: 1 },
+        });
+        expect(movedWrite?.data).not.toHaveProperty("status");
+        expect(movedWrite?.data).not.toHaveProperty("timezone");
+        expect(transactionMock).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it("lets a failed quote remove its reference and clear the stored reason", async () => {
       const failed = {

@@ -77,6 +77,22 @@ const transformers = [
 ];
 
 describe("social post response transformers", () => {
+  it.each([
+    patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+    postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  ])("%s revives moved quote times", async (transform) => {
+    const result = await transform({
+      data: {
+        ...buildPost(),
+        movedQuotes: [{ id: "quote", scheduledAt: timestamp }],
+      },
+      meta: { timestamp, requestId: "request-1" },
+    });
+    expect(result.data.movedQuotes).toEqual([
+      { id: "quote", scheduledAt: new Date(timestamp) },
+    ]);
+  });
+
   it.each(transformers)(
     "%s accepts posts with no publishing attempt",
     async (transform) => {

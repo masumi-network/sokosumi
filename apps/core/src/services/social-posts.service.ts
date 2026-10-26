@@ -31,10 +31,12 @@ import {
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   flagSocialPostQuotes,
+  isSocialPostWaitingForQuote,
+  type MovedSocialPostQuote,
   mapSocialPostQuote,
+  moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
   requireSocialPostQuote,
-  requireSocialPostQuotingPosts,
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
 } from "@/helpers/social-post-quote";
@@ -155,6 +157,8 @@ export interface SocialPostSummary {
   quotedPostId: string | null;
   quotedPost: ReturnType<typeof mapSocialPostQuote> | null;
   needsAttentionReason: string | null;
+  waitingForQuotedPost?: boolean;
+  movedQuotes?: MovedSocialPostQuote[];
   threadParts: SocialPostThreadPartSummary[];
   threadPartCount: number;
   publishedThreadPartCount: number;
@@ -267,6 +271,8 @@ export interface UpdateSocialPostInput
   threadParts?: SocialPostThreadPartInput[];
   quotedPostId?: string | null;
   socialConnectionId?: string | null;
+  scheduledAt?: Date;
+  timezone?: string;
   revision: number;
 }
 
@@ -357,6 +363,11 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
       ? mapSocialPostQuote(record.quotedPost)
       : null,
     needsAttentionReason: record.needsAttentionReason,
+    waitingForQuotedPost: isSocialPostWaitingForQuote(
+      record,
+      record.quotedPost,
+      new Date(),
+    ),
     threadParts: record.threadParts.map((part) => ({
       id: part.id,
       position: part.position,
@@ -887,7 +898,7 @@ export async function updateSocialPost(
   }
   await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
-  if (post.status === "SCHEDULED") {
+  if (post.status === "SCHEDULED" || input.scheduledAt) {
     await requireLockedOpenProject(tx, input, {
       closedMessage: PROJECT_CLOSED_MESSAGE,
     });
@@ -908,6 +919,7 @@ export async function updateSocialPost(
     );
   }
   requireRevision(post, input.revision);
+  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt);
 
   const data: Prisma.SocialPostUncheckedUpdateManyInput =
     post.status === "SCHEDULED"
@@ -923,6 +935,8 @@ export async function updateSocialPost(
             : {}),
         }
       : {};
+  if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
+  if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
   let provider = currentProvider;
   if (input.socialConnectionId === null) {
@@ -1013,7 +1027,7 @@ export async function updateSocialPost(
       provider,
       quotedPostId,
       scheduledAt:
-        post.status === "SCHEDULED"
+        post.status === "SCHEDULED" || input.scheduledAt
           ? data.scheduledAt instanceof Date
             ? data.scheduledAt
             : post.scheduledAt
@@ -1028,8 +1042,9 @@ export async function updateSocialPost(
     data.needsAttentionReason = null;
     data.lastError = null;
   }
+  let movedQuotes: MovedSocialPostQuote[] = [];
   if (providerChanged || data.scheduledAt instanceof Date) {
-    await requireSocialPostQuotingPosts(
+    movedQuotes = await moveSocialPostQuotes(
       post,
       {
         provider,
@@ -1044,16 +1059,19 @@ export async function updateSocialPost(
 
   const updated = await writeWithRevision(input, input.revision, data, tx);
   if (threadParts !== undefined) {
-    return mapSocialPost(
-      await tx.socialPost.update({
-        where: { id: post.id },
-        data: { threadParts: { deleteMany: {}, create: threadParts } },
-        include: socialPostInclude,
-      }),
-    );
+    return {
+      ...mapSocialPost(
+        await tx.socialPost.update({
+          where: { id: post.id },
+          data: { threadParts: { deleteMany: {}, create: threadParts } },
+          include: socialPostInclude,
+        }),
+      ),
+      movedQuotes,
+    };
   }
 
-  return mapSocialPost(updated);
+  return { ...mapSocialPost(updated), movedQuotes };
 }
 
 export async function scheduleSocialPost(
@@ -1116,33 +1134,36 @@ export async function scheduleSocialPost(
       },
       tx,
     );
-  await requireSocialPostQuotingPosts(
+  const movedQuotes = await moveSocialPostQuotes(
     post,
     { provider, scheduledAt: input.scheduledAt },
     tx,
   );
 
-  return mapSocialPost(
-    await writeWithRevision(
-      input,
-      input.revision,
-      {
-        status:
-          post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
-        scheduledAt: input.scheduledAt,
-        timezone: input.timezone ?? post.timezone,
-        socialConnectionId: connection.id,
-        ...(provider !== currentProvider ? { provider } : {}),
-        scheduledByUserId: input.userId,
-        scheduledByCoworkerId: input.coworkerId ?? null,
-        lastError: null,
-        needsAttentionReason: null,
-        attemptCount: 0,
-        nextAttemptAt: null,
-      },
-      tx,
+  return {
+    ...mapSocialPost(
+      await writeWithRevision(
+        input,
+        input.revision,
+        {
+          status:
+            post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+          scheduledAt: input.scheduledAt,
+          timezone: input.timezone ?? post.timezone,
+          socialConnectionId: connection.id,
+          ...(provider !== currentProvider ? { provider } : {}),
+          scheduledByUserId: input.userId,
+          scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          needsAttentionReason: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+        },
+        tx,
+      ),
     ),
-  );
+    movedQuotes,
+  };
 }
 
 export async function resumeSocialPostThread(

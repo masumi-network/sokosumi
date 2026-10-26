@@ -916,6 +916,37 @@ describe("Project social post routes", () => {
     });
   });
 
+  it.each(["edit", "schedule"])(
+    "returns moved quotes from %s with their new times",
+    async (path) => {
+      const movedQuotes = [
+        {
+          id: "77777777-7777-4777-8777-777777777777",
+          scheduledAt: new Date(SCHEDULED_AT),
+        },
+      ];
+      const mock =
+        path === "edit" ? updateSocialPostMock : scheduleSocialPostMock;
+      mock.mockResolvedValue({ ...scheduledPost, movedQuotes });
+      const response = await createApp().request(
+        `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}${path === "edit" ? "" : "/schedule"}`,
+        json(path === "edit" ? "PATCH" : "POST", {
+          revision: 0,
+          scheduledAt: SCHEDULED_AT,
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: {
+          movedQuotes: [{ ...movedQuotes[0], scheduledAt: SCHEDULED_AT }],
+        },
+      });
+      expect(mock).toHaveBeenCalledWith(
+        expect.objectContaining({ scheduledAt: new Date(SCHEDULED_AT) }),
+      );
+    },
+  );
+
   it("cancels a post", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/cancel`,

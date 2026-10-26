@@ -97,6 +97,7 @@ import {
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import { useReportMovedSocialPostQuotes } from "./social-post-quote";
 import { SocialPostQuotePicker } from "./social-post-quote-picker";
 import {
   SocialPostSchedulePicker,
@@ -151,11 +152,16 @@ export function SocialPostComposerDialog({
   onError,
   onOpenChange,
   onCloseAutoFocus,
-  onSaved,
+  onSaved: onPostSaved,
   open,
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
+  function handleSaved(post: SocialPost) {
+    reportMovedQuotes(post);
+    onPostSaved(post);
+  }
   const locale = useLocale();
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
@@ -707,7 +713,7 @@ export function SocialPostComposerDialog({
           onError(result.error);
           return 0;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (socialConnectionId) saved.push(socialConnectionId);
         created += 1;
       }
@@ -774,7 +780,7 @@ export function SocialPostComposerDialog({
         });
         done.push(connection.id);
         if (!result.ok) {
-          onSaved(created.value);
+          handleSaved(created.value);
           onError({
             ...result.error,
             message: nameIfMany(
@@ -784,7 +790,7 @@ export function SocialPostComposerDialog({
           });
           return;
         }
-        onSaved(result.value);
+        handleSaved(result.value);
         if (result.value.status === "PUBLISHED") {
           published += 1;
         } else {
@@ -881,7 +887,7 @@ export function SocialPostComposerDialog({
           return;
         }
         toast.success(t("toasts.updated"));
-        onSaved(result.value);
+        handleSaved(result.value);
         onOpenChange(false);
         return;
       }
@@ -952,7 +958,7 @@ export function SocialPostComposerDialog({
           return null;
         }
         revisionRef.current = result.value.revision;
-        onSaved(result.value);
+        handleSaved(result.value);
         return result.value;
       }
 
@@ -994,7 +1000,7 @@ export function SocialPostComposerDialog({
           return;
         }
         revisionRef.current = updated.value.revision;
-        onSaved(updated.value);
+        handleSaved(updated.value);
       }
 
       if (!scheduleFirst && !(await persistSchedule())) return;

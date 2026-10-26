@@ -124,6 +124,8 @@ interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
   threadParts?: CreateSocialPostRequest["threadParts"];
   quotedPostId?: string | null;
   socialConnectionId?: string | null;
+  scheduledAt?: string;
+  timezone?: string | null;
   revision: number;
 }
 
@@ -658,6 +660,8 @@ const updateProjectSocialPostSchema = z
     threadParts: socialPostThreadPartsSchema.optional(),
     quotedPostId: z.uuid().nullish(),
     socialConnectionId: optionalConnectionId,
+    scheduledAt: isoTimestamp.optional(),
+    timezone: optionalTimezone,
     revision: revisionSchema,
   })
   .refine(
@@ -794,6 +798,8 @@ export const updateProjectSocialPost = withSession<
     threadParts,
     quotedPostId,
     socialConnectionId,
+    scheduledAt,
+    timezone,
     revision,
   }) => {
     const parsed = updateProjectSocialPostSchema.safeParse({
@@ -805,6 +811,8 @@ export const updateProjectSocialPost = withSession<
       threadParts,
       quotedPostId,
       socialConnectionId,
+      scheduledAt,
+      timezone,
       revision,
     });
     if (!parsed.success) {
@@ -832,6 +840,10 @@ export const updateProjectSocialPost = withSession<
           ...(parsed.data.socialConnectionId !== undefined
             ? { socialConnectionId: parsed.data.socialConnectionId }
             : {}),
+          ...(parsed.data.scheduledAt
+            ? { scheduledAt: new Date(parsed.data.scheduledAt) }
+            : {}),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
           revision: parsed.data.revision,
         },
       );

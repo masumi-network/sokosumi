@@ -2644,6 +2644,7 @@
           "confirm": "Dismiss"
         },
         "toasts": {
+          "movedQuotes": "Also moved {count, plural, one {# quote} other {# quotes}} to keep {count, plural, one {it} other {them}} after this post",
           "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
           "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
@@ -2969,7 +2970,7 @@
           "onlyX": "Quotes are available for X accounts only. Remove the quote or choose only X accounts.",
           "failed": "The post it quotes failed to publish",
           "cancelled": "The quoted post was cancelled",
-          "waitExpired": "The quoted post did not publish within 30 minutes of this post’s scheduled time. Retry after it publishes, choose another post, or remove the quote."
+          "waiting": "Waiting for the quoted post"
         }
       },
       "Detail": {

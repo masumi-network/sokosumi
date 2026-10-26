@@ -1082,7 +1082,9 @@ export function ProjectSocialPosts({
 
   function renderDraft(post: SocialPost) {
     const showStatus =
-      post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL";
+      post.waitingForQuotedPost ||
+      post.status === "PUBLISHING" ||
+      post.status === "NEEDS_APPROVAL";
 
     function openPreview() {
       setPreviewTarget(post);
@@ -1110,7 +1112,12 @@ export function ProjectSocialPosts({
           <div className="flex flex-wrap items-center gap-2">
             {showStatus ? (
               <SocialPostStatusBadge
-                label={t(`status.${post.status}`)}
+                label={t(
+                  post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
+                )}
+                waitingForQuotedPost={post.waitingForQuotedPost}
                 status={post.status}
               />
             ) : null}
@@ -1178,9 +1185,12 @@ export function ProjectSocialPosts({
               label={t(
                 post.partiallyPublished
                   ? "thread.partlyPosted"
-                  : `status.${post.status}`,
+                  : post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
               )}
               partiallyPublished={post.partiallyPublished}
+              waitingForQuotedPost={post.waitingForQuotedPost}
               status={post.status}
             />
             <SocialPostThreadBadge count={post.threadPartCount} />

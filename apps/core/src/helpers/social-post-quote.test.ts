@@ -2,12 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
   flagSocialPostQuotes,
+  isSocialPostWaitingForQuote,
+  moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
   QUOTED_POST_FAILED,
-  QUOTED_POST_WAIT_EXPIRED,
   requireSocialPostQuote,
-  requireSocialPostQuotingPosts,
-  SOCIAL_POST_QUOTE_WAIT_MS,
   socialPostQuotePublishDecision,
 } from "./social-post-quote";
 
@@ -234,22 +233,53 @@ describe("quote publishing decisions", () => {
     },
   );
 
-  it("caps the last retry at 30 minutes and then needs attention", () => {
-    const deadline = new Date(NOW.getTime() + SOCIAL_POST_QUOTE_WAIT_MS);
-    expect(
-      socialPostQuotePublishDecision(
-        due,
+  it("waits indefinitely and doubles the delay up to five minutes", () => {
+    let now = new Date(NOW.getTime() + 7 * 24 * 60 * 60_000);
+    let lastAttemptAt: Date | null = null;
+    let nextAttemptAt: Date | null = null;
+    for (const delay of [60_000, 120_000, 240_000, 300_000, 300_000]) {
+      const decision = socialPostQuotePublishDecision(
+        { ...due, lastAttemptAt, nextAttemptAt },
         { status: "SCHEDULED", publishedExternalId: null },
-        new Date(deadline.getTime() - 1),
-      ),
-    ).toEqual({ kind: "defer", retryAt: deadline });
+        now,
+      );
+      expect(decision).toEqual({
+        kind: "defer",
+        retryAt: new Date(now.getTime() + delay),
+      });
+      lastAttemptAt = now;
+      nextAttemptAt = new Date(now.getTime() + delay);
+      now = nextAttemptAt;
+    }
+  });
+
+  it("derives waiting only for due queued quotes with a pending dependency", () => {
+    const post = { ...due, status: "SCHEDULED" as const };
+    const target = {
+      status: "NEEDS_APPROVAL" as const,
+      publishedExternalId: null,
+    };
+    expect(isSocialPostWaitingForQuote(post, target, NOW)).toBe(true);
     expect(
-      socialPostQuotePublishDecision(
-        due,
-        { status: "SCHEDULED", publishedExternalId: null },
-        deadline,
+      isSocialPostWaitingForQuote(post, target, new Date(NOW.getTime() - 1)),
+    ).toBe(false);
+    expect(
+      isSocialPostWaitingForQuote(
+        { ...post, status: "NEEDS_APPROVAL" },
+        target,
+        NOW,
       ),
-    ).toEqual({ kind: "blocked", reason: QUOTED_POST_WAIT_EXPIRED });
+    ).toBe(false);
+    expect(
+      isSocialPostWaitingForQuote(
+        post,
+        { ...target, publishedExternalId: "1907" },
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      isSocialPostWaitingForQuote(post, { ...target, status: "FAILED" }, NOW),
+    ).toBe(false);
   });
 
   it.each(["FAILED", "MISSED", "PUBLISHED"] as const)(
@@ -308,52 +338,137 @@ describe("quote publishing decisions", () => {
 });
 
 describe("quote dependents", () => {
-  it("blocks a later/equal target schedule and lists every conflicting quote", async () => {
-    findMany.mockResolvedValue([
-      { id: "quote", text: "Launch", scheduledAt: NOW },
-      { id: "other", text: "Followup", scheduledAt: NOW },
+  function prepareQuotes(
+    records: { id: string; quotedPostId: string; scheduledAt: Date }[],
+  ) {
+    findMany.mockImplementation(async ({ where }) =>
+      records.filter(
+        (quote) =>
+          quote.quotedPostId === where.quotedPostId &&
+          quote.scheduledAt <= where.scheduledAt.lte,
+      ),
+    );
+  }
+
+  it("moves a quote by its original gap and clears its old queue delay", async () => {
+    prepareQuotes([
+      {
+        id: "quote",
+        quotedPostId: "target",
+        scheduledAt: new Date(NOW.getTime() + 120_000),
+      },
     ]);
-    await expect(
-      requireSocialPostQuotingPosts(
-        { ...quoted, publishedExternalId: null },
-        { provider: "x", scheduledAt: NOW },
+    const next = new Date(NOW.getTime() + 600_000);
+    const scheduledAt = new Date(next.getTime() + 120_000);
+    expect(
+      await moveSocialPostQuotes(
+        quoted,
+        { provider: "x", scheduledAt: next },
         prisma,
       ),
-    ).rejects.toMatchObject({
-      status: 409,
-      message: expect.stringContaining(
-        `Post quote (Launch) quotes this post and is scheduled at ${NOW.toISOString()}; move it first. Post other`,
-      ),
+    ).toEqual([{ id: "quote", scheduledAt }]);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: "quote" },
+      data: { scheduledAt, nextAttemptAt: null, revision: { increment: 1 } },
     });
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          quotedPostId: "target",
-          scheduledAt: { lte: NOW },
-        }),
-      }),
-    );
+    expect(findMany.mock.calls[0][0].where).toMatchObject({
+      projectId: "project",
+      workspaceId: "workspace",
+      publishedExternalId: null,
+      status: { notIn: ["PUBLISHED", "CANCELED"] },
+    });
   });
 
-  it("allows an earlier target schedule or retry of a target whose head is already live", async () => {
-    await requireSocialPostQuotingPosts(
-      quoted,
-      { provider: "x", scheduledAt: NOW },
-      prisma,
-    );
-    findMany.mockClear();
-    await requireSocialPostQuotingPosts(
-      { ...quoted, publishedExternalId: "1907" },
-      { provider: "x", scheduledAt: NOW },
-      prisma,
-    );
+  it.each([null, NOW, new Date(NOW.getTime() + 60_000)])(
+    "falls back to one minute for an unavailable or nonpositive gap (%s)",
+    async (oldTime) => {
+      prepareQuotes([
+        { id: "quote", quotedPostId: "target", scheduledAt: NOW },
+      ]);
+      const next = new Date(NOW.getTime() + 600_000);
+      expect(
+        await moveSocialPostQuotes(
+          { ...quoted, scheduledAt: oldTime },
+          { provider: "x", scheduledAt: next },
+          prisma,
+        ),
+      ).toEqual([
+        { id: "quote", scheduledAt: new Date(next.getTime() + 60_000) },
+      ]);
+    },
+  );
+
+  it("moves chained quotes recursively and protects against cycles", async () => {
+    prepareQuotes([
+      {
+        id: "quote",
+        quotedPostId: "target",
+        scheduledAt: new Date(NOW.getTime() + 60_000),
+      },
+      {
+        id: "chain",
+        quotedPostId: "quote",
+        scheduledAt: new Date(NOW.getTime() + 180_000),
+      },
+      { id: "target", quotedPostId: "chain", scheduledAt: NOW },
+    ]);
+    const next = new Date(NOW.getTime() + 600_000);
+    expect(
+      await moveSocialPostQuotes(
+        quoted,
+        { provider: "x", scheduledAt: next },
+        prisma,
+      ),
+    ).toEqual([
+      { id: "quote", scheduledAt: new Date(next.getTime() + 60_000) },
+      { id: "chain", scheduledAt: new Date(next.getTime() + 180_000) },
+    ]);
+    expect(updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves quotes already later in place", async () => {
+    const next = new Date(NOW.getTime() + 600_000);
+    prepareQuotes([
+      {
+        id: "quote",
+        quotedPostId: "target",
+        scheduledAt: new Date(next.getTime() + 1),
+      },
+    ]);
+    expect(
+      await moveSocialPostQuotes(
+        quoted,
+        { provider: "x", scheduledAt: next },
+        prisma,
+      ),
+    ).toEqual([]);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it("leaves schedules in place when the target stays, moves earlier, or is live", async () => {
+    for (const scheduledAt of [NOW, new Date(NOW.getTime() - 1)]) {
+      expect(
+        await moveSocialPostQuotes(
+          quoted,
+          { provider: "x", scheduledAt },
+          prisma,
+        ),
+      ).toEqual([]);
+    }
+    expect(
+      await moveSocialPostQuotes(
+        { ...quoted, publishedExternalId: "1907" },
+        { provider: "x", scheduledAt: new Date(NOW.getTime() + 600_000) },
+        prisma,
+      ),
+    ).toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
   });
 
   it("prevents changing a quoted target to a non-X provider", async () => {
     findMany.mockResolvedValue([{ id: "quote" }]);
     await expect(
-      requireSocialPostQuotingPosts(
+      moveSocialPostQuotes(
         quoted,
         { provider: "linkedin", scheduledAt: null },
         prisma,

@@ -215,10 +215,18 @@ describe("social post publisher service", () => {
   describe("X quote publishing", () => {
     const TARGET_ID = "77777777-7777-4777-8777-777777777777";
     const quotePost = { ...duePost, quotedPostId: TARGET_ID };
-    const target = { status: "PUBLISHED", publishedExternalId: "1906" };
+    const target = {
+      status: "PUBLISHED",
+      publishedExternalId: "1906",
+      publishedAt: NOW,
+    };
 
     function prepare(
-      dependency: { status: string; publishedExternalId: string | null } | null,
+      dependency: {
+        status: string;
+        publishedExternalId: string | null;
+        publishedAt?: Date | null;
+      } | null,
       post = quotePost,
     ) {
       socialPostFindFirstMock
@@ -344,9 +352,124 @@ describe("social post publisher service", () => {
       );
     });
 
-    it("stops waiting after 30 minutes past due", async () => {
-      prepare({ status: "SCHEDULED", publishedExternalId: null });
-      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 30 * 60_000));
+    it("waits past a week without failing, then publishes when the target becomes live", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      prepare({ status: "NEEDS_APPROVAL", publishedExternalId: null });
+      const { publishDueSocialPosts } = await loadService();
+      const context = { ...syncContext, deadlineMs: Date.now() + 60_000 };
+      expect(await publishDueSocialPosts(context)).toMatchObject({
+        failed: 0,
+        missed: 0,
+        retried: 1,
+      });
+      expect(settleCall().data).not.toHaveProperty("attemptCount");
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+      prepare(target);
+      expect(await publishDueSocialPosts(context)).toMatchObject({
+        published: 1,
+        failed: 0,
+        missed: 0,
+      });
+      expect(publishXPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ quoteExternalId: "1906" }),
+      );
+    });
+
+    it("keeps the missed rule when the quoted post was already live at the planned time", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      prepare({
+        ...target,
+        publishedAt: new Date(SCHEDULED_AT.getTime() - 60_000),
+      });
+      const { publishDueSocialPosts } = await loadService();
+      expect(
+        await publishDueSocialPosts({
+          ...syncContext,
+          deadlineMs: Date.now() + 60_000,
+        }),
+      ).toMatchObject({ missed: 1, published: 0 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+    });
+
+    it("publishes on the first check if the quoted post only became live after the planned time", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      prepare({ ...target, publishedAt: new Date(Date.now() - 60_000) });
+      const { publishDueSocialPosts } = await loadService();
+      expect(
+        await publishDueSocialPosts({
+          ...syncContext,
+          deadlineMs: Date.now() + 60_000,
+        }),
+      ).toMatchObject({ published: 1, missed: 0 });
+    });
+
+    it("keeps a recorded dependency wait exempt even when the head's publication time is unavailable", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...quotePost,
+          nextAttemptAt: new Date(Date.now() - 60_000),
+        })
+        .mockResolvedValueOnce({ ...target, publishedAt: null })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+      expect(
+        await publishDueSocialPosts({
+          ...syncContext,
+          deadlineMs: Date.now() + 60_000,
+        }),
+      ).toMatchObject({ published: 1, missed: 0 });
+    });
+
+    it("retains provider retries after an unlimited dependency wait", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      prepare(target);
+      publishXPostMock.mockRejectedValueOnce(
+        new ComposioApiError(503, undefined, "Unavailable"),
+      );
+      const { publishDueSocialPosts } = await loadService();
+      expect(
+        await publishDueSocialPosts({
+          ...syncContext,
+          deadlineMs: Date.now() + 60_000,
+        }),
+      ).toMatchObject({ retried: 1, failed: 0, missed: 0 });
+      expect(settleCall().data).toMatchObject({
+        status: "SCHEDULED",
+        attemptCount: 1,
+      });
+    });
+
+    it.each([1, 16])(
+      "starts a delayed quote's provider retry window at its first publish attempt (%i minutes ago)",
+      async (minutes) => {
+        vi.setSystemTime(
+          new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000),
+        );
+        prepare(target, { ...quotePost, attemptCount: 1 });
+        attemptFindFirstMock.mockResolvedValue({
+          startedAt: new Date(Date.now() - minutes * 60_000),
+        });
+        const { publishDueSocialPosts } = await loadService();
+        expect(
+          await publishDueSocialPosts({
+            ...syncContext,
+            deadlineMs: Date.now() + 60_000,
+          }),
+        ).toMatchObject(minutes === 1 ? { published: 1 } : { failed: 1 });
+        expect(attemptFindFirstMock).toHaveBeenCalledWith({
+          where: { socialPostId: POST_ID },
+          orderBy: { attempt: "desc" },
+          skip: 0,
+          select: { startedAt: true },
+        });
+      },
+    );
+
+    it("fails with the existing reason if the target fails after a long wait", async () => {
+      vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
+      prepare({ status: "FAILED", publishedExternalId: null });
       const { publishDueSocialPosts } = await loadService();
       expect(
         await publishDueSocialPosts({
@@ -354,10 +477,52 @@ describe("social post publisher service", () => {
           deadlineMs: Date.now() + 60_000,
         }),
       ).toMatchObject({ failed: 1, retried: 0 });
-      expect(settleCall().data.needsAttentionReason).toContain(
-        "within 30 minutes",
+      expect(settleCall().data).toMatchObject({
+        lastError: "The post it quotes failed to publish",
+        needsAttentionReason: "The post it quotes failed to publish",
+      });
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("recovers a lease lost during a dependency check without failing the quote", async () => {
+      prepare(
+        { status: "SCHEDULED", publishedExternalId: null },
+        { ...quotePost, status: "PUBLISHING", leaseExpiresAt: null },
       );
-      expect(publishXPostMock).not.toHaveBeenCalled();
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        retried: 1,
+        failed: 0,
+      });
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("backs off checks and keeps processing other due posts", async () => {
+      const lastAttemptAt = new Date(NOW.getTime() - 120_000);
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...quotePost,
+          lastAttemptAt,
+          nextAttemptAt: NOW,
+        })
+        .mockResolvedValueOnce({
+          status: "SCHEDULED",
+          publishedExternalId: null,
+        })
+        .mockResolvedValueOnce({ ...duePost, id: TARGET_ID })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        claimed: 2,
+        retried: 1,
+        published: 1,
+      });
+      expect(settleCall().data.nextAttemptAt).toEqual(
+        new Date(NOW.getTime() + 240_000),
+      );
+      expect(attemptCreateMock).toHaveBeenCalledTimes(1);
+      expect(publishXPostMock).toHaveBeenCalledTimes(1);
     });
 
     it("blocks a deleted quote even after its FK was cleared", async () => {

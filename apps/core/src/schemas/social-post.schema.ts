@@ -170,6 +170,10 @@ export const socialPostQuoteSummaryShape = {
     description:
       "Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.",
   }),
+  waitingForQuotedPost: z.boolean().optional().openapi({
+    description:
+      "A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.",
+  }),
 };
 
 export const socialPostCreatorSchema = z
@@ -214,6 +218,13 @@ export const socialPostSchema = z
     firstComment: z.string().nullable(),
     media: z.array(socialPostMediaRefSchema),
     ...socialPostQuoteSummaryShape,
+    movedQuotes: z
+      .array(z.object({ id: z.uuid(), scheduledAt: dateTimeSchema }))
+      .optional()
+      .openapi({
+        description:
+          "Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.",
+      }),
     threadParts: z.array(socialPostThreadPartSchema),
     publishingThreadPartPosition: z
       .number()
@@ -301,6 +312,8 @@ export const updateSocialPostRequestSchema = z
         "Set a quote target, or null to remove the quote and its attention reason. Also editable on a FAILED quote before any thread part has published.",
     }),
     socialConnectionId: z.string().uuid().nullable().optional(),
+    scheduledAt: dateTimeSchema.optional(),
+    timezone: socialPostTimezoneSchema.optional(),
     revision: socialPostRevisionSchema,
   })
   .openapi("UpdateSocialPostRequest");

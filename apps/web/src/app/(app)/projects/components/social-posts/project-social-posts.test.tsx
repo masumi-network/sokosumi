@@ -168,6 +168,7 @@ const MESSAGES: Record<string, string> = {
   "status.DRAFT": "Draft",
   "status.NEEDS_APPROVAL": "Needs approval",
   "status.SCHEDULED": "Scheduled",
+  "quote.waiting": "Waiting for the quoted post",
   "status.PUBLISHING": "Publishing…",
   "status.PUBLISHED": "Published",
   "status.FAILED": "Failed",
@@ -325,6 +326,8 @@ const MESSAGES: Record<string, string> = {
 
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
+  const { createTranslator } =
+    await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
@@ -332,6 +335,11 @@ vi.mock("next-intl", async () => {
     useTranslations:
       (namespace: string) =>
       (key: string, values?: Record<string, string | number>) => {
+        if (namespace === "App.Projects.SocialPosts.toasts") {
+          const messages: Record<string, string> =
+            enMessages.App.Projects.SocialPosts.toasts;
+          return createTranslator({ locale: "en", messages })(key, values);
+        }
         const message =
           MESSAGES[
             namespace === "App.Projects.SocialPosts.quote"
@@ -720,6 +728,35 @@ function render(ui: React.ReactElement, searchParams?: string) {
 }
 
 describe("ProjectSocialPosts", () => {
+  it("shows waiting in the list and preview for a due quote", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            status: "PUBLISHING",
+            waitingForQuotedPost: true,
+          },
+        ]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        "Waiting for the quoted post",
+      ),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(
+      within(screen.getByTestId("social-post-post-scheduled")).getByText(
+        "Waiting for the quoted post",
+      ),
+    ).toBeVisible();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -4566,6 +4603,60 @@ describe("ProjectSocialPosts", () => {
     expect(updateProjectSocialPost).not.toHaveBeenCalled();
   });
 
+  it("reports quotes moved while rescheduling from the preview and refreshes the calendar", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...SCHEDULED_POST,
+        movedQuotes: [
+          { id: "quote", scheduledAt: new Date(IN_AN_HOUR.getTime() + 60_000) },
+        ],
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^Reschedule/,
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Reschedule post" }),
+    ).toBeVisible();
+    expect(within(dialog).queryByLabelText("Text")).not.toBeInTheDocument();
+    await pickInAnHour(user, dialog);
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    );
+
+    await waitFor(() => {
+      expect(scheduleProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-scheduled",
+        scheduledAt: IN_AN_HOUR.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        socialConnectionId: "connection-1",
+        revision: 2,
+      });
+    });
+    expect(updateProjectSocialPost).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Also moved 1 quote to keep it after this post",
+    );
+    expect(refreshMock).toHaveBeenCalled();
+  });
+
   it("names a time that is too soon next to When", async () => {
     freezeClock();
     const user = userEvent.setup();
@@ -7140,41 +7231,5 @@ describe("ProjectSocialPosts", () => {
       vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
     );
     expect(scheduleProjectSocialPost).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps Core's quote dependency 409 visible when editing a post's time", async () => {
-    freezeClock();
-    const user = userEvent.setup();
-    const message =
-      "Post quote-1 (Follow-up) quotes this post and is scheduled at 2026-10-01T12:00:00.000Z; move it first";
-    vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
-      ok: false,
-      error: { code: "CONFLICT", status: 409, message },
-    });
-    render(
-      <ProjectSocialPosts
-        connections={[buildConnection()]}
-        posts={[SCHEDULED_POST]}
-        projectId={PROJECT_ID}
-        selectedPostId={SCHEDULED_POST.id}
-      />,
-    );
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "Reschedule",
-      }),
-    );
-    const composer = screen.getByRole("dialog");
-    await user.click(
-      within(composer).getByRole("button", { name: /^Reschedule for/ }),
-    );
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith(message, {
-        duration: Infinity,
-        closeButton: true,
-      }),
-    );
-    expect(screen.getByRole("dialog")).toHaveTextContent("Reschedule post");
-    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

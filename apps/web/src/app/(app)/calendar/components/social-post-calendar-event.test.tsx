@@ -72,6 +72,29 @@ function renderCard(
 }
 
 describe("Social post calendar event", () => {
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows waiting on a due quote in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", waitingForQuotedPost: true },
+        variant,
+        showThumb,
+      );
+      expect(screen.getByText("Waiting for the quoted post")).toBeVisible();
+      expect(
+        screen.getByTestId("social-post-status-SCHEDULED"),
+      ).toHaveTextContent("Waiting for the quoted post");
+      expect(
+        screen.getByRole(variant === "preview" ? "link" : "button", {
+          name: /Waiting for the quoted post/,
+        }),
+      ).toBeVisible();
+    },
+  );
   beforeEach(() => {
     openPreview.current = null;
   });

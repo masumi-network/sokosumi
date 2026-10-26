@@ -2644,6 +2644,7 @@
           "confirm": "Descartar"
         },
         "toasts": {
+          "movedQuotes": "También se {count, plural, one {movió # cita para que aparezca} other {movieron # citas para que aparezcan}} después de esta publicación",
           "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
           "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
@@ -2969,7 +2970,7 @@
           "onlyX": "Las citas solo están disponibles para cuentas de X. Quita la cita o selecciona únicamente cuentas de X.",
           "failed": "No se pudo publicar la publicación citada",
           "cancelled": "La publicación citada se canceló",
-          "waitExpired": "La publicación citada no se publicó en los 30 minutos posteriores a la hora programada de esta publicación. Vuelve a intentarlo cuando se publique, elige otra publicación o quita la cita."
+          "waiting": "Esperando a la publicación citada"
         }
       },
       "Detail": {

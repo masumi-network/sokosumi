@@ -21766,6 +21766,10 @@ export const SocialPostCalendarItemSchema = {
             ],
             format: 'uuid'
         },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
         needsAttentionReason: {
             type: [
                 'string',
@@ -25790,6 +25794,32 @@ export const SocialPostSchema = {
             ],
             description: 'Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.'
         },
+        waitingForQuotedPost: {
+            type: 'boolean',
+            description: 'A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post\'s state; no publish attempt is consumed.'
+        },
+        movedQuotes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    scheduledAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'scheduledAt'
+                ]
+            },
+            description: 'Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.'
+        },
         threadParts: {
             type: 'array',
             items: {
@@ -26609,6 +26639,15 @@ export const UpdateSocialPostRequestSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
         },
         revision: {
             type: 'integer',

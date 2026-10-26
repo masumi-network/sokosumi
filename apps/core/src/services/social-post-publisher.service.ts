@@ -32,9 +32,9 @@ import {
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import {
   flagSocialPostQuotes,
+  moveSocialPostQuotes,
   QUOTED_POST_FAILED,
   requireSocialPostQuote,
-  SOCIAL_POST_QUOTE_WAIT_MS,
   socialPostQuotePublishDecision,
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
@@ -133,6 +133,8 @@ interface ClaimedPost {
   quotedPostId: string | null;
   needsAttentionReason: string | null;
   scheduledAt: Date | null;
+  lastAttemptAt?: Date | null;
+  nextAttemptAt?: Date | null;
   attemptCount: number;
   leaseToken: string;
   recoveringLease?: boolean;
@@ -629,8 +631,9 @@ async function attemptPublish(
       }
     }
     if (
-      post.threadParts.length === 0 ||
-      (previous?.finishedAt && previous.outcome !== "succeeded")
+      (previous || !post.quotedPostId) &&
+      (post.threadParts.length === 0 ||
+        (previous?.finishedAt && previous.outcome !== "succeeded"))
     ) {
       const settled = await settle(post, {
         status: "FAILED",
@@ -652,7 +655,11 @@ async function attemptPublish(
             workspaceId: post.workspaceId,
             provider: "x",
           },
-          select: { status: true, publishedExternalId: true },
+          select: {
+            status: true,
+            publishedExternalId: true,
+            publishedAt: true,
+          },
         })
       : null;
   const quote = socialPostQuotePublishDecision(post, quoted, now);
@@ -670,14 +677,24 @@ async function attemptPublish(
       nextAttemptAt: quote.retryAt,
     });
   }
-  const retryWindowMs = post.quotedPostId
-    ? SOCIAL_POST_QUOTE_WAIT_MS
-    : RETRY_WINDOW_MS;
+  // Dependency checks never spend the provider's retry window.
+  const firstQuoteAttempt =
+    post.quotedPostId && post.attemptCount > 0
+      ? await prisma.socialPostPublishAttempt.findFirst({
+          where: { socialPostId: post.id },
+          orderBy: { attempt: "desc" },
+          skip: post.attemptCount - 1,
+          select: { startedAt: true },
+        })
+      : null;
+  const retryWindowStart = post.quotedPostId
+    ? (firstQuoteAttempt?.startedAt ?? now)
+    : (post.scheduledAt ?? now);
 
   if (
     post.attemptCount > 0 &&
     post.scheduledAt &&
-    now.getTime() > post.scheduledAt.getTime() + retryWindowMs
+    now.getTime() > retryWindowStart.getTime() + RETRY_WINDOW_MS
   ) {
     const settled = await settle(post, {
       status: "FAILED",
@@ -687,9 +704,17 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const quoteWasDelayed = Boolean(
+    post.quotedPostId &&
+      (post.nextAttemptAt ||
+        (quoted?.publishedAt &&
+          post.scheduledAt &&
+          quoted.publishedAt > post.scheduledAt)),
+  );
   if (
     post.attemptCount === 0 &&
     !post.publishedExternalId &&
+    !quoteWasDelayed &&
     post.scheduledAt &&
     now.getTime() - post.scheduledAt.getTime() > MISSED_AFTER_MS
   ) {
@@ -796,7 +821,7 @@ async function attemptPublish(
       attemptCount < MAX_ATTEMPTS &&
       retryAt !== null &&
       post.scheduledAt !== null &&
-      retryAt.getTime() <= post.scheduledAt.getTime() + retryWindowMs;
+      retryAt.getTime() <= retryWindowStart.getTime() + RETRY_WINDOW_MS;
     console.warn("[social-post-publisher] Publish attempt failed", {
       postId: post.id,
       attempt: attemptCount,
@@ -940,6 +965,8 @@ async function claimDuePost(): Promise<ClaimResult> {
       quotedPostId: candidate.quotedPostId,
       needsAttentionReason: candidate.needsAttentionReason,
       scheduledAt: candidate.scheduledAt,
+      lastAttemptAt: candidate.lastAttemptAt,
+      nextAttemptAt: candidate.nextAttemptAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
       recoveringLease: candidate.status === "PUBLISHING",
@@ -1006,7 +1033,7 @@ export async function publishDueSocialPosts(
 export async function publishSocialPostNow(
   input: PublishSocialPostNowInput,
 ): Promise<SocialPostSummary> {
-  const { post, now, leaseToken } = await serializableTransaction(
+  const { post, now, leaseToken, movedQuotes } = await serializableTransaction(
     async (tx) => {
       await requireLockedOpenProject(tx, input, {
         closedMessage: PROJECT_CLOSED_ERROR,
@@ -1067,6 +1094,11 @@ export async function publishSocialPostNow(
         );
       }
       const now = new Date();
+      const movedQuotes = await moveSocialPostQuotes(
+        post,
+        { provider: post.provider, scheduledAt: now },
+        tx,
+      );
       const leaseToken = randomUUID();
       const claimed = await tx.socialPost.updateMany({
         where: { id: post.id, revision: input.revision },
@@ -1085,7 +1117,7 @@ export async function publishSocialPostNow(
       if (claimed.count === 0) {
         throw conflict(REVISION_CONFLICT_MESSAGE);
       }
-      return { post, now, leaseToken };
+      return { post, now, leaseToken, movedQuotes };
     },
     "Project changed while publishing a Social post",
   );
@@ -1110,9 +1142,12 @@ export async function publishSocialPostNow(
     },
     { trigger: "publish_now", actorUserId: input.userId },
   );
-  return getSocialPost({
-    projectId: input.projectId,
-    workspaceId: input.workspaceId,
-    postId: input.postId,
-  });
+  return {
+    ...(await getSocialPost({
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      postId: input.postId,
+    })),
+    ...(movedQuotes.length > 0 ? { movedQuotes } : {}),
+  };
 }

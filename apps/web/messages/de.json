@@ -2644,6 +2644,7 @@
           "confirm": "Verwerfen"
         },
         "toasts": {
+          "movedQuotes": "Außerdem {count, plural, one {# Zitat verschoben, damit es nach diesem Beitrag erscheint} other {# Zitate verschoben, damit sie nach diesem Beitrag erscheinen}}",
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
@@ -2969,7 +2970,7 @@
           "onlyX": "Zitate sind nur für X-Konten verfügbar. Entferne das Zitat oder wähle ausschließlich X-Konten aus.",
           "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
           "cancelled": "Der zitierte Beitrag wurde abgesagt",
-          "waitExpired": "Der zitierte Beitrag wurde nicht innerhalb von 30 Minuten nach dem geplanten Zeitpunkt dieses Beitrags veröffentlicht. Versuche es nach seiner Veröffentlichung erneut, wähle einen anderen Beitrag oder entferne das Zitat."
+          "waiting": "Wartet auf den zitierten Beitrag"
         }
       },
       "Detail": {

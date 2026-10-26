@@ -228,6 +228,7 @@ export const socialPostCalendarItemSchema = z
     id: z.string(),
     postId: z.uuid(),
     quotedPostId: socialPostQuoteSummaryShape.quotedPostId,
+    waitingForQuotedPost: socialPostQuoteSummaryShape.waitingForQuotedPost,
     needsAttentionReason: socialPostQuoteSummaryShape.needsAttentionReason,
     ...socialPostThreadSummaryShape,
     provider: socialPostProviderSchema,

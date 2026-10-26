@@ -6396,6 +6396,10 @@ export type SocialPostCalendarItem = {
     postId: string;
     quotedPostId: string | null;
     /**
+     * A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.
+     */
+    waitingForQuotedPost?: boolean;
+    /**
      * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
      */
     needsAttentionReason: string | null;
@@ -7541,6 +7545,17 @@ export type SocialPost = {
      * Quote dependency failure. A queued post becomes FAILED; drafts retain approval requirements. Pick another post, remove the quote, or retry after a failed target recovers.
      */
     needsAttentionReason: string | null;
+    /**
+     * A due quote waiting without a time limit for its quoted post to publish. Derived from its schedule and the quoted post's state; no publish attempt is consumed.
+     */
+    waitingForQuotedPost?: boolean;
+    /**
+     * Quotes moved by this mutation, including chained quotes. Each keeps its positive gap after its quoted post, or falls back to one minute after it. Status and timezone are preserved.
+     */
+    movedQuotes?: Array<{
+        id: string;
+        scheduledAt: Date;
+    }>;
     threadParts: Array<SocialPostThreadPart>;
     publishingThreadPartPosition: number | null;
     /**
@@ -7750,6 +7765,8 @@ export type UpdateSocialPostRequest = {
      */
     quotedPostId?: string | null;
     socialConnectionId?: string | null;
+    scheduledAt?: Date;
+    timezone?: string;
     /**
      * Revision the client last observed; mismatches return 409
      */

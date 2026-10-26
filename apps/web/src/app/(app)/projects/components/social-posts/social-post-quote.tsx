@@ -1,6 +1,16 @@
 "use client";
 
+import type { SocialPost } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+
+export function useReportMovedSocialPostQuotes() {
+  const t = useTranslations("App.Projects.SocialPosts.toasts");
+  return (post: Pick<SocialPost, "movedQuotes">) => {
+    const count = post.movedQuotes?.length ?? 0;
+    if (count > 0) toast.success(t("movedQuotes", { count }));
+  };
+}
 
 export function SocialPostQuoteBadge({
   quotedPostId,
@@ -25,10 +35,5 @@ export function socialPostQuoteAttentionCopy(
   if (reason === "The post it quotes failed to publish")
     return t("quote.failed");
   if (reason === "The quoted post was cancelled") return t("quote.cancelled");
-  if (
-    reason ===
-    "The quoted post did not publish within 30 minutes of this post's scheduled time. Retry after it publishes, pick another post, or remove the quote."
-  )
-    return t("quote.waitExpired");
   return reason;
 }

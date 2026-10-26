@@ -117,7 +117,12 @@ export function SocialPostQuotePicker({
               <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
                 <SocialPostStatusBadge
                   status={post.status}
-                  label={t(`status.${post.status}`)}
+                  label={t(
+                    post.waitingForQuotedPost
+                      ? "quote.waiting"
+                      : `status.${post.status}`,
+                  )}
+                  waitingForQuotedPost={post.waitingForQuotedPost}
                 />
                 {(post.publishedAt ?? post.scheduledAt) ? (
                   <span>
