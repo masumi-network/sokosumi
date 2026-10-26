@@ -158,6 +158,21 @@ describe("publishSocialPostFirstComment", () => {
     );
   });
 
+  it("sends LinkedIn comment text unescaped", async () => {
+    const text = "Thanks (all) @team #launch snake_case";
+    await publishSocialPostFirstComment({
+      ...base,
+      provider: "linkedin",
+      externalId: "urn:li:share:99",
+      text,
+    });
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arguments: expect.objectContaining({ message: { text } }),
+      }),
+    );
+  });
+
   it.each([
     ["a bare stored id", "ext_1"],
     ["a legacy full-URN stored id", "urn:li:person:ext_1"],
