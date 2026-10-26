@@ -519,6 +519,11 @@ describe("newsletter subscribers", () => {
     ).toBeInTheDocument();
     for (const label of Object.values(COPY.Import.result))
       expect(dialog.getByText(label)).toBeInTheDocument();
+    expect(
+      dialog
+        .getAllByText(COPY.Import.doneDescription)
+        .filter((node) => !node.closest(".sr-only")),
+    ).toHaveLength(1);
     expect(mocks.refresh).toHaveBeenCalled();
     await user.click(dialog.getByRole("button", { name: COPY.done }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
