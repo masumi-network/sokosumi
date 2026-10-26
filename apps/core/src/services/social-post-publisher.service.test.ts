@@ -528,6 +528,40 @@ describe("social post publisher service", () => {
       expect(attemptCreateMock).not.toHaveBeenCalled();
     });
 
+    it("ignores an attempt settled before the recovered lease while the quote waits", async () => {
+      const lastAttemptAt = new Date(NOW.getTime() - 6 * 60_000);
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...quotePost,
+          status: "PUBLISHING",
+          leaseExpiresAt: new Date(NOW.getTime() - 1_000),
+          lastAttemptAt,
+        })
+        .mockResolvedValueOnce({
+          status: "SCHEDULED",
+          publishedExternalId: null,
+        })
+        .mockResolvedValue(null);
+      // An earlier cycle's failed attempt is filtered out by the query.
+      attemptFindFirstMock.mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        retried: 1,
+        failed: 0,
+        missed: 0,
+      });
+      expect(attemptFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            socialPostId: POST_ID,
+            OR: [{ finishedAt: null }, { finishedAt: { gte: lastAttemptAt } }],
+          },
+        }),
+      );
+      expect(settleCall().data).toMatchObject({ status: "SCHEDULED" });
+    });
+
     it("backs off checks and keeps processing other due posts", async () => {
       const lastAttemptAt = new Date(NOW.getTime() - 120_000);
       socialPostFindFirstMock

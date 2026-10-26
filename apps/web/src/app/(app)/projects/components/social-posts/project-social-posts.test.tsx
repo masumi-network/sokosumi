@@ -5569,6 +5569,49 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("reports quotes moved when a retry publishes the quoted post now", async () => {
+    const user = userEvent.setup();
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        status: "PUBLISHED",
+        lastError: null,
+        revision: 6,
+        movedQuotes: [
+          { id: "quote", scheduledAt: new Date("2026-09-15T12:01:00.000Z") },
+        ],
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    await user.click(
+      within(screen.getByTestId("social-post-post-failed")).getByRole(
+        "button",
+        { name: "Retry" },
+      ),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Retry",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Also moved 1 quote to keep it after this post",
+      ),
+    );
+    expect(refreshMock).toHaveBeenCalled();
+  });
+
   it("stays on Needs attention after a retry when other posts still need it", async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();

@@ -111,6 +111,7 @@ import { publishFailureCopy } from "./social-post-publish-failure";
 import {
   SocialPostQuoteBadge,
   socialPostQuoteAttentionCopy,
+  useReportMovedSocialPostQuotes,
 } from "./social-post-quote";
 import { SocialPostStatistics } from "./social-post-statistics";
 import { SocialPostThreadBadge } from "./social-post-thread-badge";
@@ -320,6 +321,7 @@ export function ProjectSocialPosts({
   const router = useRouter();
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
   const formatter = useFormatter();
   const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
@@ -455,6 +457,7 @@ export function ProjectSocialPosts({
             remaining.push(target);
           } else {
             setPosts((current) => upsertPost(current, result.value));
+            reportMovedQuotes(result.value);
             if (result.value.status !== "PUBLISHED") {
               remaining.push(result.value);
               toast.error(
@@ -694,6 +697,7 @@ export function ProjectSocialPosts({
       }
       const post = result.value;
       handleSaved(post);
+      reportMovedQuotes(post);
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
       } else if (post.lastError || post.lastAttempt?.errorKind) {
@@ -810,7 +814,9 @@ export function ProjectSocialPosts({
     setSelectedRetryIds(new Set());
     setBulkRetryResults(results);
     setBulkRetryPending(false);
-    if (sawConflict) router.refresh();
+    const movedQuotes = updated.flatMap((post) => post.movedQuotes ?? []);
+    reportMovedQuotes({ movedQuotes });
+    if (sawConflict || movedQuotes.length > 0) router.refresh();
   }
 
   async function handleApprove(post: SocialPost): Promise<void> {

@@ -569,7 +569,18 @@ async function attemptPublish(
 
   if (post.recoveringLease) {
     const previous = await prisma.socialPostPublishAttempt.findFirst({
-      where: { socialPostId: post.id },
+      where: {
+        socialPostId: post.id,
+        // A waiting quote is claimed many times; an attempt settled before this lease is history.
+        ...(post.quotedPostId && post.lastAttemptAt
+          ? {
+              OR: [
+                { finishedAt: null },
+                { finishedAt: { gte: post.lastAttemptAt } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { attempt: "desc" },
       select: {
         outcome: true,
