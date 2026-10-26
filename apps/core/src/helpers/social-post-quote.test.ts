@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { socialPostQuotedPostSchema } from "@/schemas/social-post.schema";
 import {
   flagSocialPostQuotes,
   isSocialPostWaitingForQuote,
+  mapSocialPostQuote,
   moveSocialPostQuotes,
   QUOTED_POST_CANCELLED,
   QUOTED_POST_FAILED,
   requireSocialPostQuote,
   socialPostQuotePublishDecision,
+  socialPostQuoteSelect,
 } from "./social-post-quote";
 
 const { findFirst, findMany, updateMany } = vi.hoisted(() => ({
@@ -502,5 +505,45 @@ describe("quote dependents", () => {
       },
       data: { status: "FAILED", lastError: QUOTED_POST_CANCELLED },
     });
+  });
+});
+
+describe("quoted post response", () => {
+  it("selects every account field the response schema requires", () => {
+    const account = {
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+      externalHandle: "sokosumi",
+      displayName: null,
+      avatarUrl: null,
+      subscriptionType: null,
+      status: "active",
+    };
+    // Prisma only returns selected columns.
+    const selected = Object.fromEntries(
+      Object.keys(socialPostQuoteSelect.socialConnection.select).map((key) => [
+        key,
+        account[key as keyof typeof account],
+      ]),
+    ) as typeof account;
+
+    const result = socialPostQuotedPostSchema.safeParse(
+      mapSocialPostQuote({
+        id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        projectId: "project",
+        workspaceId: "workspace",
+        provider: "x",
+        status: "SCHEDULED",
+        scheduledAt: NOW,
+        timezone: null,
+        publishedExternalId: null,
+        publishedUrl: null,
+        text: "Quoted",
+        media: [],
+        quotedPostId: null,
+        socialConnection: selected,
+      }),
+    );
+
+    expect(result.error?.issues).toBeUndefined();
   });
 });

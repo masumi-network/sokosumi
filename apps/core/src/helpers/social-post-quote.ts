@@ -26,6 +26,7 @@ export const socialPostQuoteSelect = {
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
+      subscriptionType: true,
       status: true,
     },
   },
