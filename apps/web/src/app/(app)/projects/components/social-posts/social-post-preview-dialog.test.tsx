@@ -7,6 +7,8 @@ import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   return {
+    useLocale: () => "en",
+    useTimeZone: () => "Europe/Prague",
     useFormatter: () => createTestFormatter(),
     useTranslations: () => (key: string, values?: { date?: string }) =>
       key === "failedAt" ? `Failed ${values?.date ?? ""}` : key,
@@ -67,6 +69,21 @@ const POST: SocialPost = {
 };
 
 describe("SocialPostPreviewDialog", () => {
+  it.each([
+    ["2026-10-05T12:00:00Z", "Central European Summer Time (Prague)"],
+    ["2026-01-15T12:00:00Z", "Central European Standard Time (Prague)"],
+  ])("names the displayed zone for the scheduled date %s", (date, label) => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{ ...POST, scheduledAt: new Date(date) }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+    expect(screen.getByText(label)).toBeVisible();
+  });
+
   it("gives phone-sized targets to refresh and footer actions", () => {
     render(
       <SocialPostPreviewDialog

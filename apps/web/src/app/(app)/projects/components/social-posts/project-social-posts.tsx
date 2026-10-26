@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import {
   parseAsString,
   parseAsStringEnum,
@@ -40,6 +40,7 @@ import {
   SocialPlatformFilter,
 } from "@/components/social-platform-filter";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import { TimezoneLabel } from "@/components/timezone-label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +68,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
   type ActionError,
   toActionRejectionError,
@@ -303,6 +305,7 @@ export function ProjectSocialPosts({
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
@@ -1020,9 +1023,12 @@ export function ProjectSocialPosts({
                 dateTime={leadingAt.toISOString()}
               >
                 {/* Named, so a reader in another zone does not misread it. */}
-                {formatter.dateTime(leadingAt, "dateTime", {
-                  timeZoneName: "short",
-                })}
+                {formatter.dateTime(leadingAt, "dateTime")}{" "}
+                <TimezoneLabel
+                  timeZone={displayTimezone}
+                  at={leadingAt}
+                  variant="short"
+                />
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
