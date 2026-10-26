@@ -329,6 +329,11 @@ function DrivePageWorkspace({
   const [snapshotFolder, setSnapshotFolder] = useState<string | null>(null);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<DriveItem | null>(null);
+  /** Files ticked in the catalog, moved together. */
+  const [filesToMove, setFilesToMove] = useState<
+    { pathname: string; name: string }[]
+  >([]);
+  const [moveNewFolderName, setMoveNewFolderName] = useState("");
   const [selectedDestination, setSelectedDestination] = useState<string | null>(
     null,
   );
@@ -1179,9 +1184,41 @@ function DrivePageWorkspace({
 
   function openMoveDialog(item: DriveItem) {
     setItemToMove(item);
+    setFilesToMove([]);
+    setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
     void loadAllFolders();
+  }
+
+  function openMoveFilesDialog(files: { pathname: string; name: string }[]) {
+    setItemToMove(null);
+    setFilesToMove(files);
+    setMoveNewFolderName("");
+    setSelectedDestination(null);
+    setMoveDialogOpen(true);
+    void loadAllFolders();
+  }
+
+  /** Moving several ticked files: each on its own, failures reported once. */
+  async function moveFiles(targetFolderPath: string) {
+    const results = await Promise.allSettled(
+      filesToMove.map((file) =>
+        patchDriveFilesMove({
+          client: getBrowserCoreClient(),
+          body: {
+            sourcePathname: file.pathname,
+            targetFolderPath,
+            itemType: "file",
+          },
+          throwOnError: true,
+        }),
+      ),
+    );
+    const failed = results.filter((result) => result.status === "rejected");
+    if (failed.length > 0)
+      toast.error(t("moveFilesPartialError", { count: failed.length }));
+    else toast.success(t("movedFiles", { count: filesToMove.length }));
   }
 
   async function loadAllFolders() {
@@ -1222,7 +1259,20 @@ function DrivePageWorkspace({
   }
 
   async function handleMoveConfirm() {
-    if (!itemToMove || selectedDestination === null) {
+    if (selectedDestination === null) return;
+    if (!itemToMove) {
+      if (filesToMove.length === 0) return;
+      setMovingItem(true);
+      try {
+        await moveFiles(selectedDestination);
+        setMoveDialogOpen(false);
+        setFilesToMove([]);
+        setSelectedDestination(null);
+        await refreshDriveItems();
+        setRecentsReloadToken((token) => token + 1);
+      } finally {
+        setMovingItem(false);
+      }
       return;
     }
 
@@ -1310,7 +1360,7 @@ function DrivePageWorkspace({
   const facetAncestors = currentFolder ? currentFolder.split("/") : [];
 
   const availableDestinations = (() => {
-    if (!itemToMove) return [];
+    if (!itemToMove && filesToMove.length === 0) return [];
 
     const destinations: Array<{ path: string; label: string }> = [];
 
@@ -1336,6 +1386,7 @@ function DrivePageWorkspace({
     const foldersToShow = allFolders.filter((folder) => {
       // Exclude the item being moved
       const folderPath = folder.name;
+      if (!itemToMove) return true;
       const itemPath =
         itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name;
 
@@ -2220,6 +2271,7 @@ function DrivePageWorkspace({
           }}
           reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
+          onMoveFiles={openMoveFilesDialog}
         />
       ) : null}
 
@@ -2317,8 +2369,11 @@ function DrivePageWorkspace({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {itemToMove &&
-                t("moveDialogTitle", { itemName: itemToMove.name })}
+              {itemToMove
+                ? t("moveDialogTitle", { itemName: itemToMove.name })
+                : filesToMove.length === 1
+                  ? t("moveDialogTitle", { itemName: filesToMove[0].name })
+                  : t("moveFilesDialogTitle", { count: filesToMove.length })}
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
@@ -2332,7 +2387,10 @@ function DrivePageWorkspace({
                 <button
                   key={dest.path}
                   type="button"
-                  onClick={() => setSelectedDestination(dest.path)}
+                  onClick={() => {
+                    setMoveNewFolderName("");
+                    setSelectedDestination(dest.path);
+                  }}
                   className={cn(
                     "text-foreground press hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
@@ -2344,6 +2402,31 @@ function DrivePageWorkspace({
                 </button>
               ))
             )}
+          </div>
+          {/* A folder exists once something is in it, so moving into a new
+              name creates it. */}
+          <div className="flex items-center gap-2">
+            <FolderPlus
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0"
+            />
+            <Input
+              value={moveNewFolderName}
+              aria-label={t("moveNewFolderLabel")}
+              placeholder={t("moveNewFolderPlaceholder")}
+              onChange={(event) => {
+                const name = event.target.value;
+                setMoveNewFolderName(name);
+                const trimmed = name.trim().replaceAll("/", " ");
+                setSelectedDestination(
+                  trimmed
+                    ? currentFolder
+                      ? `${currentFolder}/${trimmed}`
+                      : trimmed
+                    : null,
+                );
+              }}
+            />
           </div>
           <DialogFooter>
             <Button

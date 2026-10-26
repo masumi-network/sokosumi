@@ -22,8 +22,6 @@ import {
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
-  postDriveResourcesMetadataBatch,
-  postDriveResourcesSelectionToken,
   putDriveShares,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -434,46 +432,8 @@ export async function decideSuggestion(input: {
   return response.data.data;
 }
 
-export async function createSelectionToken(input: {
-  store: FileStore;
-  windowCursor: string;
-}): Promise<{ token: string; count: number }> {
-  const response = await postDriveResourcesSelectionToken({
-    client: getBrowserCoreClient(),
-    body: { ...storeQuery(input.store), windowCursor: input.windowCursor },
-    throwOnError: true,
-  });
-  return response.data.data;
-}
-
 export interface BatchOutcome {
   resourceId: string;
   status: "applied" | "conflict" | "forbidden" | "not-found";
   metadataRevision: number | null;
-}
-
-export async function applyMetadataBatch(input: {
-  store: FileStore;
-  resourceIds?: string[];
-  selectionToken?: string;
-  expectedRevisions?: { resourceId: string; metadataRevision: number }[];
-  addTagLabelIds?: string[];
-  removeTagLabelIds?: string[];
-  categoryLabelId?: string | null;
-}): Promise<{ outcomes: BatchOutcome[]; revisedCount: number | null }> {
-  const response = await postDriveResourcesMetadataBatch({
-    client: getBrowserCoreClient(),
-    body: {
-      ...storeQuery(input.store),
-      resourceIds: input.resourceIds,
-      selectionToken: input.selectionToken,
-      expectedRevisions: input.expectedRevisions,
-      addTagLabelIds: input.addTagLabelIds,
-      removeTagLabelIds: input.removeTagLabelIds,
-      categoryLabelId: input.categoryLabelId,
-      idempotencyKey: crypto.randomUUID(),
-    },
-    throwOnError: true,
-  });
-  return response.data.data;
 }
