@@ -1,13 +1,7 @@
 "use client";
 
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
-import {
-  Building2,
-  CircleDashed,
-  CircleUserRound,
-  Eye,
-  Sparkles,
-} from "lucide-react";
+import { Building2, CircleDashed, Eye, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
@@ -21,6 +15,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
@@ -231,18 +226,19 @@ export function TasksViewFilters({
     labels.visibilityPrivate,
   ]);
 
-  const canFilterMine = coworkerOptions.some(
+  const me = coworkerOptions.find(
     (option) => option.kind === "user" && option.id === userId,
   );
-  const showingMine = canFilterMine && filters.assigneeUserId === userId;
+  const showingMine = !!me && filters.assigneeUserId === userId;
 
   return (
     <>
-      {canFilterMine ? (
+      {me ? (
         <Button
           variant={showingMine ? "secondary" : "outline"}
           size="sm"
           aria-pressed={showingMine}
+          className="ps-1.5"
           onClick={() =>
             handleFilterChange({
               assigneeId: null,
@@ -251,7 +247,12 @@ export function TasksViewFilters({
             })
           }
         >
-          <CircleUserRound aria-hidden className="size-4" />
+          <Avatar aria-hidden className="size-5 shrink-0">
+            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
+            <AvatarFallback className="bg-muted text-2xs font-medium">
+              {me.name.trim().charAt(0).toUpperCase() || "?"}
+            </AvatarFallback>
+          </Avatar>
           {labels.assignedToMe}
         </Button>
       ) : null}
