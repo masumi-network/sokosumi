@@ -90,7 +90,6 @@ export async function resolveXSubscriptionType(
       console.warn("[x-subscription-tier] Could not store subscription tier", {
         connectionId: connection.id,
       });
-      return connection.subscriptionType;
     }
   }
   return subscriptionType;

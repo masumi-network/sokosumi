@@ -207,17 +207,24 @@ describe("resolveXSubscriptionType", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("keeps posting available when storing the refreshed tier fails", async () => {
-    mocks.update.mockRejectedValue(new Error("Database unavailable"));
-    expect(
-      await resolveXSubscriptionType({
-        ...connection,
-        subscriptionType: "Basic",
-      }),
-    ).toBe("Basic");
-    expect(console.warn).toHaveBeenCalledWith(
-      "[x-subscription-tier] Could not store subscription tier",
-      { connectionId: connection.id },
-    );
-  });
+  it.each([
+    ["Premium", "None"],
+    ["None", "Premium"],
+  ])(
+    "uses a fresh %s to %s change even when storing it fails",
+    async (stored, fresh) => {
+      mocks.execute.mockResolvedValue({ subscription_type: fresh });
+      mocks.update.mockRejectedValue(new Error("Database unavailable"));
+      expect(
+        await resolveXSubscriptionType({
+          ...connection,
+          subscriptionType: stored,
+        }),
+      ).toBe(fresh);
+      expect(console.warn).toHaveBeenCalledWith(
+        "[x-subscription-tier] Could not store subscription tier",
+        { connectionId: connection.id },
+      );
+    },
+  );
 });
