@@ -259,11 +259,20 @@ import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
 
+/** The active organization as a room reads it. */
+export interface RoomWorkspace {
+  id: Organization["id"];
+  slug: Organization["slug"] | null;
+}
+
 export interface RoomsClientProps {
   /** Channel history is owned by the client cache, not server navigation. */
   loadHistoryOnClient?: boolean;
-  /** Null in personal workspace. */
-  activeOrganization: Organization | null;
+  /**
+   * Null in personal workspace. Slug is null while a room paints from the
+   * sidebar before its page registers.
+   */
+  activeOrganization: RoomWorkspace | null;
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
@@ -445,6 +454,8 @@ interface RetainedTranscriptBinding {
   positionChanged: (position: TranscriptPosition) => void;
   dirty: () => void;
   captureSnapshot: () => () => boolean;
+  /** The click's open-at-unread read, when that click opened this visit. */
+  takeUnreadWindow: () => Promise<RoomMessagesPage | null> | undefined;
 }
 
 export function RoomsClient(props: RoomsClientProps) {
@@ -555,6 +566,7 @@ function RetainedRoomsClient({
         refreshRef.current();
     },
     dirty: () => cache.markDirty(roomId),
+    takeUnreadWindow: () => cache.takeUnreadWindow(roomId),
     captureSnapshot: () => {
       const transcript = cache.get(roomId)?.transcript;
       return () => {
@@ -821,11 +833,17 @@ function RoomView({
     // else reads the key, so it goes when the visit does; unmounting then
     // aborts a read still out, through the signal.
     queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
-    queryFn: ({ signal }) =>
-      fetchRoomMessages(selectedRoomId ?? "", null, {
-        openAtUnread: true,
-        signal,
-      }),
+    queryFn: ({ signal }) => {
+      const read = () =>
+        fetchRoomMessages(selectedRoomId ?? "", null, {
+          openAtUnread: true,
+          signal,
+        });
+      // Started by the click that opened this visit, alongside its head read.
+      // A failed or throttled one reads again from here.
+      const prefetched = retained?.takeUnreadWindow();
+      return prefetched ? prefetched.then((page) => page ?? read()) : read();
+    },
     enabled: opensAtUnread && selectedRoomId != null,
     staleTime: Infinity,
     gcTime: 0,

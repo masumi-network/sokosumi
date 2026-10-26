@@ -18,6 +18,7 @@ import {
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
+import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -107,6 +108,31 @@ function activeExternalAccountKey(
   externalAccountId: string,
 ): string {
   return `${provider}:${externalAccountId}`;
+}
+
+/** Keys an active row for this account may hold, including legacy LinkedIn URN rows. */
+function activeExternalAccountKeys(
+  provider: string,
+  externalAccountId: string,
+): string[] {
+  if (provider !== "linkedin") {
+    return [activeExternalAccountKey(provider, externalAccountId)];
+  }
+  return [
+    activeExternalAccountKey(provider, linkedInPersonId(externalAccountId)),
+    activeExternalAccountKey(provider, linkedInPersonUrn(externalAccountId)),
+  ];
+}
+
+/** LinkedIn rows saved before the bare id hold the full person URN. */
+function isSameExternalAccount(
+  provider: string,
+  stored: string,
+  current: string,
+): boolean {
+  return provider === "linkedin"
+    ? linkedInPersonId(stored) === linkedInPersonId(current)
+    : stored === current;
 }
 
 function mapProjectSocialConnection(
@@ -436,7 +462,11 @@ export async function finalizeProjectSocialConnection(
         }
         if (
           currentIntent.action === "reconnect" &&
-          target.externalAccountId !== identity.id
+          !isSameExternalAccount(
+            target.provider,
+            target.externalAccountId,
+            identity.id,
+          )
         ) {
           throw conflict("Reconnect must match the existing account");
         }
@@ -449,7 +479,12 @@ export async function finalizeProjectSocialConnection(
         const duplicate = await tx.projectSocialConnection.findFirst({
           where: {
             projectId: input.projectId,
-            activeExternalAccountKey: key,
+            activeExternalAccountKey: {
+              in: activeExternalAccountKeys(
+                currentIntent.provider,
+                identity.id,
+              ),
+            },
             ...(target ? { NOT: { id: target.id } } : {}),
           },
         });
@@ -492,6 +527,10 @@ export async function finalizeProjectSocialConnection(
           data: {
             composioConnectedAccountId: input.connectionId,
             connectorUserId,
+            // Rewrites a legacy LinkedIn URN row to the bare id.
+            ...(target.externalAccountId !== identity.id
+              ? { externalAccountId: identity.id }
+              : {}),
             externalHandle: identity.handle,
             displayName: identity.displayName,
             subscriptionType: identity.subscriptionType,

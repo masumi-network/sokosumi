@@ -23,6 +23,7 @@ const {
   messageFindFirstMock,
   messageFindManyMock,
   messageCountMock,
+  messageGroupByMock,
   prismaTransactionMock,
   queryRawUnsafeMock,
   listStaleSentChatRoomMentionIdsMock,
@@ -33,6 +34,7 @@ const {
   messageFindFirstMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   messageCountMock: vi.fn(),
+  messageGroupByMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   listStaleSentChatRoomMentionIdsMock: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: memberFindUniqueMock,
     },
     chatRoomMessage: {
+      groupBy: messageGroupByMock,
       findFirst: messageFindFirstMock,
       findMany: messageFindManyMock,
       count: messageCountMock,
@@ -144,7 +147,6 @@ function message() {
     reactions: [],
     pins: [],
     replies: [],
-    _count: { replies: 0 },
   };
 }
 
@@ -167,11 +169,22 @@ function coworkerReply(id: string, name: string, createdAt: string) {
   };
 }
 
+/** Live reply counts by parent, as the grouped reply read returns them. */
+function replyCounts(counts: Record<string, number>) {
+  messageGroupByMock.mockResolvedValue(
+    Object.entries(counts).map(([parentMessageId, all]) => ({
+      parentMessageId,
+      _count: { _all: all },
+    })),
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   messageFindFirstMock.mockReset();
   messageFindManyMock.mockReset();
   messageCountMock.mockReset();
+  messageGroupByMock.mockResolvedValue([]);
   roomFindFirstMock.mockResolvedValue({
     id: ROOM_ID,
     organizationId: ORG_ID,
@@ -558,7 +571,6 @@ describe("GET /chats/rooms/{id}/messages", () => {
       ...message(),
       id: PARENT_MESSAGE_ID,
       createdAt: new Date("2026-01-02T00:00:00.000Z"),
-      _count: { replies: 5 },
     };
     // A busy thread the viewer only lurks in: no aggregate row comes back for
     // it, so it must read 0 rather than its reply count.
@@ -566,10 +578,10 @@ describe("GET /chats/rooms/{id}/messages", () => {
       ...message(),
       id: OLDER_MESSAGE_ID,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      _count: { replies: 20 },
     };
     messageFindManyMock.mockResolvedValue([unreadParent, lurkedParent]);
     messageCountMock.mockResolvedValue(2);
+    replyCounts({ [PARENT_MESSAGE_ID]: 5, [OLDER_MESSAGE_ID]: 20 });
     queryRawUnsafeMock.mockResolvedValue([
       unreadThreadRow(PARENT_MESSAGE_ID, 2),
     ]);
@@ -611,8 +623,9 @@ describe("GET /chats/rooms/{id}/messages", () => {
 
   it("reports no unread reply count on search hits", async () => {
     messageFindManyMock.mockResolvedValue([
-      { ...message(), id: PARENT_MESSAGE_ID, _count: { replies: 5 } },
+      { ...message(), id: PARENT_MESSAGE_ID },
     ]);
+    replyCounts({ [PARENT_MESSAGE_ID]: 5 });
     queryRawUnsafeMock.mockResolvedValue([
       unreadThreadRow(PARENT_MESSAGE_ID, 2),
     ]);
@@ -636,11 +649,11 @@ describe("GET /chats/rooms/{id}/messages", () => {
       ...message(),
       id: PARENT_MESSAGE_ID,
       createdAt: new Date("2026-01-02T00:00:00.000Z"),
-      _count: { replies: 4 },
     };
     messageFindFirstMock.mockResolvedValue(center);
     messageFindManyMock.mockResolvedValue([]);
     messageCountMock.mockResolvedValue(1);
+    replyCounts({ [PARENT_MESSAGE_ID]: 4 });
     queryRawUnsafeMock.mockResolvedValue([
       unreadThreadRow(PARENT_MESSAGE_ID, 3),
     ]);
@@ -664,7 +677,6 @@ describe("GET /chats/rooms/{id}/messages", () => {
     messageFindManyMock.mockResolvedValue([
       {
         ...message(),
-        _count: { replies: 3 },
         replies: [
           userReply("user_grace", "Grace", "2026-01-03T00:00:00.000Z"),
           coworkerReply("cow_1", "Scout", "2026-01-02T00:00:00.000Z"),
@@ -700,7 +712,6 @@ describe("GET /chats/rooms/{id}/messages", () => {
     messageFindManyMock.mockResolvedValue([
       {
         ...message(),
-        _count: { replies: 5 },
         replies: [
           userReply("user_grace", "Grace", "2026-01-05T00:00:00.000Z"),
           userReply("user_grace", "Grace", "2026-01-04T00:00:00.000Z"),

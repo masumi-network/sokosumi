@@ -459,7 +459,7 @@ describe("getConnectedSocialIdentity", () => {
         },
       },
       identity: {
-        id: "urn:li:person:alice",
+        id: "alice",
         handle: null,
         displayName: "Alice Doe",
         avatarUrl: "https://media.licdn.com/a.jpg",

@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   type Ref,
+  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -38,8 +39,14 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
  * that shift is put back before paint; mounted while they scroll toward it,
  * it shows. Below the viewport only the live edge needs a buffer.
  * 30 / 8 is the old 2400 / 600 px at 80px.
+ *
+ * The first paint mounts only a few rows above the viewport: every mounted
+ * row is parsed, styled and laid out before anything shows. The deep buffer
+ * above mounts in a transition right after that paint, while the reader is
+ * still reading the rows on screen.
  */
 const OVERSCAN_ROWS = { above: 30, below: 8 };
+const OPENING_OVERSCAN_ABOVE = 4;
 
 /**
  * A rich-text editor. The one below the transcript is blurred when the
@@ -118,10 +125,18 @@ interface TranscriptViewportProps {
 
 type TranscriptVirtualizer = Virtualizer<HTMLElement, HTMLDivElement>;
 
-function transcriptRangeExtractor(range: Range): number[] {
-  const start = Math.max(range.startIndex - OVERSCAN_ROWS.above, 0);
+function extractTranscriptRange(range: Range, above: number): number[] {
+  const start = Math.max(range.startIndex - above, 0);
   const end = Math.min(range.endIndex + OVERSCAN_ROWS.below, range.count - 1);
   return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+}
+
+function transcriptRangeExtractor(range: Range): number[] {
+  return extractTranscriptRange(range, OVERSCAN_ROWS.above);
+}
+
+function openingTranscriptRangeExtractor(range: Range): number[] {
+  return extractTranscriptRange(range, OPENING_OVERSCAN_ABOVE);
 }
 
 function retainedPositionIndex(
@@ -390,6 +405,15 @@ export function TranscriptViewport({
           }
         : undefined,
     );
+  // Deep overscan waits for the frame after the first rows paint.
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (!scroller || opened) return;
+    const frame = requestAnimationFrame(() => {
+      startTransition(() => setOpened(true));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [opened, scroller]);
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     // Off until the scroller exists: the virtualizer keeps the first offset
@@ -414,7 +438,9 @@ export function TranscriptViewport({
       ? { width: scroller.clientWidth, height: scroller.clientHeight }
       : undefined,
     getItemKey,
-    rangeExtractor: transcriptRangeExtractor,
+    rangeExtractor: opened
+      ? transcriptRangeExtractor
+      : openingTranscriptRangeExtractor,
     scrollMargin,
     anchorTo: "end",
     followOnAppend: !hold,

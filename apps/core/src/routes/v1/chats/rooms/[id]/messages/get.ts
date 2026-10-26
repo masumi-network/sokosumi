@@ -30,6 +30,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserMembership,
+  withChatRoomReplyCounts,
 } from "../../helpers";
 import {
   aroundWindowPaginationMeta,
@@ -158,10 +159,10 @@ function withUnreadDivider<Meta extends object>(
 async function getUnreadReplyCountByParent(
   roomId: string,
   userId: string,
-  messages: ReadonlyArray<{ _count: { replies: number } }>,
+  messages: ReadonlyArray<{ threadReplyCount: number }>,
 ): Promise<Map<string, number>> {
   // Most pages hold no thread parent, and then nothing can be unread.
-  if (!messages.some((message) => message._count.replies > 0)) {
+  if (!messages.some((message) => message.threadReplyCount > 0)) {
     return new Map();
   }
   const aggregates = await getChatRoomThreadAggregates(roomId, userId, prisma, {
@@ -226,16 +227,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         center = parent;
       }
-      const [{ messages, hasMoreOlder, count }, firstUnread] =
-        await Promise.all([
-          listChatRoomMessagesAround({
-            db: prisma,
-            scope: { roomId: id, parentMessageId: null },
-            center,
-            take,
-          }),
-          getChatRoomFirstUnreadMessage(id, userContext.userId, prisma),
-        ]);
+      const [around, firstUnread] = await Promise.all([
+        listChatRoomMessagesAround({
+          db: prisma,
+          scope: { roomId: id, parentMessageId: null },
+          center,
+          take,
+        }),
+        getChatRoomFirstUnreadMessage(id, userContext.userId, prisma),
+      ]);
+      const { hasMoreOlder, count } = around;
+      const messages = await withChatRoomReplyCounts(prisma, around.messages);
       const paginationMeta = withUnreadDivider(
         aroundWindowPaginationMeta(messages, take, count, hasMoreOlder),
         firstUnread,
@@ -346,13 +348,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
+    const countedMessages = await withChatRoomReplyCounts(
+      prisma,
+      orderedMessages,
+    );
     // Search is not a live timeline: hits carry no unread reply count.
     const unreadByParent = searchQuery
       ? new Map<string, number>()
       : await getUnreadReplyCountByParent(
           id,
           userContext.userId,
-          orderedMessages,
+          countedMessages,
         );
 
     return ok(
@@ -360,7 +366,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       z
         .array(chatRoomMessageSchema)
         .parse(
-          orderedMessages.map((message) =>
+          countedMessages.map((message) =>
             mapChatRoomMessage(
               message,
               userContext.userId,
