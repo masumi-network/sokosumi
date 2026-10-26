@@ -2932,6 +2932,7 @@
           "add": "Add to thread",
           "limit": "Threads can have up to {max} parts.",
           "part": "Part {part}",
+          "text": "Part {part} text",
           "position": "{part}/{total}",
           "positionLabel": "Part {part} of {total}",
           "moveUp": "Move part {part} up",

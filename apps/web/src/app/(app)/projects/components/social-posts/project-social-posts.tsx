@@ -1081,6 +1081,9 @@ export function ProjectSocialPosts({
   }
 
   function renderDraft(post: SocialPost) {
+    const showStatus =
+      post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL";
+
     function openPreview() {
       setPreviewTarget(post);
       setPreviewOpen(true);
@@ -1103,15 +1106,17 @@ export function ProjectSocialPosts({
           text={post.text}
           timestamp={null}
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <SocialPostThreadBadge count={post.threadPartCount} />
-          <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
-        </div>
-        {post.status === "PUBLISHING" || post.status === "NEEDS_APPROVAL" ? (
-          <SocialPostStatusBadge
-            label={t(`status.${post.status}`)}
-            status={post.status}
-          />
+        {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {showStatus ? (
+              <SocialPostStatusBadge
+                label={t(`status.${post.status}`)}
+                status={post.status}
+              />
+            ) : null}
+            <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
+          </div>
         ) : null}
         {renderReconnectWarning(post)}
         {post.needsAttentionReason ? (
@@ -1169,6 +1174,17 @@ export function ProjectSocialPosts({
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <SocialPostStatusBadge
+              label={t(
+                post.partiallyPublished
+                  ? "thread.partlyPosted"
+                  : `status.${post.status}`,
+              )}
+              partiallyPublished={post.partiallyPublished}
+              status={post.status}
+            />
+            <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
             {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
@@ -1184,18 +1200,6 @@ export function ProjectSocialPosts({
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
-            <SocialPostThreadBadge count={post.threadPartCount} />
-            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
-            <SocialPostStatusBadge
-              className="order-first"
-              label={t(
-                post.partiallyPublished
-                  ? "thread.partlyPosted"
-                  : `status.${post.status}`,
-              )}
-              partiallyPublished={post.partiallyPublished}
-              status={post.status}
-            />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
           {post.media.length > 0 ? (

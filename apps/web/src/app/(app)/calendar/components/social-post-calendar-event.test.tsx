@@ -75,30 +75,45 @@ describe("Social post calendar event", () => {
   beforeEach(() => {
     openPreview.current = null;
   });
-
-  it.each(["compact", "preview"] as const)(
-    "shows the quote indicator beside the thread indicator in %s",
-    (variant) => {
-      renderCard({ quotedPostId: "quoted-post", threadPartCount: 3 }, variant);
-      expect(screen.getByTestId("social-post-quote-badge")).toHaveTextContent(
-        "Quote",
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows the quote indicator beside the thread indicator in %s (week: %s)",
+    (variant, showThumb) => {
+      renderCard(
+        { quotedPostId: "quoted-post", threadPartCount: 3 },
+        variant,
+        showThumb,
       );
-      expect(screen.getByTestId("social-post-thread-count")).toHaveTextContent(
-        "1/3",
-      );
+      const quote = screen.getByTestId("social-post-quote-badge");
+      const thread = screen.getByTestId("social-post-thread-count");
+      expect(quote).toHaveTextContent("Quote");
+      expect(thread).toHaveTextContent("1/3");
+      expect(thread.nextElementSibling).toBe(quote);
       expect(screen.getByTestId("calendar-social-post")).toHaveAccessibleName(
         /Quote/,
       );
     },
   );
-  it.each(["compact", "preview"] as const)(
-    "shows a compact part count in the %s calendar chip",
-    (variant) => {
-      renderCard({ threadPartCount: 3 }, variant);
-      expect(screen.getByTestId("social-post-thread-count")).toHaveTextContent(
-        "1/3",
-      );
+  it.each([
+    ["compact", false],
+    ["compact", true],
+    ["preview", false],
+  ] as const)(
+    "shows a compact part count in the %s calendar chip (week: %s)",
+    (variant, showThumb) => {
+      renderCard({ threadPartCount: 3 }, variant, showThumb);
+      const badge = screen.getByTestId("social-post-thread-count");
+      expect(badge).toHaveTextContent("1/3");
+      expect(badge).toHaveAttribute("data-slot", "badge");
+      expect(badge).toHaveClass("w-fit", "shrink-0");
+      expect(badge.parentElement).toHaveClass("flex", "items-center");
       expect(screen.getByLabelText("Part 1 of 3")).toBeVisible();
+      if (variant === "compact") {
+        expect(screen.getByText("X post")).toBeVisible();
+      }
     },
   );
 

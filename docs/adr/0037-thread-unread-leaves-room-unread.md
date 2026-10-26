@@ -4,9 +4,9 @@
 - Date: 2026-09-21
 - Relates to: [ADR-0013](./0013-thread-unread-is-participant-gated.md) (thread unread is Participant-gated), [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) (room unread count is a field of its own; on by default since [ADR-0038](./0038-room-unread-count-is-on-by-default.md)), [ADR-0030](./0030-thread-mute-overrides-participant.md) (thread mute overrides Participant)
 
-**Room unread** counted non-self top-level messages *and* non-self replies in Threads the reader **Participates** in, as one number. **Room last-read** clears only the first half, by design: advancing the main transcript does not **Look** a Thread. A reader who opened every channel and read to the bottom was left with a number that the action they had just taken could not clear, and nothing anywhere in the channel pointed at the replies holding it up. The number was correct and unactionable at the same time.
+**Room unread** counted non-self top-level messages _and_ non-self replies in Threads the reader **Participates** in, as one number. **Room last-read** clears only the first half, by design: advancing the main transcript does not **Look** a Thread. A reader who opened every channel and read to the bottom was left with a number that the action they had just taken could not clear, and nothing anywhere in the channel pointed at the replies holding it up. The number was correct and unactionable at the same time.
 
-We had listed "a separate Threads badge" under *Avoid* to stop the sidebar growing a second number competing with the mention badge. That guarded the right thing and prescribed the wrong remedy: it kept the count honest by folding it into a row that could not discharge it.
+We had listed "a separate Threads badge" under _Avoid_ to stop the sidebar growing a second number competing with the mention badge. That guarded the right thing and prescribed the wrong remedy: it kept the count honest by folding it into a row that could not discharge it.
 
 **Room unread counts top-level messages only.** Thread unread is its own number, carried beside it on the room summary, and it surfaces on the **Thread** rather than on the channel. Reading a channel now empties that channel's mark, which is the entire point.
 

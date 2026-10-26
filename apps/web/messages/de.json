@@ -2932,6 +2932,7 @@
           "add": "Zum Thread hinzufügen",
           "limit": "Threads können bis zu {max} Teile enthalten.",
           "part": "Teil {part}",
+          "text": "Text für Teil {part}",
           "position": "{part}/{total}",
           "positionLabel": "Teil {part} von {total}",
           "moveUp": "Teil {part} nach oben verschieben",
