@@ -25,7 +25,11 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 import { isLocalDevHostname } from "@/config/cors-allow-origin";
-import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  getEnv,
+  getWebAppBaseUrl,
+  isProductionEnvironment,
+} from "@/config/env";
 import type { ProjectSocialProvider } from "@/config/social-providers";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -192,7 +196,7 @@ export async function learnCmoBrandVisual(
   const visual = mergeBrandVisual(site, icon, designMd);
   await prisma.cmoHire.update({
     where: { id: hire.id },
-    data: { brandVisual: visual as Prisma.InputJsonValue },
+    data: { brandVisual: visual },
   });
   return visual;
 }
@@ -288,9 +292,15 @@ export async function hasActiveCmoSubscription(
   return (await activeCmoPlan(referenceId)) !== null;
 }
 
-/** The CMO tier picked without billing; ignored unless CMO_MOCK_BILLING is on. */
+/** CMO_MOCK_BILLING, which production ignores so a stray value cannot make plans free. */
+function cmoMockBilling(): boolean {
+  const env = getEnv();
+  return env.CMO_MOCK_BILLING && !isProductionEnvironment(env);
+}
+
+/** The CMO tier picked without billing; ignored unless mock billing is on. */
 export function cmoMockPlan(hire: Pick<CmoHire, "mockPlan">): string | null {
-  return getEnv().CMO_MOCK_BILLING ? hire.mockPlan : null;
+  return cmoMockBilling() ? hire.mockPlan : null;
 }
 
 /** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
@@ -306,7 +316,7 @@ export async function chooseCmoMockPlan(
   userId: string,
   plan: string,
 ): Promise<void> {
-  if (!getEnv().CMO_MOCK_BILLING) {
+  if (!cmoMockBilling()) {
     throw new CmoConflictError("Mock billing is off on this server");
   }
   const hire = await getCmoHireForUser(userId);
@@ -973,9 +983,10 @@ export async function requestCmoStrategy(input: {
 export async function saveCmoBrandBrain(
   where: { userId: string } | { sokoBotId: string },
   input: CmoSaveBrandBrainInput,
+  db?: Prisma.TransactionClient,
 ): Promise<CmoHire> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
-  return prisma.$transaction(async (tx) => {
+  const write = async (tx: Prisma.TransactionClient) => {
     const hire = await tx.cmoHire.findUnique({ where, select: { id: true } });
     if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
     // Section saves run in parallel: lock the row so none overwrites another.
@@ -1007,11 +1018,12 @@ export async function saveCmoBrandBrain(
     return tx.cmoHire.update({
       where: { id: hire.id },
       data: {
-        brandBrain: next as Prisma.InputJsonValue,
+        brandBrain: next,
         ...(essentials ? { brandBrainUpdatedAt: new Date() } : {}),
       },
     });
-  });
+  };
+  return db ? write(db) : prisma.$transaction(write);
 }
 
 /** The profile sections a stored Brand Brain holds, in profile order. */
@@ -1142,7 +1154,7 @@ const strategyHistorySchema = z.array(
   z.object({
     savedAt: z.string(),
     turnId: z.string().nullable(),
-    strategy: z.unknown(),
+    strategy: z.json(),
   }),
 );
 type StrategyHistory = z.infer<typeof strategyHistorySchema>;
@@ -1161,8 +1173,9 @@ export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
   strategy: CmoStrategySave,
   options: { turnId?: string; now?: Date } = {},
+  db: Prisma.TransactionClient = prisma,
 ): Promise<CmoHire> {
-  const current = await prisma.cmoHire.findUnique({ where });
+  const current = await db.cmoHire.findUnique({ where });
   if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
   // What a save leaves out stays as stored; the merged plan must be whole.
   const before = parseCmoStrategy(current.strategy);
@@ -1206,12 +1219,12 @@ export async function saveCmoStrategy(
         ...parseHistory(current.strategyHistory),
       ].slice(0, STRATEGY_HISTORY_LIMIT)
     : parseHistory(current.strategyHistory);
-  return prisma.cmoHire.update({
+  return db.cmoHire.update({
     where: { id: current.id },
     data: {
-      strategy: stored as Prisma.InputJsonValue,
+      strategy: stored,
       strategyUpdatedAt: new Date(),
-      strategyHistory: history as Prisma.InputJsonValue,
+      strategyHistory: history,
     },
   });
 }
@@ -1233,7 +1246,7 @@ const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
   id: z.string(),
   at: z.string(),
   /** Weekly and monthly: the strategy before this turn's changes, for revert. */
-  previousStrategy: z.unknown().optional(),
+  previousStrategy: z.json().optional(),
   revertedAt: z.string().optional(),
 });
 export type CmoUpdateRecord = z.infer<typeof cmoUpdateRecordSchema>;
@@ -1250,12 +1263,17 @@ export function parseCmoUpdates(value: unknown): CmoUpdateRecord[] {
  * it was before the first save of the same turn, so the owner can revert the
  * whole review in one step.
  */
-export async function reportCmoUpdate(input: {
-  sokoBotId: string;
-  turnId: string;
-  update: CmoReportUpdateInput;
-}): Promise<CmoUpdateRecord> {
-  const hire = await getCmoHireForBot(input.sokoBotId);
+export async function reportCmoUpdate(
+  input: {
+    sokoBotId: string;
+    turnId: string;
+    update: CmoReportUpdateInput;
+  },
+  db: Prisma.TransactionClient = prisma,
+): Promise<CmoUpdateRecord> {
+  const hire = await db.cmoHire.findUnique({
+    where: { sokoBotId: input.sokoBotId },
+  });
   if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const update = cmoReportUpdateInputSchema.parse(input.update);
   const savedThisTurn = parseHistory(hire.strategyHistory).filter(
@@ -1270,13 +1288,13 @@ export async function reportCmoUpdate(input: {
       ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
       : {}),
   };
-  await prisma.cmoHire.update({
+  await db.cmoHire.update({
     where: { id: hire.id },
     data: {
       updates: [record, ...parseCmoUpdates(hire.updates)].slice(
         0,
         UPDATES_LIMIT,
-      ) as Prisma.InputJsonValue,
+      ),
     },
   });
   return record;
@@ -1326,7 +1344,11 @@ export async function pauseCmoCalendarEntry(input: {
   );
 }
 
-/** Puts back the strategy a weekly review or monthly strategy replaced. */
+/**
+ * Puts back the strategy a weekly review or monthly strategy replaced.
+ * Entries already handed to Social stay as they are now, so Pause can still
+ * cancel their posts.
+ */
 export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
@@ -1340,7 +1362,18 @@ export async function revertCmoUpdate(input: {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
   if (target.revertedAt) return hire;
-  await saveCmoStrategy({ userId: input.userId }, previous);
+  const posted = new Map(
+    (parseCmoStrategy(hire.strategy)?.calendar ?? [])
+      .filter((entry) => entry.socialPostId)
+      .map((entry) => [entry.id, entry]),
+  );
+  const calendar = [
+    ...previous.calendar.map((entry) => posted.get(entry.id) ?? entry),
+    ...[...posted.values()].filter(
+      (entry) => !previous.calendar.some((old) => old.id === entry.id),
+    ),
+  ].sort((left, right) => left.date.localeCompare(right.date));
+  await saveCmoStrategy({ userId: input.userId }, { ...previous, calendar });
   return prisma.cmoHire.update({
     where: { id: hire.id },
     data: {
@@ -1348,7 +1381,7 @@ export async function revertCmoUpdate(input: {
         update.id === target.id
           ? { ...update, revertedAt: new Date().toISOString() }
           : update,
-      ) as Prisma.InputJsonValue,
+      ),
     },
   });
 }
@@ -1751,7 +1784,7 @@ export async function getCmoOverview(
     projectName: project.name,
     roomId: room.id,
     subscriptionActive: cmoPlan !== null,
-    mockBilling: getEnv().CMO_MOCK_BILLING,
+    mockBilling: cmoMockBilling(),
     mockPlan,
     mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
     brandBrain: parseCmoBrandBrain(hire.brandBrain),

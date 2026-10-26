@@ -4725,7 +4725,29 @@ export class SokoBotRuntimeService {
         "Only a CMO assistant keeps a Brand Brain, strategy and reports",
       );
     }
+    // A teammate's turn never sees the plan (no marketing packet), so it may
+    // not rewrite it either.
+    if (
+      authorized.askedByKind === "ASSISTANT" ||
+      authorized.askedByKind === "TEAMMATE"
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only the owner's turns change the Brand Brain, strategy and reports",
+      );
+    }
     const where = { sokoBotId: authorized.turn.sokoBotId };
+    // The write and the cancellation/pause check share one lock, so a
+    // cancelled or paused turn's save never lands.
+    const write = <T>(save: (tx: Prisma.TransactionClient) => Promise<T>) =>
+      prisma.$transaction(async (tx) => {
+        await this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+        );
+        return save(tx);
+      });
     const run = async (): Promise<{
       targetId: string;
       result: Record<string, unknown>;
@@ -4735,7 +4757,7 @@ export class SokoBotRuntimeService {
           const save = SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(
             input.input,
           );
-          const saved = await saveCmoBrandBrain(where, save);
+          const saved = await write((tx) => saveCmoBrandBrain(where, save, tx));
           return {
             targetId: saved.id,
             result: {
@@ -4748,9 +4770,9 @@ export class SokoBotRuntimeService {
         }
         case "save_strategy": {
           const sent = parseCmoStrategySave(input.input);
-          const saved = await saveCmoStrategy(where, sent, {
-            turnId: authorized.turn.id,
-          });
+          const saved = await write((tx) =>
+            saveCmoStrategy(where, sent, { turnId: authorized.turn.id }, tx),
+          );
           const stored = parseCmoStrategy(saved.strategy);
           const calendar = stored?.calendar ?? [];
           const review = await this.reviewCmoPlan(authorized, input, {
@@ -4784,13 +4806,19 @@ export class SokoBotRuntimeService {
           };
         }
         default: {
-          const record = await reportCmoUpdate({
-            sokoBotId: authorized.turn.sokoBotId,
-            turnId: authorized.turn.id,
-            update: SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
-              input.input,
+          const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
+            input.input,
+          );
+          const record = await write((tx) =>
+            reportCmoUpdate(
+              {
+                sokoBotId: authorized.turn.sokoBotId,
+                turnId: authorized.turn.id,
+                update,
+              },
+              tx,
             ),
-          });
+          );
           return {
             targetId: record.id,
             result: {

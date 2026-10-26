@@ -8442,3 +8442,73 @@ describe("project bots", () => {
     expect(await pinToBotProject(input, SCOPE.sokoBotId)).toBe(input);
   });
 });
+
+describe("CMO record saves", () => {
+  const report = {
+    ...SCOPE,
+    capability: "report_update" as const,
+    toolCallId: "report",
+    input: {
+      kind: "daily",
+      headline: "Today",
+      done: [],
+      upNext: [],
+      changes: [],
+    },
+  };
+  const owner = {
+    turn: { id: SCOPE.turnId, sokoBotId: SCOPE.sokoBotId, versionId: "cmo-v1" },
+    askedByKind: "OWNER",
+  };
+  function cmoTx() {
+    const tx = {
+      cmoHire: {
+        findUnique: vi.fn().mockResolvedValue({ id: "cmo-1", updates: null }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    return tx;
+  }
+
+  it.each(["TEAMMATE", "ASSISTANT"])(
+    "refuses a %s turn, which never sees the plan",
+    async (askedByKind) => {
+      transactionMock.mockClear();
+      const service = new SokoBotRuntimeService();
+      await expect(
+        service["saveCmoRecord"]({ ...owner, askedByKind } as never, report),
+      ).rejects.toThrow("Only the owner's turns");
+      expect(transactionMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("saves nothing once the turn is cancelled or the bot paused", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi
+      .fn()
+      .mockRejectedValue(
+        new SokoBotRuntimeAuthorizationError("Turn is no longer writable"),
+      );
+    await expect(
+      service["saveCmoRecord"](owner as never, report),
+    ).rejects.toThrow("no longer writable");
+    expect(tx.cmoHire.update).not.toHaveBeenCalled();
+  });
+
+  it("checks the turn's authority inside the transaction that writes", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    const authority = vi.fn().mockResolvedValue(undefined);
+    service["requireMutationAuthority"] = authority;
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, report);
+    expect(authority.mock.calls[0]?.[0]).toBe(tx);
+    expect(authority.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.cmoHire.update.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+});
