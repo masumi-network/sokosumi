@@ -45,6 +45,9 @@ export const ACTION_CAPABILITIES = new Set([
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
+  "move_file",
+  "install_skill",
+  "remove_skill",
 ]);
 
 /** Object key order is not part of an operation's identity. */
