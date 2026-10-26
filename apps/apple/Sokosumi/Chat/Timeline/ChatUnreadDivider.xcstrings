@@ -2,7 +2,7 @@
   "sourceLanguage": "en",
   "strings": {
     "New": {
-      "comment": "Label at the end of the line above the first unread message in a room.",
+      "comment": "Label in the middle of the line above the first unread message in a room.",
       "extractionState": "manual",
       "localizations": {
         "en": {
