@@ -160,4 +160,68 @@ describe("socialSyncReadModel", () => {
       ].join("|"),
     );
   });
+
+  it("stops running once the attempt wrote its snapshot, even when X left the head stale", () => {
+    const attemptedAt = new Date(now.getTime() - 60_000);
+    const staleHead = new Date(now.getTime() - 3 * SOCIAL_SYNC_FRESH_MS);
+    const sync = socialSyncReadModel(
+      row({
+        performanceHeadFetchedAt: staleHead,
+        performanceRefreshAttemptedAt: attemptedAt,
+        statistics: {
+          fetchedAt: new Date(attemptedAt.getTime() + 3_000).toISOString(),
+          historyFetchedAt: staleHead.toISOString(),
+          historyError: "X published history is unavailable.",
+          metricWarning: null,
+          error: null,
+          refreshAttemptedAt: new Date(attemptedAt.getTime() + 1).toISOString(),
+        },
+      }),
+      now,
+    );
+    expect(sync.status).toBe("partial");
+    expect(sync.mayAutoRequest).toBe(false);
+  });
+
+  it("keeps running while the attempt has not written a snapshot yet", () => {
+    const attemptedAt = new Date(now.getTime() - 60_000);
+    const staleHead = new Date(now.getTime() - 3 * SOCIAL_SYNC_FRESH_MS);
+    const sync = socialSyncReadModel(
+      row({
+        performanceHeadFetchedAt: staleHead,
+        performanceRefreshAttemptedAt: attemptedAt,
+        statistics: {
+          fetchedAt: staleHead.toISOString(),
+          historyFetchedAt: staleHead.toISOString(),
+          historyError: null,
+          metricWarning: null,
+          error: null,
+          refreshAttemptedAt: staleHead.toISOString(),
+        },
+      }),
+      now,
+    );
+    expect(sync.status).toBe("running");
+  });
+
+  it("does not auto-request again right after a failed attempt", () => {
+    const attemptedAt = new Date(now.getTime() - SOCIAL_SYNC_LEASE_MS - 1);
+    const staleHead = new Date(now.getTime() - 3 * SOCIAL_SYNC_FRESH_MS);
+    const sync = socialSyncReadModel(
+      row({
+        performanceHeadFetchedAt: staleHead,
+        performanceRefreshAttemptedAt: attemptedAt,
+        statistics: {
+          fetchedAt: null,
+          historyFetchedAt: null,
+          historyError: null,
+          metricWarning: null,
+          error: null,
+        },
+      }),
+      now,
+    );
+    expect(sync.status).toBe("stale");
+    expect(sync.mayAutoRequest).toBe(false);
+  });
 });

@@ -31,6 +31,8 @@ export interface SocialSyncStoredRow {
     historyError: string | null;
     metricWarning: string | null;
     error: string | null;
+    /** Written by every refresh, successful or not, so it marks the end of an attempt. */
+    refreshAttemptedAt?: string | Date | null;
   } | null;
 }
 
@@ -72,9 +74,23 @@ export function socialSyncReadModel(
   const dirty =
     requestedAt !== null &&
     (attemptedAt === null || requestedAt.getTime() > attemptedAt.getTime());
+  const snapshotAt = row.statistics?.refreshAttemptedAt
+    ? new Date(row.statistics.refreshAttemptedAt)
+    : null;
+  // A refresh that already wrote its snapshot is finished, even if X left the head stale.
+  const finished =
+    attemptedAt !== null &&
+    snapshotAt !== null &&
+    !Number.isNaN(snapshotAt.getTime()) &&
+    snapshotAt.getTime() >= attemptedAt.getTime();
   const leaseOpen =
     attemptedAt !== null &&
+    !finished &&
     now.getTime() - attemptedAt.getTime() < SOCIAL_SYNC_LEASE_MS;
+  // Opening the page must not retry a failed attempt in a loop; the user can still sync manually.
+  const retryable =
+    attemptedAt === null ||
+    now.getTime() - attemptedAt.getTime() >= SOCIAL_SYNC_FRESH_MS;
   const fresh =
     headAt !== null && now.getTime() - headAt.getTime() < SOCIAL_SYNC_FRESH_MS;
   if (leaseOpen && (dirty || !fresh)) {
@@ -84,10 +100,10 @@ export function socialSyncReadModel(
     return { ...base, status: "queued", mayAutoRequest: false };
   }
   if (partialWarnings.length > 0 && (fresh || dataFetchedAt)) {
-    return { ...base, status: "partial", mayAutoRequest: !fresh };
+    return { ...base, status: "partial", mayAutoRequest: !fresh && retryable };
   }
   if (fresh) {
     return { ...base, status: "fresh", mayAutoRequest: false };
   }
-  return { ...base, status: "stale", mayAutoRequest: true };
+  return { ...base, status: "stale", mayAutoRequest: retryable };
 }
