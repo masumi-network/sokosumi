@@ -61,6 +61,18 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 
 const EMPTY: SocialQueueSlots = { timezone: null, slots: [] };
+const SAVED: SocialQueueSlots = {
+  timezone: "UTC",
+  slots: [
+    {
+      id: "slot-1",
+      name: "Morning",
+      weekday: 1,
+      minutesFromMidnight: 540,
+      timezone: "UTC",
+    },
+  ],
+};
 
 describe("ProjectSocialQueueSlots", () => {
   beforeEach(() => {
@@ -80,6 +92,64 @@ describe("ProjectSocialQueueSlots", () => {
         ],
       },
     });
+  });
+
+  it("does not save an unchanged empty queue, including after adding and removing a time", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialQueueSlots projectId="project-1" queueSlots={EMPTY} />,
+    );
+    const save = screen.getByRole("button", { name: "Save queue" });
+    expect(save).toBeDisabled();
+    await user.click(save);
+    expect(replaceProjectSocialQueueSlots).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Add time" }));
+    expect(save).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: "Remove Monday 09:00" }),
+    );
+    expect(save).toBeDisabled();
+  });
+
+  it.each([
+    { label: "Time", value: "10:00", original: "09:00" },
+    { label: "Name", value: "Evening", original: "Morning" },
+  ])(
+    "enables saving only while $label has changes",
+    ({ label, value, original }) => {
+      render(
+        <ProjectSocialQueueSlots projectId="project-1" queueSlots={SAVED} />,
+      );
+      const save = screen.getByRole("button", { name: "Save queue" });
+      expect(save).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value },
+      });
+      expect(save).toBeEnabled();
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: original },
+      });
+      expect(save).toBeDisabled();
+    },
+  );
+
+  it("saves a changed time zone for existing times", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialQueueSlots projectId="project-1" queueSlots={SAVED} />,
+    );
+    expect(screen.getByRole("button", { name: "Save queue" })).toBeDisabled();
+    await user.click(screen.getByRole("combobox", { name: "Time zone" }));
+    await user.click(screen.getByRole("option", { name: "Europe/Prague" }));
+    await user.click(screen.getByRole("button", { name: "Save queue" }));
+    await waitFor(() =>
+      expect(replaceProjectSocialQueueSlots).toHaveBeenCalledWith({
+        projectId: "project-1",
+        timezone: "Europe/Prague",
+        slots: [{ name: "Morning", weekday: 1, minutesFromMidnight: 540 }],
+      }),
+    );
   });
 
   it("saves a new weekly time", async () => {
@@ -106,6 +176,7 @@ describe("ProjectSocialQueueSlots", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Queue saved.");
+    expect(screen.getByRole("button", { name: "Save queue" })).toBeDisabled();
   });
 
   it("clears the last slot", async () => {
@@ -141,6 +212,7 @@ describe("ProjectSocialQueueSlots", () => {
       }),
     );
     expect(toastSuccessMock).toHaveBeenCalledWith("Queue cleared.");
+    expect(screen.getByRole("button", { name: "Save queue" })).toBeDisabled();
   });
 
   it("keeps edits when saving fails", async () => {
@@ -159,6 +231,7 @@ describe("ProjectSocialQueueSlots", () => {
       expect(toastErrorMock).toHaveBeenCalledWith("Save failed. Try again."),
     );
     expect(screen.getByLabelText("Name")).toHaveValue("Morning");
+    expect(screen.getByRole("button", { name: "Save queue" })).toBeEnabled();
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
@@ -191,6 +264,7 @@ describe("ProjectSocialQueueSlots", () => {
     render(
       <ProjectSocialQueueSlots projectId="project-1" queueSlots={EMPTY} />,
     );
+    await user.click(screen.getByRole("button", { name: "Add time" }));
     await user.click(screen.getByRole("button", { name: "Save queue" }));
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(

@@ -1709,8 +1709,7 @@ describe("ProjectSocialPosts", () => {
     expect(tablist).toHaveClass(
       "w-fit",
       "bg-card-background",
-      "max-sm:justify-start",
-      "max-sm:overflow-x-auto",
+      "max-md:justify-start",
     );
     expect(tablist).not.toHaveClass("min-h-11", "flex-1");
     expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");

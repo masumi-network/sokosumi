@@ -105,20 +105,32 @@ export function ProjectSocialQueueSlots({
 }: ProjectSocialQueueSlotsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.SocialPosts.queue");
-  const [timezone, setTimezone] = useState(
-    queueSlots.timezone ?? getDefaultTimezone(),
-  );
-  const [slots, setSlots] = useState<DraftSlot[]>(() =>
-    queueSlots.slots.map(toDraft),
-  );
+  const [savedQueue, setSavedQueue] = useState(() => ({
+    timezone: queueSlots.timezone ?? getDefaultTimezone(),
+    slots: queueSlots.slots.map(toDraft),
+  }));
+  const [timezone, setTimezone] = useState(savedQueue.timezone);
+  const [slots, setSlots] = useState<DraftSlot[]>(savedQueue.slots);
   const [saving, setSaving] = useState(false);
   const zones = useMemo(() => getTimezoneOptions(timezone), [timezone]);
+  const hasChanges =
+    (slots.length > 0 && timezone !== savedQueue.timezone) ||
+    slots.length !== savedQueue.slots.length ||
+    slots.some((slot, index) => {
+      const saved = savedQueue.slots[index];
+      return (
+        slot.name !== saved?.name ||
+        slot.weekday !== saved?.weekday ||
+        slot.time !== saved?.time
+      );
+    });
 
   function weekdayLabel(weekday: number): string {
     return t(WEEKDAY_KEYS[weekday] ?? "weekdays.0");
   }
 
   async function handleSave(): Promise<void> {
+    if (!hasChanges || saving) return;
     const next: SocialQueueSlotWrite[] = [];
     for (const slot of slots) {
       const minutes = timeToMinutes(slot.time);
@@ -142,8 +154,13 @@ export function ProjectSocialQueueSlots({
         toast.error(result.error.message ?? t("toasts.failed"));
         return;
       }
-      setSlots(result.value.slots.map(toDraft));
-      setTimezone(result.value.timezone ?? timezone);
+      const saved = {
+        slots: result.value.slots.map(toDraft),
+        timezone: result.value.timezone ?? timezone,
+      };
+      setSavedQueue(saved);
+      setSlots(saved.slots);
+      setTimezone(saved.timezone);
       toast.success(
         result.value.slots.length === 0 ? t("toasts.empty") : t("toasts.saved"),
       );
@@ -314,6 +331,7 @@ export function ProjectSocialQueueSlots({
           type="submit"
           size="sm"
           className="h-11 md:h-8"
+          disabled={!hasChanges}
           loading={saving}
         >
           {t("save")}

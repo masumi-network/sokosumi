@@ -917,6 +917,16 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   overflow: visible !important;
 }
 
+/* Vercel injects its preview toolbar outside the app; leave every page room to scroll past it. */
+body:has(vercel-live-feedback) main[data-app-main] {
+  scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
+}
+
+body:has(vercel-live-feedback) main[data-app-main]::after {
+  content: "";
+  flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
+}
+
 @utility container {
   margin-inline: auto;
   @media (width >= --theme(--breakpoint-sm)) {

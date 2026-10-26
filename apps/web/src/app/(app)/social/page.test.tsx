@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -35,6 +36,7 @@ vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  useSearchParams: () => new URLSearchParams("tab=accounts"),
   unstable_rethrow: (error: unknown) => {
     if (
       error instanceof Error &&
@@ -230,6 +232,10 @@ async function visit(
   render(await SocialPage({ searchParams: Promise.resolve(searchParams) }));
 }
 
+function StreamedPage({ page }: { page: Promise<ReactNode> }) {
+  return use(page);
+}
+
 describe("SocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -243,6 +249,46 @@ describe("SocialPage", () => {
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
   });
+
+  it.each([
+    { connections: [] },
+    { connections: [{ id: "conn-x", status: "active", provider: "x" }] },
+  ])(
+    "keeps the accounts skeleton until the accounts request resolves ($connections)",
+    async ({ connections }) => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+      const request = Promise.withResolvers<typeof connections>();
+      projectServiceMock.listSocialConnections.mockReturnValue(request.promise);
+      const { default: SocialPage } = await import("./page");
+      const { default: SocialLoading } = await import("./loading");
+      const page = SocialPage({
+        searchParams: Promise.resolve({
+          projectId: PROJECT.id,
+          tab: "accounts",
+        }),
+      });
+      const fallback = await SocialLoading();
+      await act(async () => {
+        render(
+          <Suspense fallback={fallback}>
+            <StreamedPage page={page} />
+          </Suspense>,
+        );
+      });
+
+      expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+      expect(screen.queryByTestId("social-accounts")).not.toBeInTheDocument();
+      await act(async () => {
+        request.resolve(connections);
+        await page;
+      });
+      expect(await screen.findByTestId("social-accounts")).toHaveAttribute(
+        "data-connections",
+        String(connections.length),
+      );
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    },
+  );
 
   it("offers every active connection to the post composer", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
