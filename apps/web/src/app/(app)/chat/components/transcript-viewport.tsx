@@ -87,6 +87,12 @@ interface TranscriptViewportProps {
   initialPosition?: TranscriptPosition;
   onPositionChange?: (position: TranscriptPosition) => void;
   /**
+   * Whether the reader is at the end, the state that hides Jump to latest.
+   * Reported on mount and on every change; a landing still placing a message
+   * reports false until it has.
+   */
+  onAtEndChange?: (atEnd: boolean) => void;
+  /**
    * The native overflow scroller the list lives in. Handed in as an element
    * rather than a ref: on a same-commit mount the shell's ref is attached
    * after this component's effects have run, so a ref read here would still
@@ -159,6 +165,7 @@ export function TranscriptViewport({
   holdOffBottom,
   initialPosition,
   onPositionChange,
+  onAtEndChange,
   ref,
 }: TranscriptViewportProps) {
   const scrollingRef = useRef(false);
@@ -240,8 +247,20 @@ export function TranscriptViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  // Only the jump-to-latest threshold needs React state.
-  const [atEnd, setAtEnd] = useState(true);
+  // Only the jump-to-latest threshold needs React state. A restore above the
+  // end does not start there, or the first report would read the room.
+  const [atEnd, setAtEnd] = useState(
+    !initialPosition || initialPosition.atLiveEdge,
+  );
+  // The landing still placing its message, or 0. Until it has, the reader is
+  // reported off the end: the scroll it started has not been measured yet.
+  const [placingLanding, setPlacingLanding] = useState(0);
+  const atEndCallbackRef = useRef(onAtEndChange);
+  atEndCallbackRef.current = onAtEndChange;
+  const reportedAtEnd = atEnd && placingLanding === 0;
+  useEffect(() => {
+    atEndCallbackRef.current?.(reportedAtEnd);
+  }, [reportedAtEnd]);
   const distanceFromEndRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const virtualizerRef = useRef<TranscriptVirtualizer | null>(null);
@@ -581,20 +600,27 @@ export function TranscriptViewport({
         }
         landingRef.current += 1;
         const landing = landingRef.current;
+        setPlacingLanding(landing);
+        const placed = () =>
+          setPlacingLanding((current) => (current === landing ? 0 : current));
         virtualizer.scrollToIndex(index, { align: "center" });
         // The row mounts a render after the scroll. Poll frames for it; a
         // later landing replaces this one, which stops the poll.
         let frames = 0;
         const tryMark = () => {
           if (landing !== landingRef.current) {
+            placed();
             return;
           }
           if (highlightListMessage(list, messageId)) {
+            placed();
             return;
           }
           frames += 1;
           if (frames < LANDING_FRAMES) {
             requestAnimationFrame(tryMark);
+          } else {
+            placed();
           }
         };
         requestAnimationFrame(tryMark);

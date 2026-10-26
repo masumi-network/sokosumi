@@ -24,6 +24,12 @@ interface RoomReadAttentionOptions {
   threadMessages: RoomReadAttentionSnapshot["threadMessages"];
   isThreadLoading: boolean;
   /**
+   * The reader is at the end of the room transcript, the state in which Jump
+   * to latest is hidden, and no explicit-target jump is still placing them.
+   * Room last-read waits for it; a Thread Look does not.
+   */
+  transcriptAtEnd: boolean;
+  /**
    * Called after a Look reaches Core. Every Look lowers the room's unread
    * thread count, including the automatic one this hook writes when the reader
    * returns to a tab with a thread open, so the header count has to hear about
@@ -61,7 +67,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
   const readRoom = useCallback(
     async (roomId: string, optimistic: boolean): Promise<boolean> => {
       const current = snapshotRef.current;
-      if (!canReadRoom(roomId) || !current.room) {
+      if (!canReadRoom(roomId) || !current.room || !current.transcriptAtEnd) {
         return false;
       }
       const previousRoom = applyRoomReadOverlays([current.room])[0];
@@ -171,7 +177,9 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         return;
       }
     }
-    const read = await readRoom(roomId, true);
+    // Above the end there is nothing to read yet; the marker stays so the
+    // same content does not Look again, and reaching the end reads it.
+    const read = marker.transcriptAtEnd ? await readRoom(roomId, true) : true;
     if ((!read || !looked) && readMarkerRef.current === marker) {
       readMarkerRef.current = null;
     }
@@ -201,6 +209,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
     options.messagesPending,
     options.messageLoadFailed,
     options.isThreadLoading,
+    options.transcriptAtEnd,
     readCurrentRoom,
   ]);
 
