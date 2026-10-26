@@ -55,7 +55,10 @@ interface ProjectSocialAccountsProps {
   /** Closing or closed projects cannot add or replace accounts. */
   connectDisabled?: boolean;
   reconnections?: SocialReconnection[];
-  onReconnected?: (connection: ProjectSocialConnection) => void;
+  onReconnected?: (
+    connection: ProjectSocialConnection,
+    previousConnectionId?: string,
+  ) => void;
 }
 
 interface PendingConfirmation {
@@ -225,14 +228,16 @@ export function ProjectSocialAccounts({
       onStart: () => {
         setFeedback(null);
         setPendingAction(action);
-        setPendingTarget(provider ?? socialConnectionId ?? null);
+        setPendingTarget(socialConnectionId ?? provider ?? null);
       },
       initiate: () =>
         initiateProjectSocialConnection({
           projectId,
           action,
           ...(provider ? { provider } : {}),
-          ...(socialConnectionId ? { socialConnectionId } : {}),
+          ...(action !== "connect" && socialConnectionId
+            ? { socialConnectionId }
+            : {}),
         }),
       finalize: (connectionId) =>
         finalizeProjectSocialConnection({ projectId, connectionId }),
@@ -254,7 +259,9 @@ export function ProjectSocialAccounts({
           account: accountName(outcome.value, t("unknownHandle")),
         }),
       });
-      if (action === "reconnect") onReconnected?.(outcome.value);
+      if (action === "reconnect" || reconnections) {
+        onReconnected?.(outcome.value, socialConnectionId);
+      }
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
     } else if (outcome.kind === "failed") {
@@ -478,7 +485,17 @@ export function ProjectSocialAccounts({
               className="h-11 md:h-8"
               disabled={isBusy || connectDisabled}
               loading={pendingTarget === connection.id}
-              onClick={() => void startOAuth("reconnect", connection.id)}
+              onClick={() =>
+                void startOAuth(
+                  connection.status === "disconnected"
+                    ? "connect"
+                    : "reconnect",
+                  connection.id,
+                  connection.status === "disconnected"
+                    ? connection.provider
+                    : undefined,
+                )
+              }
             >
               <RefreshCw className="size-4" aria-hidden />
               {t("reconnect")}

@@ -810,7 +810,10 @@ describe("ProjectSocialAccounts", () => {
       } as MessageEvent);
     });
     await waitFor(() =>
-      expect(onReconnected).toHaveBeenCalledWith(buildConnection()),
+      expect(onReconnected).toHaveBeenCalledWith(
+        buildConnection(),
+        connection.id,
+      ),
     );
   });
 

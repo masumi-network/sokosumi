@@ -2624,6 +2624,7 @@
           "rescheduleFor": "Reprogramar para {date}",
           "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
           "connectAccount": "Conectar cuenta",
+          "reconnectAccount": "Vuelve a conectar la cuenta para publicar o programar. Aun así puedes guardar un borrador.",
           "dismiss": "Cancelar",
           "discardTitle": "¿Descartar cambios?",
           "discardDescription": "Se perderán tus cambios.",

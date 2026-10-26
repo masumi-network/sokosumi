@@ -209,7 +209,11 @@ const MESSAGES: Record<string, string> = {
   "composer.formats.mediaPost": "image or video post",
   "composer.formats.video": "video",
   "composer.accountOption": "{provider} {handle}",
-  "composer.noAccounts": "No accounts connected yet.",
+  "composer.noAccountsTitle": "No account connected yet",
+  "composer.noAccounts":
+    "Connect one to post or schedule. You can still save a draft.",
+  "composer.reconnectAccount":
+    "Reconnect to post or schedule. You can still save a draft.",
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
@@ -2584,6 +2588,12 @@ describe("ProjectSocialPosts", () => {
         name: "LinkedIn @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).queryByRole("button", { name: "Reconnect" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByTestId("social-post-no-accounts"),
+    ).not.toBeInTheDocument();
   });
 
   it("puts the editor above the preview on a phone", async () => {
@@ -2686,10 +2696,15 @@ describe("ProjectSocialPosts", () => {
       within(accounts).getByRole("button", { name: "X @sokosumi" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      within(accounts).getByRole("button", {
+      within(accounts).queryByRole("button", {
         name: "LinkedIn @sokosumi-co",
       }),
-    ).toHaveAttribute("aria-pressed", "false");
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        "sokosumi-co needs reconnecting",
+      ),
+    ).toBeVisible();
   });
 
   it("falls back to the first account when nothing remembered still connects", async () => {
@@ -3522,6 +3537,20 @@ describe("ProjectSocialPosts", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "New post" }));
+    const empty = within(screen.getByRole("dialog")).getByTestId(
+      "social-post-no-accounts",
+    );
+    expect(within(empty).getByText("No account connected yet")).toBeVisible();
+    expect(
+      within(empty).getByText(
+        "Connect one to post or schedule. You can still save a draft.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Reconnect",
+      }),
+    ).not.toBeInTheDocument();
     expect(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "Connect account",
@@ -4811,6 +4840,15 @@ describe("ProjectSocialPosts", () => {
     await openRowMenu(user, "post-failed");
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText("@sokosumi needs reconnecting"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Reconnect" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByTestId("social-post-no-accounts"),
+    ).not.toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText("Text"), {
       target: { value: "Fixed copy" },
     });
@@ -4840,12 +4878,190 @@ describe("ProjectSocialPosts", () => {
     expect(within(reconnect).getByText("1 posts affected")).toBeVisible();
   });
 
+  it("offers reconnect for a project's expired account while allowing a draft", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        managedConnections={[
+          buildConnection({ status: "reauthorization_required" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText("@sokosumi needs reconnecting"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Reconnect" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Connect account" }),
+    ).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText("Text"), "Save for later");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    expect(postNow).toBeDisabled();
+    expect(postNow).toHaveAccessibleDescription(
+      "Reconnect to post or schedule. You can still save a draft.",
+    );
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeDisabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      text: "Save for later",
+      media: [],
+      socialConnectionId: null,
+    });
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it.each(["reauthorization_required", "disconnected"] as const)(
+    "reconnects a failed post's %s account inside the composer before scheduling",
+    async (status) => {
+      const restore = stubLoadedImage();
+      try {
+        freezeClock();
+        const user = userEvent.setup();
+        const connection = buildConnection({
+          status,
+          avatarUrl: "https://example.com/sokosumi.png",
+        });
+        const post = { ...FAILED_POST, socialConnection: connection };
+        const restored = buildConnection({
+          ...connection,
+          id: status === "disconnected" ? "connection-2" : connection.id,
+          status: "active",
+          connectedAt: new Date("2026-09-15T12:00:00.000Z"),
+        });
+        vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+          ok: true,
+          value: {
+            connectionId: "ca-1",
+            redirectUrl: "https://connect.composio.dev/reconnect",
+          },
+        });
+        vi.mocked(completeComposioAuthCallbackAction).mockResolvedValue({
+          ok: true,
+          value: undefined,
+        });
+        vi.mocked(finalizeProjectSocialConnection).mockResolvedValue({
+          ok: true,
+          value: restored,
+        });
+        vi.mocked(updateProjectSocialPost).mockResolvedValue({
+          ok: true,
+          value: {
+            ...post,
+            text: "Fixed copy",
+            socialConnection: restored,
+            revision: 6,
+          },
+        });
+        const view = render(
+          <ProjectSocialPosts
+            connections={[]}
+            posts={[post]}
+            projectId={PROJECT_ID}
+          />,
+        );
+
+        await openTab(user, "Needs attention");
+        await openRowMenu(user, post.id);
+        await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+        const dialog = screen.getByRole("dialog");
+        const account = within(dialog).getByTestId(
+          `social-reconnect-${connection.id}`,
+        );
+        expect(
+          within(account).getByText("@sokosumi needs reconnecting"),
+        ).toBeVisible();
+        expect(
+          await within(account).findByTestId("social-post-account-photo"),
+        ).toHaveAttribute("src", connection.avatarUrl);
+        expect(
+          within(dialog).queryByTestId("social-post-no-accounts"),
+        ).not.toBeInTheDocument();
+        fireEvent.change(within(dialog).getByLabelText("Text"), {
+          target: { value: "Fixed copy" },
+        });
+        await pickInAnHour(user, dialog);
+        const schedule = within(dialog).getByRole("button", {
+          name: /^Schedule for /,
+        });
+        expect(schedule).toBeDisabled();
+        expect(schedule).toHaveAccessibleDescription(
+          "Reconnect to post or schedule. You can still save a draft.",
+        );
+        expect(
+          within(dialog).getByRole("button", { name: "Save" }),
+        ).toBeEnabled();
+        await user.click(
+          within(account).getByRole("button", { name: "Reconnect" }),
+        );
+
+        await waitFor(() => expect(schedule).toBeEnabled());
+        view.rerender(
+          <ProjectSocialPosts
+            connections={[restored]}
+            posts={[post]}
+            projectId={PROJECT_ID}
+          />,
+        );
+        expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
+          status === "disconnected"
+            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            : {
+                projectId: PROJECT_ID,
+                action: "reconnect",
+                socialConnectionId: connection.id,
+              },
+        );
+        expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          connectionId: "ca-1",
+        });
+        expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
+        expect(
+          within(dialog).queryByRole("button", { name: "Reconnect" }),
+        ).not.toBeInTheDocument();
+        const options = within(dialog).getAllByRole("button", {
+          name: "X @sokosumi",
+        });
+        expect(options).toHaveLength(1);
+        expect(options[0]).toHaveAttribute("aria-pressed", "true");
+        await user.click(schedule);
+        await waitFor(() =>
+          expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
+            expect.objectContaining({
+              socialConnectionId: restored.id,
+              postId: post.id,
+              revision: 6,
+            }),
+          ),
+        );
+      } finally {
+        restore();
+      }
+    },
+  );
+
   it("sends preview-only connect to the project's Accounts tab", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[]}
-        posts={[SCHEDULED_POST]}
+        posts={[{ ...SCHEDULED_POST, socialConnection: null }]}
         projectId={PROJECT_ID}
         selectedPostId="post-scheduled"
         previewOnly
