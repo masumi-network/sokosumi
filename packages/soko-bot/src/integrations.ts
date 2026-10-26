@@ -20,6 +20,8 @@ export interface SokoBotIntegrationProvider {
     modifyMessages?: string;
     createDraft?: string;
     sendDraft?: string;
+    /** Downloads one attachment of a message. */
+    getAttachment?: string;
   };
 }
 
@@ -36,6 +38,7 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
         modifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
         createDraft: "GMAIL_CREATE_EMAIL_DRAFT",
         sendDraft: "GMAIL_SEND_DRAFT",
+        getAttachment: "GMAIL_GET_ATTACHMENT",
       },
     },
     {
@@ -137,8 +140,18 @@ export interface SokoBotInboxMessage {
   labels: string[];
 }
 
+export interface SokoBotInboxAttachment {
+  /** The provider's attachment id; pass it to save_email_attachment. */
+  id: string;
+  filename: string;
+  mimeType: string;
+  /** Bytes, when the provider says. */
+  size: number | null;
+}
+
 export interface SokoBotInboxMessageDetail extends SokoBotInboxMessage {
   body: string;
+  attachments: SokoBotInboxAttachment[];
 }
 
 export interface SokoBotCalendarEvent {

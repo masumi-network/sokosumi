@@ -341,6 +341,21 @@ export const sokoBotDraftEmailInputSchema = z
   })
   .strict();
 
+export const sokoBotSaveEmailAttachmentInputSchema = z
+  .object({
+    provider: z.string().optional(),
+    messageId: z.string().min(1),
+    /** The attachment's id from read_email. */
+    attachmentId: z.string().min(1),
+    /** The attachment's filename from read_email. */
+    filename: z.string().trim().min(1).max(200),
+    /** Folder in the owner's Files, e.g. "Finance/Invoices"; omit for the top level. */
+    folder: z.string().trim().min(1).max(200).optional(),
+    /** Save under another name; keeps the attachment's name when omitted. */
+    saveAs: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
 export const sokoBotSendEmailDraftInputSchema = z
   .object({ draftId: z.string().min(1).max(200) })
   .strict();
@@ -858,6 +873,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   update_emails: sokoBotUpdateEmailsInputSchema,
   draft_email: sokoBotDraftEmailInputSchema,
   send_email_draft: sokoBotSendEmailDraftInputSchema,
+  save_email_attachment: sokoBotSaveEmailAttachmentInputSchema,
   list_skills: sokoBotListSkillsInputSchema,
   install_skill: sokoBotInstallSkillInputSchema,
   remove_skill: sokoBotRemoveSkillInputSchema,
@@ -1017,7 +1033,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:
     "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Reading changes nothing; update_emails marks mail read or archives it, draft_email writes drafts.",
-  read_email: "Read one email in full by provider and messageId.",
+  read_email:
+    "Read one email in full by provider and messageId, with its attachments (id, filename, type, size).",
+  save_email_attachment:
+    'Save one attachment of an email into the owner\u2019s Files, by messageId and the attachment\u2019s id and filename from read_email (Gmail only, up to 25 MB). Pass folder to file it, e.g. "Finance/Invoices" (created if missing). Use it when the owner asks, or when a saved rule of theirs says to file mail like this. A file of the same name already there is kept: choose saveAs instead.',
   evaluate_with_jev:
     "Ask Jev, a fast judging model, up to 10 typed questions about a short state (text, or JSON as a string, up to 12,000 characters) and get probabilities back. A question without options is yes/no and returns the probability of yes; one with 2–8 named options (each with criteria saying what it means) returns the chosen option and every option's probability. Use it to judge many items the same way: triage mail, tag a list, yes/no checks over rows. Give each item a key in the state and name it in its question. Cheap and read-only; the answers are a guide, not facts.",
   list_calendar_events:

@@ -16,6 +16,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "generate_video",
   "draft_email",
   "send_email_draft",
+  "save_email_attachment",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([

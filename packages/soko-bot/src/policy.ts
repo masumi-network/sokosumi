@@ -48,6 +48,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_emails",
   "draft_email",
   "send_email_draft",
+  "save_email_attachment",
   "generate_image",
   "get_image",
   "generate_video",
@@ -286,6 +287,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // tool, which Core allows only on the owner's word in their chat.
   "update_emails",
   "draft_email",
+  "save_email_attachment",
   "generate_image",
   "generate_video",
   "create_table",
@@ -453,6 +455,7 @@ export function capabilitiesForClassification(
     FILE: [
       "upload_file",
       "move_file",
+      "save_email_attachment",
       "generate_image",
       "generate_video",
       "create_table",

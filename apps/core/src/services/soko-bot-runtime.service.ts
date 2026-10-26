@@ -57,6 +57,7 @@ import {
   sokoBotReadFileInputSchema,
   sokoBotRemoveSkillInputSchema,
   sokoBotRunIntegrationToolInputSchema,
+  sokoBotSaveEmailAttachmentInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotSendEmailDraftInputSchema,
   sokoBotStartBackgroundRunInputSchema,
@@ -300,8 +301,10 @@ import {
   activeIntegrationsForBot,
   createInboxDraft,
   fetchCalendarEvents,
+  fetchInboxAttachment,
   fetchInboxMessage,
   fetchInboxPage,
+  INBOX_ATTACHMENT_MAX_BYTES,
   listIntegrationTools,
   modifyInboxMessages,
   runIntegrationTool,
@@ -2781,6 +2784,64 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /** Saves one mail attachment into the owner's Files. */
+  private async saveEmailAttachment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      provider?: string;
+      messageId: string;
+      attachmentId: string;
+      filename: string;
+      folder?: string;
+      saveAs?: string;
+    },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const integration = await this.mailboxFor(authorized, input.provider);
+    if (!integration.provider.tools.getAttachment)
+      throw new SokoBotRefusedUnsentError(
+        `${integration.provider.name} attachments cannot be saved yet`,
+      );
+    // Gmail hands out a new attachment id on every read, so a name match on
+    // a fresh read stands in for an id from an earlier one.
+    const message = await fetchInboxMessage(integration, input.messageId);
+    const attachment =
+      message.attachments.find((item) => item.id === input.attachmentId) ??
+      message.attachments.find((item) => item.filename === input.filename);
+    if (!attachment)
+      throw new SokoBotRefusedUnsentError(
+        `That email has no attachment "${input.filename}"; read_email lists its attachments`,
+      );
+    if (attachment.size && attachment.size > INBOX_ATTACHMENT_MAX_BYTES)
+      throw new SokoBotRefusedUnsentError(
+        "That attachment is larger than 25 MB",
+      );
+    const saved = await this.saveFileBytes(authorized, {
+      filename: input.saveAs ?? attachment.filename,
+      folder,
+      contentType: attachment.mimeType,
+      read: async () => {
+        const bytes = await fetchInboxAttachment(integration, {
+          messageId: input.messageId,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+        });
+        if (bytes.byteLength > INBOX_ATTACHMENT_MAX_BYTES)
+          throw new SokoBotRefusedUnsentError(
+            "That attachment is larger than 25 MB",
+          );
+        return bytes;
+      },
+    });
+    return this.commitReceipt(
+      authorized,
+      toolCallId,
+      saved.id ?? `${input.messageId}:${attachment.id}`,
+      saved,
+    );
+  }
+
   /** Moves one of the owner's Drive files into a folder of the same Drive. */
   private async moveFile(
     authorized: AuthorizedSokoBotRuntime,
@@ -2966,9 +3027,38 @@ export class SokoBotRuntimeService {
     const meta = await head(input.url);
     if (meta.size > CHAT_ROOM_FILE_MAX_SIZE_BYTES)
       throw new SokoBotRefusedUnsentError("That attachment is too large");
+    return this.saveFileBytes(authorized, {
+      filename: input.filename,
+      folder: input.folder,
+      overwrite: input.overwrite,
+      contentType: meta.contentType,
+      read: async () => {
+        const response = await fetch(meta.url, {
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!response.ok)
+          throw new SokoBotRuntimeValidationError(
+            "The attachment could not be read; try again",
+          );
+        return Buffer.from(await response.arrayBuffer());
+      },
+    });
+  }
+
+  /** Saves a file's bytes into the owner's Files; `read` runs once the name is free. */
+  private async saveFileBytes(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      filename: string;
+      folder: string;
+      overwrite?: boolean;
+      contentType: string;
+      read: () => Promise<Buffer>;
+    },
+  ) {
     const contentType =
-      resolveUserUploadContentType(input.filename, meta.contentType) ??
-      meta.contentType;
+      resolveUserUploadContentType(input.filename, input.contentType) ??
+      input.contentType;
     const drive = await this.ownerDrive(authorized);
     const pathname = input.folder
       ? drive.pathnameIn(input.folder, input.filename)
@@ -2980,14 +3070,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRefusedUnsentError(
         `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
-    const response = await fetch(meta.url, {
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!response.ok)
-      throw new SokoBotRuntimeValidationError(
-        "The attachment could not be read; try again",
-      );
-    const bytes = Buffer.from(await response.arrayBuffer());
+    const bytes = await input.read();
     const key = { ...drive.key, pathname };
     const displayName = pathname.split("/").pop() ?? input.filename;
     await reserveDriveUploadResource({
@@ -6085,6 +6168,12 @@ export class SokoBotRuntimeService {
         return this.draftEmail(
           authorized,
           sokoBotDraftEmailInputSchema.parse(input.input),
+          input.toolCallId,
+        );
+      case "save_email_attachment":
+        return this.saveEmailAttachment(
+          authorized,
+          sokoBotSaveEmailAttachmentInputSchema.parse(input.input),
           input.toolCallId,
         );
       case "send_email_draft":
