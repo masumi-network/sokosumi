@@ -18,7 +18,10 @@ interface LoginPageProps {
 
 /** Create account and sign in, with any error a sign in sent back. */
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const session = await getAuth().api.getSession({ headers: await headers() });
+  // Read the request first: it marks the page dynamic before getAuth reads
+  // secrets that a build does not have.
+  const requestHeaders = await headers();
+  const session = await getAuth().api.getSession({ headers: requestHeaders });
   if (session) redirect("/");
   const raw = (await searchParams).error;
   const error = Array.isArray(raw) ? raw[0] : raw;
