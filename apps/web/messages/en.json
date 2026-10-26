@@ -2465,6 +2465,8 @@
           "sync": "Couldn't start sync."
         },
         "comingSoon": "Coming soon",
+        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
+        "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
         "emptyHint": "Connect one to post."

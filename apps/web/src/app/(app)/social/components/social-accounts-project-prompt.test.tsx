@@ -84,6 +84,7 @@ describe("SocialAccountsProjectPrompt", () => {
       [...primary.querySelectorAll("li p")].map((name) => name.textContent),
     ).toEqual(["X", "LinkedIn", "YouTube", "TikTok", "Instagram", "Facebook"]);
     expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
+    expect(within(primary).getAllByText("Personal profile")).toHaveLength(1);
   });
 
   it("asks to choose a project before connecting", () => {
