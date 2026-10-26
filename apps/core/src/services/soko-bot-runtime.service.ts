@@ -4591,7 +4591,10 @@ export class SokoBotRuntimeService {
     let markdown: string;
     try {
       markdown = renderSokoBotMemory(
-        parseSokoBotMemory(input.markdown, { secretHandling: "reject" }),
+        parseSokoBotMemory(input.markdown, {
+          secretHandling: "reject",
+          unknownSections: "reject",
+        }),
       );
     } catch (error) {
       throw new SokoBotRuntimeValidationError(
