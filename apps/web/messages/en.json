@@ -3079,13 +3079,59 @@
           "design": "Design",
           "memory": "Memory",
           "ariaLabel": "Project sections",
-          "bots": "Bots"
+          "bots": "Bots",
+          "newsletter": "Newsletter"
         },
         "design": {
           "document": "DESIGN.md"
         },
         "bots": {
           "title": "Bots for this project"
+        }
+      },
+      "Newsletter": {
+        "title": "Newsletter",
+        "description": "Set the sender, brand, and welcome email for this project’s newsletter.",
+        "navigation": "Newsletter sections",
+        "settings": "Settings",
+        "emptyTitle": "Set up your newsletter",
+        "emptyDescription": "Choose a name, sender, and brand below, then save your settings to create the newsletter.",
+        "general": "General",
+        "brand": "Brand",
+        "welcome": "Welcome email",
+        "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
+        "publicAddress": "Public newsletter address",
+        "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
+        "save": "Save settings",
+        "success": "Newsletter settings saved",
+        "error": "Failed to save newsletter settings. Try again.",
+        "unavailable": "This newsletter is no longer available. Reload the page.",
+        "invalid": "Check the highlighted fields and save again.",
+        "fields": {
+          "name": "Newsletter name",
+          "senderName": "Sender name",
+          "replyTo": "Reply-to email",
+          "logoUrl": "Logo URL",
+          "primaryColor": "Primary color",
+          "accentColor": "Accent color",
+          "fontFamily": "Font family",
+          "footerText": "Footer text",
+          "welcomeEmailEnabled": "Send a welcome email",
+          "welcomeSubject": "Welcome email subject",
+          "welcomeBody": "Welcome email body"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman"
+        },
+        "Validation": {
+          "required": "Enter a value.",
+          "email": "Enter a valid email address.",
+          "url": "Enter a full HTTPS URL.",
+          "color": "Enter a hex color with 3 or 6 digits, starting with #.",
+          "maxLength": "Use at most {max} characters."
         }
       }
     },
