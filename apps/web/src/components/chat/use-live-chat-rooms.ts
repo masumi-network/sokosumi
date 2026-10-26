@@ -73,6 +73,11 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     hasLiveMembershipVisibleRoomsPublisher,
     () => false,
   );
+  // The sidebar registers as the reader from an effect, in the same commit
+  // this hook mounts in. Deciding on the first render would start a second
+  // read of the same collection before that registration lands.
+  const [ownershipSettled, setOwnershipSettled] = useState(false);
+  useEffect(() => setOwnershipSettled(true), []);
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,
@@ -135,7 +140,8 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     setRooms(reconcileRoomAttention(page.rooms, requestRevision));
   }, []);
   const requestRefresh = useChatRefreshScheduler({
-    key: scope && !sidebarOwnsReads ? `${scope}:unread` : null,
+    key:
+      scope && ownershipSettled && !sidebarOwnsReads ? `${scope}:unread` : null,
     refresh: refreshRooms,
     healthy: useAblyConnectionHealthy(),
     fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
