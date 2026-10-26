@@ -132,7 +132,6 @@ import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
   driveWorkspaceRootLabel,
-  listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
@@ -140,7 +139,10 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
-import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  type FileStore,
+  fetchWorkspaceFolders,
+} from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
   FILES_SORT_ORDER_VALUES,
@@ -338,7 +340,8 @@ function DrivePageWorkspace({
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
-  const [allFolders, setAllFolders] = useState<DriveItem[]>([]);
+  /** Every folder path in the store, nested ones included. */
+  const [allFolders, setAllFolders] = useState<string[]>([]);
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -1228,8 +1231,8 @@ function DrivePageWorkspace({
     const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
-      const loaded = await listDriveItems({
-        ...driveStore,
+      const loaded = await fetchWorkspaceFolders({
+        store: driveStore,
         signal: controller.signal,
       });
       if (
@@ -1239,7 +1242,7 @@ function DrivePageWorkspace({
         return;
       }
 
-      setAllFolders(loaded.filter((item) => item.type === "folder"));
+      setAllFolders(loaded);
     } catch (err) {
       if (controller.signal.aborted) {
         return;
@@ -1383,9 +1386,8 @@ function DrivePageWorkspace({
 
     // Use allFolders (loaded on dialog open) instead of items (current folder only)
     // to enable cross-branch moves
-    const foldersToShow = allFolders.filter((folder) => {
-      // Exclude the item being moved
-      const folderPath = folder.name;
+    const foldersToShow = allFolders.filter((folderPath) => {
+      if (destinations.some((dest) => dest.path === folderPath)) return false;
       if (!itemToMove) return true;
       const itemPath =
         itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name;
@@ -1397,8 +1399,7 @@ function DrivePageWorkspace({
 
       // For folders, exclude descendants to prevent moving into own subtree
       if (itemToMove.type === "folder") {
-        const folderPathNormalized = folder.name;
-        if (folderPathNormalized.startsWith(`${itemToMove.name}/`)) {
+        if (folderPath.startsWith(`${itemToMove.name}/`)) {
           return false;
         }
       }
@@ -1406,13 +1407,10 @@ function DrivePageWorkspace({
       return true;
     });
 
-    foldersToShow.forEach((folder) => {
-      const folderPath = folder.name;
-      // Build a readable label from the folder path
-      const segments = folderPath.split("/");
+    foldersToShow.forEach((folderPath) => {
       destinations.push({
         path: folderPath,
-        label: segments.join(" / "),
+        label: folderPath.split("/").join(" / "),
       });
     });
 

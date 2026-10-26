@@ -320,7 +320,7 @@ export const sokoBotMoveFileInputSchema = z
   .object({
     /** Drive file id from list_files or upload_file. */
     fileId: z.string().min(1),
-    /** Destination folder, e.g. "Masumi Fundraising"; "" for the top level. */
+    /** Destination folder, e.g. "Masumi Fundraising" or "Clients/Acme"; "" for the top level. */
     folder: z.string().trim().max(200),
   })
   .strict();
@@ -968,7 +968,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   upload_file:
     "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
   move_file:
-    'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. A folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
+    'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. Subfolders are paths like "Clients/Acme"; a folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
   list_skills:
     "Your installed skills, and with a query the matching skills from the skills.sh catalog (name and source to install it with).",
   install_skill:
