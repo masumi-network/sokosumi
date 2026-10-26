@@ -516,7 +516,7 @@ async function attemptPublish(
     if (provider === "x") {
       subscriptionType = await resolveXSubscriptionType(
         { ...connection, provider, projectId: post.projectId },
-        { refresh: true, signal },
+        { signal },
       );
       const limit = socialPostTextLimit(provider, subscriptionType);
       const account = connection.externalHandle

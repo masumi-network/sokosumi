@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createXSubscriptionTierCache,
   resolveXSubscriptionType,
-  X_SUBSCRIPTION_CACHE_TTL_MS,
   X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS,
 } from "./x-subscription-tier.service";
 
@@ -35,11 +33,9 @@ const connection = {
 };
 
 describe("resolveXSubscriptionType", () => {
-  let cache: ReturnType<typeof createXSubscriptionTierCache>;
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
-    cache = createXSubscriptionTierCache();
     mocks.create.mockResolvedValue("session");
     mocks.execute.mockResolvedValue({ subscription_type: "Premium" });
     mocks.remove.mockResolvedValue(undefined);
@@ -55,10 +51,10 @@ describe("resolveXSubscriptionType", () => {
     "looks up and stores Premium for a stored tier of %s",
     async (stored) => {
       expect(
-        await resolveXSubscriptionType(
-          { ...connection, subscriptionType: stored },
-          { cache },
-        ),
+        await resolveXSubscriptionType({
+          ...connection,
+          subscriptionType: stored,
+        }),
       ).toBe("Premium");
       expect(mocks.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -90,10 +86,10 @@ describe("resolveXSubscriptionType", () => {
   it("persists a Premium to None downgrade", async () => {
     mocks.execute.mockResolvedValue({ subscription_type: "None" });
     expect(
-      await resolveXSubscriptionType(
-        { ...connection, subscriptionType: "Premium" },
-        { cache },
-      ),
+      await resolveXSubscriptionType({
+        ...connection,
+        subscriptionType: "Premium",
+      }),
     ).toBe("None");
     expect(mocks.update).toHaveBeenCalledWith({
       where: { id: connection.id },
@@ -101,11 +97,23 @@ describe("resolveXSubscriptionType", () => {
     });
   });
 
+  it("rechecks the tier on consecutive interactions without waiting", async () => {
+    await resolveXSubscriptionType(connection);
+    mocks.execute.mockResolvedValue({ subscription_type: "None" });
+    expect(
+      await resolveXSubscriptionType({
+        ...connection,
+        subscriptionType: "Premium",
+      }),
+    ).toBe("None");
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
+  });
+
   it("does not write an unchanged tier", async () => {
-    await resolveXSubscriptionType(
-      { ...connection, subscriptionType: "Premium" },
-      { cache },
-    );
+    await resolveXSubscriptionType({
+      ...connection,
+      subscriptionType: "Premium",
+    });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
@@ -114,8 +122,8 @@ describe("resolveXSubscriptionType", () => {
     async (stored) => {
       mocks.execute.mockRejectedValue(new Error("token=secret"));
       const input = { ...connection, subscriptionType: stored };
-      expect(await resolveXSubscriptionType(input, { cache })).toBe(stored);
-      expect(await resolveXSubscriptionType(input, { cache })).toBe(stored);
+      expect(await resolveXSubscriptionType(input)).toBe(stored);
+      expect(await resolveXSubscriptionType(input)).toBe(stored);
       expect(mocks.execute).toHaveBeenCalledTimes(2);
       expect(mocks.update).not.toHaveBeenCalled();
       expect(console.warn).toHaveBeenCalledWith(
@@ -138,13 +146,12 @@ describe("resolveXSubscriptionType", () => {
     async (payload) => {
       mocks.execute.mockResolvedValue(payload);
       expect(
-        await resolveXSubscriptionType(
-          { ...connection, subscriptionType: "Basic" },
-          { cache },
-        ),
+        await resolveXSubscriptionType({
+          ...connection,
+          subscriptionType: "Basic",
+        }),
       ).toBe("Basic");
       expect(mocks.update).not.toHaveBeenCalled();
-      expect(cache.successful.size).toBe(0);
       expect(console.warn).toHaveBeenCalledWith(
         "[x-subscription-tier] Invalid subscription response",
         { connectionId: connection.id },
@@ -169,10 +176,10 @@ describe("resolveXSubscriptionType", () => {
           });
         }),
     );
-    const result = resolveXSubscriptionType(
-      { ...connection, subscriptionType: "Premium" },
-      { cache },
-    );
+    const result = resolveXSubscriptionType({
+      ...connection,
+      subscriptionType: "Premium",
+    });
     await vi.advanceTimersByTimeAsync(X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS);
     expect(await result).toBe("Premium");
     expect(AbortSignal.timeout).toHaveBeenCalledWith(3_000);
@@ -180,42 +187,21 @@ describe("resolveXSubscriptionType", () => {
       "[x-subscription-tier] Subscription lookup failed",
       { connectionId: connection.id, aborted: true },
     );
-    expect(cache.successful.size).toBe(0);
   });
 
-  it("deduplicates simultaneous lookups and expires successful entries after 60 seconds", async () => {
+  it("rechecks the tier for overlapping interactions", async () => {
     expect(
       await Promise.all([
-        resolveXSubscriptionType(connection, { cache }),
-        resolveXSubscriptionType(connection, { cache }),
+        resolveXSubscriptionType(connection),
+        resolveXSubscriptionType(connection),
       ]),
     ).toEqual(["Premium", "Premium"]);
-    await vi.advanceTimersByTimeAsync(X_SUBSCRIPTION_CACHE_TTL_MS - 1);
-    await resolveXSubscriptionType(connection, { cache });
-    expect(mocks.execute).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await resolveXSubscriptionType(connection, { cache });
-    expect(mocks.execute).toHaveBeenCalledTimes(2);
-  });
-
-  it("forces a fresh lookup when publishing within the cache window", async () => {
-    await resolveXSubscriptionType(connection, { cache });
-    mocks.execute.mockResolvedValue({ subscription_type: "None" });
-    expect(
-      await resolveXSubscriptionType(
-        { ...connection, subscriptionType: "Premium" },
-        { cache, refresh: true },
-      ),
-    ).toBe("None");
     expect(mocks.execute).toHaveBeenCalledTimes(2);
   });
 
   it("does not look up non-X accounts", async () => {
     expect(
-      await resolveXSubscriptionType(
-        { ...connection, provider: "linkedin" },
-        { cache },
-      ),
+      await resolveXSubscriptionType({ ...connection, provider: "linkedin" }),
     ).toBeNull();
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
@@ -224,10 +210,10 @@ describe("resolveXSubscriptionType", () => {
   it("keeps posting available when storing the refreshed tier fails", async () => {
     mocks.update.mockRejectedValue(new Error("Database unavailable"));
     expect(
-      await resolveXSubscriptionType(
-        { ...connection, subscriptionType: "Basic" },
-        { cache },
-      ),
+      await resolveXSubscriptionType({
+        ...connection,
+        subscriptionType: "Basic",
+      }),
     ).toBe("Basic");
     expect(console.warn).toHaveBeenCalledWith(
       "[x-subscription-tier] Could not store subscription tier",

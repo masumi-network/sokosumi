@@ -9,7 +9,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
 
-export const X_SUBSCRIPTION_CACHE_TTL_MS = 60_000;
 export const X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS = 3_000;
 
 type XConnection = Pick<
@@ -21,20 +20,6 @@ type XConnection = Pick<
   | "subscriptionType"
 >;
 
-interface CachedTier {
-  subscriptionType: string;
-  expiresAt: number;
-}
-
-/** Separate instances keep successful lookups and in-flight requests isolated in tests. */
-export function createXSubscriptionTierCache() {
-  return {
-    successful: new Map<string, CachedTier>(),
-    inFlight: new Map<string, Promise<string | null>>(),
-  };
-}
-
-const defaultCache = createXSubscriptionTierCache();
 const subscriptionSchema = z.enum(["None", "Basic", "Premium", "PremiumPlus"]);
 
 async function lookupXSubscriptionType(
@@ -85,55 +70,16 @@ async function lookupXSubscriptionType(
 /** Lookup failures preserve the last known tier and never prevent posting. */
 export async function resolveXSubscriptionType(
   connection: XConnection,
-  {
-    cache = defaultCache,
-    refresh = false,
-    signal,
-  }: {
-    cache?: ReturnType<typeof createXSubscriptionTierCache>;
-    /** Publishing rechecks even when the composer or save just populated the cache. */
-    refresh?: boolean;
-    signal?: AbortSignal;
-  } = {},
+  { signal }: { signal?: AbortSignal } = {},
 ): Promise<string | null> {
   if (connection.provider !== "x") return connection.subscriptionType;
-  const now = Date.now();
-  // Prune expired entries so idle connections do not accumulate for the process lifetime.
-  for (const [id, entry] of cache.successful) {
-    if (entry.expiresAt <= now) cache.successful.delete(id);
-  }
-  const cached = refresh ? undefined : cache.successful.get(connection.id);
-  let subscriptionType = cached?.subscriptionType;
-  if (subscriptionType === undefined) {
-    let request = cache.inFlight.get(connection.id);
-    if (!request) {
-      const timeout = AbortSignal.timeout(X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS);
-      const lookupSignal = signal
-        ? AbortSignal.any([signal, timeout])
-        : timeout;
-      request = lookupXSubscriptionType(connection, lookupSignal).then(
-        (tier) => {
-          if (tier !== null) {
-            cache.successful.set(connection.id, {
-              subscriptionType: tier,
-              expiresAt: Date.now() + X_SUBSCRIPTION_CACHE_TTL_MS,
-            });
-          }
-          return tier;
-        },
-      );
-      cache.inFlight.set(connection.id, request);
-      const activeRequest = request;
-      void request.finally(() => {
-        if (cache.inFlight.get(connection.id) === activeRequest) {
-          cache.inFlight.delete(connection.id);
-        }
-      });
-    }
-    const resolved = await request;
-    if (resolved === null) return connection.subscriptionType;
-    subscriptionType = resolved;
-  }
+  const timeout = AbortSignal.timeout(X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS);
+  const lookupSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  const subscriptionType = await lookupXSubscriptionType(
+    connection,
+    lookupSignal,
+  );
+  if (subscriptionType === null) return connection.subscriptionType;
   if (subscriptionType !== connection.subscriptionType) {
     try {
       await prisma.projectSocialConnection.update({

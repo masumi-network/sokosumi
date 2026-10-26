@@ -227,7 +227,6 @@ describe("social post publisher service", () => {
         provider: "x",
       }),
       expect.objectContaining({
-        refresh: true,
         signal: expect.any(AbortSignal),
       }),
     );
