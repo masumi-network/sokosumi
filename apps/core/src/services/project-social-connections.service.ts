@@ -876,3 +876,82 @@ export async function revokeProjectSocialConnectionForClose(
     where: { connectionId: pending.connectedAccountId },
   });
 }
+
+const LINKEDIN_PERSON_URN_PREFIX = "urn:li:person:";
+
+function linkedInPersonKey(value: string): string {
+  return value.startsWith(LINKEDIN_PERSON_URN_PREFIX)
+    ? value.slice(LINKEDIN_PERSON_URN_PREFIX.length)
+    : value;
+}
+
+/**
+ * Best effort backfill for LinkedIn accounts connected before their photo was
+ * read: looks the identity up again and stores the photo (and a missing name)
+ * only while the row still has none. Never throws.
+ */
+export async function backfillLinkedInAccountProfile(connection: {
+  id: string;
+  projectId: string;
+  provider: string;
+  status: string;
+  composioConnectedAccountId: string;
+  externalAccountId: string;
+  avatarUrl: string | null;
+}): Promise<boolean> {
+  if (
+    connection.provider !== "linkedin" ||
+    connection.status !== "active" ||
+    connection.avatarUrl
+  ) {
+    return false;
+  }
+  let snapshot: string | null = null;
+  try {
+    const identity = await getConnectedSocialIdentity({
+      provider: "linkedin",
+      connectedAccountId: connection.composioConnectedAccountId,
+      executorUserId: projectExecutorUserId(connection.projectId),
+    });
+    if (
+      linkedInPersonKey(identity.id) !==
+      linkedInPersonKey(connection.externalAccountId)
+    ) {
+      return false;
+    }
+    if (!identity.avatarUrl) return false;
+    snapshot = await snapshotSocialAccountAvatar({
+      projectId: connection.projectId,
+      provider: "linkedin",
+      externalAccountId: connection.externalAccountId,
+      avatarUrl: identity.avatarUrl,
+    });
+    if (!snapshot) return false;
+    const updated = await prisma.projectSocialConnection.updateMany({
+      where: { id: connection.id, status: "active", avatarUrl: null },
+      data: { avatarUrl: snapshot },
+    });
+    if (identity.displayName) {
+      await prisma.projectSocialConnection.updateMany({
+        where: { id: connection.id, displayName: null },
+        data: { displayName: identity.displayName },
+      });
+    }
+    if (updated.count === 0) {
+      await deleteSocialAccountAvatarIfOwned(snapshot, connection.projectId);
+      return false;
+    }
+    return true;
+  } catch {
+    console.warn("[social-connections] LinkedIn profile backfill failed", {
+      connectionId: connection.id,
+    });
+    if (snapshot) {
+      await deleteSocialAccountAvatarIfOwned(
+        snapshot,
+        connection.projectId,
+      ).catch(() => {});
+    }
+    return false;
+  }
+}
