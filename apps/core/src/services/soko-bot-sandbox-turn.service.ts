@@ -35,6 +35,11 @@ import {
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
+  MODEL_CALL_MAX_MS,
+  ModelStreamStalledError,
+  readUntilIdle,
+} from "@/lib/soko-bot/stream-model-call";
+import {
   announceTurn,
   closeTurn,
   failTurn,
@@ -407,6 +412,16 @@ function isUndiciGatewayFetchFailure(error: unknown): boolean {
   );
 }
 
+/** The whole response body, failing fast if the stream goes silent. */
+async function readBody(response: Response): Promise<string> {
+  if (!response.body) return "";
+  const decoder = new TextDecoder();
+  let text = "";
+  for await (const chunk of readUntilIdle(response.body))
+    text += decoder.decode(chunk, { stream: true });
+  return text + decoder.decode();
+}
+
 /**
  * The parts of a streamed Gateway answer, one JSON object per SSE `data:`
  * line; undefined when the body is not such a stream.
@@ -498,9 +513,14 @@ export async function proxySandboxModelCall(
       method: "POST",
       headers,
       body: JSON.stringify(payload),
+      // Answer before Vercel kills the invocation, so the runner gets a 502
+      // it retries instead of a 504 after five minutes.
+      signal: AbortSignal.timeout(MODEL_CALL_MAX_MS),
     });
-    text = await upstream.text();
+    text = await readBody(upstream);
   } catch (error) {
+    if (error instanceof ModelStreamStalledError)
+      throw Object.assign(badGateway(error.message), { cause: error });
     if (!isUndiciGatewayFetchFailure(error)) throw error;
     // No kind on this 502: keep the undici error as cause for Sentry's chain.
     throw Object.assign(

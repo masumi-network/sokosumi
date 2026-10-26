@@ -1,4 +1,4 @@
-import { simulateReadableStream } from "ai";
+import { simulateReadableStream, wrapLanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,22 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
+import { sokoBotRegionMiddleware } from "./model-policy";
+import {
+  MODEL_STREAM_IDLE_MS,
+  ModelStreamStalledError,
+} from "./stream-model-call";
+
+/** The model as the runtime gets it: behind the region check. */
+function behindRegionCheck(model: MockLanguageModelV3) {
+  return wrapLanguageModel({
+    model,
+    middleware: sokoBotRegionMiddleware({
+      model: "google/gemini-3.6-flash",
+      role: "agent",
+    }),
+  });
+}
 
 const TURN_ID = "01960001-0001-7001-8001-000000000001";
 
@@ -211,7 +227,11 @@ describe("InProcessSokoBotRuntime", () => {
       }),
     });
     streamModelCallMock.mockImplementationOnce((options) =>
-      streamModelCall({ ...options, model, stopWhen: stepCountIs(5) }),
+      streamModelCall({
+        ...options,
+        model: behindRegionCheck(model),
+        stopWhen: stepCountIs(5),
+      }),
     );
 
     vi.useFakeTimers({ toFake: ["setTimeout"] });
@@ -244,6 +264,55 @@ describe("InProcessSokoBotRuntime", () => {
       cacheWriteTokens: 0,
       costUsd: 0.05,
     });
+  });
+
+  it("fails the turn fast when the model stream goes silent", async () => {
+    const { streamModelCall } = await vi.importActual<
+      typeof import("./stream-model-call")
+    >("./stream-model-call");
+    const model = new MockLanguageModelV3({
+      doStream: async () => ({
+        // Opens, sends one part, then never sends or closes again.
+        stream: new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "text-start", id: "answer" });
+          },
+        }),
+      }),
+    });
+    streamModelCallMock.mockImplementationOnce((options) =>
+      streamModelCall({
+        ...options,
+        model: behindRegionCheck(model),
+        stopWhen: undefined,
+      }),
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Write the month's strategy",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_MS + 2_000);
+      await Promise.all(pendingTurns);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(
+      recordedEvents().find((event) => event.type === "turn.failed")?.data,
+    ).toMatchObject({
+      code: "ModelStreamStalledError",
+      message: new ModelStreamStalledError(MODEL_STREAM_IDLE_MS).message,
+    });
+    expect(
+      recordedEvents().filter((event) => event.type === "step.completed"),
+    ).toHaveLength(0);
   });
 
   it("fails the turn when the model stream reports an error", async () => {

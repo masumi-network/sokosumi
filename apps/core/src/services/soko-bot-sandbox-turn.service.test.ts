@@ -1,6 +1,12 @@
-import { createGateway } from "ai";
+import { createGateway, stepCountIs, tool } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { streamModelCall } from "@/lib/soko-bot/stream-model-call";
+import { z } from "zod";
+import {
+  MODEL_CALL_MAX_MS,
+  MODEL_STREAM_IDLE_MS,
+  ModelStreamStalledError,
+  streamModelCall,
+} from "@/lib/soko-bot/stream-model-call";
 
 const {
   authorizeMock,
@@ -278,50 +284,109 @@ describe("sandbox turn service", () => {
     expect(events().map((event) => event.type)).toContain("step.completed");
   });
 
-  it("returns a step that streams for minutes once it finished, metered once", async () => {
-    // A non-streamed Gateway call dies at about 60 seconds; this answer
-    // arrives over two minutes.
-    const parts = [
-      { type: "text-start", id: "answer" },
-      ...Array.from({ length: 12 }, (_, index) => ({
-        type: "text-delta",
-        id: "answer",
-        delta: `Week ${index + 1}. `,
-      })),
-      { type: "text-end", id: "answer" },
-      FINISH,
-    ];
+  /** A Gateway answer that sends one part every `gapMs`, then maybe stalls. */
+  function slowGateway(parts: unknown[], gapMs: number, stall = false) {
     const encoder = new TextEncoder();
+    const cancelled = vi.fn();
     fetchMock.mockImplementation(
       async () =>
         new Response(
           new ReadableStream({
             async start(controller) {
               for (const part of parts) {
-                await new Promise((resolve) => setTimeout(resolve, 10_000));
+                await new Promise((resolve) => setTimeout(resolve, gapMs));
                 controller.enqueue(encoder.encode(sse([part])));
               }
-              controller.close();
+              if (!stall) controller.close();
             },
+            cancel: cancelled,
           }),
           { status: 200, headers: { "content-type": "text/event-stream" } },
         ),
     );
+    return { cancelled };
+  }
+
+  /** The runner's own Gateway client, pointed at Core's proxy. */
+  function runnerGateway() {
+    return createGateway({
+      baseURL: "https://core.test/gateway",
+      apiKey: "sandbox",
+      fetch: async (_url, init) => {
+        const proxied = await proxySandboxModelCall(claims, {
+          headers: new Headers(init?.headers),
+          body: String(init?.body),
+        });
+        return new Response(proxied.body, {
+          status: proxied.status,
+          headers: { "content-type": proxied.contentType },
+        });
+      },
+    });
+  }
+
+  it("runs one long tool call that streams for minutes, metered once", async () => {
+    // The preview's failing step: one upload_file call carrying a whole
+    // month's calendar. A non-streamed Gateway call dies at about 60 seconds;
+    // this one arrives over two and a half minutes.
+    const content = Array.from(
+      { length: 30 },
+      (_, day) => `Day ${day + 1}: ${"draft ".repeat(16)}`,
+    );
+    const input = JSON.stringify({
+      name: "calendar.md",
+      content: content.join(""),
+    });
+    const slices = input.match(/.{1,200}/g) ?? [];
+    slowGateway(
+      [
+        { type: "tool-input-start", id: "call_1", toolName: "save_file" },
+        ...slices.map((delta) => ({
+          type: "tool-input-delta",
+          id: "call_1",
+          delta,
+        })),
+        { type: "tool-input-end", id: "call_1" },
+        {
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "save_file",
+          input,
+        },
+        {
+          ...FINISH,
+          finishReason: { unified: "tool-calls", raw: "tool_calls" },
+        },
+      ],
+      10_000,
+    );
+    const execute = vi.fn(
+      async (_input: { name: string; content: string }) => ({ saved: true }),
+    );
 
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     try {
-      const pending = proxySandboxModelCall(claims, modelRequest());
-      await vi.advanceTimersByTimeAsync(160_000);
-      const result = await pending;
-
-      expect(result).toEqual({
-        status: 200,
-        body: sse(parts),
-        contentType: "text/event-stream",
+      const pending = streamModelCall({
+        model: runnerGateway()("google/gemini-3.6-flash"),
+        prompt: "Save the month's calendar as one file",
+        maxRetries: 0,
+        tools: {
+          save_file: tool({
+            inputSchema: z.object({ name: z.string(), content: z.string() }),
+            execute,
+          }),
+        },
+        stopWhen: stepCountIs(1),
       });
+      await vi.advanceTimersByTimeAsync((slices.length + 5) * 10_000);
+      const result = await pending;
+      expect(result.finishReason).toBe("tool-calls");
     } finally {
       vi.useRealTimers();
     }
+    expect(slices.length * 10_000).toBeGreaterThan(120_000);
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute.mock.calls[0]?.[0]).toEqual(JSON.parse(input));
     expect(events().map((event) => event.type)).toEqual([
       "step.started",
       "step.completed",
@@ -329,6 +394,40 @@ describe("sandbox turn service", () => {
     expect(events()[1]?.data).toMatchObject({
       usage: { inputTokens: 1_000, outputTokens: 50, costUsd: 0.004 },
     });
+  });
+
+  it("fails a stalled Gateway stream fast with a 502 the runner retries", async () => {
+    // The preview hit this: the Gateway left a streamed answer open and
+    // silent, and Core waited until Vercel killed it at 300 seconds.
+    const { cancelled } = slowGateway(
+      [{ type: "tool-input-start", id: "call_1", toolName: "save_file" }],
+      1_000,
+      true,
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const settled = proxySandboxModelCall(claims, modelRequest()).then(
+        () => expect.unreachable("expected 502"),
+        (caught: unknown) => caught,
+      );
+      await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_MS + 2_000);
+      const error = await settled;
+      expect(error).toMatchObject({ status: 502 });
+      expect((error as Error).cause).toBeInstanceOf(ModelStreamStalledError);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(cancelled).toHaveBeenCalled();
+    expect(events().map((event) => event.type)).toEqual(["step.started"]);
+  });
+
+  it("gives every Gateway call a deadline inside Core's function limit", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, modelRequest());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(MODEL_CALL_MAX_MS).toBeLessThan(300_000);
   });
 
   it("keeps a stream that broke off from the runner, unmetered", async () => {
@@ -360,23 +459,8 @@ describe("sandbox turn service", () => {
         { type: "text-end", id: "answer" },
       ]),
     );
-    const gateway = createGateway({
-      baseURL: "https://core.test/gateway",
-      apiKey: "sandbox",
-      fetch: async (_url, init) => {
-        const proxied = await proxySandboxModelCall(claims, {
-          headers: new Headers(init?.headers),
-          body: String(init?.body),
-        });
-        return new Response(proxied.body, {
-          status: proxied.status,
-          headers: { "content-type": proxied.contentType },
-        });
-      },
-    });
-
     const result = await streamModelCall({
-      model: gateway("google/gemini-3.6-flash"),
+      model: runnerGateway()("google/gemini-3.6-flash"),
       prompt: "hi",
       maxRetries: 0,
     });
