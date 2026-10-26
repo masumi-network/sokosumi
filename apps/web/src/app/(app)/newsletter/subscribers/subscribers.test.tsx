@@ -475,47 +475,57 @@ describe("newsletter subscribers", () => {
     );
   });
 
-  it.each([
-    [
-      NewsletterSubscriberStatus.ACTIVE,
-      COPY.unsubscribe,
-      NewsletterSubscriberStatus.UNSUBSCRIBED,
-    ],
-  ])("changes status only for %s", async (status, label, target) => {
+  it("unsubscribes an active subscriber", async () => {
     const user = userEvent.setup();
     renderSubscribers({
-      data: { ...DATA, subscribers: [{ ...PERSON, status }] },
+      data: { ...DATA, subscribers: [PERSON] },
     });
     await user.click(
       screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
     );
-    await user.click(screen.getByRole("menuitem", { name: label }));
+    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
     expect(mocks.status).toHaveBeenCalledWith({
       projectId: "p1",
       subscriberId: PERSON.id,
-      status: target,
+      status: NewsletterSubscriberStatus.UNSUBSCRIBED,
     });
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
-  it.each([NewsletterSubscriberStatus.PENDING])(
-    "offers removal only for %s",
-    async (status) => {
-      const user = userEvent.setup();
-      renderSubscribers({
-        data: { ...DATA, subscribers: [{ ...PERSON, status }] },
-      });
-      await user.click(
-        screen.getByRole("button", {
-          name: `Manage subscriber ${PERSON.email}`,
-        }),
-      );
-      expect(screen.getAllByRole("menuitem")).toHaveLength(1);
-      expect(
-        screen.getByRole("menuitem", { name: COPY.remove }),
-      ).toBeInTheDocument();
-    },
-  );
+  it("offers removal only for a pending subscriber", async () => {
+    const user = userEvent.setup();
+    renderSubscribers({
+      data: {
+        ...DATA,
+        subscribers: [
+          { ...PERSON, status: NewsletterSubscriberStatus.PENDING },
+        ],
+      },
+    });
+    await user.click(
+      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+    );
+    expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+    expect(
+      screen.getByRole("menuitem", { name: COPY.remove }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    NewsletterSubscriberStatus.UNSUBSCRIBED,
+    NewsletterSubscriberStatus.BOUNCED,
+  ])("offers no reactivation or removal for %s", (status) => {
+    renderSubscribers({
+      data: { ...DATA, subscribers: [{ ...PERSON, status }] },
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: `Manage subscriber ${PERSON.email}`,
+      }),
+    ).not.toBeInTheDocument();
+    expect(mocks.status).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
 
   it("reports stale status errors without claiming success", async () => {
     mocks.status.mockResolvedValue({
