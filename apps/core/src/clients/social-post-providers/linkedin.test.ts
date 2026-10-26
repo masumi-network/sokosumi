@@ -224,6 +224,308 @@ describe("publishLinkedInPost", () => {
     ]);
   });
 
+  it("normalises a stored full person URN to a single prefix", async () => {
+    const fetchMock = stubSession(() =>
+      toolResponse({ id: "urn:li:share:74" }),
+    );
+
+    await publishLinkedInPost({
+      ...context,
+      externalAccountId: "urn:li:person:urn:li:person:person_42",
+    });
+
+    expect(executeCalls(fetchMock)[0].arguments.author).toBe(
+      "urn:li:person:person_42",
+    );
+  });
+
+  describe("as a company page", () => {
+    const pageContext = {
+      ...context,
+      externalAccountId: "urn:li:organization:777",
+      externalHandle: "example-company",
+    };
+    const VIDEO_REF = {
+      pathname: "drive/users/user_1/clip.mp4",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/clip.mp4",
+      name: "clip.mp4",
+      size: 6,
+      mimeType: "video/mp4",
+      kind: "video" as const,
+    };
+
+    interface ProxyCall {
+      endpoint: string;
+      method: string;
+      parameters: { name: string; value: string; type: string }[];
+      body?: Record<string, unknown>;
+      connected_account_id: string;
+    }
+
+    function stubPageVideo(
+      respond: (call: ProxyCall) => {
+        status: number;
+        data?: unknown;
+        headers?: Record<string, string>;
+      },
+    ) {
+      const fetchMock = vi.fn(
+        async (url: URL, init?: RequestInit): Promise<Response> => {
+          if (url.pathname === "/api/v3.1/tools/execute/proxy") {
+            return Response.json(respond(JSON.parse(String(init?.body))));
+          }
+          if (url.pathname === "/api/v3.1/tool_router/session") {
+            return Response.json({ session_id: "sess_li" });
+          }
+          if (init?.method === "DELETE") return Response.json({});
+          throw new Error(`Unexpected path ${url.pathname}`);
+        },
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    function proxyCalls(fetchMock: ReturnType<typeof stubPageVideo>) {
+      return fetchMock.mock.calls
+        .filter(([url]) => url.pathname.endsWith("/proxy"))
+        .map(([, init]) => JSON.parse(String(init?.body)) as ProxyCall);
+    }
+
+    function videoResponder(call: ProxyCall) {
+      const action = call.parameters.find((p) => p.name === "action")?.value;
+      if (action === "initializeUpload") {
+        return {
+          status: 200,
+          data: {
+            value: {
+              video: "urn:li:video:C5",
+              uploadToken: "",
+              uploadInstructions: [
+                {
+                  uploadUrl: "https://www.linkedin.com/dms-uploads/part-1",
+                  firstByte: 0,
+                  lastByte: 3,
+                },
+                {
+                  uploadUrl: "https://www.linkedin.com/dms-uploads/part-2",
+                  firstByte: 4,
+                  lastByte: 5,
+                },
+              ],
+            },
+          },
+        };
+      }
+      if (action === "finalizeUpload") return { status: 200, data: {} };
+      if (call.method === "GET") {
+        return { status: 200, data: { status: "AVAILABLE" } };
+      }
+      return {
+        status: 201,
+        data: {},
+        headers: { "X-RestLi-Id": "urn:li:share:900" },
+      };
+    }
+
+    it("publishes text with the organization as author", async () => {
+      const fetchMock = stubSession(() =>
+        toolResponse({ id: "urn:li:share:81" }),
+      );
+
+      await expect(publishLinkedInPost(pageContext)).resolves.toMatchObject({
+        externalId: "urn:li:share:81",
+        toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+      });
+      expect(executeCalls(fetchMock)).toEqual([
+        {
+          tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
+          arguments: {
+            author: "urn:li:organization:777",
+            commentary: "Hello LinkedIn",
+            visibility: "PUBLIC",
+            lifecycleState: "PUBLISHED",
+          },
+        },
+      ]);
+    });
+
+    it("registers images owned by the organization", async () => {
+      const fetchMock = stubSession((call) =>
+        call.tool_slug === "LINKEDIN_REGISTER_IMAGE_UPLOAD"
+          ? toolResponse({
+              upload_url: "https://www.linkedin.com/upload/1",
+              asset_urn: "urn:li:image:asset_1",
+            })
+          : toolResponse({ id: "urn:li:share:82" }),
+      );
+      downloadSocialPostMediaMock.mockResolvedValue([
+        {
+          bytes: new Uint8Array([1, 2, 3]),
+          name: "photo.jpg",
+          mimeType: "image/jpeg",
+          kind: "image",
+        },
+      ]);
+
+      await publishLinkedInPost({
+        ...pageContext,
+        media: [LINKEDIN_IMAGE_REF],
+      });
+
+      expect(executeCalls(fetchMock)).toEqual([
+        {
+          tool_slug: "LINKEDIN_REGISTER_IMAGE_UPLOAD",
+          arguments: { owner_urn: "urn:li:organization:777" },
+        },
+        {
+          tool_slug: "LINKEDIN_CREATE_LINKED_IN_POST",
+          arguments: {
+            author: "urn:li:organization:777",
+            commentary: "Hello LinkedIn",
+            visibility: "PUBLIC",
+            lifecycleState: "PUBLISHED",
+            images: ["urn:li:image:asset_1"],
+          },
+        },
+      ]);
+    });
+
+    it("uploads a video through the Videos API and posts it as the organization", async () => {
+      const fetchMock = stubPageVideo(videoResponder);
+      downloadSocialPostMediaMock.mockResolvedValue([
+        {
+          bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+          name: "clip.mp4",
+          mimeType: "video/mp4",
+          kind: "video",
+        },
+      ]);
+      ssrfSafeFetchMock
+        .mockResolvedValueOnce(
+          new Response("", { headers: { etag: "etag-1" } }),
+        )
+        .mockResolvedValueOnce(
+          new Response("", { headers: { etag: "etag-2" } }),
+        );
+
+      await expect(
+        publishLinkedInPost({ ...pageContext, media: [VIDEO_REF] }),
+      ).resolves.toEqual({
+        externalId: "urn:li:share:900",
+        publishedUrl: "https://www.linkedin.com/feed/update/urn:li:share:900",
+        toolSlug: "LINKEDIN_PROXY_ORGANIZATION_VIDEO_POST",
+      });
+
+      const calls = proxyCalls(fetchMock);
+      expect(calls.every((call) => call.connected_account_id === "ca_li")).toBe(
+        true,
+      );
+      expect(calls[0]).toMatchObject({
+        endpoint: "https://api.linkedin.com/rest/videos",
+        method: "POST",
+        body: {
+          initializeUploadRequest: {
+            owner: "urn:li:organization:777",
+            fileSizeBytes: 6,
+          },
+        },
+      });
+      expect(
+        ssrfSafeFetchMock.mock.calls.map(([url, init]) => [
+          url,
+          Array.from(init.body as Uint8Array),
+        ]),
+      ).toEqual([
+        ["https://www.linkedin.com/dms-uploads/part-1", [1, 2, 3, 4]],
+        ["https://www.linkedin.com/dms-uploads/part-2", [5, 6]],
+      ]);
+      expect(calls[1].body).toEqual({
+        finalizeUploadRequest: {
+          video: "urn:li:video:C5",
+          uploadToken: "",
+          uploadedPartIds: ["etag-1", "etag-2"],
+        },
+      });
+      expect(calls[2]).toMatchObject({
+        endpoint: "https://api.linkedin.com/rest/videos/urn%3Ali%3Avideo%3AC5",
+        method: "GET",
+      });
+      expect(calls[3]).toMatchObject({
+        endpoint: "https://api.linkedin.com/rest/posts",
+        method: "POST",
+        body: {
+          author: "urn:li:organization:777",
+          commentary: "Hello LinkedIn",
+          content: { media: { id: "urn:li:video:C5" } },
+          lifecycleState: "PUBLISHED",
+        },
+      });
+      expect(
+        calls[3].parameters.find((p) => p.name === "LinkedIn-Version"),
+      ).toBeDefined();
+      // Composio's member-only video tools are never used for a page.
+      expect(
+        fetchMock.mock.calls.some(([url]) => url.pathname.endsWith("/execute")),
+      ).toBe(false);
+    });
+
+    it("fails without posting when LinkedIn cannot process the video", async () => {
+      const fetchMock = stubPageVideo((call) =>
+        call.method === "GET"
+          ? { status: 200, data: { status: "PROCESSING_FAILED" } }
+          : videoResponder(call),
+      );
+      downloadSocialPostMediaMock.mockResolvedValue([
+        {
+          bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+          name: "clip.mp4",
+          mimeType: "video/mp4",
+          kind: "video",
+        },
+      ]);
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response("", { headers: { etag: "etag" } }),
+      );
+
+      await expect(
+        publishLinkedInPost({ ...pageContext, media: [VIDEO_REF] }),
+      ).rejects.toMatchObject({
+        constructor: ComposioToolError,
+        message: "LinkedIn could not process the video",
+      });
+      expect(
+        proxyCalls(fetchMock).some((call) => call.endpoint.endsWith("/posts")),
+      ).toBe(false);
+    });
+
+    it("marks the outcome unknown when creating the video post fails upstream", async () => {
+      stubPageVideo((call) =>
+        call.endpoint.endsWith("/posts")
+          ? { status: 504, data: { message: "Gateway timeout" } }
+          : videoResponder(call),
+      );
+      downloadSocialPostMediaMock.mockResolvedValue([
+        {
+          bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+          name: "clip.mp4",
+          mimeType: "video/mp4",
+          kind: "video",
+        },
+      ]);
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response("", { headers: { etag: "etag" } }),
+      );
+
+      const { ComposioPublishOutcomeUnknownError } = await import(
+        "@/clients/social-post-providers/tools"
+      );
+      await expect(
+        publishLinkedInPost({ ...pageContext, media: [VIDEO_REF] }),
+      ).rejects.toBeInstanceOf(ComposioPublishOutcomeUnknownError);
+    });
+  });
+
   it("raises a tool error when the image registration is refused", async () => {
     stubSession(() =>
       Response.json({

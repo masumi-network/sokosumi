@@ -20,6 +20,7 @@ const connection = {
   displayName: "Sokosumi",
   avatarUrl: "https://example.com/avatar.jpg",
   subscriptionType: null,
+  accountType: null,
   status: "active",
   connectedAt: "2026-10-08T12:00:00.000Z",
   disconnectedAt: null,

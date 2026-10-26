@@ -5547,6 +5547,10 @@ export type UserWorkspace = {
      */
     enabledSocialProviders: Array<ProjectSocialProvider>;
     /**
+     * Whether LinkedIn accounts can add the company pages they administer
+     */
+    linkedInCompanyPagesEnabled: boolean;
+    /**
      * Whether a new session opens this workspace
      */
     preferred: boolean;
@@ -6701,6 +6705,10 @@ export type ProjectSocialConnection = {
      * Profile picture copy in Sokosumi storage
      */
     avatarUrl: string | null;
+    /**
+     * LinkedIn: a personal profile or a company page. Null for other providers.
+     */
+    accountType: 'personal' | 'organization' | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
@@ -6709,6 +6717,35 @@ export type ProjectSocialConnection = {
 export type ProjectSocialConnectionSubscription = {
     subscriptionType: string | null;
     textLimit: number;
+};
+
+export type ProjectSocialConnectionPages = {
+    /**
+     * `permission_missing`: the connection was authorized without the provider permission to manage pages. Personal posting still works.
+     */
+    status: 'available' | 'permission_missing';
+    pages: Array<ProjectSocialConnectionPage>;
+};
+
+export type ProjectSocialConnectionPage = {
+    /**
+     * Provider id of the page; send it back to add the page
+     */
+    externalAccountId: string;
+    name: string | null;
+    handle: string | null;
+    /**
+     * Provider CDN logo URL; it expires, so do not store it
+     */
+    logoUrl: string | null;
+    /**
+     * The Project account for this page, when already added
+     */
+    socialConnectionId: string | null;
+};
+
+export type AddProjectSocialConnectionPageRequest = {
+    externalAccountId: string;
 };
 
 export type SocialAccountStatisticsPage = {
@@ -49205,6 +49242,320 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses 
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponse = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdPagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/pages';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdPagesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdPagesError = GetProjectsByIdSocialConnectionsByConnectionIdPagesErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdPagesErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdPagesResponses = {
+    /**
+     * Pages the account can post as
+     */
+    200: {
+        data: ProjectSocialConnectionPages;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdPagesResponse = GetProjectsByIdSocialConnectionsByConnectionIdPagesResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdPagesResponses];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdPagesData = {
+    body: AddProjectSocialConnectionPageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/pages';
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdPagesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdPagesError = PostProjectsByIdSocialConnectionsByConnectionIdPagesErrors[keyof PostProjectsByIdSocialConnectionsByConnectionIdPagesErrors];
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdPagesResponses = {
+    /**
+     * Project account for the page
+     */
+    201: {
+        data: ProjectSocialConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsByConnectionIdPagesResponse = PostProjectsByIdSocialConnectionsByConnectionIdPagesResponses[keyof PostProjectsByIdSocialConnectionsByConnectionIdPagesResponses];
 
 export type GetProjectsByIdSocialConnectionsStatisticsData = {
     body?: never;

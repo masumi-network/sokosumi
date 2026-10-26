@@ -158,6 +158,24 @@ describe("publishSocialPostFirstComment", () => {
     );
   });
 
+  it("comments on LinkedIn as the company page that posted", async () => {
+    await publishSocialPostFirstComment({
+      ...base,
+      provider: "linkedin",
+      externalAccountId: "urn:li:organization:777",
+      externalId: "urn:li:share:900",
+    });
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolSlug: "LINKEDIN_CREATE_COMMENT_ON_POST",
+        arguments: expect.objectContaining({
+          actor: "urn:li:organization:777",
+          object: "urn:li:share:900",
+        }),
+      }),
+    );
+  });
+
   it("wraps a bare LinkedIn id and skips activity URNs", async () => {
     await publishSocialPostFirstComment({
       ...base,

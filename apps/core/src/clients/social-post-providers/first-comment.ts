@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/utils";
 
 import { deleteComposioToolSession } from "@/clients/composio.client";
+import { linkedInAuthorUrn } from "@/clients/social-post-providers/linkedin-author";
 import {
   createComposioToolSession,
   executeComposioTool,
@@ -71,7 +72,7 @@ function commentArguments(
       const urn = linkedInCommentUrn(input.externalId);
       if (!urn) return null;
       return {
-        actor: `urn:li:person:${input.externalAccountId}`,
+        actor: linkedInAuthorUrn(input.externalAccountId),
         object: urn,
         target_urn: urn,
         message: { text: input.text },

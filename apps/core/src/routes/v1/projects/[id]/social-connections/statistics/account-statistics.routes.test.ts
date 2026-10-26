@@ -57,6 +57,7 @@ const account = {
   displayName: "Launch",
   avatarUrl: null,
   subscriptionType: null,
+  accountType: null,
   status: "active",
   connectedAt: null,
   disconnectedAt: null,

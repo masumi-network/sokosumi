@@ -204,6 +204,7 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "linkedInPages.companyPage": "Company page",
   "composer.publishNow": "Post now",
   "composer.pickAccount": "Pick an account to post to.",
   "composer.tooLong": "Text length is over the limit.",
@@ -432,6 +433,7 @@ function buildConnection(
     displayName: null,
     avatarUrl: null,
     subscriptionType: null,
+    accountType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -6611,5 +6613,39 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(row).queryByText("X rejected the post (429 too many requests)"),
     ).not.toBeInTheDocument();
+  });
+
+  it("marks a LinkedIn company page in the composer's accounts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "page-connection",
+            provider: "linkedin",
+            externalHandle: null,
+            displayName: "Example Company",
+            accountType: "organization",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    const page = within(accounts).getByRole("button", {
+      name: "LinkedIn Example Company (Company page)",
+    });
+    expect(within(page).getByText("Company page")).toBeVisible();
+    expect(
+      within(
+        within(accounts).getByRole("button", { name: "X @sokosumi" }),
+      ).queryByText("Company page"),
+    ).toBeNull();
   });
 });

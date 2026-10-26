@@ -15,6 +15,7 @@ import type {
   ProjectContextMd,
   ProjectListItem,
   ProjectSocialConnection,
+  ProjectSocialConnectionPages,
   ProjectStar,
   ProjectStatsEntry,
   PublishSocialPostRequest,
@@ -287,6 +288,32 @@ export const projectService = (() => {
         id: projectId,
         connectionId: socialConnectionId,
       });
+    return result.data;
+  }
+
+  async function listSocialConnectionPages(
+    projectId: string,
+    socialConnectionId: string,
+  ): Promise<ProjectSocialConnectionPages> {
+    const result =
+      await coreClient.getProjectsByIdSocialConnectionsByConnectionIdPages(
+        projectId,
+        socialConnectionId,
+      );
+    return result.data;
+  }
+
+  async function addSocialConnectionPage(
+    projectId: string,
+    socialConnectionId: string,
+    externalAccountId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result =
+      await coreClient.postProjectsByIdSocialConnectionsByConnectionIdPages(
+        projectId,
+        socialConnectionId,
+        { externalAccountId },
+      );
     return result.data;
   }
 
@@ -603,6 +630,8 @@ export const projectService = (() => {
     initiateSocialConnection,
     finalizeSocialConnection,
     disconnectSocialConnection,
+    listSocialConnectionPages,
+    addSocialConnectionPage,
     closeProject,
     retryProjectClose,
     cancelProjectCloseOwedWork,

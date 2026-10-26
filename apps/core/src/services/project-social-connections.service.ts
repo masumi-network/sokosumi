@@ -8,6 +8,10 @@ import {
   initiateComposioConnection,
   revokeComposioConnectedAccount,
 } from "@/clients/composio.client";
+import {
+  isLinkedInOrganization,
+  socialConnectionAccountType,
+} from "@/clients/social-post-providers/linkedin-author";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
   isProjectSocialProvider,
@@ -35,6 +39,7 @@ export interface ProjectSocialConnectionSummary {
   displayName: string | null;
   avatarUrl: string | null;
   subscriptionType: string | null;
+  accountType: "personal" | "organization" | null;
   status: string;
   connectedAt: Date | null;
   disconnectedAt: Date | null;
@@ -102,14 +107,14 @@ export function projectExecutorUserId(projectId: string): string {
   return `sokosumi:project-executor:${projectId}`;
 }
 
-function activeExternalAccountKey(
+export function activeExternalAccountKey(
   provider: string,
   externalAccountId: string,
 ): string {
   return `${provider}:${externalAccountId}`;
 }
 
-function mapProjectSocialConnection(
+export function mapProjectSocialConnection(
   connection: ProjectSocialConnectionRecord,
 ): ProjectSocialConnectionSummary {
   if (!isProjectSocialProvider(connection.provider)) {
@@ -122,6 +127,10 @@ function mapProjectSocialConnection(
     displayName: connection.displayName,
     avatarUrl: connection.avatarUrl,
     subscriptionType: connection.subscriptionType,
+    accountType: socialConnectionAccountType(
+      connection.provider,
+      connection.externalAccountId,
+    ),
     status: connection.status,
     connectedAt: connection.connectedAt,
     disconnectedAt: connection.disconnectedAt,
@@ -418,6 +427,10 @@ export async function finalizeProjectSocialConnection(
       }
       const key = activeExternalAccountKey(currentIntent.provider, identity.id);
       let target: ProjectSocialConnectionRecord | null = null;
+      // Rows sharing the target's authorization: a LinkedIn personal profile
+      // and the company pages added through it. A reconnect moves them all.
+      let reconnectSiblings: ProjectSocialConnectionRecord[] = [];
+      let reconnectPerson: ProjectSocialConnectionRecord | null = null;
       if (currentIntent.action !== "connect") {
         target = await tx.projectSocialConnection.findFirst({
           where: {
@@ -434,11 +447,27 @@ export async function finalizeProjectSocialConnection(
             "The connection provider must match the existing account",
           );
         }
-        if (
-          currentIntent.action === "reconnect" &&
-          target.externalAccountId !== identity.id
-        ) {
-          throw conflict("Reconnect must match the existing account");
+        if (currentIntent.action === "reconnect") {
+          reconnectSiblings = await tx.projectSocialConnection.findMany({
+            where: {
+              projectId: input.projectId,
+              provider: target.provider,
+              composioConnectedAccountId: target.composioConnectedAccountId,
+              status: { not: "disconnected" },
+              NOT: { id: target.id },
+            },
+          });
+          // A page reconnects through the person who added it.
+          reconnectPerson =
+            target.provider === "linkedin" &&
+            isLinkedInOrganization(target.externalAccountId)
+              ? (reconnectSiblings.find(
+                  (row) => !isLinkedInOrganization(row.externalAccountId),
+                ) ?? null)
+              : target;
+          if (reconnectPerson?.externalAccountId !== identity.id) {
+            throw conflict("Reconnect must match the existing account");
+          }
         }
       }
 
@@ -487,8 +516,9 @@ export async function finalizeProjectSocialConnection(
             socialConnectionId: target.id,
           };
         }
-        connection = await tx.projectSocialConnection.update({
-          where: { id: target.id },
+        const person = reconnectPerson ?? target;
+        const reconnected = await tx.projectSocialConnection.update({
+          where: { id: person.id },
           data: {
             composioConnectedAccountId: input.connectionId,
             connectorUserId,
@@ -503,6 +533,27 @@ export async function finalizeProjectSocialConnection(
             disconnectedAt: null,
           },
         });
+        const pageIds = [target, ...reconnectSiblings]
+          .filter((row) => row.id !== person.id)
+          .map((row) => row.id);
+        if (pageIds.length > 0) {
+          await tx.projectSocialConnection.updateMany({
+            where: { id: { in: pageIds } },
+            data: {
+              composioConnectedAccountId: input.connectionId,
+              connectorUserId,
+              status: "active",
+              connectedAt: now,
+              disconnectedAt: null,
+            },
+          });
+        }
+        connection =
+          person.id === target.id
+            ? reconnected
+            : await tx.projectSocialConnection.findUniqueOrThrow({
+                where: { id: target.id },
+              });
       } else {
         connection = await tx.projectSocialConnection.create({
           data: {
@@ -553,8 +604,8 @@ export async function finalizeProjectSocialConnection(
         replacedAvatarUrl:
           currentIntent.action === "reconnect" &&
           avatarUrl &&
-          target?.avatarUrl !== avatarUrl
-            ? (target?.avatarUrl ?? null)
+          (reconnectPerson ?? target)?.avatarUrl !== avatarUrl
+            ? ((reconnectPerson ?? target)?.avatarUrl ?? null)
             : null,
       };
     }, "Project social connection changed. Please retry.").catch(

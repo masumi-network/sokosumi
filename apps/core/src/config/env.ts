@@ -217,6 +217,14 @@ const baseEnvSchema = z.object({
   COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /**
+   * Posting as LinkedIn company pages. Needs Community Management API scopes
+   * on the LinkedIn auth config; see apps/core/README.md before enabling.
+   */
+  SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
   COMPOSIO_FACEBOOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_YOUTUBE_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: z.string().min(1).optional(),

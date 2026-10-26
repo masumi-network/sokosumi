@@ -5,6 +5,11 @@ import {
   ComposioApiError,
   deleteComposioToolSession,
 } from "@/clients/composio.client";
+import {
+  isLinkedInOrganization,
+  linkedInAuthorUrn,
+} from "@/clients/social-post-providers/linkedin-author";
+import { publishLinkedInOrganizationVideoPost } from "@/clients/social-post-providers/linkedin-organization-video";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
@@ -24,6 +29,9 @@ const LINKEDIN_CREATE_POST_TOOL_SLUG = "LINKEDIN_CREATE_LINKED_IN_POST";
 const LINKEDIN_REGISTER_IMAGE_TOOL_SLUG = "LINKEDIN_REGISTER_IMAGE_UPLOAD";
 const LINKEDIN_UPLOAD_VIDEO_TOOL_SLUG = "LINKEDIN_UPLOAD_VIDEO";
 const LINKEDIN_CREATE_VIDEO_TOOL_SLUG = "LINKEDIN_CREATE_VIDEO_POST";
+/** Recorded on the attempt; a page's video goes through the Composio proxy. */
+const LINKEDIN_ORGANIZATION_VIDEO_SLUG =
+  "LINKEDIN_PROXY_ORGANIZATION_VIDEO_POST";
 
 const LINKEDIN_TOOL_SLUGS = [
   LINKEDIN_REGISTER_IMAGE_TOOL_SLUG,
@@ -109,13 +117,22 @@ export async function publishLinkedInPost(
     context: "create Project LinkedIn publish session",
     signal: context.signal,
   });
-  const author = `urn:li:person:${context.externalAccountId}`;
+  const author = linkedInAuthorUrn(context.externalAccountId);
   try {
     const video = context.media.find((ref) => ref.kind === "video");
     let externalId: string | null = null;
     let toolSlug = LINKEDIN_CREATE_POST_TOOL_SLUG;
 
-    if (video) {
+    if (video && isLinkedInOrganization(context.externalAccountId)) {
+      toolSlug = LINKEDIN_ORGANIZATION_VIDEO_SLUG;
+      externalId = await publishLinkedInOrganizationVideoPost({
+        connectedAccountId: context.connectedAccountId,
+        author,
+        text: context.text,
+        video,
+        signal: context.signal,
+      });
+    } else if (video) {
       const uploaded = await executeComposioTool({
         sessionId,
         toolSlug: LINKEDIN_UPLOAD_VIDEO_TOOL_SLUG,

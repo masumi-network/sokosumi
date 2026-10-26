@@ -69,6 +69,7 @@ const orgWorkspace: UserWorkspace = {
   websiteUrl: null,
   preferred: false,
   enabledSocialProviders: ["x", "youtube", "linkedin"],
+  linkedInCompanyPagesEnabled: false,
 };
 
 describe("HeaderWorkspaceSwitch", () => {

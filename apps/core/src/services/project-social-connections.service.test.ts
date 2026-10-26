@@ -30,6 +30,7 @@ const {
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentFindUniqueInTransactionMock,
   socialConnectionUpdateMock,
+  socialConnectionUpdateManyMock,
   socialPostUpdateManyMock,
   transactionMock,
 } = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ const {
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentFindUniqueInTransactionMock: vi.fn(),
   socialConnectionUpdateMock: vi.fn(),
+  socialConnectionUpdateManyMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -90,7 +92,9 @@ const transactionClient = {
     findFirst: socialConnectionFindFirstMock,
     findUnique: socialConnectionFindUniqueMock,
     findMany: socialConnectionFindManyMock,
+    findUniqueOrThrow: socialConnectionFindUniqueMock,
     update: socialConnectionUpdateMock,
+    updateMany: socialConnectionUpdateManyMock,
   },
   socialPost: {
     updateMany: socialPostUpdateManyMock,
@@ -213,6 +217,7 @@ describe("project social connections service", () => {
     );
     socialConnectionAuditUpdateMock.mockResolvedValue({});
     socialPostUpdateManyMock.mockResolvedValue({ count: 0 });
+    socialConnectionFindManyMock.mockResolvedValue([]);
     transactionMock.mockImplementation(
       async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
         callback(transactionClient),
@@ -1782,6 +1787,7 @@ describe("project social connections service", () => {
         displayName: null,
         avatarUrl: null,
         subscriptionType: null,
+        accountType: null,
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,
@@ -1924,5 +1930,281 @@ describe("project social connections service", () => {
     expect(socialConnectionIntentDeleteMock).toHaveBeenCalledWith({
       where: { connectionId: CONNECTION_ID },
     });
+  });
+});
+
+describe("LinkedIn company page rows", () => {
+  const PERSON_ROW_ID = "44444444-4444-4444-8444-444444444444";
+  const PAGE_ROW_ID = "55555555-5555-4555-8555-555555555555";
+  const personRow = {
+    ...socialConnection,
+    id: PERSON_ROW_ID,
+    provider: "linkedin",
+    externalAccountId: "person_42",
+    externalHandle: "ada",
+    composioConnectedAccountId: "ca_old",
+    status: "active",
+    activeExternalAccountKey: "linkedin:person_42",
+  };
+  const pageRow = {
+    ...personRow,
+    id: PAGE_ROW_ID,
+    externalAccountId: "urn:li:organization:777",
+    externalHandle: "example-company",
+    displayName: "Example Company",
+    activeExternalAccountKey: "linkedin:urn:li:organization:777",
+  };
+
+  function linkedInIntent(socialConnectionId: string) {
+    return {
+      ...createIntent("reconnect"),
+      provider: "linkedin",
+      authConfigId: "ac_li",
+      socialConnectionId,
+    };
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    lockCalendarScopeMock.mockResolvedValue(true);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-03T10:00:00.000Z"));
+    getEnvMock.mockReturnValue({ COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_li" });
+    getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.com");
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      workspace: { organization: null },
+    });
+    socialConnectionAuditCreateMock.mockResolvedValue({ id: "audit_page" });
+    socialConnectionAuditUpdateMock.mockResolvedValue({});
+    socialConnectionUpdateManyMock.mockResolvedValue({ count: 1 });
+    socialConnectionFindManyMock.mockResolvedValue([]);
+    snapshotSocialAccountAvatarMock.mockResolvedValue(null);
+    transactionMock.mockImplementation(
+      async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
+        callback(transactionClient),
+    );
+  });
+
+  it("maps a page row to the organization account type", async () => {
+    socialConnectionFindManyMock.mockResolvedValue([personRow, pageRow]);
+    const { listProjectSocialConnections } = await import(
+      "./project-social-connections.service"
+    );
+
+    const listed = await listProjectSocialConnections({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(listed.map((row) => [row.id, row.accountType])).toEqual([
+      [PERSON_ROW_ID, "personal"],
+      [PAGE_ROW_ID, "organization"],
+    ]);
+  });
+
+  it("keeps the shared authorization when a page is disconnected but the profile stays", async () => {
+    socialConnectionFindFirstMock
+      .mockResolvedValueOnce(pageRow)
+      .mockResolvedValueOnce({ id: PERSON_ROW_ID });
+    socialConnectionFindUniqueMock.mockResolvedValue(pageRow);
+    const { disconnectProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    const result = await disconnectProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      socialConnectionId: PAGE_ROW_ID,
+    });
+
+    expect(result.providerRevocation).toBe("skipped");
+    expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+    expect(socialConnectionFindFirstMock).toHaveBeenLastCalledWith({
+      where: {
+        composioConnectedAccountId: "ca_old",
+        status: { not: "disconnected" },
+        NOT: { id: PAGE_ROW_ID },
+      },
+      select: { id: true },
+    });
+    expect(socialConnectionAuditUpdateMock).toHaveBeenCalledWith({
+      where: { id: "audit_page" },
+      data: { providerOutcome: "revocation_skipped_shared" },
+    });
+  });
+
+  it("revokes the shared authorization once its last row is disconnected", async () => {
+    socialConnectionFindFirstMock
+      .mockResolvedValueOnce(personRow)
+      .mockResolvedValueOnce(null);
+    socialConnectionFindUniqueMock.mockResolvedValue(personRow);
+    const { disconnectProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    const result = await disconnectProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      socialConnectionId: PERSON_ROW_ID,
+    });
+
+    expect(result.providerRevocation).toBe("succeeded");
+    expect(revokeComposioConnectedAccountMock).toHaveBeenCalledWith({
+      connectedAccountId: "ca_old",
+    });
+  });
+
+  it("skips close revocation while another Project still uses the authorization", async () => {
+    socialConnectionFindFirstMock.mockResolvedValueOnce({
+      id: "other-project-row",
+    });
+    const { revokeProjectSocialConnectionForClose } = await import(
+      "./project-social-connections.service"
+    );
+
+    await revokeProjectSocialConnectionForClose({
+      connectedAccountId: "ca_old",
+      retirement: {
+        auditId: "audit_close",
+        connectedAccountId: "ca_old",
+        socialConnectionId: PAGE_ROW_ID,
+      },
+    });
+
+    expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+    expect(socialConnectionAuditUpdateMock).toHaveBeenCalledWith({
+      where: { id: "audit_close" },
+      data: { providerOutcome: "revocation_skipped_shared" },
+    });
+  });
+
+  async function finalizeLinkedInReconnect(
+    target: typeof personRow,
+    identityId = "person_42",
+  ) {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      linkedInIntent(target.id),
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      linkedInIntent(target.id),
+    );
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: "linkedin",
+      authConfigId: "ac_li",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: identityId,
+      handle: "ada",
+      displayName: "Ada",
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionFindFirstMock
+      .mockResolvedValueOnce(target)
+      .mockResolvedValueOnce(null);
+    socialConnectionFindManyMock.mockResolvedValue(
+      [personRow, pageRow].filter((row) => row.id !== target.id),
+    );
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...personRow,
+      composioConnectedAccountId: CONNECTION_ID,
+    });
+    socialConnectionFindUniqueMock.mockResolvedValue({
+      ...pageRow,
+      composioConnectedAccountId: CONNECTION_ID,
+    });
+    socialConnectionAuditCreateMock
+      .mockResolvedValueOnce({ id: "audit_retire" })
+      .mockResolvedValueOnce({ id: "audit_reconnect" });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    return finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+  }
+
+  it("moves page rows onto the new authorization when the profile reconnects", async () => {
+    await expect(
+      finalizeLinkedInReconnect({
+        ...personRow,
+        status: "reauthorization_required",
+      }),
+    ).resolves.toMatchObject({ id: PERSON_ROW_ID, accountType: "personal" });
+
+    expect(socialConnectionFindManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        provider: "linkedin",
+        composioConnectedAccountId: "ca_old",
+        status: { not: "disconnected" },
+        NOT: { id: PERSON_ROW_ID },
+      },
+    });
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith({
+      where: { id: PERSON_ROW_ID },
+      data: expect.objectContaining({
+        composioConnectedAccountId: CONNECTION_ID,
+        externalHandle: "ada",
+      }),
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [PAGE_ROW_ID] } },
+      data: expect.objectContaining({
+        composioConnectedAccountId: CONNECTION_ID,
+        status: "active",
+      }),
+    });
+    expect(revokeComposioConnectedAccountMock).toHaveBeenCalledWith({
+      connectedAccountId: "ca_old",
+    });
+  });
+
+  it("reconnects a page through the profile that added it, keeping the page identity", async () => {
+    await expect(
+      finalizeLinkedInReconnect({
+        ...pageRow,
+        status: "reauthorization_required",
+      }),
+    ).resolves.toMatchObject({
+      id: PAGE_ROW_ID,
+      displayName: "Example Company",
+      accountType: "organization",
+    });
+
+    // The person's profile is written to the person row, never the page.
+    expect(socialConnectionUpdateMock).toHaveBeenCalledTimes(1);
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith({
+      where: { id: PERSON_ROW_ID },
+      data: expect.objectContaining({
+        composioConnectedAccountId: CONNECTION_ID,
+      }),
+    });
+    expect(socialConnectionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [PAGE_ROW_ID] } },
+      data: expect.objectContaining({
+        composioConnectedAccountId: CONNECTION_ID,
+      }),
+    });
+  });
+
+  it("rejects a page reconnect authorized by a different person", async () => {
+    await expect(
+      finalizeLinkedInReconnect(
+        { ...pageRow, status: "reauthorization_required" },
+        "someone_else",
+      ),
+    ).rejects.toThrow("Reconnect must match the existing account");
+    expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+    expect(socialConnectionUpdateManyMock).not.toHaveBeenCalled();
   });
 });

@@ -105,7 +105,9 @@ Account types and setup requirements:
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
-  member and publishes as that person. [Facebook](https://docs.composio.dev/toolkits/facebook)
+  member and publishes as that person. With
+  [company pages](#linkedin-company-pages) turned on, the member can also add the
+  pages they administer, each as its own account. [Facebook](https://docs.composio.dev/toolkits/facebook)
   binds the connection to the Page the account manages; it requires exactly one
   managed Page and rejects accounts with none or several instead of choosing one.
 - [YouTube](https://docs.composio.dev/toolkits/youtube) connects a channel. The
@@ -114,6 +116,40 @@ Account types and setup requirements:
 
 Live OAuth requires configured provider apps and accounts. Unit tests use
 provider-response fixtures and do not replace a live authorization check.
+
+#### LinkedIn company pages
+
+Posting as a LinkedIn company page is off by default behind
+`SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED`. While it is off, Core hides the pages
+routes (404), Web shows no page picker, and no extra Composio calls run.
+
+Pages need two more LinkedIn scopes on top of the personal ones:
+`w_organization_social` (post, comment and upload as the page) and
+`r_organization_admin` or `rw_organization_admin` (list the pages a member
+administers and read their name and logo). Both belong to LinkedIn's vetted
+**Community Management API** product. To turn pages on:
+
+1. Get Community Management API approved on Masumi's own LinkedIn app.
+2. Create a custom Composio LinkedIn auth config on that app that requests
+   `openid`, `profile`, `w_member_social`, `w_organization_social` and
+   `r_organization_admin` (or `rw_organization_admin`), and point
+   `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` at it.
+3. Set `SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED=true` and redeploy Core.
+   Existing members reconnect LinkedIn to grant the new scopes.
+
+Do not add the scopes before LinkedIn approves the product: LinkedIn rejects
+the whole OAuth request when an app asks for a scope it lacks, which breaks
+every LinkedIn connection, personal ones included. With the flag on but a
+connection missing the scopes, the page list answers `permission_missing` and
+personal posting keeps working.
+
+Each added page is its own `ProjectSocialConnection` (`externalAccountId` is the
+full `urn:li:organization:<id>`) that shares the personal row's Composio
+connected account. Disconnecting revokes that authorization only once no
+active row uses it. Text and image posts use the Composio LinkedIn tools with
+the page as author. Composio's video tools post only as the member, so page
+videos go through the Composio proxy to LinkedIn's Videos and Posts APIs.
+Account statistics are not read for pages.
 
 #### Vercel environment for Social publishing
 
@@ -129,6 +165,7 @@ Core after changing them. The **Web** project needs no new variables.
 | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup).                                                                                                                        |
 | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Instagram.                                                                                                                                                        |
 | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for LinkedIn.                                                                                                                                                         |
+| `SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED`    | No             | `true` lets LinkedIn accounts add the company pages they administer. Default off. See [LinkedIn company pages](#linkedin-company-pages) first.                                       |
 | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for Facebook.                                                                                                                                                         |
 | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`          | Per provider   | Auth-config ID for YouTube.                                                                                                                                                          |
 | `COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Google Ads (Ads management).                                                                                                                                      |

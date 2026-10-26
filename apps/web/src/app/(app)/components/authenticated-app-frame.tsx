@@ -85,10 +85,12 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const enabledSocialProviders =
-    (await userService.getMyWorkspaces())?.workspaces.find(
-      (workspace) => workspace.organizationId === activeOrganizationId,
-    )?.enabledSocialProviders ?? [];
+  const activeWorkspace = (
+    await userService.getMyWorkspaces()
+  )?.workspaces.find(
+    (workspace) => workspace.organizationId === activeOrganizationId,
+  );
+  const enabledSocialProviders = activeWorkspace?.enabledSocialProviders ?? [];
   // In parallel: the sidebar's Ads row and the seat gate are both single
   // reads the frame already has to finish before it paints nav.
   const [hasAssignedSeat, socialBetaEnabled] = await Promise.all([
@@ -191,6 +193,10 @@ export default async function AuthenticatedAppFrame({
                               >
                                 <SocialProviderAvailabilityProvider
                                   enabledProviders={enabledSocialProviders}
+                                  linkedInCompanyPagesEnabled={
+                                    activeWorkspace?.linkedInCompanyPagesEnabled ??
+                                    false
+                                  }
                                 >
                                   <AppMobileChrome>{children}</AppMobileChrome>
                                 </SocialProviderAvailabilityProvider>

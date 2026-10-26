@@ -170,6 +170,59 @@ export async function executeComposioTool(input: {
   return record(providerResult?.data) ?? providerResult;
 }
 
+export interface ComposioProxyParameter {
+  name: string;
+  value: string;
+  type: "header" | "query";
+}
+
+export interface ComposioProxyResult {
+  /** The provider's HTTP status, not Composio's. */
+  status: number;
+  data: Record<string, unknown> | null;
+  /** Provider response headers with lower-case names. */
+  headers: Record<string, string>;
+}
+
+/**
+ * Calls a provider REST endpoint that has no Composio tool, authenticated as
+ * the connected account. Composio failures raise; the provider's own status
+ * is returned for the caller to judge.
+ */
+export async function executeComposioProxy(input: {
+  connectedAccountId: string;
+  endpoint: string;
+  method: "GET" | "POST";
+  parameters?: ComposioProxyParameter[];
+  body?: unknown;
+  context: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}): Promise<ComposioProxyResult> {
+  const response = await projectComposioFetch("/api/v3.1/tools/execute/proxy", {
+    method: "POST",
+    signal: input.signal,
+    timeoutMs: input.timeoutMs,
+    jsonBody: {
+      connected_account_id: input.connectedAccountId,
+      endpoint: input.endpoint,
+      method: input.method,
+      parameters: input.parameters ?? [],
+      ...(input.body === undefined ? {} : { body: input.body }),
+    },
+  });
+  const result = record(
+    await projectComposioResponse<unknown>(response, input.context),
+  );
+  if (!result || typeof result.status !== "number")
+    projectResponseError(response, input.context);
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(record(result.headers) ?? {})) {
+    if (typeof value === "string") headers[name.toLowerCase()] = value;
+  }
+  return { status: result.status, data: record(result.data), headers };
+}
+
 /**
  * Wrap create-post transport failures: the post may exist even without a
  * response, so the caller must settle an unknown outcome instead of retrying.
