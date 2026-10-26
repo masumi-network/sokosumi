@@ -6571,6 +6571,9 @@ export type SocialAccountPost = {
     provider: ProjectSocialProvider;
     externalId: string;
     text: string;
+    contentType?: SocialAccountPostContentType;
+    postKind?: SocialAccountPostKind;
+    media?: Array<SocialAccountPostMedia>;
     publishedAt: Date | null;
     url: string | null;
     metrics: SocialPostMetrics;
@@ -6578,6 +6581,33 @@ export type SocialAccountPost = {
     fetchedAt: Date;
     strong?: boolean;
     canRecycle?: boolean;
+};
+
+export const SocialAccountPostContentType = {
+    TEXT: 'text',
+    IMAGE: 'image',
+    VIDEO: 'video',
+    CAROUSEL: 'carousel',
+    LINK: 'link',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostContentType = typeof SocialAccountPostContentType[keyof typeof SocialAccountPostContentType];
+
+export const SocialAccountPostKind = {
+    POST: 'post',
+    REPLY: 'reply',
+    QUOTE: 'quote',
+    REPOST: 'repost',
+    UNKNOWN: 'unknown'
+} as const;
+
+export type SocialAccountPostKind = typeof SocialAccountPostKind[keyof typeof SocialAccountPostKind];
+
+export type SocialAccountPostMedia = {
+    kind: 'image' | 'gif' | 'video';
+    url: string;
+    thumbnailUrl: string | null;
 };
 
 export type SocialPostMetrics = {

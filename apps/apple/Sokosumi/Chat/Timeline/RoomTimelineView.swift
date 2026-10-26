@@ -422,7 +422,6 @@ import SwiftUI
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
           firstRows.viewport = (edges.topInset, edges.viewportHeight)
           firstRows.offset = edges.offsetY
-          // Every scroll step lands here: write the state only when it changed.
           var next = scroll
           next.edgesChanged(from: oldEdges, to: edges, userIsScrolling: userIsScrolling, anchored: anchored)
           if !edges.nearTop, !transcriptWasAwayFromTop {
