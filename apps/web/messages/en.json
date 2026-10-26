@@ -7956,7 +7956,7 @@
         "connectFailed": "The connection did not complete. Try again.",
         "lastError": "Needs attention: {error}",
         "title": "Connected accounts",
-        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
+        "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -8267,7 +8267,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
+          "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {
