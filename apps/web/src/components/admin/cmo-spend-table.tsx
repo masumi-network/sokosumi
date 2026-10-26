@@ -19,6 +19,57 @@ function sourceName(source: string, t: (key: string) => string): string {
   return source;
 }
 
+type Translate = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
+/**
+ * What the save-time review found in Cuso's plans: how many saves it checked,
+ * how many it sent back, and the latest problems, so a drift shows here
+ * rather than in the owner's strategy.
+ */
+function PlanChecks({
+  checks,
+  t,
+  when,
+}: {
+  checks: AdminCmoSpend["bots"][number]["planChecks"];
+  t: Translate;
+  when: (at: string) => string;
+}) {
+  if (checks.checked === 0)
+    return <span className="text-muted-foreground">{t("checksNone")}</span>;
+  return (
+    <div className="space-y-1">
+      <p>{t("checked", { checked: checks.checked })}</p>
+      {checks.withProblems > 0 ? (
+        <p>{t("sentBack", { count: checks.withProblems })}</p>
+      ) : null}
+      {checks.drifted > 0 ? (
+        <p className="text-destructive">
+          {t("drifted", { count: checks.drifted })}
+        </p>
+      ) : null}
+      {checks.unavailable > 0 ? (
+        <p className="text-muted-foreground">
+          {t("unavailable", { count: checks.unavailable })}
+        </p>
+      ) : null}
+      {checks.last ? (
+        <div className="text-muted-foreground">
+          <p>{t("lastProblems", { at: when(checks.last.at) })}</p>
+          <ul className="list-disc pl-4">
+            {checks.last.problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Spend per CMO bot (Cuso) for a period: what his work cost, what the owner
  * was charged, where the money went (each model, web search, Exa, overhead,
@@ -38,12 +89,14 @@ export async function CmoSpendTable({
     getFormatter(),
   ]);
   const usd = (value: number) =>
-    format.number(value, {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: value > 0 && value < 1 ? 3 : 2,
-      maximumFractionDigits: value > 0 && value < 1 ? 3 : 2,
-    });
+    value > 0 && value < 0.001
+      ? `<${format.number(0.001, { style: "currency", currency: "USD", maximumFractionDigits: 3 })}`
+      : format.number(value, {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: value > 0 && value < 1 ? 3 : 2,
+          maximumFractionDigits: value > 0 && value < 1 ? 3 : 2,
+        });
   const credits = (value: number) =>
     format.number(value, { maximumFractionDigits: 2 });
   const active = spend.bots.filter((bot) => bot.turns > 0);
@@ -90,6 +143,7 @@ export async function CmoSpendTable({
               <TableHead className="text-right">{t("spent")}</TableHead>
               <TableHead className="text-right">{t("charged")}</TableHead>
               <TableHead>{t("where")}</TableHead>
+              <TableHead>{t("planChecks")}</TableHead>
               <TableHead>{t("tools")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -149,6 +203,13 @@ export async function CmoSpendTable({
                       </li>
                     ) : null}
                   </ul>
+                </TableCell>
+                <TableCell className="max-w-xs text-xs whitespace-normal">
+                  <PlanChecks
+                    checks={bot.planChecks}
+                    t={t}
+                    when={(at) => format.relativeTime(new Date(at))}
+                  />
                 </TableCell>
                 <TableCell className="text-muted-foreground max-w-xs text-xs whitespace-normal">
                   {bot.tools

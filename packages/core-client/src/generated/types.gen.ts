@@ -477,6 +477,16 @@ export type AdminCmoSpend = {
             capability: string;
             calls: number;
         }>;
+        planChecks: {
+            checked: number;
+            withProblems: number;
+            drifted: number;
+            unavailable: number;
+            last: {
+                at: string;
+                problems: Array<string>;
+            } | null;
+        };
     }>;
 };
 

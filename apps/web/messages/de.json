@@ -5558,7 +5558,14 @@
         "exa": "Exa-Suche",
         "webSearch": "Websuche",
         "overhead": "Routing und Qualitätsprüfung (nicht belastet)",
-        "images": "Credits für Bilder"
+        "images": "Credits für Bilder",
+        "planChecks": "Plan-Prüfungen",
+        "checksNone": "Noch keine",
+        "checked": "{checked, plural, one {# Speicherung geprüft} other {# Speicherungen geprüft}}",
+        "sentBack": "{count} zur Korrektur zurück",
+        "drifted": "{count} weg vom Hauptangebot",
+        "unavailable": "{count} ohne Prüfmodell",
+        "lastProblems": "Zuletzt zurück {at}:"
       }
     },
     "Billing": {

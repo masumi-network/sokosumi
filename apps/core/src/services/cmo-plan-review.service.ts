@@ -2,6 +2,17 @@ import type { CmoBrandBrain, CmoStrategy } from "@sokosumi/soko-bot";
 
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
+/** What the evaluator said about the main offer; "skipped" when it was not asked. */
+export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
+
+/** One save's review, kept in the save_strategy result for the admin view. */
+export interface CmoPlanReview {
+  /** Which save_strategy call of the turn this was, from 1. */
+  save: number;
+  mainOffer: CmoPlanOfferVerdict;
+  problems: string[];
+}
+
 /** Saves in one planning turn the review answers; past them Cuso finishes as he is. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 
@@ -72,7 +83,11 @@ export async function cmoPlanDrift(input: {
   strategy: CmoStrategy;
   brain: CmoBrandBrain;
   goals: string;
-}): Promise<{ problem: string | null; costUsd: number }> {
+}): Promise<{
+  problem: string | null;
+  verdict: CmoPlanOfferVerdict;
+  costUsd: number;
+}> {
   const { strategy, brain } = input;
   try {
     const { answers, costUsd } = await evaluateWithJev({
@@ -97,14 +112,17 @@ export async function cmoPlanDrift(input: {
       timeoutMs: 15_000,
     });
     const answer = answers.get("sellsMainOffer");
-    const drifts = answer?.type === "boolean" && answer.probability < 0.5;
+    if (answer?.type !== "boolean")
+      return { problem: null, verdict: "unavailable", costUsd };
+    const drifts = answer.probability < 0.5;
     return {
+      verdict: drifts ? "drift" : "ok",
       problem: drifts
         ? `the plan drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it, or the product the owner named.`
         : null,
       costUsd,
     };
   } catch {
-    return { problem: null, costUsd: 0 };
+    return { problem: null, verdict: "unavailable", costUsd: 0 };
   }
 }

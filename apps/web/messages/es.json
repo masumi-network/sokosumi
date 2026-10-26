@@ -5558,7 +5558,14 @@
         "exa": "Búsqueda Exa",
         "webSearch": "Búsqueda web",
         "overhead": "Enrutamiento y control de calidad (no cobrado)",
-        "images": "créditos en imágenes"
+        "images": "créditos en imágenes",
+        "planChecks": "Revisiones del plan",
+        "checksNone": "Aún ninguna",
+        "checked": "{checked, plural, one {# guardado revisado} other {# guardados revisados}}",
+        "sentBack": "{count} devueltos para corregir",
+        "drifted": "{count} fuera de la oferta principal",
+        "unavailable": "{count} sin el evaluador",
+        "lastProblems": "Última devolución {at}:"
       }
     },
     "Billing": {

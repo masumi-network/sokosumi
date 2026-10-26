@@ -1968,6 +1968,55 @@ export const AdminCmoSpendSchema = {
                                 'calls'
                             ]
                         }
+                    },
+                    planChecks: {
+                        type: 'object',
+                        properties: {
+                            checked: {
+                                type: 'integer'
+                            },
+                            withProblems: {
+                                type: 'integer'
+                            },
+                            drifted: {
+                                type: 'integer'
+                            },
+                            unavailable: {
+                                type: 'integer'
+                            },
+                            last: {
+                                anyOf: [
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            at: {
+                                                type: 'string'
+                                            },
+                                            problems: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string'
+                                                }
+                                            }
+                                        },
+                                        required: [
+                                            'at',
+                                            'problems'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'checked',
+                            'withProblems',
+                            'drifted',
+                            'unavailable',
+                            'last'
+                        ]
                     }
                 },
                 required: [
@@ -1980,7 +2029,8 @@ export const AdminCmoSpendSchema = {
                     'imagesCredits',
                     'chargedCredits',
                     'bySource',
-                    'tools'
+                    'tools',
+                    'planChecks'
                 ]
             }
         }

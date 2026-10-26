@@ -638,6 +638,16 @@ export const adminCmoSpendSchema = z
         tools: z.array(
           z.object({ capability: z.string(), calls: z.number().int() }),
         ),
+        planChecks: z.object({
+          checked: z.number().int(),
+          withProblems: z.number().int(),
+          drifted: z.number().int(),
+          unavailable: z.number().int(),
+          last: z.union([
+            z.object({ at: z.string(), problems: z.array(z.string()) }),
+            z.null(),
+          ]),
+        }),
       }),
     ),
   })

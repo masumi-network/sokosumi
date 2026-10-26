@@ -113,6 +113,7 @@ describe("cmoPlanDrift", () => {
     });
     expect(drift.problem).toMatch(/drifts from the main offer/);
     expect(drift.costUsd).toBe(0.0004);
+    expect(drift.verdict).toBe("drift");
   });
 
   it("lets a plan on the main offer through", async () => {
@@ -136,6 +137,7 @@ describe("cmoPlanDrift", () => {
       await cmoPlanDrift({ strategy: plan(), brain, goals: "More leads" }),
     ).toEqual({
       problem: null,
+      verdict: "unavailable",
       costUsd: 0,
     });
   });

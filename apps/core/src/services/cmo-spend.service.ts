@@ -27,6 +27,54 @@ export interface CmoSpend {
   bySource: CmoSpendLine[];
   /** Tool calls per tool, most used first. */
   tools: { capability: string; calls: number }[];
+  planChecks: CmoPlanChecks;
+}
+
+/** What the save-time review of Cuso's plans found, from save_strategy results. */
+export interface CmoPlanChecks {
+  /** Saves the review ran on. */
+  checked: number;
+  /** Saves that came back with problems for Cuso to fix. */
+  withProblems: number;
+  /** Saves where the evaluator said the plan drifted from the main offer. */
+  drifted: number;
+  /** Saves where the evaluator could not answer. */
+  unavailable: number;
+  /** The newest save that had problems, and what they were. */
+  last: { at: string; problems: string[] } | null;
+}
+
+interface SavedReview {
+  mainOffer?: string;
+  problems?: unknown;
+}
+
+export function planChecks(
+  saves: { createdAt: Date; result: unknown }[],
+): CmoPlanChecks {
+  const checks: CmoPlanChecks = {
+    checked: 0,
+    withProblems: 0,
+    drifted: 0,
+    unavailable: 0,
+    last: null,
+  };
+  for (const save of saves) {
+    const review = (save.result as { review?: SavedReview } | null)?.review;
+    if (!review) continue;
+    const problems = Array.isArray(review.problems)
+      ? review.problems.filter(
+          (item): item is string => typeof item === "string",
+        )
+      : [];
+    checks.checked += 1;
+    if (review.mainOffer === "drift") checks.drifted += 1;
+    if (review.mainOffer === "unavailable") checks.unavailable += 1;
+    if (problems.length === 0) continue;
+    checks.withProblems += 1;
+    checks.last ??= { at: save.createdAt.toISOString(), problems };
+  }
+  return checks;
 }
 
 const MICROS = 1_000_000;
@@ -55,31 +103,32 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
   const bots = hires.map((hire) => hire.sokoBotId);
   const projects = hires.map((hire) => hire.projectId);
 
-  const [owners, turns, sources, tools, images, charged] = await Promise.all([
-    prisma.user.findMany({
-      where: { id: { in: hires.map((hire) => hire.userId) } },
-      select: { id: true, email: true },
-    }),
-    prisma.$queryRaw<
-      { sokoBotId: string; turns: bigint; overhead: bigint | null }[]
-    >`
+  const [owners, turns, sources, tools, images, charged, saves] =
+    await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: hires.map((hire) => hire.userId) } },
+        select: { id: true, email: true },
+      }),
+      prisma.$queryRaw<
+        { sokoBotId: string; turns: bigint; overhead: bigint | null }[]
+      >`
       SELECT "sokoBotId", COUNT(*) AS turns,
         SUM("overheadCostUsdMicros") AS overhead
       FROM soko_bot_turn
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
       GROUP BY "sokoBotId"`,
-    // Each turn keeps its spend split by source. Older turns only know their
-    // total and their model, so they count under that model.
-    prisma.$queryRaw<
-      {
-        sokoBotId: string;
-        source: string | null;
-        cost: number | null;
-        calls: number | null;
-        input: number | null;
-        output: number | null;
-      }[]
-    >`
+      // Each turn keeps its spend split by source. Older turns only know their
+      // total and their model, so they count under that model.
+      prisma.$queryRaw<
+        {
+          sokoBotId: string;
+          source: string | null;
+          cost: number | null;
+          calls: number | null;
+          input: number | null;
+          output: number | null;
+        }[]
+      >`
       SELECT t."sokoBotId", s.key AS source,
         SUM((s.value->>'costUsd')::float8) AS cost,
         SUM((s.value->>'calls')::float8) AS calls,
@@ -103,27 +152,41 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         AND jsonb_typeof(t.usage->'bySource') IS DISTINCT FROM 'object'
         AND COALESCE(t."costUsdMicros", 0) > 0
       GROUP BY t."sokoBotId", COALESCE(t."modelId", 'unknown')`,
-    prisma.$queryRaw<
-      { sokoBotId: string; capability: string; calls: bigint }[]
-    >`
+      prisma.$queryRaw<
+        { sokoBotId: string; capability: string; calls: bigint }[]
+      >`
       SELECT t."sokoBotId", c.capability, COUNT(*) AS calls
       FROM soko_bot_tool_call c
       JOIN soko_bot_turn t ON t.id = c."turnId"
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND c."createdAt" >= ${since}
       GROUP BY t."sokoBotId", c.capability`,
-    // A quote only counts once it was charged, in the period it was charged.
-    prisma.$queryRaw<{ projectId: string; cents: bigint | null }[]>`
+      // A quote only counts once it was charged, in the period it was charged.
+      prisma.$queryRaw<{ projectId: string; cents: bigint | null }[]>`
       SELECT j."projectId", SUM(COALESCE(j."chargedCents", 0)) AS cents
       FROM project_image_job j
       JOIN "Transaction" t ON t.id = j."transactionId"
       WHERE j."projectId" = ANY(${projects}::uuid[]) AND t."createdAt" >= ${since}
       GROUP BY j."projectId"`,
-    prisma.$queryRaw<{ sokoBotId: string; cents: bigint | null }[]>`
+      prisma.$queryRaw<{ sokoBotId: string; cents: bigint | null }[]>`
       SELECT "sokoBotId", SUM(cents) AS cents
       FROM soko_bot_usage
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
       GROUP BY "sokoBotId"`,
-  ]);
+      // Newest first, so the first save with problems is the latest.
+      prisma.sokoBotToolCall.findMany({
+        where: {
+          capability: "save_strategy",
+          createdAt: { gte: since },
+          turn: { sokoBotId: { in: bots } },
+        },
+        select: {
+          createdAt: true,
+          result: true,
+          turn: { select: { sokoBotId: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
   return hires
     .map((hire) => {
@@ -176,6 +239,9 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
             calls: number(row.calls),
           }))
           .sort((a, b) => b.calls - a.calls),
+        planChecks: planChecks(
+          saves.filter((save) => save.turn.sokoBotId === hire.sokoBotId),
+        ),
       };
     })
     .sort((a, b) => b.totalUsd - a.totalUsd);

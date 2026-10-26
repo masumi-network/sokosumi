@@ -5594,7 +5594,14 @@
         "exa": "Exa search",
         "webSearch": "Web search",
         "overhead": "Routing and quality checks (not billed)",
-        "images": "credits on images"
+        "images": "credits on images",
+        "planChecks": "Plan checks",
+        "checksNone": "None yet",
+        "checked": "{checked, plural, one {# save checked} other {# saves checked}}",
+        "sentBack": "{count} sent back to fix",
+        "drifted": "{count} off the main offer",
+        "unavailable": "{count} without the evaluator",
+        "lastProblems": "Last sent back {at}:"
       }
     },
     "Billing": {

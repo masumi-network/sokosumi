@@ -133,6 +133,7 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { tryUseLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   FILE_CHUNK_OVERLAP_CHARS,
@@ -261,6 +262,8 @@ import {
 } from "@/services/cmo.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
+  type CmoPlanOfferVerdict,
+  type CmoPlanReview,
   cmoPlanDrift,
   cmoPlanProblems,
 } from "@/services/cmo-plan-review.service";
@@ -4214,17 +4217,19 @@ export class SokoBotRuntimeService {
       strategy: CmoStrategy | null;
       planSent: boolean;
     },
-  ): Promise<string[]> {
+  ): Promise<CmoPlanReview | null> {
     const { hire, strategy } = plan;
-    if (!strategy || hire.strategyApprovedAt) return [];
+    if (!strategy || hire.strategyApprovedAt) return null;
     const saves = await prisma.sokoBotToolCall.count({
       where: { turnId: authorized.turn.id, capability: "save_strategy" },
     });
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return [];
+    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
     const brain = parseCmoBrandBrain(hire.brandBrain);
+    let mainOffer: CmoPlanOfferVerdict = "skipped";
     if (plan.planSent && brain) {
       const drift = await cmoPlanDrift({ strategy, brain, goals: hire.goals });
+      mainOffer = drift.verdict;
       if (drift.problem) problems.push(drift.problem);
       if (drift.costUsd > 0) {
         await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
@@ -4235,7 +4240,17 @@ export class SokoBotRuntimeService {
         );
       }
     }
-    return problems;
+    const review = { save: saves, mainOffer, problems };
+    tryUseLogger()?.set({
+      cmoPlanReview: {
+        sokoBotId: authorized.turn.sokoBotId,
+        turnId: authorized.turn.id,
+        save: saves,
+        mainOffer,
+        problems: problems.length,
+      },
+    });
+    return review;
   }
 
   private async saveCmoRecord(
@@ -4275,7 +4290,7 @@ export class SokoBotRuntimeService {
           });
           const stored = parseCmoStrategy(saved.strategy);
           const calendar = stored?.calendar ?? [];
-          const problems = await this.reviewCmoPlan(authorized, input, {
+          const review = await this.reviewCmoPlan(authorized, input, {
             hire: saved,
             strategy: stored,
             planSent: sent.summary !== undefined,
@@ -4295,9 +4310,10 @@ export class SokoBotRuntimeService {
               drafted: calendar.filter((entry) => entry.draft).length,
               undrafted: undrafted.length,
               firstUndrafted: undrafted[0],
-              ...(problems.length > 0
+              ...(review ? { review } : {}),
+              ...(review && review.problems.length > 0
                 ? {
-                    problems,
+                    problems: review.problems,
                     next: "Fix these and save again: part plan for the strategy, part calendar for the calendar.",
                   }
                 : {}),
